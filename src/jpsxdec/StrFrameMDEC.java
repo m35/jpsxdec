@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,9 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -27,6 +29,8 @@ package jpsxdec;
 
 import java.awt.image.BufferedImage;
 import java.io.*;
+import jpsxdec.InverseDiscreteCosineTransform.IIDCT;
+import jpsxdec.InverseDiscreteCosineTransform.StephensIDCT;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.LittleEndianIO;
 import jpsxdec.util.Matrix8x8;
@@ -39,6 +43,9 @@ public final class StrFrameMDEC {
     
     /** How much debugging do you want to see? */
     public static int DebugVerbose = 2;
+    /** This is the inverse discrete cosine transform that will be used
+     *  during decoding. */
+    public static IIDCT IDCT = new StephensIDCT();
     
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     
@@ -46,7 +53,7 @@ public final class StrFrameMDEC {
      *  the post-DCT matrix. This matrix originates from MPEG-1 spec. 
      *  I assmue these values were determined through lots of testing for 
      *  an optimal matrix. */
-    static final Matrix8x8 MPEG1_DEFAULT_INTRA_QUANTIZATION_MATRIX = 
+    public static final Matrix8x8 MPEG1_DEFAULT_INTRA_QUANTIZATION_MATRIX = 
             new Matrix8x8(new double[] {
                  8, 16, 19, 22, 26, 27, 29, 34, 
                 16, 16, 22, 24, 27, 29, 34, 37, 
@@ -369,202 +376,8 @@ public final class StrFrameMDEC {
     }
     
     private static Matrix8x8 InverseDiscreteCosineTransform(Matrix8x8 oMatrix) {
-        //return IDCT.InverseDiscreteCosineTransform_Simple(oMatrix);
-        /* Using the optimized version is about 13 times faster!!!!
-         * The results are almost indistinguishable. I don't think there
-         * is any intentional loss of precision with the optimized version.
-         * It's just how the floating point numbers happen to round */
-        return IDCT.InverseDiscreteCosineTransform_Optimized(oMatrix);
+        return IDCT.IDCT(oMatrix);
     }
     
-    /**
-     * <h3><b>A Java implementation of the Inverse Discreet Cosine Transform</b></h3><br><br>
-     * <hr>
-     * The discreet cosine transform converts spatial information to "frequency" or
-     * spectral information, with the X and Y axes representing frequencies of the
-     * signal in different dimensions. This allows for "lossy" compression of image
-     * data by determining which information can be thrown away without compromising
-     * the image.<br><br>
-     * The DCT is used in many compression and transmission codecs, such as JPEG, MPEG
-     * and others. The pixels when transformed are arraged from the most signifigant pixel
-     * to the least signifigant pixel. The DCT functions themselves are lossless.
-     * Pixel loss occurs when the least signifigant pixels are quantitized to 0.
-     * <br><br>
-     * The best way to get ahold of me is through my
-     * <a href="http://eagle.uccb.ns.ca/steve/home.html">homepage</a>. There's
-     * lots of goodies there too.
-     * @version 1.0.1 August 22nd 1996
-     * @author <a href="http://eagle.uccb.ns.ca/steve/home.html">Stephen Manley</a> - smanley@eagle.uccb.ns.ca
-         */
-    private static class IDCT {
-        
-        /** This is the infamous Inverse Discrete Cosine Transform.
-         * If I understand correctly, it's inverse 2D DCT-II, specifically.
-         * It's as simple as I could make it, and as such, it's about as
-         * slow as can be. 
-         * @author Me
-         */
-        private static Matrix8x8 InverseDiscreteCosineTransform_Simple(Matrix8x8 oDCTMat) {
 
-            int iWidth = oDCTMat.getWidth();
-            int iHeight = oDCTMat.getHeight();
-
-            Matrix8x8 oPixelMat = new Matrix8x8(/*iWidth, iHeight*/);
-
-            int Pixelx, Pixely, DCTx, DCTy;
-
-            for (Pixelx = 0; Pixelx < iWidth; Pixelx++) {
-                for (Pixely = 0; Pixely < iHeight; Pixely++) {
-
-                    double dblTotal = 0;
-
-                    for (DCTx = 0; DCTx < iWidth; DCTx++) {
-                        for (DCTy = 0; DCTy < iHeight; DCTy++) {
-
-                            double dblSubTotal = oDCTMat.getPoint(DCTx, DCTy);
-
-                            if (DCTx == 0)
-                                dblSubTotal *= Math.sqrt(1.0f / iWidth);
-                            else
-                                dblSubTotal *= Math.sqrt(2.0f / iWidth);
-
-                            if (DCTy == 0)
-                                dblSubTotal *= Math.sqrt(1.0f / iHeight);
-                            else
-                                dblSubTotal *= Math.sqrt(2.0f / iHeight);
-
-                            dblSubTotal 
-                                *= Math.cos( DCTx * Math.PI * (2 * Pixelx + 1) 
-                                                / (2.0f * iWidth)            )
-                                *  Math.cos( DCTy * Math.PI * (2 * Pixely + 1) 
-                                                / (2.0f * iHeight)           );
-
-                            dblTotal += dblSubTotal;
-                        }
-                    }
-
-                    oPixelMat.setPoint(Pixelx, Pixely, dblTotal / 4);
-                }
-            }
-
-            return oPixelMat;
-        }
-
-
-
-        /**
-         * This method is preformed using the reverse of the operations preformed in
-         * the DCT. This restores a N * N input block to the corresponding output
-         * block and then stored in the input block of pixels.
-         *
-         * @param input N * N Matrix
-         * @return output The pixel array output
-         */
-        private static Matrix8x8 InverseDiscreteCosineTransform_Optimized(Matrix8x8 input)
-        {
-            assert(input.getWidth() == N && input.getHeight() == N);
-            Matrix8x8 output = new Matrix8x8(/*N, N*/);
-            Matrix8x8 temp = new Matrix8x8(/*N, N*/);
-            double temp1;
-            int i;
-            int j;
-            int k;
-
-            for (i=0; i<N; i++)
-            {
-                for (j=0; j<N; j++)
-                {
-                    temp.setPoint(i, j, 0.0);
-
-                    for (k=0; k<N; k++)
-                    {
-                        temp.setAddPoint(i, j, input.getPoint(i, k) * c[k][j]);
-                    }
-                }
-            }
-
-            for (i=0; i<N; i++)
-            {
-                for (j=0; j<N; j++)
-                {
-                    temp1 = 0.0;
-
-                    for (k=0; k<N; k++)
-                    {
-                        temp1 += cT[i][k] * temp.getPoint(k, j);
-                    }
-
-                     output.setPoint(i, j, temp1 / 4); 
-                }
-            }
-
-            return output;
-        }
-
-        /** DCT Block Size */
-        private final static int N  = 8;
-
-        /** Cosine matrix. N * N. */
-        private final static double c[][]        = init_c_Matrix();
-
-        /** Transformed cosine matrix, N*N. */
-        private final static double cT[][]       = transpose_c_Matrix(c);
-
-        /**
-         * This method initializes the Cosine Transform Matrix.
-         * This is used by the inverse DCT. 
-         */
-        private static double[][] init_c_Matrix()
-        {
-            int i;
-            int j;
-            double _c[][] = new double[N][N];
-
-            for (j = 0; j < N; j++)
-            {
-                double nn = (double)(N);
-                _c[0][j]  = 1.0 / Math.sqrt(nn);
-            }
-
-            for (i = 1; i < N; i++)
-            {
-                for (j = 0; j < N; j++)
-                {
-                    double nn = (double)(N);
-                    double jj = (double)j;
-                    double ii = (double)i;
-                    _c[i][j]  = Math.sqrt(2.0/nn) * Math.cos(((2.0 * jj + 1.0) * ii * Math.PI) 
-                                                    / (2.0 * nn));
-                }
-            }
-
-            return _c;
-        }
-
-        /**
-         * This method initializes the Transposed CT.
-         * This is used by the inverse DCT. 
-         */
-        private static double[][] transpose_c_Matrix(double _c[][])
-        {
-            int i;
-            int j;
-            double _cT[][] = new double[N][N];
-
-            for (j = 0; j < N; j++)
-            {
-                _cT[j][0] = _c[0][j];
-            }
-
-            for (i = 1; i < N; i++)
-            {
-                for (j = 0; j < N; j++)
-                {
-                    _cT[j][i] = _c[i][j];
-                }
-            }
-
-            return _cT;
-        }
-    }
 }

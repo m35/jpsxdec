@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,9 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -28,7 +30,9 @@ package jpsxdec;
 import java.io.InputStream;
 import java.io.IOException;
 import java.util.AbstractList;
+import java.util.Iterator;
 import jpsxdec.util.IGetFilePointer;
+import jpsxdec.PSXSector.*;
 
 /** Demuxes a series of frame chunk sectors into a solid stream */
 public class StrFrameDemuxerIS extends InputStream 
@@ -42,57 +46,75 @@ public class StrFrameDemuxerIS extends InputStream
     /* ---------------------------------------------------------------------- */
 
     /** Stores the matching Video Frame Chunks */
-    private IVideoChunkSector m_aoFrameChunks[];
+    //private IVideoChunkSector m_aoFrameChunks[];
+    /** The iterator to walk through searching for the the sectors we need */
+    Iterator<PSXSector> m_oPsxSectorIterator;
+    IVideoChunkSector m_oCurrentChunk;
 
     // All submitted Video Frame Chunks should match these values
-    private long m_iFrame = -1;
+    private long m_lngFrame = -1;
     private long m_lngWidth = -1;
     private long m_lngHeight = -1;
     
+    private long m_lngLastFilePointer = -1;
+    
     /** Keep track of the current chunk being read */
-    private int m_iChunkIndex = -1;
+    //private int m_iChunkIndex = -1;
     
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    public StrFrameDemuxerIS(AbstractList<PSXSector> oSectorList) {
-        for (PSXSector oSector : oSectorList) {
-            AddSector(oSector);
-        }
+    public StrFrameDemuxerIS(Iterator<PSXSector> oPsxIter) {
+        this(oPsxIter, -1);
     }
-
-    /** Check that the submitted sector matches our requirements. 
-     * Keep if it does. */
-    public boolean AddSector(PSXSector oSector) {
+    
+    public StrFrameDemuxerIS(Iterator<PSXSector> oPsxIter, long lngFrame) {
+        m_lngFrame = lngFrame;
+        m_oPsxSectorIterator = oPsxIter;
+        m_oCurrentChunk = FindNextMatchingChunk();
+    }
+    
+    /** Find the next sector that matches our requirements. */
+    public IVideoChunkSector FindNextMatchingChunk() {
         
-        // Skip any non video chunk sectors
-        if (!(oSector instanceof IVideoChunkSector)) return false;
+        while (m_oPsxSectorIterator.hasNext()) {
+        
+            PSXSector oSector = m_oPsxSectorIterator.next();
             
-        IVideoChunkSector oFrameChunk = (IVideoChunkSector)oSector;
+            // Skip any non video chunk sectors
+            if (!(oSector instanceof IVideoChunkSector)) continue;
 
-        // base our matching on the first sector received
-        if (m_aoFrameChunks == null)
-        {
-            m_iFrame = oFrameChunk.getFrameNumber();
-            m_lngWidth = oFrameChunk.getWidth();
-            m_lngHeight = oFrameChunk.getHeight();
-            m_aoFrameChunks = 
-                    new IVideoChunkSector[(int)oFrameChunk.getChunksInFrame()];
-        } else {
-            if (m_iFrame    != oFrameChunk.getFrameNumber() ||
-                m_lngWidth  != oFrameChunk.getWidth() ||
-                m_lngHeight != oFrameChunk.getHeight() ) 
-                return false;
+            IVideoChunkSector oFrameChunk = (IVideoChunkSector)oSector;
+
+            // base our matching on the first sector received
+            if (m_lngFrame < 0)
+            {
+                m_lngFrame = oFrameChunk.getFrameNumber();
+                m_lngWidth = oFrameChunk.getWidth();
+                m_lngHeight = oFrameChunk.getHeight();
+                return oFrameChunk;
+            } else if (m_lngWidth < 0) {
+                
+                if (m_lngFrame == oFrameChunk.getFrameNumber()) 
+                {
+                    m_lngWidth = oFrameChunk.getWidth();
+                    m_lngHeight = oFrameChunk.getHeight();
+                    
+                    return oFrameChunk;
+                }
+            } else {
+                if (m_lngFrame  == oFrameChunk.getFrameNumber() &&
+                    m_lngWidth  == oFrameChunk.getWidth()       &&
+                    m_lngHeight == oFrameChunk.getHeight() ) 
+                {
+                    return oFrameChunk;
+                }
+            }
+
         }
-
-        int iChunkNum = (int)oFrameChunk.getChunkNumber();
-        if (m_aoFrameChunks[iChunkNum] != null) {
-            // WARNING! We already have this chunk!! What's going on?!
-        }
-        m_aoFrameChunks[iChunkNum] = oFrameChunk;
-
-        return true;
+        
+        return null;
     }
     
     /* ---------------------------------------------------------------------- */
@@ -100,10 +122,12 @@ public class StrFrameDemuxerIS extends InputStream
     /* ---------------------------------------------------------------------- */
     
     /** Get the current position in the current sector being read.
-     *  implements IGetFilePointer. */
+     *  [implements IGetFilePointer] */
     public long getFilePointer() {
-        if (m_iChunkIndex < 0) return -1;
-        return m_aoFrameChunks[m_iChunkIndex].getFilePointer();
+        if (m_oCurrentChunk == null)
+            return m_lngLastFilePointer;
+        else
+            return m_oCurrentChunk.getFilePointer();
     }
 
     public long getWidth() {
@@ -114,10 +138,10 @@ public class StrFrameDemuxerIS extends InputStream
         return m_lngHeight;
     }
     
-    /** has chunks.... But seriously, we need to check if any frame
-      * chunks were actually accepted */
+    /** has chunks.... But seriously, we need to share
+     *  if there is any data left. */
     public boolean hasChunks() {
-        return m_aoFrameChunks != null;
+        return m_oCurrentChunk != null;
     }
     
     /* ---------------------------------------------------------------------- */
@@ -126,34 +150,25 @@ public class StrFrameDemuxerIS extends InputStream
 
     /** extends InputStream */
     public int read() throws IOException {
-        // if we never got any video frames
-        if (m_aoFrameChunks == null) return -1;
         
-        // If we have not yet begun to read
-        if (m_iChunkIndex < 0) {
-            m_iChunkIndex = 0;
-            // skip missing chunks (there has to be at least one chunk in here)
-            /* Technically, for standard STR, if we're missing the first chunk, 
-             * then the decoding will eventually fail. */
-            while (m_aoFrameChunks[m_iChunkIndex] == null)
-                m_iChunkIndex++;
+        if (m_oCurrentChunk == null) {
+            // we're at the end of the chunks
+            // or we never got any to begin with
+            return -1;
         }
         
-        int iByte = m_aoFrameChunks[m_iChunkIndex].read();
-        while (iByte < 0) { // at the end of the sector?
+        int iByte = m_oCurrentChunk.read();
+        while (iByte < 0) { // at the end of the chunk?
+
+            m_lngLastFilePointer = m_oCurrentChunk.getFilePointer();
             
-            // first make sure we are not at the end of the frame
-            // or missing the next sector
-            if (m_iChunkIndex+1 < m_aoFrameChunks.length && 
-                    m_aoFrameChunks[m_iChunkIndex+1] != null) {
-                
-                m_iChunkIndex++; // move to next sector
-                
-                // skip the header
-                iByte = m_aoFrameChunks[m_iChunkIndex].read(); // try again
-            } else {
-                // end of sectors or missing sector
+            // try to find the next chunk
+            m_oCurrentChunk = FindNextMatchingChunk();
+            if (m_oCurrentChunk == null) {
+                // end of matching chunks
                 return -1; // end of stream
+            } else {
+                iByte = m_oCurrentChunk.read(); // try again
             }
             
         }

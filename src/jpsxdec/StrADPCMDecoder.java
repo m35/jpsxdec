@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,9 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -30,18 +32,22 @@ import javax.sound.sampled.*;
 
 public final class StrADPCMDecoder {
     
-    /** Like ByteArrayOutputStream */
-    private static class LeftRightWriter {
+    /** Holds the decoded data, plus maintains the Previous 2 PCM samples,
+     *  necessary for ADPCM decoding. Only one context needed if decoding
+     *  mono audio. If stereo, need one context for the left, and one for
+     *  the right channel.
+     *  Writing works like ByteArrayOutputStream, but with shorts. */
+    private static class ADPCMDecodingContext {
         int m_iPos;
         short[] m_asiArray;
         
         public double PreviousPCMSample1 = 0;
         public double PreviousPCMSample2 = 0;
     
-        public void setArray(int iSampleCount) {
-            assert(iSampleCount > 0 && iSampleCount < 0xFFFF);
+        public void setArray(long lngSampleCount) {
+            assert(lngSampleCount > 0 && lngSampleCount < 0xFFFF);
             m_iPos = 0;
-            m_asiArray = new short[iSampleCount];
+            m_asiArray = new short[(int)lngSampleCount];
         }
         
         public short[] getArray() {
@@ -63,16 +69,19 @@ public final class StrADPCMDecoder {
     private int m_iBitsPerSample;
     private int m_iMonoStereo;
     private float m_fltScale;
-    private LeftRightWriter[] m_oLeftRightContexts;
+    private ADPCMDecodingContext[] m_oLeftRightContexts;
     
+    
+    /** @param iMonoStereo - 1 for mono, 2 for stereo */
     public StrADPCMDecoder(int iBitsPerSample, int iMonoStereo, float fltScale ) 
     {
         this.m_iBitsPerSample = iBitsPerSample;
         this.m_iMonoStereo = iMonoStereo;
         this.m_fltScale = fltScale; 
-        m_oLeftRightContexts = new LeftRightWriter[iMonoStereo];
+        // Create a context for mono, or for left channel & right channel
+        m_oLeftRightContexts = new ADPCMDecodingContext[iMonoStereo];
         for (int i = 0; i < m_iMonoStereo; i++) {
-            m_oLeftRightContexts[i] = new LeftRightWriter();
+            m_oLeftRightContexts[i] = new ADPCMDecodingContext();
         }
     }
     
@@ -100,7 +109,7 @@ public final class StrADPCMDecoder {
      * Returns an array of short[channels][samples].
      */
     public short[][] DecodeMore(DataInputStream oStream, 
-                                int iSampleCount) // number of samples expected
+                                long lngSampleCount) // number of samples expected
     {
         int aiSoundUnits[][];
         int aiSoundParams[];
@@ -113,7 +122,7 @@ public final class StrADPCMDecoder {
         }
                 
         for (int i = 0; i < m_oLeftRightContexts.length; i++) {
-            m_oLeftRightContexts[i].setArray(iSampleCount);
+            m_oLeftRightContexts[i].setArray(lngSampleCount);
         }
         
         int iByte = 0; // hold a byte read from the stream
@@ -218,13 +227,13 @@ public final class StrADPCMDecoder {
     }
     
     
-    private static void DecodeSoundUnit(int[] aiSoundUnitData, 
+    private static void DecodeSoundUnit(int[] aiADPCMSoundUnit, 
                                         int iSoundParam, 
-                                        LeftRightWriter oLRWriter,
+                                        ADPCMDecodingContext oContext,
                                         int iBitsPerSample, 
                                         float fltScale) 
     {
-        assert(aiSoundUnitData.length == 28);
+        assert(aiADPCMSoundUnit.length == 28);
         
         int    iADPCM_sample; // unsigned byte
         double dblPCM_sample;
@@ -232,28 +241,28 @@ public final class StrADPCMDecoder {
         // there are 28 ADPCM samples in each sound unit
         for (int iSoundSample = 0; iSoundSample < 28; iSoundSample++) {
 
-            iADPCM_sample = aiSoundUnitData[iSoundSample];
+            iADPCM_sample = aiADPCMSoundUnit[iSoundSample];
 
             dblPCM_sample = ADPCMtoPCM(iBitsPerSample,                                            
                                        iSoundParam, 
                                        iADPCM_sample, 
-                                       oLRWriter.PreviousPCMSample1, 
-                                       oLRWriter.PreviousPCMSample2);
+                                       oContext.PreviousPCMSample1, 
+                                       oContext.PreviousPCMSample2);
 
-            oLRWriter.PreviousPCMSample2 = oLRWriter.PreviousPCMSample1;
-            oLRWriter.PreviousPCMSample1 = dblPCM_sample;
+            oContext.PreviousPCMSample2 = oContext.PreviousPCMSample1;
+            oContext.PreviousPCMSample1 = dblPCM_sample;
 
             // Scale it before 'clamping'
             // Tests revreal rounding provides the best quality
-            lngPCM_sample = Math.round(dblPCM_sample * fltScale);
+            lngPCM_sample = jpsxdec.util.Math.round(dblPCM_sample * fltScale);
 
             // "clamp"
             if(lngPCM_sample > 32767)
-                oLRWriter.write((short)32767);
+                oContext.write((short)32767);
             else if(lngPCM_sample < -32768)
-                oLRWriter.write((short)-32768);
+                oContext.write((short)-32768);
             else
-                oLRWriter.write((short)lngPCM_sample);
+                oContext.write((short)lngPCM_sample);
 
         }
         

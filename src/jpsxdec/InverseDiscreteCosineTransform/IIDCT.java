@@ -19,11 +19,15 @@
  *
  */
 
+/*
+ * InverseDiscreteCosineTransform.java
+ *
+ */
 
-package jpsxdec.util;
+package jpsxdec.InverseDiscreteCosineTransform;
 
-/** Interface to provide getFilePointer() function to classes beyond
- *  just RandomAccessFile. */
-public interface IGetFilePointer {
-    public long getFilePointer();
+import jpsxdec.util.Matrix8x8;
+
+public interface IIDCT {
+    Matrix8x8 IDCT(Matrix8x8 oMat);
 }

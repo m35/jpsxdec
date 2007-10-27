@@ -1,19 +1,21 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -22,42 +24,43 @@ package jpsxdec;
 
 import java.util.*;
 import java.io.*;
-import jpsxdec.CDSectorReader.CDSectorIterator;
 import jpsxdec.CDSectorReader.CDXASector;
-import jpsxdec.PSXSector.NotThisTypeException;
+import jpsxdec.util.NotThisTypeException;
+import jpsxdec.PSXSector.*;
+
 
 
 /** Abstract CD media type. Subclasses currently are only STR and XA */
-abstract class PSXMediaAbstract {
+public abstract class PSXMedia {
     
     public static int DebugVerbose = 2;
     
     /** Finds all the media on the CD */
-    public static ArrayList<PSXMediaAbstract> IndexCD(CDSectorReader oCD) 
-            throws IOException 
-    {
+    public static ArrayList<PSXMedia> IndexCD(CDSectorReader oCD)
+    throws IOException {
         
-        CDSectorIterator oSectIterator = (CDSectorIterator)oCD.listIterator();
+        PSXSectorRangeIterator oSectIterator = new PSXSectorRangeIterator(oCD);
         
-        ArrayList<PSXMediaAbstract> oMediaList = new ArrayList<PSXMediaAbstract>();
+        ArrayList<PSXMedia> oMediaList = new ArrayList<PSXMedia>();
         
         if (!oSectIterator.hasNext()) return oMediaList;
         
         oSectIterator.next();
-        PSXMediaAbstract oPsxMedia = null;
-        while (oSectIterator.hasNext()) {
+        PSXMedia oPsxMedia = null;
+        while (true) {
             
             try {
-                oPsxMedia = new CDMediaSTR(oSectIterator);
+                oPsxMedia = new PSXMediaSTR(oSectIterator);
                 oMediaList.add(oPsxMedia);
                 if (!oSectIterator.hasNext()) break;
             } catch (NotThisTypeException e1) {
                 try {
-                    oPsxMedia = new CDMediaXA(oSectIterator);
+                    oPsxMedia = new PSXMediaXA(oSectIterator);
                     oMediaList.add(oPsxMedia);
                     if (!oSectIterator.hasNext()) break;
                 } catch (NotThisTypeException e2) {
                     if (!oSectIterator.hasNext()) break;
+                    oSectIterator.next();
                 }
             }
             
@@ -66,37 +69,36 @@ abstract class PSXMediaAbstract {
         return oMediaList;
     }
     
-    /** Deserializes the CD index file, and creates a 
+    /** Deserializes the CD index file, and creates a
      *  list of media items on the CD */
-    public static ArrayList<PSXMediaAbstract> IndexCD(CDSectorReader oCD, 
-                                                      String sSerialFile) 
-            throws IOException 
-    {
+    public static ArrayList<PSXMedia> IndexCD(CDSectorReader oCD,
+            String sSerialFile)
+            throws IOException {
         //TODO: Want to read as much as we can from the file before an exception
         //      and return what we can get, but we also want to return that
         //      there was an error.
         /*
         ###:STR:<start sector>-<end sector>:<start-frame>-<end-frame>
         ###:XA:<start sector>-<end sector>:#,#,#,...,#
-        */
+         */
         
-        ArrayList<PSXMediaAbstract> oMediaList = new ArrayList<PSXMediaAbstract>();
+        ArrayList<PSXMedia> oMediaList = new ArrayList<PSXMedia>();
         
-        PSXMediaAbstract oPsxMedia = null;
-        BufferedReader oReader = 
+        PSXMedia oPsxMedia = null;
+        BufferedReader oReader =
                 new BufferedReader(new FileReader(sSerialFile));
         String sLine;
         while ((sLine = oReader.readLine()) != null) {
             
             try {
                 if (sLine.substring(3, 8).equals(":STR:")) {
-                    oPsxMedia = new CDMediaSTR(oCD, sLine);
+                    oPsxMedia = new PSXMediaSTR(oCD, sLine);
                     oMediaList.add(oPsxMedia);
                 } else if (sLine.substring(3, 7).equals(":XA:")) {
-                    oPsxMedia = new CDMediaXA(oCD, sLine);
+                    oPsxMedia = new PSXMediaXA(oCD, sLine);
                     oMediaList.add(oPsxMedia);
                 }
-            } catch (NotThisTypeException e1) {}            
+            } catch (NotThisTypeException e1) {}
         }
         oReader.close();
         
@@ -105,26 +107,21 @@ abstract class PSXMediaAbstract {
     
     /** Serializes a list of media items to a file */
     public static void SerializeMediaList(
-            AbstractList<PSXMediaAbstract> oMediaList, 
-            PrintStream oPrinter) 
-        throws IOException 
-    {
+            AbstractList<PSXMedia> oMediaList,
+            PrintStream oPrinter)
+            throws IOException {
         oPrinter.println("# Any line that does not start " +
-                         "with ### STR or ### XA is ignored.");
+                "with ### STR or ### XA is ignored.");
         int i = 0;
-        for (PSXMediaAbstract oMedia : oMediaList) {
+        for (PSXMedia oMedia : oMediaList) {
             oPrinter.println(String.format("%03d:%s", i, oMedia.toString()));
             i++;
         }
         oPrinter.close();
     }
     
-    /** This class is used only during indexing. Once a file has been
-     *  indexed, this information is no longer used. At that point this
-     *  object just becomes a placeholder indicating that the channel
-     *  has audio data. 
-     *  FIXME: That's ugly. */
-    protected static class AudioChannelInfo {
+    /** This class is used only during indexing. */
+    private static class AudioChannelInfo {
         public long Channel          = -1;
         public long BitsPerSampele   = -1;
         public long SamplesPerSecond = -1;
@@ -136,14 +133,13 @@ abstract class PSXMediaAbstract {
     protected int m_iEndSector;
     protected CDSectorReader m_oCD;
     
-    public PSXMediaAbstract(CDSectorIterator oSectIterator) {
+    public PSXMedia(PSXSectorRangeIterator oSectIterator) {
         m_oCD = oSectIterator.getSourceCD();
     }
     
     /** Read in the start and end sectors */
-    public PSXMediaAbstract(CDSectorReader oCD, String sSerial) 
-            throws NotThisTypeException 
-    {
+    public PSXMedia(CDSectorReader oCD, String sSerial)
+    throws NotThisTypeException {
         m_oCD = oCD;
         String asParts[] = sSerial.split(":");
         String asSectors[] = asParts[2].split("-");
@@ -165,342 +161,287 @@ abstract class PSXMediaAbstract {
     public String toString() {
         return m_iStartSector + "-" + m_iEndSector;
     }
-}
-
-
-class CDMediaSTR extends PSXMediaAbstract {
     
-    long m_iAudioPeriod = -1;
-    boolean m_blnHasAudio = false;
     
-    long m_iCurFrame = -1;
-    long m_iWidth = -1;
-    long m_iHeight = -1;
-    
-    long m_lngStartFrame = -1;
-    long m_lngEndFrame = -1;
-    
-    public CDMediaSTR(CDSectorIterator oSectIterator)  
-            throws NotThisTypeException, IOException 
-    {
-        super(oSectIterator);
+    public static class PSXMediaSTR extends PSXMedia {
         
-        AudioChannelInfo oAudInf = null;
+        long m_lngAudioSampleLength = 0;
         
-        CDXASector oCDSect = oSectIterator.get();
+        long m_iCurFrame = -1;
+        long m_iWidth = -1;
+        long m_iHeight = -1;
         
-        PSXSector oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
+        long m_lngStartFrame = -1;
+        long m_lngEndFrame = -1;
         
-        if (!(oPsxSect instanceof IVideoChunkSector) && 
-            !(oPsxSect instanceof PSXSectorFF8AudioChunk))
-            throw new NotThisTypeException();
-        
-        if (DebugVerbose > 2)
-            System.err.println(oPsxSect.toString());
-        
-        IVideoChunkSector oFrame = (IVideoChunkSector)oPsxSect;
-        PSXSectorAudioChunk oAudio;
-        
-        m_iWidth = oFrame.getWidth();
-        m_iHeight = oFrame.getHeight();
-        m_iCurFrame = oFrame.getFrameNumber();
-        
-        m_iStartSector = oCDSect.getSector();
-        m_iEndSector = m_iStartSector;
-        
-        m_lngStartFrame = oFrame.getFrameNumber();
-        m_lngEndFrame = oFrame.getFrameNumber();
-        
-        while (oSectIterator.hasNext()) {
-            oCDSect = oSectIterator.next();
-            oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
+        public PSXMediaSTR(PSXSectorRangeIterator oSectIterator)
+        throws NotThisTypeException, IOException {
+            super(oSectIterator);
             
-            if (oPsxSect instanceof PSXSectorNull) {
-                // just skip it
-            } else if (oPsxSect instanceof PSXSectorAudio2048) {
-                // just skip it
-            } else if (oPsxSect instanceof IVideoChunkSector) {
-                
-                oFrame = (IVideoChunkSector)oPsxSect;
-                if (oFrame.getWidth() == m_iWidth &&
-                        oFrame.getHeight() == m_iHeight &&
-                        (oFrame.getFrameNumber() == m_iCurFrame ||
-                        oFrame.getFrameNumber() == m_iCurFrame+1))
-                {
-
-                    m_iCurFrame = oFrame.getFrameNumber();
-                    m_lngEndFrame = m_iCurFrame;
-                } else {
-                    break;
-                }
-                
-                m_iEndSector = oCDSect.getSector();
-            } else if (oPsxSect instanceof IAudioSector) {
-                oAudio = (PSXSectorAudioChunk)oPsxSect;
-                
-                if (oAudInf != null) {
-                    
-                    if (oAudio.getMonoStereo() != oAudInf.MonoStereo ||
-                        oAudio.getSamplesPerSecond() != oAudInf.SamplesPerSecond ||
-                        oAudio.getBitsPerSample() != oAudInf.BitsPerSampele ||
-                        oAudio.getChannel() != oAudInf.Channel)
-                    {
-                        break;
-                    }
-                    
-                    if ((oCDSect.getSector() - oAudInf.LastAudioSect) != m_iAudioPeriod) 
-                    {
-                        //break;
-                    }
-                    
-                    oAudInf.LastAudioSect = oCDSect.getSector();
-                    
-                } else {
-                    m_iAudioPeriod = oCDSect.getSector() - m_iStartSector + 1;
-                    
-                    oAudInf = new AudioChannelInfo();
-                    oAudInf.LastAudioSect = oCDSect.getSector();
-                    oAudInf.MonoStereo = oAudio.getMonoStereo();
-                    oAudInf.SamplesPerSecond = oAudio.getSamplesPerSecond();
-                    oAudInf.BitsPerSampele = oAudio.getBitsPerSample();
-                    oAudInf.Channel = oAudio.getChannel();
-                }
-                
-                m_iEndSector = oCDSect.getSector();
-            } else {
-                break; // some other sector type? we're done.
-            }
+            long iAudioPeriod = -1;
+            AudioChannelInfo oAudInf = null;
             
-            if (oPsxSect != null && DebugVerbose > 2)
+            PSXSector oPsxSect = oSectIterator.get();
+            
+            if (!(oPsxSect instanceof IVideoChunkSector) &&
+                    !(oPsxSect instanceof PSXSectorFF8AudioChunk))
+                throw new NotThisTypeException();
+            
+            if (DebugVerbose > 2)
                 System.err.println(oPsxSect.toString());
             
-        } // while
-        
-        if (oAudInf != null) m_blnHasAudio = true;
-    }
-    
-    public CDMediaSTR(CDSectorReader oCD, String sSerial) 
-            throws NotThisTypeException 
-    {
-        super(oCD, sSerial);
-        String asParts[] = sSerial.split(":");
-        if (!asParts[1].equals("STR") || asParts.length != 4) 
-            throw new NotThisTypeException();
-        
-        String asStartEndFrame[] = asParts[3].split("-");
-        try {
-            m_lngStartFrame = Integer.parseInt(asStartEndFrame[0]);
-            m_lngEndFrame = Integer.parseInt(asStartEndFrame[1]);
-        } catch (NumberFormatException ex) {
-            throw new NotThisTypeException();
-        }
-    }
-    
-    /** Returns null if movie has no audio */
-    public ArrayList<PSXSector> GetAudioSectors() throws IOException {
-        if (!m_blnHasAudio) return null;
-        
-        ArrayList<PSXSector> oChanSects = 
-                new ArrayList<PSXSector>();
-        
-        for (ListIterator<CDXASector> oIter = m_oCD.listIterator(m_iStartSector); 
-             oIter.hasNext() && oIter.nextIndex() < m_iEndSector;) 
-        {
+            IVideoChunkSector oFrame = (IVideoChunkSector)oPsxSect;
+            PSXSectorAudioChunk oAudio;
             
-            CDXASector oCDSect = oIter.next();
+            m_iWidth = oFrame.getWidth();
+            m_iHeight = oFrame.getHeight();
+            m_iCurFrame = oFrame.getFrameNumber();
             
-            PSXSector oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
+            m_iStartSector = oPsxSect.getSector();
+            m_iEndSector = m_iStartSector;
             
-            if (oPsxSect instanceof PSXSectorAudioChunk) {
-                oChanSects.add((PSXSectorAudioChunk)oPsxSect);
-            }
-        }
-        
-        return oChanSects;
-    }
-    
-    public ArrayList<PSXSector> GetFrameSectors(long iFrame) 
-            throws IOException 
-    {
-        ArrayList<PSXSector> oFrameChunks = 
-                new ArrayList<PSXSector>();
-        
-        for (ListIterator<CDXASector> oIter = m_oCD.listIterator(m_iStartSector); 
-             oIter.hasNext() && oIter.nextIndex() < m_iEndSector;) 
-        {
-            CDXASector oCDSect = oIter.next();
+            m_lngStartFrame = oFrame.getFrameNumber();
+            m_lngEndFrame = oFrame.getFrameNumber();
             
-            PSXSector oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
-            
-            if (oPsxSect instanceof IVideoChunkSector) {
-                IVideoChunkSector oFrameChunk = (IVideoChunkSector)oPsxSect;
-                if (oFrameChunk.getFrameNumber() == iFrame)
-                    oFrameChunks.add(oPsxSect);
-            }
-        }
-        
-        return oFrameChunks;
-    }
-    
-    public String toString() {
-        return "STR:" + super.toString() + ":" 
-                + m_lngStartFrame + "-" + m_lngEndFrame;
-    }
-
-    long GetStartFrame() {
-        return m_lngStartFrame;
-    }
-
-    long GetEndFrame() {
-        return m_lngEndFrame;
-    }
-}
-
-
-
-class CDMediaXA extends PSXMediaAbstract {
-    
-    long m_iAudioPeriod = -1;
-    
-    boolean[] m_ablnChannelHasAudio = new boolean[/*32*/] {
-        false, false, false, false, false, false, false, false, 
-        false, false, false, false, false, false, false, false, 
-        false, false, false, false, false, false, false, false, 
-        false, false, false, false, false, false, false, false
-    };
-    
-    
-    public CDMediaXA(CDSectorIterator oSectIterator) 
-            throws NotThisTypeException, IOException 
-    {
-        super(oSectIterator);
-        AudioChannelInfo aoChannelInfos[] = new AudioChannelInfo[32];
-        CDXASector oCDSect = oSectIterator.get();
-        PSXSector oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
-        
-        if (!(oPsxSect instanceof PSXSectorAudioChunk))
-            throw new NotThisTypeException();
-        
-        if (DebugVerbose > 2)
-            System.err.println(oPsxSect.toString());
-        
-        m_iStartSector = oCDSect.getSector();
-        m_iEndSector = m_iStartSector;
-        
-        while (oSectIterator.hasNext()) {
-            oCDSect = oSectIterator.next();
-            oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
-            
-            if (!(oPsxSect instanceof PSXSectorAudioChunk)) {
-                if (oCDSect.getSubMode() != 0) break;
-            } else {
+            while (oSectIterator.hasNext()) {
+                oPsxSect = oSectIterator.next();
                 
-                PSXSectorAudioChunk oAudio = (PSXSectorAudioChunk)oPsxSect;
-                
-                if (aoChannelInfos[(int)oAudio.getChannel()] != null) {
+                if (oPsxSect instanceof PSXSectorNull) {
+                    // just skip it
+                } else if (oPsxSect instanceof PSXSectorAudio2048) {
+                    // just skip it
+                } else if (oPsxSect instanceof IVideoChunkSector) {
                     
-                    AudioChannelInfo m_oAuInfo = 
-                            aoChannelInfos[(int)oAudio.getChannel()];
-                    
-                    if (m_oAuInfo.BitsPerSampele != oAudio.getBitsPerSample() ||
-                        m_oAuInfo.SamplesPerSecond != oAudio.getSamplesPerSecond() ||
-                        m_oAuInfo.MonoStereo != oAudio.getMonoStereo() ||
-                        m_oAuInfo.Channel != oAudio.getChannel()) 
-                    {
-                        break;
-                    }
-                    
-                    if (m_iAudioPeriod > 0) {
-                        if ((oCDSect.getSector() - m_oAuInfo.LastAudioSect) != m_iAudioPeriod)
-                            break;
+                    oFrame = (IVideoChunkSector)oPsxSect;
+                    if (oFrame.getWidth() == m_iWidth &&
+                            oFrame.getHeight() == m_iHeight &&
+                            (oFrame.getFrameNumber() == m_iCurFrame ||
+                            oFrame.getFrameNumber() == m_iCurFrame+1)) {
+                        
+                        m_iCurFrame = oFrame.getFrameNumber();
+                        m_lngEndFrame = m_iCurFrame;
                     } else {
-                        m_iAudioPeriod = oCDSect.getSector() - m_oAuInfo.LastAudioSect;
+                        break;
                     }
                     
-                    m_oAuInfo.LastAudioSect = oCDSect.getSector();
+                    m_iEndSector = oPsxSect.getSector();
+                } else if (oPsxSect instanceof IAudioSector) {
+                    oAudio = (PSXSectorAudioChunk)oPsxSect;
                     
+                    if (oAudInf != null) {
+                        
+                        if (oAudio.getMonoStereo() != oAudInf.MonoStereo ||
+                                oAudio.getSamplesPerSecond() != oAudInf.SamplesPerSecond ||
+                                oAudio.getBitsPerSample() != oAudInf.BitsPerSampele ||
+                                oAudio.getChannel() != oAudInf.Channel) {
+                            break;
+                        }
+                        
+                        if ((oPsxSect.getSector() - oAudInf.LastAudioSect) != iAudioPeriod) {
+                            //break;
+                        }
+                        
+                        oAudInf.LastAudioSect = oPsxSect.getSector();
+                        
+                        m_lngAudioSampleLength += oAudio.getSampleLength();
+                        
+                    } else {
+                        iAudioPeriod = oPsxSect.getSector() - m_iStartSector + 1;
+                        
+                        oAudInf = new AudioChannelInfo();
+                        oAudInf.LastAudioSect = oPsxSect.getSector();
+                        oAudInf.MonoStereo = oAudio.getMonoStereo();
+                        oAudInf.SamplesPerSecond = oAudio.getSamplesPerSecond();
+                        oAudInf.BitsPerSampele = oAudio.getBitsPerSample();
+                        oAudInf.Channel = oAudio.getChannel();
+                    }
+                    
+                    m_iEndSector = oPsxSect.getSector();
                 } else {
-                    AudioChannelInfo m_oAuInfo = new AudioChannelInfo();
-                    
-                    m_oAuInfo.LastAudioSect = oCDSect.getSector();
-                    m_oAuInfo.BitsPerSampele = oAudio.getBitsPerSample();
-                    m_oAuInfo.SamplesPerSecond = oAudio.getSamplesPerSecond();
-                    m_oAuInfo.MonoStereo = oAudio.getMonoStereo();
-                    m_oAuInfo.Channel = oAudio.getChannel();
-                    
-                    aoChannelInfos[(int)oAudio.getChannel()] = m_oAuInfo;
+                    break; // some other sector type? we're done.
                 }
                 
-                m_iEndSector = oCDSect.getSector();
-            } // if (oPsxSect instanceof CDSectorAudio)
+                if (oPsxSect != null && DebugVerbose > 2)
+                    System.err.println(oPsxSect.toString());
+                
+            } // while
             
-            if (oPsxSect != null && DebugVerbose > 2)
+        }
+        
+        public PSXMediaSTR(CDSectorReader oCD, String sSerial)
+                throws NotThisTypeException 
+        {
+            super(oCD, sSerial);
+            String asParts[] = sSerial.split(":");
+            if (!asParts[1].equals("STR") || asParts.length != 4)
+                throw new NotThisTypeException();
+            
+            String asStartEndFrame[] = asParts[3].split("-");
+            try {
+                m_lngStartFrame = Integer.parseInt(asStartEndFrame[0]);
+                m_lngEndFrame = Integer.parseInt(asStartEndFrame[1]);
+            } catch (NumberFormatException ex) {
+                throw new NotThisTypeException();
+            }
+        }
+        
+        /** Returns null if movie has no audio */
+        public PSXSectorRangeIterator GetAudioSectors() throws IOException {
+            if (m_lngAudioSampleLength == 0) return null;
+            
+            return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
+        }
+        
+        public PSXSectorRangeIterator GetFrameSectors(long iFrame)
+        throws IOException {
+            return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
+        }
+        
+        public long GetAudioSampleLength() {
+            return m_lngAudioSampleLength;
+        }
+        
+        public String toString() {
+            return "STR:" + super.toString() + ":"
+                    + m_lngStartFrame + "-" + m_lngEndFrame;
+        }
+        
+        long GetStartFrame() {
+            return m_lngStartFrame;
+        }
+        
+        long GetEndFrame() {
+            return m_lngEndFrame;
+        }
+    }
+    
+    
+    
+    public static class PSXMediaXA extends PSXMedia {
+        
+        long m_iAudioPeriod = -1;
+        
+        /** In the future this *may* instead hold how many samples
+         *  or perhaps sectors are found for each channel, but for now,
+         *  it just holds 1 or 0 for if a channel has audio */
+        long[] m_alngChannelHasAudio = new long[/*32*/] {
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0
+        };
+        
+        
+        public PSXMediaXA(PSXSectorRangeIterator oSectIterator)
+                throws NotThisTypeException, IOException 
+        {
+            super(oSectIterator);
+            AudioChannelInfo aoChannelInfos[] = new AudioChannelInfo[32];
+            PSXSector oPsxSect = oSectIterator.get();
+            
+            if (!(oPsxSect instanceof PSXSectorAudioChunk))
+                throw new NotThisTypeException();
+            
+            if (DebugVerbose > 2)
                 System.err.println(oPsxSect.toString());
             
-        } // while
-        
-        for (int i = 0; i < aoChannelInfos.length; i++) {
-            if (aoChannelInfos[i] != null) 
-                m_ablnChannelHasAudio[i] = true;
-        }
-    }
-    
-    public CDMediaXA(CDSectorReader oCD, String sSerial) 
-            throws NotThisTypeException, IOException 
-    {
-        super(oCD, sSerial);
-        String asParts[] = sSerial.split(":");
-        if (!asParts[1].equals("XA"))
-            throw new NotThisTypeException();
-        
-        String asChannels[] = asParts[3].split(",");
-        try {
-            for (String sChan : asChannels) {
-                int iChan = Integer.parseInt(sChan);
-                m_ablnChannelHasAudio[iChan] = true;
-            }
-        } catch (NumberFormatException ex) {
-            throw new NotThisTypeException();
-        }
-    }
-    
-    /** Returns null if no sectors are available */
-    public ArrayList<PSXSector> GetChannelSectors(int iChan) 
-            throws IOException
-    {
-        assert(iChan > 0 && iChan < 32);
-        
-        if (!m_ablnChannelHasAudio[iChan]) return null;
-        
-        ArrayList<PSXSector> oChanSects = 
-                new ArrayList<PSXSector>();
-        
-        for (ListIterator<CDXASector> oIter = m_oCD.listIterator(m_iStartSector); 
-        oIter.hasNext() && oIter.nextIndex() < m_iEndSector;) {
-            CDXASector elem = oIter.next();
+            m_iStartSector = oPsxSect.getSector();
+            m_iEndSector = m_iStartSector;
             
-            PSXSector oSect = 
-                    PSXSector.SectorIdentifyFactory(elem);
+            while (oSectIterator.hasNext()) {
+                oPsxSect = oSectIterator.next();
+                
+                if (oPsxSect instanceof PSXSectorNull) {
+                    // skip
+                } else if (oPsxSect instanceof PSXSectorAudioChunk) {
+                    
+                    PSXSectorAudioChunk oAudio = (PSXSectorAudioChunk)oPsxSect;
+                    
+                    if (aoChannelInfos[(int)oAudio.getChannel()] != null) {
+                        
+                        AudioChannelInfo m_oAuInfo =
+                                aoChannelInfos[(int)oAudio.getChannel()];
+                        
+                        if (m_oAuInfo.BitsPerSampele != oAudio.getBitsPerSample() ||
+                                m_oAuInfo.SamplesPerSecond != oAudio.getSamplesPerSecond() ||
+                                m_oAuInfo.MonoStereo != oAudio.getMonoStereo() ||
+                                m_oAuInfo.Channel != oAudio.getChannel()) {
+                            break;
+                        }
+                        
+                        if (m_iAudioPeriod > 0) {
+                            if ((oAudio.getSector() - m_oAuInfo.LastAudioSect) != m_iAudioPeriod)
+                                break;
+                        } else {
+                            m_iAudioPeriod = oAudio.getSector() - m_oAuInfo.LastAudioSect;
+                        }
+                        
+                        m_oAuInfo.LastAudioSect = oAudio.getSector();
+                        
+                    } else {
+                        AudioChannelInfo m_oAuInfo = new AudioChannelInfo();
+                        
+                        m_oAuInfo.LastAudioSect = oAudio.getSector();
+                        m_oAuInfo.BitsPerSampele = oAudio.getBitsPerSample();
+                        m_oAuInfo.SamplesPerSecond = oAudio.getSamplesPerSecond();
+                        m_oAuInfo.MonoStereo = oAudio.getMonoStereo();
+                        m_oAuInfo.Channel = oAudio.getChannel();
+                        
+                        aoChannelInfos[(int)oAudio.getChannel()] = m_oAuInfo;
+                    }
+                    
+                    m_alngChannelHasAudio[(int)oAudio.getChannel()] += oAudio.getSampleLength();
+                    
+                    m_iEndSector = oPsxSect.getSector();
+                } // if (oPsxSect instanceof CDSectorAudio)
+                
+                if (oPsxSect != null && DebugVerbose > 2)
+                    System.err.println(oPsxSect.toString());
+                
+            } // while
             
-            // FIXME: Change this to IAudioSector when you get oIter working
-            if (oSect instanceof PSXSectorAudioChunk) {
-                PSXSectorAudioChunk oAudio = (PSXSectorAudioChunk)oSect;
-                if (oAudio.getChannel() == iChan) oChanSects.add(oAudio);
+        }
+        
+        public PSXMediaXA(CDSectorReader oCD, String sSerial)
+                throws NotThisTypeException, IOException 
+        {
+            super(oCD, sSerial);
+            String asParts[] = sSerial.split(":");
+            if (!asParts[1].equals("XA"))
+                throw new NotThisTypeException();
+            
+            String asChannels[] = asParts[3].split(",");
+            try {
+                for (int i = 0; i < asChannels.length; i++) {
+                    int iChan = Integer.parseInt(asChannels[i]);
+                    m_alngChannelHasAudio[iChan] = 1;
+                }
+            } catch (NumberFormatException ex) {
+                throw new NotThisTypeException();
             }
         }
         
-        return oChanSects;
-    }
-    
-    public String toString() {
-        StringBuilder oSB = new StringBuilder();
-        for (int i = 0; i < m_ablnChannelHasAudio.length; i++) {
-            if (m_ablnChannelHasAudio[i]) {
-                if (oSB.length() > 0)
-                    oSB.append(",");
-                oSB.append(i);
-            }
+        /** Returns null if no sectors are available */
+        public PSXSectorRangeIterator GetChannelSectors(int iChan)
+                throws IOException 
+        {
+            assert(iChan >= 0 && iChan < 31);
+            
+            if (m_alngChannelHasAudio[iChan] == 0) return null;
+            return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
+            
         }
-        return "XA:" + super.toString() + ":" + oSB.toString();
+        
+        public String toString() {
+            StringBuilder oSB = new StringBuilder();
+            for (int i = 0; i < m_alngChannelHasAudio.length; i++) {
+                if (m_alngChannelHasAudio[i] != 0) {
+                    if (oSB.length() > 0)
+                        oSB.append(",");
+                    oSB.append(i);
+                }
+            }
+            return "XA:" + super.toString() + ":" + oSB.toString();
+        }
     }
 }

@@ -1,0 +1,37 @@
+CREDITS
+-------
+
+The following people either helped make jPSXdec possible, or are just really cool people (usually both):
+
+Stuart Caie for adding STR decoding support to xine (and therefore ffmpeg), including the documentation in the source. (http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html)
+
+Mike Melanson for archiving some example STR files (http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html)
+
+Stephen Manley for generously sharing his DCT.java class (http://www.nyx.net/~smanley/)
+
+The q-gears development team for their forums, source code, and documentation (http://forums.qhimm.com/index.php?topic=6140.msg78199#msg78199). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/trunk/src/common/movie/decoders/).
+
+"Everything You Have Always Wanted to Know about the Playstation But Were Afraid to Ask." compiled / edited by Joshua Walker. Even if it has the CrCb reversal error, it will always be a great reference for PSX hacking.
+
+smf, developer for MAME, for figuring out that everyone was getting the order of CrCb wrong (http://smf.mameworld.info/?m=200603).
+
+Jac Goudsmit for his open source cdxa tool and documentation (http://jcatki.no-ip.org/cdxa/).
+
+The PCSX Team, creators of the only open source Playstation emulator (http://www.pcsx.net/).
+
+Developers of the pSX emulator. While not open source, at least it is still under active development, and provides a very nice debugger for reverse engineering games (http://psxemulator.gazaxian.com/).
+
+Joerg Anders for managing to write an mpeg1 decoder in pure Java (http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html).
+
+"Filo", the Japanese fellow that wrote the PsxMC FF8 plugin (http://homepage2.nifty.com/~mkb/PsxMC/).
+
+Rodrigo Reyes for the JSmooth tool (http://jsmooth.sourceforge.net/).
+
+Jen (a.k.a. punistation) for her long standing Playstation Serial Experiments Lain page (http://www.geocities.com/punistation10/).
+
+Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating anime.   
+
+
+
+Finally, a very special thanks to all the Playstation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs, are real men of genius.
+

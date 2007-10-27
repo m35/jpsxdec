@@ -19,11 +19,20 @@
  *
  */
 
+/*
+ * Math.java
+ *
+ */
 
 package jpsxdec.util;
 
-/** Interface to provide getFilePointer() function to classes beyond
- *  just RandomAccessFile. */
-public interface IGetFilePointer {
-    public long getFilePointer();
+public class Math {
+    
+    public static long round(double dbl) {
+        return (long)(dbl + 0.5);
+    }
+    public static long round(float flt) {
+        return (long)(flt + 0.5f);
+    }
+    
 }

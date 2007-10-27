@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,9 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -38,18 +40,19 @@ public class Matrix8x8 {
 	
     public Matrix8x8(double vals[]) {
         assert(vals.length == 64);
+        Points = vals.clone();
+    }
+
+    public Matrix8x8(int vals[]) {
+        assert(vals.length == 64);
        
         Points = new double[Width * Height];
 
-        int i = 0;
-        for (int y=0; y < Height; y++) {
-            for (int x=0; x < Width; x++) {
-                setPoint(x, y, vals[i]);
-                i++;
-            }
+        for (int i=0; i < 64; i++) {
+            Points[i] = vals[i];
         }
     }
-
+    
     /* ---------------------------------------------------------------------- */
     /* Properties ----------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */

@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,9 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -59,67 +61,6 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
     http://www.smart-projects.net/help.php?help=190
     */
     
-    
-    static class CDSectorIterator implements ListIterator<CDXASector> {
-        CDSectorReader m_oCD;
-        CDXASector m_oCurrentSector = null;
-        ListIterator<CDXASector> m_oReadIterator;
-        
-        public CDSectorIterator(CDSectorReader oCD, ListIterator<CDXASector> oReadIterator) {
-            m_oCD = oCD;
-        }
-
-        /** Returns the previous retrieved item without changing
-         *  the pointer */
-        public CDXASector get() {
-            if (m_oCurrentSector != null)
-                return m_oCurrentSector;
-            else
-                throw new NoSuchElementException();
-        }
-        CDSectorReader getSourceCD() {
-            return m_oCD;
-        }
-
-        
-        public boolean hasNext() {
-            return m_oReadIterator.hasNext();
-        }
-
-        public CDXASector next() {
-            m_oCurrentSector = m_oReadIterator.next();
-            return m_oCurrentSector;
-        }
-
-        public boolean hasPrevious() {
-            return m_oReadIterator.hasPrevious();
-        }
-
-        public CDXASector previous() {
-            m_oCurrentSector = m_oReadIterator.previous();
-            return m_oCurrentSector;
-        }
-
-        public int nextIndex() {
-            return m_oReadIterator.nextIndex();
-        }
-
-        public int previousIndex() {
-            return m_oReadIterator.previousIndex();
-        }
-
-        /** Read only list. */
-        public void remove() 
-        { throw new UnsupportedOperationException(); }
-        /** Read only list. */
-        public void set(CDXASector e) 
-        { throw new UnsupportedOperationException(); }
-        /** Read only list. */
-        public void add(CDXASector e) 
-        { throw new UnsupportedOperationException(); }
-
-    }
-    
     public static class CDXASector implements IGetFilePointer {
         CDXAHeader m_oHeader = null;
         int m_iSector = -1;
@@ -143,7 +84,7 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
                         m_oHeader = new CDXAHeader(oDIS);
                         break;
                     case SECTOR_RAW_AUDIO:     // 2352
-                        m_oHeader = new CDXHeaderWithSync(oDIS);
+                        m_oHeader = new CDXAHeaderWithSync(oDIS);
                         break;
                     default: 
                         assert(false); // what kind of sector size is this?
@@ -158,7 +99,7 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
     
         public byte[] getSectorData() {
 
-            switch (m_abSectorBytes.length) {
+            switch (m_iRawSectorSize) {
                 case SECTOR_MODE1_OR_MODE2_FORM1: // 2048
                     return m_abSectorBytes.clone();
                 case SECTOR_MODE2:         // 2336
@@ -173,16 +114,16 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
                                                   CDXAHeader.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
                     }
                 case SECTOR_RAW_AUDIO:     // 2352
-                    if ((((CDXHeaderWithSync) m_oHeader).mode == 2) &&
+                    if ((((CDXAHeaderWithSync) m_oHeader).mode == 2) &&
                         m_oHeader.submode.form == 2)
                     {
                         return Arrays.copyOfRange(m_abSectorBytes, 
-                                                  CDXAHeader.SIZE, 
-                                                  CDXAHeader.SIZE + SECTOR_MODE2_FORM2);
+                                                  CDXAHeaderWithSync.SIZE, 
+                                                  CDXAHeaderWithSync.SIZE + SECTOR_MODE2_FORM2);
                     } else {
                         return Arrays.copyOfRange(m_abSectorBytes, 
-                                                  CDXAHeader.SIZE, 
-                                                  CDXAHeader.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
+                                                  CDXAHeaderWithSync.SIZE, 
+                                                  CDXAHeaderWithSync.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
                     }
                 default: 
                     assert(true); // mysterious sector size
@@ -298,7 +239,7 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
          *  to the start of the sector userdata.
          *  implements util.IGetFilePointer */
         public long getFilePointer() {
-            return m_lngFilePointer + m_oHeader.SIZE;
+            return m_lngFilePointer + m_oHeader.getSize();
         }
 
     }
@@ -306,6 +247,10 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
     private static class CDXAHeader {
         
         public final static int SIZE = 8;
+        
+        public int getSize() {
+            return CDXAHeader.SIZE;
+        }
         
         public int file_number;          // [1 byte] used to identify sectors 
                                          //          belonging to the same file
@@ -410,12 +355,15 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
         }
     }
     
-    private static class CDXHeaderWithSync extends CDXAHeader {
+    private static class CDXAHeaderWithSync extends CDXAHeader {
         
         public final static int CD_SECTOR_MAGIC[] = 
                                 new int[] {0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFF00};
         
         public final static int SIZE = 24;
+        public int getSize() {
+            return CDXAHeaderWithSync.SIZE;
+        }
         
         // sync header [12 bytes]
         // movconv doesn't add the sync header
@@ -428,7 +376,7 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
         public int sectors;     // [1 byte] timecode relative to start of disk
         public int mode;        // [1 byte] Mode 2 for ...
         
-        public CDXHeaderWithSync(DataInputStream oDIS) throws IOException 
+        public CDXAHeaderWithSync(DataInputStream oDIS) throws IOException 
         {
             super(oDIS);
         }
@@ -532,10 +480,14 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
         long lngFileOffset = m_lngFirstSectorOffset 
                           + m_iRawSectorTypeSize * iSector;
         try {
+            // in the very unlikely case this class is ever used in a
+            // multi-threaded environment, this is the only part
+            // that needs to be syncronized.
+            synchronized(this) {
+                m_oInputFile.seek(lngFileOffset);
+                iBytesRead = m_oInputFile.read(abSectorBuff);
+            }
             
-            m_oInputFile.seek(lngFileOffset);
-            
-            iBytesRead = m_oInputFile.read(abSectorBuff);
             if (iBytesRead != abSectorBuff.length) {
                 // if we only got part of a sector
             }
@@ -549,7 +501,7 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
     }
     
     //..........................................................................
-
+    /*
     public Iterator<CDXASector> iterator() {
         return new CDSectorIterator(this, super.listIterator(0));
     }
@@ -561,7 +513,7 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
     public ListIterator<CDXASector> listIterator(final int index) {
         return new CDSectorIterator(this, super.listIterator(index));
     }
-
+    */
     /* ---------------------------------------------------------------------- */
     /* Private Functions ---------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -601,9 +553,9 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
             int iTestBytes3 = oByteTester.readInt();
             int iTestBytes4 = oByteTester.readInt();
             
-            if (iTestBytes1 == CDXHeaderWithSync.CD_SECTOR_MAGIC[0] && 
-                iTestBytes2 == CDXHeaderWithSync.CD_SECTOR_MAGIC[1] && 
-                iTestBytes3 == CDXHeaderWithSync.CD_SECTOR_MAGIC[2]) {
+            if (iTestBytes1 == CDXAHeaderWithSync.CD_SECTOR_MAGIC[0] && 
+                iTestBytes2 == CDXAHeaderWithSync.CD_SECTOR_MAGIC[1] && 
+                iTestBytes3 == CDXAHeaderWithSync.CD_SECTOR_MAGIC[2]) {
                 // CD Sync Header
                 m_lngFirstSectorOffset = i;
                 m_iRawSectorTypeSize = SECTOR_RAW_AUDIO;

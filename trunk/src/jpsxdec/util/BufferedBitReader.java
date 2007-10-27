@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,9 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -29,10 +31,62 @@ package jpsxdec.util;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.EOFException;
+import java.nio.BufferOverflowException;
+import java.nio.BufferUnderflowException;
 import java.util.LinkedList;
 
  /** A limited bit reader. Wraps an InputStream. Should be pretty quick. */
-public class BufferedBitReader /* should extend FilterInputStream */ {
+public class BufferedBitReader /* might extend FilterInputStream */ {
+    
+    private static class SimpleIntQueue {
+        int[] m_abBytes;
+        int m_iHeadPos = 0;
+        int m_iTailPos = 0;
+        
+        private SimpleIntQueue() {}
+        
+        public SimpleIntQueue(int iSize) {
+            m_abBytes = new int[iSize];
+        }
+        
+        public void Queue(int i) {
+            m_abBytes[m_iTailPos] = i;
+            m_iTailPos = (m_iTailPos + 1) % m_abBytes.length;
+            if (m_iTailPos == m_iHeadPos)
+                throw new BufferOverflowException();
+        }
+        
+        public int Peek() {
+            if (m_iTailPos == m_iHeadPos)
+                throw new BufferUnderflowException();
+            return m_abBytes[m_iHeadPos];
+        }
+        
+        public int Dequeue() {
+            if (m_iTailPos == m_iHeadPos)
+                throw new BufferUnderflowException();
+            int i = m_abBytes[m_iHeadPos];
+            m_iHeadPos = (m_iHeadPos + 1) % m_abBytes.length;
+            return i;
+        }
+        
+        public SimpleIntQueue ShallowCopy() {
+            SimpleIntQueue oNew = new SimpleIntQueue();
+            oNew.m_abBytes = m_abBytes;
+            oNew.m_iHeadPos = m_iHeadPos;
+            oNew.m_iTailPos = m_iTailPos;
+            return oNew;
+        }
+        
+        public int size() {
+            int i = m_iTailPos - m_iHeadPos;
+            if (i < 0)
+                return m_abBytes.length + i;
+            else
+                return i;
+        }
+    }
+    
     
     /** Mask remaining bits */
     private static byte BIT_MASK[] = new byte[] {
@@ -41,7 +95,7 @@ public class BufferedBitReader /* should extend FilterInputStream */ {
     };
     
     /** A queue to store the bytes read */
-    LinkedList<Integer> m_oBitBuffer = new LinkedList<Integer>();
+    SimpleIntQueue m_oBitBuffer = new SimpleIntQueue(10);
     int m_iBitsRemainging = 0;
     
     /** The InputStream */
@@ -152,7 +206,7 @@ public class BufferedBitReader /* should extend FilterInputStream */ {
         if (BufferEnoughForBits(iCount) != iCount)
             throw new EOFException("End of bit file");
         long lngRet = ReadUBits(m_iBitsRemainging, iCount, 
-                                (LinkedList<Integer>)m_oBitBuffer.clone());
+                                m_oBitBuffer.ShallowCopy());
         return lngRet;
     }
     
@@ -164,7 +218,7 @@ public class BufferedBitReader /* should extend FilterInputStream */ {
         if (BufferEnoughForBits(iCount) != iCount)
             throw new EOFException("End of bit file");
         long lngRet = ReadUBits(m_iBitsRemainging, iCount, 
-                                (LinkedList<Integer>)m_oBitBuffer.clone());
+                                m_oBitBuffer.ShallowCopy());
         return (lngRet << (64 - iCount)) >> (64 - iCount);
     }
     
@@ -175,7 +229,7 @@ public class BufferedBitReader /* should extend FilterInputStream */ {
         assert(iCount < 32 && iCount > 0);
         iCount = BufferEnoughForBits(iCount);
         long lngRet = ReadUBits(m_iBitsRemainging, iCount, 
-                                (LinkedList<Integer>)m_oBitBuffer.clone());
+                                m_oBitBuffer.ShallowCopy());
         return PadZeroLeft(Long.toBinaryString(lngRet), iCount);
     }
     
@@ -183,17 +237,17 @@ public class BufferedBitReader /* should extend FilterInputStream */ {
     
     /** Simple skipping bits */
     public void SkipBits(int iCount) throws IOException {
-        assert(iCount > 0);
+        assert(iCount < 32 && iCount > 0);
         iCount = BufferEnoughForBits(iCount);
         if (iCount <= m_iBitsRemainging) {
             m_iBitsRemainging -= iCount;
         } else {
             
             iCount -= m_iBitsRemainging;
-            m_oBitBuffer.remove();
+            m_oBitBuffer.Dequeue();
             
             while (iCount >= 8) {
-                m_oBitBuffer.remove();
+                m_oBitBuffer.Dequeue();
                 iCount -= 8;
             }
             m_iBitsRemainging = 8 - iCount;
@@ -209,27 +263,27 @@ public class BufferedBitReader /* should extend FilterInputStream */ {
      *  (for peeking bits) */
     private static long ReadUBits(int iBitsRemainging, 
                                   int iCount, 
-                                  LinkedList<Integer> oBitBuffer) 
+                                  SimpleIntQueue oBitBuffer) 
     {
         
         long lngRet = 0;
         int ib;
         if (iCount <= iBitsRemainging) {
-            ib = oBitBuffer.peek();      // 01234567
+            ib = oBitBuffer.Peek();      // 01234567
             ib = ib & BIT_MASK[iBitsRemainging];
             lngRet = (ib >>> (iBitsRemainging - iCount));
         } else {
-            ib = oBitBuffer.remove();
+            ib = oBitBuffer.Dequeue();
             lngRet = ib & BIT_MASK[iBitsRemainging];
             iCount -= iBitsRemainging;
             
             while (iCount >= 8) {
-                lngRet = (lngRet << 8) | oBitBuffer.remove();
+                lngRet = (lngRet << 8) | oBitBuffer.Dequeue();
                 iCount -= 8;
             }
             
             if (iCount > 0) {
-                ib = oBitBuffer.peek();
+                ib = oBitBuffer.Peek();
                 lngRet = (lngRet << iCount) | (ib >>> (8 - iCount));
             }
         }
@@ -265,7 +319,7 @@ public class BufferedBitReader /* should extend FilterInputStream */ {
             if (m_oBitBuffer.size() == 0) {
                 if (BufferData() < 1) throw new EOFException("End of bit file");
             } else {
-                m_oBitBuffer.remove();
+                m_oBitBuffer.Dequeue();
             }
             m_iBitsRemainging = 8;
         }
@@ -301,15 +355,15 @@ public class BufferedBitReader /* should extend FilterInputStream */ {
                 return 0;
             }
             // add the read bytes to the byte buffer in little-endian order
-            m_oBitBuffer.offer(new Integer(iBufferBytes[1]));
-            m_oBitBuffer.offer(new Integer(iBufferBytes[0]));
+            m_oBitBuffer.Queue(iBufferBytes[1]);
+            m_oBitBuffer.Queue(iBufferBytes[0]);
             return 2;
         }  else if (m_iBytesPerBuffer == 1) {
             iBufferBytes = new int[1];
             if ((iBufferBytes[0] = m_oStrStream.read()) < 0) {
                 return 0;
             }
-            m_oBitBuffer.offer(new Integer(iBufferBytes[0]));
+            m_oBitBuffer.Queue(iBufferBytes[0]);
             return 1;
         } else {
             throw new 

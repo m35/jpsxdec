@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,9 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -183,14 +185,14 @@ public class Settings {
         "",
         "  --noaudio              Don't decode audio",
         "  --onlyaudio            Don't decode video",
-        "  --frame #              Only decode frame #",
-        "  -f/--frames #-#        Decode frames from # to #",
+        "  -f/--frame #           Only decode frame #",
+        "  -s/--frames #-#        Decode frames from # to #",
         "  -c/--channel #         Only decode audio channel #",
         "  -o/--format <format>   Output format",
         "                         " + Join(VALID_FORMATS, ", "),
         "  --width #              Used with --in-file",
         "  --height #             Used with --in-file",
-        "  --verbose #,#,#,#,#    Output verbosity level (debug)",
+        "  --verbose #,#,#,#,#    Verbosity output levels (debug)",
         ""
         };
         
@@ -214,8 +216,8 @@ public class Settings {
         Option oiMainDecode1 = oParser.addIntegerOption('d', "decode");
         Option oblnMainDecodeAll = oParser.addBooleanOption('a', "decode-all");
         Option oblnMainSectorList = oParser.addBooleanOption("sector-list");
-        Option osMainDecodeFrameSects = oParser.addDoubleOption("decode-frame");
-        Option osMainDecodeAudioSects = oParser.addDoubleOption("decode-audio");
+        Option osMainDecodeFrameSects = oParser.addStringOption("decode-frame");
+        Option osMainDecodeAudioSects = oParser.addStringOption("decode-audio");
         Option osMainSpecialInFileType = oParser.addStringOption("in-file");
         
         // both main and optional command depending on main command type
@@ -224,8 +226,8 @@ public class Settings {
         // optional commands depending on main command type
         Option oblnOptNoAudio = oParser.addBooleanOption("noaudio");
         Option oblnOptOnlyAudio = oParser.addBooleanOption("onlyaudio");
-        Option oiOptFrameNum = oParser.addIntegerOption("frame");
-        Option osOptFrameRange = oParser.addStringOption('f', "frames");
+        Option oiOptFrameNum = oParser.addIntegerOption('f', "frame");
+        Option osOptFrameRange = oParser.addStringOption('s', "frames");
         Option oiOptChannel = oParser.addIntegerOption('c', "channel");
         Option odblOptVolScale = oParser.addDoubleOption("vol-scale");
         Option osOptFrameFormat = oParser.addStringOption('o', "format");
@@ -306,7 +308,7 @@ public class Settings {
                 ExitWithError("Too many main commands");
             m_aiSectorList = HandleSectorListOption((String)oOpt);
             if (m_aiSectorList == null) 
-                ExitWithError("Invalid list of sectors");
+                ExitWithError("Invalid list of sectors or file not found");
             m_iMainCommandType = DECODE_SECTORS_FRAME;
         }
         
@@ -317,7 +319,7 @@ public class Settings {
                 ExitWithError("Too many main commands");
             m_aiSectorList = HandleSectorListOption((String)oOpt);
             if (m_aiSectorList == null) 
-                ExitWithError("Invalid list of sectors");
+                ExitWithError("Invalid list of sectors or file not found");
             m_iMainCommandType = DECODE_SECTORS_AUDIO;
         }
         
@@ -326,8 +328,10 @@ public class Settings {
         
         // If no other main command options were provided, but
         // index file was provided, then index file becomes the main command
+        int iAdditionalArgs = 2;
         if (m_iMainCommandType < 0 && m_sIndexFile != null) {
             m_iMainCommandType = INDEX_ONLY;
+            iAdditionalArgs = 1;
         }
         
         // Make sure we got a main command
@@ -335,10 +339,34 @@ public class Settings {
             ExitWithError("Missing a main command");
         
         //..............................................................
+        // Check remaining args
+        
+        String[] asRemainingArgs = oParser.getRemainingArgs();
+        if (asRemainingArgs.length < iAdditionalArgs)
+            ExitWithError("Too few additional arguments (should be "+iAdditionalArgs+").");
+        else if (asRemainingArgs.length > iAdditionalArgs)
+            ExitWithError("Too many additional arguments (should only be "+iAdditionalArgs+").");
+        
+        if (iAdditionalArgs > 0)
+            m_sInputFileName = asRemainingArgs[0];
+        // TODO:
+        // output-file could be stdout, but only in the following cases:
+        //   --decode # , --frame # and --noaudio are used together
+        //   --decode # and --onlyaudio
+        //   --sector-list
+        //   --decode-frame
+        //   --decode-audio
+        // This could be slightly improved if we output multiple yuv frames
+        // in a single stream. Then we could use --decode # and --noaudio
+        if (iAdditionalArgs > 1)
+            m_sOutputFileName = asRemainingArgs[1];
+        
+        
+        //..............................................................
         // Check some of the optional options
         
         m_blnDecodeAudio = 
-            (Boolean)oParser.getOptionValue(oblnOptNoAudio, new Boolean(true));
+            !(Boolean)oParser.getOptionValue(oblnOptNoAudio, new Boolean(false));
         m_blnDecodeVideo = 
          !(Boolean)oParser.getOptionValue(oblnOptOnlyAudio, new Boolean(false));
         m_dblAudioScale = 
@@ -361,7 +389,7 @@ public class Settings {
         oOpt = oParser.getOptionValue(osOptFrameRange);
         if (oOpt != null) {
             int[] aiFrames = ParseDelimitedInts((String)oOpt, "-");
-            if (aiFrames != null || aiFrames.length != 2)
+            if (aiFrames == null || aiFrames.length != 2)
                 ExitWithError("Invalid range of frames");
             m_iStartFrame = aiFrames[0];
             m_iEndFrame = aiFrames[1];
@@ -389,26 +417,6 @@ public class Settings {
             if (ai != null) m_aiVerbosityLevels = ai;
         }
         
-        //..............................................................
-        // Check remaining args
-        
-        String[] asRemainingArgs = oParser.getRemainingArgs();
-        if (asRemainingArgs.length < 2)
-            ExitWithError("Too few additional arguments (should be 2).");
-        else if (asRemainingArgs.length > 2)
-            ExitWithError("Too many additional arguments (should only be 2).");
-        
-        m_sInputFileName = asRemainingArgs[0];
-        
-        // output-file could be stdout, but only in the following cases:
-        //   --decode # , --frame # and --noaudio are used together
-        //   --decode # and --onlyaudio
-        //   --sector-list
-        //   --decode-frame
-        //   --decode-audio
-        // This could be slightly improved in we output multiple yuv frames
-        // in a single stream. Then we could use --decode # and --noaudio
-        m_sOutputFileName = asRemainingArgs[1];
         
     }
     

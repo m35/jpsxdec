@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,10 +13,11 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
-
 
 /*
  * Yuv4mpeg2.java
@@ -46,8 +47,8 @@ import java.io.IOException;
  *  grey or black area."
  *      -http://en.wikipedia.org/wiki/CCIR_601
  *
- * While this class will output the proper color space of 0 to 255, it only accepts,
- * and stores the information internally, in a color space of:
+ * While this class will output the proper color space of 0 to 255, it only 
+ * accepts, and stores the information internally, in a color space of:
  * Y : -128 to +127
  * Cb: -128 to +127
  * Cr: -128 to +127
@@ -97,16 +98,16 @@ public class Yuv4mpeg2 {
                  * Cr: -128 to +127
                  */
                 double y = m_adblY[iLinePos + iX] + 128; // <-- fix the color!!
-                double cr = m_adblCr[iChromLinePos + iX / 2];
                 double cb = m_adblCb[iChromLinePos + iX / 2];
+                double cr = m_adblCr[iChromLinePos + iX / 2];
                 
-                int r = (int)Math.round(y + 1.402   * cr);
-                int g = (int)Math.round(y - 0.34414 * cb - 0.71414 * cr);
-                int b = (int)Math.round(y + 1.772   * cb);
+                int r = (int)jpsxdec.util.Math.round(y + 1.402   * cr);
+                int g = (int)jpsxdec.util.Math.round(y - 0.34414 * cb - 0.71414 * cr);
+                int b = (int)jpsxdec.util.Math.round(y + 1.772   * cb);
                 
-                if (r < 0) r = 0; else if (r > 255) r = 255;
-                if (g < 0) g = 0; else if (g > 255) g = 255;
-                if (b < 0) b = 0; else if (b > 255) b = 255;
+                if (r < 0) {r = 0;} else {if (r > 255) r = 255;}
+                if (g < 0) {g = 0;} else {if (g > 255) g = 255;}
+                if (b < 0) {b = 0;} else {if (b > 255) b = 255;}
                 
                 aiRGB[iLinePos + iX] = r << 16 | g << 8 | b;
             }
@@ -200,16 +201,16 @@ public class Yuv4mpeg2 {
         // write the data
         int i;
         for (double d : m_adblY) {
-            i = (int)Math.round(d) + 128;
-            os.write(i < 0 ? 0 : i > 255 ? 255 : i);
-        }
+            i = (int)jpsxdec.util.Math.round(d) + 128;
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
+        } System.out.println();
         for (double d : m_adblCb) {
-            i = (int)Math.round(d) + 128;
-            os.write(i < 0 ? 0 : i > 255 ? 255 : i);
+            i = (int)jpsxdec.util.Math.round(d) + 128;
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
         }
         for (double d : m_adblCr) {
-            i = (int)Math.round(d) + 128;
-            os.write(i < 0 ? 0 : i > 255 ? 255 : i);
+            i = (int)jpsxdec.util.Math.round(d) + 128;
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
         }
     }
 

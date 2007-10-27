@@ -1,11 +1,11 @@
-/* 
+/*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007  Michael Sabin
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +13,9 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
  *
  */
 
@@ -23,23 +25,46 @@
  */
 
 /* TODO:
- * - finish STR format documentation
- * - make code documentation
- * - CLEANUP!!
- * - get ready to package release into exe file
- * - better organize the error reporting/checking
- * - develop a test set
- * - figure out IDCT license
- * - Add check to output if input file is ISO style
- * - Add Settings check for negitive arguments
- * - add sector finder walker FindNextMatchingSector()
- * - somehow unify CDIndexer and the later FindFrameSectors/FindAudioSectors
- * -add syncronized to CD sector reading
- * - get rid of CDSectorIterator and replace with PSXSectorIterator
+ * x- finish STR format documentation
+ * x- make code documentation
+ * - update command-line documentation
+ * - make CREDITS file
+ * /- CLEANUP!!
+ * //- make EXE icon
+ * /- better organize the error reporting/checking
+ * //- get ready to package release into exe file
+ * //- revert CDMediaXA to only serialize/deserialize available channels
+ * //- move IDCT into its own package
+ * //- better organize PSXSectorIterator file/classes
+ * //- develop a test set
+ * //- Add check to output if input file is ISO style
+ * //- Add Settings check for negitive arguments
+ * //- add syncronized to CD sector reading
+ * //* add super fast IDCT from that java mpeg1 decoder
+ * //* how can we pre calculate the audio length?
+ * //- figure out IDCT license
+ * //- add sector finder walker FindNextMatchingSector()
+ * //- somehow unify CDIndexer and the later FindFrameSectors/FindAudioSectors
+ * //- get rid of CDSectorIterator and replace with PSXSectorIterator
+ *
+ * CONSIDER:
+ * //- moving NotThisTypeException into utils
+ * //- moving the IDCT class into its own file, and making each IDCT a separate sub-class
+ * - consider making a CDMediaHandler extends Abstractlist<PSXMediaAbstract> class
+ *   it could handle serialze/deserialize, and storing the source file
+ * //- consider making CDSectorReader completely threadsafe by changing
+ *   SeekToSector() to CDXASectorHeader ReadSectorHeader(iSect).
+ *   And I guess with that I should put ReadSector() in with the CDXASectorHeader,
+ *   and I should have CDSector classes extend CDXASector.
+ * - moving all CD indexing related stuff into its own sub package, and all
+ *   decoding related stuff into its own package, and just keep Main and 
+ *   settings in the root package.
+ * - Consider making PSXSector just a subclass of CDSector
+ * - probably should make it gpl v2 for greater compatability
  *
  * FUTURE VERSIONS:
  * - Add frame rate calculation
- * - CDSectorReader will extend AbstractList<CDSector>
+ * //- CDSectorReader will extend AbstractList<CDSector>
  *   So we can use listIterator(). The advantage of using Iterator
  *   is that I can pass the iterator into the CDMedia classes as they step
  *   through the sectors to identify them and record that they find.
@@ -65,26 +90,12 @@
  *   release the bytes.
  * - add better stdin/stdout file handling
  * - add FF8 audio decoding
- * - add super fast IDCT from that java mpeg1 decoder
  * - add GUI
  * - add raw CD reading
  * - add encoding to a video format
  * - add --nocrop option
  * - add option to save audio to the other formats
  * 
- * CONSIDER:
- * - moving NotThisTypeException into utils
- * - moving the IDCT class into its own file, and making each IDCT a separate sub-class
- * - consider making a CDMediaHandler extends Abstractlist<PSXMediaAbstract> class
- *   it could handle serialze/deserialize, and storing the source file
- * - consider making CDSectorReader completely threadsafe by changing
- *   SeekToSector() to CDXASectorHeader ReadSectorHeader(iSect).
- *   And I guess with that I should put ReadSector() in with the CDXASectorHeader,
- *   and I should have CDSector classes extend CDXASector.
- * - moving all CD indexing related stuff into its own sub package, and all
- *   decoding related stuff into its own package, and just keep Main and 
- *   settings in the root package.
- *
  */
 
 
@@ -97,7 +108,10 @@ import javax.imageio.ImageIO;
 import java.util.ArrayList;
 import javax.sound.sampled.*;
 import jpsxdec.CDSectorReader.CDXASector;
+import jpsxdec.util.Matrix8x8;
 import jpsxdec.util.Yuv4mpeg2;
+import jpsxdec.PSXMedia.PSXMediaSTR;
+import jpsxdec.PSXMedia.PSXMediaXA;
 
 public class Main {
     
@@ -107,10 +121,17 @@ public class Main {
         
         Settings.ProcessArguments(args);
         
+        /*
+        jpsxdec.InverseDiscreteCosineTransform.IDCT idct = 
+                new jpsxdec.InverseDiscreteCosineTransform.IDCT();
+        StrFrameMDEC.IDCT = idct;
+        idct.norm(StrFrameMDEC.MPEG1_DEFAULT_INTRA_QUANTIZATION_MATRIX.getPoints());
+         //*/
+        
         // set verbosity
         int[] aiVerbosityLevels = Settings.getVerbosityLevels();
         Main.DebugVerbose = aiVerbosityLevels[0];
-        PSXMediaAbstract.DebugVerbose = aiVerbosityLevels[1];
+        PSXMedia.DebugVerbose = aiVerbosityLevels[1];
         StrFrameDemuxerIS.DebugVerbose = aiVerbosityLevels[2];
         StrFrameUncompressorIS.DebugVerbose = aiVerbosityLevels[3];
         StrFrameMDEC.DebugVerbose = aiVerbosityLevels[4];
@@ -137,7 +158,6 @@ public class Main {
                 break;
         }
         
-        
         return;
     }
     
@@ -151,13 +171,21 @@ public class Main {
         } catch (IOException ex) {
             if (DebugVerbose > 2)
                 ex.printStackTrace();
-            else
+            else if (DebugVerbose > 0)
                 System.err.println(ex.getMessage());
             return -1;
         }
         
+        if (!oCD.HasSectorHeader() && DebugVerbose > 0) {
+            System.err.println("Warning: Input file does not contain entire raw CD sectors.");
+            System.err.println("         Audio cannot be decoded.");
+        }
+        
+        if (DebugVerbose > 0)
+            System.err.println("Creating index");
+        
         // index the STR file
-        ArrayList<PSXMediaAbstract> oMedias;
+        ArrayList<PSXMedia> oMedias;
         boolean blnSaveIndexFile = false;
         try {
             PrintStream oPrinter;
@@ -165,12 +193,12 @@ public class Main {
                 oPrinter = System.out;
             else
                 oPrinter = new PrintStream(Settings.getIndexFile());
-            oMedias = PSXMediaAbstract.IndexCD(oCD);
-            PSXMediaAbstract.SerializeMediaList(oMedias, oPrinter);
+            oMedias = PSXMedia.IndexCD(oCD);
+            PSXMedia.SerializeMediaList(oMedias, oPrinter);
         } catch (IOException ex) {
             if (DebugVerbose > 2)
                 ex.printStackTrace();
-            else
+            else if (DebugVerbose > 0)
                 System.err.println(ex.getMessage());
             return -1;
         }
@@ -188,7 +216,7 @@ public class Main {
         } catch (IOException ex) {
             if (DebugVerbose > 2)
                 ex.printStackTrace();
-            else
+            else if (DebugVerbose > 0)
                 System.err.println(ex.getMessage());
             return -1;
         }
@@ -199,24 +227,24 @@ public class Main {
         }
         
         // index the STR file
-        ArrayList<PSXMediaAbstract> oMedias;
+        ArrayList<PSXMedia> oMedias;
         boolean blnSaveIndexFile = false;
         try {
             String sIndexFile = Settings.getIndexFile();
             if (sIndexFile  != null) {
                 if (new File(Settings.getIndexFile()).exists()) {
-                    oMedias = PSXMediaAbstract.IndexCD(oCD, sIndexFile);
+                    oMedias = PSXMedia.IndexCD(oCD, sIndexFile);
                 } else {
-                    oMedias = PSXMediaAbstract.IndexCD(oCD);
+                    oMedias = PSXMedia.IndexCD(oCD);
                     blnSaveIndexFile = true;
                 }
             } else {
-                oMedias = PSXMediaAbstract.IndexCD(oCD);
+                oMedias = PSXMedia.IndexCD(oCD);
             }
         } catch (IOException ex) {
             if (DebugVerbose > 2)
                 ex.printStackTrace();
-            else
+            else if (DebugVerbose > 0)
                 System.err.println(ex.getMessage());
             return -1;
         }
@@ -229,7 +257,7 @@ public class Main {
                     oPrinter = System.out;
                 else
                     oPrinter = new PrintStream(Settings.getIndexFile());
-                PSXMediaAbstract.SerializeMediaList(oMedias, oPrinter);
+                PSXMedia.SerializeMediaList(oMedias, oPrinter);
             } catch (IOException ex) {
                 if (DebugVerbose > 2)
                     ex.printStackTrace();
@@ -256,26 +284,33 @@ public class Main {
         
         for (iMediaIndex = iMediaStart; iMediaIndex <= iMediaEnd; iMediaIndex++) 
         {
-            PSXMediaAbstract oMedia = oMedias.get(iMediaIndex);
+            PSXMedia oMedia = oMedias.get(iMediaIndex);
 
             // movie frames
-            if (Settings.DecodeVideo() && (oMedia instanceof CDMediaSTR)) {
-                CDMediaSTR oMovie = (CDMediaSTR)oMedia;
+            if (Settings.DecodeVideo() && (oMedia instanceof PSXMediaSTR)) {
+                PSXMediaSTR oMovie = (PSXMediaSTR)oMedia;
                 DecodeVideo(oMovie, iMediaIndex);
                 
             } // movie frames
 
             // movie audio
-            if (Settings.DecodeAudio() && (oMedia instanceof CDMediaSTR)) {
-                CDMediaSTR oMovie = (CDMediaSTR)oMedia;
+            if (Settings.DecodeAudio() && (oMedia instanceof PSXMediaSTR)) {
+                PSXMediaSTR oMovie = (PSXMediaSTR)oMedia;
                 try {
-                    ArrayList<PSXSector> oChunks = 
+                    PSXSectorRangeIterator oChunks = 
                             oMovie.GetAudioSectors();
                     if (oChunks != null) {
                         StrAudioDemuxerDecoderIS dec = 
                                 new StrAudioDemuxerDecoderIS(oChunks);
+                        /*FileOutputStream fo = new FileOutputStream("fish.dat");
+                        int iByte;
+                        while ((iByte = dec.read()) >= 0) {
+                            fo.write(iByte);
+                        }
+                        fo.close();*/
                         AudioInputStream str = 
                                 new AudioInputStream(dec, dec.getFormat(), dec.getLength());
+                        
                         AudioSystem.write(str, AudioFileFormat.Type.WAVE, 
                                 new File(String.format(
                                 "%s%03d.wav",
@@ -283,31 +318,39 @@ public class Main {
                                 )));
                     }
                 } catch (IOException ex) {
-                    ex.printStackTrace();
+                    if (DebugVerbose > 2)
+                        ex.printStackTrace();
+                    else if (DebugVerbose > 0)
+                        System.err.println(ex.getMessage());
                 }
             }
                 
-            if (Settings.DecodeAudio() && (oMedia instanceof CDMediaXA)) {
-                CDMediaXA oAudio = (CDMediaXA)oMedia;
-                try {
+            if (Settings.DecodeAudio() && (oMedia instanceof PSXMediaXA)) {
+                PSXMediaXA oAudio = (PSXMediaXA)oMedia;
 
-                    int iChannelStart, iChannelEnd, iChannelIndex;
-                    if (Settings.getChannel() < 0) {
-                        iChannelStart = 0;
-                        iChannelEnd = 32;
-                    } else {
-                        iChannelStart = Settings.getChannel();
-                        iChannelEnd = iChannelStart;
-                    }
+                int iChannelStart, iChannelEnd, iChannelIndex;
+                if (Settings.getChannel() < 0) {
+                    iChannelStart = 0;
+                    iChannelEnd = 31;
+                } else {
+                    iChannelStart = Settings.getChannel();
+                    iChannelEnd = iChannelStart;
+                }
+
+                for (iChannelIndex = iChannelStart; iChannelIndex <= iChannelEnd; iChannelIndex++) {
                     
-                    for (iChannelIndex = iChannelStart; iChannelIndex <= iChannelEnd; iChannelIndex++) {
-                        ArrayList<PSXSector> oChunks =
+                    try {
+                        PSXSectorRangeIterator oChunks =
                                 oAudio.GetChannelSectors(iChannelIndex);
 
                         if (oChunks != null)
                         {
+                            if (DebugVerbose > 1)
+                                System.err.println("Reading channel " 
+                                                   + iChannelIndex);
+                    
                             StrAudioDemuxerDecoderIS dec = 
-                                    new StrAudioDemuxerDecoderIS(oChunks);
+                                    new StrAudioDemuxerDecoderIS(oChunks, iChannelIndex);
                             AudioInputStream str = 
                                     new AudioInputStream(dec, dec.getFormat(), dec.getLength());
                             AudioSystem.write(str, AudioFileFormat.Type.WAVE, 
@@ -318,9 +361,13 @@ public class Main {
                                     iChannelIndex
                                     )));
                         }
+                    } catch (IOException ex) {
+                        if (DebugVerbose > 2)
+                            ex.printStackTrace();
+                        else if (DebugVerbose > 0)
+                            System.err.println(ex.getMessage());
                     }
-                } catch (IOException ex) {
-                    ex.printStackTrace();
+                    
                 }
 
             }
@@ -332,7 +379,7 @@ public class Main {
     
     //..........................................................................
     
-    private static void DecodeVideo(CDMediaSTR oMovie, int iMediaIndex) {
+    private static void DecodeVideo(PSXMediaSTR oMovie, int iMediaIndex) {
         long iFrameStart = Settings.getStartFrame();
         long iFrameEnd = Settings.getEndFrame();
         long iFrameIndex;
@@ -365,16 +412,21 @@ public class Main {
                         Settings.getOutputFormat());
             try {
                 
-                ArrayList<PSXSector> oSectors = 
+                PSXSectorRangeIterator oSectorWalker = 
                         oMovie.GetFrameSectors(iFrameIndex);
-                StrFrameDemuxerIS str = new StrFrameDemuxerIS(oSectors);
-                System.err.println("Reading frame " + iFrameIndex);
+                StrFrameDemuxerIS str = new StrFrameDemuxerIS(oSectorWalker, iFrameIndex);
+                
+                if (DebugVerbose > 0)
+                    System.err.println("Reading frame " + iFrameIndex);
 
                 DecodeAndSaveFrame("demux", str, sFrameFile);
                 
 
             } catch (IOException ex) {
-                ex.printStackTrace();
+                if (DebugVerbose > 2)
+                    ex.printStackTrace();
+                else if (DebugVerbose > 0)
+                    System.err.println(ex.getMessage());
             }
 
         } // for
@@ -389,12 +441,17 @@ public class Main {
         } catch (IOException ex) {
             if (DebugVerbose > 2)
                 ex.printStackTrace();
-            else
+            else if (DebugVerbose > 0)
                 System.err.println(ex.getMessage());
             return -1;
         }
         
-        ArrayList<PSXSector> oSectors = GetSettingSectors(oCD);
+        if (!oCD.HasSectorHeader() && DebugVerbose > 0) {
+            System.err.println("Warning: Input file does not contain entire raw CD sectors.");
+            System.err.println("         Audio cannot be decoded.");
+        }
+        
+        PSXSectorListIterator oSectors = new PSXSectorListIterator(oCD, Settings.getSectorList());
         
         StrFrameDemuxerIS str = new StrFrameDemuxerIS(oSectors);
         
@@ -402,11 +459,16 @@ public class Main {
                     "%s.%s",
                     Settings.getOutputFile(), 
                     Settings.getOutputFormat());
+        
+        System.err.println("Reading frame sectors");
         try {
             
             DecodeAndSaveFrame("demux", str, sFrameFile);
         } catch (IOException ex) {
-            ex.printStackTrace();
+            if (DebugVerbose > 2)
+                ex.printStackTrace();
+            else if (DebugVerbose > 0)
+                System.err.println(ex.getMessage());
             return -1;
         }
         
@@ -422,48 +484,45 @@ public class Main {
         } catch (IOException ex) {
             if (DebugVerbose > 2)
                 ex.printStackTrace();
-            else
+            else if (DebugVerbose > 0)
                 System.err.println(ex.getMessage());
             return -1;
         }
         
-        ArrayList<PSXSector> oSectors = GetSettingSectors(oCD);
+        if (!oCD.HasSectorHeader() && DebugVerbose > 0) {
+            System.err.println("Warning: Input file does not contain entire raw CD sectors.");
+            System.err.println("         Audio cannot be decoded.");
+        }
+        
+        PSXSectorListIterator  oSectors = new PSXSectorListIterator(oCD, Settings.getSectorList());
         
         StrAudioDemuxerDecoderIS dec = new StrAudioDemuxerDecoderIS(oSectors);
-        AudioInputStream str = 
-                new AudioInputStream(dec, dec.getFormat(), dec.getLength());
-        try {
-            AudioSystem.write(str, AudioFileFormat.Type.WAVE, 
-                    new File(String.format(
-                    "%s.wav",
-                    Settings.getOutputFile()
-                    )));
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            return -1;
+        if (dec.HasAudio()) {
+            AudioInputStream str = 
+                    new AudioInputStream(dec, dec.getFormat(), dec.getLength());
+
+            if (DebugVerbose > 0)
+                System.err.println("Reading audio sectors");
+
+            try {
+                AudioSystem.write(str, AudioFileFormat.Type.WAVE, 
+                        new File(String.format(
+                        "%s.wav",
+                        Settings.getOutputFile()
+                        )));
+            } catch (IOException ex) {
+                if (DebugVerbose > 2)
+                    ex.printStackTrace();
+                else if (DebugVerbose > 0)
+                    System.err.println(ex.getMessage());
+                return -1;
+            }
+        } else {
+            if (DebugVerbose > 0)
+                System.err.println("No audio found");
         }
         
         return 0;
-    }
-
-    //..........................................................................
-    
-    private static ArrayList<PSXSector> GetSettingSectors(CDSectorReader oCD) 
-    {
-        ArrayList<PSXSector> oSectors = 
-                new ArrayList<PSXSector>();
-        for (int i : Settings.getSectorList()) {
-            try {
-                CDXASector oCDXA = oCD.get(i);
-                PSXSector oSect = 
-                        PSXSector.SectorIdentifyFactory(oCDXA );
-                if (oSect != null)
-                    oSectors.add(oSect);
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        }
-        return oSectors;
     }
 
     //..........................................................................
@@ -476,13 +535,19 @@ public class Main {
                     Settings.getOutputFormat());
         try {
             
+            if (DebugVerbose > 0)
+                System.err.println("Reading frame file");
+            
             InputStream is;
             is = new FileInputStream(Settings.getInputFile());
             
             DecodeAndSaveFrame(Settings.getInputFileFormat(), is, sFrameFile);
             
         } catch (IOException ex) {
-            ex.printStackTrace();
+            if (DebugVerbose > 2)
+                ex.printStackTrace();
+            else if (DebugVerbose > 0)
+                System.err.println(ex.getMessage());
             return -1;
         }
         
@@ -516,7 +581,7 @@ public class Main {
             if (Settings.getOutputFormat().equals("demux")) {
                 FileOutputStream fos = new FileOutputStream(sFrameFile);
                 int ib;
-                while ((ib = str.read()) > 0)
+                while ((ib = str.read()) >= 0)
                     fos.write(ib);
                 fos.close();
                 return;
@@ -526,7 +591,7 @@ public class Main {
             if (Settings.getOutputFormat().equals("0rlc")) {
                 FileOutputStream fos = new FileOutputStream(sFrameFile);
                 int ib;
-                while ((ib = str.read()) > 0)
+                while ((ib = str.read()) >= 0)
                     fos.write(ib);
                 fos.close();
                 return;
@@ -557,9 +622,14 @@ public class Main {
         } catch (IOException ex) {
             if (DebugVerbose > 2)
                 ex.printStackTrace();
-            else
+            else if (DebugVerbose > 0)
                 System.err.println(ex.getMessage());
             return -1;
+        }
+        
+        if (!oCD.HasSectorHeader() && DebugVerbose > 0) {
+            System.err.println("Warning: Input file does not contain entire raw CD sectors.");
+            System.err.println("         Audio cannot be decoded.");
         }
         
         PrintStream ps;
@@ -581,7 +651,10 @@ public class Main {
             return 0;
             
         } catch (IOException ex) {
-            ex.printStackTrace();
+            if (DebugVerbose > 2)
+                ex.printStackTrace();
+            else if (DebugVerbose > 0)
+                System.err.println(ex.getMessage());
             return -1;
         }
     }

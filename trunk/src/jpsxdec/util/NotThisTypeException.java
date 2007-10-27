@@ -19,11 +19,13 @@
  *
  */
 
+/*
+ * NotThisTypeException.java
+ *
+ */
 
 package jpsxdec.util;
 
-/** Interface to provide getFilePointer() function to classes beyond
- *  just RandomAccessFile. */
-public interface IGetFilePointer {
-    public long getFilePointer();
-}
+/** Exception returned by constructors when the provided data
+ *  won't generate create the class. */
+public class NotThisTypeException extends Exception {}

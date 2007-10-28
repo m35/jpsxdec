@@ -51,11 +51,15 @@ public abstract class PSXMedia {
             
             try {
                 oPsxMedia = new PSXMediaSTR(oSectIterator);
+                if (DebugVerbose > 3)
+                    System.err.println(oPsxMedia.toString());
                 oMediaList.add(oPsxMedia);
                 if (!oSectIterator.hasNext()) break;
             } catch (NotThisTypeException e1) {
                 try {
                     oPsxMedia = new PSXMediaXA(oSectIterator);
+                    if (DebugVerbose > 3)
+                        System.err.println(oPsxMedia.toString());
                     oMediaList.add(oPsxMedia);
                     if (!oSectIterator.hasNext()) break;
                 } catch (NotThisTypeException e2) {
@@ -162,6 +166,8 @@ public abstract class PSXMedia {
         return m_iStartSector + "-" + m_iEndSector;
     }
     
+    /**************************************************************************/
+    /**************************************************************************/
     
     public static class PSXMediaSTR extends PSXMedia {
         
@@ -316,6 +322,8 @@ public abstract class PSXMedia {
     }
     
     
+    /**************************************************************************/
+    /**************************************************************************/
     
     public static class PSXMediaXA extends PSXMedia {
         
@@ -365,7 +373,8 @@ public abstract class PSXMedia {
                         if (m_oAuInfo.BitsPerSampele != oAudio.getBitsPerSample() ||
                                 m_oAuInfo.SamplesPerSecond != oAudio.getSamplesPerSecond() ||
                                 m_oAuInfo.MonoStereo != oAudio.getMonoStereo() ||
-                                m_oAuInfo.Channel != oAudio.getChannel()) {
+                                m_oAuInfo.Channel != oAudio.getChannel()) 
+                        {
                             break;
                         }
                         
@@ -393,7 +402,9 @@ public abstract class PSXMedia {
                     m_alngChannelHasAudio[(int)oAudio.getChannel()] += oAudio.getSampleLength();
                     
                     m_iEndSector = oPsxSect.getSector();
-                } // if (oPsxSect instanceof CDSectorAudio)
+                } else {
+                    break; // some other sector type? we're done.
+                }
                 
                 if (oPsxSect != null && DebugVerbose > 2)
                     System.err.println(oPsxSect.toString());

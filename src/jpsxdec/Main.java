@@ -121,7 +121,7 @@ public class Main {
         
         Settings.ProcessArguments(args);
         
-        /*
+        /*  // Uncommenting this will enable the super fast, but low quality IDCT
         jpsxdec.InverseDiscreteCosineTransform.IDCT idct = 
                 new jpsxdec.InverseDiscreteCosineTransform.IDCT();
         StrFrameMDEC.IDCT = idct;
@@ -233,12 +233,20 @@ public class Main {
             String sIndexFile = Settings.getIndexFile();
             if (sIndexFile  != null) {
                 if (new File(Settings.getIndexFile()).exists()) {
+                    if (DebugVerbose > 1)
+                        System.err.println("Reading file index");
                     oMedias = PSXMedia.IndexCD(oCD, sIndexFile);
                 } else {
+                    if (DebugVerbose > 1)
+                        System.err.println("Indexing file");
+        
                     oMedias = PSXMedia.IndexCD(oCD);
                     blnSaveIndexFile = true;
                 }
             } else {
+                if (DebugVerbose > 1)
+                    System.err.println("Indexing file");
+        
                 oMedias = PSXMedia.IndexCD(oCD);
             }
         } catch (IOException ex) {
@@ -302,12 +310,6 @@ public class Main {
                     if (oChunks != null) {
                         StrAudioDemuxerDecoderIS dec = 
                                 new StrAudioDemuxerDecoderIS(oChunks);
-                        /*FileOutputStream fo = new FileOutputStream("fish.dat");
-                        int iByte;
-                        while ((iByte = dec.read()) >= 0) {
-                            fo.write(iByte);
-                        }
-                        fo.close();*/
                         AudioInputStream str = 
                                 new AudioInputStream(dec, dec.getFormat(), dec.getLength());
                         
@@ -414,7 +416,8 @@ public class Main {
                 
                 PSXSectorRangeIterator oSectorWalker = 
                         oMovie.GetFrameSectors(iFrameIndex);
-                StrFrameDemuxerIS str = new StrFrameDemuxerIS(oSectorWalker, iFrameIndex);
+                StrFrameDemuxerIS str = 
+                        new StrFrameDemuxerIS(oSectorWalker, iFrameIndex);
                 
                 if (DebugVerbose > 0)
                     System.err.println("Reading frame " + iFrameIndex);
@@ -631,6 +634,9 @@ public class Main {
             System.err.println("Warning: Input file does not contain entire raw CD sectors.");
             System.err.println("         Audio cannot be decoded.");
         }
+        
+        if (DebugVerbose > 1)
+            System.err.println("Generating sector list");
         
         PrintStream ps;
         try {

@@ -77,7 +77,7 @@ import jpsxdec.PSXMedia.PSXMediaXA;
 public class Main {
     
     public static int DebugVerbose = 2;
-    public final static String Version = "0.21(beta)";
+    public final static String Version = "0.22(beta)";
     public final static String VerString = "jPSXdec: PSX media decoder. v" + Version;
     
     public static void main(String[] args) {

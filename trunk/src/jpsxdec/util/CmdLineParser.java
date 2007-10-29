@@ -33,6 +33,11 @@
  *
  */
 
+/* This version only contains 2 changes from the origional file:
+ * - Line  40: the package has been changed to jpsxdec.util.
+ * - Line 485: Allow for '-' arguments.
+ */
+
 package jpsxdec.util; // formally jargs.gnu
 
 import java.text.NumberFormat;

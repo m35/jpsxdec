@@ -852,8 +852,11 @@ new DCVariableLengthCode("100"     , 0,  null)
             
             // Hopefully we haven't gone over
             if (iTotalRunLength > 63) {
-                throw new IOException(
-                        "Run length out of bounds: " + (iTotalRunLength + 1) + " at " + m_oBitReader.getPosition());
+                throw new IOException(String.format(
+                        "Run length out of bounds: %d at %1.3f",
+                        iTotalRunLength + 1,
+                        m_oBitReader.getPosition()
+                        ));
             }
         } 
     }

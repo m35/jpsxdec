@@ -37,7 +37,8 @@ public abstract class PSXMedia {
     
     /** Finds all the media on the CD */
     public static ArrayList<PSXMedia> IndexCD(CDSectorReader oCD)
-    throws IOException {
+            throws IOException 
+    {
         
         PSXSectorRangeIterator oSectIterator = new PSXSectorRangeIterator(oCD);
         
@@ -76,8 +77,9 @@ public abstract class PSXMedia {
     /** Deserializes the CD index file, and creates a
      *  list of media items on the CD */
     public static ArrayList<PSXMedia> IndexCD(CDSectorReader oCD,
-            String sSerialFile)
-            throws IOException {
+                                              String sSerialFile)
+            throws IOException 
+    {
         //TODO: Want to read as much as we can from the file before an exception
         //      and return what we can get, but we also want to return that
         //      there was an error.
@@ -110,12 +112,14 @@ public abstract class PSXMedia {
     }
     
     /** Serializes a list of media items to a file */
-    public static void SerializeMediaList(
-            AbstractList<PSXMedia> oMediaList,
-            PrintStream oPrinter)
-            throws IOException {
-        oPrinter.println("# Any line that does not start " +
-                "with ### STR or ### XA is ignored.");
+    public static void SerializeMediaList(AbstractList<PSXMedia> oMediaList,
+                                          PrintStream oPrinter)
+            throws IOException 
+    {
+        oPrinter.println("# Any line that does not start with ###:STR or ###:XA is ignored.");
+        oPrinter.println("# Format:");
+        oPrinter.println("#   media_num:STR:start_sector-end_sector:frame_start-frame_end");
+        oPrinter.println("#   media_num:XA:start_sector-end_sector:list,of,channels");
         int i = 0;
         for (PSXMedia oMedia : oMediaList) {
             oPrinter.println(String.format("%03d:%s", i, oMedia.toString()));
@@ -181,7 +185,8 @@ public abstract class PSXMedia {
         long m_lngEndFrame = -1;
         
         public PSXMediaSTR(PSXSectorRangeIterator oSectIterator)
-        throws NotThisTypeException, IOException {
+                throws NotThisTypeException, IOException 
+        {
             super(oSectIterator);
             
             long iAudioPeriod = -1;
@@ -329,8 +334,8 @@ public abstract class PSXMedia {
         
         long m_iAudioPeriod = -1;
         
-        /** In the future this *may* instead hold how many samples
-         *  or perhaps sectors are found for each channel, but for now,
+        /** In the future this *may* instead hold how many samples,
+         *  or perhaps sectors, found for each channel, but for now,
          *  it just holds 1 or 0 for if a channel has audio */
         long[] m_alngChannelHasAudio = new long[/*32*/] {
             0, 0, 0, 0, 0, 0, 0, 0,

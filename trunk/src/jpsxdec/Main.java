@@ -25,37 +25,22 @@
  */
 
 /* TODO:
- * x- finish STR format documentation
- * x- make code documentation
+ * - finish STR format documentation
+ * - make code documentation
  * - update command-line documentation
- * - make CREDITS file
+ * /- make CREDITS file
+ * - add option to select the IDCT
+ * //- display a version at the program startup (if v > 0)
  * /- CLEANUP!!
  * //- make EXE icon
  * /- better organize the error reporting/checking
- * //- get ready to package release into exe file
  * //- revert CDMediaXA to only serialize/deserialize available channels
- * //- move IDCT into its own package
  * //- better organize PSXSectorIterator file/classes
  * //- develop a test set
- * //- Add check to output if input file is ISO style
- * //- Add Settings check for negitive arguments
- * //- add syncronized to CD sector reading
- * //* add super fast IDCT from that java mpeg1 decoder
- * //* how can we pre calculate the audio length?
- * //- figure out IDCT license
- * //- add sector finder walker FindNextMatchingSector()
- * //- somehow unify CDIndexer and the later FindFrameSectors/FindAudioSectors
- * //- get rid of CDSectorIterator and replace with PSXSectorIterator
  *
  * CONSIDER:
- * //- moving NotThisTypeException into utils
- * //- moving the IDCT class into its own file, and making each IDCT a separate sub-class
  * - consider making a CDMediaHandler extends Abstractlist<PSXMediaAbstract> class
  *   it could handle serialze/deserialize, and storing the source file
- * //- consider making CDSectorReader completely threadsafe by changing
- *   SeekToSector() to CDXASectorHeader ReadSectorHeader(iSect).
- *   And I guess with that I should put ReadSector() in with the CDXASectorHeader,
- *   and I should have CDSector classes extend CDXASector.
  * - moving all CD indexing related stuff into its own sub package, and all
  *   decoding related stuff into its own package, and just keep Main and 
  *   settings in the root package.
@@ -64,30 +49,6 @@
  *
  * FUTURE VERSIONS:
  * - Add frame rate calculation
- * //- CDSectorReader will extend AbstractList<CDSector>
- *   So we can use listIterator(). The advantage of using Iterator
- *   is that I can pass the iterator into the CDMedia classes as they step
- *   through the sectors to identify them and record that they find.
- *   That's basically what I'm doing already anyway. Should probably formalize it.
- *   ListIterator also allows starting at a certain point in the list,
- *   and even moving backwards (don't think that will be used, though).
- *   Using iterators also allows the class to be thread safe
- *   (be sure to use synchronized for the underlying seeking and reading
- *   functions)
- * - CDSectorReader extending AbstractList<CDSector> will also provide
- *   get(#) function to return a specific sector number.
- * - CDSector class. When the class is created, it reads the sector
- *   to get the sector header info, and KEEP the sector in memory. It will
- *   have a getSectorData() to return the userdata portion of the sector.
- * - SectorIdentifyFactory will accept one of these CDSector classes,
- *   and keep creating ByteArrayInputStreams to read the sector data.
- *   PsxSectorAbstract will not keep the CDSector instance, but will
- *   copy the information it wants, most importantly, the sector number.
- * - PsxSectorAbstract.buffer() will call CDSectorReader.get() to once again 
- *   get the sector, then call CDSector.getSectorData() to get the user-data
- *   of the sector, and then free the CDSector again. read() will then
- *   step through the demuxed bytes. Finally, PsxSectorAbstract.release() will  
- *   release the bytes.
  * - add better stdin/stdout file handling
  * - add FF8 audio decoding
  * - add GUI
@@ -116,6 +77,8 @@ import jpsxdec.PSXMedia.PSXMediaXA;
 public class Main {
     
     public static int DebugVerbose = 2;
+    public final static String Version = "0.21(beta)";
+    public final static String VerString = "jPSXdec: PSX media decoder. v" + Version;
     
     public static void main(String[] args) {
         
@@ -135,6 +98,9 @@ public class Main {
         StrFrameDemuxerIS.DebugVerbose = aiVerbosityLevels[2];
         StrFrameUncompressorIS.DebugVerbose = aiVerbosityLevels[3];
         StrFrameMDEC.DebugVerbose = aiVerbosityLevels[4];
+        
+        if (DebugVerbose > 0)
+            System.err.println(VerString);
         
         switch (Settings.getMainCommandType()) {
             case Settings.INDEX_ONLY:

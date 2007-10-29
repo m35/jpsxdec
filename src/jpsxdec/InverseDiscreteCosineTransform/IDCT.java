@@ -2,6 +2,17 @@ package jpsxdec.InverseDiscreteCosineTransform;
 
 import jpsxdec.util.Matrix8x8;
 
+/* 
+ * Only a handful of differences from the original IDCT.java file:
+ * - Line 1: Package change
+ * - Line 3: import Matrix8x8 class
+ * - Line 82: implements IIDCT
+ * - Lines 89-96: Changed #define lines to Java final variables
+ * - Line 127: Change norm() function to accept an array of doubles
+ * - Lines 147-179 : Added IDCT() function
+ *
+ */
+
 /****************************************************************************************/
 /*											*/
 /*				     "IDCT.java"					*/
@@ -131,33 +142,10 @@ public class IDCT implements IIDCT {
             }
         }
     }
-
-    /* The method "invers_dct_special" is called if only one DCT value appears. */
-
-    public void invers_dct_special(int coeff[], int pos) {
-        int val, co;
-        int ndataptr[], ptr;
-
-        if (pos == 0) { // DC value
-            val = (coeff[0] >> VAL_BITS);
-            for (int i = 0; i < 64; coeff[i++] = val); // all values are equal
-            return;
-
-        }
-
-        // AC value:
-
-        // perform the IDFT using the lookup table
-        co = coeff[pos];
-        ndataptr = IDFT_table[pos++];
-        ptr = 0;
-
-        for (ptr = 0; ptr < 64; ptr++) {
-            coeff[ptr] = (ndataptr[ptr] * co) >> (VAL_BITS-2);
-        }
-    }
-
-    /** Wraps invers_dct() with Matrix8x8. */
+    
+    
+    /** Wraps invers_dct_special() and invers_dct() with Matrix8x8. 
+     * [implements IIDCT] */
     public Matrix8x8 IDCT(Matrix8x8 oMat) {
         double[] adblMat = oMat.getPoints().clone();
         int[] aiMat = new int[64];
@@ -188,6 +176,33 @@ public class IDCT implements IIDCT {
             adblMat[i] = aiMat[i];
 
         return new Matrix8x8(adblMat);
+    }
+
+    
+
+    /* The method "invers_dct_special" is called if only one DCT value appears. */
+
+    public void invers_dct_special(int coeff[], int pos) {
+        int val, co;
+        int ndataptr[], ptr;
+
+        if (pos == 0) { // DC value
+            val = (coeff[0] >> VAL_BITS);
+            for (int i = 0; i < 64; coeff[i++] = val); // all values are equal
+            return;
+
+        }
+
+        // AC value:
+
+        // perform the IDFT using the lookup table
+        co = coeff[pos];
+        ndataptr = IDFT_table[pos++];
+        ptr = 0;
+
+        for (ptr = 0; ptr < 64; ptr++) {
+            coeff[ptr] = (ndataptr[ptr] * co) >> (VAL_BITS-2);
+        }
     }
 
     /* The method "invers_dct" is an implementation of a full IDCT (actually IDFT). The	*/

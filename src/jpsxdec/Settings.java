@@ -167,6 +167,8 @@ public class Settings {
     
     private static void PrintUsage() {
         String[] sUseMsg = {
+        Main.VerString,
+        "",
         "Usage:",
         "  java -jar jpsxdec [options] <input-file> <output-file>",
         "",

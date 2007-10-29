@@ -255,8 +255,9 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
      *  the actual byte buffer (for reading bits), or a clone of the byte buffer
      *  (for peeking bits) */
     private static long ReadUBits(int iBitsRemainging,
-            int iCount,
-            SimpleIntQueue oBitBuffer) {
+                                  int iCount,
+                                  SimpleIntQueue oBitBuffer) 
+    {
         
         long lngRet = 0;
         int ib;
@@ -307,13 +308,16 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
      *  then buffers enough bytes for the requested bits.
      *  Return the number of bits that were actually buffered. */
     private int BufferEnoughForBits(int iCount) throws IOException {
-        if (m_iBitsRemainging == 0) {
-            if (m_oBitBuffer.size() == 0) {
-                if (BufferData() < 1) throw new EOFException("End of bit file");
-            } else {
-                m_oBitBuffer.Dequeue();
+        if (m_iBitsRemainging == 0) { // no bits remain for the head of the buffer
+            // need to get rid of the head of the buffer
+            if (m_oBitBuffer.size() > 0) { // but but only if the buffer isn't empty
+                m_oBitBuffer.Dequeue(); // get rid of the used up head
             }
-            m_iBitsRemainging = 8;
+            if (m_oBitBuffer.size() == 0) { // now if the buffer is empty
+                // add a little more to the buffer
+                if (BufferData() < 1) throw new EOFException("End of bit file");
+            }
+            m_iBitsRemainging = 8; // and now we have 8 bits for the head again
         }
         
         int iBitsBuffed;

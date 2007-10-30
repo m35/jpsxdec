@@ -77,7 +77,7 @@ import jpsxdec.PSXMedia.PSXMediaXA;
 public class Main {
     
     public static int DebugVerbose = 2;
-    public final static String Version = "0.22(beta)";
+    public final static String Version = "0.221(beta)";
     public final static String VerString = "jPSXdec: PSX media decoder. v" + Version;
     
     public static void main(String[] args) {
@@ -241,7 +241,7 @@ public class Main {
             }
         }
 
-        // decode the desired media 
+        // decode the desired media items
         
         int iMediaStart, iMediaEnd, iMediaIndex;
 
@@ -265,17 +265,20 @@ public class Main {
                 PSXMediaSTR oMovie = (PSXMediaSTR)oMedia;
                 DecodeVideo(oMovie, iMediaIndex);
                 
-            } // movie frames
+            }
 
             // movie audio
             if (Settings.DecodeAudio() && (oMedia instanceof PSXMediaSTR)) {
                 PSXMediaSTR oMovie = (PSXMediaSTR)oMedia;
                 try {
-                    PSXSectorRangeIterator oChunks = 
-                            oMovie.GetAudioSectors();
-                    if (oChunks != null) {
+                    if (DebugVerbose > 1)
+                        System.err.println("Reading movie audio");
+                    
+                    PSXSectorRangeIterator oWalker = 
+                            oMovie.GetAudioSectorWalker();
+                    if (oWalker != null) {
                         StrAudioDemuxerDecoderIS dec = 
-                                new StrAudioDemuxerDecoderIS(oChunks);
+                                new StrAudioDemuxerDecoderIS(oWalker);
                         AudioInputStream str = 
                                 new AudioInputStream(dec, dec.getFormat(), dec.getLength());
                         
@@ -293,6 +296,7 @@ public class Main {
                 }
             }
                 
+            // XA audio
             if (Settings.DecodeAudio() && (oMedia instanceof PSXMediaXA)) {
                 PSXMediaXA oAudio = (PSXMediaXA)oMedia;
 
@@ -301,24 +305,27 @@ public class Main {
                     iChannelStart = 0;
                     iChannelEnd = 31;
                 } else {
-                    iChannelStart = Settings.getChannel();
+                    if (Settings.getChannel() > 31)
+                        iChannelStart = 31;
+                    else
+                        iChannelStart = Settings.getChannel();
                     iChannelEnd = iChannelStart;
                 }
 
                 for (iChannelIndex = iChannelStart; iChannelIndex <= iChannelEnd; iChannelIndex++) {
                     
                     try {
-                        PSXSectorRangeIterator oChunks =
-                                oAudio.GetChannelSectors(iChannelIndex);
+                        PSXSectorRangeIterator oWalker =
+                                oAudio.GetChannelSectorWalker(iChannelIndex);
 
-                        if (oChunks != null)
+                        if (oWalker != null)
                         {
                             if (DebugVerbose > 1)
                                 System.err.println("Reading channel " 
                                                    + iChannelIndex);
                     
                             StrAudioDemuxerDecoderIS dec = 
-                                    new StrAudioDemuxerDecoderIS(oChunks, iChannelIndex);
+                                    new StrAudioDemuxerDecoderIS(oWalker, iChannelIndex);
                             AudioInputStream str = 
                                     new AudioInputStream(dec, dec.getFormat(), dec.getLength());
                             AudioSystem.write(str, AudioFileFormat.Type.WAVE, 
@@ -381,7 +388,7 @@ public class Main {
             try {
                 
                 PSXSectorRangeIterator oSectorWalker = 
-                        oMovie.GetFrameSectors(iFrameIndex);
+                        oMovie.GetFrameSectorWalker(iFrameIndex);
                 StrFrameDemuxerIS str = 
                         new StrFrameDemuxerIS(oSectorWalker, iFrameIndex);
                 
@@ -420,9 +427,11 @@ public class Main {
             System.err.println("         Audio cannot be decoded.");
         }
         
-        PSXSectorListIterator oSectors = new PSXSectorListIterator(oCD, Settings.getSectorList());
+        // get the walker (texas ranger)
+        PSXSectorListIterator oSectorWalker = 
+                new PSXSectorListIterator(oCD, Settings.getSectorList());
         
-        StrFrameDemuxerIS str = new StrFrameDemuxerIS(oSectors);
+        StrFrameDemuxerIS str = new StrFrameDemuxerIS(oSectorWalker);
         
         String sFrameFile = String.format(
                     "%s.%s",
@@ -463,9 +472,10 @@ public class Main {
             System.err.println("         Audio cannot be decoded.");
         }
         
-        PSXSectorListIterator  oSectors = new PSXSectorListIterator(oCD, Settings.getSectorList());
+        PSXSectorListIterator oSectorWalker = 
+                new PSXSectorListIterator(oCD, Settings.getSectorList());
         
-        StrAudioDemuxerDecoderIS dec = new StrAudioDemuxerDecoderIS(oSectors);
+        StrAudioDemuxerDecoderIS dec = new StrAudioDemuxerDecoderIS(oSectorWalker);
         if (dec.HasAudio()) {
             AudioInputStream str = 
                     new AudioInputStream(dec, dec.getFormat(), dec.getLength());

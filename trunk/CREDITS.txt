@@ -1,15 +1,13 @@
-CREDITS
--------
+CREDITS & THANKS
+----------------
 
 The following people either helped make jPSXdec possible, or are just really cool people (usually both):
 
-Stuart Caie for adding STR decoding support to xine (and therefore ffmpeg), including the documentation in the source. (http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html)
-
-Mike Melanson for archiving some example STR files (http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html)
+Stuart Caie and Mike Melanson for adding STR decoding support to xine (and therefore ffmpeg), including the documentation in the source. (http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html) Also for archiving some example STR files (http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html).
 
 Stephen Manley for generously sharing his DCT.java class (http://www.nyx.net/~smanley/)
 
-The q-gears development team for their forums, source code, and documentation (http://forums.qhimm.com/index.php?topic=6140.msg78199#msg78199). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/trunk/src/common/movie/decoders/).
+The q-gears development team for their forums, source code, and documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/trunk/src/common/movie/decoders/).
 
 "Everything You Have Always Wanted to Know about the Playstation But Were Afraid to Ask." compiled / edited by Joshua Walker. Even if it has the CrCb reversal error, it will always be a great reference for PSX hacking.
 
@@ -21,7 +19,9 @@ The PCSX Team, creators of the only open source Playstation emulator (http://www
 
 Developers of the pSX emulator. While not open source, at least it is still under active development, and provides a very nice debugger for reverse engineering games (http://psxemulator.gazaxian.com/).
 
-Joerg Anders for managing to write an mpeg1 decoder in pure Java (http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html).
+Steve Purcell et al. for the handy jargs library (http://jargs.sourceforge.net/).
+
+Joerg Anders for managing to write an mpeg1 decoder in pure Java (http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html). His IDCT is being utilized.
 
 "Filo", the Japanese fellow that wrote the PsxMC FF8 plugin (http://homepage2.nifty.com/~mkb/PsxMC/).
 

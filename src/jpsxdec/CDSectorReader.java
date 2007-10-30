@@ -239,7 +239,10 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
          *  to the start of the sector userdata.
          *  implements util.IGetFilePointer */
         public long getFilePointer() {
-            return m_lngFilePointer + m_oHeader.getSize();
+            if (m_oHeader == null)
+                return m_lngFilePointer;
+            else
+                return m_lngFilePointer + m_oHeader.getSize();
         }
 
     }

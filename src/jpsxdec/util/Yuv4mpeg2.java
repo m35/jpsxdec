@@ -34,7 +34,8 @@ import java.io.IOException;
 
 /**
  * Simple class to handle yuv4mpeg2 image format.
- * Limted to just 4:2:0 jpeg/mpeg1 format (since that's the format PSX uses).
+ * Limted to just 4:2:0 jpeg/mpeg1 sub-format 
+ * (since that's the format PSX uses).
  * Extentsion: .yuv or .y4m
  *
  *  "All image data is in the CCIR-601 Y'CbCr colorspace..."
@@ -97,7 +98,7 @@ public class Yuv4mpeg2 {
                  * Cb: -128 to +127
                  * Cr: -128 to +127
                  */
-                double y = m_adblY[iLinePos + iX] + 128; // <-- fix the color!!
+                double y = m_adblY[iLinePos + iX] + 128; // <-- fix the lumin!!
                 double cb = m_adblCb[iChromLinePos + iX / 2];
                 double cr = m_adblCr[iChromLinePos + iX / 2];
                 
@@ -199,22 +200,29 @@ public class Yuv4mpeg2 {
         ow = null;
         
         // write the data
+        // "The values 0 and 255 are used for sync encoding."
+        // so I guess we clamp at 1 and 254?
+        // TODO: Check this
         int i;
         for (double d : m_adblY) {
             i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
+            os.write(i < 1 ? 1 : (i > 254 ? 254 : i));
         } System.out.println();
         for (double d : m_adblCb) {
             i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
+            os.write(i < 1 ? 1 : (i > 254 ? 254 : i));
         }
         for (double d : m_adblCr) {
             i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
+            os.write(i < 1 ? 1 : (i > 254 ? 254 : i));
         }
     }
 
+    /** Pastes the supplied image into this image. */
     public void putYuvImage(int iX, int iY, Yuv4mpeg2 oYuv) {
+        assert(iX > 0 && iY > 0 && 
+               iX + oYuv.m_iWidth < m_iWidth && 
+               iY + oYuv.m_iHeight < m_iHeight);
         setY(iX, iY, oYuv.m_iWidth, oYuv.m_iHeight, oYuv.m_adblY);
         setCbCr(iX / 2, iY / 2, 
                 oYuv.m_iWidth / 2, oYuv.m_iHeight / 2, 

@@ -311,13 +311,9 @@ public final class StrFrameMDEC {
         // Step 3) de-quanitize the matrix with the mpeg-1 matrix, and the
         //         block's quantization scale.
         ////////////////////////////////////////////////////////////////////////
-        oDCTMatrix = Dequanitize(oQuantiziedMatrix,
+        oDCTMatrix = Dequanitize(iDC_Coefficient, oQuantiziedMatrix,
                 MPEG1_DEFAULT_INTRA_QUANTIZATION_MATRIX,
                 (double)iQuantizationScale); 
-        
-        // Now we add the DC coefficint to the matrix, also de-quanitize it.
-        oDCTMatrix.setPoint(0, 0, iDC_Coefficient 
-                     * MPEG1_DEFAULT_INTRA_QUANTIZATION_MATRIX.getPoint(0, 0));
         
         if (DebugVerbose >= 7) {
             System.err.println("After dequantization");
@@ -353,7 +349,8 @@ public final class StrFrameMDEC {
     }
     
     /** Dequanitizes the matrix using the table and scale. */
-    private static Matrix8x8 Dequanitize(Matrix8x8 oMatrix, 
+    private static Matrix8x8 Dequanitize(int iDC_Coefficient,
+                                         Matrix8x8 oMatrix, 
                                          Matrix8x8 QuantizationTable, 
                                          double dblScale) 
     {
@@ -367,11 +364,17 @@ public final class StrFrameMDEC {
                 oQuantizedMatrix.setPoint(x, y, 
                     // I don't know why this needs to be divided by two, 
                     // but it provides the most correct output.
-                    oMatrix.getPoint(x, y) 
+                    2 * oMatrix.getPoint(x, y) 
                     * QuantizationTable.getPoint(x, y)
-                    * dblScale / 2);
+                    * dblScale / 16);
             }
         }
+        // Now we add the DC coefficint to the matrix, also de-quanitize it.
+        // ??? !!!I don't understand why we divide by 4 here!!! ???
+        oQuantizedMatrix.setPoint(0, 0, 
+                     iDC_Coefficient 
+                     * QuantizationTable.getPoint(0, 0) / 4);
+        
         return oQuantizedMatrix;
     }
     

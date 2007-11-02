@@ -110,7 +110,7 @@ public class StephensIDCT implements IIDCT {
                     temp1 += cT[i][k] * temp.getPoint(k, j);
                 }
 
-                output.setPoint(i, j, temp1 / 4);
+                output.setPoint(i, j, temp1);
             }
         }
 

@@ -28,12 +28,13 @@ package jpsxdec.InverseDiscreteCosineTransform;
 
 import jpsxdec.util.Matrix8x8;
 
-/** This is the infamous Inverse Discrete Cosine Transform.
- * If I understand correctly, it's inverse 2D DCT-II, specifically.
+/** This is the simplest implementation of the Inverse Discrete Cosine 
+ *  Transform. If I understand correctly, it's inverse 2D DCT-II, specifically.
+ *
  * It's as simple as I could make it, and as such, it's about as
  * slow as can be.
  *
- * Using the Stephen's version is about 13 times faster!!!!
+ * Note: Using the Stephen's version is about 13 times faster!!!!
  * The results are almost indistinguishable. I don't think there
  * is any intentional loss of precision with the optimized version.
  * It's just how the floating point numbers happen to round.
@@ -45,7 +46,7 @@ public class SimpleIDCT implements IIDCT {
         int iWidth = oDCTMat.getWidth();
         int iHeight = oDCTMat.getHeight();
 
-        Matrix8x8 oPixelMat = new Matrix8x8(/*iWidth, iHeight*/);
+        Matrix8x8 oPixelMat = new Matrix8x8();
 
         int Pixelx, Pixely, DCTx, DCTy;
 
@@ -79,7 +80,7 @@ public class SimpleIDCT implements IIDCT {
                     }
                 }
 
-                oPixelMat.setPoint(Pixelx, Pixely, dblTotal / 4);
+                oPixelMat.setPoint(Pixelx, Pixely, dblTotal);
             }
         }
 

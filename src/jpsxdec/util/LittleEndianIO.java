@@ -35,8 +35,6 @@ import java.io.RandomAccessFile;
 /** Functions to read little endian values from a stream. */
 public final class LittleEndianIO {
     
-    public class NeverThrowsIOException extends IOException {}
-    
     /** Function to read little-endian 16 bits from InputStream. 
      *  Throws an exception if at the end of the stream. */
     public static long ReadUInt16LE(InputStream oIS) throws IOException 
@@ -67,7 +65,8 @@ public final class LittleEndianIO {
         if (b4 < 0)
             throw new EOFException("Unexpected end of file in ReadUInt32LE");
         long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-        if (total == -1) throw new IOException("Reading of unsigned 32 bits 0xFFFFFFFF -> -1");
+        if (total == -1) throw 
+               new IOException("Reading of unsigned 32 bits 0xFFFFFFFF -> -1");
         return total;
     }
     

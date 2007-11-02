@@ -23,7 +23,9 @@
 package jpsxdec.util;
 
 /** Interface to provide getFilePointer() function to classes beyond
- *  just RandomAccessFile. */
+ *  just RandomAccessFile. I want debug information to print there
+ *  position in the file where data is coming from. So the file
+ *  pointer has to be passed along with every input stream. */
 public interface IGetFilePointer {
     public long getFilePointer();
 }

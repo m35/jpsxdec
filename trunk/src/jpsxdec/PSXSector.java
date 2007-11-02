@@ -216,7 +216,8 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         int m_iBitsPerSample = -1;
         
         public PSXSectorAudio2048(CDXASector oCD)
-        throws NotThisTypeException {
+                throws NotThisTypeException 
+        {
             super(oCD);
             if (oCD.HasSectorHeader()) throw new NotThisTypeException();
             
@@ -275,7 +276,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
                     throw new NotThisTypeException();
                 }
                 try {
-                    oDIS.skip(128 - 8);
+                    oDIS.skip(128 - 16);
                 } catch (IOException ex) {
                     // i guess only if the sector data isn't long enough
                     throw new NotThisTypeException();
@@ -410,13 +411,21 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         
         public String toString() {
             return "Video " + super.toString() +
-                    String.format(
-                    " frame:%d chunk:%d/%d %dx%d",
-                    m_lngFrameNumber,
-                    m_lngChunkNumber,
-                    m_lngChunksInThisFrame,
-                    m_lngWidth,
-                    m_lngHeight);
+                String.format(
+                " frame:%d chunk:%d/%d %dx%d ver:%d " + 
+                "{dur=%d rlc=%d 3800=%04x qscale=%d 4*00=%08x}",
+                m_lngFrameNumber,
+                m_lngChunkNumber,
+                m_lngChunksInThisFrame,
+                m_lngWidth,
+                m_lngHeight,
+                m_lngVersion,
+                m_lngChunkDuration,
+                m_lngRunLengthCodeCount,
+                m_lngHeader3800,
+                m_lngQuantizationScale,
+                m_lngFourZeros
+                );
         }
         
         public long getChunkNumber() {

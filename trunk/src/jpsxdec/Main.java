@@ -27,13 +27,17 @@
 /* TODO:
  * - finish STR format documentation
  * - make code documentation
- * - update command-line documentation
- * /- make CREDITS file
+ * - get some pre-MDEC data out of an emulator to compare with my pre-MDEC data
+ * - improve command-line documentation
+ * - change the demuxer or uncompresser to handle Lain final movie
+ * - check if clamping yuv4mpeg2 values at 1-254 help output
  * - add option to select the IDCT
- * //- display a version at the program startup (if v > 0)
+ * /- make CREDITS file
  * /- CLEANUP!!
- * //- make EXE icon
  * /- better organize the error reporting/checking
+ * //- figure out how to use BufferedImage with YUV input data (to speed it up)
+ * //- display a version at the program startup (if v > 0)
+ * //- make EXE icon
  * //- revert CDMediaXA to only serialize/deserialize available channels
  * //- better organize PSXSectorIterator file/classes
  * //- develop a test set
@@ -43,9 +47,12 @@
  *   it could handle serialze/deserialize, and storing the source file
  * - moving all CD indexing related stuff into its own sub package, and all
  *   decoding related stuff into its own package, and just keep Main and 
- *   settings in the root package.
+ *   Settings in the root package.
  * - Consider making PSXSector just a subclass of CDSector
- * - probably should make it gpl v2 for greater compatability
+ * - accept a callback class that can get the status of the decoding,
+ *   e.g. the current decoded macro-block (to display on screen)
+ *        debug/error messages (puts the debug in the main class, 
+ *        and sets up easier debugging feedback once a gui is added)
  *
  * FUTURE VERSIONS:
  * - Add frame rate calculation
@@ -77,8 +84,8 @@ import jpsxdec.PSXMedia.PSXMediaXA;
 public class Main {
     
     public static int DebugVerbose = 2;
-    public final static String Version = "0.221(beta)";
-    public final static String VerString = "jPSXdec: PSX media decoder. v" + Version;
+    public final static String Version = "0.24(beta)";
+    public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     
     public static void main(String[] args) {
         
@@ -90,6 +97,9 @@ public class Main {
         StrFrameMDEC.IDCT = idct;
         idct.norm(StrFrameMDEC.MPEG1_DEFAULT_INTRA_QUANTIZATION_MATRIX.getPoints());
          //*/
+        
+        // Uncommenting this will enable the super slow IDCT
+        //StrFrameMDEC.IDCT = new jpsxdec.InverseDiscreteCosineTransform.SimpleIDCT();
         
         // set verbosity
         int[] aiVerbosityLevels = Settings.getVerbosityLevels();

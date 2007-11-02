@@ -297,14 +297,16 @@ public abstract class PSXMedia {
         }
         
         /** Returns null if movie has no audio */
-        public PSXSectorRangeIterator GetAudioSectorWalker() throws IOException {
+        public PSXSectorRangeIterator GetAudioSectorWalker() throws IOException 
+        {
             if (m_lngAudioSampleLength == 0) return null;
             
             return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
         }
         
         public PSXSectorRangeIterator GetFrameSectorWalker(long iFrame)
-        throws IOException {
+                throws IOException 
+        {
             return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
         }
         

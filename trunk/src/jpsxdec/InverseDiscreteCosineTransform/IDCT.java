@@ -9,7 +9,7 @@ import jpsxdec.util.Matrix8x8;
  * - Line 82: implements IIDCT
  * - Lines 89-96: Changed #define lines to Java final variables
  * - Line 127: Change norm() function to accept an array of doubles
- * - Lines 147-179 : Added IDCT() function
+ * - Lines 147-176 : Added IDCT() function
  *
  */
 
@@ -154,10 +154,7 @@ public class IDCT implements IIDCT {
         int iNonZeroValuePos = -1;
         // convert to integers
         for (int i = 0; i < 64; i++) {
-            // The super fast IDCT uses fixed-point integer math, and
-            // the larger values are causing overflows. So we'll do the
-            // dividing by 4 first.
-            aiMat[i] = (int)(adblMat[i] / 4.0);
+            aiMat[i] = (int)adblMat[i];
             if (aiMat[i] != 0) {
                 iNonZeroValueCount++;
                 iNonZeroValuePos = i;

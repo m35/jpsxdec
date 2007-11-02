@@ -3,8 +3,7 @@ Copyright information
 
 Source code for jPSXdec copyright (c) Michael Sabin is
 licensed under the "GNU GENERAL PUBLIC LICENSE Version 2, June 1991"
-except where otherwise noted.
-The text of this license is contained in this file.
+except where noted. The text of this license is contained in this file.
 
 IDCT.java copyright (c) Joerg Anders is licensed under the 
 GNU GENERAL PUBLIC LICENSE Version 2.

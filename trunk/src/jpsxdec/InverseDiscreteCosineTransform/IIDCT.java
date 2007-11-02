@@ -28,6 +28,7 @@ package jpsxdec.InverseDiscreteCosineTransform;
 
 import jpsxdec.util.Matrix8x8;
 
+/** Interface for all Inverse Discrete Cosine Transform clases */
 public interface IIDCT {
     Matrix8x8 IDCT(Matrix8x8 oMat);
 }

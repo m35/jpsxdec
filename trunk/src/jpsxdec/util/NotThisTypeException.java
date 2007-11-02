@@ -26,6 +26,6 @@
 
 package jpsxdec.util;
 
-/** Exception returned by constructors when the provided data
- *  won't generate create the class. */
+/** Exception returned by constructors when the provided InputStream
+ *  doesn't generate the class. */
 public class NotThisTypeException extends Exception {}

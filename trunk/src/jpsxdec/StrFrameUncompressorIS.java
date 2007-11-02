@@ -151,7 +151,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             AbsoluteLevel = level;
         }
     }
-	
+    
     // .........................................................................
     
     /** Sequence of bits indicating an escape code */
@@ -167,9 +167,9 @@ new DCVariableLengthCode("100"     , 0,  null)
     
     private final static ACVariableLengthCode AC_VARIABLE_LENGTH_CODES_MPEG1[] = 
     {
-	/*
+    /*
         new ACVariableLengthCode("1"                 , 0 , 1  ),
-	  The MPEG1 specification declares that if the first 
+      The MPEG1 specification declares that if the first 
           variable-length-code in a block is "1" that it should be translated
           to the run-length-code (0, 1). The PSX variable-length-code
           decoding does not follow this rule. 
@@ -484,27 +484,67 @@ new DCVariableLengthCode("100"     , 0,  null)
         if (m_lngHeader3800 != 0x3800)
             throw new IOException("0x3800 not found in start of frame");
         
+        if (DebugVerbose >= 3) {
+            System.err.println("Frame Header:");
+            System.err.println(String.format("%d: %04x -> Run Lenth Code Count (?) %d", 
+                    (long)m_oBitReader.getPosition() - 4,
+                    m_lngNumberOfRunLenthCodes, 
+                    m_lngNumberOfRunLenthCodes));
+            System.err.println(String.format("%d: %04x", 
+                    (long)m_oBitReader.getPosition() - 2,
+                    m_lngHeader3800));
+            System.err.print(String.format("%d: ", 
+                    (long)m_oBitReader.getPosition()));
+        }
+        
         m_lngQuantizationScaleChrom = 
         m_lngQuantizationScaleLumin = (int)m_oBitReader.ReadUnsignedBits(16);
+        
+        if (DebugVerbose >= 3) {
+            System.err.println(String.format("%04x -> Quantization scale %d", 
+                    m_lngQuantizationScaleChrom,
+                    m_lngQuantizationScaleChrom));
+            System.err.print(String.format("%d: ", 
+                    (long)m_oBitReader.getPosition()));
+        }
+        
         m_lngVersion = (int)m_oBitReader.ReadUnsignedBits(16);
         
+        if (DebugVerbose >= 3) {
+            System.err.println(String.format("%04x -> Version %d", 
+                    m_lngVersion,
+                    m_lngVersion));
+        }
+                    
         // We only can handle version 0, 1, 2, or 3 so far
         if (m_lngVersion < 0 || m_lngVersion > 3)
             throw new IOException("We don't know how to handle version " 
                                    + m_lngVersion);
         
         if (m_lngVersion == 0) { // For Lain...
+            long lngTemp = m_lngQuantizationScaleChrom;
             // The NumberOfRunLenthCodes 16 bits are actually the quantization
-            // scale for Luminance and Crominance
+            // scale for Luminance and Crominance, and the Quantization scale
+            // is the NumberOfRunLenthCodes
             m_lngQuantizationScaleLumin = m_lngNumberOfRunLenthCodes & 0xFF;
             m_lngQuantizationScaleChrom = (m_lngNumberOfRunLenthCodes >>> 8) & 0xFF;
+            m_lngNumberOfRunLenthCodes = lngTemp;
+            if (DebugVerbose >= 3) {
+                System.err.println(String.format(
+                    "  Lain frame, so Run Lenth Code Count is actually %n" +
+                    "  Quantization Scale Luminance (%d) and Chrominance (%d)%n" +
+                    "  and Quantization Scale is actually Run Length Code Count (%d)",
+                    m_lngQuantizationScaleLumin,
+                    m_lngQuantizationScaleChrom,
+                    m_lngNumberOfRunLenthCodes));
+            }
             
             // Lain also uses an actual byte stream (behaves like Big-Endian)
             // so it's only one byte per read
             m_oBitReader.setBytesPerBuffer(1);
         } 
 
-        
+        // -- Figure out width and height --
         m_lngWidth = lngWidth;
         m_lngHeight = lngHeight;
         
@@ -524,7 +564,11 @@ new DCVariableLengthCode("100"     , 0,  null)
         
         // Calculate number of macro-blocks in the frame
         long iMacroBlockCount = (lngActualWidth / 16) * (lngActualHeight / 16);
-
+        long lngTotalCodesRead = 0;
+        
+        if (DebugVerbose >= 3)
+            System.err.println("Expecting " 
+                    + iMacroBlockCount + " macroblocks");
         // We have everything we need
         // now uncompress the entire frame, one macroblock at a time
         try {
@@ -532,7 +576,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                 if (DebugVerbose >= 3)
                     System.err.println("Decoding macroblock " + i);
                 // queues up all read MDEC codes
-                UncompressMacroBlock();
+                lngTotalCodesRead += UncompressMacroBlock();
             }
         } catch (IOException e) {
             // We failed! :(
@@ -540,6 +584,9 @@ new DCVariableLengthCode("100"     , 0,  null)
             if (DebugVerbose >= 3)
                 e.printStackTrace();
         }
+        
+        if (DebugVerbose >= 4)
+            System.err.println(lngTotalCodesRead + " codes read");
         
         // Setup for reading by peeking at the first 16 bits
         m_oCurrent16Bits = m_oReaderQueue.peek();
@@ -621,7 +668,9 @@ new DCVariableLengthCode("100"     , 0,  null)
     /* Private Functions ---------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    private void UncompressMacroBlock() throws IOException {
+    private long UncompressMacroBlock() throws IOException {
+        
+        long lngTotalCodesRead = 0;
         
         if (m_lngVersion == 1 || m_lngVersion == 2 || m_lngVersion == 0) {
             
@@ -630,7 +679,8 @@ new DCVariableLengthCode("100"     , 0,  null)
             for (String sBlock : new String[] {"Cr","Cb","Y1","Y2","Y3","Y4"}) 
             {
                 DecodeV2_DC_ChrominanceOrLuminance(sBlock);
-                Decode_AC_Coefficients();
+                lngTotalCodesRead++;
+                lngTotalCodesRead += Decode_AC_Coefficients();
             }
             
         } else if (m_lngVersion == 3 || (m_lngVersion == 0)) {
@@ -646,7 +696,8 @@ new DCVariableLengthCode("100"     , 0,  null)
                                 DC_CHROMINANCE_LONGEST_VARIABLE_LENGTH_CODE, 
                                 DC_Chrominance_VariableLengthCodes, 
                                 "Cr");
-            Decode_AC_Coefficients();
+            lngTotalCodesRead++;
+            lngTotalCodesRead += Decode_AC_Coefficients();
 
             // Cb
             m_iPreviousCb_DC = DecodeV3_DC_ChrominanceOrLuminance(
@@ -654,7 +705,8 @@ new DCVariableLengthCode("100"     , 0,  null)
                                 DC_CHROMINANCE_LONGEST_VARIABLE_LENGTH_CODE, 
                                 DC_Chrominance_VariableLengthCodes, 
                                 "Cb");
-            Decode_AC_Coefficients();
+            lngTotalCodesRead++;
+            lngTotalCodesRead += Decode_AC_Coefficients();
             
             // Y1, Y2, Y3, Y4
             for (String sBlock : new String[] {"Y1", "Y2", "Y3", "Y4"}) {
@@ -663,13 +715,15 @@ new DCVariableLengthCode("100"     , 0,  null)
                                     DC_LUMINANCE_LONGEST_VARIABLE_LENGTH_CODE, 
                                     DC_Luminance_VariableLengthCodes, 
                                     sBlock);
-                Decode_AC_Coefficients();
+                lngTotalCodesRead++;
+                lngTotalCodesRead += Decode_AC_Coefficients();
             }
             
         } else {
             throw new IOException("Unhandled version " + m_lngVersion);
         }
         
+        return lngTotalCodesRead;
     }
     
     /** Decodes the DC Coefficient at the start of every block (for v.2) and
@@ -773,7 +827,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                     oDCChrominanceOrLuminance.Bottom10Bits = 
                             tDcVlc.DC_DifferentialLookup[iDC_Differential];
                     
-                    // PSX seems to multiply it by 4 for no reason???
+                    // !!! ???We must multiply it by 4 for no reason??? !!!
                     oDCChrominanceOrLuminance.Bottom10Bits *= 4; 
                 }
                 
@@ -811,9 +865,10 @@ new DCVariableLengthCode("100"     , 0,  null)
     /** Decodes all the block's AC Coefficients in the stream, 
      * and adds the resulting MDEC codes to the queue.
      * AC Coefficients are decoded the same for version 2 and 3 frames */
-    private void Decode_AC_Coefficients() throws IOException {
+    private long Decode_AC_Coefficients() throws IOException {
         StrFrameMDEC.Mdec16Bits oRlc;
         int iTotalRunLength = 0;
+        long lngNumberOfRunLengthCodes = 0;
         double dblFilePos;
         
         while (true) {
@@ -824,6 +879,9 @@ new DCVariableLengthCode("100"     , 0,  null)
             oRlc = Decode_AC_Code();
             // Add the saved file position
             oRlc.OriginalFilePos = dblFilePos;
+            
+            // Just one more variable-length-code read
+            lngNumberOfRunLengthCodes++;
             
             // Add the MDEC code to the queue
             m_oReaderQueue.offer(oRlc);
@@ -859,6 +917,8 @@ new DCVariableLengthCode("100"     , 0,  null)
                         ));
             }
         } 
+        
+        return lngNumberOfRunLengthCodes;
     }
     
     

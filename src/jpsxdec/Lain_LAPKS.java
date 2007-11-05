@@ -19,7 +19,6 @@
  *
  */
 
-
 /*
  * Lain_LAPKS.java
  *
@@ -27,314 +26,411 @@
 
 package jpsxdec;
 
+import java.awt.Graphics2D;
 import java.io.*;
 import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.LittleEndianIO;
+import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.Yuv4mpeg2;
 
-public class Lain_LAPKS extends InputStream implements IGetFilePointer {
 
-    /** Simple YCbCr class.
-     * I'm not sure if this is functionally equivalent to YUV */
-    private static class YCbCr {
+/** Class to decode the Lain poses from the LAPKS.BIN file */
+public class Lain_LAPKS {
     
-        private final int Y_COLOR_SPACE = 128;
-        
-        public double Y;  // Luminance: range -128 to 128: -128 black, 128 white 
-        public double Cb; // Component Blue: range 16 to 239, with 128 being zero
-        public double Cr; // Component Red: range 16 to 239, with 128 being zero
-        // Hey don't ask me why, this is just how the 
-        // data comes out of the inverse DCT
-        
-        /* -- Constructors -------------------------------------------------- */
-        
-        public YCbCr(double Y, double Cb, double Cr) {
-            this.Y = Y;
-            this.Cb = Cb;
-            this.Cr = Cr;
-        }
-        
-        public YCbCr(RGB rgb) {
-            Y =  0.299 * rgb.Red + 0.587 * rgb.Green + 0.114 * rgb.Blue - Y_COLOR_SPACE;
-            Cb = - 0.1687 * rgb.Red - 0.3313 * rgb.Green + 0.5 * rgb.Blue;
-            Cr = 0.5 * rgb.Red - 0.4187 * rgb.Green - 0.0813 * rgb.Blue;
-        }
-        
-        /* -- Functions ----------------------------------------------------- */
-        
-        public RGB ToRGB() {
-            return new RGB(
-              /*R*/ (Y + Y_COLOR_SPACE) + 1.402   * Cr,
-              /*G*/ (Y + Y_COLOR_SPACE) - 0.34414 * Cb - 0.71414 * Cr,
-              /*B*/ (Y + Y_COLOR_SPACE) + 1.772   * Cb);
-        }
-        
-        /** Output is in the format "(Y, Cb, Cr)" */
-        public String ToString() {
-            return "(" + Y + ", " + Cb + ", " + Cr + ")";
-        }
-    }
-   
-    // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    /** Simple RGB class */
-    public static class RGB {
-        public int Red;
-        public int Green;
-        public int Blue;
-        
-        /* -- Constructors -------------------------------------------------- */
-        
-        /** 'Clamps' values between 0 and 255 */
-        public RGB(double r, double g, double b) {
-            Red   = (int)Math.max(Math.min(r, 255), 0);
-            Green = (int)Math.max(Math.min(g, 255), 0);
-            Blue  = (int)Math.max(Math.min(b, 255), 0);
-        }
-        
-        /* -- Functions ----------------------------------------------------- */
-        
-        public YCbCr ToYCbCr() {
-            return new YCbCr(this);
-        }
-        
-        public int ToRGBInt() {
-            return (int)Red << 16 | (int)Green << 8 | (int)Blue;
-        }
-        
-        /** Output is in the format "(R, G, B)" */
-        public String ToString() {
-            return "(" + Red + ", " + Green + ", " + Blue + ")";
-        }
-    }
+    public static int DebugVerbose = 2;
     
-    //private final long START_POS = 120;  // -> 8759 -> 9835
-    //private final long START_POS = 9836; // -> 18475
-    //private final long START_POS = 10320396; // -> 10329705
-    //private final long START_POS = 10330980; // -> 10339485. -> 10340649
-    
-    
-    RandomAccessFile m_oFile;
-
-    long m_lngPkStart;
-    long m_lngPkSize;      // 4
-    long m_lngPkCellCount; // 4
-    
-    long m_lngStart;
-    
-    long m_lngWidth;     // 2
-    long m_lngHeight;    // 2
-    long m_lngQuantChrom;       // 2
-    long m_lngQuantLumin;       // 2
-    long m_lngByteSizeOfCellData;   // 4
-    long m_lngNumRLC;   // 4
-    ByteArrayInputStream m_oHeaderStream;
-    
-    public Lain_LAPKS(String sFile) {
-        try {
-            m_oFile = new RandomAccessFile(sFile, "r");
-            SeekForNextPk();
-            ReadHeader();
+    /** Decodes the numerous Lain poses from the LAPKS.BIN file. The LAPKS.BIN
+     *  file is the same on both disc 1 and disc 2. This function needs a
+     *  standard 2048-per-sector (i.e. ISO) copy of the file. This can easily
+     *  be accomplished by simply copying the file off the disc using normal
+     *  operating system commands, or even providing the path directly to the
+     *  file on the disc.
+     *  This function will dump the over 1000 animation cells, including the
+     *  bit-mask used to provide transparency to the images. The cells are
+     *  centered in a larger image according to the cell's x,y position found
+     *  with the cell data. 
+     *  Output file names will look like this
+     *  <sOutFileBase>###_f##.png
+     *  <sOutFileBase>###_f##_mask.png
+     * @param sInLAPKS_BIN - the path to the LAPKS.BIN file
+     * @param sOutFileBase - output base name of the files
+     */
+    public static int DecodeLAPKS(String sInLAPKS_BIN, String sOutFileBase) {
             
+        try {
+            Lain_LAPKS lnpk = new Lain_LAPKS(sInLAPKS_BIN);
+            Lain_LAPKS.LaPkCellIS oCell;
+            while ((oCell = lnpk.NextCell()) != null ){
+                StrFrameUncompressorIS dec = 
+                        new StrFrameUncompressorIS(
+                            oCell, 
+                            oCell.Width, 
+                            oCell.Height);
+                Yuv4mpeg2 yuv =
+                        StrFrameMDEC.DecodeFrame(
+                            dec, 
+                            dec.getWidth(), 
+                            dec.getHeight());
+                
+                String s = String.format("%s%02d_f%02d",
+                        sOutFileBase,
+                        oCell.PkIndex,
+                        oCell.CellIndex);
+                
+                BufferedImage bi = yuv.toBufferedImage();
+                long x, y, w, h; 
+                if (oCell.Width == 320 && oCell.Height == 240) {
+                    // don't do anything
+                    x = 0;
+                    y = 0;
+                    w = 320;
+                    h = 240;
+                } else {
+                    // paste the image into a larger image
+                    // at the correct relative position
+                    x = 320/2+4 - oCell.Xpos;
+                    w = 320+32;
+                    y = 352-1 - oCell.Ypos;
+                    h = 368-1;
+                    bi = PasteImage(bi, (int)x, (int)y, (int)w, (int)h);
+                }
+                
+                ImageIO.write(bi, "png", new File(s + ".png"));
+                
+                //biscreen = addImage(oCell.BitMask, (int)x, (int)y, (int)w, (int)h);
+                ImageIO.write(oCell.BitMask, "png", new File(s + "_mask.png"));
+            } 
         } catch (IOException ex) {
             ex.printStackTrace();
+            return -1;
         }
-        
+
+        return 0;
     }
     
-    
-    public void MoveToNext() {
-        try {
-            m_lngStart = m_oFile.getFilePointer();
-            if (m_lngStart >= getCurrentPkStartOffset() + m_lngPkSize)
-                SeekForNextPk();
-            else {
-                m_lngStart = ((m_lngStart + 3) / 4) * 4;
-                m_oFile.seek(m_lngStart);
-            }
-            ReadHeader();
-            
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
+    private static BufferedImage PasteImage(BufferedImage oImage, int iX, int iY, int iWidth, int iHeight) {
+        BufferedImage oScreen = new BufferedImage(iWidth, iHeight, oImage.getType());
+        Graphics2D oScreenGraphic = oScreen.createGraphics();
+        oScreenGraphic.drawImage(oImage, iX, iY, null);
+        oScreenGraphic.dispose();
+        return oScreen;
     }
     
-    private void SeekForNextPk() throws IOException {
+    //-------------------------------------------------------------------------
+    //-- Helper structors -----------------------------------------------------
+    //-------------------------------------------------------------------------
+    
+    private static class LaPk {
         /*
          *  _Pk header_
          * 4 bytes: 'lapk'
-         * 4 bytes: size of pk (including header)
+         * 4 bytes: size of pk (starting after this value)
          * 4 bytes: number of cells
          * 12 * (number of cells): Cell descriptors
-         *
+         */
+        
+        public char[] lapk = new char[4]; // 4
+        public long Size;          // 4
+        public long CellCount;     // 4
+        public PkCellDescriptor[] CellDescriptors; // 12 * CellCount
+        
+        public long StartOffset;
+        public long HeaderSize;
+        public long Index;
+        
+        public LaPk(RandomAccessFile oRAF, long idx) throws IOException, NotThisTypeException {
+            Index = idx;
+            StartOffset = oRAF.getFilePointer();
+            
+            lapk[0] = (char)oRAF.read();
+            lapk[1] = (char)oRAF.read();
+            lapk[2] = (char)oRAF.read();
+            lapk[3] = (char)oRAF.read();
+            
+            if (!(new String(lapk).equals("lapk"))) 
+                throw new NotThisTypeException("Not a lapk at " + StartOffset);
+            
+            Size = LittleEndianIO.ReadUInt32LE(oRAF);
+            CellCount = LittleEndianIO.ReadUInt32LE(oRAF);
+            CellDescriptors = new PkCellDescriptor[(int)CellCount];
+            
+            // Read the descriptors
+            for (int i = 0; i < CellDescriptors.length; i++) {
+                CellDescriptors[i] = new PkCellDescriptor(this, i, oRAF);
+            }
+            
+            HeaderSize = 4+4+4+ 12 * CellCount;
+        }
+
+        
+    }
+    
+    private static class PkCellDescriptor {
+        /*
          *  _Cell descriptor_
          * 4 bytes: offset of cell (after header)
-         * 2 bytes: x pos?
-         * 2 bytes: y pos?
+         * 2 bytes: Negitive X pos
+         * 2 bytes: Negitive Y pos
          * 4 bytes: sound effect?
-         * 
          */
-        while (m_oFile.read() != 0x6c) {}
-        m_lngPkStart = m_oFile.getFilePointer() - 1;
-        m_oFile.skipBytes(3);
-        m_lngPkSize = LittleEndianIO.ReadUInt32LE(m_oFile);
-        m_lngPkCellCount = LittleEndianIO.ReadUInt32LE(m_oFile);
-        m_oFile.skipBytes((int)getCurrentPkCellCount() * 12);
+        public long CellOffset;
+        public long Xpos;
+        public long Ypos;
+        public long Unknown;
+
+        public LaPk ParentLaPk;
+        public int Index;
+
+        public PkCellDescriptor(LaPk lapk, int idx, RandomAccessFile oRAF) throws IOException {
+            ParentLaPk = lapk;
+            Index = idx;
+            byte[] buff = new byte[12];
+            if (oRAF.read(buff) != 12) throw new IOException();
+            ByteArrayInputStream oBAIS = new ByteArrayInputStream(buff);
+            CellOffset = LittleEndianIO.ReadUInt32LE(oBAIS);
+            Xpos = LittleEndianIO.ReadUInt16LE(oBAIS);
+            Ypos = LittleEndianIO.ReadUInt16LE(oBAIS);
+            Unknown = LittleEndianIO.ReadUInt32LE(oBAIS);
+        }
     }
     
-    private void ReadHeader() throws IOException {
-        /*
-         *  _Cell header_
-         * 2 bytes: Width
-         * 2 bytes: Height
-         * 2 bytes: Quantization Chrominance
-         * 2 bytes: Quantization Luminance
+    public static class LaPkCellIS extends ByteArrayInputStream implements IGetFilePointer {
+        public int PkIndex;
+        public int CellIndex;
+        long m_lngCellStart;
+        public long Xpos; // copied from cell descriptor
+        public long Ypos; // copied from cell descriptor
+        
+        /*  _Cell header_
+         * 2 bytes: Image Width
+         * 2 bytes: Image Height
+         * 2 bytes: Chrominance Quantization Scale 
+         * 2 bytes: Luminance Quantization Scale
          * 4 bytes: Length of cell data in bytes (after this value)
          * 4 bytes: Number of run length codes?
+         * (data length-4) bytes: width/16*height/16 compressed macro blocks
+         * 
+         * _Bit Mask_ <- Starts at 12+Cell_Data_Size
+         * 4 bytes: Bit mask size
+         * (size) bytes: Bit Mask data
          */
+        public long Width;     // 2
+        public long Height;    // 2
+        long QuantChrom;       // 2
+        long QuantLumin;       // 2
+        long Size;             // 4
+        long NumRunLenCodes;   // 4
         
-        m_lngStart = m_oFile.getFilePointer();
-        // read the header bytes
-        byte buff[] = new byte [16];
-        m_oFile.read(buff);
-        DataInputStream oStream = 
-                new DataInputStream(new ByteArrayInputStream(buff));
-        m_lngWidth = LittleEndianIO.ReadUInt16LE(oStream);
-        m_lngHeight = LittleEndianIO.ReadUInt16LE(oStream);
-        m_lngQuantChrom = LittleEndianIO.ReadUInt16LE(oStream);
-        m_lngQuantLumin = LittleEndianIO.ReadUInt16LE(oStream);
-        m_lngByteSizeOfCellData = LittleEndianIO.ReadUInt32LE(oStream);
-        m_lngNumRLC = LittleEndianIO.ReadUInt32LE(oStream);
-        CreateFrameHeader();
+        public BufferedImage BitMask;
         
-    }
-    
-    
-    private void CreateFrameHeader() {
-        ByteArrayOutputStream bbuff = new ByteArrayOutputStream(8);
-        DataOutputStream buff = new DataOutputStream(bbuff);
-        try {
-            buff.writeByte((int)m_lngQuantChrom); // normally run len code
-            buff.writeByte((int)m_lngQuantLumin); // '''''''''''''''''''''
-            buff.writeShort(0x0038);
-            buff.writeShort((int)m_lngNumRLC); // normally q scale
-            buff.writeShort(0x0000); // version
-            m_oHeaderStream = new ByteArrayInputStream(bbuff.toByteArray());
-        } catch (IOException ex) {
-            ex.printStackTrace();
+        private LaPkCellIS(PkCellDescriptor oCell, RandomAccessFile oRAF) 
+                throws IOException 
+        {
+            super(new byte[0]);
+            this.buf = RealConstructor(oCell, oRAF);
+            this.pos = 0;
+            this.count = buf.length;
         }
-    }
-
-    public long getFilePointer() {
-        try {
-            return m_oFile.getFilePointer();
-        } catch (IOException ex) {
-            return -1;
-        }
-    }
-
-    public int read() throws IOException {
-        // first feed the header first until it is all read
-        int iByte = m_oHeaderStream.read();
-        if (iByte < 0)
-            return m_oFile.read(); // then feed the file
-        else
-            return iByte;
-    }
-    
-    public BufferedImage ReadBitMask() {
-        byte abBitMask[] = null;
-        int bitmaskpos = 0;
-        try {
-            m_oFile.seek(m_lngStart + 12 + m_lngByteSizeOfCellData);
+        private byte[] RealConstructor(PkCellDescriptor oCell, RandomAccessFile oRAF) throws IOException {
+            // Seek to the start of the cell
+            oRAF.seek(oCell.ParentLaPk.StartOffset + oCell.ParentLaPk.HeaderSize + oCell.CellOffset);
             
-            long bitmasksize = LittleEndianIO.ReadUInt32LE(m_oFile);
-            abBitMask = new byte[(int)bitmasksize];
-            while (bitmaskpos < bitmasksize)
-            {
-                int flags = m_oFile.readUnsignedByte();
-                System.out.print(String.format("Flags %02x", flags));
-                for (int bitmask = 0x80; bitmask > 0; bitmask>>>=1) {
-                    if (bitmaskpos >= bitmasksize) break;
-                    System.out.print(String.format(
-                            "[InPos: %d OutPos: %d] Flags %02x: bit %02x: ",
-                            m_oFile.getFilePointer(),
-                            bitmaskpos,
-                            flags,
-                            bitmask
-                            ));
-                    if ((flags & bitmask) > 0) {
-                        int copy_offset = m_oFile.readUnsignedByte();
-                        int copy_counter = m_oFile.readUnsignedByte();
-                        copy_offset += 1;
-                        copy_counter = (copy_counter + 3);// % 256;
-                        System.out.println(
-                                "Copy " + copy_counter + 
-                                " bytes from -" + copy_offset + 
-                                " (" + (bitmaskpos - copy_offset) + ")");
-                        for (int i = 0; i < copy_counter; i++) {
-                            if (bitmaskpos >= abBitMask.length) {
-                                int asdf = 1;
-                            }
-                            abBitMask[bitmaskpos] = abBitMask[bitmaskpos - copy_offset];
-                            bitmaskpos++;
-                        }
-                    } else {
-                        byte b = m_oFile.readByte();
-                        System.out.println(String.format("{Byte %02x}", b));
-                        abBitMask[bitmaskpos] = b;
-                        bitmaskpos++;
-                    }
-                }
+            m_lngCellStart = oRAF.getFilePointer();
+            CellIndex = oCell.Index;
+            PkIndex = (int)oCell.ParentLaPk.Index;
+            Xpos = oCell.Xpos;
+            Ypos = oCell.Ypos;
+            
+            // read the header bytes
+            byte buff[] = new byte [16];
+            if (oRAF.read(buff) != 16) throw new IOException();
+            ByteArrayInputStream oStream = 
+                    new ByteArrayInputStream(buff);
+            Width = LittleEndianIO.ReadUInt16LE(oStream);
+            Height = LittleEndianIO.ReadUInt16LE(oStream);
+            QuantChrom = LittleEndianIO.ReadUInt16LE(oStream);
+            QuantLumin = LittleEndianIO.ReadUInt16LE(oStream);
+            Size = LittleEndianIO.ReadUInt32LE(oStream);
+            NumRunLenCodes = LittleEndianIO.ReadUInt32LE(oStream);
+            ByteArrayOutputStream oCellWriter = new ByteArrayOutputStream((int)Size + 8);
+            
+            // Create an artifical header to feed to the StrFrameUncompresser
+            WriteLainFrameHeader(oCellWriter, QuantChrom, QuantLumin, NumRunLenCodes);
+            
+            // Read the cell data
+            for (int i = 0; i < Size; i++) {
+                int b = oRAF.read();
+                oCellWriter.write(b);
             }
-            System.out.println("File pos: " + m_oFile.getFilePointer());
-        } catch (Exception ex) {
-            ex.printStackTrace(); 
+            oCellWriter.flush();
+            oCellWriter.close();
             
+            // Now read the compressed bit mask
+            // results in a 2 bits-per-pixel image
+            oRAF.seek(m_lngCellStart + 12 + Size);
+            byte[] abBitMask = Lain_SITE.LainDecompresser(oRAF);
+            
+            BitMask = ConvertBitMaskToImage(abBitMask, Width, Height);
+            
+            return oCellWriter.toByteArray();
         }
         
-        BufferedImage bi = new BufferedImage((int)getCurrentCellWidth(), (int)getCurrentCellHeight(),
-                BufferedImage.TYPE_INT_RGB);
-        
-        for (int y = 0; y < getCurrentCellHeight(); y++) {
-            for (int x = 0; x < getCurrentCellWidth() / 4; x++) {
-                byte b = abBitMask[(int)(x + y * getCurrentCellWidth()/4)];
-                //System.out.print(String.format("%02x ", b));
-                int bit;
-                bit = ((b >>> 6) & 3) * 64;
-                bi.setRGB(x*4 + 0, y, 
-                        new RGB(bit, bit, bit).ToRGBInt());
-                bit = ((b >>> 4) & 3) * 64;
-                bi.setRGB(x*4 + 1, y, 
-                        new RGB(bit, bit, bit).ToRGBInt());
-                bit = ((b >>> 2) & 3) * 64;
-                bi.setRGB(x*4 + 2, y, 
-                        new RGB(bit, bit, bit).ToRGBInt());
-                bit = ((b >>> 0) & 3) * 64;
-                bi.setRGB(x*4 + 3, y, 
-                        new RGB(bit, bit, bit).ToRGBInt());
-            }        
-            //System.out.println();
+        public static void WriteLainFrameHeader(
+                ByteArrayOutputStream oByteStream,
+                long QuantChrom,
+                long QuantLumin,
+                long NumRunLenCodes) 
+        {
+            try {
+                oByteStream.write((int)QuantChrom); // normally run len code
+                oByteStream.write((int)QuantLumin); // '''''''''''''''''''''
+                LittleEndianIO.WriteInt16LE(oByteStream, 0x3800);
+                LittleEndianIO.WriteInt16LE(oByteStream, NumRunLenCodes); // normally q scale
+                LittleEndianIO.WriteInt16LE(oByteStream, 0x0000); // version 0 (Lain)
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        public long getFilePointer() {
+            return m_lngCellStart - 8 + this.pos;
         }
         
-        return bi;
+    }
+    
+    //-------------------------------------------------------------------------
+    //-- Lain_LAPKS instance --------------------------------------------------
+    //-------------------------------------------------------------------------
+    
+    RandomAccessFile m_oFile;
+    long m_lngPkIndex = 0;
+    long m_lngCellIndex = 0;
+    LaPk m_oCurrentPk;
+    
+    /** Setup for reading from the file. */
+    public Lain_LAPKS(String sFile) throws IOException {
+        m_oFile = new RandomAccessFile(sFile, "r");
+    }
+    
+    /** Retrieves the next animation cell in the LAPKS.BIN file.
+     *  Returns null if there are no more cells available. */
+    public LaPkCellIS NextCell() throws IOException {
+        // Just getting started?
+        if (m_oCurrentPk == null) {
+            try {
+                // Then read the first lapk header
+                m_oCurrentPk = new LaPk(m_oFile, m_lngPkIndex);
+            } catch (NotThisTypeException ex) {
+                // If this is the first cell and there is no 'lapk' header
+                // then this is not the LAPKS.BIN file.
+                ex.printStackTrace();
+                return null;
+            }
+        }
+        else {
+            m_lngCellIndex++; // next cell
+        
+            // Done with the lapk?
+            if (m_lngCellIndex >= m_oCurrentPk.CellCount) {
+                if (!MoveToNextPk()) // move to next lapk
+                    return null;
+            }
+        }
+        // Create a cell input stream and return it
+        return new LaPkCellIS(m_oCurrentPk.CellDescriptors[(int)m_lngCellIndex], m_oFile);
+    }
+    
+    
+    private boolean MoveToNextPk() throws IOException {
+        
+        // next lapk, and reset the cell index
+        m_lngPkIndex++;
+        m_lngCellIndex = 0;
+        
+        // calculate the next pk start, at the start of the next 2048
+        // boundary after the end of the current lapk
+        long lngNextOffset = m_oCurrentPk.StartOffset + m_oCurrentPk.Size + 8;
+        if ((lngNextOffset % 2048) != 0) {
+            lngNextOffset += 2048 - (lngNextOffset % 2048);
+        }
+        
+        
+        do {
+            // we're past the end of the file
+            if (lngNextOffset >= m_oFile.length()) return false;
+            
+            m_oFile.seek(lngNextOffset);
+            
+            try {
+                m_oCurrentPk = new LaPk(m_oFile, m_lngPkIndex);
+            } catch (NotThisTypeException ex) {
+                /* There seems to be an error in one of the lapk headers
+                 * reporting that the lapk size is at least 4000 bytes smaller
+                 * than it is. So we'll just keep trying every sector until
+                 * we find the next lapk. */
+                // These are the two offsets
+                if (!(ex.getMessage().endsWith("13135872") || 
+                      ex.getMessage().endsWith("13137920")))
+                {
+                    ex.printStackTrace();
+                }
+                m_oCurrentPk = null;
+                lngNextOffset += 2048;
+            }
+        } while (m_oCurrentPk == null);
+        return true;
     }
     
 
-    public long getCurrentPkStartOffset() {
-        return m_lngPkStart;
+    
+    
+    /** Converts 2 bits-per-pixel to RGB gray (24 bits-per-pixel) */
+    private static int[] Mask4BitsToRGBGray = new int[] {
+        // TYPE_BYTE_GRAY is NOT linear...stupid Java crap
+        0x000000, // -> 0x00
+        0x9C9C9C, // -> 0x55
+        0xD5D5D5, // -> 0xAA
+        0xFFFFFF  // -> 0xFF
+    };
+    
+    /** Converts a 2 bits-per-pixel array to a grayscale BufferedImage */
+    private static BufferedImage ConvertBitMaskToImage(byte[] abBitMask, 
+                                                       long lngCellWidth, 
+                                                       long lngCellHeight) 
+    {
+        BufferedImage bi = new BufferedImage(
+                (int)lngCellWidth, 
+                (int)lngCellHeight,
+                BufferedImage.TYPE_BYTE_GRAY);
+        
+        for (int y = 0; y < lngCellHeight; y++) {
+            for (int x = 0; x < lngCellWidth / 4; x++) {
+                byte b = abBitMask[(int)(x + y * lngCellWidth/4)];
+                
+                if (DebugVerbose > 3)
+                    System.err.print(String.format("%02x ", b));
+                
+                int bits;
+                bits = ((b >>> 6) & 3);
+                bi.setRGB(x*4 + 0, y, Mask4BitsToRGBGray[bits]);
+                
+                bits = ((b >>> 4) & 3);
+                bi.setRGB(x*4 + 1, y, Mask4BitsToRGBGray[bits]);
+                
+                bits = ((b >>> 2) & 3);
+                bi.setRGB(x*4 + 2, y, Mask4BitsToRGBGray[bits]);
+                
+                bits = ((b >>> 0) & 3);
+                bi.setRGB(x*4 + 3, y, Mask4BitsToRGBGray[bits]);
+            }        
+            if (DebugVerbose > 3)
+                System.err.println();
+        }
+        
+        return bi;        
     }
-
-    public long getCurrentPkCellCount() {
-        return m_lngPkCellCount;
-    }
-
-    public long getCurrentCellWidth() {
-        return m_lngWidth;
-    }
-
-    public long getCurrentCellHeight() {
-        return m_lngHeight;
-    }
+    
 
 }

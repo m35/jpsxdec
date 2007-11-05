@@ -29,6 +29,7 @@ package jpsxdec.util;
 import java.io.IOException;
 import java.io.EOFException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.RandomAccessFile;
 
 
@@ -47,6 +48,26 @@ public final class LittleEndianIO {
             throw new EOFException("Unexpected end of file in ReadUInt16LE");
         return (b2 << 8) | b1;
     }
+    
+    public static long ReadUInt16LE(RandomAccessFile oRAF) throws IOException 
+    {
+        int b1 = oRAF.read();
+        if (b1 < 0)
+            throw new EOFException("Unexpected end of file in ReadUInt16LE");
+        int b2 = oRAF.read();
+        if (b2 < 0)
+            throw new EOFException("Unexpected end of file in ReadUInt16LE");
+        return (b2 << 8) | b1;
+    }
+    
+    public static void WriteInt16LE(OutputStream oOS, long lng) throws IOException 
+    {
+        int b1 = (int)(lng & 0xFF);
+        int b2 = (int)((lng >>> 8) & 0xFF);
+        oOS.write(b1);
+        oOS.write(b2);
+    }
+
     
     /** Function to read little-endian 32 bits from a RandomAccessFile.
      *  Throws EOFException if at end of stream. 

@@ -47,6 +47,9 @@ public class Settings {
     public final static int SECTOR_LIST = 5;
     public final static int SPECIAL_IN_FILE = 6;
     public final static int INDEX_ONLY = 7;
+    public final static int PLUGIN_LAPKS = 8;
+    public final static int PLUGIN_SITE = 9;
+    
     
     /*------------------------------------------------------------------------*/
     /*-- Static Fields -------------------------------------------------------*/
@@ -80,7 +83,7 @@ public class Settings {
     private static String m_sSpecialInFileType = null;
     private static int m_iWidth = -1;
     private static int m_iHeight = -1;
-    
+
     /*------------------------------------------------------------------------*/
     /*-- Static Properties ---------------------------------------------------*/
     /*------------------------------------------------------------------------*/
@@ -184,6 +187,7 @@ public class Settings {
         "  -?/-h/--help           Display this message",
         "  --in-file <type>       Decode special input file type: demux, 0rlc",
         "  -i/--index <file>      Name of the index file to use/create",
+        "  --plugin <name>        Name of the plugin to use",
         "",
         "  --noaudio              Don't decode audio",
         "  --onlyaudio            Don't decode video",
@@ -221,6 +225,7 @@ public class Settings {
         Option osMainDecodeFrameSects = oParser.addStringOption("decode-frame");
         Option osMainDecodeAudioSects = oParser.addStringOption("decode-audio");
         Option osMainSpecialInFileType = oParser.addStringOption("in-file");
+        Option osMainPlugin = oParser.addStringOption("plugin");
         
         // both main and optional command depending on main command type
         Option osMainOptIndexFile = oParser.addStringOption('i', "index");
@@ -323,6 +328,20 @@ public class Settings {
             if (m_aiSectorList == null) 
                 ExitWithError("Invalid list of sectors or file not found");
             m_iMainCommandType = DECODE_SECTORS_AUDIO;
+        }
+        
+        oOpt = oParser.getOptionValue(osMainPlugin); 
+        if (oOpt != null) {
+            if (m_iMainCommandType > 0) 
+                ExitWithError("Too many main commands");
+            String sPluginName = (String)oOpt;
+            if (sPluginName.toLowerCase().equals("lapks")) {
+                m_iMainCommandType = PLUGIN_LAPKS;
+            } else if (sPluginName.toLowerCase().equals("site")) {
+                m_iMainCommandType = PLUGIN_SITE;
+            } else {
+                ExitWithError("Unknown plugin " + sPluginName);
+            }
         }
         
         // Get index file if there is one
@@ -466,7 +485,7 @@ public class Settings {
         
         Collections.sort(oValidFormats);
         
-        return oValidFormats.toArray(new String[] {});
+        return oValidFormats.toArray(new String[0]);
     }
     
     /** Joins an array of strings into a single string, inserting f between

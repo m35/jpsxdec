@@ -28,4 +28,12 @@ package jpsxdec.util;
 
 /** Exception returned by constructors when the provided InputStream
  *  doesn't generate the class. */
-public class NotThisTypeException extends Exception {}
+public class NotThisTypeException extends Exception {
+    public NotThisTypeException() {
+        super();
+    }
+    
+    public NotThisTypeException(String s) {
+        super(s);
+    }
+}

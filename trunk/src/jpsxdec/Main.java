@@ -27,18 +27,18 @@
 /* TODO:
  * - finish STR format documentation
  * - make code documentation
+ * - make manual
  * - get some pre-MDEC data out of an emulator to compare with my pre-MDEC data
  * - improve command-line documentation
- * - change the demuxer or uncompresser to handle Lain final movie
- * - check if clamping yuv4mpeg2 values at 1-254 help output
+ * - change the demuxer or uncompresser to handle Lain final movie, and also ff7 movies
+ * - check if clamping yuv4mpeg2 values at 1-254 help
  * - add option to select the IDCT
+ * - add option to ignore checks and just decode whatever it can (probably part of --decode-frame/--decode-audio)
+ * - add option to copy str/xa sectors from image
+ * - add --format option to LAPKS
  * /- make CREDITS file
  * /- CLEANUP!!
  * /- better organize the error reporting/checking
- * //- figure out how to use BufferedImage with YUV input data (to speed it up)
- * //- display a version at the program startup (if v > 0)
- * //- make EXE icon
- * //- revert CDMediaXA to only serialize/deserialize available channels
  * //- better organize PSXSectorIterator file/classes
  * //- develop a test set
  *
@@ -53,6 +53,8 @@
  *   e.g. the current decoded macro-block (to display on screen)
  *        debug/error messages (puts the debug in the main class, 
  *        and sets up easier debugging feedback once a gui is added)
+ * - consider making Settings NOT a static class, and just keep it as a
+ *   field in the Main class (since it shouldn't be used anywhere else).
  *
  * FUTURE VERSIONS:
  * - Add frame rate calculation
@@ -70,11 +72,14 @@
 package jpsxdec;
 
 
+import java.awt.Graphics2D;
+import java.awt.Image;
 import java.io.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.util.ArrayList;
 import javax.sound.sampled.*;
+import javax.swing.ImageIcon;
 import jpsxdec.CDSectorReader.CDXASector;
 import jpsxdec.util.Matrix8x8;
 import jpsxdec.util.Yuv4mpeg2;
@@ -84,11 +89,11 @@ import jpsxdec.PSXMedia.PSXMediaXA;
 public class Main {
     
     public static int DebugVerbose = 2;
-    public final static String Version = "0.24(beta)";
+    public final static String Version = "0.25(beta)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     
     public static void main(String[] args) {
-        
+                
         Settings.ProcessArguments(args);
         
         /*  // Uncommenting this will enable the super fast, but low quality IDCT
@@ -131,6 +136,12 @@ public class Main {
                 break;
             case Settings.SECTOR_LIST:
                 System.exit(SectorList());
+                break;
+            case Settings.PLUGIN_LAPKS:
+                System.exit(Lain_LAPKS.DecodeLAPKS(Settings.getInputFile(), Settings.getOutputFile()));
+                break;
+            case Settings.PLUGIN_SITE:
+                System.exit(Lain_SITE.DecodeSITE(Settings.getInputFile(), Settings.getOutputFile()));
                 break;
         }
         
@@ -651,36 +662,5 @@ public class Main {
         }
     }
 
-    //--------------------------------------------------------------------------
-    //--------------------------------------------------------------------------
-    
-    private static void LainPack() {
-            
-        try {
-            Lain_LAPKS lnpk = 
-                new Lain_LAPKS("D:\\LAPKS.BIN");
-            for (int i = 0; true; i++) {
-                StrFrameUncompressorIS dec = 
-                        new StrFrameUncompressorIS(
-                            lnpk, 
-                            lnpk.getCurrentCellWidth(), 
-                            lnpk.getCurrentCellHeight());
-                Yuv4mpeg2 yuv =
-                        StrFrameMDEC.DecodeFrame(
-                            dec, 
-                            lnpk.getCurrentCellWidth(), 
-                            lnpk.getCurrentCellHeight());
-                BufferedImage bi = yuv.toBufferedImage();
-                ImageIO.write(bi, "png", new File("pose" + i + ".png"));
-                bi = lnpk.ReadBitMask();
-                ImageIO.write(bi, "png", new File("pose" + i + "mask.png"));
-                lnpk.MoveToNext();
-            }
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-
-             
-    }
     
 }

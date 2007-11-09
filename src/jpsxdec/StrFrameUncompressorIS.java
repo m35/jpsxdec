@@ -447,6 +447,14 @@ new DCVariableLengthCode("100"     , 0,  null)
      * reaches the end of everything that could be decoded. */
     private IOException m_oFailException = null;
     
+    private int m_iFrameType = -1;
+    private final static int FRAME_VER2 = 2;
+    private final static int FRAME_VER3 = 3;
+    private final static int FRAME_LAIN = 0;
+    private final static int FRAME_LAIN_FINAL_MOVIE = 10;
+    private final static int FRAME_FF7 = 1;
+    private final static int FRAME_FF7_WITHOUT_CAMERA = 11;
+    // TODO: Need to change the class's logic to use these values instead of the Version
     
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
@@ -466,23 +474,87 @@ new DCVariableLengthCode("100"     , 0,  null)
         throws IOException 
     {
         
-        // New bit reader. Read in 2 bytes at a time (Little-endian)
-        m_oBitReader = new BufferedBitReader(oIS, 2);
+        // New bit reader. 
+        // Read the data as Little-endian (not big-endian)
+        // Be prepared to buffer 30 WORDs of data
+        m_oBitReader = new BufferedBitReader(oIS, false, 30);
         
-        // Read the stream header information
+        // Determine the frame type from the first 50 bytes of data
+        byte[] abHeaderBytes = m_oBitReader.PeekBytes(50);
+        if (abHeaderBytes[2] == 0x38 && abHeaderBytes[3] == 0x00)
+        {
+            int iVersion = abHeaderBytes[7];
+            switch (iVersion) {
+                case 0: m_iFrameType = FRAME_LAIN; break;
+                case 1: m_iFrameType = FRAME_FF7_WITHOUT_CAMERA; break; // for some reason we're getting ff7 frame without the camera data
+                case 2: m_iFrameType = FRAME_VER2; break;
+                case 3: m_iFrameType = FRAME_VER3; break;
+                default:
+                    throw new IOException("Unknown frame version " + iVersion);
+            }
+        } 
+        else if (abHeaderBytes[40+2] == 0x38 && abHeaderBytes[40+3] == 0x00 &&
+                 abHeaderBytes[40+7] == 1) 
+        {
+            // it's an ff7 header
+            m_iFrameType = FRAME_FF7;
+        } 
+        else
+        {
+            // what else could it be?
+            if (abHeaderBytes[7] == 0) {
+                int iFrameNum = (((abHeaderBytes[2] & 0xFF) << 8) | (abHeaderBytes[3] & 0xFF));
+                if (oIS instanceof StrFrameDemuxerIS) {
+                    if (((StrFrameDemuxerIS)oIS).getFrameNumber() == iFrameNum) {
+                        // definitely lain final movie
+                        m_iFrameType = FRAME_LAIN_FINAL_MOVIE;
+                    }
+                } else if (iFrameNum >= 1 && iFrameNum <= 4765){
+                    // probably lain final movie
+                    m_iFrameType = FRAME_LAIN_FINAL_MOVIE;
+                }
+            } else {
+                throw new IOException("0x3800 not found in start of frame");
+            }
+        }
         
-        /* FF7 videos have 40 bytes of camera data at the start of the frame 
-         * So we'll keep reading until we find the 0x3800 header...unless
-         * those bytes are found in part of the camera data... :/      */
-        int iTries = 50; // we'll just try 50 times
-        do {
+        
+        if (DebugVerbose >= 3) {
+            System.err.print("Identified frame as ");
+            switch (m_iFrameType) {
+                case FRAME_VER2: System.err.println("Standard v2"); break;
+                case FRAME_VER3: System.err.println("Standard v3"); break;
+                case FRAME_LAIN: System.err.println("Lain"); break;
+                case FRAME_LAIN_FINAL_MOVIE: System.err.println("Lain-Final Movie"); break;
+                case FRAME_FF7: System.err.println("Final Fantasy 7"); break;
+                default:
+                    System.err.println("Unknown??");
+            }
+        }
+
+        // Now read the stream header information
+        
+        if (m_iFrameType == FRAME_FF7) {
+            /* FF7 videos have 40 bytes of camera data at the start of the frame */
+            m_oBitReader.SkipBits(40*8);
+        }
+        
+        if (m_iFrameType != FRAME_LAIN && m_iFrameType != FRAME_LAIN_FINAL_MOVIE) {
             m_lngNumberOfRunLenthCodes = m_oBitReader.ReadUnsignedBits(16);
-            m_lngHeader3800 = m_oBitReader.ReadUnsignedBits(16);
-            iTries--;
-        } while (m_lngHeader3800 != 0x3800 && iTries > 0);
+        } else {
+            int i = (int)m_oBitReader.ReadUnsignedBits(16);
+            m_lngQuantizationScaleLumin = i & 0xFF;
+            m_lngQuantizationScaleChrom = (i >>> 8) & 0xFF;
+        }
             
-        if (m_lngHeader3800 != 0x3800)
-            throw new IOException("0x3800 not found in start of frame");
+        if (m_iFrameType != FRAME_LAIN_FINAL_MOVIE) {
+            m_lngHeader3800 = m_oBitReader.ReadUnsignedBits(16);
+            
+            if (m_lngHeader3800 != 0x3800)
+                throw new IOException("0x3800 not found in start of frame");
+        } else {
+            m_lngHeader3800 = m_oBitReader.ReadUnsignedBits(16);
+        }
         
         if (DebugVerbose >= 3) {
             System.err.println("Frame Header:");
@@ -496,9 +568,16 @@ new DCVariableLengthCode("100"     , 0,  null)
             System.err.print(String.format("%d: ", 
                     (long)m_oBitReader.getPosition()));
         }
+
+        if (m_iFrameType != FRAME_LAIN && m_iFrameType != FRAME_LAIN_FINAL_MOVIE) {
+            m_lngQuantizationScaleChrom = 
+            m_lngQuantizationScaleLumin = (int)m_oBitReader.ReadUnsignedBits(16);
+        } else {
+            m_lngNumberOfRunLenthCodes = (int)m_oBitReader.ReadUnsignedBits(16);
+        }
         
-        m_lngQuantizationScaleChrom = 
-        m_lngQuantizationScaleLumin = (int)m_oBitReader.ReadUnsignedBits(16);
+        if (m_lngQuantizationScaleChrom == 0 || m_lngQuantizationScaleLumin == 0)
+            throw new IOException("Quantization scale of 0");
         
         if (DebugVerbose >= 3) {
             System.err.println(String.format("%04x -> Quantization scale %d", 
@@ -521,61 +600,33 @@ new DCVariableLengthCode("100"     , 0,  null)
             throw new IOException("We don't know how to handle version " 
                                    + m_lngVersion);
         
-        if (m_lngVersion == 0) { // For Lain...
-            long lngTemp = m_lngQuantizationScaleChrom;
-            // The NumberOfRunLenthCodes 16 bits are actually the quantization
-            // scale for Luminance and Crominance, and the Quantization scale
-            // is the NumberOfRunLenthCodes
-            m_lngQuantizationScaleLumin = m_lngNumberOfRunLenthCodes & 0xFF;
-            m_lngQuantizationScaleChrom = (m_lngNumberOfRunLenthCodes >>> 8) & 0xFF;
-            m_lngNumberOfRunLenthCodes = lngTemp;
-            if (DebugVerbose >= 3) {
-                System.err.println(String.format(
-                    "  Lain frame, so Run Lenth Code Count is actually %n" +
-                    "  Quantization Scale Luminance (%d) and Chrominance (%d)%n" +
-                    "  and Quantization Scale is actually Run Length Code Count (%d)",
-                    m_lngQuantizationScaleLumin,
-                    m_lngQuantizationScaleChrom,
-                    m_lngNumberOfRunLenthCodes));
-            }
-            
-            // Lain also uses an actual byte stream (behaves like Big-Endian)
-            // so it's only one byte per read
-            m_oBitReader.setBytesPerBuffer(1);
+
+        if (m_iFrameType == FRAME_LAIN || m_iFrameType == FRAME_LAIN_FINAL_MOVIE) {
+            // Lain also uses an actual byte stream, so we want big-endian reads
+            m_oBitReader.setBigEndian(true);
         } 
 
-        // -- Figure out width and height --
+        // Save width and height
         m_lngWidth = lngWidth;
         m_lngHeight = lngHeight;
         
-        // Actual width/height in macroblocks 
-        // (since you can't have a partial macroblock)
-        long lngActualWidth, lngActualHeight;
-        
-        if ((m_lngWidth % 16) > 0)
-            lngActualWidth = (m_lngWidth / 16 + 1) * 16;
-        else
-            lngActualWidth = m_lngWidth;
-        
-        if ((m_lngHeight % 16) > 0)
-            lngActualHeight = (m_lngHeight / 16 + 1) * 16;
-        else
-            lngActualHeight = m_lngHeight;
-        
         // Calculate number of macro-blocks in the frame
-        long iMacroBlockCount = (lngActualWidth / 16) * (lngActualHeight / 16);
-        long lngTotalCodesRead = 0;
+        long iMacroBlockCount = CalculateMacroBlocks(lngWidth, lngHeight);
         
-        if (DebugVerbose >= 3)
-            System.err.println("Expecting " 
-                    + iMacroBlockCount + " macroblocks");
+        
+        if (DebugVerbose >= 3) System.err.println(
+                    "Expecting " + iMacroBlockCount + " macroblocks");
+        
         // We have everything we need
         // now uncompress the entire frame, one macroblock at a time
+        
+        // keep track of the number of run length codes read for debugging
+        long lngTotalCodesRead = 0;
         try {
             for (int i = 0; i < iMacroBlockCount; i++) {
                 if (DebugVerbose >= 3)
                     System.err.println("Decoding macroblock " + i);
-                // queues up all read MDEC codes
+                // adds all the read MDEC codes to the qeuue
                 lngTotalCodesRead += UncompressMacroBlock();
             }
         } catch (IOException e) {
@@ -588,9 +639,33 @@ new DCVariableLengthCode("100"     , 0,  null)
         if (DebugVerbose >= 4)
             System.err.println(lngTotalCodesRead + " codes read");
         
-        // Setup for reading by peeking at the first 16 bits
+        // Setup for being read from by peeking at the first 16 bits
         m_oCurrent16Bits = m_oReaderQueue.peek();
         
+    }
+    
+    private static int IdentifyFrame(byte[] abFrameHeader) {
+        // TODO: need to move the logic from constructor into here
+        return -1;
+    }
+    
+    private static long CalculateMacroBlocks(long lngWidth, long lngHeight) {
+        // Actual width/height in macroblocks 
+        // (since you can't have a partial macroblock)
+        long lngActualWidth, lngActualHeight;
+        
+        if ((lngWidth % 16) > 0)
+            lngActualWidth = (lngWidth / 16 + 1) * 16;
+        else
+            lngActualWidth = lngWidth;
+        
+        if ((lngHeight % 16) > 0)
+            lngActualHeight = (lngHeight / 16 + 1) * 16;
+        else
+            lngActualHeight = lngHeight;
+        
+        // Calculate number of macro-blocks in the frame
+        return (lngActualWidth / 16) * (lngActualHeight / 16);
     }
 
     /* ---------------------------------------------------------------------- */
@@ -672,7 +747,7 @@ new DCVariableLengthCode("100"     , 0,  null)
         
         long lngTotalCodesRead = 0;
         
-        if (m_lngVersion == 1 || m_lngVersion == 2 || m_lngVersion == 0) {
+        if (m_iFrameType == FRAME_FF7 || m_iFrameType == FRAME_VER2 || m_iFrameType == FRAME_LAIN || m_iFrameType == FRAME_LAIN_FINAL_MOVIE) {
             
             // For version 2, all Cr, Cb, Y1, Y2, Y3, Y4 
             // DC Coefficients are encoded the same

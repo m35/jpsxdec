@@ -139,9 +139,13 @@ public class StrFrameDemuxerIS extends InputStream
     }
     
     /** has chunks.... But seriously, we need to share
-     *  if there is any data left. */
+     *  if any chunks are ready to be read. */
     public boolean hasChunks() {
         return m_oCurrentChunk != null;
+    }
+    
+    public long getFrameNumber() {
+        return m_lngFrame;
     }
     
     /* ---------------------------------------------------------------------- */

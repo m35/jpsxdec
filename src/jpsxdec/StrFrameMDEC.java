@@ -27,7 +27,6 @@
 
 package jpsxdec;
 
-import java.awt.image.BufferedImage;
 import java.io.*;
 import jpsxdec.InverseDiscreteCosineTransform.IIDCT;
 import jpsxdec.InverseDiscreteCosineTransform.StephensIDCT;

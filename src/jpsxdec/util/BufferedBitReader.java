@@ -36,136 +36,164 @@ import java.nio.BufferUnderflowException;
 import java.util.LinkedList;
 
 /** A limited bit reader. Wraps an InputStream. Should be pretty quick. */
-public class BufferedBitReader /* might extend FilterInputStream */ {
-
-    /** The simplest queue class possible. Initialized to a requested
+public class BufferedBitReader {
+    
+    /** Queue of 16-bit integers. Initialized to a requested
      *  size. A head and a tail index circle around the array.
      *  There is always at least one unused array entry. To make use
      *  of that unused entry would require an extra flag variable
      *  and additional checks which would only slow down the queue,
      *  and still use as much memory. */
-    private static class SimpleIntQueue {
-        int[] m_abBytes;
-        int m_iHeadPos = 0;
-        int m_iTailPos = 0;
+    private static class SimpleWordQueue {
+        long[] m_alngWords;
+        int m_iHeadPos;
+        int m_iTailPos;
+        boolean m_blnBigEndian;
         
         /** Private constructor for ShallowCopy() function.*/
-        private SimpleIntQueue() {}
+        private SimpleWordQueue() {}
         
-        /** @param iSize - Maximum number of elements allowed in the array - 1*/
-        public SimpleIntQueue(int iSize) {
-            m_abBytes = new int[iSize];
+        /** @param  iSize Maximum number of 16-bits allowed in the array 
+         *  @param  blnBigEndian true to read 16bits as big-endian, false for little-endian */
+        public SimpleWordQueue(int iSize, boolean blnBigEndian) {
+            m_blnBigEndian = blnBigEndian;
+            m_iHeadPos = 0;
+            m_iTailPos = 0;
+            m_alngWords = new long[iSize + 1];
         }
         
-        /** @param i - Integer to add to the queue */
-        public void Queue(int i) {
-            m_abBytes[m_iTailPos] = i;
-            m_iTailPos = (m_iTailPos + 1) % m_abBytes.length;
-            if (m_iTailPos == m_iHeadPos)
-                throw new BufferOverflowException();
+        /** @param b1  Byte to add to the queue 
+         *  @param b2  Byte to add to the queue */
+        public void Queue(int b1, int b2) {
+            m_alngWords[m_iTailPos] = (b1 << 8) | b2;
+            m_iTailPos = (m_iTailPos + 1) % m_alngWords.length;
+            if (m_iTailPos == m_iHeadPos) throw new BufferOverflowException();
         }
         
-        /** @return head of the queue without removing it */
-        public int Peek() {
-            if (m_iTailPos == m_iHeadPos)
-                throw new BufferUnderflowException();
-            return m_abBytes[m_iHeadPos];
+        /** Returns the 16-bit head of the queue without removing it. 
+         *  The 16-bits will be returned as big-endian or little-endian
+         *  depending on the setting.
+         * @return  16-bit head of the queue without removing it */
+        public long Peek() {
+            if (m_iTailPos == m_iHeadPos) throw new BufferUnderflowException();
+            long lng = m_alngWords[m_iHeadPos];
+            if (m_blnBigEndian)
+                return lng;
+            else
+                return ((lng & 0xFF) << 8) | ((lng >>> 8) & 0xFF);
         }
-
-        /** Removes the integer at the head of the queue 
-         *  @return integer removed */
-        public int Dequeue() {
-            if (m_iTailPos == m_iHeadPos)
-                throw new BufferUnderflowException();
-            int i = m_abBytes[m_iHeadPos];
-            m_iHeadPos = (m_iHeadPos + 1) % m_abBytes.length;
-            return i;
+        
+        /** Removes the 16-bit head of the queue and returns it. 
+         *  The 16-bits will be returned as big-endian or little-endian
+         *  depending on the setting.
+         * @return  removed 16-bit head of the queue */
+        public long Dequeue() {
+            if (m_iTailPos == m_iHeadPos) throw new BufferUnderflowException();
+            long lng = m_alngWords[m_iHeadPos];
+            m_iHeadPos = (m_iHeadPos + 1) % m_alngWords.length;
+            if (m_blnBigEndian)
+                return lng;
+            else
+                return ((lng & 0xFF) << 8) | ((lng >>> 8) & 0xFF);
         }
         
         /** Creates a new queue instance, but only copies the head
-          * and tail index to the original array. Used by the BufferedBitReader
-          * to peek bytes from the stream without removing them */
-        public SimpleIntQueue ShallowCopy() {
-            SimpleIntQueue oNew = new SimpleIntQueue();
-            oNew.m_abBytes = m_abBytes;
+         * and tail index to the original array, and the endianess.
+         * Used by the BufferedBitReader to peek values from the stream 
+         * without removing them */
+        public SimpleWordQueue ShallowCopy() {
+            SimpleWordQueue oNew = new SimpleWordQueue();
+            oNew.m_alngWords = m_alngWords;
             oNew.m_iHeadPos = m_iHeadPos;
             oNew.m_iTailPos = m_iTailPos;
+            oNew.m_blnBigEndian = m_blnBigEndian;
             return oNew;
         }
         
-        /** @return number of elements in the queue */
+        /** @return number of bytes in the queue */
         public int size() {
             int i = m_iTailPos - m_iHeadPos;
             if (i < 0)
-                return m_abBytes.length + i;
+                return (m_alngWords.length + i) * 2;
             else
-                return i;
+                return i * 2;
+        }
+        
+        /** Number of bytes the queue can hold */
+        public int getMaxCapacity() {
+            return (m_alngWords.length - 1) * 2;
+        }
+        
+        /** @return  If the queue 16-bits will be read as big-endian */
+        public boolean isBigEndian() {
+            return m_blnBigEndian;
+        }
+        
+        /** @param blnBigEndian  The endianess of 16-bits returned by the queue */
+        public void setBigEndian(boolean blnBigEndian) {
+            m_blnBigEndian = blnBigEndian;
         }
     }
     
     
     /** Mask remaining bits.
-     * 0 = 00000000 (not used)
-     * 1 = 00000001
-     * 2 = 00000011
-     * 3 = 00000111
-     * 4 = 00001111
-     * 5 = 00011111
-     * 6 = 00111111
-     * 7 = 01111111
-     * 8 = 11111111
+     * 0  = 0000000000000000 (not used)
+     * 1  = 0000000000000001
+     * 2  = 0000000000000011
+     * 3  = 0000000000000111
+     * 4  = 0000000000001111
+     * ...
+     * 13 = 0001111111111111
+     * 14 = 0011111111111111
+     * 15 = 0111111111111111
+     * 16 = 1111111111111111
      */
-    private static byte BIT_MASK[] = new byte[] {
-        (byte)0x00, (byte)0x01, (byte)0x03, (byte)0x07, (byte)0x0F,
-        (byte)0x1F, (byte)0x3F, (byte)0x7F, (byte)0xFF
+    private static int BIT_MASK[] = new int[] {
+        0x0000, 0x0001, 0x0003, 0x0007, 0x000F,
+        0x001F, 0x003F, 0x007F, 0x00FF,
+        0x01FF, 0x03FF, 0x07FF, 0x0FFF,
+        0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF
     };
     
-    /** A queue to store the bytes read/peeked from the stream.
-     *  10 is just an arbritrary number. It really only needs 
-     *  4 bytes. */
-    SimpleIntQueue m_oBitBuffer = new SimpleIntQueue(10);
-    /** Bits remaining in the byte at the head of the queue. */
+    /** A queue to store the bytes read from the stream. */
+    SimpleWordQueue m_oBitBuffer;
+    /** Bits remaining in the 16-bits at the head of the queue. */
     int m_iBitsRemainging = 0;
     
     /** The source InputStream. */
     InputStream m_oStrStream;
     
-    /** Bytes per read has special behavior:
-     *  1 means 1 byte per read (simple).
-     *  2 means 2 bytes per read, but in little endian order. */
-    int m_iBytesPerBuffer;
-    
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    /** @param oIS - Source input stream
-     *  @param iBytesPerRead - 1 for big-endian, 2 for little-endian */
-    public BufferedBitReader(InputStream oIS, int iBytesPerRead) {
-        assert(iBytesPerRead == 1 || iBytesPerRead == 2);
-        m_iBytesPerBuffer = iBytesPerRead;
+    /** @param oIS           Source input stream
+     *  @param blnBigEndian  If the stream should be read as big-endian
+     *  @param iBufferSize   Size of the buffer in 16-bit words */
+    public BufferedBitReader(InputStream oIS, boolean blnBigEndian, int iBufferSize) {
         m_oStrStream = oIS;
+        m_oBitBuffer = new SimpleWordQueue(iBufferSize, blnBigEndian);
     }
     
     /* ---------------------------------------------------------------------- */
     /* Properties ----------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    /** Returns whether the stream is set to be read in big-endian
-     * (2 byte per buffer) or 16-bit little-endian (2 bytes per buffer). 
-     * @return 1 or 2 */
-    public int getBytesPerBuffer() {
-        return m_iBytesPerBuffer;
+    /** Returns whether the stream is set to be read 16-bits at a time in
+     *  in big-endian or little-endian.
+     * @return true if big-endian, false if little-endian */
+    public boolean isBigEndian() {
+        return m_oBitBuffer.isBigEndian();
     }
     
-    /** Sets wheither to read the data as a stream of bits (therefore
-     *  big-endian), or to read in 16 bits at a time in little-endian order.
-     *  Note: Changing this value while there is still data in the
-     *  buffer could result in strange values.
-     *  @param iBytesPerRead - 1 for big-endian, 2 for little-endian */
-    public void setBytesPerBuffer(int iBytesPerRead) {
-        assert(iBytesPerRead == 1 || iBytesPerRead == 2);
-        m_iBytesPerBuffer = iBytesPerRead;
+    /** Sets wheither to read 16-bits as big-endian, or little-endian.
+     *  A RuntimeException() is thrown if the read point is not at a 
+     *  word boundary.
+     *  @param blnBigEndian  true for big-endian, false for little-endian */
+    public void setBigEndian(boolean blnBigEndian) {
+        if (m_iBitsRemainging != 0 && m_iBitsRemainging != 16)
+            throw new RuntimeException("Changing endian while bits remain.");
+        m_oBitBuffer.setBigEndian(blnBigEndian);
     }
     
     //..........................................................................
@@ -179,8 +207,9 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
     public double getPosition() {
         if (m_oStrStream instanceof IGetFilePointer) {
             long lngFilePos = ((IGetFilePointer)m_oStrStream).getFilePointer();
-            return (double)lngFilePos - ((double)m_oBitBuffer.size() - 1
-                    + (double)m_iBitsRemainging / 8.0);
+            int iBitsBuffered = m_oBitBuffer.size() * 8 - (16 - m_iBitsRemainging);
+            if (iBitsBuffered < 0) iBitsBuffered = 0;
+            return lngFilePos - (double)iBitsBuffered / 8.0;
         } else
             return -1.0f;
     }
@@ -198,7 +227,7 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
         if (iCount <= m_iBitsRemainging)
             m_iBitsRemainging -= iCount;
         else
-            m_iBitsRemainging = 8 - ((iCount - m_iBitsRemainging) % 8);
+            m_iBitsRemainging = 16 - ((iCount - m_iBitsRemainging) % 16);
         return lngRet;
     }
     
@@ -212,8 +241,8 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
         if (iCount <= m_iBitsRemainging)
             m_iBitsRemainging -= iCount;
         else
-            m_iBitsRemainging = 8 - ((iCount - m_iBitsRemainging) % 8);
-        return (lngRet << (64 - iCount)) >> (64 - iCount);
+            m_iBitsRemainging = 16 - ((iCount - m_iBitsRemainging) % 16);
+        return (lngRet << (64 - iCount)) >> (64 - iCount); // change to signed
     }
     
     /** Reads the bits into a string of "1" and "0". */
@@ -224,7 +253,7 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
         if (iCount <= m_iBitsRemainging)
             m_iBitsRemainging -= iCount;
         else
-            m_iBitsRemainging = 8 - ((iCount - m_iBitsRemainging) % 8);
+            m_iBitsRemainging = 16 - ((iCount - m_iBitsRemainging) % 16);
         return PadZeroLeft(Long.toBinaryString(lngRet), iCount);
     }
     
@@ -249,7 +278,7 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
             throw new EOFException("End of bit file");
         long lngRet = ReadUBits(m_iBitsRemainging, iCount,
                 m_oBitBuffer.ShallowCopy());
-        return (lngRet << (64 - iCount)) >> (64 - iCount);
+        return (lngRet << (64 - iCount)) >> (64 - iCount); // change to signed
     }
     
     /** Same as ReadBitsToString, but doesn't
@@ -264,9 +293,11 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
     
     // .........................................................................
     
-    /** Simple skipping bits */
+    /** Tries to skip the requsted number of bits. Stops at the end of the
+     *  stream.
+     * @param iCount  The number of bits to skip */
     public void SkipBits(int iCount) throws IOException {
-        assert(iCount < 32 && iCount > 0);
+        assert(iCount > 0 && iCount < m_oBitBuffer.getMaxCapacity() * 8 );
         iCount = BufferEnoughForBits(iCount);
         if (iCount <= m_iBitsRemainging) {
             m_iBitsRemainging -= iCount;
@@ -275,13 +306,34 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
             iCount -= m_iBitsRemainging;
             m_oBitBuffer.Dequeue();
             
-            while (iCount >= 8) {
+            while (iCount >= 16) {
                 m_oBitBuffer.Dequeue();
-                iCount -= 8;
+                iCount -= 16;
             }
-            m_iBitsRemainging = 8 - iCount;
+            m_iBitsRemainging = 16 - iCount;
         }
     }
+    
+    // .........................................................................
+    
+    /** Peeks bytes into an array. If unable to read the number of requested
+     *  bytes, returns as many as could be read.
+     * @param iByteCount  Number of bytes to peek */
+    public byte[] PeekBytes(int iByteCount) throws IOException {
+        int iBitCount = BufferEnoughForBits(iByteCount * 8);
+        byte[] ab = new byte[iBitCount / 8];
+        SimpleWordQueue oCloneQueue = m_oBitBuffer.ShallowCopy();
+        int iCloneBitRemain = m_iBitsRemainging;
+        for (int i = 0; i < ab.length; i++) {
+            ab[i] = (byte)ReadUBits(iCloneBitRemain, 8, oCloneQueue);
+            if (8 <= iCloneBitRemain)
+                iCloneBitRemain -= 8;
+            else
+                iCloneBitRemain = 16 - ((8 - iCloneBitRemain) % 16);
+        }
+        return ab;
+    }
+    
     
     /* ---------------------------------------------------------------------- */
     /* Private Functions ---------------------------------------------------- */
@@ -292,28 +344,27 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
      *  (for peeking bits). Enough bytes should be in the buffer prior
      *  to calling this function. */
     private static long ReadUBits(int iBitsRemainging,
-                                  int iCount,
-                                  SimpleIntQueue oBitBuffer) 
-    {
+            int iCount,
+            SimpleWordQueue oBitBuffer) {
         long lngRet = 0;
-        int ib;
+        long lngWrd;
         if (iCount <= iBitsRemainging) {
-            ib = oBitBuffer.Peek();
-            ib = ib & BIT_MASK[iBitsRemainging];
-            lngRet = (ib >>> (iBitsRemainging - iCount));
+            lngWrd = oBitBuffer.Peek();
+            lngWrd = lngWrd & BIT_MASK[iBitsRemainging];
+            lngRet = (lngWrd >>> (iBitsRemainging - iCount));
         } else {
-            ib = oBitBuffer.Dequeue();
-            lngRet = ib & BIT_MASK[iBitsRemainging];
+            lngWrd = oBitBuffer.Dequeue();
+            lngRet = lngWrd & BIT_MASK[iBitsRemainging];
             iCount -= iBitsRemainging;
             
-            while (iCount >= 8) {
-                lngRet = (lngRet << 8) | oBitBuffer.Dequeue();
-                iCount -= 8;
+            while (iCount >= 16) {
+                lngRet = (lngRet << 16) | oBitBuffer.Dequeue();
+                iCount -= 16;
             }
             
             if (iCount > 0) {
-                ib = oBitBuffer.Peek();
-                lngRet = (lngRet << iCount) | (ib >>> (8 - iCount));
+                lngWrd = oBitBuffer.Peek();
+                lngRet = (lngRet << iCount) | (lngWrd >>> (16 - iCount));
             }
         }
         
@@ -339,8 +390,9 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
         return new String(buf) + s;
     }
     
-    /** First fixes m_iBitsRemainging so it is not zero, then buffers enough 
-     *  bytes for the requested bits. If the requrested number of bits or more 
+    /** First fixes m_iBitsRemainging and m_oBitBuffer so there is at least
+     *  some data available in the queue, then buffers enough
+     *  bytes for the requested bits. If the requrested number of bits or more
      *  were buffered, then returns the requested number of bits. If fewer than
      *  the requested number of bits were buffered, then returns the
      *  number of bits that could be buffered.
@@ -354,56 +406,46 @@ public class BufferedBitReader /* might extend FilterInputStream */ {
             }
             if (m_oBitBuffer.size() == 0) { // now if the buffer is empty
                 // add a little more to the buffer
-                if (BufferData() < 1) throw new EOFException("End of bit file");
+                if (BufferData() < 2) throw new EOFException("End of bit file");
             }
-            m_iBitsRemainging = 8; // and now we have 8 bits for the head again
+            m_iBitsRemainging = 16; // and now we have 8 bits for the head again
         }
         
-        int iBitsBuffed;
+        int iTotalBitsBuffed = m_oBitBuffer.size() * 8 - (16 - m_iBitsRemainging);
         
         // keep buffering data until the requested number of bits were
         // buffered, or we hit the end of the stream.
-        while ((iBitsBuffed = ((m_oBitBuffer.size()-1) * 8 + m_iBitsRemainging)) < iCount) {
-            if (BufferData() < 1)
-                return iBitsBuffed;
+        while (iTotalBitsBuffed < iCount) {
+            int iBytesBuffered = BufferData();
+            if (iBytesBuffered < 2)
+                return iTotalBitsBuffed;
+            iTotalBitsBuffed += iBytesBuffered * 8;
         }
         
         return iCount;
     }
     
     /** This is the only function that actually reads from the InputStream.
-     *  If it's little-endian mode, reads 16 bits as little-endian. If not,
-     *  simply reads 8 bits.
+     *  Read 16 bits from the stream and adds them to the queue. Returns
+     *  either 0 or 2, for the number of bytes read. If only 1 bytes
+     *  could be read, throws IOException().
      *  @return the number of bytes buffered */
     private int BufferData() throws IOException {
         
-        if (m_iBytesPerBuffer == 2) {
-            int ib1, ib2;
-            if ((ib1 = m_oStrStream.read()) < 0) {
-                /* If we've failed to read in a byte, then we're at the
-                 * end of the stream, so return 0 */
-                return 0;
-            }
-            if ((ib2 = m_oStrStream.read()) < 0) {
-                /* If we've failed to read in a byte, then we're at the
-                 * end of the stream, so return 0 */
-                return 0;
-            }
-            // add the read bytes to the byte buffer in little-endian order
-            m_oBitBuffer.Queue(ib2);
-            m_oBitBuffer.Queue(ib1);
-            return 2;
-        }  else if (m_iBytesPerBuffer == 1) {
-            int ib;
-            if ((ib = m_oStrStream.read()) < 0) {
-                return 0;
-            }
-            m_oBitBuffer.Queue(ib);
-            return 1;
-        } else {
-            throw new
-                IOException("Invalid bytes per buffer: " + m_iBytesPerBuffer);
+        int ib1, ib2;
+        if ((ib1 = m_oStrStream.read()) < 0) {
+            /* If we've failed to read in a byte, then we're at the
+             * end of the stream, so return 0 */
+            return 0;
         }
+        if ((ib2 = m_oStrStream.read()) < 0) {
+            /* If we've failed to read in a byte, then we're at the
+             * end of the stream, so return 0 */
+            throw new EOFException("End of bit file");
+        }
+        // add the read bytes to the byte buffer in little-endian order
+        m_oBitBuffer.Queue(ib1, ib2);
+        return 2;
         
     }
     

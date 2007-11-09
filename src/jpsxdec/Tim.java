@@ -162,10 +162,28 @@ public class Tim {
         BufferedImage bi;
         int[] aiClut = null;
         if (m_oClut == null) {
-            // only create a grayscale palette if the color is indexed
-            if (m_iBitsPerPixel == 4 || m_iBitsPerPixel == 8) {
-                aiClut = new int[(int)Math.pow(2, m_iBitsPerPixel)];
-                throw new UnsupportedOperationException("Haven't done this yet");
+            // create a default grayscale palette if no clut is provided
+            if (m_iBitsPerPixel == 4) {
+                aiClut = new int[16];
+                // TODO: Check this logic
+                for (int i = 0; i < 16; i++) {
+                    int Color = i << 1;
+                    if (i == 0)
+                        aiClut[i] = 1 << 15 | Color << 10 | Color << 5 | Color;
+                    else
+                        aiClut[i] = 0 << 15 | Color << 10 | Color << 5 | Color;
+                }
+            }
+            if (m_iBitsPerPixel == 8) {
+                aiClut = new int[256];
+                // TODO: Check this logic
+                for (int i = 0; i < 256; i++) {
+                    int Color = i >>> 3;
+                    if (i == 0)
+                        aiClut[i] = 1 << 15 | Color << 10 | Color << 5 | Color;
+                    else
+                        aiClut[i] = 0 << 15 | Color << 10 | Color << 5 | Color;
+                }
             }
         } else {
             aiClut = m_oClut.getColorData();
@@ -186,10 +204,12 @@ public class Tim {
                         bi.setRGB(x, y, iColor32);
                         
                         x++;
-                        iNibble = (iByte >>> 4) & 0xF;
-                        iColor16 = aiClut[iNibble];
-                        iColor32 = Color16toColor32(iColor16);
-                        bi.setRGB(x, y, iColor32);
+                        if (x < m_iPixelWidth) { // in case of odd width
+                            iNibble = (iByte >>> 4) & 0xF;
+                            iColor16 = aiClut[iNibble];
+                            iColor32 = Color16toColor32(iColor16);
+                            bi.setRGB(x, y, iColor32);
+                        }
                     }
                 }
                 break;
@@ -219,20 +239,15 @@ public class Tim {
             case 24:
                 for (int y = 0; y < m_iPixelHeight; y++) {
                     for (int x = 0; x < m_iPixelWidth; x++) {
-                        int r,g,b;
-                        r = oDIS.readUnsignedByte();
-                        g = oDIS.readUnsignedByte();
-                        b = oDIS.readUnsignedByte();
-                        iColor32 = RGBA(r, g, b, 255);
-                        bi.setRGB(x, y, iColor32);
-                        
-                        x++;
-                        r = oDIS.readUnsignedByte();
-                        g = oDIS.readUnsignedByte();
-                        b = oDIS.readUnsignedByte();
+                        int r = oDIS.readUnsignedByte();
+                        int g = oDIS.readUnsignedByte();
+                        int b = oDIS.readUnsignedByte();
                         iColor32 = RGBA(r, g, b, 255);
                         bi.setRGB(x, y, iColor32);
                     }
+                    // TODO: Need to check this logic
+                    if ((m_iPixelWidth % 2) == 1) // in case of odd width
+                        oDIS.skip(1);
                 }
                 break;
             default:
@@ -242,7 +257,7 @@ public class Tim {
         return bi;
     }
 
-  static int[] CONVERT_5_TO_8_BIT = new int[/*32*/] 
+    private static int[] CONVERT_5_TO_8_BIT = new int[/*32*/] 
    {  0,   8,  16,  25,  33,  41,  49,  58,  
      66,  74,  82,  90,  99, 107, 115, 123, 
     132, 140, 148, 156, 165, 173, 181, 189, 
@@ -267,7 +282,7 @@ public class Tim {
                 a = 255; // totally opaque
             else 
                 // some color, and the alpha bit IS set
-                a = 128; // some variance of transparency (represented by 128)
+                a = 128; // some variance of transparency (using 128)
         }
         
         return RGBA(r, g, b, a);

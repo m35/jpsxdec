@@ -30,12 +30,15 @@
  * - make manual
  * - get some pre-MDEC data out of an emulator to compare with my pre-MDEC data
  * - improve command-line documentation
- * - change the demuxer or uncompresser to handle Lain final movie, and also ff7 movies
+ * // change the demuxer or uncompresser to handle Lain final movie, and also ff7 movies
  * - check if clamping yuv4mpeg2 values at 1-254 help
  * - add option to select the IDCT
  * - add option to ignore checks and just decode whatever it can (probably part of --decode-frame/--decode-audio)
  * - add option to copy str/xa sectors from image
  * - add --format option to LAPKS
+ * - add option to set 24/16 bit color, or yuv420/yuv422
+ * - change movie decoder to not reset the iterator each frame, &&
+ *   + make sure Demuxer knows how to only search for sectors for the next frame
  * /- make CREDITS file
  * /- CLEANUP!!
  * /- better organize the error reporting/checking
@@ -55,6 +58,8 @@
  *        and sets up easier debugging feedback once a gui is added)
  * - consider making Settings NOT a static class, and just keep it as a
  *   field in the Main class (since it shouldn't be used anywhere else).
+ *   and then i can pass the settings object into plugins to do with it
+ *   what they will.
  *
  * FUTURE VERSIONS:
  * - Add frame rate calculation
@@ -89,7 +94,7 @@ import jpsxdec.PSXMedia.PSXMediaXA;
 public class Main {
     
     public static int DebugVerbose = 2;
-    public final static String Version = "0.25(beta)";
+    public final static String Version = "0.26(beta)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     
     public static void main(String[] args) {
@@ -538,9 +543,9 @@ public class Main {
             if (DebugVerbose > 0)
                 System.err.println("Reading frame file");
             
-            InputStream is;
+            FileInputStream is;
             is = new FileInputStream(Settings.getInputFile());
-            
+            is.mark(0);
             DecodeAndSaveFrame(Settings.getInputFileFormat(), is, sFrameFile);
             
         } catch (IOException ex) {

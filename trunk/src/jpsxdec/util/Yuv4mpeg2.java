@@ -27,6 +27,7 @@
 package jpsxdec.util;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
@@ -84,8 +85,15 @@ public class Yuv4mpeg2 {
     }
     
     /** Converts yuv image to a BufferedImage, converting, rounding, and 
-     * clamping RGB values */
+     * clamping RGB values. Uses default image type. */
     public BufferedImage toBufferedImage() {
+        return toBufferedImage(BufferedImage
+                //.TYPE_USHORT_565_RGB); 
+                .TYPE_INT_RGB);
+    }
+    /** Converts yuv image to a BufferedImage, converting, rounding, and 
+     * clamping RGB values */
+    public BufferedImage toBufferedImage(int iImgType) {
         int[] aiRGB = new int[m_iWidth * m_iHeight];
         
         for (int iLinePos = 0, iY = 0; iY < m_iHeight; iLinePos += m_iWidth, iY++) {
@@ -114,7 +122,11 @@ public class Yuv4mpeg2 {
             }
         }
         
-        BufferedImage bi = new BufferedImage(m_iWidth, m_iHeight, BufferedImage.TYPE_INT_RGB);
+        BufferedImage bi = new BufferedImage(m_iWidth, m_iHeight, iImgType);
+        // using the raster below would be faster, but then we couldn't
+        // use any color space
+        //WritableRaster wr = bi.getRaster();
+        //wr.setDataElements(0, 0, m_iWidth, m_iHeight, aiRGB);
         bi.setRGB(0, 0, m_iWidth, m_iHeight, aiRGB, 0, m_iWidth);
         return bi;
     }

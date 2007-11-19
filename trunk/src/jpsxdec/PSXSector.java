@@ -20,7 +20,7 @@
  */
 
 /*
- * CDSector.java
+ * PSXSector.java
  *
  */
 
@@ -69,9 +69,9 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     }
     
     /** Identify the type of sector that the CDSectorReader points to. */
-    public static PSXSector SectorIdentifyFactory(CDXASector oCDSect)
-    //throws IOException
-    {
+    public static PSXSector SectorIdentifyFactory(CDXASector oCDSect) {
+        if (oCDSect == null) return null;
+        
         PSXSector oPsxSector;
         
         try {
@@ -101,7 +101,10 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             return oPsxSector;
         } catch (NotThisTypeException ex) {}
         
-        return null; // we dunno what this sector is
+        // we dunno what this sector is, default to PSXSectorUnknownData
+        oPsxSector = new PSXSectorUnknownData(oCDSect);
+        return oPsxSector;
+        
     }
     
     /**************************************************************************/
@@ -113,9 +116,10 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     protected int m_iChannel = -1;
     /** Basic info about the interesting sector. */
     protected int m_iSector = -1;
+    /** The original file offset where the sector was found. */
     private long m_lngSectorFilePointer;
     
-    // Imitation of ByteArrayInputStream
+    // Used to imitate ByteArrayInputStream behavior
     private byte[] m_abSectorBuff;
     private int m_iStreamPos = 0;
     private int m_iSectorDataStart;
@@ -133,12 +137,12 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     }
     
     
-    /** Extend this function in sub-classes if you want to change what bytes
+    /** Extend this function in sub-classes to change what bytes
      * are part of the demuxed stream. */
     abstract int GetSectorDataStart(byte abSectorData[]); /*{
         return 0;
     }*/
-    /** Extend this function in sub-classes if you want to change what bytes
+    /** Extend this function in sub-classes to change what bytes
      * are part of the demuxed stream. */
     abstract int GetSectorDataLength(byte abSectorData[]); /*{
         return abSectorData.length;
@@ -161,6 +165,16 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
                 + m_iStreamPos;
     }
     
+    public int getSectorPos() {
+        return m_iStreamPos;
+    }
+    public void setSectorPos(int iPos) {
+        assert(iPos >= 0 && iPos <= m_iSectorDataLength);
+        m_iStreamPos = iPos;
+    }
+    
+    /** Returns a string description of the sector type, or null if 
+     *  the sector contains unknown data */
     public String toString() {
         return String.format("[Sector:%d File:%d Channel:%d]",
                 m_iSector, m_iFile, m_iChannel);
@@ -188,7 +202,8 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     public static class PSXSectorNull extends PSXSector {
         
         public PSXSectorNull(CDXASector oCD)
-        throws NotThisTypeException {
+                throws NotThisTypeException 
+        {
             super(oCD);
             if (!oCD.HasSectorHeader() || oCD.getSubMode() != 0) {
                 throw new NotThisTypeException();
@@ -205,7 +220,27 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         }
         
         int GetSectorDataLength(byte[] abSectorData) {
-            return 1;
+            return 1; // just making the sector 1 byte long for no reason
+        }
+        
+    }
+    
+    /** If all else fails, we don't know what kind of data is it */
+    public static class PSXSectorUnknownData extends PSXSector {
+        public PSXSectorUnknownData(CDXASector oCD) {
+            super(oCD);
+        }
+        
+        public String toString() {
+            return null;
+        }
+        
+        int GetSectorDataStart(byte[] abSectorData) {
+            return 0;
+        }
+        
+        int GetSectorDataLength(byte[] abSectorData) {
+            return abSectorData.length; 
         }
         
     }

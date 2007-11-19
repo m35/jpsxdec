@@ -20,84 +20,69 @@
  */
 
 /*
- * PSXSectorIterator.java
+ * PSXSectorRangeIterator.java
  *
  */
 
 package jpsxdec;
 
 import java.io.IOException;
-import java.util.ListIterator;
 import java.util.NoSuchElementException;
-import jpsxdec.CDSectorReader.CDXASector;
 
-public class PSXSectorRangeIterator implements ListIterator<PSXSector> {
+/** Class to walk a range of sectors of a CD */
+public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     CDSectorReader m_oCD;
-    PSXSector m_oCurrentSector = null;
-    ListIterator<CDXASector> m_oReadIterator;
+    int m_iSectorIndex;
     int m_iStartSector, m_iEndSector;
 
     public PSXSectorRangeIterator(CDSectorReader oCD) {
         this(oCD, 0, oCD.size()-1);
     }
     
-    public PSXSectorRangeIterator(CDSectorReader oCD, int iStatSector, int iEndSector) {
+    public PSXSectorRangeIterator(CDSectorReader oCD, int iStartSector, int iEndSector) {
         m_oCD = oCD;
-        m_oReadIterator = oCD.listIterator(iStatSector);
-        m_iStartSector = iStatSector;
+        m_iStartSector = iStartSector;
         m_iEndSector = iEndSector;
+        m_iSectorIndex = iStartSector;
     }
-
-    /** Returns the previous retrieved item without changing
-     *  the pointer */
-    public PSXSector get() {
-        //if (m_oCurrentSector != null)
-            return m_oCurrentSector;
-        //else
-        //    throw new NoSuchElementException();
-    }
+    
     CDSectorReader getSourceCD() {
         return m_oCD;
     }
 
-
+    public PSXSector peekNext() throws IOException {
+        if (!hasNext()) throw new NoSuchElementException();
+        return PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
+    }
+    
     public boolean hasNext() {
-        return m_oReadIterator.hasNext() && m_oReadIterator.nextIndex() <= m_iEndSector;
+        return m_iSectorIndex <= m_iEndSector;
     }
 
-    public PSXSector next() {
-        //TODO: Check if beyond m_iEndSector
-        m_oCurrentSector = PSXSector.SectorIdentifyFactory(m_oReadIterator.next());
-        return m_oCurrentSector;
+    public PSXSector next() throws IOException {
+        if (!hasNext()) throw new NoSuchElementException();
+        PSXSector oSect;
+        oSect = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
+        m_iSectorIndex++;
+        return oSect;
+    }
+    
+    public void skipNext() {
+        if (!hasNext()) throw new NoSuchElementException();
+        m_iSectorIndex++;
     }
 
-    public boolean hasPrevious() {
-        return m_oReadIterator.hasPrevious();
+    
+    public int getIndex() {
+        return m_iSectorIndex;
+    }
+    
+    public void gotoIndex(int i) {
+        if (i < m_iStartSector || i > m_iEndSector+1) throw new NoSuchElementException();
+        m_iSectorIndex = i;
     }
 
-    public PSXSector previous() {
-        m_oCurrentSector = PSXSector.SectorIdentifyFactory(m_oReadIterator.previous());
-        return m_oCurrentSector;
-    }
-
-    public int nextIndex() {
-        //TODO: Check if beyond m_iEndSector
-        return m_oReadIterator.nextIndex();
-    }
-
-    public int previousIndex() {
-        return m_oReadIterator.previousIndex();
-    }
-
-    /** Read only list. */
-    public void remove() 
-    { throw new UnsupportedOperationException(); }
-    /** Read only list. */
-    public void set(PSXSector e) 
-    { throw new UnsupportedOperationException(); }
-    /** Read only list. */
-    public void add(PSXSector e) 
-    { throw new UnsupportedOperationException(); }
+    public void remove() {throw new UnsupportedOperationException();}
 
 }
 

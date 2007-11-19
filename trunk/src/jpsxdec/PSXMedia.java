@@ -19,12 +19,17 @@
  *
  */
 
+/*
+ * PSXMedia.java
+ *
+ */
 
 package jpsxdec;
 
 import java.util.*;
 import java.io.*;
 import jpsxdec.CDSectorReader.CDXASector;
+import jpsxdec.util.LittleEndianIO;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.PSXSector.*;
 
@@ -44,11 +49,11 @@ public abstract class PSXMedia {
         
         ArrayList<PSXMedia> oMediaList = new ArrayList<PSXMedia>();
         
+        // If it doesn't even have 1 sector
         if (!oSectIterator.hasNext()) return oMediaList;
         
-        oSectIterator.next();
         PSXMedia oPsxMedia = null;
-        while (true) {
+        while (oSectIterator.hasNext()) {
             
             try {
                 oPsxMedia = new PSXMediaSTR(oSectIterator);
@@ -64,8 +69,16 @@ public abstract class PSXMedia {
                     oMediaList.add(oPsxMedia);
                     if (!oSectIterator.hasNext()) break;
                 } catch (NotThisTypeException e2) {
-                    if (!oSectIterator.hasNext()) break;
-                    oSectIterator.next();
+                    try {
+                        oPsxMedia = new PSXMediaTIM(oSectIterator);
+                        if (DebugVerbose > 3)
+                            System.err.println(oPsxMedia.toString());
+                        oMediaList.add(oPsxMedia);
+                        if (!oSectIterator.hasNext()) break;
+                    } catch (NotThisTypeException e3) {
+                        if (!oSectIterator.hasNext()) break;
+                        oSectIterator.skipNext();
+                    }
                 }
             }
             
@@ -103,6 +116,9 @@ public abstract class PSXMedia {
                 } else if (sLine.substring(3, 7).equals(":XA:")) {
                     oPsxMedia = new PSXMediaXA(oCD, sLine);
                     oMediaList.add(oPsxMedia);
+                } else if (sLine.substring(3, 8).equals(":TIM:")) {
+                    oPsxMedia = new PSXMediaTIM(oCD, sLine);
+                    oMediaList.add(oPsxMedia);
                 }
             } catch (NotThisTypeException e1) {}
         }
@@ -116,10 +132,11 @@ public abstract class PSXMedia {
                                           PrintStream oPrinter)
             throws IOException 
     {
-        oPrinter.println("# Any line that does not start with ###:STR or ###:XA is ignored.");
+        oPrinter.println("# Lines that begin with # are comments");
         oPrinter.println("# Format:");
         oPrinter.println("#   media_num:STR:start_sector-end_sector:frame_start-frame_end");
         oPrinter.println("#   media_num:XA:start_sector-end_sector:list,of,channels");
+        oPrinter.println("#   media_num:TIM:start_sector-end_sector:start_sector_offset");
         int i = 0;
         for (PSXMedia oMedia : oMediaList) {
             oPrinter.println(String.format("%03d:%s", i, oMedia.toString()));
@@ -146,10 +163,15 @@ public abstract class PSXMedia {
     }
     
     /** Read in the start and end sectors */
-    public PSXMedia(CDSectorReader oCD, String sSerial)
-    throws NotThisTypeException {
+    public PSXMedia(CDSectorReader oCD, String sSerial, String sType)
+            throws NotThisTypeException 
+    {
         m_oCD = oCD;
         String asParts[] = sSerial.split(":");
+        if (asParts.length < 2)
+            throw new NotThisTypeException();
+        if (!asParts[1].equals(sType))
+            throw new NotThisTypeException();
         String asSectors[] = asParts[2].split("-");
         try {
             m_iStartSector = Integer.parseInt(asSectors[0]);
@@ -171,6 +193,7 @@ public abstract class PSXMedia {
     }
     
     /**************************************************************************/
+    /** Sub-classes ***********************************************************/
     /**************************************************************************/
     
     public static class PSXMediaSTR extends PSXMedia {
@@ -192,7 +215,7 @@ public abstract class PSXMedia {
             long iAudioPeriod = -1;
             AudioChannelInfo oAudInf = null;
             
-            PSXSector oPsxSect = oSectIterator.get();
+            PSXSector oPsxSect = oSectIterator.peekNext();
             
             if (!(oPsxSect instanceof IVideoChunkSector) &&
                     !(oPsxSect instanceof PSXSectorFF8AudioChunk))
@@ -214,8 +237,9 @@ public abstract class PSXMedia {
             m_lngStartFrame = oFrame.getFrameNumber();
             m_lngEndFrame = oFrame.getFrameNumber();
             
+            oSectIterator.skipNext();
             while (oSectIterator.hasNext()) {
-                oPsxSect = oSectIterator.next();
+                oPsxSect = oSectIterator.peekNext();
                 
                 if (oPsxSect instanceof PSXSectorNull) {
                     // just skip it
@@ -275,6 +299,7 @@ public abstract class PSXMedia {
                 if (oPsxSect != null && DebugVerbose > 2)
                     System.err.println(oPsxSect.toString());
                 
+                oSectIterator.skipNext();
             } // while
             
         }
@@ -282,9 +307,9 @@ public abstract class PSXMedia {
         public PSXMediaSTR(CDSectorReader oCD, String sSerial)
                 throws NotThisTypeException 
         {
-            super(oCD, sSerial);
+            super(oCD, sSerial, "STR");
             String asParts[] = sSerial.split(":");
-            if (!asParts[1].equals("STR") || asParts.length != 4)
+            if (asParts.length != 4)
                 throw new NotThisTypeException();
             
             String asStartEndFrame[] = asParts[3].split("-");
@@ -296,17 +321,11 @@ public abstract class PSXMedia {
             }
         }
         
-        /** Returns null if movie has no audio */
-        public PSXSectorRangeIterator GetAudioSectorWalker() throws IOException 
-        {
-            if (m_lngAudioSampleLength == 0) return null;
-            
-            return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
+        public boolean HasAudio() {
+            return m_lngAudioSampleLength != 0;
         }
         
-        public PSXSectorRangeIterator GetFrameSectorWalker(long iFrame)
-                throws IOException 
-        {
+        public PSXSectorRangeIterator GetSectorIterator() {
             return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
         }
         
@@ -352,7 +371,7 @@ public abstract class PSXMedia {
         {
             super(oSectIterator);
             AudioChannelInfo aoChannelInfos[] = new AudioChannelInfo[32];
-            PSXSector oPsxSect = oSectIterator.get();
+            PSXSector oPsxSect = oSectIterator.peekNext();
             
             if (!(oPsxSect instanceof PSXSectorAudioChunk))
                 throw new NotThisTypeException();
@@ -363,8 +382,9 @@ public abstract class PSXMedia {
             m_iStartSector = oPsxSect.getSector();
             m_iEndSector = m_iStartSector;
             
+            oSectIterator.skipNext();
             while (oSectIterator.hasNext()) {
-                oPsxSect = oSectIterator.next();
+                oPsxSect = oSectIterator.peekNext();
                 
                 if (oPsxSect instanceof PSXSectorNull) {
                     // skip
@@ -416,6 +436,7 @@ public abstract class PSXMedia {
                 if (oPsxSect != null && DebugVerbose > 2)
                     System.err.println(oPsxSect.toString());
                 
+                oSectIterator.skipNext();
             } // while
             
         }
@@ -423,10 +444,8 @@ public abstract class PSXMedia {
         public PSXMediaXA(CDSectorReader oCD, String sSerial)
                 throws NotThisTypeException, IOException 
         {
-            super(oCD, sSerial);
+            super(oCD, sSerial, "XA");
             String asParts[] = sSerial.split(":");
-            if (!asParts[1].equals("XA"))
-                throw new NotThisTypeException();
             
             String asChannels[] = asParts[3].split(",");
             try {
@@ -440,9 +459,7 @@ public abstract class PSXMedia {
         }
         
         /** Returns null if no sectors are available */
-        public PSXSectorRangeIterator GetChannelSectorWalker(int iChan)
-                throws IOException 
-        {
+        public PSXSectorRangeIterator GetChannelSectorIterator(int iChan) {
             assert(iChan >= 0 && iChan < 31);
             
             if (m_alngChannelHasAudio[iChan] == 0) return null;
@@ -462,4 +479,74 @@ public abstract class PSXMedia {
             return "XA:" + super.toString() + ":" + oSB.toString();
         }
     }
+    
+    
+    public static class PSXMediaTIM extends PSXMedia {
+        
+        public PSXMediaTIM(PSXSectorRangeIterator oSectIterator)
+                throws NotThisTypeException, IOException 
+        {
+            super(oSectIterator);
+            // we're assuming all TIM files begin at the start of a sector
+            PSXSector oPsxSect = oSectIterator.peekNext();
+            
+            if (!(oPsxSect instanceof PSXSectorUnknownData))
+                throw new NotThisTypeException();
+
+            m_iStartSector = oSectIterator.getIndex();
+            
+            DataInputStream oDIS = new DataInputStream(new UnknownDataDemuxerIS(oSectIterator));
+            try {
+                
+                if (oDIS.readInt() != 0x10000000)
+                    throw new NotThisTypeException();
+
+                int i = oDIS.readInt();
+                if ((i & 0xF4FFFFFF) != 0)
+                    throw new NotThisTypeException();
+                    
+                // possible TIM file
+                long lng = LittleEndianIO.ReadUInt32LE(oDIS);
+                if ((i & 0x08000000) == 0x08000000) {
+                    // has CLUT, skip over it
+                    if (oDIS.skip((int)lng - 4) != (lng - 4))
+                        throw new NotThisTypeException();
+                    lng = LittleEndianIO.ReadUInt32LE(oDIS);
+                }
+                // now skip over the image data
+                if (oDIS.skip((int)lng - 4) != (lng - 4))
+                    throw new NotThisTypeException();
+
+                // if we made it this far, then we have ourselves
+                // a TIM file (probably). Save the end sector
+                m_iEndSector = oSectIterator.getIndex();
+            } catch (EOFException ex) {
+                throw new NotThisTypeException();
+            }
+            oSectIterator.skipNext();
+            
+        }
+        
+        public PSXMediaTIM(CDSectorReader oCD, String sSerial)
+            throws NotThisTypeException
+        {
+            super(oCD, sSerial, "TIM");
+            String asParts[] = sSerial.split(":");
+            
+            try {
+                int iStartOffset = Integer.parseInt(asParts[3]);
+            } catch (NumberFormatException ex) {
+                throw new NotThisTypeException();
+            }
+        }
+        
+        public PSXSectorRangeIterator GetSectorIterator() {
+            return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
+        }
+        
+        public String toString() {
+            return "TIM:" + super.toString() + ":0";
+        }
+    }
+    
 }

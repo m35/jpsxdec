@@ -24,12 +24,13 @@
  *
  */
 
-package jpsxdec;
+package jpsxdec.plugins;
 
 import java.awt.Graphics2D;
 import java.io.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
+import jpsxdec.*;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.LittleEndianIO;
 import jpsxdec.util.NotThisTypeException;

@@ -19,7 +19,6 @@
  *
  */
 
-
 /*
  * StrFrameUncompresserIS.java
  *
@@ -479,45 +478,10 @@ new DCVariableLengthCode("100"     , 0,  null)
         // Be prepared to buffer 30 WORDs of data
         m_oBitReader = new BufferedBitReader(oIS, false, 30);
         
+        /////////////////////////////////////////////////////////////
         // Determine the frame type from the first 50 bytes of data
-        byte[] abHeaderBytes = m_oBitReader.PeekBytes(50);
-        if (abHeaderBytes[2] == 0x38 && abHeaderBytes[3] == 0x00)
-        {
-            int iVersion = abHeaderBytes[7];
-            switch (iVersion) {
-                case 0: m_iFrameType = FRAME_LAIN; break;
-                case 1: m_iFrameType = FRAME_FF7_WITHOUT_CAMERA; break; // for some reason we're getting ff7 frame without the camera data
-                case 2: m_iFrameType = FRAME_VER2; break;
-                case 3: m_iFrameType = FRAME_VER3; break;
-                default:
-                    throw new IOException("Unknown frame version " + iVersion);
-            }
-        } 
-        else if (abHeaderBytes[40+2] == 0x38 && abHeaderBytes[40+3] == 0x00 &&
-                 abHeaderBytes[40+7] == 1) 
-        {
-            // it's an ff7 header
-            m_iFrameType = FRAME_FF7;
-        } 
-        else
-        {
-            // what else could it be?
-            if (abHeaderBytes[7] == 0) {
-                int iFrameNum = (((abHeaderBytes[2] & 0xFF) << 8) | (abHeaderBytes[3] & 0xFF));
-                if (oIS instanceof StrFrameDemuxerIS) {
-                    if (((StrFrameDemuxerIS)oIS).getFrameNumber() == iFrameNum) {
-                        // definitely lain final movie
-                        m_iFrameType = FRAME_LAIN_FINAL_MOVIE;
-                    }
-                } else if (iFrameNum >= 1 && iFrameNum <= 4765){
-                    // probably lain final movie
-                    m_iFrameType = FRAME_LAIN_FINAL_MOVIE;
-                }
-            } else {
-                throw new IOException("0x3800 not found in start of frame");
-            }
-        }
-        
+        /////////////////////////////////////////////////////////////
+        m_iFrameType = IdentifyFrame(m_oBitReader.PeekBytes(50), oIS);
         
         if (DebugVerbose >= 3) {
             System.err.print("Identified frame as ");
@@ -532,7 +496,9 @@ new DCVariableLengthCode("100"     , 0,  null)
             }
         }
 
+        /////////////////////////////////////////////////////////////
         // Now read the stream header information
+        /////////////////////////////////////////////////////////////
         
         if (m_iFrameType == FRAME_FF7) {
             /* FF7 videos have 40 bytes of camera data at the start of the frame */
@@ -606,6 +572,8 @@ new DCVariableLengthCode("100"     , 0,  null)
             m_oBitReader.setBigEndian(true);
         } 
 
+        /////////////////////////////////////////////////////////////
+        
         // Save width and height
         m_lngWidth = lngWidth;
         m_lngHeight = lngHeight;
@@ -617,8 +585,10 @@ new DCVariableLengthCode("100"     , 0,  null)
         if (DebugVerbose >= 3) System.err.println(
                     "Expecting " + iMacroBlockCount + " macroblocks");
         
+        /////////////////////////////////////////////////////////////
         // We have everything we need
         // now uncompress the entire frame, one macroblock at a time
+        /////////////////////////////////////////////////////////////
         
         // keep track of the number of run length codes read for debugging
         long lngTotalCodesRead = 0;
@@ -644,9 +614,55 @@ new DCVariableLengthCode("100"     , 0,  null)
         
     }
     
-    private static int IdentifyFrame(byte[] abFrameHeader) {
-        // TODO: need to move the logic from constructor into here
-        return -1;
+    private static int IdentifyFrame(byte[] abHeaderBytes, InputStream oIS) throws IOException {
+        
+        // if 0x3800 found at the normal position
+        if (abHeaderBytes[2] == 0x38 && abHeaderBytes[3] == 0x00)
+        {
+            // check the version at the normal position
+            int iVersion = abHeaderBytes[7];
+            switch (iVersion) {
+                case 0: return FRAME_LAIN;
+                // if for some reason it's an ff7 frame without the camera data
+                case 1: return FRAME_FF7_WITHOUT_CAMERA; 
+                case 2: return FRAME_VER2;
+                case 3: return FRAME_VER3;
+                default:
+                    throw new IOException("Unknown frame version " + iVersion);
+            }
+        } 
+        // if 0x3800 is found 40 bytes from where it should be
+        else if (abHeaderBytes[40+2] == 0x38 && abHeaderBytes[40+3] == 0x00 &&
+                 abHeaderBytes[40+7] == 1) 
+        {
+            // it's an ff7 header
+            return FRAME_FF7;
+        } 
+        else // what else could it be?
+        {
+            // if the supposed 'version' is 0
+            if (abHeaderBytes[7] == 0) {
+                // and the supposed 0x3800 bytes...
+                int iFrameNum = (((abHeaderBytes[2] & 0xFF) << 8) | (abHeaderBytes[3] & 0xFF));
+                // ...happend to equal the frame number
+                if (oIS instanceof StrFrameDemuxerIS) {
+                    if (((StrFrameDemuxerIS)oIS).getFrameNumber() == iFrameNum) {
+                        // definitely lain final movie
+                        return FRAME_LAIN_FINAL_MOVIE;
+                    }
+                // .. or are at least less-than the number
+                //    of frames in the final Lain movie
+                } else if (iFrameNum >= 1 && iFrameNum <= 4765){
+                    // probably lain final movie
+                    return FRAME_LAIN_FINAL_MOVIE;
+                } else {
+                    throw new IOException("0x3800 not found in start of frame");
+                }
+            } else {
+                throw new IOException("0x3800 not found in start of frame");
+            }
+        }
+        throw new IOException("Unknown frame type");
     }
     
     private static long CalculateMacroBlocks(long lngWidth, long lngHeight) {

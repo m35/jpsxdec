@@ -19,7 +19,6 @@
  *
  */
 
-
 /*
  * CDSectorReader.java
  */
@@ -30,6 +29,7 @@ import java.io.*;
 import java.util.*;
 import java.util.NoSuchElementException;
 import jpsxdec.util.IGetFilePointer;
+import jpsxdec.util.NotThisTypeException;
 
 /** This class encapsulates the reading of a CD. 
 The term "CD" can mean an actual CD (not implemented yet), a CD image 
@@ -37,7 +37,7 @@ The term "CD" can mean an actual CD (not implemented yet), a CD image
 they are all the same. This class does its best to guess what type of
 file it is. 
 */
-public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
+public class CDSectorReader {
     
     
     /** Full raw sector: 2352. */
@@ -68,7 +68,9 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
         byte[] m_abSectorBytes;
         int m_iRawSectorSize;
         
-        public CDXASector(int iRawSectorSize, byte[] abSectorBytes, int iSector, long lngFilePointer) throws IOException {
+        public CDXASector(int iRawSectorSize, byte[] abSectorBytes, int iSector, long lngFilePointer) 
+                throws NotThisTypeException
+        {
             m_iSector = iSector;
             m_lngFilePointer = lngFilePointer;
             m_abSectorBytes = abSectorBytes;
@@ -89,11 +91,16 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
                     default: 
                         assert(false); // what kind of sector size is this?
                 }
+            } catch (NotThisTypeException ex) {
+                throw new NotThisTypeException("Sector " + iSector + " " + ex.getMessage());
+            } catch (EOFException ex) {
+                // if we don't even have enough sector data to get the header
+                // then we don't have enough to make a sector
+                m_oHeader = null;
             } catch (IOException ex) {
-                ex.printStackTrace();
-                assert(false); // how could we error when reading a ByteArrayInputStream??
+                // this should never happen with a ByteArrayInputStream
+                throw new RuntimeException("this should never happen with a ByteArrayInputStream");
             }
-            
             
        }
     
@@ -272,12 +279,14 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
         // or just 0x0000.
         // If the user data was 2048, then final [276 bytes] is error correction
         
-        public CDXAHeader(DataInputStream oDIS) throws IOException {
+        public CDXAHeader(DataInputStream oDIS) 
+                throws IOException, NotThisTypeException 
+        {
             ReadHeader(oDIS);
         }
         
         protected void ReadHeader(DataInputStream oDIS) 
-            throws IOException 
+            throws IOException, NotThisTypeException
         {
             file_number = oDIS.readUnsignedByte();
             channel     = oDIS.readUnsignedByte();
@@ -379,16 +388,21 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
         public int sectors;     // [1 byte] timecode relative to start of disk
         public int mode;        // [1 byte] Mode 2 for ...
         
-        public CDXAHeaderWithSync(DataInputStream oDIS) throws IOException 
+        public CDXAHeaderWithSync(DataInputStream oDIS) 
+                throws IOException, NotThisTypeException
         {
             super(oDIS);
         }
         
-        protected void ReadHeader(DataInputStream oDIS) throws IOException 
+        protected void ReadHeader(DataInputStream oDIS) 
+                throws IOException, NotThisTypeException
         {
-            SyncHeader1 = oDIS.readInt();
-            SyncHeader2 = oDIS.readInt();
-            SyncHeader3 = oDIS.readInt();
+            if ((SyncHeader1 = oDIS.readInt()) != CD_SECTOR_MAGIC[0]) 
+                throw new NotThisTypeException("Sector missing sync");
+            if ((SyncHeader2 = oDIS.readInt()) != CD_SECTOR_MAGIC[1]) 
+                throw new NotThisTypeException("Sector missing sync");
+            if ((SyncHeader3 = oDIS.readInt()) != CD_SECTOR_MAGIC[2]) 
+                throw new NotThisTypeException("Sector missing sync");
             
             minutes = oDIS.readUnsignedByte();
             seconds = oDIS.readUnsignedByte();
@@ -442,7 +456,7 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
     
 
     /** Returns the actual offset in bytes from the start of the file/CD 
-     *  to the start of lngSector. */
+     *  to the start of iSector. */
     public long getFilePointer(int iSector) {
         return iSector * m_iRawSectorTypeSize 
                 + m_lngFirstSectorOffset 
@@ -462,18 +476,18 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
             case SECTOR_RAW_AUDIO:     // 2352
                 return true;
             default: 
-                assert(false); // what kind of sector size is this?
-                return false;
+                throw new RuntimeException("Should never happen: what kind of sector size is this?");
         }
     }
     
     //..........................................................................
 
+    /** Returns the number of sectors in the file/CD */
     public int size() {
         return m_iSectorCount;
     }
     
-    public CDXASector get(int iSector) {
+    public CDXASector getSector(int iSector) throws IOException {
         byte abSectorBuff[] = new byte[m_iRawSectorTypeSize];
         int iBytesRead = 0;
         
@@ -482,51 +496,39 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
         
         long lngFileOffset = m_lngFirstSectorOffset 
                           + m_iRawSectorTypeSize * iSector;
-        try {
-            // in the very unlikely case this class is ever used in a
-            // multi-threaded environment, this is the only part
-            // that needs to be syncronized.
-            synchronized(this) {
-                m_oInputFile.seek(lngFileOffset);
-                iBytesRead = m_oInputFile.read(abSectorBuff);
-            }
-            
-            if (iBytesRead != abSectorBuff.length) {
-                // if we only got part of a sector
-            }
-            
-            return new CDXASector(m_iRawSectorTypeSize, abSectorBuff, iSector, lngFileOffset);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            return null;
+        
+        // in the very unlikely case this class is ever used in a
+        // multi-threaded environment, this is the only part
+        // that needs to be syncronized.
+        synchronized(this) {
+            m_oInputFile.seek(lngFileOffset);
+            iBytesRead = m_oInputFile.read(abSectorBuff);
+        }
+
+        if (iBytesRead != abSectorBuff.length) {
+            // if we only got part of a sector
         }
         
+        try {
+            return new CDXASector(m_iRawSectorTypeSize, abSectorBuff, iSector, lngFileOffset);
+        } catch (NotThisTypeException ex) {
+            // unable to create a CDXA sector from the data.
+            // Some possible causes:
+            //  - It's a raw CD audio sector
+            //  - At the end of the CD and the last sector is incomplete
+            return null;
+        }
     }
     
-    //..........................................................................
-    /*
-    public Iterator<CDXASector> iterator() {
-        return new CDSectorIterator(this, super.listIterator(0));
-    }
-
-    public ListIterator<CDXASector> listIterator() {
-        return new CDSectorIterator(this, super.listIterator(0));
-    }
-
-    public ListIterator<CDXASector> listIterator(final int index) {
-        return new CDSectorIterator(this, super.listIterator(index));
-    }
-    */
     /* ---------------------------------------------------------------------- */
     /* Private Functions ---------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    /** Also declared in StrDemuxer.VideoFrameChunkHeader */
     private final static int VIDEO_FRAME_MAGIC = 0x60010180;
     
     // Magic numbers found in ISO files
-    private final static int  ISO_MAGIC_CD00_ = 0x43443030  ;
-    private final static byte ISO_MAGIC_____1 =         0x31;
+    //private final static int  ISO_MAGIC_CD00_ = 0x43443030  ;
+    //private final static byte ISO_MAGIC_____1 =         0x31;
     
     private final static int PARTIAL_CD_SECTOR_HEADER = 0x00014800;
     
@@ -583,34 +585,15 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
                 break;
             }
             
-            // first make sure all the data isn't zero
-            // This logic is better associated with Audio stuff
-            if (!(iTestBytes1 == 0x00000000 && iTestBytes2 == 0x00000000 && 
-                  iTestBytes3 == 0x00000000 && iTestBytes4 == 0x00000000))
-            {
-                if (iTestBytes1 == iTestBytes2 && 
-                    iTestBytes1 == iTestBytes3 && 
-                    iTestBytes1 == iTestBytes4) {
-                    // Audio header (8 bit/sample)
-                    m_lngFirstSectorOffset = i;
-                    m_iRawSectorTypeSize = SECTOR_MODE1_OR_MODE2_FORM1;
-                    break;
-                }
-
-                if (iTestBytes1 == iTestBytes2 && 
-                    iTestBytes3 == iTestBytes4) {
-                    // Audio header (4 bit/sample)
-                    m_lngFirstSectorOffset = i;
-                    m_iRawSectorTypeSize = SECTOR_MODE1_OR_MODE2_FORM1;
-                    break;
-                }
-            }
-            
             oByteTester.reset();
             oByteTester.skip(4);
         }
         
         if (m_lngFirstSectorOffset < 0) {
+            // we couldn't figure out what it is, assuming ISO style
+            m_lngFirstSectorOffset = 0;
+            m_iRawSectorTypeSize = SECTOR_MODE1_OR_MODE2_FORM1;
+            /*
             // Couldn't find anything in first part of the file, 
             // now search for ISO-9660 magic number
             
@@ -627,7 +610,7 @@ public class CDSectorReader extends AbstractList<CDSectorReader.CDXASector> {
                     break;
                 }
             }
-            
+            */
         }
         
         // Back up to the first sector in case we matched at the second sector

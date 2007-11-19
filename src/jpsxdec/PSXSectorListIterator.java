@@ -26,76 +26,58 @@
 
 package jpsxdec;
 
-import java.util.ListIterator;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.NoSuchElementException;
 
-public class PSXSectorListIterator implements ListIterator<PSXSector> {
+/** Class to walk a list of sectors of a CD */
+public class PSXSectorListIterator implements AdvancedIOIterator<PSXSector> {
     CDSectorReader m_oCD;
-    PSXSector m_oCurrentSector = null;
-    ListIterator<Integer> m_oReadIterator;
-    ArrayList<Integer> oIList;
+    int m_iListIndex = 0;
+    int[] m_aiSectorList;
 
     public PSXSectorListIterator(CDSectorReader oCD, int[] aiSectorList) {
         m_oCD = oCD;
-        oIList = new ArrayList<Integer>();
+        // check sectors
         for (int i : aiSectorList) {
-            // ignore invalid sectors
-            //TODO: should probably throw an error
-            if (i >= 0 && i < oCD.size())
-                oIList.add(new Integer(i));
+            if (i < 0 || i >= oCD.size()) throw new NoSuchElementException();
         }
-        m_oReadIterator = oIList.listIterator();
+        m_aiSectorList = aiSectorList;
     }
     
-
-    /** Returns the previous retrieved item without changing
-     *  the pointer */
-    public PSXSector get() {
-        if (m_oCurrentSector != null)
-            return m_oCurrentSector;
-        else
-            throw new NoSuchElementException();
-    }
     CDSectorReader getSourceCD() {
         return m_oCD;
     }
 
-
     public boolean hasNext() {
-        return m_oReadIterator.hasNext();
+        return m_iListIndex <= m_aiSectorList.length-1;
     }
 
-    public PSXSector next() {
-        m_oCurrentSector = PSXSector.SectorIdentifyFactory(m_oCD.get(m_oReadIterator.next()));
-        return m_oCurrentSector;
+    public PSXSector next() throws IOException {
+        if (!hasNext()) throw new NoSuchElementException();
+        PSXSector oSect;
+        oSect = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_aiSectorList[m_iListIndex]));
+        m_iListIndex++;
+        return oSect;
     }
 
-    public boolean hasPrevious() {
-        return m_oReadIterator.hasPrevious();
+    public PSXSector peekNext() throws IOException {
+        if (!hasNext()) throw new NoSuchElementException();
+        return PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_aiSectorList[m_iListIndex]));
     }
 
-    public PSXSector previous() {
-        m_oCurrentSector = PSXSector.SectorIdentifyFactory(m_oCD.get(m_oReadIterator.previous()));
-        return m_oCurrentSector;
+    public void skipNext() {
+        if (!hasNext()) throw new NoSuchElementException();
     }
 
-    public int nextIndex() {
-        return oIList.get(m_oReadIterator.nextIndex());
+    public int getIndex() {
+        return m_iListIndex;
     }
 
-    public int previousIndex() {
-        return oIList.get(m_oReadIterator.previousIndex());
+    public void gotoIndex(int i) {
+        if (i < 0 || i > m_aiSectorList.length) throw new NoSuchElementException();
+        m_iListIndex = i;
     }
-
-    /** Read only list. */
-    public void remove() 
-    { throw new UnsupportedOperationException(); }
-    /** Read only list. */
-    public void set(PSXSector e) 
-    { throw new UnsupportedOperationException(); }
-    /** Read only list. */
-    public void add(PSXSector e) 
-    { throw new UnsupportedOperationException(); }
+    
+    public void remove() {throw new UnsupportedOperationException();}
 
 }

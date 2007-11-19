@@ -24,12 +24,13 @@
  *
  */
 
-package jpsxdec;
+package jpsxdec.plugins;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import javax.imageio.ImageIO;
+import jpsxdec.*;
 import jpsxdec.util.*;
 
 public class Lain_SITE {
@@ -74,21 +75,31 @@ public class Lain_SITE {
 
                     //Lain_LAPKS.DebugVerbose = 10;
 
+                    byte[] img = null;
                     try {
-                        byte[] img = LainDecompresser(oRAF);
+                        img = LainDecompresser(oRAF);
 
                         ByteArrayInputStream oByteStream = new ByteArrayInputStream(img);
                         
                         Tim oTim = new Tim(oByteStream);
-                        ImageIO.write(oTim.toBufferedImage(), "png", 
-                                new File(String.format(
-                                "%s%03d.png",
-                                sOutBaseName,
-                                iIndex
-                                )));
+                        for (int i = 0; i < oTim.getPaletteCount(); i++) {
+                            ImageIO.write(oTim.toBufferedImage(i), "png", 
+                                    new File(String.format(
+                                    "%s%03d-%d.png",
+                                    sOutBaseName,
+                                    iIndex, i
+                                    )));
+                        }
                         
                     } catch (NotThisTypeException ex) {
                         ex.printStackTrace();
+                        FileOutputStream oFOS = new FileOutputStream(String.format(
+                                "%s%03d.dat",
+                                sOutBaseName,
+                                iIndex
+                                ));
+                        oFOS.write(img);
+                        oFOS.close();
                     } catch (IOException ex) {
                         ex.printStackTrace();
                     }

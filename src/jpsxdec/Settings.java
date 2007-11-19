@@ -34,9 +34,6 @@ import javax.imageio.ImageIO;
 
 public class Settings {
     
-    private Settings() {};
-    
-    
     public final static String[] VALID_FORMATS = GetValidFormats();
     
     // the main commands
@@ -55,105 +52,105 @@ public class Settings {
     /*-- Static Fields -------------------------------------------------------*/
     /*------------------------------------------------------------------------*/
     
-    private static int m_iMainCommandType = -1;
+    private int m_iMainCommandType = -1;
     
     
-    private static int m_iMediaItemToDecode = -1;
+    private int m_iMediaItemToDecode = -1;
     
-    private static boolean m_blnDecodeAudio = true;
-    private static boolean m_blnDecodeVideo = true;
+    private boolean m_blnDecodeAudio = true;
+    private boolean m_blnDecodeVideo = true;
     
-    private static String m_sIndexFile = null;
+    private String m_sIndexFile = null;
     
-    private static int m_iStartFrame = -1;
-    private static int m_iEndFrame = 99999999;
+    private int m_iStartFrame = -1;
+    private int m_iEndFrame = 99999999;
     
-    private static int[] m_aiSectorList = null;
+    private int[] m_aiSectorList = null;
     
-    private static double m_dblAudioScale = 1.0;
-    private static int m_iChannel = -1;
+    private double m_dblAudioScale = 1.0;
+    private int m_iChannel = -1;
     
-    private static String m_sFormat = "png";
+    private String m_sFormat = "png";
     
-    private static int[] m_aiVerbosityLevels = new int[] {2, 2, 2, 2, 2};
+    private int[] m_aiVerbosityLevels = new int[] {2, 2, 2, 2, 2};
     
-    private static String m_sInputFileName = null;
-    private static String m_sOutputFileName = null;
+    private String m_sInputFileName = null;
+    private String m_sOutputFileName = null;
     
-    private static String m_sSpecialInFileType = null;
-    private static int m_iWidth = -1;
-    private static int m_iHeight = -1;
+    private String m_sSpecialInFileType = null;
+    private int m_iWidth = -1;
+    private int m_iHeight = -1;
 
     /*------------------------------------------------------------------------*/
     /*-- Static Properties ---------------------------------------------------*/
     /*------------------------------------------------------------------------*/
     
-    public static int getItemToDecode() {
+    public int getItemToDecode() {
         return m_iMediaItemToDecode;
     }
     
-    public static boolean DecodeAudio() {
+    public boolean DecodeAudio() {
         return m_blnDecodeAudio;
     }
     
-    public static boolean DecodeVideo() {
+    public boolean DecodeVideo() {
         return m_blnDecodeVideo;
     }
     
-    public static String getIndexFile() {
+    public String getIndexFile() {
         return m_sIndexFile;
     }
     
-    public static int getStartFrame() {
+    public int getStartFrame() {
         return m_iStartFrame;
     }
     
-    public static int getEndFrame() {
+    public int getEndFrame() {
         return m_iEndFrame;
     }
     
-    public static double getAudioScale() {
+    public double getAudioScale() {
         return m_dblAudioScale;
     }
     
-    public static int getChannel() {
+    public int getChannel() {
         return m_iChannel;
     }
     
-    public static String getOutputFormat() {
+    public String getOutputFormat() {
         return m_sFormat;
     }
     
-    public static int[] getVerbosityLevels() {
+    public int[] getVerbosityLevels() {
         return m_aiVerbosityLevels;
     }
     
-    public static String getInputFile() {
+    public String getInputFile() {
         return m_sInputFileName;
     }
     
     /** demux, or 0rlc */
-    public static String getInputFileFormat() {
+    public String getInputFileFormat() {
         return m_sSpecialInFileType;
     }
     
-    public static String getOutputFile() {
+    public String getOutputFile() {
         return m_sOutputFileName;
     }
     
-    public static int[] getSectorList() {
+    public int[] getSectorList() {
         return m_aiSectorList;
     }
     
-    static long getWidth() {
+    public long getWidth() {
         return m_iWidth;
     }
     
-    static long getHeight() {
+    public long getHeight() {
         return m_iHeight;
     }
     
-    static int getMainCommandType() {
+    public int getMainCommandType() {
         return m_iMainCommandType;
     }
     
@@ -161,14 +158,14 @@ public class Settings {
     /*-- Output --------------------------------------------------------------*/
     /*------------------------------------------------------------------------*/
     
-    private static void ExitWithError(String sError) {
+    private void ExitWithError(String sError) {
         System.err.println("Error: " + sError);
         System.err.println("Try -? for help.");
         System.err.println();
         System.exit(2);
     }
     
-    private static void PrintUsage() {
+    private void PrintUsage() {
         String[] sUseMsg = {
         Main.VerString,
         "",
@@ -212,7 +209,7 @@ public class Settings {
     /*------------------------------------------------------------------------*/
     
     /** Processes arguments. If there is an error, exits the program. */
-    public static void ProcessArguments(String[] args) {
+    public Settings(String[] args) {
         
         CmdLineParser oParser = new CmdLineParser();
         
@@ -447,14 +444,14 @@ public class Settings {
     
     /** Splits string s via sDelimiter and parses the resulting array
      *  into an array of ints. If there is any error, then null is returned. */
-    private static int[] ParseDelimitedInts(String s, String sDelimiter) {
+    private int[] ParseDelimitedInts(String s, String sDelimiter) {
         String[] asParse = s.split(sDelimiter);
         return StringArrayToIntArray(asParse);
     }
 
     /** Parses an array of strings into an array of ints. If there is any
      *  error, or if any of the values are negitive, null is returned. */
-    private static int[] StringArrayToIntArray(String[] as) {
+    private int[] StringArrayToIntArray(String[] as) {
         try {
             int[] aiVals = new int[as.length];
             for (int i = 0; i < as.length; i++) {
@@ -490,7 +487,7 @@ public class Settings {
     
     /** Joins an array of strings into a single string, inserting f between
      *  each array element. */
-    private static String Join(String[] as, String f) {
+    private String Join(String[] as, String f) {
         StringBuilder oSB = new StringBuilder();
         for (String s : as) {
             if (oSB.length() > 0)
@@ -504,7 +501,7 @@ public class Settings {
      *  tries to open the supplied file to read a list of sectors. 
      *  Returns the list of sectors as an array of ints, or null if there
      *  is any error. */
-    private static int[] HandleSectorListOption(String sListOrFile) {
+    private int[] HandleSectorListOption(String sListOrFile) {
         int[] ai = ParseDelimitedInts(sListOrFile, ",");
         if (ai == null) {
             if (new File(sListOrFile).exists()) {

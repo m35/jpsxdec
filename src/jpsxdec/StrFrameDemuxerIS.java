@@ -19,7 +19,6 @@
  *
  */
 
-
 /*
  * StrFrameDemuxerIS.java
  *
@@ -30,7 +29,7 @@ package jpsxdec;
 import java.io.InputStream;
 import java.io.IOException;
 import java.util.AbstractList;
-import java.util.Iterator;
+//import java.util.Iterator;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.PSXSector.*;
 
@@ -48,7 +47,7 @@ public class StrFrameDemuxerIS extends InputStream
     /** Stores the matching Video Frame Chunks */
     //private IVideoChunkSector m_aoFrameChunks[];
     /** The iterator to walk through searching for the the sectors we need */
-    Iterator<PSXSector> m_oPsxSectorIterator;
+    AdvancedIOIterator<PSXSector> m_oPsxSectorIterator;
     IVideoChunkSector m_oCurrentChunk;
 
     // All submitted Video Frame Chunks should match these values
@@ -65,18 +64,22 @@ public class StrFrameDemuxerIS extends InputStream
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    public StrFrameDemuxerIS(Iterator<PSXSector> oPsxIter) {
+    public StrFrameDemuxerIS(AdvancedIOIterator<PSXSector> oPsxIter) 
+            throws IOException 
+    {
         this(oPsxIter, -1);
     }
     
-    public StrFrameDemuxerIS(Iterator<PSXSector> oPsxIter, long lngFrame) {
+    public StrFrameDemuxerIS(AdvancedIOIterator<PSXSector> oPsxIter, long lngFrame) 
+            throws IOException 
+    {
         m_lngFrame = lngFrame;
         m_oPsxSectorIterator = oPsxIter;
         m_oCurrentChunk = FindNextMatchingChunk();
     }
     
     /** Find the next sector that matches our requirements. */
-    public IVideoChunkSector FindNextMatchingChunk() {
+    public IVideoChunkSector FindNextMatchingChunk() throws IOException {
         
         while (m_oPsxSectorIterator.hasNext()) {
         
@@ -88,8 +91,7 @@ public class StrFrameDemuxerIS extends InputStream
             IVideoChunkSector oFrameChunk = (IVideoChunkSector)oSector;
 
             // base our matching on the first sector received
-            if (m_lngFrame < 0)
-            {
+            if (m_lngFrame < 0) {
                 m_lngFrame = oFrameChunk.getFrameNumber();
                 m_lngWidth = oFrameChunk.getWidth();
                 m_lngHeight = oFrameChunk.getHeight();

@@ -19,7 +19,6 @@
  *
  */
 
-
 /*
  * StrADPCMDecoder.java
  *

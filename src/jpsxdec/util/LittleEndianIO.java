@@ -112,4 +112,20 @@ public final class LittleEndianIO {
         return total;
     }
     
+    
+    /** Because the read(byte[]) method won't always return the entire
+     *  array for various reasons I don't really care about. */
+    public static byte[] readByteArray(InputStream oIS, int iBytes) throws IOException {
+        assert(iBytes > 0);
+        byte[] ab = new byte[iBytes];
+        int pos = oIS.read(ab);
+        if (pos < 0) throw new EOFException();
+        while (pos < iBytes) {
+            int i = oIS.read(ab, pos, iBytes - pos);
+            if (i < 0) throw new EOFException();
+            pos += i;
+        }
+        return ab;
+    }
+    
 }

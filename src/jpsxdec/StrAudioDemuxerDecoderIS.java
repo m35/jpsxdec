@@ -19,7 +19,6 @@
  *
  */
 
-
 /*
  * StrAudioDemuxerDecoderIS.java
  *
@@ -29,7 +28,7 @@ package jpsxdec;
 
 import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.Iterator;
+//import java.util.Iterator;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
@@ -89,9 +88,7 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    //ArrayList<IAudioSector> m_oAudioSectors = new ArrayList<IAudioSector>();
-    
-    Iterator<PSXSector> m_oPsxSectorIterator;
+    AdvancedIOIterator<PSXSector> m_oPsxSectorIterator;
     AudioFormat m_oAudFormat;
     IAudioSector m_oCurrentAudioSector;
     
@@ -112,23 +109,28 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public StrAudioDemuxerDecoderIS(Iterator<PSXSector> oPsxIter) {
+    public StrAudioDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter) 
+            throws IOException
+    {
         this(oPsxIter, 1.0f);
     }
-    public StrAudioDemuxerDecoderIS(Iterator<PSXSector> oPsxIter, 
+    public StrAudioDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter, 
                                     int iChannel) 
+            throws IOException
     {
         this(oPsxIter, iChannel, 1.0f);
     }
-    public StrAudioDemuxerDecoderIS(Iterator<PSXSector> oPsxIter, 
+    public StrAudioDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter, 
                                     float fltScale) 
+            throws IOException
     {
         this(oPsxIter, -1, fltScale);
     }
 
-    public StrAudioDemuxerDecoderIS(Iterator<PSXSector> oPsxIter, 
+    public StrAudioDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter, 
                                     int iChannel,
-                                    float fltScale) 
+                                    float fltScale)
+            throws IOException
     {
         m_oPsxSectorIterator = oPsxIter;
         m_fltScale = fltScale;
@@ -157,7 +159,7 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
         
     }
 
-    private IAudioSector FindNextMatchingSector() {
+    private IAudioSector FindNextMatchingSector() throws IOException {
 
         while (m_oPsxSectorIterator.hasNext()) {
         

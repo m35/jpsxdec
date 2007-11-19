@@ -19,7 +19,6 @@
  *
  */
 
-
 /*
  * StrFrameMDEC.java
  *
@@ -49,12 +48,11 @@ public final class StrFrameMDEC {
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     
     /** This is the default intra quantization matrix used to scale
-     *  the post-DCT matrix. This matrix originates from MPEG-1 spec. 
-     *  I assmue these values were determined through lots of testing for 
-     *  an optimal matrix. */
-    public static final Matrix8x8 MPEG1_DEFAULT_INTRA_QUANTIZATION_MATRIX = 
+     *  the post-DCT matrix. This matrix is identical to the MPEG-1
+     *  quantization matrix, except the first value is 2 instead of 8. */
+    public static final Matrix8x8 PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX = 
             new Matrix8x8(new double[] {
-                 8, 16, 19, 22, 26, 27, 29, 34, 
+        /* 8 */  2, 16, 19, 22, 26, 27, 29, 34, 
                 16, 16, 22, 24, 27, 29, 34, 37, 
                 19, 22, 26, 27, 29, 34, 34, 38, 
                 22, 22, 26, 27, 29, 34, 37, 40, 
@@ -311,7 +309,7 @@ public final class StrFrameMDEC {
         //         block's quantization scale.
         ////////////////////////////////////////////////////////////////////////
         oDCTMatrix = Dequanitize(iDC_Coefficient, oQuantiziedMatrix,
-                MPEG1_DEFAULT_INTRA_QUANTIZATION_MATRIX,
+                PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX,
                 (double)iQuantizationScale); 
         
         if (DebugVerbose >= 7) {
@@ -361,18 +359,15 @@ public final class StrFrameMDEC {
         for (int y=0; y < oMatrix.getHeight(); y++) {
             for (int x=0; x < oMatrix.getWidth(); x++) {
                 oQuantizedMatrix.setPoint(x, y, 
-                    // I don't know why this needs to be divided by two, 
-                    // but it provides the most correct output.
                     2 * oMatrix.getPoint(x, y) 
-                    * QuantizationTable.getPoint(x, y)
-                    * dblScale / 16);
+                      * QuantizationTable.getPoint(x, y)
+                      * dblScale 
+                    / 16);
             }
         }
         // Now we add the DC coefficint to the matrix, also de-quanitize it.
-        // ??? !!!I don't understand why we divide by 4 here!!! ???
         oQuantizedMatrix.setPoint(0, 0, 
-                     iDC_Coefficient 
-                     * QuantizationTable.getPoint(0, 0) / 4);
+                     iDC_Coefficient * QuantizationTable.getPoint(0, 0));
         
         return oQuantizedMatrix;
     }

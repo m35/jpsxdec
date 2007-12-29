@@ -1,9 +1,8 @@
 /*
  * StephensIDCT.java
- *
  */
 
-package jpsxdec.InverseDiscreteCosineTransform;
+package jpsxdec.mdec;
 
 import jpsxdec.util.Matrix8x8;
 
@@ -26,7 +25,7 @@ import jpsxdec.util.Matrix8x8;
  * @version 1.0.1 August 22nd 1996
  * @author <a href="http://www.nyx.net/~smanley/">Stephen Manley</a> - smanley@nyx.net
  */
-public class StephensIDCT implements IIDCT {
+public class StephensIDCT implements IDCTinterface {
 
     /** DCT Block Size */
     private final static int N  = 8;

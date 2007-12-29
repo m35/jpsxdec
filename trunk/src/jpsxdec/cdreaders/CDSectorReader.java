@@ -23,7 +23,7 @@
  * CDSectorReader.java
  */
 
-package jpsxdec;
+package jpsxdec.cdreaders;
 
 import java.io.*;
 import java.util.*;
@@ -112,25 +112,29 @@ public class CDSectorReader {
                 case SECTOR_MODE2:         // 2336
                     if (m_oHeader.submode.form == 2) 
                     {   // we're assuming mode == 2 here
-                        return Arrays.copyOfRange(m_abSectorBytes, 
-                                                  CDXAHeader.SIZE, 
-                                                  CDXAHeader.SIZE + SECTOR_MODE2_FORM2);
+                        return jpsxdec.util.Misc.copyOfRange(
+                                m_abSectorBytes, 
+                                CDXAHeader.SIZE, 
+                                CDXAHeader.SIZE + SECTOR_MODE2_FORM2);
                     } else {
-                        return Arrays.copyOfRange(m_abSectorBytes, 
-                                                  CDXAHeader.SIZE, 
-                                                  CDXAHeader.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
+                        return jpsxdec.util.Misc.copyOfRange(
+                                m_abSectorBytes, 
+                                CDXAHeader.SIZE, 
+                                CDXAHeader.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
                     }
                 case SECTOR_RAW_AUDIO:     // 2352
                     if ((((CDXAHeaderWithSync) m_oHeader).mode == 2) &&
                         m_oHeader.submode.form == 2)
                     {
-                        return Arrays.copyOfRange(m_abSectorBytes, 
-                                                  CDXAHeaderWithSync.SIZE, 
-                                                  CDXAHeaderWithSync.SIZE + SECTOR_MODE2_FORM2);
+                        return jpsxdec.util.Misc.copyOfRange(
+                                m_abSectorBytes, 
+                                CDXAHeaderWithSync.SIZE, 
+                                CDXAHeaderWithSync.SIZE + SECTOR_MODE2_FORM2);
                     } else {
-                        return Arrays.copyOfRange(m_abSectorBytes, 
-                                                  CDXAHeaderWithSync.SIZE, 
-                                                  CDXAHeaderWithSync.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
+                        return jpsxdec.util.Misc.copyOfRange(
+                                m_abSectorBytes, 
+                                CDXAHeaderWithSync.SIZE, 
+                                CDXAHeaderWithSync.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
                     }
                 default: 
                     assert(true); // mysterious sector size
@@ -151,13 +155,13 @@ public class CDSectorReader {
             else
                 return -1;
         }
-        int getSector() {
+        public int getSector() {
             return m_iSector;
         }
     
         //..........................................................................
 
-        int getSubMode() {
+        public int getSubMode() {
             if (m_oHeader != null)
                 return m_oHeader.submode.ToByte();
             else
@@ -237,7 +241,7 @@ public class CDSectorReader {
 
         //..........................................................................
 
-        boolean HasSectorHeader() {
+        public boolean HasSectorHeader() {
             return m_oHeader != null;
         }
         

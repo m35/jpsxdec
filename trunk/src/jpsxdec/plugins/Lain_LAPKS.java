@@ -21,7 +21,6 @@
 
 /*
  * Lain_LAPKS.java
- *
  */
 
 package jpsxdec.plugins;
@@ -31,10 +30,12 @@ import java.io.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import jpsxdec.*;
+import jpsxdec.mdec.MDEC;
+import jpsxdec.uncompressors.StrFrameUncompressorIS;
 import jpsxdec.util.IGetFilePointer;
-import jpsxdec.util.LittleEndianIO;
+import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
-import jpsxdec.util.Yuv4mpeg2;
+import jpsxdec.mdec.Yuv4mpeg2;
 
 
 /** Class to decode the Lain poses from the LAPKS.BIN file */
@@ -53,8 +54,12 @@ public class Lain_LAPKS {
      *  centered in a larger image according to the cell's x,y position found
      *  with the cell data. 
      *  Output file names will look like this
-     *  <sOutFileBase>###_f##.png
-     *  <sOutFileBase>###_f##_mask.png
+     *  <sOutFileBase><animation#>_f<frame#>.png
+     *  <sOutFileBase><animation#>_f<frame#>_mask.png
+     *  Note that I don't quite understand why the bit-mask has 4 values,
+     *  since I can only see a need for 3 (transparent, slightly transparent,
+     *  and totally opaque). I got confused while stepping through the
+     *  game's assembly code. Perhaps another go at it would be good.
      * @param sInLAPKS_BIN - the path to the LAPKS.BIN file
      * @param sOutFileBase - output base name of the files
      */
@@ -70,7 +75,7 @@ public class Lain_LAPKS {
                             oCell.Width, 
                             oCell.Height);
                 Yuv4mpeg2 yuv =
-                        StrFrameMDEC.DecodeFrame(
+                        MDEC.DecodeFrame(
                             dec, 
                             dec.getWidth(), 
                             dec.getHeight());
@@ -153,8 +158,8 @@ public class Lain_LAPKS {
             if (!(new String(lapk).equals("lapk"))) 
                 throw new NotThisTypeException("Not a lapk at " + StartOffset);
             
-            Size = LittleEndianIO.ReadUInt32LE(oRAF);
-            CellCount = LittleEndianIO.ReadUInt32LE(oRAF);
+            Size = IO.ReadUInt32LE(oRAF);
+            CellCount = IO.ReadUInt32LE(oRAF);
             CellDescriptors = new PkCellDescriptor[(int)CellCount];
             
             // Read the descriptors
@@ -190,10 +195,10 @@ public class Lain_LAPKS {
             byte[] buff = new byte[12];
             if (oRAF.read(buff) != 12) throw new IOException();
             ByteArrayInputStream oBAIS = new ByteArrayInputStream(buff);
-            CellOffset = LittleEndianIO.ReadUInt32LE(oBAIS);
-            Xpos = LittleEndianIO.ReadUInt16LE(oBAIS);
-            Ypos = LittleEndianIO.ReadUInt16LE(oBAIS);
-            Unknown = LittleEndianIO.ReadUInt32LE(oBAIS);
+            CellOffset = IO.ReadUInt32LE(oBAIS);
+            Xpos = IO.ReadUInt16LE(oBAIS);
+            Ypos = IO.ReadUInt16LE(oBAIS);
+            Unknown = IO.ReadUInt32LE(oBAIS);
         }
     }
     
@@ -249,12 +254,12 @@ public class Lain_LAPKS {
             if (oRAF.read(buff) != 16) throw new IOException();
             ByteArrayInputStream oStream = 
                     new ByteArrayInputStream(buff);
-            Width = LittleEndianIO.ReadUInt16LE(oStream);
-            Height = LittleEndianIO.ReadUInt16LE(oStream);
-            QuantChrom = LittleEndianIO.ReadUInt16LE(oStream);
-            QuantLumin = LittleEndianIO.ReadUInt16LE(oStream);
-            Size = LittleEndianIO.ReadUInt32LE(oStream);
-            NumRunLenCodes = LittleEndianIO.ReadUInt32LE(oStream);
+            Width = IO.ReadUInt16LE(oStream);
+            Height = IO.ReadUInt16LE(oStream);
+            QuantChrom = IO.ReadUInt16LE(oStream);
+            QuantLumin = IO.ReadUInt16LE(oStream);
+            Size = IO.ReadUInt32LE(oStream);
+            NumRunLenCodes = IO.ReadUInt32LE(oStream);
             ByteArrayOutputStream oCellWriter = new ByteArrayOutputStream((int)Size + 8);
             
             // Create an artifical header to feed to the StrFrameUncompresser
@@ -287,9 +292,9 @@ public class Lain_LAPKS {
             try {
                 oByteStream.write((int)QuantChrom); // normally run len code
                 oByteStream.write((int)QuantLumin); // '''''''''''''''''''''
-                LittleEndianIO.WriteInt16LE(oByteStream, 0x3800);
-                LittleEndianIO.WriteInt16LE(oByteStream, NumRunLenCodes); // normally q scale
-                LittleEndianIO.WriteInt16LE(oByteStream, 0x0000); // version 0 (Lain)
+                IO.WriteInt16LE(oByteStream, 0x3800);
+                IO.WriteInt16LE(oByteStream, NumRunLenCodes); // normally q scale
+                IO.WriteInt16LE(oByteStream, 0x0000); // version 0 (Lain)
             } catch (IOException ex) {
                 ex.printStackTrace();
             }

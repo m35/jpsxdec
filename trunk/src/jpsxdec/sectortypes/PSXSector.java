@@ -21,24 +21,24 @@
 
 /*
  * PSXSector.java
- *
  */
 
-package jpsxdec;
+package jpsxdec.sectortypes;
 
 import java.io.*;
+import jpsxdec.*;
 import jpsxdec.util.IGetFilePointer;
-import jpsxdec.util.LittleEndianIO;
-import jpsxdec.CDSectorReader.CDXASector;
+import jpsxdec.util.IO;
+import jpsxdec.cdreaders.CDSectorReader.CDXASector;
 import jpsxdec.util.NotThisTypeException;
 
-/** Base class for all CD sector types. */
+/** Base class for all PSX sector types. */
 public abstract class PSXSector extends InputStream implements IGetFilePointer {
     
     /**************************************************************************/
     /**************************************************************************/
     
-    /** Interface that should be implemented by all audio sector classes. */
+    /** Interface that should be implemented by all audio sector classes. 
     public static interface IAudioSector extends IGetFilePointer {
         boolean matches(Object o);
         
@@ -50,7 +50,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         
         long getSampleLength();
         
-    }
+    }*/
     
     /** Interface that should be implemented by all video sector classes. */
     public static interface IVideoChunkSector extends IGetFilePointer {
@@ -94,7 +94,10 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             return oPsxSector;
         } catch (NotThisTypeException ex) {}
         
-        // TODO: Add FF8 audio chunk
+        try {
+            oPsxSector = new PSXSectorFF8AudioChunk(oCDSect);
+            return oPsxSector;
+        } catch (NotThisTypeException ex) {}
         
         try {
             oPsxSector = new PSXSectorAudio2048(oCDSect);
@@ -413,33 +416,33 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             if (m_lngMagic != VIDEO_CHUNK_MAGIC)
                 throw new NotThisTypeException();
             
-            m_lngChunkNumber = LittleEndianIO.ReadUInt16LE(oDIS);
-            m_lngChunksInThisFrame = LittleEndianIO.ReadUInt16LE(oDIS);
+            m_lngChunkNumber = IO.ReadUInt16LE(oDIS);
+            m_lngChunksInThisFrame = IO.ReadUInt16LE(oDIS);
             // Note that reading these 32 bit values could overflow to -1
             // if that should happen, then this couldn't be a frame chunk
-            m_lngFrameNumber = LittleEndianIO.ReadUInt32LE(oDIS);
+            m_lngFrameNumber = IO.ReadUInt32LE(oDIS);
             if (m_lngFrameNumber == -1) // check for overflow
                 throw new NotThisTypeException();
             
             // We aren't verifying this value because we also want to accept
             // FF7 frame chunk sectors.
-            m_lngChunkDuration = LittleEndianIO.ReadUInt32LE(oDIS);
+            m_lngChunkDuration = IO.ReadUInt32LE(oDIS);
             //if (m_lngChunkDuration == -1) // check for overflow
             //    throw new NotThisTypeException();
             
-            m_lngWidth = LittleEndianIO.ReadUInt16LE(oDIS);
-            m_lngHeight = LittleEndianIO.ReadUInt16LE(oDIS);
-            m_lngRunLengthCodeCount = LittleEndianIO.ReadUInt16LE(oDIS);
+            m_lngWidth = IO.ReadUInt16LE(oDIS);
+            m_lngHeight = IO.ReadUInt16LE(oDIS);
+            m_lngRunLengthCodeCount = IO.ReadUInt16LE(oDIS);
             
             // We aren't verifying this value because we also want to accept
             // FF7 frame chunk sectors.
-            m_lngHeader3800 = LittleEndianIO.ReadUInt16LE(oDIS);
+            m_lngHeader3800 = IO.ReadUInt16LE(oDIS);
             //if (m_lngHeader3800 != 0x3800)
             //    throw new NotThisTypeException();
             
-            m_lngQuantizationScale = LittleEndianIO.ReadUInt16LE(oDIS);
-            m_lngVersion = LittleEndianIO.ReadUInt16LE(oDIS);
-            m_lngFourZeros = LittleEndianIO.ReadUInt32LE(oDIS);
+            m_lngQuantizationScale = IO.ReadUInt16LE(oDIS);
+            m_lngVersion = IO.ReadUInt16LE(oDIS);
+            m_lngFourZeros = IO.ReadUInt32LE(oDIS);
         }
         
         // .. Public functions .................................................
@@ -495,7 +498,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     
     
     /** Standard audio sector for STR for XA. */
-    public static class PSXSectorAudioChunk extends PSXSector implements IAudioSector {
+    public static class PSXSectorAudioChunk extends PSXSector /*implements IAudioSector*/ {
         
         private int m_iSamplesPerSec;
         private int m_iBitsPerSample;
@@ -580,7 +583,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     }
     
     /** Base class for FF8 movie (audio/video) sectors. */
-    private static abstract class PSXSectorFF8Abstract extends PSXSector {
+    public static abstract class PSXSectorFF8Abstract extends PSXSector {
         
         public static final int SIZE = 8;
         
@@ -605,7 +608,8 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         }
         
         private void ReadHeader(DataInputStream oDIS)
-        throws IOException, NotThisTypeException {
+                throws IOException, NotThisTypeException 
+        {
             char c;
             c = (char)oDIS.readByte();
             if ((achHead[0] = c) != 'S') throw new NotThisTypeException();
@@ -622,57 +626,55 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             iSectorNumber = oDIS.readUnsignedByte(); // 0 to iSectorsInAVFrame
             iSectorsInAVFrame = oDIS.readUnsignedByte(); // always 9?
             if (iSectorsInAVFrame == 0) throw new NotThisTypeException();
-            lngFrameNumber = LittleEndianIO.ReadUInt16LE(oDIS); // starts @ 0
+            lngFrameNumber = IO.ReadUInt16LE(oDIS); // starts @ 0
+        }
+        
+        public long getFrameNumber() {
+            return lngFrameNumber;
         }
     }
     
     /** FF8 video sector. */
     public static class PSXSectorFF8FrameChunk
             extends PSXSectorFF8Abstract
-            implements IVideoChunkSector {
+            implements IVideoChunkSector 
+    {
         
         
         public PSXSectorFF8FrameChunk(CDXASector oCD)
-        throws NotThisTypeException {
+                throws NotThisTypeException 
+        {
             super(oCD);
             if (achHead[2] != 'J') throw new NotThisTypeException();
         }
         
-        /** implements IVideoSector */
+        /** [implements IVideoSector] */
         public long getWidth() {
             return 320;
         }
         
-        /** implements IVideoSector */
+        /** [implements IVideoSector] */
         public long getHeight() {
             return 224;
         }
         
-        /** implements IVideoSector */
+        /** [implements IVideoSector] */
         public long getChunkNumber() {
             return iSectorNumber+2;
         }
         
-        /** implements IVideoSector */
+        /** [implements IVideoSector] */
         public long getChunksInFrame() {
             return iSectorsInAVFrame-1;
         }
         
-        /** implements IVideoSector */
-        public long getFrameNumber() {
-            return lngFrameNumber;
-        }
         
-        /**
-         * Want to skip the header bytes
-         * extends PSXSector
-         */
+        /** Want to skip the header bytes.
+         * [extends PSXSector] */
         protected int GetSectorDataStart(byte abSectorData[]) {
             return PSXSectorFF8Abstract.SIZE;
         }
-        /**
-         * extends PSXSector
-         */
+        /** [extends PSXSector] */
         protected int GetSectorDataLength(byte[] abSectorData) {
             return abSectorData.length - PSXSectorFF8Abstract.SIZE;
         }
@@ -690,16 +692,26 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     
     /** FF8 audio sector. */
     public static class PSXSectorFF8AudioChunk extends PSXSectorFF8Abstract
-            //implements IAudioSector // this really shouldn't count as a normal
-            // audio sector because it requires such special handling
+            //implements IAudioSector 
+            /* this shouldn't count as a normal
+               audio sector because it requires much special handling */
     {
+        private int m_iChannel;
         
         public PSXSectorFF8AudioChunk(CDXASector oCD)
-        throws IOException, NotThisTypeException {
+                throws NotThisTypeException 
+        {
             super(oCD);
-            
-            if (achHead[2] != 'N' && achHead[2] != 'R')
-                throw new NotThisTypeException();
+            switch (achHead[2]) {
+                case 'N':
+                    m_iChannel = 1;
+                    break;
+                case 'R':
+                    m_iChannel = 2;
+                    break;
+                default:
+                    throw new NotThisTypeException();
+            }
         }
         
         public int getSamplesPerSecond() {
@@ -710,39 +722,25 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             return 4;
         }
         
-        public int getMonoStereo() {
-            return 1;
+        public int getLeftRightChannel() {
+            return m_iChannel;
         }
         
-        /**
-         * Want to skip the header bytes
-         * extends PSXSector
-         */
+        /** Want to skip the header bytes. 
+         *  [extends PSXSector] */
         protected int GetSectorDataStart(byte abSectorData[]) {
             // audio data starts at 360 past the header
             return PSXSectorFF8Abstract.SIZE + 360;
         }
+        /** [extends PSXSector] */
         protected int GetSectorDataLength(byte[] abSectorData) {
             return abSectorData.length - (PSXSectorFF8Abstract.SIZE + 360);
-        }
-        
-        /** Basically it just needs to be an FF8 audio sector to match.
-         * [implements IAudioSector] */
-        public boolean matches(Object o) {
-            if ( this == o ) return true;
-            if ( o instanceof PSXSectorFF8AudioChunk )
-                return true;
-            else
-                return false;
         }
         
         public String toString() {
             return "AudioFF8 " + super.toString() +
                     String.format(
-                    " frame:%d chunk:%d/%d",
-                    lngFrameNumber,
-                    iSectorNumber,
-                    iSectorsInAVFrame);
+                    " bits/sample:4 channels:1 samples/sec:44100");
         }
         
         public long getSampleLength() {

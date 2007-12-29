@@ -20,8 +20,7 @@
  */
 
 /*
- * LittleEndianIO.java
- *
+ * io.java
  */
 
 package jpsxdec.util;
@@ -34,7 +33,7 @@ import java.io.RandomAccessFile;
 
 
 /** Functions to read little endian values from a stream. */
-public final class LittleEndianIO {
+public final class IO {
     
     /** Function to read little-endian 16 bits from InputStream. 
      *  Throws an exception if at the end of the stream. */
@@ -127,5 +126,45 @@ public final class LittleEndianIO {
         }
         return ab;
     }
+    
+    /** Same idea as ByteArrayInputStream, only with a 2D array of shorts. */
+    public static class Short2DArrayInputStream extends InputStream {
+
+        private short[][] m_ShortArray;
+        private int m_iSampleIndex = 0;
+        private int m_iChannelIndex = 0;
+        private int m_iByteIndex = 0;
+
+        public Short2DArrayInputStream(short[][] ShortArray) {
+            m_ShortArray = ShortArray;
+        }
+
+        public int read() throws IOException {
+            if (m_iSampleIndex >= m_ShortArray[m_iChannelIndex].length) 
+                return -1;
+
+            int iRet = m_ShortArray[m_iChannelIndex][m_iSampleIndex];
+
+            if (m_iByteIndex == 0)
+                iRet &= 0xFF;
+            else // m_iByteIndex == 1
+                iRet = (iRet >>> 8) & 0xFF;
+
+            Increment();
+
+            return iRet;
+
+        }
+        
+        private void Increment() {
+            m_iByteIndex = (m_iByteIndex + 1) % 2;
+            if (m_iByteIndex == 0) { // if m_iByteIndex overflowed
+                m_iChannelIndex = (m_iChannelIndex + 1) % m_ShortArray.length;
+                if (m_iChannelIndex == 0) { // if m_iChannelIndex overflowed
+                    m_iSampleIndex++;
+                }
+            }
+        }
+    }    
     
 }

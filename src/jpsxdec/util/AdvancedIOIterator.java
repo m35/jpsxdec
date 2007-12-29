@@ -21,13 +21,12 @@
 
 /*
  * AdvancedIOIterator.java
- *
  */
 
-package jpsxdec;
+package jpsxdec.util;
 
 import java.io.IOException;
-import java.util.Iterator;
+//import java.util.Iterator;
 
 /** An advanced iterator class for use with IO. Unfortunately it can't 
  *  extend Iterator class due to the need to throw IOException. */

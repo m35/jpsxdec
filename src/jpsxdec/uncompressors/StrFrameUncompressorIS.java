@@ -21,18 +21,20 @@
 
 /*
  * StrFrameUncompresserIS.java
- *
  */
 
-package jpsxdec;
+package jpsxdec.uncompressors;
 
 import java.io.*;
 import java.util.LinkedList;
+import jpsxdec.mdec.MDEC;
 import jpsxdec.util.BufferedBitReader;
 import jpsxdec.util.IGetFilePointer;
+import jpsxdec.demuxers.StrFrameDemuxerIS;
 
 /** Class to decode/uncompress the demuxed video frame data from a 
- *  Playstation disc. */
+ *  Playstation disc. This single class handles every known variation
+ *  of compressed zero-run-length codes, and accompanying headers. */
 public class StrFrameUncompressorIS 
     extends InputStream 
     implements IGetFilePointer 
@@ -414,10 +416,10 @@ new DCVariableLengthCode("100"     , 0,  null)
     BufferedBitReader m_oBitReader;
     
     /** A queue to store the uncompressed data as MDEC codes */
-    LinkedList<StrFrameMDEC.Mdec16Bits> m_oReaderQueue = 
-            new LinkedList<StrFrameMDEC.Mdec16Bits>();
+    LinkedList<MDEC.Mdec16Bits> m_oReaderQueue = 
+            new LinkedList<MDEC.Mdec16Bits>();
     /** Holds information about the current MDEC 16 bits being read */
-    StrFrameMDEC.Mdec16Bits m_oCurrent16Bits = null;
+    MDEC.Mdec16Bits m_oCurrent16Bits = null;
     /** Alternate between reading the high byte and the low byte */
     boolean m_blnLowHighReadToggle = true;
     
@@ -731,10 +733,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             // We've run out of data...
             // Was there an error during the decoding?
             if (m_oFailException != null)
-                throw new // pass on the error
-                   IOException("Error uncompressing macro block: " 
-                                + m_oFailException.getMessage(), 
-                                m_oFailException);
+                throw m_oFailException;
             else
                 // Nope, we're just at the end of the data
                 return -1;
@@ -811,7 +810,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             }
             
         } else {
-            throw new IOException("Unhandled version " + m_lngVersion);
+            throw new IOException("Error decoding macro block: Unhandled version " + m_lngVersion);
         }
         
         return lngTotalCodesRead;
@@ -824,8 +823,8 @@ new DCVariableLengthCode("100"     , 0,  null)
     private void DecodeV2_DC_ChrominanceOrLuminance(String sBlock) 
         throws IOException 
     {
-        StrFrameMDEC.Mdec16Bits oDCChrominanceOrLuminance = 
-                new StrFrameMDEC.Mdec16Bits();
+        MDEC.Mdec16Bits oDCChrominanceOrLuminance = 
+                new MDEC.Mdec16Bits();
         
         // Save the current file position
         oDCChrominanceOrLuminance.OriginalFilePos = m_oBitReader.getPosition();
@@ -880,8 +879,8 @@ new DCVariableLengthCode("100"     , 0,  null)
                          String sBlockName) 
         throws IOException 
     {
-        StrFrameMDEC.Mdec16Bits oDCChrominanceOrLuminance = 
-                new StrFrameMDEC.Mdec16Bits();
+        MDEC.Mdec16Bits oDCChrominanceOrLuminance = 
+                new MDEC.Mdec16Bits();
         
         // Save the current file position
         oDCChrominanceOrLuminance.OriginalFilePos = m_oBitReader.getPosition();
@@ -929,7 +928,8 @@ new DCVariableLengthCode("100"     , 0,  null)
             }
         } 
         if (!blnFoundCode) 
-            throw new IOException("Unknown DC " + sBlockName + 
+            throw new IOException("Error decoding macro block:" +
+                                  " Unknown DC " + sBlockName + 
                                   " variable length code " + sBits);
         
         // The bottom 10 bits now hold the DC Coefficient for the block,
@@ -957,7 +957,7 @@ new DCVariableLengthCode("100"     , 0,  null)
      * and adds the resulting MDEC codes to the queue.
      * AC Coefficients are decoded the same for version 2 and 3 frames */
     private long Decode_AC_Coefficients() throws IOException {
-        StrFrameMDEC.Mdec16Bits oRlc;
+        MDEC.Mdec16Bits oRlc;
         int iTotalRunLength = 0;
         long lngNumberOfRunLengthCodes = 0;
         double dblFilePos;
@@ -984,7 +984,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                         oRlc.OriginalVariableLengthCodeBits));
             
             // Did we hit the end of the block?
-            if (oRlc.ToMdecWord() == StrFrameMDEC.MDEC_END_OF_BLOCK) {
+            if (oRlc.ToMdecWord() == MDEC.MDEC_END_OF_BLOCK) {
                 if (DebugVerbose >= 7)
                     System.err.println("EOB");
                 
@@ -1002,6 +1002,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             // Hopefully we haven't gone over
             if (iTotalRunLength > 63) {
                 throw new IOException(String.format(
+                        "Error decoding macro block: " +
                         "Run length out of bounds: %d at %1.3f",
                         iTotalRunLength + 1,
                         m_oBitReader.getPosition()
@@ -1015,7 +1016,7 @@ new DCVariableLengthCode("100"     , 0,  null)
     
     /** Decodes the next AC Coefficient bits in the stream and returns the
      *  resulting MDEC code. */
-    private StrFrameMDEC.Mdec16Bits Decode_AC_Code() throws IOException {
+    private MDEC.Mdec16Bits Decode_AC_Code() throws IOException {
         
         // Peek at the upcoming bits
         String sBits = 
@@ -1028,8 +1029,8 @@ new DCVariableLengthCode("100"     , 0,  null)
         } else if (sBits.startsWith(VLC_END_OF_BLOCK)) { // end of block?
             
             m_oBitReader.SkipBits(VLC_END_OF_BLOCK.length());
-            StrFrameMDEC.Mdec16Bits tRlc = 
-                    new StrFrameMDEC.Mdec16Bits(StrFrameMDEC.MDEC_END_OF_BLOCK);
+            MDEC.Mdec16Bits tRlc = 
+                    new MDEC.Mdec16Bits(MDEC.MDEC_END_OF_BLOCK);
             tRlc.OriginalVariableLengthCodeBits = VLC_END_OF_BLOCK;
             return tRlc;
             
@@ -1043,8 +1044,8 @@ new DCVariableLengthCode("100"     , 0,  null)
 
     /** Decodes the AC Escape Code bits from the stream and returns the
      *  resulting MDEC code. */
-    private StrFrameMDEC.Mdec16Bits Decode_AC_EscapeCode() throws IOException {
-        StrFrameMDEC.Mdec16Bits tRlc = new StrFrameMDEC.Mdec16Bits();
+    private MDEC.Mdec16Bits Decode_AC_EscapeCode() throws IOException {
+        MDEC.Mdec16Bits tRlc = new MDEC.Mdec16Bits();
         
         // Save the escape code bits, then skip them in the stream
         tRlc.OriginalVariableLengthCodeBits = AC_ESCAPE_CODE + "+";
@@ -1071,6 +1072,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                 // if this is FF7
                 if (m_lngVersion != 1) // If not FF7, throw an error
                     throw new IOException(
+                            "Error decoding macro block: " +
                             "AC Escape code: Run length is zero at " 
                             + m_oBitReader.getPosition());
             }
@@ -1126,7 +1128,9 @@ new DCVariableLengthCode("100"     , 0,  null)
             
         } else {
             // unknown version
-            throw new IOException("Unhandled version " + m_lngVersion);
+            throw new IOException(
+                    "Error decoding macro block: " +
+                    "Unhandled version " + m_lngVersion);
         }
         
         return tRlc;
@@ -1134,10 +1138,10 @@ new DCVariableLengthCode("100"     , 0,  null)
     
     /** Decodes sBits into an AC Coefficient and skips the bits in the 
      *  stream */
-    private StrFrameMDEC.Mdec16Bits Decode_AC_VariableLengthCode(String sBits) 
+    private MDEC.Mdec16Bits Decode_AC_VariableLengthCode(String sBits) 
         throws IOException 
     {
-        StrFrameMDEC.Mdec16Bits tRlc = new StrFrameMDEC.Mdec16Bits();
+        MDEC.Mdec16Bits tRlc = new MDEC.Mdec16Bits();
         boolean blnFoundCode = false;
         ACVariableLengthCode tVarLenCodes[];
         
@@ -1177,8 +1181,16 @@ new DCVariableLengthCode("100"     , 0,  null)
         }
         
         if (! blnFoundCode) {
-            throw new IOException("Unmatched AC variable length code: " +
-                                  sBits + " at " + m_oBitReader.getPosition());
+            if (sBits.length() < 16)
+                throw new IOException(
+                        "Error decoding macro block: " +
+                        "End bit stream cut off AC variable length code: " +
+                         sBits + " at " + m_oBitReader.getPosition());
+            else
+                throw new IOException(
+                        "Error decoding macro block: " +
+                        "Unmatched AC variable length code: " +
+                         sBits + " at " + m_oBitReader.getPosition());
         }
         
         return tRlc;

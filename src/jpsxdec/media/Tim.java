@@ -21,17 +21,16 @@
 
 /*
  * Tim.java
- *
  */
 
-package jpsxdec;
+package jpsxdec.media;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.IndexColorModel;
 import java.awt.image.WritableRaster;
 import java.io.*;
 import javax.imageio.ImageIO;
-import jpsxdec.util.LittleEndianIO;
+import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 public class Tim {
@@ -53,13 +52,13 @@ public class Tim {
         public CLUT(DataInputStream oDIS) 
                 throws IOException, NotThisTypeException 
         {
-            m_lngLength = LittleEndianIO.ReadUInt32LE(oDIS);
+            m_lngLength = IO.ReadUInt32LE(oDIS);
             if (m_lngLength <= 0) throw new NotThisTypeException();
-            m_lngClutX = LittleEndianIO.ReadUInt16LE(oDIS);
-            m_lngClutY = LittleEndianIO.ReadUInt16LE(oDIS);
-            m_lngClutWidth = LittleEndianIO.ReadUInt16LE(oDIS);
+            m_lngClutX = IO.ReadUInt16LE(oDIS);
+            m_lngClutY = IO.ReadUInt16LE(oDIS);
+            m_lngClutWidth = IO.ReadUInt16LE(oDIS);
             if (m_lngClutWidth == 0) throw new NotThisTypeException();
-            m_lngClutHeight = LittleEndianIO.ReadUInt16LE(oDIS);
+            m_lngClutHeight = IO.ReadUInt16LE(oDIS);
             if (m_lngClutHeight == 0) throw new NotThisTypeException();
             
             if (m_lngLength != (m_lngClutWidth * m_lngClutHeight * 2 + 12))
@@ -67,7 +66,7 @@ public class Tim {
             
             m_aiColorData = new int[(int)(m_lngClutWidth * m_lngClutHeight)];
             for (int i = 0; i < m_aiColorData.length; i++) {
-                m_aiColorData[i] = (int)LittleEndianIO.ReadUInt16LE(oDIS);
+                m_aiColorData[i] = (int)IO.ReadUInt16LE(oDIS);
                 if (DebugVerbose > 2)
                     System.err.print(String.format("%04x ", m_aiColorData[i]));
             }
@@ -147,20 +146,20 @@ public class Tim {
         if (m_blnHasColorLookupTable)
             m_oClut = new CLUT(oDIS);
         
-        m_lngImageLength = LittleEndianIO.ReadUInt32LE(oDIS);
+        m_lngImageLength = IO.ReadUInt32LE(oDIS);
         if (m_lngImageLength <= 0) throw new NotThisTypeException();
-        m_lngImageX = LittleEndianIO.ReadUInt16LE(oDIS);
-        m_lngImageY = LittleEndianIO.ReadUInt16LE(oDIS);
-        m_lngImageWidth = LittleEndianIO.ReadUInt16LE(oDIS);
+        m_lngImageX = IO.ReadUInt16LE(oDIS);
+        m_lngImageY = IO.ReadUInt16LE(oDIS);
+        m_lngImageWidth = IO.ReadUInt16LE(oDIS);
         if (m_lngImageWidth == 0) throw new NotThisTypeException();
-        m_lngImageHeight = LittleEndianIO.ReadUInt16LE(oDIS);
+        m_lngImageHeight = IO.ReadUInt16LE(oDIS);
         if (m_lngImageHeight == 0) throw new NotThisTypeException();
         
         if (m_lngImageLength != m_lngImageWidth * m_lngImageHeight * 2 + 12)
             throw new NotThisTypeException();
         
         m_abImageData = 
-                LittleEndianIO.readByteArray(oDIS, (int)(m_lngImageWidth * m_lngImageHeight) * 2);
+                IO.readByteArray(oDIS, (int)(m_lngImageWidth * m_lngImageHeight) * 2);
         
         switch (m_iBitsPerPixel) {
             case 4:
@@ -283,7 +282,7 @@ public class Tim {
                 bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_INT_ARGB);
                 for (int y = 0; y < m_iPixelHeight; y++) {
                     for (int x = 0; x < m_iPixelWidth; x++) {
-                        iColor16 = (int)LittleEndianIO.ReadUInt16LE(oDIS);
+                        iColor16 = (int)IO.ReadUInt16LE(oDIS);
                         iColor32 = Color16toColor32(iColor16);
                         bi.setRGB(x, y, iColor32);
                     }
@@ -311,6 +310,12 @@ public class Tim {
         return bi;
     }
 
+    /** Works the same as
+     *  <code>
+     *  int CONVERT_5_TO_8_BIT(int i) {
+     *    return (int)Math.round((double)i / 31.0);
+     *  }
+     *  </code> */
     private static int[] CONVERT_5_TO_8_BIT = new int[/*32*/] 
    {  0,   8,  16,  25,  33,  41,  49,  58,  
      66,  74,  82,  90,  99, 107, 115, 123, 

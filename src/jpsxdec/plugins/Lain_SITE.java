@@ -21,7 +21,6 @@
 
 /*
  * Lain_SITE.java
- *
  */
 
 package jpsxdec.plugins;
@@ -31,6 +30,7 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import javax.imageio.ImageIO;
 import jpsxdec.*;
+import jpsxdec.media.Tim;
 import jpsxdec.util.*;
 
 public class Lain_SITE {
@@ -130,7 +130,7 @@ public class Lain_SITE {
     public static byte[] LainDecompresser(RandomAccessFile oRAF) throws IOException {
         int iBitMaskPos = 0;
         
-        long lngBitMaskSize = LittleEndianIO.ReadUInt32LE(oRAF);
+        long lngBitMaskSize = IO.ReadUInt32LE(oRAF);
         byte[] abBitMask = new byte[(int)lngBitMaskSize];
         
         while (iBitMaskPos < lngBitMaskSize)

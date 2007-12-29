@@ -1,0 +1,22 @@
+v0.30
+    - Major internal code rearrangement.
+    - Added FF8 audio decoding.
+    - Removed dependencies on Java 1.6. Works now with Java 1.5.
+    - Reverted YUV output to clamp at 0 and 255 (MrVacBob says analog encoding is dead).
+    - Fixed YUV -> RGB green conversion (PSX uses non-standard equation), but this means that raw YUV frames outputted by jPSXdec don't follow the yuv4mpeg2 spec. 
+    - Sped up video decoding when saving .demux by removing excess seeking.
+    - Fixed serialzation/deserialization of STR in index.
+v0.27
+    - Made CD ISO image identification more flexible (although it may now just assume any file is an ISO file).
+    - Fixed so it won't crash when CD audio sectors are encountered (checks to make sure all sectors are MODE2).
+    - Added simple TIM file search (won't detect all TIM files in the ISO yet).
+v0.26
+    - Sped up video decoding by removing excess seeking.
+    - Can now decode Lain final movie.
+    - Added special plugins for decoding Lain SITEA.BIN SITEB.BIN LAPKS.BIN files.
+    - Fixed decoding of video from ISO type files (by fixing identification of incomplete audio sectors).
+    - Changed YUV output to clamp at 1 and 254 for sync encoding.
+    - Fixed video decoding (BufferedBitReader again)
+v0.
+    - Fixed video decoding (BufferedBitReader)
+    - Fixed crash in CDSectorReader.java:getFilePointer() when header is not available.

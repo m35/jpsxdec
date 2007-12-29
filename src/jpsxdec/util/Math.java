@@ -21,7 +21,6 @@
 
 /*
  * Math.java
- *
  */
 
 package jpsxdec.util;

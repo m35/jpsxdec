@@ -22,7 +22,6 @@
 
 /*
  * BufferedBitReader.java
- *
  */
 
 
@@ -222,7 +221,7 @@ public class BufferedBitReader {
     public long ReadUnsignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
         if (BufferEnoughForBits(iCount) != iCount)
-            throw new EOFException("End of bit file");
+            throw new EOFException("Unexpected end of bit file");
         long lngRet = ReadUBits(m_iBitsRemainging, iCount, m_oBitBuffer);
         if (iCount <= m_iBitsRemainging)
             m_iBitsRemainging -= iCount;
@@ -236,7 +235,7 @@ public class BufferedBitReader {
     public long ReadSignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
         if (BufferEnoughForBits(iCount) != iCount)
-            throw new EOFException("End of bit file");
+            throw new EOFException("Unexpected end of bit file");
         long lngRet = ReadUBits(m_iBitsRemainging, iCount, m_oBitBuffer);
         if (iCount <= m_iBitsRemainging)
             m_iBitsRemainging -= iCount;
@@ -264,7 +263,7 @@ public class BufferedBitReader {
     public long PeekUnsignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
         if (BufferEnoughForBits(iCount) != iCount)
-            throw new EOFException("End of bit file");
+            throw new EOFException("Unexpected end of bit file");
         long lngRet = ReadUBits(m_iBitsRemainging, iCount,
                 m_oBitBuffer.ShallowCopy());
         return lngRet;
@@ -275,7 +274,7 @@ public class BufferedBitReader {
     public long PeekSignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
         if (BufferEnoughForBits(iCount) != iCount)
-            throw new EOFException("End of bit file");
+            throw new EOFException("Unexpected end of bit file");
         long lngRet = ReadUBits(m_iBitsRemainging, iCount,
                 m_oBitBuffer.ShallowCopy());
         return (lngRet << (64 - iCount)) >> (64 - iCount); // change to signed
@@ -373,6 +372,20 @@ public class BufferedBitReader {
     
     // .........................................................................
     
+    private final static String[] ZERO_PAD = new String[] {
+        "", "0", "00", "000", "0000", "00000", "000000", "0000000", "00000000",
+        "000000000", "0000000000", "00000000000", "000000000000", 
+        "0000000000000", "00000000000000", "000000000000000", 
+        "0000000000000000", "00000000000000000", "000000000000000000", 
+        "0000000000000000000", "00000000000000000000", "000000000000000000000", 
+        "0000000000000000000000", "00000000000000000000000",
+        "000000000000000000000000", "0000000000000000000000000",
+        "00000000000000000000000000", "000000000000000000000000000",
+        "0000000000000000000000000000", "00000000000000000000000000000",
+        "000000000000000000000000000000", "0000000000000000000000000000000",
+        "00000000000000000000000000000000"
+    };
+    
     /** Used by the read/peek string functions. Pads the string with
      *  zeros on the left until the string is the desired length. */
     private static String PadZeroLeft(String s, int len) {
@@ -383,11 +396,7 @@ public class BufferedBitReader {
         if (slen == len)
             return s;
         
-        char buf[] = new char[len - slen];
-        for (int i = 0; i < buf.length; i++) {
-            buf[i] = '0';
-        }
-        return new String(buf) + s;
+        return ZERO_PAD[len - slen] + s;
     }
     
     /** First fixes m_iBitsRemainging and m_oBitBuffer so there is at least
@@ -406,7 +415,7 @@ public class BufferedBitReader {
             }
             if (m_oBitBuffer.size() == 0) { // now if the buffer is empty
                 // add a little more to the buffer
-                if (BufferData() < 2) throw new EOFException("End of bit file");
+                if (BufferData() < 2) throw new EOFException("Unexpected end of bit file");
             }
             m_iBitsRemainging = 16; // and now we have 8 bits for the head again
         }
@@ -441,7 +450,7 @@ public class BufferedBitReader {
         if ((ib2 = m_oStrStream.read()) < 0) {
             /* If we've failed to read in a byte, then we're at the
              * end of the stream, so return 0 */
-            throw new EOFException("End of bit file");
+            throw new EOFException("Unexpected end of bit file");
         }
         // add the read bytes to the byte buffer in little-endian order
         m_oBitBuffer.Queue(ib1, ib2);

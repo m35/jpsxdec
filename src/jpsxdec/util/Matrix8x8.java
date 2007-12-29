@@ -19,7 +19,9 @@
  *
  */
 
-
+/*
+ * Matrix8x8.java
+ */
 
 package jpsxdec.util;
 

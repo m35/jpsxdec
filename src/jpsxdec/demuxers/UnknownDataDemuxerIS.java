@@ -21,12 +21,13 @@
 
 /*
  * UnknownDataDemuxerIS.java
- *
  */
 
-package jpsxdec;
+package jpsxdec.demuxers;
 
 import java.io.*;
+import jpsxdec.sectortypes.PSXSector;
+import jpsxdec.sectortypes.PSXSectorRangeIterator;
 //import java.util.Iterator;
 import jpsxdec.util.IGetFilePointer;
 

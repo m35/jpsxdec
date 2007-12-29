@@ -21,13 +21,12 @@
 
 /*
  * NotThisTypeException.java
- *
  */
 
 package jpsxdec.util;
 
-/** Exception returned by constructors when the provided InputStream
- *  doesn't generate the class. */
+/** Exception returned by constructors when the supplied InputStream
+ *  does not provide the correct data to generate the class. */
 public class NotThisTypeException extends Exception {
     public NotThisTypeException() {
         super();

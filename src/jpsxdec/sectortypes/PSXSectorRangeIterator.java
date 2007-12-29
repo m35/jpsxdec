@@ -21,13 +21,15 @@
 
 /*
  * PSXSectorRangeIterator.java
- *
  */
 
-package jpsxdec;
+package jpsxdec.sectortypes;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import jpsxdec.*;
+import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.util.AdvancedIOIterator;
 
 /** Class to walk a range of sectors of a CD */
 public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
@@ -46,7 +48,7 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
         m_iSectorIndex = iStartSector;
     }
     
-    CDSectorReader getSourceCD() {
+    public CDSectorReader getSourceCD() {
         return m_oCD;
     }
 

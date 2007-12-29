@@ -21,21 +21,26 @@
 
 /*
  * Main.java
- *
  */
 
 /* TODO:
- * // change TIM class to save color indexed bufferedimages
- * // Change CDSectorReader to NOT be Abstractlist, and change Iterators into my "AdvancedIterator" class
- * // make Settings NOT a static class, and just keep it as a
- *   field in the Main class (since it shouldn't be used anywhere else).
- *   and then i can pass the settings object into plugins to do with it
- *   what they will.
- * // finish change uncompresser to handle Lain final movie, and also ff7 movies
+ * - Probably get rid of VideoFrameConverter instance stuff, and move the
+ *   static stuff into PSXMedia.java
+ * - Perhaps put the ADPCMdecoder code into StrAudioDemuxerDecoder and FF8AudioDemuxerDecoder
+ * - Rename Yuv4mpeg2 to something else since it doesn't produce
+ *   compliant YUV spec frames anymore (since PSX uses different YUV->RGB equation).
+ * - figure out how to output YUV images now that we know the YUV->RGB
+ *   equation is different from the YUV image format...
+ * - better handle the indexing of media items (associate the index # with the item)
+ * // Rename LittleEndianIO class to io class
+ * // Move audio demuxerdecoders and ADPCMdecoder into its own package.
+ * // Do something with AudioConverter class. -- deleted
+ * // Move the Tim class somewhere...probably in the media package
+ * // Rename IIDCT to IDCTinterface
+ * // Rename StrFrameMDEC to...I dunno, PsxMDEC? MDEC?
  * // change movie decoder to not reset the iterator each frame, &&
  * // + make sure Demuxer knows how to only search for sectors for the next frame
- * - add searching for TIM files in PSXMedia
- * - try changing decoder to only divide the luminance DC by 4, but leave chrom DC alone
+ * - add the more through searching for TIM files to PSXMedia
  * - change Settings class to use a tiered architecture, remvoing
  *   elements from the array as we find matching commands and passing the
  *   rest furthur down the stream
@@ -43,7 +48,7 @@
  *   e.g. the current decoded macro-block (to display on screen)
  *        debug/error messages (puts the debug in the main class, 
  *        and sets up easier debugging feedback once a gui is added)
- * - move all CD indexing related stuff into its own sub package, and all
+ * // move all CD indexing related stuff into its own sub package, and all
  *   decoding related stuff into its own package, and just keep Main and 
  *   Settings in the root package.
  *
@@ -52,11 +57,8 @@
  * - make code documentation
  * - make manual
  * - get some pre-MDEC data out of an emulator to compare with my pre-MDEC data
- * - improve command-line documentation
- * x Add track handling to CDSectorReader -- it's too much of a pain and not really worth it. just gonna return null if the sector type is unrecognized
- * - check if clamping yuv4mpeg2 values at 1-254 help
- * - need to clean up  plugin command-line
- * - add option to set 24/16 bit color, or yuv420/yuv422
+ * // check if clamping yuv4mpeg2 values at 1-254 help
+ * // Add track handling to CDSectorReader -- it's too much of a pain and not really worth it. just gonna return null if the sector type is unrecognized
  * /- make CREDITS file
  * /- CLEANUP!!
  * /- better organize the error reporting/checking
@@ -64,16 +66,19 @@
  * //- develop a test set
  *
  * OPTIONS:
+ * - need to clean up plugin command-line
+ * - add option to set 24/16 bit color, or yuv420/yuv422
  * - add option to select the IDCT
  * - add option to ignore checks and just decode whatever it can (probably part of --decode-frame/--decode-audio)
  * - add option to copy str/xa sectors from image
  * - add --format option to LAPKS
  * - add --nocrop option
+ * - add option to save audio to the other formats
  *
  * CONSIDER:
  * - consider making a CDMediaHandler extends Abstractlist<PSXMediaAbstract> class
  *   it could handle serialze/deserialize, and storing the source file
- * - Consider making PSXSector just a subclass of CDSector
+ * - Consider making PSXSector just a subclass of CDXASector
  *
  * FUTURE VERSIONS:
  * - Add frame rate calculation
@@ -82,7 +87,6 @@
  * - add GUI
  * - add raw CD reading
  * - add encoding to a video format
- * - add option to save audio to the other formats
  * 
  */
 
@@ -92,21 +96,26 @@ package jpsxdec;
 
 import java.io.*;
 import java.awt.image.BufferedImage;
-import java.util.Iterator;
+import java.util.*;
 import javax.imageio.ImageIO;
-import java.util.ArrayList;
 import javax.sound.sampled.*;
-import jpsxdec.CDSectorReader.CDXASector;
+import jpsxdec.audiodecoding.StrAudioDemuxerDecoderIS;
+import jpsxdec.cdreaders.CDSectorReader.CDXASector;
+import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.mdec.MDEC;
+import jpsxdec.mdec.Yuv4mpeg2;
+import jpsxdec.demuxers.*;
+import jpsxdec.media.*;
+import jpsxdec.media.Tim;
 import jpsxdec.plugins.*;
-import jpsxdec.util.Matrix8x8;
-import jpsxdec.util.NotThisTypeException;
-import jpsxdec.util.Yuv4mpeg2;
-import jpsxdec.PSXMedia.*;
+import jpsxdec.sectortypes.*;
+import jpsxdec.uncompressors.StrFrameUncompressorIS;
+import jpsxdec.util.*;
 
 public class Main {
     
     public static int DebugVerbose = 2;
-    public final static String Version = "0.27(beta)";
+    public final static String Version = "0.30(beta)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     private static Settings m_oMainSettings;
     
@@ -160,6 +169,18 @@ public class Main {
         
         //timsearch();
         
+        /*
+        if (args.length == 0) {
+            java.awt.EventQueue.invokeLater(new Runnable() {
+                public void run() {
+                    new Gui().setVisible(true);
+                }
+            });
+            
+            System.exit(0);
+        }
+        */
+        
                 
         m_oMainSettings = new Settings(args);
         
@@ -179,7 +200,7 @@ public class Main {
         PSXMedia.DebugVerbose = aiVerbosityLevels[1];
         StrFrameDemuxerIS.DebugVerbose = aiVerbosityLevels[2];
         StrFrameUncompressorIS.DebugVerbose = aiVerbosityLevels[3];
-        StrFrameMDEC.DebugVerbose = aiVerbosityLevels[4];
+        MDEC.DebugVerbose = aiVerbosityLevels[4];
         
         if (DebugVerbose > 0)
             System.err.println(VerString);
@@ -333,6 +354,7 @@ public class Main {
         
         int iMediaStart, iMediaEnd, iMediaIndex;
 
+        // Clamp media indexes
         if (m_oMainSettings.getMainCommandType() == m_oMainSettings.DECODE_ALL) {
             iMediaStart = 0;
             iMediaEnd = oMedias.size()-1;
@@ -344,199 +366,126 @@ public class Main {
         }
         
         
-        for (iMediaIndex = iMediaStart; iMediaIndex <= iMediaEnd; iMediaIndex++) 
-        {
-            PSXMedia oMedia = oMedias.get(iMediaIndex);
-
-            // movie frames
-            if (m_oMainSettings.DecodeVideo() && (oMedia instanceof PSXMediaSTR)) {
-                PSXMediaSTR oMovie = (PSXMediaSTR)oMedia;
-                DecodeVideo(oMovie, iMediaIndex);
-                
-            }
-
-            // movie audio
-            if (m_oMainSettings.DecodeAudio() && (oMedia instanceof PSXMediaSTR)) {
-                PSXMediaSTR oMovie = (PSXMediaSTR)oMedia;
-                if (oMovie.HasAudio()) {
-                    try {
-                        if (DebugVerbose > 1)
-                            System.err.println("Reading movie audio");
-
-                        PSXSectorRangeIterator oIter = oMovie.GetSectorIterator();
-                        StrAudioDemuxerDecoderIS dec = 
-                                new StrAudioDemuxerDecoderIS(oIter);
-                        AudioInputStream str = 
-                                new AudioInputStream(dec, dec.getFormat(), dec.getLength());
-
-                        AudioSystem.write(str, AudioFileFormat.Type.WAVE, 
-                                new File(String.format(
-                                "%s%03d.wav",
-                                m_oMainSettings.getOutputFile(), iMediaIndex
-                                )));
-                    } catch (IOException ex) {
-                        if (DebugVerbose > 2)
-                            ex.printStackTrace();
-                        else if (DebugVerbose > 0)
-                            System.err.println(ex.getMessage());
-                    }
-                }
-            }
-                
-            // XA audio
-            if (m_oMainSettings.DecodeAudio() && (oMedia instanceof PSXMediaXA)) {
-                PSXMediaXA oAudio = (PSXMediaXA)oMedia;
-
-                int iChannelStart, iChannelEnd, iChannelIndex;
-                if (m_oMainSettings.getChannel() < 0) {
-                    iChannelStart = 0;
-                    iChannelEnd = 31;
-                } else {
-                    if (m_oMainSettings.getChannel() > 31)
-                        iChannelStart = 31;
-                    else
-                        iChannelStart = m_oMainSettings.getChannel();
-                    iChannelEnd = iChannelStart;
-                }
-
-                for (iChannelIndex = iChannelStart; iChannelIndex <= iChannelEnd; iChannelIndex++) {
-                    
-                    try {
-                        PSXSectorRangeIterator oIter =
-                                oAudio.GetChannelSectorIterator(iChannelIndex);
-
-                        if (oIter != null)
-                        {
-                            if (DebugVerbose > 1)
-                                System.err.println("Reading channel " 
-                                                   + iChannelIndex);
-                    
-                            StrAudioDemuxerDecoderIS dec = 
-                                    new StrAudioDemuxerDecoderIS(oIter, iChannelIndex);
-                            AudioInputStream str = 
-                                    new AudioInputStream(dec, dec.getFormat(), dec.getLength());
-                            AudioSystem.write(str, AudioFileFormat.Type.WAVE, 
-                                    new File(String.format(
-                                    "%s%03d_ch%02d.wav",
-                                    m_oMainSettings.getOutputFile(), 
-                                    iMediaIndex, 
-                                    iChannelIndex
-                                    )));
-                        }
-                    } catch (IOException ex) {
-                        if (DebugVerbose > 2)
-                            ex.printStackTrace();
-                        else if (DebugVerbose > 0)
-                            System.err.println(ex.getMessage());
-                    }
-                    
-                }
-
-            }
+        try {
             
-            if (oMedia instanceof PSXMediaTIM) {
-                if (DebugVerbose > 1) System.err.println("Reading TIM image");
-                PSXMediaTIM oTimMedia = (PSXMediaTIM)oMedia;
-                PSXSectorRangeIterator oSectIter = oTimMedia.GetSectorIterator();
-                try {
-                    InputStream oIS = new UnknownDataDemuxerIS(oSectIter);
-                    Tim oTim = new Tim(oIS);
-                    for (int i = 0; i < oTim.getPaletteCount(); i++) {
-                        ImageIO.write(
-                              oTim.toBufferedImage(i),
-                                // TODO: Add setting type here
-                                "png",
-                                new File(String.format(
-                                    "%s%03d_pal%02d.png",
-                                    m_oMainSettings.getOutputFile(), 
-                                    iMediaIndex,
-                                    i))
-                                    );
-                    }
-                    
-                } catch (IOException ex) {
-                    if (DebugVerbose > 2)
-                        ex.printStackTrace();
-                    else if (DebugVerbose > 0)
-                        System.err.println(ex.getMessage());
-                } catch (NotThisTypeException ex) {
-                    if (DebugVerbose > 2)
-                        ex.printStackTrace();
-                    else if (DebugVerbose > 0)
-                        System.err.println(ex.getMessage());
-                }
+            
+            for (iMediaIndex = iMediaStart; iMediaIndex <= iMediaEnd; iMediaIndex++) 
+            {
+                PSXMedia oMedia = oMedias.get(iMediaIndex);
                 
-            }
+                final String sFinalName = 
+                        String.format("%s%03d", 
+                            m_oMainSettings.getOutputFile(),
+                            iMediaIndex);
+                
+                switch (oMedia.getMediaType()) {
+                    case PSXMedia.MEDIA_TYPE_IMAGE:
+                        if (m_oMainSettings.DecodeVideo()) {
+                            System.err.println("Decoding image: " + oMedia.toString());
+                            oMedia.Decode(new Options.IImageOptions() {
+                                public String getOutputFileName() {
+                                    return m_oMainSettings.getOutputFile() + "_p%d";
+                                }
 
+                                public String getOutputImageFormat() {
+                                    return m_oMainSettings.getOutputFormat();
+                                }
+                            });
+                        }
+                        break;
+                    case PSXMedia.MEDIA_TYPE_VIDEO:
+                        if (m_oMainSettings.DecodeVideo()) {
+                            System.err.println("Decoding video: " + oMedia.toString());
+                            oMedia.Decode(new Options.IVideoOptions() {
+                                public String getOutputFileName() {
+                                    return sFinalName + "_f%04d";
+                                }
+
+                                public long getStartFrame() {
+                                    return m_oMainSettings.getStartFrame();
+                                }
+
+                                public long getEndFrame() {
+                                    return m_oMainSettings.getEndFrame();
+                                }
+
+                                public String getOutputImageFormat() {
+                                    return m_oMainSettings.getOutputFormat();
+                                }
+                            });
+                        }
+                        break;
+                    case PSXMedia.MEDIA_TYPE_VIDEO_AUDIO:
+                        if (m_oMainSettings.DecodeVideo()) {
+                            System.err.println("Decoding video: " + oMedia.toString());
+                            oMedia.Decode(new Options.IVideoOptions() {
+                                public String getOutputFileName() {
+                                    return sFinalName + "_f%04d";
+                                }
+
+                                public long getStartFrame() {
+                                    return m_oMainSettings.getStartFrame();
+                                }
+
+                                public long getEndFrame() {
+                                    return m_oMainSettings.getEndFrame();
+                                }
+
+                                public String getOutputImageFormat() {
+                                    return m_oMainSettings.getOutputFormat();
+                                }
+                            });
+                        }
+                        if (m_oMainSettings.DecodeAudio()) {
+                            System.err.println("Decoding audio: " + oMedia.toString());
+                            oMedia.Decode(new Options.IAudioOptions() {
+                                public String getOutputFileName() {
+                                    return sFinalName;
+                                }
+                                
+                                public double getScale() {
+                                    return m_oMainSettings.getAudioScale();
+                                }
+
+                                public String getOutputFormat() {
+                                    return "wav";
+                                }
+                            });
+                        }
+                        break;
+                    case PSXMedia.MEDIA_TYPE_XA:
+                        if (m_oMainSettings.DecodeAudio()) {
+                            System.err.println("Decoding XA audio: " + oMedia.toString());
+                            oMedia.Decode(new Options.IXAOptions() {
+                                public String getOutputFileName() {
+                                    return sFinalName + "_c%02d";
+                                }
+                                
+                                public int getChannel() {
+                                    return m_oMainSettings.getChannel();
+                                }
+
+                                public double getScale() {
+                                    return m_oMainSettings.getAudioScale();
+                                }
+
+                                public String getOutputFormat() {
+                                    return "wav";
+                                }
+                            });
+                        }
+                        break;
+                } // switch
+
+            } // for
+            
+            if (DebugVerbose > 1)
+                System.err.println("Media decoding complete.");
+        } catch (IOException ex) {
+            ex.printStackTrace();
         }
             
         return 0;
-    }
-    
-    //..........................................................................
-    
-    private static void DecodeVideo(PSXMediaSTR oMovie, int iMediaIndex) {
-        long iFrameStart = m_oMainSettings.getStartFrame();
-        long iFrameEnd = m_oMainSettings.getEndFrame();
-        long iFrameIndex;
-
-        if (iFrameEnd < 0) iFrameEnd = oMovie.GetEndFrame();
-
-        if (iFrameStart < oMovie.GetStartFrame()) 
-            iFrameStart = oMovie.GetStartFrame();
-        if (iFrameStart > oMovie.GetEndFrame())
-            iFrameStart = oMovie.GetEndFrame();
-
-        if (iFrameEnd < oMovie.GetStartFrame())
-            iFrameEnd = oMovie.GetStartFrame();
-        if (iFrameEnd > oMovie.GetEndFrame()) 
-            iFrameEnd = oMovie.GetEndFrame();
-
-        if (iFrameStart > iFrameEnd) {
-            long lng = iFrameStart;
-            iFrameStart = iFrameEnd;
-            iFrameEnd = lng;
-        }
-
-        PSXSectorRangeIterator oIter = oMovie.GetSectorIterator();
-        int iSaveIndex1 = oIter.getIndex();
-        int iSaveIndex2 = iSaveIndex1;
-        for (iFrameIndex = iFrameStart; iFrameIndex <= iFrameEnd; iFrameIndex++) 
-        {
-            String sFrameFile = String.format(
-                        "%s%03d_f%04d.%s",
-                        m_oMainSettings.getOutputFile(), 
-                        iMediaIndex, 
-                        iFrameIndex,
-                        m_oMainSettings.getOutputFormat());
-            try {
-                
-                oIter.gotoIndex(iSaveIndex1);
-                StrFrameDemuxerIS str = 
-                        new StrFrameDemuxerIS(oIter, iFrameIndex);
-                
-                if (DebugVerbose > 0)
-                    System.err.println("Reading frame " + iFrameIndex);
-
-                DecodeAndSaveFrame("demux", str, sFrameFile);
-                
-                // if the iterator was searched to the end, we don't
-                // want to save the end sector (or we'll miss sectors
-                // before it). This can happen when saving as demux because 
-                // it has to search to the end of the stream
-                if (oIter.hasNext()) {
-                    iSaveIndex1 = iSaveIndex2;
-                    iSaveIndex2 = oIter.getIndex();
-                }
-
-            } catch (IOException ex) {
-                if (DebugVerbose > 2)
-                    ex.printStackTrace();
-                else if (DebugVerbose > 0)
-                    System.err.println(ex.getMessage());
-            }
-
-        } // for
     }
     
     //--------------------------------------------------------------------------
@@ -570,8 +519,12 @@ public class Main {
                         m_oMainSettings.getOutputFormat());
 
             System.err.println("Reading frame sectors");
+            jpsxdec.media.VideoFrameConverter.DecodeAndSaveFrame(
+                    "demux", 
+                    m_oMainSettings.getOutputFormat(),
+                    str, sFrameFile, 
+                    -1, -1);
             
-            DecodeAndSaveFrame("demux", str, sFrameFile);
         } catch (IOException ex) {
             if (DebugVerbose > 2)
                 ex.printStackTrace();
@@ -649,8 +602,11 @@ public class Main {
             
             FileInputStream is;
             is = new FileInputStream(m_oMainSettings.getInputFile());
-            is.mark(0);
-            DecodeAndSaveFrame(m_oMainSettings.getInputFileFormat(), is, sFrameFile);
+            jpsxdec.media.VideoFrameConverter.DecodeAndSaveFrame(
+                    m_oMainSettings.getInputFileFormat(), 
+                    m_oMainSettings.getOutputFormat(),
+                    is, sFrameFile, 
+                    m_oMainSettings.getWidth(), m_oMainSettings.getHeight());
             
         } catch (IOException ex) {
             if (DebugVerbose > 2)
@@ -665,65 +621,6 @@ public class Main {
 
     //--------------------------------------------------------------------------
    
-    private static void DecodeAndSaveFrame(String sInputType, 
-                                           InputStream str, 
-                                           String sFrameFile) 
-            throws IOException 
-    {
-        long lngWidth;
-        long lngHeight;
-        
-        if (str instanceof StrFrameDemuxerIS) {
-            lngWidth = ((StrFrameDemuxerIS)str).getWidth();
-            lngHeight = ((StrFrameDemuxerIS)str).getHeight();
-        } else if (str instanceof StrFrameUncompressorIS) {
-            lngWidth = ((StrFrameUncompressorIS)str).getWidth();
-            lngHeight = ((StrFrameUncompressorIS)str).getHeight();
-        } else {
-            lngWidth = m_oMainSettings.getWidth();
-            lngHeight = m_oMainSettings.getHeight();
-        }
-            
-        
-        if (sInputType.equals("demux")) {
-
-            if (m_oMainSettings.getOutputFormat().equals("demux")) {
-                FileOutputStream fos = new FileOutputStream(sFrameFile);
-                int ib;
-                while ((ib = str.read()) >= 0)
-                    fos.write(ib);
-                fos.close();
-                return;
-            }
-
-            str = new StrFrameUncompressorIS(str, lngWidth, lngHeight);
-            if (m_oMainSettings.getOutputFormat().equals("0rlc")) {
-                FileOutputStream fos = new FileOutputStream(sFrameFile);
-                int ib;
-                while ((ib = str.read()) >= 0)
-                    fos.write(ib);
-                fos.close();
-                return;
-            }
-
-        }
-        
-        Yuv4mpeg2 oYuv = StrFrameMDEC.DecodeFrame(str, lngWidth, lngHeight);
-        if (m_oMainSettings.getOutputFormat().equals("yuv") ||
-            m_oMainSettings.getOutputFormat().equals("y4m")) 
-        {
-            FileOutputStream fos = new FileOutputStream(sFrameFile);
-            oYuv.Write(fos);
-            fos.close();
-            return;
-        }
-
-        BufferedImage bi = oYuv.toBufferedImage();
-        ImageIO.write(bi, m_oMainSettings.getOutputFormat(), new File(sFrameFile));
-    }
-
-    //--------------------------------------------------------------------------
-
     private static int SectorList() {
         CDSectorReader oCD;
         try {

@@ -21,10 +21,9 @@
 
 /*
  * SimpleIDCT.java
- *
  */
 
-package jpsxdec.InverseDiscreteCosineTransform;
+package jpsxdec.mdec;
 
 import jpsxdec.util.Matrix8x8;
 
@@ -39,7 +38,7 @@ import jpsxdec.util.Matrix8x8;
  * is any intentional loss of precision with the optimized version.
  * It's just how the floating point numbers happen to round.
  */
-public class SimpleIDCT implements IIDCT {
+public class SimpleIDCT implements IDCTinterface {
 
     public Matrix8x8 IDCT(Matrix8x8 oDCTMat) {
 

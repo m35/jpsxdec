@@ -21,29 +21,26 @@
 
 /*
  * StrFrameMDEC.java
- *
  */
 
-package jpsxdec;
+package jpsxdec.mdec;
 
 import java.io.*;
-import jpsxdec.InverseDiscreteCosineTransform.IIDCT;
-import jpsxdec.InverseDiscreteCosineTransform.StephensIDCT;
 import jpsxdec.util.IGetFilePointer;
-import jpsxdec.util.LittleEndianIO;
+import jpsxdec.util.IO;
 import jpsxdec.util.Matrix8x8;
-import jpsxdec.util.Yuv4mpeg2;
+import jpsxdec.mdec.Yuv4mpeg2;
 
 /** Simple (and slow) emulation of the Playstation MDEC ("Motion Decoder") chip.
   * While it doesn't process 9000 macroblocks per second, it shouldn't be very
   * difficult to read. */
-public final class StrFrameMDEC {
+public final class MDEC {
     
     /** How much debugging do you want to see? */
     public static int DebugVerbose = 2;
     /** This is the inverse discrete cosine transform that will be used
      *  during decoding. */
-    public static IIDCT IDCT = new StephensIDCT();
+    public static IDCTinterface IDCT = new StephensIDCT();
     
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     
@@ -90,10 +87,10 @@ public final class StrFrameMDEC {
      *  quantization scale, and the 10 bit value holds the DC coefficient. */
     public static class Mdec16Bits {
         
-        String OriginalVariableLengthCodeBits;
-        double OriginalFilePos = -1;
-        int Top6Bits;
-        int Bottom10Bits;
+        public String OriginalVariableLengthCodeBits;
+        public double OriginalFilePos = -1;
+        public int Top6Bits;
+        public int Bottom10Bits;
 
         /** Generic constructor */
         public Mdec16Bits() {
@@ -247,7 +244,7 @@ public final class StrFrameMDEC {
         // Read the quantization scale and DC Coefficient
         // The data is stored: 6 bits for the quantization scale
         //                    10 bits for the DC coefficient
-        lngMdecWord = LittleEndianIO.ReadUInt16LE(oStream);
+        lngMdecWord = IO.ReadUInt16LE(oStream);
         oRunLenCode = new Mdec16Bits(lngMdecWord);
         iQuantizationScale = oRunLenCode.Top6Bits;
         iDC_Coefficient = oRunLenCode.Bottom10Bits;
@@ -261,7 +258,7 @@ public final class StrFrameMDEC {
         // Step 1) Decode the run-length codes into a vector
         ////////////////////////////////////////////////////////////////////////
         int iVectorPos = 1; // current position in the vector
-        lngMdecWord = LittleEndianIO.ReadUInt16LE(oStream); // read 16 bits
+        lngMdecWord = IO.ReadUInt16LE(oStream); // read 16 bits
         while (lngMdecWord != MDEC_END_OF_BLOCK) {
         
             // The data is stored: 6 bits for the run length of zeros
@@ -290,7 +287,7 @@ public final class StrFrameMDEC {
             iVectorPos += 1;
             
             // read the next 16 bits
-            lngMdecWord = LittleEndianIO.ReadUInt16LE(oStream);
+            lngMdecWord = IO.ReadUInt16LE(oStream);
         }
         if (DebugVerbose >= 8)
             System.err.println("END OF BLOCK");

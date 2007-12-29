@@ -1,4 +1,4 @@
-package jpsxdec.InverseDiscreteCosineTransform;
+package jpsxdec.mdec;
 
 import jpsxdec.util.Matrix8x8;
 
@@ -79,7 +79,7 @@ import jpsxdec.util.Matrix8x8;
 /*											*/
 /****************************************************************************************/
 
-public class IDCT implements IIDCT {
+public class IDCT implements IDCTinterface {
 
     private final int CONST_BITS = 11;
     private final int VAL_BITS   = 11;

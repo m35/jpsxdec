@@ -21,10 +21,9 @@
 
 /*
  * Yuv4mpeg2.java
- *
  */
 
-package jpsxdec.util;
+package jpsxdec.mdec;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
@@ -32,6 +31,7 @@ import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.IOException;
+import jpsxdec.util.*;
 
 /**
  * Simple class to handle yuv4mpeg2 image format.
@@ -57,6 +57,10 @@ import java.io.IOException;
  * 
  * Also:
  * http://wiki.multimedia.cx/index.php?title=YUV4MPEG2
+ *
+ * Note that the PSX uses a slightly different equation to convert from
+ * YUV to RGB. I'm not sure how to rectify this.
+ *
  */
 public class Yuv4mpeg2 {
     
@@ -111,7 +115,7 @@ public class Yuv4mpeg2 {
                 double cr = m_adblCr[iChromLinePos + iX / 2];
                 
                 int r = (int)jpsxdec.util.Math.round(y + 1.402   * cr);
-                int g = (int)jpsxdec.util.Math.round(y - 0.34414 * cb - 0.71414 * cr);
+                int g = (int)jpsxdec.util.Math.round(y - 0.3437 * cb - 0.7143 * cr);
                 int b = (int)jpsxdec.util.Math.round(y + 1.772   * cb);
                 
                 if (r < 0) {r = 0;} else {if (r > 255) r = 255;}
@@ -213,20 +217,19 @@ public class Yuv4mpeg2 {
         
         // write the data
         // "The values 0 and 255 are used for sync encoding."
-        // so I guess we clamp at 1 and 254?
-        // TODO: Check this
+        // According to MrVacBob, analog encoding is dead, so this will never happen again
         int i;
         for (double d : m_adblY) {
             i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 1 ? 1 : (i > 254 ? 254 : i));
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
         } System.out.println();
         for (double d : m_adblCb) {
             i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 1 ? 1 : (i > 254 ? 254 : i));
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
         }
         for (double d : m_adblCr) {
             i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 1 ? 1 : (i > 254 ? 254 : i));
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
         }
     }
 

@@ -28,10 +28,10 @@ package jpsxdec.demuxers;
 import java.io.*;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
-//import java.util.Iterator;
 import jpsxdec.util.IGetFilePointer;
 
-public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer {
+public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer 
+{
     
     PSXSectorRangeIterator m_oPsxSectIter;
     /** Holds the current sector being read */
@@ -52,8 +52,9 @@ public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer
         }
     }
 
+    @Override /* [InputStream] */
     public int read() throws IOException {
-        if (m_oPsxSect == null || m_blnAtEnd)
+        if ((m_oPsxSect == null) || m_blnAtEnd)
             return -1;
         else {
             int i = m_oPsxSect.read();
@@ -76,6 +77,7 @@ public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer
         }
     }
 
+    /* [implements IGetFilePointer] */
     public long getFilePointer() {
         if (m_oPsxSect == null)  // there were never any sectors
             return -1;
@@ -84,6 +86,7 @@ public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer
     }
 
     /** @param readlimit ignored. You can read forever. */
+    @Override /* [InputStream] */
     public void mark(int readlimit) {
         // TODO: what would happen if we marked at the end of the stream?
         if (m_oPsxSect != null) { // there were never any sectors to mark
@@ -92,6 +95,7 @@ public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer
         }
     }
 
+    @Override /* [InputStream] */
     public void reset() throws IOException {
         if (m_iMarkIndex < 0)
             throw new RuntimeException("Trying to reset when mark has not been called.");
@@ -107,6 +111,7 @@ public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer
         m_iMarkPos = -1;
     }
 
+    @Override /* [InputStream] */
     public boolean markSupported() {
         return true;
     }

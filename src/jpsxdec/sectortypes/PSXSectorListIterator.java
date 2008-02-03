@@ -31,7 +31,8 @@ import jpsxdec.*;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.util.AdvancedIOIterator;
 
-/** Class to walk a list of sectors of a CD */
+/** Class to walk a list of sectors of a CD and automatically convert them
+ *  to PSXSectors. */
 public class PSXSectorListIterator implements AdvancedIOIterator<PSXSector> {
     CDSectorReader m_oCD;
     int m_iListIndex = 0;

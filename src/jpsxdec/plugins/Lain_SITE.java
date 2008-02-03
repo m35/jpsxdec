@@ -25,8 +25,6 @@
 
 package jpsxdec.plugins;
 
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import javax.imageio.ImageIO;
 import jpsxdec.*;
@@ -119,7 +117,7 @@ public class Lain_SITE {
     
     /** 
      * read 4 bytes: size of decompressed data
-     * * The bit mask uses an lzh type of compression.
+     * * This is a form of lzh compression.
      * read 1 byte: then for each bit (highest to lowest)
      *    - if 1
      *      - read 1 byte: start offset to copy + 1

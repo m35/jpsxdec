@@ -20,13 +20,14 @@
  */
 
 /*
- * Yuv4mpeg2.java
+ * PsxYuv.java
  */
 
 package jpsxdec.mdec;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.WritableRaster;
+//import java.awt.image.WritableRaster;
+import java.io.BufferedOutputStream;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
@@ -34,9 +35,12 @@ import java.io.IOException;
 import jpsxdec.util.*;
 
 /**
- * Simple class to handle yuv4mpeg2 image format.
- * Limted to just 4:2:0 jpeg/mpeg1 sub-format 
- * (since that's the format PSX uses).
+ * Class to handle YUV (YCbCr) image data of the PSX MDEC chip.
+ * Converts the YUV data to either yuv4mpeg2 format, or RGB format
+ * (BufferedImage).
+ *
+ * The outputted yuv4mpeg sub-format is 4:2:0 jpeg/mpeg1
+ * (since that's closest to the format PSX uses).
  * Extentsion: .yuv or .y4m
  *
  *  "All image data is in the CCIR-601 Y'CbCr colorspace..."
@@ -58,16 +62,13 @@ import jpsxdec.util.*;
  * Also:
  * http://wiki.multimedia.cx/index.php?title=YUV4MPEG2
  *
- * Note that the PSX uses a slightly different equation to convert from
- * YUV to RGB. I'm not sure how to rectify this.
- *
  */
-public class Yuv4mpeg2 {
+public class PsxYuv {
     
     private int m_iWidth;
     private int m_iHeight;
     
-    final private String m_sChromaSubsampling = "420jpeg";
+    final private static String m_sChromaSubsampling = "420jpeg";
     
     private double[] m_adblY;
     private double[] m_adblCb;
@@ -76,7 +77,7 @@ public class Yuv4mpeg2 {
     /** Creates a new instance of Yuv4mpeg2 
      * @param iWidth - Width of image (in Luminance values) 
      * @param iHeight - Height of image (in Luminance values) */
-    public Yuv4mpeg2(int iWidth, int iHeight) {
+    public PsxYuv(int iWidth, int iHeight) {
         assert(iWidth > 0 && iHeight > 0 && 
                (iWidth  % 2) == 0 && 
                (iHeight % 2) == 0);
@@ -110,13 +111,13 @@ public class Yuv4mpeg2 {
                  * Cb: -128 to +127
                  * Cr: -128 to +127
                  */
-                double y = m_adblY[iLinePos + iX] + 128; // <-- fix the lumin!!
+                double y = m_adblY[iLinePos + iX] + 128; // <-- fix the lumin!
                 double cb = m_adblCb[iChromLinePos + iX / 2];
                 double cr = m_adblCr[iChromLinePos + iX / 2];
                 
-                int r = (int)jpsxdec.util.Math.round(y + 1.402   * cr);
-                int g = (int)jpsxdec.util.Math.round(y - 0.3437 * cb - 0.7143 * cr);
-                int b = (int)jpsxdec.util.Math.round(y + 1.772   * cb);
+                int r = (int)jpsxdec.util.Math.round(y +                1.402  * cr);
+                int g = (int)jpsxdec.util.Math.round(y - 0.3437  * cb - 0.7143 * cr);
+                int b = (int)jpsxdec.util.Math.round(y + 1.772   * cb              );
                 
                 if (r < 0) {r = 0;} else {if (r > 255) r = 255;}
                 if (g < 0) {g = 0;} else {if (g > 255) g = 255;}
@@ -127,8 +128,8 @@ public class Yuv4mpeg2 {
         }
         
         BufferedImage bi = new BufferedImage(m_iWidth, m_iHeight, iImgType);
-        // using the raster below would be faster, but then we couldn't
-        // use any color space
+        // using the raster below would be faster, but then we would be
+        // limited to just one type of BuffereImage format.
         //WritableRaster wr = bi.getRaster();
         //wr.setDataElements(0, 0, m_iWidth, m_iHeight, aiRGB);
         bi.setRGB(0, 0, m_iWidth, m_iHeight, aiRGB, 0, m_iWidth);
@@ -192,9 +193,10 @@ public class Yuv4mpeg2 {
     
     /** Write a yuv4mpeg2 image file. */
     public void Write(String sFile) throws IOException {
-        FileOutputStream fos = new FileOutputStream(sFile);
-        Write(fos);
-        fos.close();
+        BufferedOutputStream bof = 
+                new BufferedOutputStream(new FileOutputStream(sFile));
+        Write(bof);
+        bof.close();
     }
     
     /** Write a yuv4mpeg2 image file. */
@@ -217,7 +219,7 @@ public class Yuv4mpeg2 {
         
         // write the data
         // "The values 0 and 255 are used for sync encoding."
-        // According to MrVacBob, analog encoding is dead, so this will never happen again
+        // According to MrVacBob, analog encoding is dead, so it's not really important
         int i;
         for (double d : m_adblY) {
             i = (int)jpsxdec.util.Math.round(d) + 128;
@@ -234,7 +236,7 @@ public class Yuv4mpeg2 {
     }
 
     /** Pastes the supplied image into this image. */
-    public void putYuvImage(int iX, int iY, Yuv4mpeg2 oYuv) {
+    public void putYuvImage(int iX, int iY, PsxYuv oYuv) {
         assert(iX > 0 && iY > 0 && 
                iX + oYuv.m_iWidth < m_iWidth && 
                iY + oYuv.m_iHeight < m_iHeight);

@@ -20,7 +20,7 @@
  */
 
 /*
- * StrFrameMDEC.java
+ * MDEC.java
  */
 
 package jpsxdec.mdec;
@@ -29,7 +29,6 @@ import java.io.*;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IO;
 import jpsxdec.util.Matrix8x8;
-import jpsxdec.mdec.Yuv4mpeg2;
 
 /** Simple (and slow) emulation of the Playstation MDEC ("Motion Decoder") chip.
   * While it doesn't process 9000 macroblocks per second, it shouldn't be very
@@ -119,8 +118,9 @@ public final class MDEC {
     /** Main input function. Reads MDEC codes from the stream until an
      *  entire image of width x height has been decoded. Returns the
      *  decoded image as a yuv4mpeg2 class. */
-    public static Yuv4mpeg2 DecodeFrame(InputStream oStream, 
-                                        long lngWidth, long lngHeight)
+    public static PsxYuv DecodeFrame(InputStream oStream, 
+                                     long lngWidth, long lngHeight)
+        throws IOException
     {                                  
         
         // Calculate actual width/height in macroblocks 
@@ -137,27 +137,19 @@ public final class MDEC {
         else
             lngActualHeight = lngHeight;
         
-        Yuv4mpeg2 oImg = new Yuv4mpeg2((int)lngActualWidth, 
+        PsxYuv oImg = new PsxYuv((int)lngActualWidth, 
                                        (int)lngActualHeight);
             
-        try {
-            
-            int iMacroBlockCount = 0;
-            
-            // The macro blocks are ordered in columns
-            for (int iX = 0; iX < lngActualWidth; iX += 16) {
-                for (int iY = 0; iY < lngActualHeight; iY += 16) {
-                    Yuv4mpeg2 oMacroBlockYuv = DecodeMacroBlock(oStream);
-                    iMacroBlockCount++;
-                    
-                    oImg.putYuvImage(iX, iY, oMacroBlockYuv);
-                }
+        int iMacroBlockCount = 0;
+
+        // The macro blocks are ordered in columns
+        for (int iX = 0; iX < lngActualWidth; iX += 16) {
+            for (int iY = 0; iY < lngActualHeight; iY += 16) {
+                PsxYuv oMacroBlockYuv = DecodeMacroBlock(oStream);
+                iMacroBlockCount++;
+
+                oImg.putYuvImage(iX, iY, oMacroBlockYuv);
             }
-        } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else
-                System.err.println(ex.getMessage());
         }
         
         return oImg;
@@ -170,7 +162,7 @@ public final class MDEC {
     
     /** Decodes an entire macro block from oStream and returns it as a 
      *  16x16 YUV image. */
-    private static Yuv4mpeg2 DecodeMacroBlock(InputStream oStream) 
+    private static PsxYuv DecodeMacroBlock(InputStream oStream) 
         throws IOException 
     {
         
@@ -212,7 +204,7 @@ public final class MDEC {
         // Cr: -128 to +127
         
         // Combine all these into a 16x16 YCbCr (YUV) macro block
-        Yuv4mpeg2 oMacroBlock = new Yuv4mpeg2(16, 16);
+        PsxYuv oMacroBlock = new PsxYuv(16, 16);
         
         oMacroBlock.setY(0, 0, 8, 8, oY1Matrix.getPoints());
         oMacroBlock.setY(8, 0, 8, 8, oY2Matrix.getPoints());

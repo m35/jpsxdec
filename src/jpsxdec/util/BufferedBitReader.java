@@ -19,11 +19,9 @@
  *
  */
 
-
 /*
  * BufferedBitReader.java
  */
-
 
 package jpsxdec.util;
 
@@ -32,7 +30,6 @@ import java.io.IOException;
 import java.io.EOFException;
 import java.nio.BufferOverflowException;
 import java.nio.BufferUnderflowException;
-import java.util.LinkedList;
 
 /** A limited bit reader. Wraps an InputStream. Should be pretty quick. */
 public class BufferedBitReader {

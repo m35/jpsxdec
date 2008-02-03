@@ -29,10 +29,12 @@ import java.io.*;
 import jpsxdec.*;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IO;
-import jpsxdec.cdreaders.CDSectorReader.CDXASector;
+import jpsxdec.cdreaders.CDXASector;
 import jpsxdec.util.NotThisTypeException;
 
-/** Base class for all PSX sector types. */
+/** Base class for all PSX sector types. Encapsulates raw sectors with
+ *  special meaning. Note that this doesn't save the whole underlying raw 
+ *  sector in order to save memory. */
 public abstract class PSXSector extends InputStream implements IGetFilePointer {
     
     /**************************************************************************/
@@ -68,7 +70,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         
     }
     
-    /** Identify the type of sector that the CDSectorReader points to. */
+    /** Identify the type of the supplied sector. */
     public static PSXSector SectorIdentifyFactory(CDXASector oCDSect) {
         if (oCDSect == null) return null;
         
@@ -100,6 +102,16 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         } catch (NotThisTypeException ex) {}
         
         try {
+            oPsxSector = new PSXSectorFF9Video(oCDSect);
+            return oPsxSector;
+        } catch (NotThisTypeException ex) {}
+        
+        try {
+            oPsxSector = new PSXSectorFF9Audio(oCDSect);
+            return oPsxSector;
+        } catch (NotThisTypeException ex) {}
+        
+        try {
             oPsxSector = new PSXSectorAudio2048(oCDSect);
             return oPsxSector;
         } catch (NotThisTypeException ex) {}
@@ -113,19 +125,22 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     /**************************************************************************/
     /**************************************************************************/
     
-    /** Basic info about the interesting sector. */
-    protected long m_iFile = -1;
-    /** Basic info about the interesting sector. */
-    protected int m_iChannel = -1;
-    /** Basic info about the interesting sector. */
-    protected int m_iSector = -1;
+    /** Save the basic sector info. */
+    private long m_iFile = -1;
+    /** Save the basic sector info. */
+    private int m_iChannel = -1;
+    /** Save the basic sector info. */
+    private int m_iSector = -1;
     /** The original file offset where the sector was found. */
     private long m_lngSectorFilePointer;
     
-    // Used to imitate ByteArrayInputStream behavior
-    private byte[] m_abSectorBuff;
+    /** The 'user data' portion of the sector (without the raw headers). */
+    private byte[] m_abUserData;
+    /** Number of bytes read from the sector data (like ByteArrayInputStream). */
     private int m_iStreamPos = 0;
+    /** Demuxed start position of the sector data (like ByteArrayInputStream). */
     private int m_iSectorDataStart;
+    /** Size of the demux sector data. */
     private int m_iSectorDataLength;
     
     
@@ -134,27 +149,23 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         m_iFile = oCDSect.getFile();
         m_iChannel = oCDSect.getChannel();
         m_lngSectorFilePointer = oCDSect.getFilePointer();
-        m_abSectorBuff = oCDSect.getSectorData();
-        m_iSectorDataStart = GetSectorDataStart(m_abSectorBuff);
-        m_iSectorDataLength = GetSectorDataLength(m_abSectorBuff);
+        m_abUserData = oCDSect.getSectorData();
+        m_iSectorDataStart = getDemuxedDataStart(m_abUserData);
+        m_iSectorDataLength = getDemuxedDataLength(m_abUserData);
     }
     
-    
-    /** Extend this function in sub-classes to change what bytes
+    /** Extend this function in sub-classes to define what bytes
      * are part of the demuxed stream. */
-    abstract int GetSectorDataStart(byte abSectorData[]); /*{
-        return 0;
-    }*/
-    /** Extend this function in sub-classes to change what bytes
+    abstract int getDemuxedDataStart(byte abUserData[]);
+    /** Extend this function in sub-classes to define what bytes
      * are part of the demuxed stream. */
-    abstract int GetSectorDataLength(byte abSectorData[]); /*{
-        return abSectorData.length;
-    }*/
-    
+    abstract int getDemuxedDataLength(byte abUserData[]);
+   
+    @Override /* [InputStream] */
     final public int read() throws IOException {
         if (m_iStreamPos < m_iSectorDataLength) {
             int iByte =
-                    m_abSectorBuff[m_iSectorDataStart + m_iStreamPos] & 0xff;
+                    m_abUserData[m_iSectorDataStart + m_iStreamPos] & 0xff;
             m_iStreamPos++;
             return iByte;
         } else {
@@ -162,6 +173,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         }
     }
     
+    /* [implements IGetFilePointer] */
     final public long getFilePointer() {
         return m_lngSectorFilePointer
                 + m_iSectorDataStart
@@ -171,6 +183,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     public int getSectorPos() {
         return m_iStreamPos;
     }
+    /** Provides seeking capabilities. */
     public void setSectorPos(int iPos) {
         assert(iPos >= 0 && iPos <= m_iSectorDataLength);
         m_iStreamPos = iPos;
@@ -211,24 +224,24 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             if (!oCD.HasSectorHeader() || oCD.getSubMode() != 0) {
                 throw new NotThisTypeException();
             }
-            this.m_iChannel = -1;
+            super.m_iChannel = -1;
         }
         
         public String toString() {
             return String.format("Null  [Sector:%d]", getSector());
         }
         
-        int GetSectorDataStart(byte[] abSectorData) {
+        int getDemuxedDataStart(byte[] abUserData) {
             return 0;
         }
         
-        int GetSectorDataLength(byte[] abSectorData) {
+        int getDemuxedDataLength(byte[] abUserData) {
             return 1; // just making the sector 1 byte long for no reason
         }
         
     }
     
-    /** If all else fails, we don't know what kind of data is it */
+    /** If all else fails, we don't know what kind of data it is */
     public static class PSXSectorUnknownData extends PSXSector {
         public PSXSectorUnknownData(CDXASector oCD) {
             super(oCD);
@@ -238,12 +251,12 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             return null;
         }
         
-        int GetSectorDataStart(byte[] abSectorData) {
+        int getDemuxedDataStart(byte[] abUserData) {
             return 0;
         }
         
-        int GetSectorDataLength(byte[] abSectorData) {
-            return abSectorData.length; 
+        int getDemuxedDataLength(byte[] abUserData) {
+            return abUserData.length; 
         }
         
     }
@@ -277,17 +290,18 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
                 }
                 
                 // if all the bytes are zero, then this isn't audio
+                /* umm...wait...why not?
                 if (aiSndParams[0] == 0 && aiSndParams[1] == 0 &&
                         aiSndParams[2] == 0 && aiSndParams[3] == 0) {
                     throw new NotThisTypeException();
                 }
-                
+                */
                 // if we don't know the bits/sample yet
                 if (m_iBitsPerSample < 0) {
                     // parameter bytes for 4 bits/sample
                     if (aiSndParams[0] == aiSndParams[1] &&
                             aiSndParams[2] == aiSndParams[3]) {
-                        // however, only if all 4 ints are not can we be sure
+                        // however, only if all 4 ints are not equal can we be sure
                         // (if they're equal then it could be either 4 or 8 bps)
                         if (aiSndParams[0] != aiSndParams[2])
                             m_iBitsPerSample = 4;
@@ -326,7 +340,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             
             // at this point we will probably know the bits/sample
             // we can also narrow down the samples/sec & mono/stereo to at most
-            // 2 choices by seeing how often the STR/XA has audio data. but that
+            // 2 choices by seeing how often the STR/XA has audio data, but that
             // can't be handled here (unfortunately).
             // But there's absolutely no way we can figure out the interleaved
             // audio channel.
@@ -346,7 +360,9 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             //                                 or mono @ 37800 samples/sec
             // If it is every 4 sectors, then it must be stereo @ 37800 samples/sec
             
-            // I'm believe the above is correct, but I haven't really checked
+            // I'm believe the above is correct, but I haven't really checked.
+            // Again, not that any of this really matters because we can't
+            // decode the audio anyway.
         }
         
         public String toString() {
@@ -356,18 +372,18 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
                     m_iBitsPerSample);
         }
         
-        int GetSectorDataStart(byte[] abSectorData) {
+        int getDemuxedDataStart(byte[] abUserData) {
             return 0;
         }
         
-        int GetSectorDataLength(byte[] abSectorData) {
-            return 1;
+        int getDemuxedDataLength(byte[] abUserData) {
+            return abUserData.length; // should be 2048
         }
     }
     
     
     /** This is the header for standard v2 and v3 video frame chunk sectors.
-     *  Also covers FF7 v1 frame chunk sectors. */
+     *  Also covers FF7 (v1) frame chunk sectors, and Lain frame chunk sectors. */
     public static class PSXSectorFrameChunk extends PSXSector implements IVideoChunkSector {
         
         // .. Static stuff .....................................................
@@ -487,10 +503,10 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         }
         
         /** Want to skip the frame header */
-        protected int GetSectorDataStart(byte abSectorData[]) {
+        protected int getDemuxedDataStart(byte[] abUserData) {
             return FRAME_CHUNK_HEADER_SIZE;
         }
-        protected int GetSectorDataLength(byte[] abSectorData) {
+        protected int getDemuxedDataLength(byte[] abUserData) {
             return 2048 - FRAME_CHUNK_HEADER_SIZE;
         }
         
@@ -526,8 +542,8 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
                 default: throw new NotThisTypeException();
             }
             switch(oCD.getCodingInfo_MonoStereo()) {
-                case 0: m_iMonoStereo = 1; break;
-                case 1: m_iMonoStereo = 2; break;
+                case 0: m_iMonoStereo = 1; break; // mono (1 channel)
+                case 1: m_iMonoStereo = 2; break; // stereo (2 channels)
                 default: throw new NotThisTypeException();
             }
         }
@@ -541,7 +557,7 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
                     m_iSamplesPerSec);
         }
         
-        /** implements IAudioSector. */
+        /* [implements IAudioSector] */
         public boolean matches(Object o) {
             if ( this == o ) return true;
             if ( !(o instanceof PSXSectorAudioChunk) ) return false;
@@ -552,31 +568,31 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
                     this.m_iSamplesPerSec == oAudChnk.m_iSamplesPerSec);
         }
         
-        /** implements IAudioSector. */
+        /* [implements IAudioSector] */
         public int getSamplesPerSecond() {
             return m_iSamplesPerSec;
         }
         
-        /** implements IAudioSector. */
+        /* [implements IAudioSector] */
         public int getBitsPerSample() {
             return m_iBitsPerSample;
         }
         
-        /** implements IAudioSector. */
+        /* [implements IAudioSector] */
         public int getMonoStereo() {
             return m_iMonoStereo;
         }
         
-        /** extends PSXSector */
-        protected int GetSectorDataStart(byte abSectorData[]) {
+        /* [extends PSXSector] */
+        protected int getDemuxedDataStart(byte abUserData[]) {
             return 0;
         }
-        /** We don't need the last 20 bytes of the sector.
-         *  extends PSXSector. */
-        protected int GetSectorDataLength(byte[] abSectorData) {
-            return abSectorData.length - 20;
+        /** The last 20 bytes of the sector are unused. */
+        protected int getDemuxedDataLength(byte[] abUserData) {
+            return abUserData.length - 20;
         }
         
+        /** Returns the length of the sector in samples (i.e. 4032 / channels) */
         public long getSampleLength() {
             return 4032 / m_iMonoStereo;
         }
@@ -592,8 +608,8 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         protected int        iSectorsInAVFrame;       // [1 byte]
         protected long       lngFrameNumber;          // [2 bytes]
         
-        public PSXSectorFF8Abstract(CDXASector oCD)
-        throws NotThisTypeException {
+        public PSXSectorFF8Abstract(CDXASector oCD) throws NotThisTypeException 
+        {
             super(oCD);
             // it always seems to be flagged as data (even audio sectors)
             if (oCD.HasSectorHeader() && oCD.getSubMode_Data() != 1)
@@ -671,12 +687,12 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
         
         /** Want to skip the header bytes.
          * [extends PSXSector] */
-        protected int GetSectorDataStart(byte abSectorData[]) {
+        protected int getDemuxedDataStart(byte abUserData[]) {
             return PSXSectorFF8Abstract.SIZE;
         }
         /** [extends PSXSector] */
-        protected int GetSectorDataLength(byte[] abSectorData) {
-            return abSectorData.length - PSXSectorFF8Abstract.SIZE;
+        protected int getDemuxedDataLength(byte[] abUserData) {
+            return abUserData.length - PSXSectorFF8Abstract.SIZE;
         }
         
         public String toString() {
@@ -691,10 +707,9 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
     }
     
     /** FF8 audio sector. */
-    public static class PSXSectorFF8AudioChunk extends PSXSectorFF8Abstract
-            //implements IAudioSector 
-            /* this shouldn't count as a normal
-               audio sector because it requires much special handling */
+    public static class PSXSectorFF8AudioChunk 
+            extends PSXSectorFF8Abstract
+            implements IFF8or9AudioSector
     {
         private int m_iChannel;
         
@@ -722,30 +737,278 @@ public abstract class PSXSector extends InputStream implements IGetFilePointer {
             return 4;
         }
         
-        public int getLeftRightChannel() {
+        /** @return 1 for left channel, 2 for right channel */
+        public int isLeftOrRightChannel() {
             return m_iChannel;
         }
         
         /** Want to skip the header bytes. 
          *  [extends PSXSector] */
-        protected int GetSectorDataStart(byte abSectorData[]) {
+        protected int getDemuxedDataStart(byte abUserData[]) {
             // audio data starts at 360 past the header
             return PSXSectorFF8Abstract.SIZE + 360;
         }
         /** [extends PSXSector] */
-        protected int GetSectorDataLength(byte[] abSectorData) {
-            return abSectorData.length - (PSXSectorFF8Abstract.SIZE + 360);
+        protected int getDemuxedDataLength(byte[] abUserData) {
+            return abUserData.length - (PSXSectorFF8Abstract.SIZE + 360);
         }
         
         public String toString() {
             return "AudioFF8 " + super.toString() +
                     String.format(
-                    " bits/sample:4 channels:1 samples/sec:44100");
+                    " frame:%d chunk:%d/%d channel:%d (bits/sample:4 channels:1 samples/sec:44100)",
+                    super.lngFrameNumber, 
+                    super.iSectorNumber,
+                    super.iSectorsInAVFrame,
+                    m_iChannel);
         }
         
         public long getSampleLength() {
             return 2940 / 2;
         }
+    }
+    
+    
+    public abstract static class PSXSectorFF9Abstract extends PSXSector {
+        
+        public PSXSectorFF9Abstract(CDXASector oCD) {
+            super(oCD);
+        }
+        
+        public abstract long getChunkNumber();
+        
+        public abstract long getChunksInFrame();
+        
+        public abstract long getFrameNumber();
+    }
+    
+    public static class PSXSectorFF9Video extends PSXSectorFF9Abstract implements IVideoChunkSector {
+        
+        // .. Static stuff .....................................................
+        
+        public static final int VIDEO_CHUNK_MAGIC = 0x00040160;
+        public static final int FRAME_CHUNK_HEADER_SIZE = 32;
+        
+        // .. Instance .........................................................
+        
+        // * = has public getters
+        protected long m_lngMagic;                //  0    [4 bytes]
+        protected long m_lngChunkNumber;          //* 4    [2 bytes]
+        protected long m_lngChunksInThisFrame;    //* 6    [2 bytes]
+        protected long m_lngFrameNumber;          //  8    [4 bytes]
+        protected long m_lngChunkDuration;        //  12   [4 bytes] (frame duration?)
+        protected long m_lngWidth;                //* 16   [2 bytes]
+        protected long m_lngHeight;               //* 18   [2 bytes]
+        protected long m_lngRunLengthCodeCount;   //  20   [2 bytes]
+        protected long m_lngHeader3800;           //  22   [2 bytes] always 0x3800
+        protected long m_lngQuantizationScale;    //  24   [2 bytes]
+        protected long m_lngVersion;              //  26   [2 bytes]
+        protected long m_lngFourZeros;            //  28   [4 bytes]
+        //   32 TOTAL
+        
+        public PSXSectorFF9Video(CDXASector oCD) throws NotThisTypeException {
+            super(oCD);
+            
+            if (!oCD.HasSectorHeader()) throw new NotThisTypeException();
+            if (oCD.getSubMode_Form() != 2) throw new NotThisTypeException();
+            if (oCD.getSubMode_Data() != 1) throw new NotThisTypeException();
+            
+            byte abSect[] = oCD.getSectorData();
+            DataInputStream oDIS =
+                    new DataInputStream(new ByteArrayInputStream(abSect));
+            try {
+                
+                m_lngMagic = IO.ReadUInt32LE(oDIS);
+                if (m_lngMagic != VIDEO_CHUNK_MAGIC)
+                    throw new NotThisTypeException();
+                
+                m_lngChunkNumber = IO.ReadUInt16LE(oDIS);
+                m_lngChunksInThisFrame = IO.ReadUInt16LE(oDIS);
+                // Note that reading these 32 bit values could overflow to -1
+                // if that should happen, then this couldn't be a frame chunk
+                m_lngFrameNumber = IO.ReadUInt32LE(oDIS);
+                if (m_lngFrameNumber == -1) // check for overflow
+                    throw new NotThisTypeException();
+                
+                m_lngChunkDuration = IO.ReadUInt32LE(oDIS);
+                if (m_lngChunkDuration == -1) // check for overflow
+                    throw new NotThisTypeException();
+                
+                m_lngWidth = IO.ReadUInt16LE(oDIS);
+                m_lngHeight = IO.ReadUInt16LE(oDIS);
+                m_lngRunLengthCodeCount = IO.ReadUInt16LE(oDIS);
+                
+                m_lngHeader3800 = IO.ReadUInt16LE(oDIS);
+                if (m_lngHeader3800 != 0x3800)
+                    throw new NotThisTypeException();
+                
+                m_lngQuantizationScale = IO.ReadUInt16LE(oDIS);
+                m_lngVersion = IO.ReadUInt16LE(oDIS);
+                if (m_lngVersion != 2)
+                    throw new NotThisTypeException();
+                m_lngFourZeros = IO.ReadUInt32LE(oDIS);
+                // the 4 zeros aren't always zero
+                //if (m_lngFourZeros != 0)
+                //    throw new NotThisTypeException();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                throw new NotThisTypeException();
+            }
+        }
+        
+        // .. Public functions .................................................
+        
+        public String toString() {
+            return "FF9Vid " + super.toString() +
+                String.format(
+                " frame:%d chunk:%d/%d %dx%d ver:%d " + 
+                "{dur=%d rlc=%d 3800=%04x qscale=%d 4*00=%08x}",
+                m_lngFrameNumber,
+                m_lngChunkNumber,
+                m_lngChunksInThisFrame,
+                m_lngWidth,
+                m_lngHeight,
+                m_lngVersion,
+                m_lngChunkDuration,
+                m_lngRunLengthCodeCount,
+                m_lngHeader3800,
+                m_lngQuantizationScale,
+                m_lngFourZeros
+                );
+        }
+        
+        public long getChunkNumber() {
+            return m_lngChunkNumber;
+        }
+        
+        public long getChunksInFrame() {
+            return m_lngChunksInThisFrame;
+        }
+        
+        public long getFrameNumber() {
+            return m_lngFrameNumber;
+        }
+        
+        public long getWidth() {
+            return m_lngWidth;
+        }
+        
+        public long getHeight() {
+            return m_lngHeight;
+        }
+        
+        /** Want to skip the frame header */
+        protected int getDemuxedDataStart(byte abUserData[]) {
+            return FRAME_CHUNK_HEADER_SIZE;
+        }
+        protected int getDemuxedDataLength(byte[] abUserData) {
+            return abUserData.length - FRAME_CHUNK_HEADER_SIZE;
+        }
+        
+    }
+    
+    public static class PSXSectorFF9Audio 
+            extends PSXSectorFF9Abstract 
+            implements IFF8or9AudioSector
+    {
+        
+        // .. Static stuff .....................................................
+        
+        public static final int FF9_AUDIO_CHUNK_MAGIC = 0x00080160;
+        public static final int FRAME_AUDIO_CHUNK_HEADER_SIZE = 224;
+        
+        // .. Instance .........................................................
+        
+        // * = has public getters
+        private long m_lngMagic;                //  0    [4 bytes]
+        private long m_lngChunkNumber;          //* 4    [2 bytes]
+        private long m_lngChunksInThisFrame;    //* 6    [2 bytes]
+        private long m_lngFrameNumber;          //  8    [4 bytes]
+        // 116 bytes unknown
+        private long m_lngUnkn;                 //       [4 bytes]
+        private long m_lngFrameNumSub1;         //       [4 bytes]
+        // 88 bytes unknown
+        //   224 TOTAL
+        
+        public PSXSectorFF9Audio(CDXASector oCD) throws NotThisTypeException {
+            super(oCD);
+            
+            if (!oCD.HasSectorHeader()) throw new NotThisTypeException();
+            if (oCD.getSubMode_Form() != 1) throw new NotThisTypeException();
+            if (oCD.getSubMode_Data() != 1) throw new NotThisTypeException();
+            
+            byte abSect[] = oCD.getSectorData();
+            DataInputStream oDIS =
+                    new DataInputStream(new ByteArrayInputStream(abSect));
+            try {
+                
+                m_lngMagic = IO.ReadUInt32LE(oDIS);
+                if (m_lngMagic != FF9_AUDIO_CHUNK_MAGIC)
+                    throw new NotThisTypeException();
+                
+                m_lngChunkNumber = IO.ReadUInt16LE(oDIS);
+                m_lngChunksInThisFrame = IO.ReadUInt16LE(oDIS);
+                // Note that reading these 32 bit values could overflow to -1
+                // if that should happen, then this couldn't be a frame chunk
+                m_lngFrameNumber = IO.ReadUInt32LE(oDIS);
+                if (m_lngFrameNumber == -1) // check for overflow
+                    throw new NotThisTypeException();
+                
+                oDIS.skipBytes(116);
+                
+                m_lngUnkn = IO.ReadUInt32LE(oDIS);
+                m_lngFrameNumSub1 = IO.ReadUInt32LE(oDIS);
+                
+                oDIS.skipBytes(72);
+                
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                throw new NotThisTypeException();
+            }
+        }
+        
+        // .. Public functions .................................................
+        
+        public String toString() {
+            return "FF9Aud " + super.toString() +
+                String.format(
+                " frame:%d chunk:%d/%d ?:%04x frame-1:%d",
+                m_lngFrameNumber,
+                m_lngChunkNumber,
+                m_lngChunksInThisFrame,
+                m_lngUnkn,
+                m_lngFrameNumSub1
+                );
+        }
+        
+        public long getChunkNumber() {
+            return m_lngChunkNumber;
+        }
+        
+        public long getChunksInFrame() {
+            return m_lngChunksInThisFrame;
+        }
+        
+        public long getFrameNumber() {
+            return m_lngFrameNumber;
+        }
+        
+        /** Want to skip the frame header */
+        protected int getDemuxedDataStart(byte abUserData[]) {
+            return FRAME_AUDIO_CHUNK_HEADER_SIZE;
+        }
+        protected int getDemuxedDataLength(byte[] abUserData) {
+            return abUserData.length - FRAME_AUDIO_CHUNK_HEADER_SIZE;
+        }
+        
+        /** @return 1 for left channel, 2 for right channel */
+        public int isLeftOrRightChannel() {
+            return (int)m_lngChunkNumber + 1;
+        }
+    }
+    
+    public static interface IFF8or9AudioSector {
+        int isLeftOrRightChannel();
     }
 }
 

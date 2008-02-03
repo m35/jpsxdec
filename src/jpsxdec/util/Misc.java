@@ -25,21 +25,15 @@
 
 package jpsxdec.util;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Vector;
 import javax.imageio.ImageIO;
 
 public final class Misc {
     
-    /** Returns a sorted array of available ImageIO formats, plus our own 
-     * special formats. */
+    /** Returns a sorted list of available ImageIO formats. */
     public static Vector<String> GetJavaImageFormats() {
         Vector<String> oValidFormats = new Vector<String>();
-        /*oValidFormats.add("yuv");
-        oValidFormats.add("y4m");
-        oValidFormats.add("demux");
-        oValidFormats.add("0rlc");*/
         String[] asReaderFormats = ImageIO.getReaderFormatNames();
         for (String s : asReaderFormats) {
             s = s.toLowerCase();
@@ -52,6 +46,8 @@ public final class Misc {
         return oValidFormats;
     }
     
+    /** Manual implementation of the Java 6 Array.copyOfRange function. 
+     *  Borrowed from some older Apache code. */
     public static byte[] copyOfRange(byte[] original, int from, int to) {
         int newLength = to - from;
         if (newLength < 0)

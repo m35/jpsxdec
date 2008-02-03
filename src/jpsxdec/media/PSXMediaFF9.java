@@ -20,7 +20,7 @@
  */
 
 /*
- * PSXMediaFF8.java
+ * PSXMediaFF9.java
  */
 
 package jpsxdec.media;
@@ -30,65 +30,60 @@ import java.io.IOException;
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.audiodecoding.FF8and9AudioDemuxerDecoderIS;
-import jpsxdec.demuxers.StrFrameDemuxerIS;
+import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.demuxers.FF9FrameDemuxerIS;
 import jpsxdec.sectortypes.PSXSector;
-import jpsxdec.sectortypes.PSXSector.PSXSectorFF8Abstract;
-import jpsxdec.sectortypes.PSXSector.PSXSectorFF8FrameChunk;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
+import jpsxdec.sectortypes.PSXSector.PSXSectorFF9Abstract;
 import jpsxdec.util.NotThisTypeException;
 
 
-public class PSXMediaFF8 extends PSXMedia implements VideoFrameConverter.IVideoMedia
-{
+public class PSXMediaFF9 extends PSXMedia {
     
     long m_lngStartFrame = -1;
     long m_lngEndFrame = -1;
-    boolean m_blnHasVideo = false;
     
-    public PSXMediaFF8(PSXSectorRangeIterator oSectIterator) 
-                throws NotThisTypeException, IOException
+    public PSXMediaFF9(PSXSectorRangeIterator oSectIterator) 
+                throws NotThisTypeException, IOException 
     {
         super(oSectIterator);
         
         PSXSector oPsxSect = oSectIterator.peekNext();
         
-        if (!(oPsxSect instanceof PSXSectorFF8Abstract))
+        if (!(oPsxSect instanceof PSXSectorFF9Abstract))
             throw new NotThisTypeException();
         
         if (DebugVerbose > 2)
             System.err.println(oPsxSect.toString());
         
-        PSXSectorFF8Abstract oFF8Sect;
+        PSXSectorFF9Abstract oFF9Sect;
         
-        oFF8Sect = (PSXSectorFF8Abstract)oPsxSect;
+        oFF9Sect = (PSXSectorFF9Abstract)oPsxSect;
 
         super.m_iStartSector = oPsxSect.getSector();
         super.m_iEndSector = m_iStartSector;
 
-        long iCurFrame = oFF8Sect.getFrameNumber();
-        m_lngStartFrame = oFF8Sect.getFrameNumber();
-        m_lngEndFrame = oFF8Sect.getFrameNumber();
+        long iCurFrame = oFF9Sect.getFrameNumber();
+        m_lngStartFrame = oFF9Sect.getFrameNumber();
+        m_lngEndFrame = oFF9Sect.getFrameNumber();
         
         oSectIterator.skipNext();
         while (oSectIterator.hasNext()) {
             oPsxSect = oSectIterator.peekNext();
             
-            if (oPsxSect instanceof PSXSectorFF8Abstract) {
+            if (oPsxSect instanceof PSXSectorFF9Abstract) {
                 
-                oFF8Sect = (PSXSectorFF8Abstract)oPsxSect;
-                if (oFF8Sect.getFrameNumber() == iCurFrame ||
-                    oFF8Sect.getFrameNumber() == iCurFrame+1) 
+                oFF9Sect = (PSXSectorFF9Abstract)oPsxSect;
+                if (oFF9Sect.getFrameNumber() == iCurFrame ||
+                    oFF9Sect.getFrameNumber() == iCurFrame+1) 
                 {
-                    iCurFrame = oFF8Sect.getFrameNumber();
+                    iCurFrame = oFF9Sect.getFrameNumber();
                     m_lngEndFrame = iCurFrame;
                 } else {
                     break;
                 }
                 
-                if (oPsxSect instanceof PSXSectorFF8FrameChunk)
-                    m_blnHasVideo = true;
                 m_iEndSector = oPsxSect.getSector();
             }  else {
                 break; // some other sector type? we're done.
@@ -101,19 +96,12 @@ public class PSXMediaFF8 extends PSXMedia implements VideoFrameConverter.IVideoM
         } // while
         
     }
-    
-    public PSXMediaFF8(CDSectorReader oCD, String sSerial) throws NotThisTypeException
+
+    public PSXMediaFF9(CDSectorReader oCD, String sSerial) throws NotThisTypeException
     {
-        super(oCD, sSerial, "FF8");
+        super(oCD, sSerial, "FF9");
         String asParts[] = sSerial.split(":");
-        if (asParts.length != 5)
-            throw new NotThisTypeException();
-        
-        if (asParts[4].equals("0"))
-            m_blnHasVideo = false;
-        else if (asParts[4].equals("1"))
-            m_blnHasVideo = true;
-        else
+        if (asParts.length != 4)
             throw new NotThisTypeException();
         
         String asStartEndFrame[] = asParts[3].split("-");
@@ -125,44 +113,34 @@ public class PSXMediaFF8 extends PSXMedia implements VideoFrameConverter.IVideoM
         }
     }
     
-    public PSXSectorRangeIterator getSectorIterator() {
+    public PSXSectorRangeIterator GetSectorIterator() {
         return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
     }
-    
+
     public String toString() {
-        return super.toString("FF8") + ":"
-                + m_lngStartFrame + "-" + m_lngEndFrame +
-                (m_blnHasVideo ? ":1" : ":0");
-    }
-    
-    public long getStartFrame() {
-        return m_lngStartFrame;
-    }
-    
-    public long getEndFrame() {
-        return m_lngEndFrame;
+        return super.toString("FF9") + ":"
+                + m_lngStartFrame + "-" + m_lngEndFrame;
     }
 
     public int getMediaType() {
-        if (m_blnHasVideo)
-            return PSXMedia.MEDIA_TYPE_VIDEO_AUDIO;
-        else
-            return PSXMedia.MEDIA_TYPE_AUDIO;
+        return PSXMedia.MEDIA_TYPE_VIDEO_AUDIO;
     }
     
+    @Override
+    public boolean hasVideo() {
+        return true;
+    }
+
     @Override
     public boolean hasAudio() {
         return true;
     }
 
     @Override
-    public boolean hasVideo() {
-        return m_blnHasVideo;
-    }
-
-    @Override
-    public void DecodeVideo(String sFileBaseName, String sImgFormat, Integer oiStartFrame, Integer oiEndFrame) {
-        PSXSectorRangeIterator oIter = getSectorIterator();
+    public void DecodeVideo(String sFileBaseName, String sImgFormat, 
+                            Integer oiStartFrame, Integer oiEndFrame) 
+    {
+        PSXSectorRangeIterator oIter = GetSectorIterator();
         
         long lngStart;
         if (oiStartFrame == null)
@@ -190,8 +168,8 @@ public class PSXMediaFF8 extends PSXMedia implements VideoFrameConverter.IVideoM
                     + "." + sImgFormat;
             try {
                 
-                StrFrameDemuxerIS str = 
-                        new StrFrameDemuxerIS(oIter, iFrameIndex);
+                FF9FrameDemuxerIS str = 
+                        new FF9FrameDemuxerIS(oIter, iFrameIndex);
                 
                 if (!super.Progress("Reading frame " + iFrameIndex, 
                         (iFrameIndex - lngStart) / (double)(lngEnd - lngStart)))
@@ -223,7 +201,8 @@ public class PSXMediaFF8 extends PSXMedia implements VideoFrameConverter.IVideoM
                 return;
             }
 
-            PSXSectorRangeIterator oIter = getSectorIterator();
+            PSXSectorRangeIterator oIter = GetSectorIterator();
+
             FF8and9AudioDemuxerDecoderIS dec =
                     odblScale == null ? new FF8and9AudioDemuxerDecoderIS(oIter)
                     : new FF8and9AudioDemuxerDecoderIS(oIter, odblScale);
@@ -240,5 +219,5 @@ public class PSXMediaFF8 extends PSXMedia implements VideoFrameConverter.IVideoM
             super.Error(ex);
         }
     }
-
+    
 }

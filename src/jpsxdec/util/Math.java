@@ -26,7 +26,7 @@
 package jpsxdec.util;
 
 /** The profiler was saying the Math.round() function was one of the slower
- *  functions, so I included these which are faster */
+ *  functions, so I included these which are faster. */
 public class Math {
     
     public static long round(double dbl) {

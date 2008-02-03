@@ -25,7 +25,6 @@
 
 package jpsxdec.audiodecoding;
 
-import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import java.io.IOException;
@@ -36,8 +35,8 @@ import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSector.*;
 import jpsxdec.util.AdvancedIOIterator;
 import jpsxdec.util.IO.Short2DArrayInputStream;
-import jpsxdec.audiodecoding.StrADPCMDecoder.ADPCMDecodingContext;
 
+/** Demuxes audio sectors together, and decodes them. */
 public class StrAudioDemuxerDecoderIS extends InputStream {
 
     public static int DebugVerbose = 2;
@@ -46,15 +45,34 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
+    /** Iterate through the sectors of the disc. */
     private AdvancedIOIterator<PSXSector> m_oPsxSectorIterator;
+    
+    /** Buffer to hold the current decoded PCM data that will be sent out
+     *  through the read() functon. This will be null when there is no
+     *  more data to be read. */
     private Short2DArrayInputStream m_oCurrentDecodedBuffer;
+    
+    /** How much to scale the decoded audio by before clamping */
     private double m_dblScale;
 
     /** Counts the number of samples decoded so far */
     long m_lngCurrentLengthInSamples = 0;
 
+    /** Channel to decode. */
     long m_lngChannel;
 
+    // keep the properties of the audio stream
+    long m_lngFile = -1;
+    int m_iBitsPerSample = -1;
+    int m_iSamplesPerSec = -1;
+    int m_iMonoStereo = -1;
+
+    /** Hold's up to 2 decoding contexts. If the audio is mono, then 
+     *  only 1 decoding context will be put in this array. If stereo,
+     *  then 2 decoding context will be put in this array. */
+    private ADPCMDecodingContext[] m_oAudioDecodingContexts = new ADPCMDecodingContext[2];
+    
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -77,16 +95,18 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
         this(oPsxIter, -1, dblScale);
     }
 
+    /** @param iChannel  Channel to decode. If -1, decodes the first channel found. */
     public StrAudioDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter, 
                                      int iChannel,
                                      double dblScale)
             throws IOException
     {
+        // save the properties
         m_dblScale = dblScale;
         m_oPsxSectorIterator = oPsxIter;
-
         m_lngChannel = iChannel;
         
+        // try to decode the first sector
         short[][] asiDecoded = FindAndDecodeNextSector(m_oPsxSectorIterator);
 
         if (asiDecoded == null)
@@ -100,27 +120,16 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
     /* ---------------------------------------------------------------------- */
 
     public long getLength() {
-        // since we're decoding one sector at a time, there's
-        // no way to determine the length ahead of time
-        //System.out.println(AudioSystem.NOT_SPECIFIED);
+        // I'd have to pre-calculate the length during indexing,
+        // but I don't really want to.
         return AudioSystem.NOT_SPECIFIED;
     }
 
-    public boolean HasAudio() {
+    /** Returns true if there is audio remaining to be read. */
+    public boolean hasAudio() {
         return m_oCurrentDecodedBuffer != null;
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Private Functions ---------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-
-    long m_lngFile = -1;
-    int m_iBitsPerSample = -1;
-    int m_iSamplesPerSec = -1;
-    int m_iMonoStereo = -1;
-
-    private ADPCMDecodingContext[] m_oAudioDecodingContexts = new ADPCMDecodingContext[2];
-    
     public AudioFormat getFormat() {
         return new AudioFormat(
                 m_iSamplesPerSec,
@@ -129,74 +138,8 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
                 true,      // signed
                 false);    // little-endian (not big-endian)            
     }
-
     
-    public short[][] FindAndDecodeNextSector(AdvancedIOIterator<PSXSector> oPsxSectorIter) throws IOException {
-        PSXSectorAudioChunk oAudSect;
-        oAudSect = FindNextMatchingSector(oPsxSectorIter);
-        if (oAudSect == null)
-            return null;
-
-        DataInputStream oDatStream = new DataInputStream(oAudSect);
-        short[][] asiDecoded = 
-                StrADPCMDecoder.DecodeMore(oDatStream, 
-                                           m_iBitsPerSample, 
-                                           m_iMonoStereo, 
-                                           m_oAudioDecodingContexts[0], 
-                                           m_oAudioDecodingContexts[1]);
-        return asiDecoded;
-    }
-
-    private PSXSectorAudioChunk FindNextMatchingSector(AdvancedIOIterator<PSXSector> oPsxSectorIter) throws IOException {
-
-        while (oPsxSectorIter.hasNext()) {
-
-            PSXSector oSector = oPsxSectorIter.next();
-
-            if (!(oSector instanceof PSXSectorAudioChunk)) continue;
-
-            PSXSectorAudioChunk oAudioSect = (PSXSectorAudioChunk)oSector;
-
-            // If this is the first sector we're looking at
-            if (m_oAudioDecodingContexts[0] == null) {
-                if (m_lngChannel < 0 || m_lngChannel == oAudioSect.getChannel()) 
-                {
-                    m_lngFile = oAudioSect.getFile();
-                    m_lngChannel = oAudioSect.getChannel();
-
-                    m_iBitsPerSample = oAudioSect.getBitsPerSample();
-                    m_iSamplesPerSec = oAudioSect.getSamplesPerSecond();
-                    m_iMonoStereo = oAudioSect.getMonoStereo();
-
-                    m_oAudioDecodingContexts[0] = new ADPCMDecodingContext(m_dblScale);
-                    if (m_iMonoStereo == 2)
-                        m_oAudioDecodingContexts[1] = new ADPCMDecodingContext(m_dblScale);
-                    else
-                        m_oAudioDecodingContexts[1] = null;
-
-                    return oAudioSect;
-                }
-
-            } else {
-                // Makre sure the next audio sector is compatable with existing audio
-                // (Spyro is known to suddenly change sample rate)
-                if (m_lngFile == oAudioSect.getFile() &&
-                    m_lngChannel == oAudioSect.getChannel() &&
-                    m_iBitsPerSample == oAudioSect.getBitsPerSample() &&
-                    m_iSamplesPerSec == oAudioSect.getSamplesPerSecond() &&
-                    m_iMonoStereo == oAudioSect.getMonoStereo())
-                {
-                    return oAudioSect;
-                }
-            }
-        }
-        return null;
-
-    }
-
-    // ..................................................................
-    
-    int m_iBytesRead = 0;
+    @Override /* [InputStream] */
     public int read() throws IOException {
         
         if (m_oCurrentDecodedBuffer == null) return -1;
@@ -204,9 +147,6 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
         int iByte = m_oCurrentDecodedBuffer.read();
         while (iByte < 0)
         {
-            if (DebugVerbose > 5)
-                System.out.println("Bytes read from sector: " + m_iBytesRead);
-            
             short[][] asiDecoded = FindAndDecodeNextSector(m_oPsxSectorIterator);
 
             if (asiDecoded == null) {
@@ -216,11 +156,90 @@ public class StrAudioDemuxerDecoderIS extends InputStream {
                 m_oCurrentDecodedBuffer = new Short2DArrayInputStream(asiDecoded);
             }
             
-            m_iBytesRead = 0;
             iByte = m_oCurrentDecodedBuffer.read(); // try again
         }
-        m_iBytesRead++;
+        
         return iByte;
+    }
+    
+    /* ---------------------------------------------------------------------- */
+    /* Private Functions ---------------------------------------------------- */
+    /* ---------------------------------------------------------------------- */
+
+    private short[][] FindAndDecodeNextSector(AdvancedIOIterator<PSXSector> oPsxSectorIter) throws IOException {
+        PSXSectorAudioChunk oAudSect;
+        // search for the next sector to decode
+        oAudSect = FindNextMatchingSector(oPsxSectorIter);
+        // return null if nothing found
+        if (oAudSect == null)
+            return null;
+
+        // now decode the data
+        DataInputStream oDatStream = new DataInputStream(oAudSect);
+        short[][] asiDecoded = 
+                StrADPCMDecoder.DecodeMore(oDatStream, 
+                                           m_iBitsPerSample, 
+                                           m_iMonoStereo, 
+                                           m_oAudioDecodingContexts[0], 
+                                           m_oAudioDecodingContexts[1]);
+        // and return it
+        return asiDecoded;
+    }
+
+    private PSXSectorAudioChunk FindNextMatchingSector(AdvancedIOIterator<PSXSector> oPsxSectorIter) throws IOException {
+
+        while (oPsxSectorIter.hasNext()) {
+            // get the next sector of the disc
+            PSXSector oSector = oPsxSectorIter.next();
+            // skip it if it's not audio
+            if (!(oSector instanceof PSXSectorAudioChunk)) continue;
+
+            PSXSectorAudioChunk oAudioSect = (PSXSectorAudioChunk)oSector;
+
+            // If this is the first sector we're looking at
+            if (m_oAudioDecodingContexts[0] == null) {
+                // and if it's the channel we want (or just accept it
+                // if we don't care about the channel)
+                if (m_lngChannel < 0 || m_lngChannel == oAudioSect.getChannel()) 
+                {
+                    // save properties of the audio sector
+                    m_lngFile = oAudioSect.getFile();
+                    m_lngChannel = oAudioSect.getChannel();
+                    m_iBitsPerSample = oAudioSect.getBitsPerSample();
+                    m_iSamplesPerSec = oAudioSect.getSamplesPerSecond();
+                    m_iMonoStereo = oAudioSect.getMonoStereo();
+
+                    // create the first decoding context
+                    m_oAudioDecodingContexts[0] = new ADPCMDecodingContext(m_dblScale);
+                    // and if it's stereo, create a second
+                    if (m_iMonoStereo == 2)
+                        m_oAudioDecodingContexts[1] = new ADPCMDecodingContext(m_dblScale);
+                    else
+                        m_oAudioDecodingContexts[1] = null;
+
+                    // return the matching sector
+                    return oAudioSect;
+                }
+
+            } else {
+                // Make sure the next audio sector is compatable with existing audio
+                // (e.g. Spyro is known to suddenly change sample rate)
+                // Note that this should have already been handled during
+                // indexing of the CD. But we'll do it here again just in case.
+                if (m_lngFile == oAudioSect.getFile() &&
+                    m_lngChannel == oAudioSect.getChannel() &&
+                    m_iBitsPerSample == oAudioSect.getBitsPerSample() &&
+                    m_iSamplesPerSec == oAudioSect.getSamplesPerSecond() &&
+                    m_iMonoStereo == oAudioSect.getMonoStereo())
+                {
+                    // return the matching sector
+                    return oAudioSect;
+                }
+            }
+        }
+        
+        // end of disc sectors. no more matches left
+        return null;
     }
 
 }

@@ -35,7 +35,7 @@ import jpsxdec.uncompressors.StrFrameUncompressorIS;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
-import jpsxdec.mdec.Yuv4mpeg2;
+import jpsxdec.mdec.PsxYuv;
 
 
 /** Class to decode the Lain poses from the LAPKS.BIN file */
@@ -74,7 +74,7 @@ public class Lain_LAPKS {
                             oCell, 
                             oCell.Width, 
                             oCell.Height);
-                Yuv4mpeg2 yuv =
+                PsxYuv yuv =
                         MDEC.DecodeFrame(
                             dec, 
                             dec.getWidth(), 
@@ -234,7 +234,7 @@ public class Lain_LAPKS {
         private LaPkCellIS(PkCellDescriptor oCell, RandomAccessFile oRAF) 
                 throws IOException 
         {
-            super(new byte[0]);
+            super(new byte[0]); // hafta call the ByteArrayInputStream constructor first
             this.buf = RealConstructor(oCell, oRAF);
             this.pos = 0;
             this.count = buf.length;
@@ -406,6 +406,7 @@ public class Lain_LAPKS {
                                                        long lngCellWidth, 
                                                        long lngCellHeight) 
     {
+        // TODO: it would be much better to use a Raster here
         BufferedImage bi = new BufferedImage(
                 (int)lngCellWidth, 
                 (int)lngCellHeight,

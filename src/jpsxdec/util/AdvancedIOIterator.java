@@ -28,8 +28,10 @@ package jpsxdec.util;
 import java.io.IOException;
 //import java.util.Iterator;
 
-/** An advanced iterator class for use with IO. Unfortunately it can't 
- *  extend Iterator class due to the need to throw IOException. */
+/** An advanced iterator class for use with IO. 
+ * It provides handy peeking and seeking powers.
+ * Unfortunately it can't extend Iterator class due to the need to 
+ * throw IOException. */
 public interface AdvancedIOIterator<T> /* extends Iterator<T> */ {
     T next() throws IOException;
     boolean hasNext();

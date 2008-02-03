@@ -20,7 +20,7 @@
  */
 
 /*
- * io.java
+ * IO.java
  */
 
 package jpsxdec.util;
@@ -32,7 +32,7 @@ import java.io.OutputStream;
 import java.io.RandomAccessFile;
 
 
-/** Functions to read little endian values from a stream. */
+/** Additional functions to read from a stream. */
 public final class IO {
     
     /** Function to read little-endian 16 bits from InputStream. 

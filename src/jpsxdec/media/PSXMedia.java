@@ -30,136 +30,25 @@ import java.io.*;
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFileFormat.Type;
 import jpsxdec.*;
-import jpsxdec.cdreaders.CDSectorReader.CDXASector;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
-import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.sectortypes.PSXSector.*;
+import jpsxdec.util.IProgressCallback;
 
 
 
 /** Abstract PSX media type. Constructors of sub-classes will attempt to
  *  deserialize a Playatation media item from CD sectors. */
-public abstract class PSXMedia {
-    
+public abstract class PSXMedia implements Comparable {
+
     public static int DebugVerbose = 2;
     
     public static final int MEDIA_TYPE_VIDEO = 1;
-    public static final int MEDIA_TYPE_VIDEO_AUDIO = 2;
+    public static final int MEDIA_TYPE_AUDIO = 2;
+    public static final int MEDIA_TYPE_VIDEO_AUDIO = 3;
     public static final int MEDIA_TYPE_XA = 4;
     public static final int MEDIA_TYPE_IMAGE = 8;
-    
-    
-    /** Finds all the media on the CD */
-    public static ArrayList<PSXMedia> IndexCD(CDSectorReader oCD)
-            throws IOException 
-    {
-        
-        PSXSectorRangeIterator oSectIterator = new PSXSectorRangeIterator(oCD);
-        
-        ArrayList<PSXMedia> oMediaList = new ArrayList<PSXMedia>();
-        
-        // If it doesn't even have 1 sector
-        if (!oSectIterator.hasNext()) return oMediaList;
-        
-        PSXMedia oPsxMedia = null;
-        while (oSectIterator.hasNext()) {
-            
-            try {
-                oPsxMedia = new PSXMediaSTR(oSectIterator);
-                if (DebugVerbose > 3)
-                    System.err.println(oPsxMedia.toString());
-                oMediaList.add(oPsxMedia);
-                if (!oSectIterator.hasNext()) break;
-            } catch (NotThisTypeException e1) {
-                try {
-                    oPsxMedia = new PSXMediaXA(oSectIterator);
-                    if (DebugVerbose > 3)
-                        System.err.println(oPsxMedia.toString());
-                    oMediaList.add(oPsxMedia);
-                    if (!oSectIterator.hasNext()) break;
-                } catch (NotThisTypeException e2) {
-                    try {
-                        oPsxMedia = new PSXMediaTIM(oSectIterator);
-                        if (DebugVerbose > 3)
-                            System.err.println(oPsxMedia.toString());
-                        oMediaList.add(oPsxMedia);
-                        if (!oSectIterator.hasNext()) break;
-                    } catch (NotThisTypeException e3) {
-                        try {
-                            oPsxMedia = new PSXMediaFF8(oSectIterator);
-                            if (DebugVerbose > 3)
-                                System.err.println(oPsxMedia.toString());
-                            oMediaList.add(oPsxMedia);
-                            if (!oSectIterator.hasNext()) break;
-                        } catch (NotThisTypeException e4) {
-                            if (!oSectIterator.hasNext()) break;
-                            oSectIterator.skipNext();
-                        }
-                    }
-                }
-            }
-            
-        }
-        
-        return oMediaList;
-    }
-    
-    /** Deserializes the CD index file, and creates a
-     *  list of media items on the CD */
-    public static ArrayList<PSXMedia> IndexCD(CDSectorReader oCD,
-                                              String sSerialFile)
-            throws IOException 
-    {
-        //TODO: Want to read as much as we can from the file before an exception
-        //      and return what we can get, but we also want to return that
-        //      there was an error.
-        
-        ArrayList<PSXMedia> oMediaList = new ArrayList<PSXMedia>();
-        
-        PSXMedia oPsxMedia = null;
-        BufferedReader oReader =
-                new BufferedReader(new FileReader(sSerialFile));
-        String sLine;
-        while ((sLine = oReader.readLine()) != null) {
-            
-            try {
-                if (sLine.substring(3, 8).equals(":STR:")) {
-                    oPsxMedia = new PSXMediaSTR(oCD, sLine);
-                    oMediaList.add(oPsxMedia);
-                } else if (sLine.substring(3, 7).equals(":XA:")) {
-                    oPsxMedia = new PSXMediaXA(oCD, sLine);
-                    oMediaList.add(oPsxMedia);
-                } else if (sLine.substring(3, 8).equals(":TIM:")) {
-                    oPsxMedia = new PSXMediaTIM(oCD, sLine);
-                    oMediaList.add(oPsxMedia);
-                }
-            } catch (NotThisTypeException e1) {}
-        }
-        oReader.close();
-        
-        return oMediaList;
-    }
-    
-    /** Serializes a list of media items to a file */
-    public static void SerializeMediaList(AbstractList<PSXMedia> oMediaList,
-                                          PrintStream oPrinter)
-            throws IOException 
-    {
-        oPrinter.println("# Lines that begin with # are comments");
-        oPrinter.println("# Format:");
-        oPrinter.println("#   media_num:STR:start_sector-end_sector:frame_start-frame_end:audio_sample_count");
-        oPrinter.println("#   media_num:XA:start_sector-end_sector:list,of,channels");
-        oPrinter.println("#   media_num:TIM:start_sector-end_sector:start_sector_offset");
-        oPrinter.println("#   media_num:FF8:start_sector-end_sector:frame_start-frame_end");
-        int i = 0;
-        for (PSXMedia oMedia : oMediaList) {
-            oPrinter.println(String.format("%03d:%s", i, oMedia.toString()));
-            i++;
-        }
-        oPrinter.close();
-    }
     
     /**************************************************************************/
     /**************************************************************************/
@@ -167,6 +56,8 @@ public abstract class PSXMedia {
     protected int m_iStartSector;
     protected int m_iEndSector;
     protected CDSectorReader m_oCD;
+    /** Index number of the media item in the file. */
+    private int m_iMediaIndex;
     
     public PSXMedia(PSXSectorRangeIterator oSectIterator) {
         m_oCD = oSectIterator.getSourceCD();
@@ -184,12 +75,29 @@ public abstract class PSXMedia {
             throw new NotThisTypeException();
         String asSectors[] = asParts[2].split("-");
         try {
+            m_iMediaIndex = Integer.parseInt(asParts[0]);
             m_iStartSector = Integer.parseInt(asSectors[0]);
             m_iEndSector = Integer.parseInt(asSectors[1]);
         } catch (NumberFormatException ex) {
             throw new NotThisTypeException();
         }
     }
+    
+    public int compareTo(Object o) {
+        if (o instanceof PSXMedia) {
+            PSXMedia om = (PSXMedia)o;
+            if (m_iMediaIndex < om.m_iMediaIndex)
+                return -1;
+            else if (m_iMediaIndex > om.m_iMediaIndex)
+                return 1;
+            else
+                return 0;
+        } else {
+            throw new IllegalArgumentException("PSXMedia.compareTo non-PSXMedia!");
+        }
+    }
+    
+    // ## Properties ###########################################################
     
     public long getStartSector() {
         return m_iStartSector;
@@ -198,19 +106,97 @@ public abstract class PSXMedia {
         return m_iEndSector;
     }
     
-    /** Extend this function for serializing */
-    public String toString() {
-        return m_iStartSector + "-" + m_iEndSector;
+    public int getIndex() {
+        return m_iMediaIndex;
+    }
+
+    public void setIndex(int m_iMediaIndex) {
+        this.m_iMediaIndex = m_iMediaIndex;
     }
     
-    abstract public int getMediaType();
+    /** Extend this function for serializing */
+    protected String toString(String sType) {
+        return String.format("%03d:%s:%d-%d",
+                m_iMediaIndex, sType, m_iStartSector, m_iEndSector);
+    }
     
-    /** Decodes the media to the disk uses the supplied options */
-    abstract public void Decode(Options oOpt) throws IOException;
+    // -------------------------------------------------------------------------
+    
+    private IProgressCallback m_oCallbackObj;
+    
+    public void setCallback(IProgressCallback oCallBk) {
+        m_oCallbackObj = oCallBk;
+    }
+    
+    protected boolean Progress(String sWhatDoing, double dblProgress) {
+        if (m_oCallbackObj instanceof IProgressCallback) {
+            return ((IProgressCallback)m_oCallbackObj).ProgressCallback(sWhatDoing, dblProgress);
+        }
+        return true;
+    }
+    
+    protected boolean Event(String sWhatHappen) {
+        if (m_oCallbackObj instanceof IProgressCallback.IProgressCallbackEvent) {
+            return ((IProgressCallback.IProgressCallbackEvent)m_oCallbackObj).ProgressCallback(sWhatHappen);
+        }
+        return true;
+    }
+    
+    protected void Error(Exception e) {
+        if (m_oCallbackObj instanceof IProgressCallback.IProgressCallbackError) {
+            ((IProgressCallback.IProgressCallbackError)m_oCallbackObj).ProgressCallback(e);
+        }
+    }
+    
+    
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    abstract public int getMediaType();
+
+    public void DecodeVideo(String sFileBaseName, String sImgFormat, Integer oiStartFrame, Integer oiEndFrame) {
+        throw new UnsupportedOperationException("This media type does not have video.");
+    }
+    public boolean hasVideo() {
+        return false;
+    }
+    
+    public void DecodeAudio(String sFileBaseName, String sAudFormat, Double odblScale) {
+        throw new UnsupportedOperationException("This media type does not have movie audio.");
+    }
+    public boolean hasAudio() {
+        return false;
+    }
+    
+    public void DecodeXA(String sFileBaseName, String sAudFormat, Double odblScale, Integer oiChannel) {
+        throw new UnsupportedOperationException("This media type does not have XA audio.");
+    }
+    public boolean hasXAChannels() {
+        return false;
+    }
+    
+    public void DecodeImage(String sFileBaseName, String sImgFormat) {
+        throw new UnsupportedOperationException("This media type is not an image.");
+    }
+    public boolean hasImage() {
+        return false;
+    }
+    
+    
+    
+    
+    
     
     // -------------------------------------------------------------------------
     // Stuff shared by more than one sub-class ---------------------------------
     // -------------------------------------------------------------------------
+    
+    protected static long Clamp(long iVal, long iMin, long iMax) {
+        if (iVal < iMin)
+            return iMin;
+        else if (iVal > iMax)
+            return iMax;
+        return iVal;
+    }
     
     /** Handy class to help with indexing audio. */
     protected static class AudioChannelInfo {
@@ -252,4 +238,5 @@ public abstract class PSXMedia {
         else
             return null;
     }
+
 }

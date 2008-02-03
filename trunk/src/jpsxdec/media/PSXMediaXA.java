@@ -88,9 +88,9 @@ public class PSXMediaXA extends PSXMedia {
                         AudioChannelInfo m_oAuInfo = aoChannelInfos[(int)oAudio.getChannel()];
                         
                         if (m_oAuInfo.BitsPerSampele != oAudio.getBitsPerSample() ||
-                                m_oAuInfo.SamplesPerSecond != oAudio.getSamplesPerSecond() ||
-                                m_oAuInfo.MonoStereo != oAudio.getMonoStereo() ||
-                                m_oAuInfo.Channel != oAudio.getChannel()) 
+                            m_oAuInfo.SamplesPerSecond != oAudio.getSamplesPerSecond() ||
+                            m_oAuInfo.MonoStereo != oAudio.getMonoStereo() ||
+                            m_oAuInfo.Channel != oAudio.getChannel()) 
                         {
                             break;
                         }
@@ -165,53 +165,60 @@ public class PSXMediaXA extends PSXMedia {
                 oSB.append(i);
             }
         }
-        return "XA:" + super.toString() + ":" + oSB.toString();
+        return super.toString("XA") + ":" + oSB.toString();
     }
 
     public int getMediaType() {
         return PSXMedia.MEDIA_TYPE_XA;
     }
 
-    public void Decode(Options oOpt) throws IOException {
-        if (!(oOpt instanceof Options.IXAOptions))
-            throw new IllegalArgumentException("Wrong Options type");
+    @Override
+    public boolean hasXAChannels() {
+        return true;
+    }
 
-        Options.IXAOptions oXAOpts = (Options.IXAOptions)oOpt;
-        
-        if (oXAOpts.getChannel() < -1 || oXAOpts.getChannel() > 31) 
-            throw new IllegalArgumentException();
+    @Override
+    public void DecodeXA(String sFileBaseName, String sAudFormat, Double odblScale, Integer oiChannel) {
         
         int iChannelStart, iChannelEnd, iChannelIndex;
         
-        if (oXAOpts.getChannel() == -1) { // decode all if the channel is -1
+        if (oiChannel == null) { // decode all if the channel is null
             iChannelStart = 0;
             iChannelEnd = 31;
-        } else if (oXAOpts.getChannel() >= 0 && oXAOpts.getChannel() <= 31) {
-            iChannelStart = iChannelEnd = oXAOpts.getChannel();
-        } else {
+        } else if (oiChannel >= 0 && oiChannel <= 31)
+            iChannelStart = iChannelEnd = oiChannel;
+        else
             throw new IllegalArgumentException("Invalid channel");
-        }
         
         AudioFileFormat.Type oType = 
-                super.AudioFileFormatStringToType(oXAOpts.getOutputFormat());
+                super.AudioFileFormatStringToType(sAudFormat);
         
         for (iChannelIndex = iChannelStart; iChannelIndex <= iChannelEnd; iChannelIndex++) {
             if (m_alngChannelHasAudio[iChannelIndex] == 0) continue;
             
-            System.err.println("Decoding channel " + iChannelIndex);
+            if (!super.Progress("Decoding channel " + iChannelIndex, 
+                    (iChannelIndex - iChannelStart) / 
+                         (double)(iChannelEnd - iChannelStart)
+                    ))
+                    return;
             
-            PSXSectorRangeIterator oIter =
-                    new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
-            StrAudioDemuxerDecoderIS dec = 
-                    new StrAudioDemuxerDecoderIS(oIter, iChannelIndex);
-            AudioInputStream str = 
-                    new AudioInputStream(dec, dec.getFormat(), dec.getLength());
-            
-            String sFileName = String.format(
-                    oXAOpts.getOutputFileName() + "." + oXAOpts.getOutputFormat(), 
-                    iChannelIndex);
-            
-            AudioSystem.write(str, oType, new File(sFileName));
+            try {
+                PSXSectorRangeIterator oIter =
+                        new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
+                StrAudioDemuxerDecoderIS dec =
+                        new StrAudioDemuxerDecoderIS(oIter, iChannelIndex);
+                AudioInputStream str =
+                        new AudioInputStream(dec, dec.getFormat(), dec.getLength());
+
+                String sFileName = String.format(
+                        sFileBaseName + "_c%02d." + sAudFormat,
+                        iChannelIndex);
+
+                AudioSystem.write(str, oType, new File(sFileName));
+
+            } catch (IOException ex) {
+                super.Error(ex);
+            }
         }
 
     }

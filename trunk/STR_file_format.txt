@@ -1,12 +1,13 @@
 
                    The Playstation 1 Video File (STR) Format
-                            v0.X40X draft,  Nov 2007
+                            v0.42 draft,  Jan 2008
+                      http://code.google.com/p/jpsxdec/
+                        http://jpsxdec.blogspot.com/
 
 --------------------------------------------------------------------------------
-This document copyright (c) 2007 Michael Sabin is licensed under the MIT License. Permission has been obtained 
+This document, copyright (c) 2008 Michael Sabin, is licensed under the MIT License. Permission has been obtained 
 (http://sourceforge.net/mailarchive/message.php?msg_name=474C4DEB.5080304%40multimedia.cx)
-to also include source code from the xine media player (in chapters 1.1, 2.1 and chapter 3) copyright (c) the xine project under the MIT License.
-The text of this licence is at the end of this file.
+to also include source code from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this licence is at the end of this file.
 --------------------------------------------------------------------------------
 History
 v0.2 draft
@@ -15,15 +16,21 @@ v0.21 draft
     - Corrected the Playstation default quantization matrix, which in turn fixed the mysterious divide-by-four in the dequantization step.
 v0.22 draft
     - Finished documenting FF8 movie format
-v0.30
+v0.30 draft
     - Obtained permission to use xine source code. This entire document now under modified MIT License.
     - ch 1.1: subcode.form is NOT unimportant
     - ch 2.2: Added what DC and AC stand for
-v0.40
-    - Changed license to the use the standard (unmodified) MIT License.
-    - ch 2.3.3: Corrected the Dequantization to use PSX equations.
+v0.40 draft
+    - Changed license to just use the standard (unmodified) MIT License.
     - ch 2.3.6: Corrected YUV -> RGB conversion to use PSX equations.
-    - ch 3.3: Added Final Fantasy 9 video format.
+    - ch 3.2: Checked and fixed FF8 audio decoding.
+    - ch 3.3: Added Final Fantasy 9 video format (untested).
+v0.41 draft
+    - ch 3.2: Added note about FF8 audio-only 'movie'.
+    - ch 3.3: Checked and fixed FF9 decoding.
+v0.42 draft
+    - ch 3.4: Added note that Lain DC Coefficients are handled in the normal
+              version 2 method.
 --------------------------------------------------------------------------------
 
 ##
@@ -61,7 +68,7 @@ v0.40
 Playstation 1 videos, usually with the extension STR, MOV, or BIN, contain compressed video data similar to an MPEG1 movie. It also contains interleaved audio.
 
 This document attempts to explain the decoding process of a single video frame. Audio is not covered in this document, but has already been documented by 
-Jonathan Atkins (http://freshmeat.net/projects/cdxa/).
+Jonathan Atkins (http://freshmeat.net/projects/cdxa/, mirrored at http://code.google.com/p/jpsxdec/downloads/list).
 
 Like MPEG1 streams, the decoding process is long, and rather complicated. Specifically, Chapters 2.2 and 2.3 closely resemble two aspects of MPEG1 decoding: translation of variable length codes, and macro-block decoding.
 
@@ -209,24 +216,25 @@ Each frame 'chunk' sector begins with 32 bytes of information, followed by 2012 
 
 Frame Chunk Header: [mostly from xine media player source code: demux_str.c]
   * all values are little-endian
-  - 32 bits; unknown -- usually 0x80010160 for a video frame.
+  - 4 bytes; unknown -- usually 0x80010160 for a video frame.
              according to PSX hardware guide, this value is written
              to mdec0 register:
              - bit 27: 1 for 16-bit colour, 0 for 24-bit colour depth
              - bit 24: if 16-bit colour, 1/0=set/clear transparency bit
              - all other bits unknown
-  - 16 bits; 'chunk number' of this video frame (0 to numchunks-1)
-  - 16 bits; number of chunks in this frame
-  - 32 bits; frame number (starts at 1)
-  - 32 bits; seemingly random number. frame duration?
-  - 16 bits; width of frame in pixels
-  - 16 bits; height of frame in pixels
-  - 16 bits; the number of run length codes in the frame?
+  - 2 bytes; 'chunk number' of this video frame (0 to numchunks-1)
+  - 2 bytes; number of chunks in this frame
+  - 4 bytes; frame number (starts at 1)
+  - 4 bytes; seemingly random number. frame duration?
+  - 2 bytes; width of frame in pixels
+  - 2 bytes; height of frame in pixels
+  - 2 bytes; the number of run length codes in the frame?
              or size of data (in bytes) following this header?
-  - 16 bits; always 0x3800
-  - 16 bits; frame's quantization scale
-  - 16 bits; version of the video frame (see next section)
-  - 32 bits; always 0x00000000
+  - 2 bytes; always 0x3800
+  - 2 bytes; frame's quantization scale
+  - 2 bytes; version of the video frame (see next section)
+  - 4 bytes; always 0x00000000
+Size of Frame Chunk Header: 32 bytes
 
 
 The video frame 'chunk data' from all the sectors related to the frame need to be appended together to form a solid stream.
@@ -253,11 +261,12 @@ At the highest level, a demultiplexed frame consists of:
 
 Frame Data Header & Macro-blocks:
   * all values are little-endian
-  - 16 bits; the number of run length codes in the frame?
+  - 2 bytes; the number of run length codes in the frame?
              or size of data (in bytes) following this header? (again)
-  - 16 bits; always 0x3800 (again)
-  - 16 bits; the frame's quantization scale (again)
-  - 16 bits; the version of the video frame (again)
+  - 2 bytes; always 0x3800 (again)
+  - 2 bytes; the frame's quantization scale (again)
+  - 2 bytes; the version of the video frame (again)
+Size of Frame Data Header: 8
 
   - Compressed macro block 1
   - Compressed macro block 2
@@ -995,6 +1004,8 @@ FF8 makes a large departure from how the data is stored in each sector.
 
 Each frame consists of 10 sectors. The first sector contains the left audio channel, the second contains the right audio channel. The remaining 8 sectors hold the video data for the frame. 10 sectors running at 2x speed (150 sectors/second) means 15 frames-per-second.
 
+There is at least one exception found on disc 1: a movie with no video. Each 'frame' consists of two sectors: the first is the left audio channel, the second is the right audio channel.
+
 ===============
 ==== Audio ====
 ===============
@@ -1017,7 +1028,7 @@ There are 105 Sound Groups per sector, 14 Sound Units per Sound Group, and 2 sam
 FF8 Sound Group:
     - 2 bytes;  sound parameters
     - 14 Sound Units
-        - 1 byte; ADPCM sound data, 4 bits-per-pixel (2 samples)
+        - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
 
 FF8 uses filter tables with one extra item:
     K0[5] = { 0.0, 0.9375, 1.796875,  1.53125,  1.90625 }
@@ -1093,11 +1104,9 @@ Video frames are always 320 x 224.
 ## 3.3. Final Fantasy IX
 ################################################################################
 
-// TODO: Check all this
-
 FF9 makes even a larger departure from how the data is stored in each sector.
 
-Like FF8, each frame consists of 10 sectors. The first sector contains the left audio channel?, the second contains the right audio channel?. The remaining 8 sectors hold the video data for the frame. 10 sectors running at 2x speed (150 sectors/second) means 15 frames-per-second.
+Like FF8, each frame consists of 10 sectors. The first sector contains the left audio channel, the second contains the right audio channel. The remaining 8 sectors hold the video data for the frame. 10 sectors running at 2x speed (150 sectors/second) means 15 frames-per-second.
 
 ===============
 ==== Audio ====
@@ -1106,16 +1115,19 @@ Like FF8, each frame consists of 10 sectors. The first sector contains the left 
 The two audio chunks are in *Mode 2 Form 1* sectors.
 
 FF9 Audio Chunk Header:
+  * all values are little-endian
   - 4 bytes; 0x00080160
   - 2 bytes; chunk number (0 to numchunks - 1)
   - 2 bytes; number of chunks (always 10?)
   - 4 bytes; frame number (starts at 1)
-  - 116 bytes; unknown (always the same?)
-  - 4 bytes; frame number - 1 ?
-  - 72 bytes; unknown (varies slightly)
-  - 1840 bytes; audio data
-  
-Audio like FF8 format?
+  - 116 bytes; unknown
+  - 4 bytes; Case 1: "AKAO" (big-endian)  Case 2: 0x00000000
+  - 4 bytes; Case 1: frame number - 1     Case 2: 0x00000000
+  - 88 bytes; unknown
+  - 1680 bytes; audio data
+  - 144 bytes; unknown
+
+The audio data is the same format as FF8. See the FF8 chapter for details.
 
 ===============
 ==== Video ====
@@ -1137,7 +1149,7 @@ FF9 Frame Chunk Header:
   - 2 bytes; 0x3800
   - 2 bytes; frame's quantization scale
   - 2 bytes; version of the video frame (always 2)
-  - 4 bytes; 0x00000000
+  - 4 bytes; Usually 0x00000000. In some movies Chunk #2 has an unknown value here.
   - 2292 bytes; Frame Chunk Data
 
 
@@ -1177,6 +1189,8 @@ The video frame version is always 0.
 The reason why the last movie doesn't have 0x3800 in the headers is beacuse it needs to know what frame it is showing, since it blacks-out video frames you have not seen yet.
 
 The bit stream data following the header is read in *BIG-ENDIAN* order.
+
+The DC coefficient is stored in the standard version 2 style.
 
 It uses a unique set of variable-length-codes:
 
@@ -1332,21 +1346,21 @@ The q-gears development team for their forums, source code, and documentation (h
 
 smf, developer for MAME, for figuring out that everyone was getting the order of CrCb wrong (http://smf.mameworld.info/?p=12).
 
-Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org/cdxa/  http://jonatkins.org/cdxa/).
+Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org/cdxa/  http://jonatkins.org/cdxa/, mirrored at http://code.google.com/p/jpsxdec/downloads/list).
 
 The PCSX Team, creators of one of the two open source Playstation emulators (http://www.pcsx.net/). This version of their mdec.c file is particularly useful http://www.koders.com/c/fidF23C1EAFCEAF84CA539927A01093D37D9695722A.aspx
 
 Developers of the pSX emulator. While not open source, at least it is still under active development, and provides a very nice debugger for reverse engineering games (http://psxemulator.gazaxian.com/).
 
-T_chan for sharing a bit of his knowledge about the FF9 format.
-
 "Fyiro", the Japanese fellow that wrote the source code for the PsxMC FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
+
+T_chan for sharing a bit of his knowledge about the FF9 format (http://www.network54.com/Forum/119865/thread/1196268797/last-1197023290/Final+Fantasy+9+Format).
 
 
 Finally, a very special thanks to all the Playstation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs are real men of genius.
 
 --------------------------------------------------------------------------------
-The MIT License
+Copyright (c) 2008 Michael Sabin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

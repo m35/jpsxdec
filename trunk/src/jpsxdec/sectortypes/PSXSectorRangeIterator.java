@@ -29,13 +29,21 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import jpsxdec.*;
 import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CDXASector;
 import jpsxdec.util.AdvancedIOIterator;
 
-/** Class to walk a range of sectors of a CD */
+/** Class to walk a range of sectors of a CD and automatically convert them
+ *  to PSXSectors before returning them. */
 public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     CDSectorReader m_oCD;
     int m_iSectorIndex;
     int m_iStartSector, m_iEndSector;
+    
+    /** Interface for callback classes. */
+    public static interface ICurrentSector {
+        void CurrentSector(int i);
+    }
+    ICurrentSector m_oCallBack;
 
     public PSXSectorRangeIterator(CDSectorReader oCD) {
         this(oCD, 0, oCD.size()-1);
@@ -63,15 +71,17 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
 
     public PSXSector next() throws IOException {
         if (!hasNext()) throw new NoSuchElementException();
-        PSXSector oSect;
-        oSect = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
+        CDXASector oCDSect = m_oCD.getSector(m_iSectorIndex);
+        PSXSector oPSXSect = PSXSector.SectorIdentifyFactory(oCDSect);
         m_iSectorIndex++;
-        return oSect;
+        if (m_oCallBack != null) m_oCallBack.CurrentSector(m_iSectorIndex);
+        return oPSXSect;
     }
     
     public void skipNext() {
         if (!hasNext()) throw new NoSuchElementException();
         m_iSectorIndex++;
+        if (m_oCallBack != null) m_oCallBack.CurrentSector(m_iSectorIndex);
     }
 
     
@@ -85,6 +95,11 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     }
 
     public void remove() {throw new UnsupportedOperationException();}
+    
+    /** Set a callback for whenever the sector is incremented. */
+    public void setCallback(ICurrentSector oCallbk) {
+        m_oCallBack = oCallbk;
+    }
 
 }
 

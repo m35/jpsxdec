@@ -43,11 +43,16 @@ import jpsxdec.util.NotThisTypeException;
 
 public class PSXMediaTIM extends PSXMedia {
     
+    int m_iStartOffset;
+    
     public PSXMediaTIM(PSXSectorRangeIterator oSectIterator) throws NotThisTypeException, IOException
     {
         super(oSectIterator);
-        // TODO: search for TIM files at places other than the start of a sector
+        
         PSXSector oPsxSect = oSectIterator.peekNext();
+        
+        // TODO: search for TIM files at places other than the start of a sector
+        m_iStartOffset = 0;
         
         if (!(oPsxSect instanceof PSXSectorUnknownData))
             throw new NotThisTypeException();
@@ -78,7 +83,7 @@ public class PSXMediaTIM extends PSXMedia {
 
             // if we made it this far, then we have ourselves
             // a TIM file (probably). Save the end sector
-            m_iEndSector = oSectIterator.getIndex();
+            m_iEndSector = oSectIterator.getIndex(); // TODO: Get the sector from the item, not the iterator
         }  catch (EOFException ex) {
             throw new NotThisTypeException();
         }
@@ -92,7 +97,7 @@ public class PSXMediaTIM extends PSXMedia {
         String asParts[] = sSerial.split(":");
         
         try {
-            int iStartOffset = Integer.parseInt(asParts[3]);
+            m_iStartOffset = Integer.parseInt(asParts[3]);
         }  catch (NumberFormatException ex) {
             throw new NotThisTypeException();
         }
@@ -103,31 +108,37 @@ public class PSXMediaTIM extends PSXMedia {
     }
     
     public String toString() {
-        return "TIM:" + super.toString() + ":0";
+        return super.toString("TIM") + ":" + m_iStartOffset;
     }
 
     public int getMediaType() {
         return PSXMedia.MEDIA_TYPE_IMAGE;
     }
 
-    public void Decode(Options oOpt) throws IOException {
-        if (!(oOpt instanceof Options.IImageOptions))
-            throw new IllegalArgumentException("Wrong Options type");
-        
-        Options.IImageOptions oImgOpts = (Options.IImageOptions)oOpt;
+    @Override
+    public boolean hasImage() {
+        return true;
+    }
+
+    @Override
+    public void DecodeImage(String sFileBaseName, String sImgFormat) {
         
         PSXSectorRangeIterator oSectIter = GetSectorIterator();
         
         String sImgFile =
-                oImgOpts.getOutputFileName() + "." + oImgOpts.getOutputImageFormat();
+                sFileBaseName + "_p%02d." + sImgFormat;
         
         try {
             InputStream oIS = new UnknownDataDemuxerIS(oSectIter);
             Tim oTim = new Tim(oIS);
             for (int i = 0; i < oTim.getPaletteCount(); i++) {
+                if (!super.Progress("Decoding TIM palette " + i, 
+                        (double)i / oTim.getPaletteCount())) 
+                    return;
+        
                 ImageIO.write(
                       oTim.toBufferedImage(i),
-                      oImgOpts.getOutputImageFormat(),
+                      sImgFormat,
                       new File(String.format(sImgFile, i)));
             }
 
@@ -144,4 +155,5 @@ public class PSXMediaTIM extends PSXMedia {
         }
 
     }
+
 }

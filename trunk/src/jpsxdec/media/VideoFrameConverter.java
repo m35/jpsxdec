@@ -32,9 +32,10 @@ import javax.imageio.ImageIO;
 import jpsxdec.*;
 import jpsxdec.mdec.MDEC;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
-import jpsxdec.mdec.Yuv4mpeg2;
+import jpsxdec.mdec.PsxYuv;
 import jpsxdec.demuxers.StrFrameDemuxerIS;
 import jpsxdec.uncompressors.StrFrameUncompressorIS;
+import jpsxdec.util.IWidthHeight;
 
 /** Tries to make frame-by-frame decoding a little easier. Currently not used
  *  except for the static functions. */
@@ -49,14 +50,10 @@ public class VideoFrameConverter {
             throws IOException 
     {
         
-        if (str instanceof StrFrameDemuxerIS) {
-            lngWidth = ((StrFrameDemuxerIS)str).getWidth();
-            lngHeight = ((StrFrameDemuxerIS)str).getHeight();
-        } else if (str instanceof StrFrameUncompressorIS) {
-            lngWidth = ((StrFrameUncompressorIS)str).getWidth();
-            lngHeight = ((StrFrameUncompressorIS)str).getHeight();
+        if (str instanceof IWidthHeight) {
+            lngWidth = ((IWidthHeight)str).getWidth();
+            lngHeight = ((IWidthHeight)str).getHeight();
         }
-            
         
         if (sInputFormat.equals("demux")) {
 
@@ -81,7 +78,7 @@ public class VideoFrameConverter {
 
         }
         
-        Yuv4mpeg2 oYuv = MDEC.DecodeFrame(str, lngWidth, lngHeight);
+        PsxYuv oYuv = MDEC.DecodeFrame(str, lngWidth, lngHeight);
         if (sOutputFormat.equals("yuv") || sOutputFormat.equals("y4m")) {
             FileOutputStream fos = new FileOutputStream(sFrameFile);
             oYuv.Write(fos);
@@ -113,9 +110,9 @@ public class VideoFrameConverter {
     // #########################################################################
     
     public static interface IVideoMedia {
-        long GetStartFrame();
-        long GetEndFrame();
-        jpsxdec.sectortypes.PSXSectorRangeIterator GetSectorIterator();
+        long getStartFrame();
+        long getEndFrame();
+        jpsxdec.sectortypes.PSXSectorRangeIterator getSectorIterator();
     }
     
     // #########################################################################
@@ -140,9 +137,9 @@ public class VideoFrameConverter {
     private int m_iSaveIndex2;
         
     public VideoFrameConverter(IVideoMedia oMedia) {
-        m_oIter = oMedia.GetSectorIterator();
-        m_lngFirstFrame = oMedia.GetStartFrame();
-        m_lngLastFrame = oMedia.GetEndFrame();
+        m_oIter = oMedia.getSectorIterator();
+        m_lngFirstFrame = oMedia.getStartFrame();
+        m_lngLastFrame = oMedia.getEndFrame();
         m_lngCurFrame = m_lngFirstFrame;
         
         m_iSaveIndex1 = m_oIter.getIndex();

@@ -38,9 +38,11 @@ import jpsxdec.util.NotThisTypeException;
 
 /** Handles standard STR movies, and STR movies that deviate slightly from
  *  standard STR movies: Lain and FF7 */
-public class PSXMediaSTR extends PSXMedia implements VideoFrameConverter.IVideoMedia  {
+public class PSXMediaSTR extends PSXMedia 
+        implements VideoFrameConverter.IVideoMedia
+{
     
-    //** 0 if it doesn't have audio, nonzero if it does */
+    /** 0 if it doesn't have audio, nonzero if it does */
     long m_lngAudioSampleLength = 0;
     
     long m_iCurFrame = -1;
@@ -87,58 +89,58 @@ public class PSXMediaSTR extends PSXMedia implements VideoFrameConverter.IVideoM
             if (oPsxSect instanceof PSXSectorNull) {
                 // just skip it
             } else if (oPsxSect instanceof PSXSectorAudio2048) {
-                    // just skip it
-                } else if (oPsxSect instanceof PSXSectorFrameChunk) {
+                // just skip it
+            } else if (oPsxSect instanceof PSXSectorFrameChunk) {
                         
-                        oFrame = (PSXSectorFrameChunk) oPsxSect;
-                        if (oFrame.getWidth() == m_iWidth &&
-                                oFrame.getHeight() == m_iHeight &&
-                                (oFrame.getFrameNumber() == m_iCurFrame ||
-                                oFrame.getFrameNumber() == m_iCurFrame+1)) {
-                            
-                            m_iCurFrame = oFrame.getFrameNumber();
-                            m_lngEndFrame = m_iCurFrame;
-                        } else {
+                oFrame = (PSXSectorFrameChunk) oPsxSect;
+                if (oFrame.getWidth() == m_iWidth &&
+                        oFrame.getHeight() == m_iHeight &&
+                        (oFrame.getFrameNumber() == m_iCurFrame ||
+                        oFrame.getFrameNumber() == m_iCurFrame+1)) {
+
+                    m_iCurFrame = oFrame.getFrameNumber();
+                    m_lngEndFrame = m_iCurFrame;
+                } else {
+                    break;
+                }
+
+                m_iEndSector = oPsxSect.getSector();
+            }  else if (oPsxSect instanceof PSXSectorAudioChunk) {
+                    oAudio = (PSXSectorAudioChunk) oPsxSect;
+
+                    if (oAudInf != null) {
+
+                        if (oAudio.getMonoStereo() != oAudInf.MonoStereo ||
+                            oAudio.getSamplesPerSecond() != oAudInf.SamplesPerSecond ||
+                            oAudio.getBitsPerSample() != oAudInf.BitsPerSampele ||
+                            oAudio.getChannel() != oAudInf.Channel) 
+                        {
                             break;
                         }
-                        
-                        m_iEndSector = oPsxSect.getSector();
-                    }  else                        if (oPsxSect instanceof PSXSectorAudioChunk) {
-                            oAudio = (PSXSectorAudioChunk) oPsxSect;
-                            
-                            if (oAudInf != null) {
-                                
-                                if (oAudio.getMonoStereo() != oAudInf.MonoStereo ||
-                                    oAudio.getSamplesPerSecond() != oAudInf.SamplesPerSecond ||
-                                    oAudio.getBitsPerSample() != oAudInf.BitsPerSampele ||
-                                    oAudio.getChannel() != oAudInf.Channel) 
-                                {
-                                    break;
-                                }
-                                
-                                if ((oPsxSect.getSector() - oAudInf.LastAudioSect) != iAudioPeriod) {
-                                    //break;
-                                }
-                                
-                                oAudInf.LastAudioSect = oPsxSect.getSector();
-                                
-                                m_lngAudioSampleLength += oAudio.getSampleLength();
-                                
-                            } else {
-                                iAudioPeriod = oPsxSect.getSector() - m_iStartSector + 1;
-                                
-                                oAudInf = new AudioChannelInfo();
-                                oAudInf.LastAudioSect = oPsxSect.getSector();
-                                oAudInf.MonoStereo = oAudio.getMonoStereo();
-                                oAudInf.SamplesPerSecond = oAudio.getSamplesPerSecond();
-                                oAudInf.BitsPerSampele = oAudio.getBitsPerSample();
-                                oAudInf.Channel = oAudio.getChannel();
-                            }
-                            
-                            m_iEndSector = oPsxSect.getSector();
-                        }  else {
-                            break; // some other sector type? we're done.
+
+                        if ((oPsxSect.getSector() - oAudInf.LastAudioSect) != iAudioPeriod) {
+                            //break;
                         }
+
+                        oAudInf.LastAudioSect = oPsxSect.getSector();
+
+                        m_lngAudioSampleLength += oAudio.getSampleLength();
+
+                    } else {
+                        iAudioPeriod = oPsxSect.getSector() - m_iStartSector + 1;
+
+                        oAudInf = new AudioChannelInfo();
+                        oAudInf.LastAudioSect = oPsxSect.getSector();
+                        oAudInf.MonoStereo = oAudio.getMonoStereo();
+                        oAudInf.SamplesPerSecond = oAudio.getSamplesPerSecond();
+                        oAudInf.BitsPerSampele = oAudio.getBitsPerSample();
+                        oAudInf.Channel = oAudio.getChannel();
+                    }
+
+                    m_iEndSector = oPsxSect.getSector();
+                }  else {
+                    break; // some other sector type? we're done.
+                }
             
             if (oPsxSect != null && DebugVerbose > 2)
                 System.err.println(oPsxSect.toString());
@@ -165,29 +167,25 @@ public class PSXMediaSTR extends PSXMedia implements VideoFrameConverter.IVideoM
         }
     }
     
-    public boolean HasAudio() {
-        return m_lngAudioSampleLength != 0;
-    }
-    
-    public PSXSectorRangeIterator GetSectorIterator() {
+    public PSXSectorRangeIterator getSectorIterator() {
         return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
     }
     
-    public long GetAudioSampleLength() {
+    public long getAudioSampleLength() {
         return m_lngAudioSampleLength;
     }
     
     public String toString() {
-        return "STR:" + super.toString() + ":"
+        return super.toString("STR") + ":"
                 + m_lngStartFrame + "-" + m_lngEndFrame + ":" 
                 + m_lngAudioSampleLength;
     }
     
-    public long GetStartFrame() {
+    public long getStartFrame() {
         return m_lngStartFrame;
     }
     
-    public long GetEndFrame() {
+    public long getEndFrame() {
         return m_lngEndFrame;
     }
 
@@ -199,90 +197,283 @@ public class PSXMediaSTR extends PSXMedia implements VideoFrameConverter.IVideoM
             return PSXMedia.MEDIA_TYPE_VIDEO_AUDIO;
     }
 
-    public void Decode(Options oOpt) throws IOException {
-        if (oOpt instanceof Options.IVideoOptions)
-            DecodeVideo((Options.IVideoOptions)oOpt);
-        else if (oOpt instanceof Options.IAudioOptions)
-            DecodeAudio((Options.IAudioOptions)oOpt);
-        else
-            throw new IllegalArgumentException("Wrong Options type");
+    @Override
+    public boolean hasVideo() {
+        return true;
     }
-    
-    // -------------------------------------------------------------------------
-    
-    private void DecodeVideo(Options.IVideoOptions oVidOpts) throws IOException {
+
+    @Override
+    public boolean hasAudio() {
+        if (m_lngAudioSampleLength == 0)
+            return false;
+        else
+            return true;
+    }
+
+    @Override
+    public void DecodeVideo(String sFileBaseName, String sImgFormat, Integer oiStartFrame, Integer oiEndFrame)
+    {
         
-        long lngStart = 
-                VideoFrameConverter.ClampStartFrame(oVidOpts.getStartFrame(), m_lngStartFrame, m_lngEndFrame);
-        
-        long lngEnd =
-                VideoFrameConverter.ClampEndFrame(oVidOpts.getEndFrame(), m_lngStartFrame, m_lngEndFrame);
-        
+        long lngStart;
+        if (oiStartFrame == null)
+            lngStart = m_lngStartFrame;
+        else
+            lngStart = super.Clamp(oiStartFrame, m_lngStartFrame, m_lngEndFrame);
+            
+        long lngEnd;
+        if (oiEndFrame == null)
+            lngEnd = m_lngEndFrame;
+        else
+            lngEnd = super.Clamp(oiEndFrame, m_lngStartFrame, m_lngEndFrame);
+            
         if (lngStart > lngEnd) {
             long lng = lngStart;
             lngStart = lngEnd;
             lngEnd = lng;
         }
         
-        PSXSectorRangeIterator oIter = GetSectorIterator();
-        int iSaveIndex1 = oIter.getIndex();
-        int iSaveIndex2 = iSaveIndex1;
+        PSXSectorRangeIterator oIter = getSectorIterator();
         
         for (long iFrameIndex = lngStart; iFrameIndex <= lngEnd; iFrameIndex++) 
         {
             String sFrameFile = 
-                    String.format(oVidOpts.getOutputFileName(), iFrameIndex)
-                    + "." + oVidOpts.getOutputImageFormat();
+                    sFileBaseName + 
+                    String.format("_f%04d", iFrameIndex)
+                    + "." + sImgFormat;
             try {
                 
-                oIter.gotoIndex(iSaveIndex1);
                 StrFrameDemuxerIS str = 
                         new StrFrameDemuxerIS(oIter, iFrameIndex);
                 
-                if (DebugVerbose > 0)
-                    System.err.println("Reading frame " + iFrameIndex);
+                if (!super.Progress("Reading frame " + iFrameIndex, 
+                        (iFrameIndex - lngStart) / (double)(lngEnd - lngStart)))
+                    return;
 
                 VideoFrameConverter.DecodeAndSaveFrame(
                         "demux",
-                        oVidOpts.getOutputImageFormat(),
+                        sImgFormat,
                         str,
                         sFrameFile,
                         -1,
                         -1);
                 
-                // if the iterator was searched to the end, we don't
-                // want to save the end sector (or we'll miss sectors
-                // before it). This can happen when saving as demux because 
-                // it has to search to the end of the stream
-                if (oIter.hasNext()) {
-                    iSaveIndex1 = iSaveIndex2;
-                    iSaveIndex2 = oIter.getIndex();
-                }
-
             } catch (IOException ex) {
                 if (DebugVerbose > 2)
-                    ex.printStackTrace();
-                else if (DebugVerbose > 0)
-                    System.err.println(ex.getMessage());
+                    ex.printStackTrace(System.err);
+                super.Error(ex);
             }
 
         } // for
         
     }
     
-    private void DecodeAudio(Options.IAudioOptions oAudOpts) throws IOException {
-        if (m_lngAudioSampleLength == 0) return;
-        
-        PSXSectorRangeIterator oIter = GetSectorIterator();
-        StrAudioDemuxerDecoderIS dec = 
-                new StrAudioDemuxerDecoderIS(oIter, oAudOpts.getScale());
-        AudioInputStream oAudStream = new AudioInputStream(dec, dec.getFormat(), dec.getLength());
-        
-        String sFileName = oAudOpts.getOutputFileName() + "." + oAudOpts.getOutputFormat();
-        
-        AudioFileFormat.Type oType = super.AudioFileFormatStringToType(oAudOpts.getOutputFormat());
-        
-        AudioSystem.write(oAudStream, oType, new File(sFileName));
+    @Override
+    public void DecodeAudio(String sFileBaseName, String sAudFormat, Double odblScale)
+    {
+        try {
+            if (!super.Progress("Decoding movie audio", 0)) {
+                return;
+            }
+
+            PSXSectorRangeIterator oIter = getSectorIterator();
+            StrAudioDemuxerDecoderIS dec =
+                    odblScale == null ? new StrAudioDemuxerDecoderIS(oIter)
+                    : new StrAudioDemuxerDecoderIS(oIter, odblScale);
+
+            AudioInputStream oAudStream = new AudioInputStream(dec, dec.getFormat(), dec.getLength());
+
+            String sFileName = sFileBaseName + "." + sAudFormat;
+
+            AudioFileFormat.Type oType = super.AudioFileFormatStringToType(sAudFormat);
+
+            AudioSystem.write(oAudStream, oType, new File(sFileName));
+
+        } catch (IOException ex) {
+            super.Error(ex);
+        }
     }
 
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    
+    public String CalculateFrameRateBase() {
+        try {
+            PSXSectorRangeIterator oIter = getSectorIterator();
+            int iStartSector = oIter.getIndex();
+
+            // first get the audio period (should be consistent)
+            int iAudioPeriod = -1;
+            int iStartFrmNum = -1;
+            int iSampPerSec = -1;
+            int iMonoStereo = -1;
+            
+            // should also check if there are 2 or more complete frames
+            int iFrameChunks = -1;
+            while (oIter.hasNext() && iAudioPeriod < 0) {
+                int iCurSect = oIter.getIndex();
+                PSXSector oSect = oIter.next();
+                if (oSect instanceof PSXSectorAudioChunk) {
+                    PSXSectorAudioChunk oAudChk = (PSXSectorAudioChunk) oSect;                   
+                    iAudioPeriod = iCurSect - iStartSector + 1;
+                    iSampPerSec = oAudChk.getSamplesPerSecond();
+                    iMonoStereo = oAudChk.getMonoStereo();
+                    // samples/second
+                    break;
+                } else if (oSect instanceof PSXSectorFrameChunk) {
+                    PSXSectorFrameChunk oFrmChk = (PSXSectorFrameChunk)oSect;
+                    if (iStartFrmNum < 0)
+                        iStartFrmNum = (int)oFrmChk.getFrameNumber();
+                    
+                    if (iFrameChunks == -1)
+                        iFrameChunks = (int)oFrmChk.getChunksInFrame();
+                    else if (iFrameChunks >= 0)
+                        if (iFrameChunks != oFrmChk.getChunksInFrame())
+                            iFrameChunks = -2;
+                }
+            }
+
+            if (iAudioPeriod < 0) {
+                if (iStartFrmNum < 0)
+                    throw new IOException("no audio or video found in this clip.");
+                else {
+                    if (iFrameChunks >= 0)
+                        return "no audio, consistent period " + iFrameChunks;
+                    else
+                        return "no audio, inconsistent period";
+                }
+            }
+                
+
+            // now try to find the frame period (via trial & error)
+            periodloop:
+            for (int iFramePeriod : new int[] {15, 10, 5}) 
+            {
+
+                oIter.gotoIndex(iStartSector);
+
+                int iLastAudioSect = iStartSector - 1;
+                int iThisFrameChunk = 0;
+                int iThisFrame = iStartFrmNum;
+                int iThisPeriodSize;
+                iThisPeriodSize = iFramePeriod;
+
+                while (oIter.hasNext()) {
+
+                    for (int i = 0; (i < iThisPeriodSize) && oIter.hasNext(); i++) {
+                        int iCurSect = oIter.getIndex();
+                        PSXSector oSect = oIter.next();
+
+                        if (oSect instanceof PSXSectorAudioChunk) {
+                            if (iCurSect - iLastAudioSect != iAudioPeriod)
+                                throw new IOException("audio doesn't match period");
+                            iLastAudioSect = iCurSect;
+
+                        } else if (oSect instanceof PSXSectorFrameChunk) {
+                            PSXSectorFrameChunk oFrmChk = (PSXSectorFrameChunk)oSect;
+
+                            if (iThisFrameChunk != oFrmChk.getChunkNumber())
+                                continue periodloop;
+
+                            if (iThisFrame != oFrmChk.getFrameNumber())
+                                continue periodloop;
+
+                            iThisFrameChunk++;
+                        }
+                    }
+                    iThisFrameChunk = 0;
+                    iThisFrame++;
+                    iThisPeriodSize = iFramePeriod;
+                    
+                } //while
+
+                return "Confirmed period " + iFramePeriod;
+
+            }
+
+            return "Failed to identify";
+            
+        } catch (IOException ex) {
+            return ex.getMessage();
+        }
+    }
+    
+    public String CalculateFrameRateWacked() {
+        try {
+            PSXSectorRangeIterator oIter = getSectorIterator();
+            int iStartSector = oIter.getIndex();
+
+            // first get the audio period (should be consistent)
+            int iAudioPeriod = -1;
+            int iStartFrmNum = -1;
+            int iSampPerSec = -1;
+            int iMonoStereo = -1;
+            
+            // should also check if there are 2 or more complete frames
+            int iFrameChunks = -1;
+            while (oIter.hasNext() && iAudioPeriod < 0) {
+                int iCurSect = oIter.getIndex();
+                PSXSector oSect = oIter.next();
+                if (oSect instanceof PSXSectorAudioChunk) {
+                    PSXSectorAudioChunk oAudChk = (PSXSectorAudioChunk) oSect;                   
+                    iAudioPeriod = iCurSect - iStartSector + 1;
+                    iSampPerSec = oAudChk.getSamplesPerSecond();
+                    iMonoStereo = oAudChk.getMonoStereo();
+                    // samples/second
+                    break;
+                } else if (oSect instanceof PSXSectorFrameChunk) {
+                    PSXSectorFrameChunk oFrmChk = (PSXSectorFrameChunk)oSect;
+                    if (iStartFrmNum < 0)
+                        iStartFrmNum = (int)oFrmChk.getFrameNumber();
+                    
+                    if (iFrameChunks == -1)
+                        iFrameChunks = (int)oFrmChk.getChunksInFrame();
+                    else if (iFrameChunks >= 0)
+                        if (iFrameChunks != oFrmChk.getChunksInFrame())
+                            iFrameChunks = -2;
+                }
+            }
+
+            if (iAudioPeriod < 0) {
+                if (iStartFrmNum < 0)
+                    throw new IOException("no audio or video found in this clip.");
+                else {
+                    if (iFrameChunks >= 0)
+                        return "no audio, consistent period " + iFrameChunks;
+                    else
+                        return "no audio, inconsistent period";
+                }
+            }
+                
+            oIter.gotoIndex(iStartSector);
+            int iLastSectorLastFrame = -1;
+            boolean blnCouldBeOneMore = false;
+            while (oIter.hasNext()) {
+                int iCurSect = oIter.getIndex();
+                PSXSector oSect = oIter.next();
+
+                if (oSect instanceof PSXSectorFrameChunk) {
+                    PSXSectorFrameChunk oFrmChk = (PSXSectorFrameChunk)oSect;
+                    if (oFrmChk.getFrameNumber() == m_lngEndFrame && 
+                       (oFrmChk.getChunkNumber() + 1) == oFrmChk.getChunksInFrame()) 
+                    {
+                        iLastSectorLastFrame = iCurSect; 
+                        if (oIter.hasNext() && (oIter.next() instanceof PSXSectorAudioChunk))
+                            blnCouldBeOneMore = true;
+                        
+                        break;
+                    }
+                }
+            }
+            if (iLastSectorLastFrame < 0)
+                return "where's the last sector?";
+            
+            return "well... " + 
+                    (iLastSectorLastFrame - iStartSector + 1) / (double)(m_lngEndFrame - m_lngStartFrame + 1)
+                    + (blnCouldBeOneMore ? (" or even " + (iLastSectorLastFrame - iStartSector + 2) / (double)(m_lngEndFrame - m_lngStartFrame + 1)) : "");
+
+            
+        } catch (IOException ex) {
+            return ex.getMessage();
+        }
+    }
 }

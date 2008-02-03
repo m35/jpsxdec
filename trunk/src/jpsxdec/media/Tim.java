@@ -29,7 +29,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.IndexColorModel;
 import java.awt.image.WritableRaster;
 import java.io.*;
-import javax.imageio.ImageIO;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 

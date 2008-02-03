@@ -1,7 +1,6 @@
 <html>
 <head>
-  <title>jPSXdec Manual</title>
-  <meta name="GENERATOR" content="Quanta Plus">
+  <title>jPSXdec Command-line Options</title>
   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"><style id="Command-lineOpts_15955_Styles">
 
 table.cmd td {
@@ -34,7 +33,15 @@ div.code {
 <body bgcolor="#FFFFFF">
     <div class="code">
 java -jar jpsxdec.jar &lt;options&gt; &lt;input-file&gt; &lt;output-file&gt;<br/>
-jpsxdec.exe &lt;options&gt; &lt;input-file&gt; &lt;output-file&gt;
+<br>
+If no arguments are provided, GUI is shown.<br>
+<br>
+Simple example:<br>
+java -jar jpsxdec.jar FF7disc1.bin --index FF7disc1.idx<br>
+(Open the FF7disc1.idx file to see what media was found)<br>
+java -jar jpsxdec.jar FF7disc1.bin --index FF7disc1.idx -d 5 ff7disc1<br>
+(Decode media item 5 from the disc, using "ff7disc1" as the base name of the output files)<br>
+
     </div>
      <div align=center> 
   <table class="cmd">
@@ -63,7 +70,7 @@ jpsxdec.exe &lt;options&gt; &lt;input-file&gt; &lt;output-file&gt;
       <td rowspan="8">base file name for image and/or 
         wav output</td>
       <td>-s/-frames #-#</td>
-      <td rowspan="8">Decode #th STR or XA in the file.<br>
+      <td rowspan="8">Decode #th media item in the file.<br>
         Use the --index option to get a list of available media in the file.</td>
     </tr>
     <tr>
@@ -97,7 +104,7 @@ jpsxdec.exe &lt;options&gt; &lt;input-file&gt; &lt;output-file&gt;
       <td rowspan="6">base file name for image and/or 
         wav output</td>
       <td>--noaudio</td>
-      <td rowspan="6">Decode all STR or XA in the file.</td>
+      <td rowspan="6">Decode all media in the file.</td>
     </tr>
     <tr>
       <td>-c/--channel #</td>
@@ -155,7 +162,7 @@ jpsxdec.exe &lt;options&gt; &lt;input-file&gt; &lt;output-file&gt;
         BIN (image)</td>
       <td>(none)</td>
       <td>&nbsp;</td>
-      <td>Just creates the file index.</td>
+      <td>Creates a numbered index of media items in the input file.</td>
     </tr>
     <tr>
       <td>--in-file &lt;type&gt;</td>

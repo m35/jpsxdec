@@ -27,19 +27,17 @@ package jpsxdec.demuxers;
 
 import java.io.InputStream;
 import java.io.IOException;
-import java.util.AbstractList;
 import jpsxdec.*;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.util.AdvancedIOIterator;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.sectortypes.PSXSector.IVideoChunkSector;
+import jpsxdec.util.IWidthHeight;
 
 /** Demuxes a series of frame chunk sectors into a solid stream */
 public class StrFrameDemuxerIS extends InputStream 
-        implements IGetFilePointer
+        implements IGetFilePointer, IWidthHeight
 {
-    
-    public static int DebugVerbose = 2;
     
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
@@ -79,19 +77,22 @@ public class StrFrameDemuxerIS extends InputStream
         m_oCurrentChunk = FindNextMatchingChunk();
     }
     
-    /** Finds the next matching sector. 
+    /** Finds the next matching sector. Does NOT devour any more sectors
+     *  than it needs.
      * @return Next Video Chunk sector, or null if no more matches. */
     public IVideoChunkSector FindNextMatchingChunk() throws IOException {
         
         while (m_oPsxSectorIterator.hasNext()) {
         
-            PSXSector oSector = m_oPsxSectorIterator.next();
+            PSXSector oSector = m_oPsxSectorIterator.peekNext();
             
             // Skip any non video chunk sectors
-            if (!(oSector instanceof IVideoChunkSector)) continue;
+            if (!(oSector instanceof IVideoChunkSector)) {
+                m_oPsxSectorIterator.skipNext();
+                continue;
+            }
 
             IVideoChunkSector oFrameChunk = (IVideoChunkSector)oSector;
-
             
             if (m_lngFrame < 0) {
                 // no specific frame desired, so
@@ -99,6 +100,8 @@ public class StrFrameDemuxerIS extends InputStream
                 m_lngFrame = oFrameChunk.getFrameNumber();
                 m_lngWidth = oFrameChunk.getWidth();
                 m_lngHeight = oFrameChunk.getHeight();
+                
+                m_oPsxSectorIterator.skipNext(); // move iterator to next sector
                 return oFrameChunk;
             } else if (m_lngWidth < 0) {
                 // we have a desired frame, but we haven't
@@ -108,6 +111,7 @@ public class StrFrameDemuxerIS extends InputStream
                     m_lngWidth = oFrameChunk.getWidth();
                     m_lngHeight = oFrameChunk.getHeight();
                     
+                    m_oPsxSectorIterator.skipNext(); // move iterator to next sector
                     return oFrameChunk;
                 } else if (oFrameChunk.getFrameNumber() > m_lngFrame) {
                     // we passed the frame already, so we're done
@@ -115,26 +119,30 @@ public class StrFrameDemuxerIS extends InputStream
                        intermingled frame parts, then this would fail to find 
                        furthur frame chunks.*/
                     return null;
+                } else {
+                    // not at our frame yet, move along
+                    m_oPsxSectorIterator.skipNext(); // move iterator to next sector
                 }
                 
             } else {
                 // we have a frame and already found a match,
-                // find the next match
+                // so find the next match
                 if (m_lngFrame  == oFrameChunk.getFrameNumber() &&
                     m_lngWidth  == oFrameChunk.getWidth()       &&
                     m_lngHeight == oFrameChunk.getHeight() ) 
                 {
                     // we found another match
+                    m_oPsxSectorIterator.skipNext(); // so move iterator to next sector
                     return oFrameChunk;
                 } else if (oFrameChunk.getFrameNumber() > m_lngFrame) {
                     // we passed the frame already, so we're done
                     /* Note: This is faster, but if strange movies have
                        intermingled frame parts, then this would fail to find 
                        furthur frame chunks.*/
-                    return null;
+                    return null; 
                 }
             }
-
+            
         }
         
         return null;
@@ -153,18 +161,14 @@ public class StrFrameDemuxerIS extends InputStream
             return m_oCurrentChunk.getFilePointer();
     }
 
+    /** [implements IWidthHeight] */
     public long getWidth() {
         return m_lngWidth;
     }
 
+    /** [implements IWidthHeight] */
     public long getHeight() {
         return m_lngHeight;
-    }
-    
-    /** has chunks.... But seriously, we need to share
-     *  if any chunks are ready to be read. */
-    public boolean hasChunks() {
-        return m_oCurrentChunk != null;
     }
     
     public long getFrameNumber() {

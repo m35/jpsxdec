@@ -13,11 +13,13 @@ smf, developer for MAME, for figuring out that everyone was getting the order of
 
 Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org/cdxa/  http://jonatkins.org/cdxa/).
 
-The PCSX Team, creators of the only open source Playstation emulator (http://www.pcsx.net/).
+The PCSX Team, creators of one of the two open source Playstation emulators (http://www.pcsx.net/). This version of their mdec.c file is particularly useful http://www.koders.com/c/fidF23C1EAFCEAF84CA539927A01093D37D9695722A.aspx
 
 Developers of the pSX emulator. While not open source, at least it is still under active development, and provides a very nice debugger for reverse engineering games (http://psxemulator.gazaxian.com/).
 
 "Fyiro", the Japanese fellow that wrote the source code for the PsxMC FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
+
+T_chan for sharing a bit of his knowledge about the FF9 format (http://www.network54.com/Forum/119865/thread/1196268797/last-1197023290/Final+Fantasy+9+Format).
 
 Stephen Manley for generously sharing his DCT.java class (http://www.nyx.net/~smanley/)
 

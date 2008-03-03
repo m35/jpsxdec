@@ -1,3 +1,22 @@
+Incoming
+    - [Added new dialog to specify media conversion options]
+
+v0.32 (development release)
+    - Fixed decoding of Lain final movie (broke in 0.31)
+    - FF9 audio decoding output is currently not working right
+    - Added AVI encoding
+    - Revamped the index file format somewhat (old versions no longer compatable)
+    - Cleaned up some GUI behavior/looks
+    - Removed GUI's ability to save anything
+    Internals:
+    - Changed to 'push' architechture.
+    - Added FPS calculation (needed for AVI writing)
+    - Adding some features for the S.E. Lain PSX Game Translation Project
+    - Added ISO9660 directory parsing.
+    - Added CD Mode 2 ecc/edc generation.
+    - Added TIM writing.
+    - Changed StrFrameUncompressorIS internals so hopefully nothing broke.
+    - Added ability to re-encode STR files (StrRecompressorIS)
 v0.31
     - Added a GUI! I hope it works!
     - Fixed FF8 decoding to handle audio-only 'movies'

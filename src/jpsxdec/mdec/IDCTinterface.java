@@ -20,14 +20,12 @@
  */
 
 /*
- * InverseDiscreteCosineTransform.java
+ * IDCTinterface.java
  */
 
 package jpsxdec.mdec;
 
-import jpsxdec.util.Matrix8x8;
-
-/** Interface for all Inverse Discrete Cosine Transform clases */
+/** Interface for all Inverse Discrete Cosine Transform clases. */
 public interface IDCTinterface {
     Matrix8x8 IDCT(Matrix8x8 oMat);
 }

@@ -60,4 +60,56 @@ public final class Misc {
         
         return arr;
     }
+
+    
+    public static String join(Object[] ao, String sBetween) {
+        StringBuilder oSB = new StringBuilder();
+        boolean blnFirst = true;
+        for (Object o : ao) {
+            if (!blnFirst) oSB.append(sBetween); else blnFirst = false;
+            oSB.append(o.toString());
+        }
+        return oSB.toString();
+    }
+
+    /** Splits a string into an array of ints. 
+     *  Returns null if non-int values encoutnered. */
+    public static int[] splitint(String s, String regex) {
+        String[] split = s.split(regex);
+        int[] ai = new int[split.length];
+        
+        try {
+            for (int i = 0; i < split.length; i++) {
+                ai[i] = Integer.parseInt(split[i]);
+            }
+            return ai;
+
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+    
+    /** Splits string s via sDelimiter and parses the resulting array
+     *  into an array of ints. If there is any error, then null is returned. */
+    public static int[] ParseDelimitedInts(String s, String sDelimiter) {
+        String[] asParse = s.split(sDelimiter);
+        return StringArrayToIntArray(asParse);
+    }
+
+    /** Parses an array of strings into an array of ints. If there is any
+     *  error, or if any of the values are negitive, null is returned. */
+    public static int[] StringArrayToIntArray(String[] as) {
+        try {
+            int[] aiVals = new int[as.length];
+            for (int i = 0; i < as.length; i++) {
+                aiVals[i] = Integer.parseInt(as[i]);
+                if (aiVals[i] < 0) return null;
+            }
+            
+            return aiVals;
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+    
 }

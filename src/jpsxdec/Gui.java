@@ -40,15 +40,15 @@ import jpsxdec.Progress.SimpleWorker.TaskInfo;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.media.MediaHandler;
 import jpsxdec.media.PSXMedia;
+import jpsxdec.media.PSXMediaFF9;
 import jpsxdec.nativeclass.VideoForWindows;
-import jpsxdec.util.IProgressCallback;
+import jpsxdec.util.IProgressListener;
 
 public class Gui extends javax.swing.JFrame {
     private final File INI_FILE = new File("jpsxdec.ini");
     
     private CDSectorReader m_oCD;
     private MediaHandler m_oMediaList;
-    private DefaultListModel m_oListItems = new DefaultListModel();
     private DefaultComboBoxModel m_oOutputFormatItems;
     private String m_sIndexFile;
     private File m_oLastBrowseFolder;
@@ -58,26 +58,22 @@ public class Gui extends javax.swing.JFrame {
     public Gui() {
         initComponents();
         
-        // use the Windows L&F if it exists (for great justice!)
-        UIManager.LookAndFeelInfo looks[] = UIManager.getInstalledLookAndFeels();
-        for (UIManager.LookAndFeelInfo laf : looks) {
-            if (laf.getName().equals("Windows"))  {
-                try {
-                    UIManager.setLookAndFeel(laf.getClassName());
-                    SwingUtilities.updateComponentTreeUI(this);
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-                break;
-            }
+        // use the system's L&F if available (for great justice!)
+        try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                SwingUtilities.updateComponentTreeUI(this);
+        } catch (Exception ex) {
+                ex.printStackTrace();
         }
+        // center the gui
+        this.setLocationRelativeTo(null);
+        
         guiMediaList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        guiMediaList.setModel(m_oListItems);
         
         Vector<String> oImgFrmts = jpsxdec.util.Misc.GetJavaImageFormats();
-        //{"yuv", "y4m", "0rlc", "demux"}
+        //{"yuv", "y4m", "mdec", "demux"}
         oImgFrmts.add("demux");
-        oImgFrmts.add("0rlc");
+        oImgFrmts.add("mdec");
         m_oOutputFormatItems = new DefaultComboBoxModel(oImgFrmts);
         guiOutputFormat.setModel(m_oOutputFormatItems);
         guiOutputFormat.setSelectedItem("png");
@@ -104,9 +100,7 @@ public class Gui extends javax.swing.JFrame {
     }
 
     private void PopulateList() {
-        for (PSXMedia oMedia : m_oMediaList) {
-            m_oListItems.addElement(oMedia.toString());
-        }
+        guiMediaList.setModel(m_oMediaList);
     }
 
     private void DisableIndexButtons() {
@@ -144,17 +138,6 @@ public class Gui extends javax.swing.JFrame {
     
     
     private void DecodeMediaItem(final PSXMedia oMedia, String sFile) {
-        /*
-        String sNameEnd = "";
-        if ((oMedia.getMediaType() & PSXMedia.MEDIA_TYPE_AUDIO) > 0)
-            sNameEnd = "";
-        else if ((oMedia.getMediaType() & PSXMedia.MEDIA_TYPE_IMAGE) > 0)
-            sNameEnd = "_p%d";
-        else if ((oMedia.getMediaType() & PSXMedia.MEDIA_TYPE_VIDEO) > 0)
-            sNameEnd = "_f%04d";
-        else if ((oMedia.getMediaType() & PSXMedia.MEDIA_TYPE_XA) > 0)
-            sNameEnd = "_c%02d";
-        */
         
         final boolean blnDecodeVideo = true;
         final boolean blnDecodeAudio = true;
@@ -174,45 +157,6 @@ public class Gui extends javax.swing.JFrame {
         Progress oSaveTask = new Progress(this, "Saving " + oMedia.toString(), new Progress.SimpleWorker<Void>() {
             @Override
             Void task(final TaskInfo task) {
-
-                oMedia.setCallback(new IProgressCallback.IProgressCallbackEventError() {
-
-                    public boolean ProgressCallback(String sEvent) {
-                        task.updateEvent(sEvent);
-                        return !task.cancelPressed();
-                    }
-
-                    public boolean ProgressCallback(String sWhatDoing, double dblPercentComplete) {
-                        task.updateNote(sWhatDoing);
-                        task.updateProgress((int)(dblPercentComplete * 100));
-                        return !task.cancelPressed();
-                    }
-
-                    public void ProgressCallback(Exception e) {
-                        task.showError(e);
-                        //JOptionPane.showMessageDialog(task.getWindow(), e.getMessage());
-                    }
-                });
-
-                if (oMedia.hasAudio()) {
-                    oMedia.DecodeAudio(sFinalName, "wav", dblAudioScale);
-                }
-
-                if (oMedia.hasVideo()) {
-                    oMedia.DecodeVideo(sFinalName, sOutputImgFormat,
-                                        null, null);
-                }
-
-                if (oMedia.hasXAChannels()) {
-                    oMedia.DecodeXA(sFinalName, "wav", dblAudioScale, null);
-                }
-
-                if (oMedia.hasImage()) {
-                    oMedia.DecodeImage(sFinalName, sOutputImgFormat);
-                }
-
-                oMedia.setCallback(null);
-
                 return null;
             }
         });
@@ -367,7 +311,7 @@ public class Gui extends javax.swing.JFrame {
             
             //JOptionPane.showMessageDialog(this, sFile);
             
-            final PSXMedia oMedia = m_oMediaList.getBySting(guiMediaList.getSelectedValue().toString());
+            final PSXMedia oMedia = (PSXMedia)guiMediaList.getSelectedValue();
             DecodeMediaItem(oMedia, sFile);
             
         } // if valid file
@@ -376,7 +320,6 @@ public class Gui extends javax.swing.JFrame {
 
     
     private void guiMediaListValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_guiMediaListValueChanged
-        System.out.println(evt.getFirstIndex());
         guiSave.setEnabled(true);
     }//GEN-LAST:event_guiMediaListValueChanged
 
@@ -427,20 +370,20 @@ public class Gui extends javax.swing.JFrame {
                     Void task(final TaskInfo task) {
                         task.updateEvent("This could take a very long time.");
                         try {
-                            m_oMediaList = new MediaHandler(m_oCD, new IProgressCallback.IProgressCallbackEventError() {
+                            m_oMediaList = new MediaHandler(m_oCD, new IProgressListener.IProgressEventErrorListener() {
 
-                                public boolean ProgressCallback(String sEvent) {
+                                public boolean ProgressUpdate(String sEvent) {
                                     task.updateEvent(sEvent);
                                     return !task.cancelPressed();
                                 }
 
-                                public boolean ProgressCallback(String sWhatDoing, double dblPercentComplete) {
+                                public boolean ProgressUpdate(String sWhatDoing, double dblPercentComplete) {
                                     task.updateProgress((int) (dblPercentComplete*100));
                                     task.updateNote(sWhatDoing);
                                     return !task.cancelPressed();
                                 }
 
-                                public void ProgressCallback(Exception e) {
+                                public void ProgressUpdate(Exception e) {
                                     task.showError(e);
                                 }
                             });
@@ -507,24 +450,18 @@ public class Gui extends javax.swing.JFrame {
         
         //JOptionPane.showMessageDialog(this, this.getClass().getName() +"\n"+ this.getTitle());
         
-        VideoForWindows ovfw = new VideoForWindows();
         /*
         JOptionPane.showMessageDialog(this, 
                 ovfw.FindWindow(this.getClass().getName(), this.getTitle())
         );
         */
+        
+        if (guiMediaList.getSelectedValue() != null) {
+            PSXMedia oMedia = m_oMediaList.getBySting(guiMediaList.getSelectedValue().toString());
 
-        int i = ovfw.Init("\u3053\u3093FISH.avi", 320, 240, 15, 1, 0, 37000);
-        System.out.println("" + i);
-        
-        int hWnd = ovfw.FindWindow(this.getClass().getName(), this.getTitle());
-        System.out.println("hWnd=" + hWnd);
-        
-        i = ovfw.PromptForCompression(hWnd);
-        System.out.println("" + i);
-        
-        i = ovfw.Close();
-        System.out.println("" + i);
+            if (oMedia instanceof PSXMediaFF9) {
+            }
+        }
     }//GEN-LAST:event_guiIndexFileLblMouseClicked
     
     

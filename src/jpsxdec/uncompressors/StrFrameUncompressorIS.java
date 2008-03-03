@@ -26,15 +26,18 @@
 package jpsxdec.uncompressors;
 
 import java.io.*;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import jpsxdec.mdec.MDEC;
-import jpsxdec.demuxers.StrFrameDemuxerIS;
+import jpsxdec.demuxers.StrFramePullDemuxerIS;
+import jpsxdec.mdec.MDEC.Mdec16Bits;
 import jpsxdec.util.BufferedBitReader;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IWidthHeight;
 
 /** Class to decode/uncompress the demuxed video frame data from a 
- *  Playstation disc. This single class handles every known variation
+ *  Playstation disc. This class handles every known variation
  *  of compressed zero-run-length codes, and accompanying headers. */
 public class StrFrameUncompressorIS 
     extends InputStream 
@@ -52,7 +55,7 @@ public class StrFrameUncompressorIS
     // The following is stuff specific for version 3 frames
     
     /** Holds information for the version 3 DC variable length code lookup */
-    private static class DCVariableLengthCode {
+    protected static class DCVariableLengthCode {
         public String VariableLengthCode;
         public int DC_Length;
         public int DC_DifferentialLookup[];
@@ -72,10 +75,10 @@ public class StrFrameUncompressorIS
      * These tables are only used for version 3 STR frames. */
      
     /** The longest of all the DC Chrominance variable-length-codes is 8 bits */
-    private final static int DC_CHROMINANCE_LONGEST_VARIABLE_LENGTH_CODE = 8;
+    protected final static int DC_CHROMINANCE_LONGEST_VARIABLE_LENGTH_CODE = 8;
     
     /** Table of DC Chrominance (Cr, Cb) variable length codes */
-    private final static 
+    protected final static 
                 DCVariableLengthCode DC_Chrominance_VariableLengthCodes[] = 
     {                    // code,  length,  differential lookup list
 new DCVariableLengthCode("11111110" , 8, DCDifferential(-255, -128,  128, 255)),
@@ -91,10 +94,10 @@ new DCVariableLengthCode("00"       , 0, null)
     
     
     /** The longest of all the DC Luminance variable-length-codes is 7 bits */
-    private final static int DC_LUMINANCE_LONGEST_VARIABLE_LENGTH_CODE = 7;
+    protected final static int DC_LUMINANCE_LONGEST_VARIABLE_LENGTH_CODE = 7;
     
     /** Table of DC Luminance (Y1, Y2, Y3, Y4) variable length codes */
-    private final static 
+    protected final static 
                 DCVariableLengthCode DC_Luminance_VariableLengthCodes[] = 
     {                    // code,  length,  differential lookup list
 new DCVariableLengthCode("1111110" , 8,  DCDifferential(-255, -128,  128, 255)),
@@ -111,7 +114,7 @@ new DCVariableLengthCode("100"     , 0,  null)
     /** Construct a DC differential lookup list. Used only for the
      * DC_Chrominance_VariableLengthCodes and DC_Luminance_VariableLengthCodes 
      * lists. */
-    private static int[] DCDifferential(int iNegitiveStart, int iNegitiveEnd, 
+    protected static int[] DCDifferential(int iNegitiveStart, int iNegitiveEnd, 
                                         int iPositiveStart, int iPositiveEnd) 
     {
         int aiDifferentialArray[];
@@ -140,7 +143,7 @@ new DCVariableLengthCode("100"     , 0,  null)
     /* ---------------------------------------------------------------------- */
     
     /** Represents a AC variable length code. */
-    private static class ACVariableLengthCode {
+    protected static class ACVariableLengthCode {
         public String VariableLengthCode;
         public int RunOfZeros;
         public int AbsoluteLevel;
@@ -156,17 +159,17 @@ new DCVariableLengthCode("100"     , 0,  null)
     // .........................................................................
     
     /** Sequence of bits indicating an escape code. */
-    private final static String AC_ESCAPE_CODE = "000001";
+    public final static String AC_ESCAPE_CODE = "000001";
     
     /** Sequence of bits indicating the end of a block.
      * Unlike the MPEG1 specification, these bits can, and often do appear as 
      * the first and only variable-length-code in a block. */
-    private final static String VLC_END_OF_BLOCK = "10"; // bits 10
+    public final static String VLC_END_OF_BLOCK = "10"; // bits 10
     
     /** The longest of all the AC variable-length-codes is 16 bits. */
-    private final static int AC_LONGEST_VARIABLE_LENGTH_CODE = 16;
+    protected final static int AC_LONGEST_VARIABLE_LENGTH_CODE = 16;
     
-    private final static ACVariableLengthCode AC_VARIABLE_LENGTH_CODES_MPEG1[] = 
+    protected final static ACVariableLengthCode AC_VARIABLE_LENGTH_CODES_MPEG1[] = 
     {
     /*  new ACVariableLengthCode("1"                 , 0 , 1  ),
           The MPEG1 specification declares that if the first 
@@ -290,7 +293,7 @@ new DCVariableLengthCode("100"     , 0,  null)
 
     /** The custom Serial Experiments Lain Playstation game
      *  variable-length-code table. */
-    private final static ACVariableLengthCode AC_VARIABLE_LENGTH_CODES_LAIN[] = 
+    protected final static ACVariableLengthCode AC_VARIABLE_LENGTH_CODES_LAIN[] = 
     {
                               // Code               "Run" "Level"
         new ACVariableLengthCode("11"                , 0  , 1  ),
@@ -406,65 +409,271 @@ new DCVariableLengthCode("100"     , 0,  null)
         new ACVariableLengthCode("0000000000011111"  , 18 , 1  )
     };   
      
+    public static class MacroBlock implements Iterable<MDEC.Mdec16Bits> {
+        public Block Cr;
+        public Block Cb;
+        public Block Y1;
+        public Block Y2;
+        public Block Y3;
+        public Block Y4;
+        
+        public void setBlock(String sBlk, Block oBlk) {
+            if (sBlk.equals("Cr"))
+                Cr = oBlk;
+            else if (sBlk.equals("Cb"))
+                Cb = oBlk;
+            else if (sBlk.equals("Y1"))
+                Y1 = oBlk;
+            else if (sBlk.equals("Y2"))
+                Y2 = oBlk;
+            else if (sBlk.equals("Y3"))
+                Y3 = oBlk;
+            else if (sBlk.equals("Y4"))
+                Y4 = oBlk;
+        }
+        
+        public Block getBlock(String sBlk) {
+            if (sBlk.equals("Cr"))
+                return Cr;
+            else if (sBlk.equals("Cb"))
+                return Cb;
+            else if (sBlk.equals("Y1"))
+                return Y1;
+            else if (sBlk.equals("Y2"))
+                return Y2;
+            else if (sBlk.equals("Y3"))
+                return Y3;
+            else if (sBlk.equals("Y4"))
+                return Y4;
+            else
+                throw new IllegalArgumentException("Invalid block name " + sBlk);
+        }
+        
+        public Block getBlock(int iBlk) {
+            switch (iBlk) {
+                case 0: return Cr;
+                case 1: return Cb;
+                case 2: return Y1;
+                case 3: return Y2;
+                case 4: return Y3;
+                case 5: return Y4;
+                default: 
+                    throw new IllegalArgumentException("Invalid block number " + iBlk);
+            }
+        }
+        
+        public long getBitLength() {
+            return Cr.getBitLength() +
+                   Cb.getBitLength() +
+                   Y1.getBitLength() +
+                   Y2.getBitLength() +
+                   Y3.getBitLength() +
+                   Y4.getBitLength();
+        }
+        
+        public long getMdecCodeCount() {
+            return Cr.getMdecCodeCount() +
+                   Cb.getMdecCodeCount() +
+                   Y1.getMdecCodeCount() +
+                   Y2.getMdecCodeCount() +
+                   Y3.getMdecCodeCount() +
+                   Y4.getMdecCodeCount();
+        }
+        
+        public Object clone() {
+            MacroBlock oNew = new MacroBlock();
+            oNew.Cr = (Block)Cr.clone();
+            oNew.Cb = (Block)Cb.clone();
+            oNew.Y1 = (Block)Y1.clone();
+            oNew.Y1 = (Block)Y2.clone();
+            oNew.Y1 = (Block)Y3.clone();
+            oNew.Y1 = (Block)Y4.clone();
+            return oNew;
+        }
+
+        public Iterator<Mdec16Bits> iterator() {
+            return new Iterator<Mdec16Bits>() {
+
+                private int m_iBlk = 0;
+                private int m_iMdec = 0;
+                
+                public boolean hasNext() {
+                    return m_iBlk < 6;
+                }
+
+                public Mdec16Bits next() {
+                    if (!hasNext()) throw new NoSuchElementException();
+                    Mdec16Bits oMdec = getBlock(m_iBlk).getMdecCode(m_iMdec);
+                    m_iMdec++;
+                    if (m_iMdec == getBlock(m_iBlk).getMdecCodeCount()) {
+                        m_iMdec = 0;
+                        m_iBlk++;
+                    }
+                    return oMdec;
+                }
+
+                public void remove() {
+                    throw new UnsupportedOperationException("Can't remove.");
+                }
+            };
+        }
+    }
+    
+    public static class Block {
+        public MDEC.Mdec16Bits DCCoefficient;
+        public MDEC.Mdec16Bits[] ACCoefficients;
+        public MDEC.Mdec16Bits EndOfBlock;
+        
+        public MDEC.Mdec16Bits getMdecCode(int i) {
+            if (i == 0)
+                return DCCoefficient;
+            else if (i >= 1 && i <= ACCoefficients.length)
+                return ACCoefficients[i-1];
+            else if (i == ACCoefficients.length+1)
+                return EndOfBlock;
+            else
+                throw new IllegalArgumentException("Invalid MDEC code index " + i);
+        }
+        
+        public int getMdecCodeCount() {
+            return ACCoefficients.length + 2;
+        }
+        
+        public long getBitLength() {
+            long lngLength = DCCoefficient.VariableLengthCodeBits.length();
+            for (MDEC.Mdec16Bits oMdec : ACCoefficients)
+                lngLength += oMdec.VariableLengthCodeBits.length();
+            return lngLength + EndOfBlock.VariableLengthCodeBits.length();
+        }
+        
+        public Object clone() {
+            Block oNew = new Block();
+            oNew.DCCoefficient = (MDEC.Mdec16Bits)DCCoefficient.clone();
+            oNew.ACCoefficients = new MDEC.Mdec16Bits[ACCoefficients.length];
+            for (int i = 0; i < ACCoefficients.length; i++)
+                oNew.ACCoefficients[i] = (MDEC.Mdec16Bits)ACCoefficients[i].clone();
+            oNew.EndOfBlock = (MDEC.Mdec16Bits)EndOfBlock.clone();
+            return oNew;
+        }
+    }
+    
+    public class MdecReader extends InputStream implements IGetFilePointer {
+
+        MacroBlock[] m_aoMacroBlocks;
+        
+        int m_iCurrentMacroBlock = 0;
+        int m_iCurrentBlock = 0;
+        int m_iCurrentMdecCode = 0;
+        boolean m_blnReadLowByte = true;
+        
+        MDEC.Mdec16Bits m_oCurrentMdecCode;
+        
+        public MdecReader(MacroBlock[] aoMacroBlocks) {
+            m_aoMacroBlocks = aoMacroBlocks;
+            m_oCurrentMdecCode = m_aoMacroBlocks[0].Cr.DCCoefficient;
+        }
+        
+        @Override
+        public int read() throws IOException {
+            if (m_iCurrentMacroBlock >= m_aoMacroBlocks.length) return -1;
+            
+            MacroBlock oCurMacBlk = m_aoMacroBlocks[m_iCurrentMacroBlock];
+            
+            if (oCurMacBlk == null) 
+                throw m_oFailException;
+            
+            Block oCurBlk = oCurMacBlk.getBlock(m_iCurrentBlock);
+            
+            m_oCurrentMdecCode = oCurBlk.getMdecCode(m_iCurrentMdecCode);
+            
+            int iRet;
+            
+            // Alternate between reading the bottom byte and the top byte
+            if (m_blnReadLowByte)
+                iRet = (int)(m_oCurrentMdecCode.toMdecWord() & 0xFF);
+            else {
+                iRet = (int)((m_oCurrentMdecCode.toMdecWord() >>> 8) & 0xFF);
+            }
+            
+            // increment the read pointers
+            if (m_blnReadLowByte) 
+                m_blnReadLowByte = false;
+            else {
+                m_blnReadLowByte = true;
+                m_iCurrentMdecCode++;
+                if (m_iCurrentMdecCode == oCurBlk.getMdecCodeCount()) {
+                    m_iCurrentMdecCode = 0;
+                    m_iCurrentBlock++;
+                    if (m_iCurrentBlock == 6) {
+                        m_iCurrentBlock = 0;
+                        m_iCurrentMacroBlock++;
+                    }
+                }
+            }
+            
+            return iRet;
+        }
+
+        public long getFilePointer() {
+            return (long)m_oCurrentMdecCode.OriginalFilePos;
+        }
+        
+    }
+    
+    
     /*########################################################################*/
     /*## Beginning of instance ###############################################*/
     /*########################################################################*/
     
     /** Binary bit reader encapsulates the 
      * InputStream to read as a bit stream. */
-    BufferedBitReader m_oBitReader;
+    protected BufferedBitReader m_oBitReader;
     
     /** A queue to store the uncompressed data as MDEC codes. */
-    LinkedList<MDEC.Mdec16Bits> m_oReaderQueue = 
-            new LinkedList<MDEC.Mdec16Bits>();
-    /** After decoding the variable-length-codes, this will hold the current
-     * MDEC code being read from m_oReaderQueue. */
-    MDEC.Mdec16Bits m_oCurrent16Bits = null;
-    /** Alternate between reading the high byte and the 
-     *  low byte of m_oCurrent16Bits. */
-    boolean m_blnLowHighReadToggle = true;
+    protected MacroBlock[] m_oMdecList;
     
     // Frame info
-    private long m_lngNumberOfRunLenthCodes;
-    private long m_lngHeader3800;
-    private long m_lngQuantizationScaleChrom;
-    private long m_lngQuantizationScaleLumin;
+    protected long m_lngNumberOfRunLenthCodes;
+    protected long m_lngHeader3800;
+    /** The Chrominance quantization scale used throughout the frame. */
+    protected long m_lngQuantizationScaleChrom;
+    /** The Luminance quantization scale used throughout the frame. */
+    protected long m_lngQuantizationScaleLumin;
     
     /** Most games use verion 2 or version 3. Currently handled exceptions
      *  are: FF7 uses version 1, Lain uses version 0 */
-    private long m_lngVersion;
+    protected long m_lngVersion;
 
     /** Width of the frame in pixels */
-    private long m_lngWidth;
+    protected long m_lngWidth;
     /** Height of the frame in pixels */
-    private long m_lngHeight;
+    protected long m_lngHeight;
     
     // For version 3 frames, all DC Coefficients are relative
     // TODO: Maybe try to encapsulate this somehow
-    private int m_iPreviousCr_DC = 0;
-    private int m_iPreviousCb_DC = 0;
-    private int m_iPreviousY_DC = 0;
+    protected int m_iPreviousCr_DC = 0;
+    protected int m_iPreviousCb_DC = 0;
+    protected int m_iPreviousY_DC = 0;
     
     /** If there was an error decoding, don't pass the error up until reading
      * reaches the end of everything that could be decoded. */
-    private IOException m_oFailException = null;
+    protected IOException m_oFailException = null;
+
+    protected int m_iFrameType = -1;
     
-    private int m_iFrameType = -1;
-    private final static int FRAME_VER2 = 2;
-    private final static int FRAME_VER3 = 3;
-    private final static int FRAME_LAIN = 0;
-    private final static int FRAME_LAIN_FINAL_MOVIE = 10;
-    private final static int FRAME_FF7 = 1;
-    private final static int FRAME_FF7_WITHOUT_CAMERA = 11;
-    private final static int FRAME_LOGO_IKI = 256;
+    public final static int FRAME_VER2 = 2;
+    public final static int FRAME_VER3 = 3;
+    public final static int FRAME_LAIN = 0;
+    public final static int FRAME_LAIN_FINAL_MOVIE = 10;
+    public final static int FRAME_FF7 = 1;
+    public final static int FRAME_FF7_WITHOUT_CAMERA = 11;
+    public final static int FRAME_LOGO_IKI = 256;
+
+    MdecReader m_oMdecReader;
     
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
-    
-    public StrFrameUncompressorIS(StrFrameDemuxerIS oSFIS) throws IOException {
-        this(oSFIS, oSFIS.getWidth(), oSFIS.getHeight());
-    }
     
     public StrFrameUncompressorIS(InputStream oIS, long lngWidth, 
                                                    long lngHeight) 
@@ -560,7 +769,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                                    + m_lngVersion);
 
         // make sure we got a 0x3800 in the header
-        if (m_lngHeader3800 != 0x3800)
+        if (m_lngHeader3800 != 0x3800 && m_iFrameType != FRAME_LAIN_FINAL_MOVIE)
             throw new IOException("0x3800 not found in start of frame");
         
         // make sure the quantization scale isn't 0
@@ -574,11 +783,13 @@ new DCVariableLengthCode("100"     , 0,  null)
         m_lngHeight = lngHeight;
         
         // Calculate number of macro-blocks in the frame
-        long iMacroBlockCount = CalculateMacroBlocks(lngWidth, lngHeight);
+        long lngMacroBlockCount = CalculateMacroBlocks(lngWidth, lngHeight);
         
+        // Set the array to match
+        m_oMdecList = new MacroBlock[(int)lngMacroBlockCount];
         
         if (DebugVerbose >= 3) System.err.println(
-                    "Expecting " + iMacroBlockCount + " macroblocks");
+                    "Expecting " + lngMacroBlockCount + " macroblocks");
         
         /////////////////////////////////////////////////////////////
         // We have everything we need
@@ -588,11 +799,13 @@ new DCVariableLengthCode("100"     , 0,  null)
         // keep track of the number of run length codes read for debugging
         long lngTotalCodesRead = 0;
         try {
-            for (int i = 0; i < iMacroBlockCount; i++) {
+            for (int i = 0; i < lngMacroBlockCount; i++) {
                 if (DebugVerbose >= 3)
                     System.err.println("Decoding macroblock " + i);
-                // adds all the read MDEC codes to the qeuue
-                lngTotalCodesRead += UncompressMacroBlock();
+                
+                MacroBlock oThisMacBlk = new MacroBlock();
+                lngTotalCodesRead += UncompressMacroBlock(oThisMacBlk);
+                m_oMdecList[i] = oThisMacBlk;
             }
         } catch (IOException e) {
             // We failed! :(
@@ -604,12 +817,12 @@ new DCVariableLengthCode("100"     , 0,  null)
         if (DebugVerbose >= 4)
             System.err.println(lngTotalCodesRead + " codes read");
         
-        // Setup for being read from by peeking at the first 16 bits
-        m_oCurrent16Bits = m_oReaderQueue.peek();
+        // Setup for being read from the MDEC codes collected
+        m_oMdecReader = new MdecReader(m_oMdecList);
         
     }
     
-    private static int IdentifyFrame(byte[] abHeaderBytes, InputStream oIS) throws IOException {
+    protected static int IdentifyFrame(byte[] abHeaderBytes, InputStream oIS) throws IOException {
         
         // if 0x3800 found at the normal position
         if (abHeaderBytes[2] == 0x38 && abHeaderBytes[3] == 0x00)
@@ -646,8 +859,8 @@ new DCVariableLengthCode("100"     , 0,  null)
                 // and the supposed 0x3800 bytes...
                 int iFrameNum = (((abHeaderBytes[2] & 0xFF) << 8) | (abHeaderBytes[3] & 0xFF));
                 // ...happend to equal the frame number (if available)
-                if (oIS instanceof StrFrameDemuxerIS) {
-                    if (((StrFrameDemuxerIS)oIS).getFrameNumber() == iFrameNum) {
+                if (oIS instanceof StrFramePullDemuxerIS) {
+                    if (((StrFramePullDemuxerIS)oIS).getFrameNumber() == iFrameNum) {
                         // definitely lain final movie
                         return FRAME_LAIN_FINAL_MOVIE;
                     }
@@ -666,7 +879,7 @@ new DCVariableLengthCode("100"     , 0,  null)
         throw new IOException("Unknown frame type");
     }
     
-    private static long CalculateMacroBlocks(long lngWidth, long lngHeight) {
+    protected static long CalculateMacroBlocks(long lngWidth, long lngHeight) {
         // Actual width/height in macroblocks 
         // (since you can't have a partial macroblock)
         long lngActualWidth, lngActualHeight;
@@ -701,63 +914,52 @@ new DCVariableLengthCode("100"     , 0,  null)
         return m_lngVersion;
     }
     
+    public int getFrameType() {
+        return m_iFrameType;
+    }
+
+    public long getQuantizationScaleChrominance() {
+        return m_lngQuantizationScaleChrom;
+    }
+
+    public long getQuantizationScaleLuminance() {
+        return m_lngQuantizationScaleLumin;
+    }
+    
+    public MacroBlock[] getDecodedMacroBlocks() {
+        return m_oMdecList;
+    }
+
+    public long getNumberOfRunLenthCodes() {
+        return m_lngNumberOfRunLenthCodes;
+    }
+
+    public long getHeader3800() {
+        return m_lngHeader3800;
+    }
+    
+    
+    
+    /* ---------------------------------------------------------------------- */
+    /* InputStream functions ------------------------------------------------ */
+    /* ---------------------------------------------------------------------- */
+    
     /** Returns the file position in the underlying stream.
-     * implements IGetFilePointer */
+     * [implements IGetFilePointer] */
     public long getFilePointer() { 
-        if (m_oCurrent16Bits != null)
-            // returns the position in the original file where
-            // the variable length code was read
-            return (long)m_oCurrent16Bits.OriginalFilePos;
-        else
-            return -1;
+        return m_oMdecReader.getFilePointer();
     }
     
-    /** Returns the original bits that were read to make the current
-     * variable length code */
-    public String getBits() {
-        if (m_oCurrent16Bits != null)
-            return m_oCurrent16Bits.OriginalVariableLengthCodeBits;
-        else
-            return null;
-    }
-    
-    /* ---------------------------------------------------------------------- */
-    /* Public Functions ----------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-    
-    /** extends InputStream */
+    /** [extends InputStream] */
     public int read() throws IOException {
-        
-        if (m_oReaderQueue.size() == 0) {
-            // We've run out of data...
-            // Was there an error during the decoding?
-            if (m_oFailException != null)
-                throw m_oFailException;
-            else
-                // Nope, we're just at the end of the data
-                return -1;
-        }
-        
-        int iRet;
-        
-        // Alternate between reading the bottom byte and the top byte
-        if (m_blnLowHighReadToggle)
-            iRet = (int)(m_oReaderQueue.peek().ToMdecWord() & 0xFF);
-        else {
-            iRet = (int)((m_oReaderQueue.remove().ToMdecWord() >>> 8) & 0xFF);
-            m_oCurrent16Bits = m_oReaderQueue.peek();
-        }
-        
-        m_blnLowHighReadToggle = !m_blnLowHighReadToggle;
-        
-        return iRet;
+        return m_oMdecReader.read();
     }
     
     /* ---------------------------------------------------------------------- */
     /* Private Functions ---------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    private long UncompressMacroBlock() throws IOException {
+    protected long UncompressMacroBlock(MacroBlock oThisMacBlk) throws IOException {
         
         long lngTotalCodesRead = 0;
         
@@ -771,13 +973,17 @@ new DCVariableLengthCode("100"     , 0,  null)
             // DC Coefficients are encoded the same
             for (String sBlock : new String[] {"Cr","Cb","Y1","Y2","Y3","Y4"}) 
             {
-                DecodeV2_DC_ChrominanceOrLuminance(sBlock);
+                Block oThisBlk = new Block();
+                DecodeV2_DC_ChrominanceOrLuminance(sBlock, oThisBlk);
                 lngTotalCodesRead++;
-                lngTotalCodesRead += Decode_AC_Coefficients();
+                lngTotalCodesRead += Decode_AC_Coefficients(oThisBlk);
+                
+                oThisMacBlk.setBlock(sBlock, oThisBlk);
             }
             
         } else if (m_iFrameType == FRAME_VER3) 
         {
+            Block oThisBlk;
             
             // For version 3, DC coefficients are encoded differently for
             // DC Chrominance and DC Luminance. 
@@ -785,32 +991,39 @@ new DCVariableLengthCode("100"     , 0,  null)
             // (this is the same way mpeg-1 does it)
             
             // Cr
+            oThisBlk = new Block();
             m_iPreviousCr_DC = DecodeV3_DC_ChrominanceOrLuminance(
                                 m_iPreviousCr_DC, 
                                 DC_CHROMINANCE_LONGEST_VARIABLE_LENGTH_CODE, 
                                 DC_Chrominance_VariableLengthCodes, 
-                                "Cr");
+                                "Cr", oThisBlk);
             lngTotalCodesRead++;
-            lngTotalCodesRead += Decode_AC_Coefficients();
+            lngTotalCodesRead += Decode_AC_Coefficients(oThisBlk);
+            oThisMacBlk.Cr = oThisBlk;
 
             // Cb
+            oThisBlk = new Block();
             m_iPreviousCb_DC = DecodeV3_DC_ChrominanceOrLuminance(
                                 m_iPreviousCb_DC, 
                                 DC_CHROMINANCE_LONGEST_VARIABLE_LENGTH_CODE, 
                                 DC_Chrominance_VariableLengthCodes, 
-                                "Cb");
+                                "Cb", oThisBlk);
             lngTotalCodesRead++;
-            lngTotalCodesRead += Decode_AC_Coefficients();
+            lngTotalCodesRead += Decode_AC_Coefficients(oThisBlk);
+            oThisMacBlk.Cb = oThisBlk;
             
             // Y1, Y2, Y3, Y4
             for (String sBlock : new String[] {"Y1", "Y2", "Y3", "Y4"}) {
+                oThisBlk = new Block();
                 m_iPreviousY_DC = DecodeV3_DC_ChrominanceOrLuminance(
                                     m_iPreviousY_DC, 
                                     DC_LUMINANCE_LONGEST_VARIABLE_LENGTH_CODE, 
                                     DC_Luminance_VariableLengthCodes, 
-                                    sBlock);
+                                    sBlock, oThisBlk);
                 lngTotalCodesRead++;
-                lngTotalCodesRead += Decode_AC_Coefficients();
+                lngTotalCodesRead += Decode_AC_Coefficients(oThisBlk);
+                
+                oThisMacBlk.setBlock(sBlock, oThisBlk);
             }
             
         } else {
@@ -824,7 +1037,7 @@ new DCVariableLengthCode("100"     , 0,  null)
      *  adds the resulting MDEC code to the queue.
      *  DC coefficients are stored the same way for both Chrominance and
      *  Luminance in version 2 frames (althouogh Lain has a minor tweak). */
-    private void DecodeV2_DC_ChrominanceOrLuminance(String sBlock) 
+    protected void DecodeV2_DC_ChrominanceOrLuminance(String sBlock, Block oThisBlk) 
         throws IOException 
     {
         MDEC.Mdec16Bits oDCChrominanceOrLuminance = 
@@ -834,7 +1047,7 @@ new DCVariableLengthCode("100"     , 0,  null)
         oDCChrominanceOrLuminance.OriginalFilePos = m_oBitReader.getPosition();
         
         // Save the bits that make up the DC coefficient
-        oDCChrominanceOrLuminance.OriginalVariableLengthCodeBits = 
+        oDCChrominanceOrLuminance.VariableLengthCodeBits = 
                                               m_oBitReader.PeekBitsToString(10);
         // Now read the DC coefficient value
         oDCChrominanceOrLuminance.Bottom10Bits = 
@@ -863,12 +1076,12 @@ new DCVariableLengthCode("100"     , 0,  null)
             System.err.println(String.format(
                     "%1.3f: %s -> %s DC coefficient %d",
                     m_oBitReader.getPosition(),
-                    oDCChrominanceOrLuminance.OriginalVariableLengthCodeBits,
+                    oDCChrominanceOrLuminance.VariableLengthCodeBits,
                     sBlock,
                     oDCChrominanceOrLuminance.Bottom10Bits));
         
-        // Add the MDEC code to the queue
-        m_oReaderQueue.offer(oDCChrominanceOrLuminance);
+        // Set this block's DC Coefficient to the MDEC code
+        oThisBlk.DCCoefficient = oDCChrominanceOrLuminance;
     }
     
     
@@ -877,11 +1090,11 @@ new DCVariableLengthCode("100"     , 0,  null)
      *  DC coefficients are stored differently for Chrominance and
      *  Luminance in version 3 frames. The arguments to this function
      *  take care of all the differences. */
-    private int DecodeV3_DC_ChrominanceOrLuminance(
+    protected int DecodeV3_DC_ChrominanceOrLuminance(
                          int iPreviousDC, 
                          int iLongestVariableLengthCode, 
                          DCVariableLengthCode DCVariableLengthCodeTable[],
-                         String sBlockName) 
+                         String sBlockName, Block oThisBlk) 
         throws IOException 
     {
         MDEC.Mdec16Bits oDCChrominanceOrLuminance = 
@@ -901,7 +1114,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             if (sBits.startsWith(tDcVlc.VariableLengthCode)) { // match?
 
                 // Save the matching code, then skip past those bits
-                oDCChrominanceOrLuminance.OriginalVariableLengthCodeBits = 
+                oDCChrominanceOrLuminance.VariableLengthCodeBits = 
                         tDcVlc.VariableLengthCode;
                 m_oBitReader.SkipBits(tDcVlc.VariableLengthCode.length());
 
@@ -912,7 +1125,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                 } else {
 
                     // Save the additional bits
-                    oDCChrominanceOrLuminance.OriginalVariableLengthCodeBits += 
+                    oDCChrominanceOrLuminance.VariableLengthCodeBits += 
                             m_oBitReader.PeekBitsToString(tDcVlc.DC_Length);
                     
                     // Read the DC differential
@@ -946,12 +1159,12 @@ new DCVariableLengthCode("100"     , 0,  null)
             System.err.println(String.format(
                     "%d: %s -> %s DC coefficient %d",
                     m_oBitReader.getPosition(), 
-                    oDCChrominanceOrLuminance.OriginalVariableLengthCodeBits,
+                    oDCChrominanceOrLuminance.VariableLengthCodeBits,
                     sBlockName,
                     oDCChrominanceOrLuminance.Bottom10Bits));
         
-        // Add the MDEC code to the queue
-        m_oReaderQueue.offer(oDCChrominanceOrLuminance);
+        // Set this block's DC Coefficient
+        oThisBlk.DCCoefficient = oDCChrominanceOrLuminance;
         
         // return the new DC Coefficient
         return oDCChrominanceOrLuminance.Bottom10Bits;
@@ -961,8 +1174,10 @@ new DCVariableLengthCode("100"     , 0,  null)
     /** Decodes all the block's AC Coefficients in the stream, 
      * and adds the resulting MDEC codes to the queue.
      * AC Coefficients are decoded the same for version 2 and 3 frames */
-    private long Decode_AC_Coefficients() throws IOException {
-        MDEC.Mdec16Bits oRlc;
+    protected long Decode_AC_Coefficients(Block oThisBlk) throws IOException {
+        ArrayList<MDEC.Mdec16Bits> oACCoefficients =
+                new ArrayList<MDEC.Mdec16Bits>();
+        MDEC.Mdec16Bits oMdecCode;
         int iTotalRunLength = 0;
         long lngNumberOfRunLengthCodes = 0;
         double dblFilePos;
@@ -972,37 +1187,39 @@ new DCVariableLengthCode("100"     , 0,  null)
             dblFilePos = m_oBitReader.getPosition();
             
             // Decode the next bunch of bits into an MDEC run length code
-            oRlc = Decode_AC_Code();
+            oMdecCode = Decode_AC_Code();
             // Add the saved file position
-            oRlc.OriginalFilePos = dblFilePos;
+            oMdecCode.OriginalFilePos = dblFilePos;
             
             // Just one more variable-length-code read
             lngNumberOfRunLengthCodes++;
             
-            // Add the MDEC code to the queue
-            m_oReaderQueue.offer(oRlc);
-            
+            // debug
             if (DebugVerbose >= 7)
                 System.err.print(String.format(
                         "%1.3f: %s -> ",
                         m_oBitReader.getPosition(),
-                        oRlc.OriginalVariableLengthCodeBits));
+                        oMdecCode.VariableLengthCodeBits));
             
             // Did we hit the end of the block?
-            if (oRlc.ToMdecWord() == MDEC.MDEC_END_OF_BLOCK) {
+            if (oMdecCode.toMdecWord() == MDEC.MDEC_END_OF_BLOCK) {
                 if (DebugVerbose >= 7)
                     System.err.println("EOB");
+                
+                oThisBlk.EndOfBlock = oMdecCode;
                 
                 // Then we're done here
                 break;
             } else {
                 if (DebugVerbose >= 7)
-                    System.err.println(
-                        "(" + oRlc.Top6Bits + ", " + oRlc.Bottom10Bits + ")");
+                    System.err.println(oMdecCode.toString());
+
+                oACCoefficients.add(oMdecCode);
+                
             }
             
             // Add this run length code to the total
-            iTotalRunLength += oRlc.Top6Bits + 1;
+            iTotalRunLength += oMdecCode.Top6Bits + 1;
             
             // Hopefully we haven't gone over
             if (iTotalRunLength > 63) {
@@ -1015,13 +1232,15 @@ new DCVariableLengthCode("100"     , 0,  null)
             }
         } 
         
+        oThisBlk.ACCoefficients = oACCoefficients.toArray(new MDEC.Mdec16Bits[0]);
+        
         return lngNumberOfRunLengthCodes;
     }
     
     
     /** Decodes the next AC Coefficient bits in the stream and returns the
      *  resulting MDEC code. */
-    private MDEC.Mdec16Bits Decode_AC_Code() throws IOException {
+    protected MDEC.Mdec16Bits Decode_AC_Code() throws IOException {
         
         // Peek at the upcoming bits
         String sBits = 
@@ -1036,7 +1255,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             m_oBitReader.SkipBits(VLC_END_OF_BLOCK.length());
             MDEC.Mdec16Bits tRlc = 
                     new MDEC.Mdec16Bits(MDEC.MDEC_END_OF_BLOCK);
-            tRlc.OriginalVariableLengthCodeBits = VLC_END_OF_BLOCK;
+            tRlc.VariableLengthCodeBits = VLC_END_OF_BLOCK;
             return tRlc;
             
         } else { // must be a normal code
@@ -1049,16 +1268,16 @@ new DCVariableLengthCode("100"     , 0,  null)
 
     /** Decodes the AC Escape Code bits from the stream and returns the
      *  resulting MDEC code. */
-    private MDEC.Mdec16Bits Decode_AC_EscapeCode() throws IOException {
+    protected MDEC.Mdec16Bits Decode_AC_EscapeCode() throws IOException {
         MDEC.Mdec16Bits tRlc = new MDEC.Mdec16Bits();
         
         // Save the escape code bits, then skip them in the stream
-        tRlc.OriginalVariableLengthCodeBits = AC_ESCAPE_CODE + "+";
+        tRlc.VariableLengthCodeBits = AC_ESCAPE_CODE;
         m_oBitReader.SkipBits(AC_ESCAPE_CODE.length());
         
         // Read 6 bits for the run of zeros
-        tRlc.OriginalVariableLengthCodeBits += 
-                m_oBitReader.PeekBitsToString(6) + "+";
+        tRlc.VariableLengthCodeBits += 
+                m_oBitReader.PeekBitsToString(6);
         tRlc.Top6Bits = (int)m_oBitReader.ReadUnsignedBits(6);
 
         if (m_iFrameType != FRAME_LAIN && m_iFrameType != FRAME_LAIN_FINAL_MOVIE)
@@ -1067,7 +1286,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             // 6 for run of zeros (already read), 10 for AC Coefficient
             
             // Read the 10 bits of AC Coefficient
-            tRlc.OriginalVariableLengthCodeBits += 
+            tRlc.VariableLengthCodeBits += 
                     m_oBitReader.PeekBitsToString(10);
             tRlc.Bottom10Bits = (int)m_oBitReader.ReadSignedBits(10);
 
@@ -1113,19 +1332,19 @@ new DCVariableLengthCode("100"     , 0,  null)
              */
             // Peek at the first 8 bits
             String sBits = m_oBitReader.PeekBitsToString(8);
-            tRlc.OriginalVariableLengthCodeBits += sBits;
+            tRlc.VariableLengthCodeBits += sBits;
             if (sBits.equals("00000000")) {
                 // If it's the special 00000000
                 // Positive
                 m_oBitReader.SkipBits(8);
-                tRlc.OriginalVariableLengthCodeBits += "+" + m_oBitReader.PeekBitsToString(8);
+                tRlc.VariableLengthCodeBits += m_oBitReader.PeekBitsToString(8);
                 tRlc.Bottom10Bits = (int)m_oBitReader.ReadUnsignedBits(8);
                 
             } else if (sBits.equals("10000000")) {
                 // If it's the special 10000000
                 // Negitive
                 m_oBitReader.SkipBits(8);
-                tRlc.OriginalVariableLengthCodeBits += "+" + m_oBitReader.PeekBitsToString(8);
+                tRlc.VariableLengthCodeBits += m_oBitReader.PeekBitsToString(8);
                 tRlc.Bottom10Bits = -256 + (int)m_oBitReader.ReadUnsignedBits(8);
                 
             } else {
@@ -1142,7 +1361,7 @@ new DCVariableLengthCode("100"     , 0,  null)
      *  stream.
      * @param sBits  A string of 16 bits if possible.
      */
-    private MDEC.Mdec16Bits Decode_AC_VariableLengthCode(String sBits) 
+    protected MDEC.Mdec16Bits Decode_AC_VariableLengthCode(String sBits) 
         throws IOException 
     {
         MDEC.Mdec16Bits tRlc = new MDEC.Mdec16Bits();
@@ -1166,18 +1385,18 @@ new DCVariableLengthCode("100"     , 0,  null)
                 m_oBitReader.SkipBits(vlc.VariableLengthCode.length());
                 
                 // Save the resulting code, and run of zeros
-                tRlc.OriginalVariableLengthCodeBits = vlc.VariableLengthCode;
+                tRlc.VariableLengthCodeBits = vlc.VariableLengthCode;
                 tRlc.Top6Bits = vlc.RunOfZeros;
                 // Take either the positive or negitive AC coefficient,
                 // depending on the sign bit
                 if (m_oBitReader.ReadUnsignedBits(1) == 1) {
                     // negitive
                     tRlc.Bottom10Bits = -vlc.AbsoluteLevel;
-                    tRlc.OriginalVariableLengthCodeBits += "+1";
+                    tRlc.VariableLengthCodeBits += "1";
                 } else {
                     // positive
                     tRlc.Bottom10Bits = vlc.AbsoluteLevel;
-                    tRlc.OriginalVariableLengthCodeBits += "+0";
+                    tRlc.VariableLengthCodeBits += "0";
                 }
                 
                 blnFoundCode = true;
@@ -1190,12 +1409,12 @@ new DCVariableLengthCode("100"     , 0,  null)
                 throw new IOException(
                         "Error decoding macro block: " +
                         "End bit stream cut off AC variable length code: " +
-                         sBits + " at " + m_oBitReader.getPosition());
+                         sBits + " at " + String.format("%1.3f", m_oBitReader.getPosition()));
             else
                 throw new IOException(
                         "Error decoding macro block: " +
                         "Unmatched AC variable length code: " +
-                         sBits + " at " + m_oBitReader.getPosition());
+                         sBits + " at " + String.format("%1.3f", m_oBitReader.getPosition()));
         }
         
         return tRlc;

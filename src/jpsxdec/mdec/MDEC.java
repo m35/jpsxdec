@@ -28,7 +28,6 @@ package jpsxdec.mdec;
 import java.io.*;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IO;
-import jpsxdec.util.Matrix8x8;
 
 /** Simple (and slow) emulation of the Playstation MDEC ("Motion Decoder") chip.
   * While it doesn't process 9000 macroblocks per second, it shouldn't be very
@@ -43,9 +42,10 @@ public final class MDEC {
     
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     
-    /** This is the default intra quantization matrix used to scale
+    /** The default intra quantization matrix used to scale
      *  the post-DCT matrix. This matrix is identical to the MPEG-1
-     *  quantization matrix, except the first value is 2 instead of 8. */
+     *  quantization matrix, except the first value is 2 instead of 8. 
+     *  This needs to be public so the IDCT.java class can modifty it. */
     public static final Matrix8x8 PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX = 
             new Matrix8x8(new double[] {
         /* 8 */  2, 16, 19, 22, 26, 27, 29, 34, 
@@ -58,7 +58,7 @@ public final class MDEC {
                 27, 29, 35, 38, 46, 56, 69, 83 
     });
     
-    /** This is the order that the zig-zag vector is ordered */
+    /** The order that the zig-zag vector is ordered. */
     static final Matrix8x8 REVERSE_ZIG_ZAG_SCAN_MATRIX =
             new Matrix8x8(new double[] {
                  0,  1,  5,  6, 14, 15, 27, 28,
@@ -73,8 +73,8 @@ public final class MDEC {
     
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     
-    /** The 16 bit value for the MDEC indicating the end of a block.
-     *  (the variable-length-code "10" will be translated to this) */
+    /** The 16 bit value for the MDEC indicating the end of a block
+     *  (the variable-length-code "10" will be translated to this). */
     public final static int MDEC_END_OF_BLOCK = 0xFE00;
     
     /** Simple class to manage 16 bit values to be passed into the MDEC.
@@ -86,7 +86,7 @@ public final class MDEC {
      *  quantization scale, and the 10 bit value holds the DC coefficient. */
     public static class Mdec16Bits {
         
-        public String OriginalVariableLengthCodeBits;
+        public String VariableLengthCodeBits;
         public double OriginalFilePos = -1;
         public int Top6Bits;
         public int Bottom10Bits;
@@ -107,10 +107,117 @@ public final class MDEC {
         }
         
         /** Combines the top 6 bits and bottom 10 bits into a 16 bit value */
-        public long ToMdecWord() {
+        public long toMdecWord() {
             return (((long)Top6Bits & 63) << 10) | ((long)Bottom10Bits & 0x3FF); 
         }
+        
+        public String toString() {
+            return "(" + Top6Bits + ", " + Bottom10Bits + ")";
+        }
+        
+        public Object clone() {
+            Mdec16Bits oNew = new Mdec16Bits();
+            oNew.Top6Bits = Top6Bits;
+            oNew.Bottom10Bits = Bottom10Bits;
+            oNew.OriginalFilePos = OriginalFilePos;
+            oNew.VariableLengthCodeBits = VariableLengthCodeBits;
+            return oNew;
+        }
     }
+    
+    /** An IOException that also returns as much of the 
+     *  decoded frame as is available. */
+    public static class DecodingException extends IOException {
+        
+        final private PsxYuv yuv;
+        final private IOException ex;
+
+        public DecodingException(IOException ex, PsxYuv yuv) {
+            super();
+            this.ex = ex;
+            this.yuv = yuv;
+        }
+
+        public PsxYuv getYuv() {
+            return yuv;
+        }
+
+        @Override
+        public synchronized Throwable fillInStackTrace() {
+            if (ex == null)
+                return super.fillInStackTrace();
+            else
+                return ex.fillInStackTrace();
+        }
+
+        @Override
+        public Throwable getCause() {
+            return ex.getCause();
+        }
+
+        @Override
+        public String getLocalizedMessage() {
+            return ex.getLocalizedMessage();
+        }
+
+        @Override
+        public String getMessage() {
+            return ex.getMessage();
+        }
+
+        @Override
+        public StackTraceElement[] getStackTrace() {
+            return ex.getStackTrace();
+        }
+
+        @Override
+        public synchronized Throwable initCause(Throwable cause) {
+            return ex.initCause(cause);
+        }
+
+        @Override
+        public void printStackTrace() {
+            ex.printStackTrace();
+        }
+
+        @Override
+        public void printStackTrace(PrintStream s) {
+            ex.printStackTrace(s);
+        }
+
+        @Override
+        public void printStackTrace(PrintWriter s) {
+            ex.printStackTrace(s);
+        }
+
+        @Override
+        public void setStackTrace(StackTraceElement[] stackTrace) {
+            ex.setStackTrace(stackTrace);
+        }
+
+        @Override
+        public String toString() {
+            return ex.toString();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return ex.equals(obj);
+        }
+
+        @Override
+        public int hashCode() {
+            return ex.hashCode();
+        }
+        
+    }
+    
+    /* ---------------------------------------------------------------------- */
+    /* Static class --------------------------------------------------------- */
+    /* ---------------------------------------------------------------------- */
+    
+    private MDEC() {}
+    
     /* ---------------------------------------------------------------------- */
     /* Public Functions ----------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -120,7 +227,7 @@ public final class MDEC {
      *  decoded image as a yuv4mpeg2 class. */
     public static PsxYuv DecodeFrame(InputStream oStream, 
                                      long lngWidth, long lngHeight)
-        throws IOException
+        throws DecodingException
     {                                  
         
         // Calculate actual width/height in macroblocks 
@@ -138,18 +245,22 @@ public final class MDEC {
             lngActualHeight = lngHeight;
         
         PsxYuv oImg = new PsxYuv((int)lngActualWidth, 
-                                       (int)lngActualHeight);
+                                 (int)lngActualHeight);
             
         int iMacroBlockCount = 0;
 
-        // The macro blocks are ordered in columns
-        for (int iX = 0; iX < lngActualWidth; iX += 16) {
-            for (int iY = 0; iY < lngActualHeight; iY += 16) {
-                PsxYuv oMacroBlockYuv = DecodeMacroBlock(oStream);
-                iMacroBlockCount++;
+        try {
+            // The macro blocks are ordered in columns
+            for (int iX = 0; iX < lngActualWidth; iX += 16) {
+                for (int iY = 0; iY < lngActualHeight; iY += 16) {
+                    PsxYuv oMacroBlockYuv = DecodeMacroBlock(oStream);
+                    iMacroBlockCount++;
 
-                oImg.putYuvImage(iX, iY, oMacroBlockYuv);
+                    oImg.putYuvImage(iX, iY, oMacroBlockYuv);
+                }
             }
+        } catch (IOException ex) {
+            throw new DecodingException(ex, oImg);
         }
         
         return oImg;
@@ -294,10 +405,10 @@ public final class MDEC {
         }
         
         ////////////////////////////////////////////////////////////////////////
-        // Step 3) de-quanitize the matrix with the mpeg-1 matrix, and the
+        // Step 3) de-quanitize the matrix with the PSX matrix, and the
         //         block's quantization scale.
         ////////////////////////////////////////////////////////////////////////
-        oDCTMatrix = Dequanitize(iDC_Coefficient, oQuantiziedMatrix,
+        oDCTMatrix = Dequantize(iDC_Coefficient, oQuantiziedMatrix,
                 PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX,
                 (double)iQuantizationScale); 
         
@@ -335,7 +446,7 @@ public final class MDEC {
     }
     
     /** Dequanitizes the matrix using the table and scale. */
-    private static Matrix8x8 Dequanitize(int iDC_Coefficient,
+    private static Matrix8x8 Dequantize(int iDC_Coefficient,
                                          Matrix8x8 oMatrix, 
                                          Matrix8x8 QuantizationTable, 
                                          double dblScale) 
@@ -361,9 +472,11 @@ public final class MDEC {
         return oQuantizedMatrix;
     }
     
+    /** Performs the  Inverse Discrete Cosine Transform on a matrix.
+     *  This uses the IDCT static variable object to perform the
+     *  operation. */
     private static Matrix8x8 InverseDiscreteCosineTransform(Matrix8x8 oMatrix) {
         return IDCT.IDCT(oMatrix);
     }
-    
 
 }

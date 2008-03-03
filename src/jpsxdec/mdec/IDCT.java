@@ -1,83 +1,83 @@
 package jpsxdec.mdec;
 
-import jpsxdec.util.Matrix8x8;
-
 /* 
  * Only a handful of differences from the original IDCT.java file:
  * - Line 1: Package change
- * - Line 3: import Matrix8x8 class
- * - Line 82: implements IIDCT
+ * - Lines 14-80: Changed header comment to be javadoc compatable
+ * - Line 82: implements IDCTinterface
  * - Lines 89-96: Changed #define lines to Java final variables
  * - Line 127: Change norm() function to accept an array of doubles
  * - Lines 147-176 : Added IDCT() function
  *
  */
 
-/****************************************************************************************/
-/*											*/
-/*				     "IDCT.java"					*/
-/*											*/
-/* This file contains the class "IDCT" which provides methods to perform the inverse	*/
-/* discrete cosine transform. Actually a IDFT (inverse discrete fourier transform) is	*/
-/* implemented. To gain the DFT values from the DCT values the quantization matrices	*/
-/* are multiplied with constants.  This occurs only once. The modified quantization	*/
-/* values cause a DCT-->DFT transformation during quantization step.			*/
-/*											*/
-/* The implementation follows the proposals of Arai, Agiu and Nakajima as well as of	*/
-/* Tseng and Miller completed by the extensions made by Feig. The reason is: Their	*/
-/* algorithm is a 2-D-approach which consumes only 462 additions, 54 multiplications 	*/
-/* 6 shifts to the left per block. I thought this were be faster than the ordinary 	*/
-/* horizontal/vertial- algorithms, which consume more operations. But whether this is	*/
-/* really true must be proved (or disproved) by a C implementation.			*/
-/*											*/
-/* To understand the algorithm refer to:						*/
-/* http://rnvs.informatik.tu-chemnitz.de/~ja/MPEG/HTML/IDCT.html			*/
-/* The comments assume you are familar with this page.					*/
-/*											*/
-/* To avoid double arithmetics the constants are multiplied with 2^CONST_BITS and	*/
-/* the DCT (DFT) coefficients are multiplied with 2^VAL_BITS. This is not a scientific  */
-/* gained result. I tried some values and as I had the impression the error is quite 	*/
-/* small I took the appropriate values. But feel free to experiment for your own.	*/
-/* BUT: If you change VAL_BITS don't forget to translate "MPEG_scan.java"! This	value	*/
-/* is used there.									*/
-/*											*/
-/* The constants are in source text. I have replaced the "#define"s by a Java variable	*/
-/* declarations.									*/
-/*											*/
-/*--------------------------------------------------------------------------------------*/
-/*											*/
-/* Excuse the already computed constants! I sould write "matr2[8*6 + 1]" instead of	*/
-/* "matr2[49]" but I had the impression my Java compiler doesn't compute the constant	*/
-/* expression.(?). Use the equations:							*/
-/*					row = index / 8					*/
-/*				     column = index % 8					*/
-/* to determine row and column!								*/
-/*											*/
-/*--------------------------------------------------------------------------------------*/
-/*											*/
-/*		Joerg Anders, TU Chemnitz, Fakultaet fuer Informatik, GERMANY		*/
-/*		ja@informatik.tu-chemnitz.de						*/
-/*											*/
-/*--------------------------------------------------------------------------------------*/
-/*											*/
-/* This program is free software; you can redistribute it and/or modify it under the	*/
-/* terms of the GNU General Public License as published by the Free Software		*/
-/* Foundation; either version 2 of the License, or (at your option) any later version.	*/
-/*											*/
-/* This program is distributed in the hope that it will be useful, but WITHOUT ANY	*/
-/* WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A	*/
-/* PARTICULAR PURPOSE. See the GNU General Public License for more details.		*/
-/*											*/
-/* You should have received a copy of the GNU General Public License along with this	*/
-/* program; (See "LICENSE.GPL"). If not, write to the Free Software Foundation, Inc.,	*/
-/* 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.				*/
-/*											*/
-/*--------------------------------------------------------------------------------------*/
-/*											*/
-/* If the program runs as Java applet it isn't "interactive" in the sense of the GNU 	*/
-/* General Public License. So paragraph 2c doesn't apply.				*/
-/*											*/
-/****************************************************************************************/
+/**<pre>
+ ****************************************************************************************
+ *                                                                                      *
+ *                                   "IDCT.java"                                        *
+ *                                                                                      *
+ * This file contains the class "IDCT" which provides methods to perform the inverse    *
+ * discrete cosine transform. Actually a IDFT (inverse discrete fourier transform) is   *
+ * implemented. To gain the DFT values from the DCT values the quantization matrices    *
+ * are multiplied with constants.  This occurs only once. The modified quantization     *
+ * values cause a DCT-->DFT transformation during quantization step.                    *
+ *                                                                                      *
+ * The implementation follows the proposals of Arai, Agiu and Nakajima as well as of    *
+ * Tseng and Miller completed by the extensions made by Feig. The reason is: Their      *
+ * algorithm is a 2-D-approach which consumes only 462 additions, 54 multiplications    *
+ * 6 shifts to the left per block. I thought this were be faster than the ordinary      *
+ * horizontal/vertial- algorithms, which consume more operations. But whether this is   *
+ * really true must be proved (or disproved) by a C implementation.                     *
+ *                                                                                      *
+ * To understand the algorithm refer to:                                                *
+ * http://rnvs.informatik.tu-chemnitz.de/~ja/MPEG/HTML/IDCT.html                        *
+ * The comments assume you are familar with this page.                                  *
+ *                                                                                      *
+ * To avoid double arithmetics the constants are multiplied with 2^CONST_BITS and       *
+ * the DCT (DFT) coefficients are multiplied with 2^VAL_BITS. This is not a scientific  *
+ * gained result. I tried some values and as I had the impression the error is quite    *
+ * small I took the appropriate values. But feel free to experiment for your own.       *
+ * BUT: If you change VAL_BITS don't forget to translate "MPEG_scan.java"! This	value   *
+ * is used there.                                                                       *
+ *                                                                                      *
+ * The constants are in source text. I have replaced the "#define"s by a Java variable  *
+ * declarations.                                                                        *
+ *                                                                                      *
+ *--------------------------------------------------------------------------------------*
+ *                                                                                      *
+ * Excuse the already computed constants! I sould write "matr2[8*6 + 1]" instead of     *
+ * "matr2[49]" but I had the impression my Java compiler doesn't compute the constant   *
+ * expression.(?). Use the equations:                                                   *
+ *                                      row = index / 8                                 *
+ *                                   column = index % 8                                 *
+ * to determine row and column!                                                         *
+ *                                                                                      *
+ *--------------------------------------------------------------------------------------*
+ *                                                                                      *
+ *              Joerg Anders, TU Chemnitz, Fakultaet fuer Informatik, GERMANY           *
+ *              ja@informatik.tu-chemnitz.de                                            *
+ *                                                                                      *
+ *--------------------------------------------------------------------------------------*
+ *                                                                                      *
+ * This program is free software; you can redistribute it and/or modify it under the    *
+ * terms of the GNU General Public License as published by the Free Software            *
+ * Foundation; either version 2 of the License, or (at your option) any later version.  *
+ *                                                                                      *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY      *
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A      *
+ * PARTICULAR PURPOSE. See the GNU General Public License for more details.             *
+ *                                                                                      *
+ * You should have received a copy of the GNU General Public License along with this    *
+ * program; (See "LICENSE.GPL"). If not, write to the Free Software Foundation, Inc.,   *
+ * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.                            *
+ *                                                                                      *
+ *--------------------------------------------------------------------------------------*
+ *                                                                                      *
+ * If the program runs as Java applet it isn't "interactive" in the sense of the GNU    *
+ * General Public License. So paragraph 2c doesn't apply.                               *
+ *                                                                                      *
+ ****************************************************************************************
+ </pre>*/
 
 public class IDCT implements IDCTinterface {
 

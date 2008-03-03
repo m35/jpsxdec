@@ -20,7 +20,7 @@
  */
 
 /*
- * StrFrameDemuxerIS.java
+ * StrFramePullDemuxerIS.java
  */
 
 package jpsxdec.demuxers;
@@ -34,8 +34,9 @@ import jpsxdec.util.IGetFilePointer;
 import jpsxdec.sectortypes.PSXSector.IVideoChunkSector;
 import jpsxdec.util.IWidthHeight;
 
-/** Demuxes a series of frame chunk sectors into a solid stream */
-public class StrFrameDemuxerIS extends InputStream 
+/** Demuxes a series of frame chunk sectors into a solid stream.
+ * Pulls frame chunks from an iterator as they are needed. */
+public class StrFramePullDemuxerIS extends InputStream 
         implements IGetFilePointer, IWidthHeight
 {
     
@@ -54,27 +55,34 @@ public class StrFrameDemuxerIS extends InputStream
     private long m_lngFrame = -1;
     private long m_lngWidth = -1;
     private long m_lngHeight = -1;
+    private long m_lngChunksInFrame;
     
     /** Before moving to the next frame chunk, save the last known
      *  file pointer in case there are no more frame chunks */
     private long m_lngLastFilePointer = -1;
     
+    /** Size of frame user-data available for this frame. 
+     *  This is calculated as the chunks are being read, and won't
+     *  contain the full and final value until the last chunk is being read.*/
+    private long m_lngSize = 0;
+
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    public StrFrameDemuxerIS(AdvancedIOIterator<PSXSector> oPsxIter) 
+    public StrFramePullDemuxerIS(AdvancedIOIterator<PSXSector> oPsxIter) 
             throws IOException 
     {
         this(oPsxIter, -1);
     }
     
-    public StrFrameDemuxerIS(AdvancedIOIterator<PSXSector> oPsxIter, long lngFrame) 
+    public StrFramePullDemuxerIS(AdvancedIOIterator<PSXSector> oPsxIter, long lngFrame) 
             throws IOException 
     {
         m_lngFrame = lngFrame;
         m_oPsxSectorIterator = oPsxIter;
         m_oCurrentChunk = FindNextMatchingChunk();
+        m_lngSize += ((PSXSector)m_oCurrentChunk).getPsxUserDataSize();
     }
     
     /** Finds the next matching sector. Does NOT devour any more sectors
@@ -100,6 +108,7 @@ public class StrFrameDemuxerIS extends InputStream
                 m_lngFrame = oFrameChunk.getFrameNumber();
                 m_lngWidth = oFrameChunk.getWidth();
                 m_lngHeight = oFrameChunk.getHeight();
+                m_lngChunksInFrame = oFrameChunk.getChunksInFrame();
                 
                 m_oPsxSectorIterator.skipNext(); // move iterator to next sector
                 return oFrameChunk;
@@ -174,7 +183,15 @@ public class StrFrameDemuxerIS extends InputStream
     public long getFrameNumber() {
         return m_lngFrame;
     }
-    
+
+    public long getChunksInFrame() {
+        return m_lngChunksInFrame;
+    }
+
+    public long getFrameUserDataSize() {
+        return m_lngSize;
+    }
+
     /* ---------------------------------------------------------------------- */
     /* Public Functions ----------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -199,6 +216,7 @@ public class StrFrameDemuxerIS extends InputStream
                 // end of matching chunks
                 return -1; // end of stream
             } else {
+                m_lngSize += ((PSXSector)m_oCurrentChunk).getPsxUserDataSize();
                 iByte = m_oCurrentChunk.read(); // try again
             }
             

@@ -30,6 +30,7 @@ import jpsxdec.util.CmdLineParser;
 import jpsxdec.util.CmdLineParser.Option;
 import java.util.*;
 import javax.imageio.ImageIO;
+import jpsxdec.util.Misc;
 
 public class Settings {
     
@@ -62,13 +63,14 @@ public class Settings {
     private String m_sIndexFile = null;
     
     private int m_iStartFrame = -1;
-    private int m_iEndFrame = 99999999;
+    private int m_iEndFrame = -1;
     
     private int[] m_aiSectorList = null;
     
     private double m_dblAudioScale = 1.0;
     private int m_iChannel = -1;
     
+    // format (default png)
     private String m_sFormat = "png";
     
     private int[] m_aiVerbosityLevels = new int[] {2, 2, 2, 2, 2};
@@ -100,10 +102,12 @@ public class Settings {
         return m_sIndexFile;
     }
     
+    /** -1 for first frame. */
     public int getStartFrame() {
         return m_iStartFrame;
     }
     
+    /** -1 for last frame. */
     public int getEndFrame() {
         return m_iEndFrame;
     }
@@ -112,6 +116,7 @@ public class Settings {
         return m_dblAudioScale;
     }
     
+    /** -1 for all channels */
     public int getChannel() {
         return m_iChannel;
     }
@@ -128,7 +133,7 @@ public class Settings {
         return m_sInputFileName;
     }
     
-    /** demux, or 0rlc */
+    /** demux, or mdec */
     public String getInputFileFormat() {
         return m_sSpecialInFileType;
     }
@@ -173,7 +178,7 @@ public class Settings {
         "",
         "Where:",
         "  <input-file>           Name of the input file",
-        "  <output-file>          Name of the output file",
+        "  <output-file>          Base name of the output file",
         "",
         "  -d/--decode #          Decode the media item #",
         "  -a/--decode-all        Decode all media items",
@@ -181,7 +186,7 @@ public class Settings {
         "  --decode-audio <list>  Decode list of sectors into audio",
         "  --sector-list          Dumps list of sector types",
         "  -?/-h/--help           Display this message",
-        "  --in-file <type>       Decode special input file type: demux, 0rlc",
+        "  --in-file <type>       Decode special input file type: demux, mdec",
         "  -i/--index <file>      Name of the index file to use/create",
         "  --plugin <name>        Name of the plugin to use",
         "",
@@ -191,7 +196,7 @@ public class Settings {
         "  -s/--frames #-#        Decode frames from # to #",
         "  -c/--channel #         Only decode audio channel #",
         "  -o/--format <format>   Output format",
-        "                         " + Join(VALID_FORMATS, ", "),
+        "   " + Misc.join(VALID_FORMATS, ", "),
         "  --width #              Used with --in-file",
         "  --height #             Used with --in-file",
         "  --verbose #,#,#,#,#    Verbosity output levels (debug)",
@@ -405,7 +410,7 @@ public class Settings {
         
         oOpt = oParser.getOptionValue(osOptFrameRange);
         if (oOpt != null) {
-            int[] aiFrames = ParseDelimitedInts((String)oOpt, "-");
+            int[] aiFrames = Misc.ParseDelimitedInts((String)oOpt, "-");
             if (aiFrames == null || aiFrames.length != 2)
                 ExitWithError("Invalid range of frames");
             m_iStartFrame = aiFrames[0];
@@ -422,7 +427,7 @@ public class Settings {
         m_sFormat = m_sFormat.toLowerCase();
         if (Arrays.binarySearch(VALID_FORMATS, m_sFormat) < 0)
             ExitWithError("Invalid output format (valid formats are " 
-                          + Join(VALID_FORMATS, ", ") + ").");
+                          + Misc.join(VALID_FORMATS, ", ") + ").");
         
         //..............................................................
         // Check verbosity option
@@ -430,7 +435,7 @@ public class Settings {
         oOpt = oParser.getOptionValue(oiOptVerbosity);
         if (oOpt != null)
         {
-            int[] ai = ParseDelimitedInts((String)oOpt, ",");
+            int[] ai = Misc.ParseDelimitedInts((String)oOpt, ",");
             if (ai != null) m_aiVerbosityLevels = ai;
         }
         
@@ -441,29 +446,6 @@ public class Settings {
     /*-- Private helper functions --------------------------------------------*/
     /*------------------------------------------------------------------------*/
     
-    /** Splits string s via sDelimiter and parses the resulting array
-     *  into an array of ints. If there is any error, then null is returned. */
-    private int[] ParseDelimitedInts(String s, String sDelimiter) {
-        String[] asParse = s.split(sDelimiter);
-        return StringArrayToIntArray(asParse);
-    }
-
-    /** Parses an array of strings into an array of ints. If there is any
-     *  error, or if any of the values are negitive, null is returned. */
-    private int[] StringArrayToIntArray(String[] as) {
-        try {
-            int[] aiVals = new int[as.length];
-            for (int i = 0; i < as.length; i++) {
-                aiVals[i] = Integer.parseInt(as[i]);
-                if (aiVals[i] < 0) return null;
-            }
-            
-            return aiVals;
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
-    
     /** Returns a sorted array of available ImageIO formats, plus our own 
      * special formats. */
     private static String[] GetValidFormats() {
@@ -471,7 +453,11 @@ public class Settings {
         oValidFormats.add("yuv");
         oValidFormats.add("y4m");
         oValidFormats.add("demux");
-        oValidFormats.add("0rlc");
+        oValidFormats.add("mdec");
+        oValidFormats.add("avi");
+        oValidFormats.add("avi-mjpg");
+        oValidFormats.add("xa");
+        oValidFormats.add("str");
         String[] asReaderFormats = ImageIO.getReaderFormatNames();
         for (String s : asReaderFormats) {
             s = s.toLowerCase();
@@ -484,24 +470,12 @@ public class Settings {
         return oValidFormats.toArray(new String[0]);
     }
     
-    /** Joins an array of strings into a single string, inserting f between
-     *  each array element. */
-    private String Join(String[] as, String f) {
-        StringBuilder oSB = new StringBuilder();
-        for (String s : as) {
-            if (oSB.length() > 0)
-                oSB.append(f);
-            oSB.append(s);
-        }
-        return oSB.toString();
-    }
-    
     /** Either parses the supplied comma-separated list of sectors, or
      *  tries to open the supplied file to read a list of sectors. 
      *  Returns the list of sectors as an array of ints, or null if there
      *  is any error. */
     private int[] HandleSectorListOption(String sListOrFile) {
-        int[] ai = ParseDelimitedInts(sListOrFile, ",");
+        int[] ai = Misc.ParseDelimitedInts(sListOrFile, ",");
         if (ai == null) {
             if (new File(sListOrFile).exists()) {
                 StringBuilder oSB = null;
@@ -519,7 +493,7 @@ public class Settings {
                     ex.printStackTrace();
                 }
                 if (oSB != null && oSB.length() > 0) {
-                    ai = StringArrayToIntArray(oSB.toString().split("[^\\d]"));
+                    ai = Misc.StringArrayToIntArray(oSB.toString().split("[^\\d]"));
                 }
             }
         }

@@ -35,16 +35,16 @@ import java.nio.BufferUnderflowException;
 public class BufferedBitReader {
     
     /** Queue of 16-bit integers. Initialized to a requested
-     *  size. A head and a tail index circle around the array.
-     *  There is always at least one unused array entry. To make use
+     *  size. A head index and a tail index circle around the array.
+     *  There is always at least one unused array entry (to make use
      *  of that unused entry would require an extra flag variable
      *  and additional checks which would only slow down the queue,
-     *  and still use as much memory. */
+     *  and still use as much memory). */
     private static class SimpleWordQueue {
-        long[] m_alngWords;
-        int m_iHeadPos;
-        int m_iTailPos;
-        boolean m_blnBigEndian;
+        private long[] m_alngWords;
+        private int m_iHeadPos;
+        private int m_iTailPos;
+        private boolean m_blnBigEndian;
         
         /** Private constructor for ShallowCopy() function.*/
         private SimpleWordQueue() {}
@@ -132,7 +132,7 @@ public class BufferedBitReader {
     }
     
     
-    /** Mask remaining bits.
+    /** Mask remaining bits. <pre>
      * 0  = 0000000000000000 (not used)
      * 1  = 0000000000000001
      * 2  = 0000000000000011
@@ -143,7 +143,7 @@ public class BufferedBitReader {
      * 14 = 0011111111111111
      * 15 = 0111111111111111
      * 16 = 1111111111111111
-     */
+     *</pre>*/
     private static int BIT_MASK[] = new int[] {
         0x0000, 0x0001, 0x0003, 0x0007, 0x000F,
         0x001F, 0x003F, 0x007F, 0x00FF,
@@ -152,12 +152,12 @@ public class BufferedBitReader {
     };
     
     /** A queue to store the bytes read from the stream. */
-    SimpleWordQueue m_oBitBuffer;
+    private SimpleWordQueue m_oBitBuffer;
     /** Bits remaining in the 16-bits at the head of the queue. */
     int m_iBitsRemainging = 0;
     
     /** The source InputStream. */
-    InputStream m_oStrStream;
+    private InputStream m_oStrStream;
     
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
@@ -255,7 +255,7 @@ public class BufferedBitReader {
     
     // .........................................................................
     
-    /** Same as ReadUnsignedBits, but doesn't
+    /** Same as ReadUnsignedBits(), but doesn't
      *  move the stream position forward.  */
     public long PeekUnsignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
@@ -266,7 +266,7 @@ public class BufferedBitReader {
         return lngRet;
     }
     
-    /** Same as ReadSignedBits, but doesn't
+    /** Same as ReadSignedBits(), but doesn't
      *  move the stream position forward.  */
     public long PeekSignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
@@ -277,7 +277,7 @@ public class BufferedBitReader {
         return (lngRet << (64 - iCount)) >> (64 - iCount); // change to signed
     }
     
-    /** Same as ReadBitsToString, but doesn't
+    /** Same as ReadBitsToString(), but doesn't
      *  move the stream position forward.  */
     public String PeekBitsToString(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
@@ -384,8 +384,9 @@ public class BufferedBitReader {
     };
     
     /** Used by the read/peek string functions. Pads the string with
-     *  zeros on the left until the string is the desired length. */
-    private static String PadZeroLeft(String s, int len) {
+     *  zeros on the left until the string is the desired length. 
+     *  Made public for use by other classes. */
+    public static String PadZeroLeft(String s, int len) {
         int slen = s.length();
         
         assert(slen <= len);
@@ -402,8 +403,8 @@ public class BufferedBitReader {
      *  were buffered, then returns the requested number of bits. If fewer than
      *  the requested number of bits were buffered, then returns the
      *  number of bits that could be buffered.
-     *  @param iCount - desired number of bits to buffer
-     *  @return iCount, or less if fewer bits could be buffered */
+     *  @param iCount   desired number of bits to buffer.
+     *  @return iCount, or less if fewer bits could be buffered. */
     private int BufferEnoughForBits(int iCount) throws IOException {
         if (m_iBitsRemainging == 0) { // no bits remain for the buffer head
             // need to get rid of the head of the buffer
@@ -433,8 +434,8 @@ public class BufferedBitReader {
     
     /** This is the only function that actually reads from the InputStream.
      *  Read 16 bits from the stream and adds them to the queue. Returns
-     *  either 0 or 2, for the number of bytes read. If only 1 bytes
-     *  could be read, throws IOException().
+     *  either 0 or 2, for the number of bytes read. If only 1 byte
+     *  could be read, throws EOFException().
      *  @return the number of bytes buffered */
     private int BufferData() throws IOException {
         

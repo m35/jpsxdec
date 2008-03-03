@@ -31,6 +31,8 @@ import jpsxdec.*;
 import jpsxdec.media.Tim;
 import jpsxdec.util.*;
 
+/** Class to decode the background audio images from the SITEA.BIN 
+ *  and SITEB.BIN files. */
 public class Lain_SITE {
     
     public static int DebugVerbose = 2;
@@ -45,13 +47,14 @@ public class Lain_SITE {
      *  <sOutBaseName>###.png
      * @param sSiteFile - the path to the SITEA.BIN or SITEB.BIN file
      * @param sOutBaseName - output base name of the files
+     * @return 0 on ok, -1 on error
      */
     public static int DecodeSITE(String sSiteFile, String sOutBaseName) {
         //String sSiteFile = "SITEB.BIN";
         //String sOutBaseName = "sites\\SITEB";
         
         try {
-            RandomAccessFile oRAF = new RandomAccessFile(sSiteFile, "r");
+            final RandomAccessFile oRAF = new RandomAccessFile(sSiteFile, "r");
             
             long lngFileOffset = 0;
             int iIndex = 0;
@@ -71,11 +74,11 @@ public class Lain_SITE {
 
                 if (new String(napk).equals("napk")) {
 
-                    //Lain_LAPKS.DebugVerbose = 10;
+                    // compressed TIM file
 
                     byte[] img = null;
                     try {
-                        img = LainDecompresser(oRAF);
+                        img = Lain_Pk.Decompress(oRAF);
 
                         ByteArrayInputStream oByteStream = new ByteArrayInputStream(img);
                         
@@ -90,7 +93,8 @@ public class Lain_SITE {
                         }
                         
                     } catch (NotThisTypeException ex) {
-                        ex.printStackTrace();
+                        //ex.printStackTrace();
+                        // if not a compressed TIM, write the uncompressed data
                         FileOutputStream oFOS = new FileOutputStream(String.format(
                                 "%s%03d.dat",
                                 sOutBaseName,
@@ -102,6 +106,30 @@ public class Lain_SITE {
                         ex.printStackTrace();
                     }
 
+                    iIndex++;
+                } else if (napk[0] == 0x10 && napk[1] == 0x00 && napk[2] == 0x00 && napk[3] == 0x00) {
+                    // uncompressed TIM file
+                    oRAF.seek(lngFileOffset); // back up to the start of it
+                    try {
+
+                        Tim oTim = new Tim(new InputStream() {
+                            @Override
+                            public int read() throws IOException {
+                                return oRAF.read();
+                            }
+                        });
+                        for (int i = 0; i < oTim.getPaletteCount(); i++) {
+                            ImageIO.write(oTim.toBufferedImage(i), "png", 
+                                    new File(String.format(
+                                    "%s%03d-%d.png",
+                                    sOutBaseName,
+                                    iIndex, i
+                                    )));
+                        }
+                    } catch (NotThisTypeException ex) {
+                        ex.printStackTrace();
+                    }
+                    
                     iIndex++;
                 }
                 lngFileOffset += 2048;
@@ -115,74 +143,4 @@ public class Lain_SITE {
         return 0;
     }
     
-    /** 
-     * read 4 bytes: size of decompressed data
-     * * This is a form of lzh compression.
-     * read 1 byte: then for each bit (highest to lowest)
-     *    - if 1
-     *      - read 1 byte: start offset to copy + 1
-     *      - read 1 byte: number of bytes to copy + 3
-     *    - if 0
-     *      - read 1 byte: literal byte value to use
-     */
-    public static byte[] LainDecompresser(RandomAccessFile oRAF) throws IOException {
-        int iBitMaskPos = 0;
-        
-        long lngBitMaskSize = IO.ReadUInt32LE(oRAF);
-        byte[] abBitMask = new byte[(int)lngBitMaskSize];
-        
-        while (iBitMaskPos < lngBitMaskSize)
-        {
-            int iFlags = oRAF.readUnsignedByte();
-            
-            if (DebugVerbose > 2)
-                System.err.println(String.format("Flags %02x", iFlags));
-            
-            for (int iFlagMask = 0x80; iFlagMask > 0; iFlagMask>>>=1) {
-                if (iBitMaskPos >= lngBitMaskSize) break;
-                
-                if (DebugVerbose > 2)
-                    System.err.print(String.format(
-                            "[InPos: %d OutPos: %d] Flags %02x: bit %02x: ",
-                            oRAF.getFilePointer(),
-                            iBitMaskPos,
-                            iFlags,
-                            iFlagMask
-                            ));
-                    
-                if ((iFlags & iFlagMask) > 0) {
-                    int iCopyOffset = oRAF.readUnsignedByte();
-                    int iCopySize = oRAF.readUnsignedByte();
-                    iCopyOffset = (iCopyOffset + 1);
-                    iCopySize = (iCopySize + 3);
-                    
-                    if (DebugVerbose > 2)
-                        System.err.println(
-                                "Copy " + iCopySize + 
-                                " bytes from -" + iCopyOffset + 
-                                " (" + (iBitMaskPos - iCopyOffset) + ")");
-                    
-                    for (int i = 0; i < iCopySize; i++) {
-                        if (iBitMaskPos >= lngBitMaskSize) {
-                            throw new RuntimeException("This should never happen.");
-                        }
-                        abBitMask[iBitMaskPos] = abBitMask[iBitMaskPos - iCopyOffset];
-                        iBitMaskPos++;
-                    }
-                } else {
-                    byte b = oRAF.readByte();
-                    
-                    if (DebugVerbose > 2)
-                        System.err.println(String.format("{Byte %02x}", b));
-                    
-                    abBitMask[iBitMaskPos] = b;
-                    iBitMaskPos++;
-                }
-            }
-        }
-        if (DebugVerbose > 2)
-            System.err.println("File pos: " + oRAF.getFilePointer());
-        
-        return abBitMask;
-    }
 }

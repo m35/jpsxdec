@@ -39,11 +39,11 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     int m_iSectorIndex;
     int m_iStartSector, m_iEndSector;
     
-    /** Interface for callback classes. */
-    public static interface ICurrentSector {
+    /** Interface for listener classes. */
+    public static interface ISectorChangeListener {
         void CurrentSector(int i);
     }
-    ICurrentSector m_oCallBack;
+    ISectorChangeListener m_oCallBack;
 
     public PSXSectorRangeIterator(CDSectorReader oCD) {
         this(oCD, 0, oCD.size()-1);
@@ -94,10 +94,11 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
         m_iSectorIndex = i;
     }
 
+    /** Unable to remove sectors */ 
     public void remove() {throw new UnsupportedOperationException();}
     
-    /** Set a callback for whenever the sector is incremented. */
-    public void setCallback(ICurrentSector oCallbk) {
+    /** Set a listener for whenever the sector is incremented. */
+    public void setSectorChangeListener(ISectorChangeListener oCallbk) {
         m_oCallBack = oCallbk;
     }
 

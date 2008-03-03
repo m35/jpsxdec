@@ -38,7 +38,7 @@ import jpsxdec.util.NotThisTypeException;
 import jpsxdec.mdec.PsxYuv;
 
 
-/** Class to decode the Lain poses from the LAPKS.BIN file */
+/** Functions to decode the Lain poses from the LAPKS.BIN file. */
 public class Lain_LAPKS {
     
     public static int DebugVerbose = 2;
@@ -276,7 +276,7 @@ public class Lain_LAPKS {
             // Now read the compressed bit mask
             // results in a 2 bits-per-pixel image
             oRAF.seek(m_lngCellStart + 12 + Size);
-            byte[] abBitMask = Lain_SITE.LainDecompresser(oRAF);
+            byte[] abBitMask = Lain_Pk.Decompress(oRAF);
             
             BitMask = ConvertBitMaskToImage(abBitMask, Width, Height);
             

@@ -20,7 +20,7 @@
  */
 
 /*
- * FF9FrameDemuxerIS.java
+ * FF9FramePullDemuxerIS.java
  */
 
 package jpsxdec.demuxers;
@@ -35,8 +35,10 @@ import jpsxdec.util.AdvancedIOIterator;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IWidthHeight;
 
-/** Demuxes a series of FF9 frame chunk sectors into a solid stream */
-public class FF9FrameDemuxerIS 
+// TODO:
+
+/** Demuxes a series of FF9 frame chunk sectors into a solid stream. */
+public class FF9FramePullDemuxerIS 
         extends InputStream 
         implements IGetFilePointer, IWidthHeight 
 {
@@ -53,7 +55,7 @@ public class FF9FrameDemuxerIS
     private Stack<PSXSectorFF9Video> m_oFrameSectors
             = new Stack<PSXSectorFF9Video>();
     
-    public FF9FrameDemuxerIS(PSXSectorRangeIterator oPsxIter, long lngFrame) 
+    public FF9FramePullDemuxerIS(PSXSectorRangeIterator oPsxIter, long lngFrame) 
             throws IOException
     {
         m_lngFrame = lngFrame;
@@ -122,7 +124,7 @@ public class FF9FrameDemuxerIS
             return m_oFrameSectors.peek().getFilePointer();
     }
     
-    @Override /* [InputStream] */
+    /** [InputStream] */ @Override 
     public int read() throws IOException {
         if (m_oFrameSectors.size() == 0) {
             // we're at the end of the chunks

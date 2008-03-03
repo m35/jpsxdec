@@ -45,7 +45,7 @@ public class CDXASector implements IGetFilePointer {
     public final static int SECTOR_MODE2_FORM2   = 2324;
     
     /** Sync header. */
-    public final static int CD_SECTOR_MAGIC[] = 
+    public final static int SECTOR_SYNC_HEADER[] = 
                             new int[] {0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFF00};
         
     /** Represents a raw CD header that doesn't have a sync header. */
@@ -57,11 +57,11 @@ public class CDXASector implements IGetFilePointer {
             return CDXAHeader.SIZE;
         }
         
-        public int file_number;          // [1 byte] used to identify sectors 
-                                         //          belonging to the same file
+        public int file_number;            // [1 byte] used to identify sectors 
+                                           //          belonging to the same file
         public int channel;                // [1 byte] 0-15 for ADPCM audio
-        public submode_t submode;          // [1 byte] 
-        public coding_info_t coding_info;  // [1 byte]
+        public SubMode submode;            // [1 byte] 
+        public CodingInfo coding_info;     // [1 byte]
         
         public int copy_of_file_number;    // [1 byte] =file_number
         public int copy_of_channel;        // [1 byte] =channel
@@ -86,8 +86,8 @@ public class CDXASector implements IGetFilePointer {
             file_number = oDIS.readUnsignedByte();
             channel     = oDIS.readUnsignedByte();
 
-            submode     = new submode_t(oDIS.readUnsignedByte());
-            coding_info = new coding_info_t(oDIS.readUnsignedByte());
+            submode     = new SubMode(oDIS.readUnsignedByte());
+            coding_info = new CodingInfo(oDIS.readUnsignedByte());
             
             copy_of_file_number = oDIS.readUnsignedByte();
             copy_of_channel     = oDIS.readUnsignedByte();
@@ -96,62 +96,87 @@ public class CDXASector implements IGetFilePointer {
         }
         
         
-        private static class submode_t {
-            boolean eof_marker;     // bit 7:  0 for all sectors except 
-                                    //         last sector of file
-            boolean real_time;      // bit 6:  1 for real time mode
-            byte form;              // bit 5:  0: form 1, 1: form 2
-            boolean trigger;        // bit 4:  used for application
-            boolean data;           // bit 3:  dependant on sector type, 
-                                    //         0 for ADPCM sector
-            boolean audio;          // bit 2:  dependant on sector type, 
-                                    //         1 for ADPCM sector
-            boolean video;          // bit 1:  dependant on sector type, 
-                                    //         0 for ADPCM sector
-            boolean end_of_record;  // bit 0:  identifies end of audio frame
+        public static class SubMode {
+            /** bit 7: 0 for all sectors except last sector of a file. */
+            public final byte eof_marker;     
             
-            public submode_t(int b) {
-                eof_marker    = (b & 0x80) > 0;
-                real_time     = (b & 0x40) > 0;
-                form          = (b & 0x20) == 0 ? (byte)1 : (byte)2;
-                trigger       = (b & 0x10) > 0;
-                data          = (b & 0x08) > 0;
-                audio         = (b & 0x04) > 0;
-                video         = (b & 0x02) > 0;
-                end_of_record = (b & 0x01) > 0;
+            /** bit 6:  1 for real time mode. */
+            public final byte real_time;      
+            
+            /** bit 5:  1 for form 1, 2 or form 2 
+             * (original bit 0 = form 1, 1 = form 2). */
+            public final byte form;              
+            
+            /** bit 4:  used for application. */
+            public final byte trigger;        
+            
+            /** bit 3:  1 could mean data or video data.
+             *          Mutually exclusive with bits 2 and 1. */
+            public final byte data;           
+            
+            /** bit 2:  1 for ADPCM sector.
+             *          Mutually exclusive with bits 3 and 1. */
+            public final byte audio;          
+            
+            /** bit 1:  1 for video sector.
+             *          Mutually exclusive with bits 3 and 2. */
+            public final byte video;          
+            
+            /** bit 0:  identifies end of audio frame */                                                
+            public final byte end_of_record;  
+            
+            SubMode(int b) {
+                eof_marker    = (byte)( (b >> 7) & 1);
+                real_time     = (byte)( (b >> 6) & 1);
+                form          = (byte)(((b >> 5) & 1) + 1);
+                trigger       = (byte)( (b >> 4) & 1);
+                data          = (byte)( (b >> 3) & 1);
+                audio         = (byte)( (b >> 2) & 1);
+                video         = (byte)( (b >> 1) & 1);
+                end_of_record = (byte)( (b     ) & 1);
             }
             
-            public int ToByte() {
-                return (eof_marker    ? 0x80 : 0) |
-                       (real_time     ? 0x40 : 0) |
-                       (form == 2     ? 0x20 : 0) |
-                       (trigger       ? 0x10 : 0) |
-                       (data          ? 0x08 : 0) |
-                       (audio         ? 0x04 : 0) |
-                       (video         ? 0x02 : 0) |
-                       (end_of_record ? 0x01 : 0);
+            public byte toByte() {
+                return (byte)
+                       ((eof_marker    << 7) |
+                        (real_time     << 6) |
+                        ((form - 1)    << 5) |
+                        (trigger       << 4) |
+                        (data          << 3) |
+                        (audio         << 2) |
+                        (video         << 1) |
+                        (end_of_record     ));
             }
         }
 
-        private static class coding_info_t {
-            boolean reserved;          // bit 7:    =0 ?
-            boolean emphasis;          // bit 6:    
-            byte    bits_per_sample;   // bit 5,4: 00=4bits (B,C format)
-                                       //          01=8bits
-            byte    sample_rate;       // bit 3,2: 00=37.8kHz (A,B format) 
-                                       //          01=18.9kHz
-            byte    mono_stereo;       // bit 1,0: 00=mono 01=stereo,
-                                       //          other values reserved 
+        public static class CodingInfo {
+            /** bit 7:    =0 ?  */
+            public final boolean reserved;    
             
-            public coding_info_t(int b) {
-                reserved    = (b & 0x80) > 0;
-                emphasis    = (b & 0x40) > 0;
+            /** bit 6:          */
+            public final boolean emphasis;          
+            
+            /** bits 5,4: 00=4bits (B,C format)
+             *            01=8bits */
+            public final byte    bits_per_sample;   
+            
+            /** bits 3,2: 00=37.8kHz (A,B format) 
+             *            01=18.9kHz */
+            public final byte    sample_rate;       
+            
+            /** bits 1,0: 00=mono 01=stereo,
+             *            other values reserved */
+            public final byte    mono_stereo;       
+            
+            CodingInfo(int b) {
+                reserved           = (b & 0x80) > 0;
+                emphasis           = (b & 0x40) > 0;
                 bits_per_sample = (byte)((b >> 4) & 3);
                 sample_rate =     (byte)((b >> 2) & 3);
                 mono_stereo =     (byte)((b >> 0) & 3);
             }
             
-            public int ToByte() {
+            public int toByte() {
                return 
                     (reserved    ? 0x80 : 0)     |
                     (emphasis    ? 0x40 : 0)     |
@@ -173,7 +198,6 @@ public class CDXASector implements IGetFilePointer {
         }
         
         // sync header [12 bytes]
-        // movconv doesn't add the sync header
         public int SyncHeader1; // [4 bytes] 0x00FFFFFF
         public int SyncHeader2; // [4 bytes] 0xFFFFFFFF
         public int SyncHeader3; // [4 bytes] 0xFFFFFF00
@@ -181,7 +205,7 @@ public class CDXASector implements IGetFilePointer {
         public int minutes;     // [1 byte] timecode relative to start of disk
         public int seconds;     // [1 byte] timecode relative to start of disk
         public int sectors;     // [1 byte] timecode relative to start of disk
-        public int mode;        // [1 byte] Mode 2 for ...
+        public int mode;        // [1 byte] Should always be Mode 2 for PSX data tracks
         
         public CDXAHeaderWithSync(DataInputStream oDIS) 
                 throws IOException, NotThisTypeException
@@ -193,11 +217,11 @@ public class CDXASector implements IGetFilePointer {
         protected void ReadHeader(DataInputStream oDIS) 
                 throws IOException, NotThisTypeException
         {
-            if ((SyncHeader1 = oDIS.readInt()) != CD_SECTOR_MAGIC[0]) 
+            if ((SyncHeader1 = oDIS.readInt()) != SECTOR_SYNC_HEADER[0]) 
                 throw new NotThisTypeException("Sector missing sync");
-            if ((SyncHeader2 = oDIS.readInt()) != CD_SECTOR_MAGIC[1]) 
+            if ((SyncHeader2 = oDIS.readInt()) != SECTOR_SYNC_HEADER[1]) 
                 throw new NotThisTypeException("Sector missing sync");
-            if ((SyncHeader3 = oDIS.readInt()) != CD_SECTOR_MAGIC[2]) 
+            if ((SyncHeader3 = oDIS.readInt()) != SECTOR_SYNC_HEADER[2]) 
                 throw new NotThisTypeException("Sector missing sync");
             
             minutes = oDIS.readUnsignedByte();
@@ -277,14 +301,17 @@ public class CDXASector implements IGetFilePointer {
                     return jpsxdec.util.Misc.copyOfRange(m_abSectorBytes, CDXAHeaderWithSync.SIZE, CDXAHeaderWithSync.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
                 }
             default:
-                assert (true);
-                // mysterious sector size
-                return null;
+                throw new RuntimeException("A sector size of " + m_iRawSectorSize + " should never happen.");
         }
     }
     
+    /** Takes care of making a ByteArrayOutputStream out of the sector user data. */
+    public ByteArrayInputStream getSectorDataStream() {
+        return new ByteArrayInputStream(getSectorData());
+    }
+    
     /** Returns the entire raw sector data, with raw header/footer and 
-     * everything (assuming it has all that). */
+     * everything that is has. */
     public byte[] getRawSectorData() {
         return m_abSectorBytes.clone();
     }
@@ -313,69 +340,21 @@ public class CDXASector implements IGetFilePointer {
     }
 
     //..........................................................................
-    public int getSubMode() {
-        if (m_oHeader != null) {
-            return m_oHeader.submode.ToByte();
-        } else {
-            return -1;
-        }
-    }
-
-    public int getSubMode_Audio() {
-        if (m_oHeader != null) {
-            return m_oHeader.submode.audio ? 1 : 0;
-        } else {
-            return -1;
-        }
-    }
-
-    public int getSubMode_Video() {
-        if (m_oHeader != null) {
-            return m_oHeader.submode.video ? 1 : 0;
-        } else {
-            return -1;
-        }
-    }
-
-    public int getSubMode_Data() {
-        if (m_oHeader != null) {
-            return m_oHeader.submode.data ? 1 : 0;
-        } else {
-            return -1;
-        }
-    }
-
-    public int getSubMode_RealTime() {
-        if (m_oHeader != null) {
-            return m_oHeader.submode.real_time ? 1 : 0;
-        } else {
-            return -1;
-        }
-    }
-
-    public int getSubMode_EOFMarker() {
-        if (m_oHeader != null) {
-            return m_oHeader.submode.eof_marker ? 1 : 0;
-        } else {
-            return -1;
-        }
-    }
-
-    public int getSubMode_Form() {
-        if (m_oHeader != null) {
-            return m_oHeader.submode.form;
-        } else {
-            return -1;
-        }
+    
+    public CDXAHeader.SubMode getSubMode() {
+        if (m_oHeader != null)
+            return m_oHeader.submode;
+        else
+            return null;
     }
 
     //..........................................................................
-    public int getCodingInfo() {
-        if (m_oHeader != null) {
-            return m_oHeader.coding_info.ToByte();
-        } else {
-            return -1;
-        }
+    
+    public CDXAHeader.CodingInfo getCodingInfo() {
+        if (m_oHeader != null)
+            return m_oHeader.coding_info;
+        else
+            return null;
     }
 
     public int getCodingInfo_BitsPerSample() {
@@ -403,7 +382,8 @@ public class CDXASector implements IGetFilePointer {
     }
 
     //..........................................................................
-    public boolean HasSectorHeader() {
+    
+    public boolean hasSectorHeader() {
         return m_oHeader != null;
     }
 

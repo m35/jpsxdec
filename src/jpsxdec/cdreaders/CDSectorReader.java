@@ -55,8 +55,15 @@ public class CDSectorReader {
     
     /** Opens a CD file for reading. */
     public CDSectorReader(String sFile) throws IOException {
+        this(sFile, false);
+    }
+
+    public CDSectorReader(String sFile, boolean blnAllowWrites) throws IOException {
         m_sSourceFilePath = new File(sFile).getPath();
-        m_oInputFile = new RandomAccessFile(sFile, "r");
+        if (blnAllowWrites)
+            m_oInputFile = new RandomAccessFile(sFile, "rw");
+        else
+            m_oInputFile = new RandomAccessFile(sFile, "r");
         
         FindFirstSectorOffsetAndSize();
         if (m_lngFirstSectorOffset < 0) 
@@ -145,6 +152,21 @@ public class CDSectorReader {
         }
     }
     
+    public void writeSector(int iSector, byte[] abSrcUserData) throws IOException {
+        
+        CDXASector oSect = getSector(iSector);
+        
+        if (oSect.getSectorData().length != abSrcUserData.length)
+            throw new IOException("Data to write is not the right size");
+        
+        long lngUserDataOfs = oSect.getFilePointer();
+        
+        synchronized(this) {
+            m_oInputFile.seek(lngUserDataOfs);
+            m_oInputFile.write(abSrcUserData);
+        }
+    }
+    
     /* ---------------------------------------------------------------------- */
     /* Private Functions ---------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -156,7 +178,7 @@ public class CDSectorReader {
     //private final static byte ISO_MAGIC_____1 =         0x31;
     
     private final static int PARTIAL_CD_SECTOR_HEADER = 0x00014800;
-    
+
     /** Searches through the first MODE2_FORM2_CDXA_SECTOR_SIZE*2 bytes 
      *  for a CD sync mark, a video chunk sector, or an audio chunk sector.
      *  If none are found, searches for the CD001 mark indicating an ISO.
@@ -182,9 +204,9 @@ public class CDSectorReader {
             int iTestBytes2 = oByteTester.readInt();
             int iTestBytes3 = oByteTester.readInt();
             
-            if (iTestBytes1 == CDXASector.CD_SECTOR_MAGIC[0] && 
-                iTestBytes2 == CDXASector.CD_SECTOR_MAGIC[1] && 
-                iTestBytes3 == CDXASector.CD_SECTOR_MAGIC[2]) {
+            if (iTestBytes1 == CDXASector.SECTOR_SYNC_HEADER[0] && 
+                iTestBytes2 == CDXASector.SECTOR_SYNC_HEADER[1] && 
+                iTestBytes3 == CDXASector.SECTOR_SYNC_HEADER[2]) {
                 // CD Sync Header
                 m_lngFirstSectorOffset = i;
                 m_iRawSectorTypeSize = CDXASector.SECTOR_RAW_AUDIO;
@@ -247,7 +269,7 @@ public class CDSectorReader {
 
     @Override
     public String toString() {
-        return "SourceFile|" + m_oInputFile 
+        return "SourceFile|" + m_sSourceFilePath 
                 + "|" + m_iRawSectorTypeSize 
                 + "|" + m_iSectorCount 
                 + "|" + m_lngFirstSectorOffset;

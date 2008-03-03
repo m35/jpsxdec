@@ -25,8 +25,6 @@
 
 package jpsxdec.mdec;
 
-import jpsxdec.util.Matrix8x8;
-
 /** This is the simplest implementation of the Inverse Discrete Cosine 
  *  Transform. If I understand correctly, it's inverse 2D DCT-II, specifically.
  *

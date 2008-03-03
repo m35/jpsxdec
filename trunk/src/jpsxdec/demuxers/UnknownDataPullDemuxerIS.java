@@ -20,7 +20,7 @@
  */
 
 /*
- * UnknownDataDemuxerIS.java
+ * UnknownDataPullDemuxerIS.java
  */
 
 package jpsxdec.demuxers;
@@ -30,7 +30,9 @@ import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.util.IGetFilePointer;
 
-public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer 
+/** Demuxes a series of PSXSectorUnknownData into a solid stream.
+ *  Sectors are pulled from an iterator as they are needed. */
+public class UnknownDataPullDemuxerIS extends InputStream implements IGetFilePointer 
 {
     
     PSXSectorRangeIterator m_oPsxSectIter;
@@ -41,7 +43,7 @@ public class UnknownDataDemuxerIS extends InputStream implements IGetFilePointer
     int m_iMarkIndex = -1;
     int m_iMarkPos = -1;
     
-    public UnknownDataDemuxerIS(PSXSectorRangeIterator oPsxSectIter) 
+    public UnknownDataPullDemuxerIS(PSXSectorRangeIterator oPsxSectIter) 
             throws IOException 
     {
         m_oPsxSectIter = oPsxSectIter;

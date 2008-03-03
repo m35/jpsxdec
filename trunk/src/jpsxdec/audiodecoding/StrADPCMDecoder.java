@@ -34,10 +34,13 @@ import java.io.IOException;
  *  ADPCMDecodingContext. */
 public final class StrADPCMDecoder {
     
+    /** The number of samples in a normal ADPCM audio sector = 4032. */
     private static final int SAMPLES_IN_NORMAL_SECTOR = 4032;
     
-    /** Audio data on the PSX is encoded using
-     *  Adaptive Differential Pulse Code Modulation (ADPCM).
+    /** Decodes a sector's worth of ADPCM data.
+     * 
+     * Audio data on the PSX is encoded using
+     * Adaptive Differential Pulse Code Modulation (ADPCM).
      * 
      * A full sector will decode to 4032/channels samples (or 8064 bytes).
      * Returns 4032 samples/channels shorts (or 8064 bytes).
@@ -179,6 +182,7 @@ public final class StrADPCMDecoder {
     
     /** 
      * Sound units are interleaved like this:
+     * <pre>
      * 8 bits-per-sample
      *      byte 1: sound unit 0
      *      byte 2: sound unit 1
@@ -193,7 +197,7 @@ public final class StrADPCMDecoder {
      *      byte 4: sound unit 7 | sound unit 6
      *      byte 5: sound unit 1 | sound unit 0
      *      ...
-     * 
+     * </pre>
      */
     private static void ReadInterleavedSoundUnits(DataInputStream oStream,
                                                   int iBitsPerSample,
@@ -237,7 +241,7 @@ public final class StrADPCMDecoder {
     /** Taking de-interleaved sound unit data, the sound parameter for that
      *  unit, and the decoding context (for the previous 2 samples read),
      *  we can decode an entire sound unit. 
-     * (ADPCMtoPCM() needs to know the the original bits-per-sample) */
+     * (Bits-per-sample will be passed on to ADPCMtoPCM()) */
     private static void DecodeSoundUnit(int[] aiADPCMSoundUnit, 
                                         int iSoundParam, 
                                         ADPCMDecodingContext oContext,
@@ -316,12 +320,13 @@ public final class StrADPCMDecoder {
     
     
     public static short[] DecodeMoreFF8(InputStream oStream,
-                                        ADPCMDecodingContext oContext)
+                                        ADPCMDecodingContext oContext,
+                                        int iNumOfSamples)
             throws IOException
     {
-        oContext.setArray(2940);
+        oContext.setArray(iNumOfSamples);
         
-        for (int iSoundGroup = 0; iSoundGroup < 105; iSoundGroup++) {
+        for (int iSoundGroup = 0; iSoundGroup < iNumOfSamples/28; iSoundGroup++) {
             int iSoundParameter1 = oStream.read();
             if (iSoundParameter1 < 0) 
                 throw new EOFException("Unexpected end of audio data");

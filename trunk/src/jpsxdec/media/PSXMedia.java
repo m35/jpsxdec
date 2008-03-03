@@ -29,12 +29,20 @@ import java.util.*;
 import java.io.*;
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFileFormat.Type;
+import javax.sound.sampled.AudioInputStream;
 import jpsxdec.*;
 import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CDXAIterator;
+import jpsxdec.cdreaders.CDXASector;
+import jpsxdec.demuxers.StrFramePushDemuxerIS;
+import jpsxdec.mdec.MDEC;
+import jpsxdec.mdec.PsxYuv;
+import jpsxdec.media.StrFpsCalc.FramesPerSecond;
+import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.sectortypes.PSXSector.*;
-import jpsxdec.util.IProgressCallback;
+import jpsxdec.uncompressors.StrFrameUncompressorIS;
 
 
 
@@ -110,81 +118,19 @@ public abstract class PSXMedia implements Comparable {
         return m_iMediaIndex;
     }
 
-    public void setIndex(int m_iMediaIndex) {
-        this.m_iMediaIndex = m_iMediaIndex;
+    public void setIndex(int iMediaIndex) {
+        m_iMediaIndex = iMediaIndex;
     }
     
     /** Extend this function for serializing */
     protected String toString(String sType) {
-        return String.format("%03d:%s:%d-%d",
+        return String.format("%03d:%s:%d-%d:",
                 m_iMediaIndex, sType, m_iStartSector, m_iEndSector);
     }
     
-    // -------------------------------------------------------------------------
-    
-    private IProgressCallback m_oCallbackObj;
-    
-    public void setCallback(IProgressCallback oCallBk) {
-        m_oCallbackObj = oCallBk;
+    public PSXSectorRangeIterator getSectorIterator() {
+        return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
     }
-    
-    protected boolean Progress(String sWhatDoing, double dblProgress) {
-        if (m_oCallbackObj instanceof IProgressCallback) {
-            return ((IProgressCallback)m_oCallbackObj).ProgressCallback(sWhatDoing, dblProgress);
-        }
-        return true;
-    }
-    
-    protected boolean Event(String sWhatHappen) {
-        if (m_oCallbackObj instanceof IProgressCallback.IProgressCallbackEvent) {
-            return ((IProgressCallback.IProgressCallbackEvent)m_oCallbackObj).ProgressCallback(sWhatHappen);
-        }
-        return true;
-    }
-    
-    protected void Error(Exception e) {
-        if (m_oCallbackObj instanceof IProgressCallback.IProgressCallbackError) {
-            ((IProgressCallback.IProgressCallbackError)m_oCallbackObj).ProgressCallback(e);
-        }
-    }
-    
-    
-    // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-    abstract public int getMediaType();
-
-    public void DecodeVideo(String sFileBaseName, String sImgFormat, Integer oiStartFrame, Integer oiEndFrame) {
-        throw new UnsupportedOperationException("This media type does not have video.");
-    }
-    public boolean hasVideo() {
-        return false;
-    }
-    
-    public void DecodeAudio(String sFileBaseName, String sAudFormat, Double odblScale) {
-        throw new UnsupportedOperationException("This media type does not have movie audio.");
-    }
-    public boolean hasAudio() {
-        return false;
-    }
-    
-    public void DecodeXA(String sFileBaseName, String sAudFormat, Double odblScale, Integer oiChannel) {
-        throw new UnsupportedOperationException("This media type does not have XA audio.");
-    }
-    public boolean hasXAChannels() {
-        return false;
-    }
-    
-    public void DecodeImage(String sFileBaseName, String sImgFormat) {
-        throw new UnsupportedOperationException("This media type is not an image.");
-    }
-    public boolean hasImage() {
-        return false;
-    }
-    
-    
-    
-    
-    
     
     // -------------------------------------------------------------------------
     // Stuff shared by more than one sub-class ---------------------------------
@@ -205,10 +151,11 @@ public abstract class PSXMedia implements Comparable {
         public long SamplesPerSecond = -1;
         public long MonoStereo       = -1;
         public long LastAudioSect    = -1;
+        public long AudioPeriod      = -1;
     }
     
     /** Gets the AudioFileFormat.Type from its string representation */
-    protected static Type AudioFileFormatStringToType(String sFormat) {
+    public static Type AudioFileFormatStringToType(String sFormat) {
         if (sFormat.equals("aifc"))
             return AudioFileFormat.Type.AIFC;
         else if (sFormat.equals("aiff"))
@@ -224,7 +171,7 @@ public abstract class PSXMedia implements Comparable {
     }
     
     /** Gets the string representation of an AudioFileFormat.Type */
-    protected static String AudioFileFormatTypeToString(Type oFormat) {
+    public static String AudioFileFormatTypeToString(Type oFormat) {
         if (oFormat.equals(AudioFileFormat.Type.AIFC))
             return "aifc";
         else if (oFormat.equals(AudioFileFormat.Type.AIFF))
@@ -239,4 +186,181 @@ public abstract class PSXMedia implements Comparable {
             return null;
     }
 
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    
+    public static abstract class PSXMediaStreaming extends PSXMedia {
+        CDXAIterator m_oCDIter;
+        
+        public PSXMediaStreaming(PSXSectorRangeIterator oSectIterator) {
+            super(oSectIterator);
+            Reset();
+        }
+
+        public PSXMediaStreaming(CDSectorReader oCD, String sSerial, String sType) 
+                throws NotThisTypeException
+        {
+            super(oCD, sSerial, sType);
+            Reset();
+        }
+        
+        public void Reset() {
+            m_oCDIter = new CDXAIterator(m_oCD, super.m_iStartSector, super.m_iEndSector);
+        }
+
+        private boolean m_blnPlaying = false;
+        public void Play() throws IOException {
+            m_blnPlaying = true;
+            startPlay();
+
+            while (m_oCDIter.hasNext() && m_blnPlaying) {
+                CDXASector oSect = m_oCDIter.next();
+                if (m_oRawRead != null) if (m_oRawRead.event(oSect)) return;
+
+                PSXSector oPSXSect = PSXSector.SectorIdentifyFactory(oSect);
+
+                if (oPSXSect == null) continue;
+
+                if (playSector(oPSXSect)) return;
+            }
+
+            endPlay();
+            m_blnPlaying = false;
+        }
+        
+        public void Stop() {
+            m_blnPlaying = false;
+        }
+        
+        protected abstract void startPlay();
+        protected abstract void endPlay() throws IOException;
+        protected abstract boolean playSector(PSXSector oPSXSect) throws IOException;
+
+        public void clearListeners() {
+            m_oRawRead = null;
+        }
+        
+        
+        private IRawListener m_oRawRead;
+        public void addRawListener(IRawListener oListen) {
+            m_oRawRead = oListen;
+        }
+
+        ////////////////////////////////////////////////////////////////////////
+        
+        public static interface IRawListener {
+            /** @return true to stop, false to continue. */
+            boolean event(CDXASector oSect);
+        }
+        public static interface IVidListener {
+            /** @return true to stop, false to continue. */
+            boolean event(InputStream is, long frame);
+        }
+        public static interface IAudListener {
+            /** @return true to stop, false to continue. */
+            boolean event(AudioInputStream is, int sector);
+        }
+        
+        ////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////
+        
+        public static abstract class PSXMediaVideo extends PSXMediaStreaming {
+            public PSXMediaVideo(PSXSectorRangeIterator oSectIterator) {
+                super(oSectIterator);
+            }
+
+            public PSXMediaVideo(CDSectorReader oCD, String sSerial, String sType) 
+                    throws NotThisTypeException
+            {
+                super(oCD, sSerial, sType);
+            }
+            
+            abstract public void seek(int iFrame) throws IOException;
+            
+            protected IVidListener m_oVidDemux;
+            public void addVidDemuxListener(IVidListener oListen) {
+                m_oVidDemux = oListen;
+            }
+        
+            protected IVidListener m_oMdec;
+            public void addMdecListener(IVidListener o) {
+                m_oMdec = o;
+            }
+            protected IFrameListener m_oFrame;
+            public void addFrameListener(IFrameListener o) {
+                m_oFrame = o;
+            }
+            protected IAudListener m_oAudio;
+            public void addAudioListener(IAudListener o) {
+                m_oAudio = o;
+            }
+            
+            @Override
+            public void clearListeners() {
+                m_oVidDemux = null;
+                m_oAudio = null;
+                m_oFrame = null;
+                m_oMdec = null;
+                super.clearListeners();
+            }
+
+            public static interface IFrameListener {
+                /** @return true to stop, false to continue. */
+                boolean event(PsxYuv o, long frame);
+            }
+            
+            public abstract int getAudioChannels();
+
+            public abstract FramesPerSecond[] getPossibleFPS();
+                
+            public abstract boolean hasVideo();
+            
+            public abstract long getStartFrame();
+            public abstract long getEndFrame();
+
+            /** After the last sector of a frame has been read, 
+             *  this is called to then process it. */
+            final protected boolean handleEndOfFrame(StrFramePushDemuxerIS oDemux) throws IOException {
+
+                // send out the demux event if there is listener
+                if (m_oVidDemux != null) {
+                    if (m_oVidDemux.event(oDemux, oDemux.getFrameNumber())) return true;
+                    return false;
+                }
+
+                // continue only if listener
+                if (m_oMdec != null || m_oFrame != null) {
+                    StrFrameUncompressorIS oUncomprs = new StrFrameUncompressorIS(oDemux, oDemux.getWidth(), oDemux.getHeight());
+                    // send mdec event if listener
+                    if (m_oMdec != null) {
+                        if (m_oMdec.event(oUncomprs, oDemux.getFrameNumber())) return true;
+                        return false;
+                    }
+
+                    // finally decode frame and event if listener
+                    if (m_oFrame != null) { 
+                        try {
+                            //TODO need to pass the error but still decode
+                            PsxYuv yuv = MDEC.DecodeFrame(oUncomprs, oUncomprs.getWidth(), oUncomprs.getHeight());
+                            if (m_oFrame.event(yuv, oDemux.getFrameNumber())) return true;
+                        } catch (MDEC.DecodingException ex) {
+                            if (m_oFrame.event(ex.getYuv(), oDemux.getFrameNumber())) return true;
+                        }
+                        return false;
+                    }
+
+                }
+
+                return false;
+            }
+        }
+
+    }
+    
+    
+    
 }
+
+
+

@@ -27,14 +27,15 @@ package jpsxdec.media;
 
 import java.io.*;
 import java.util.*;
+import javax.swing.AbstractListModel;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
-import jpsxdec.util.GenericContainer;
-import jpsxdec.util.IProgressCallback;
+import jpsxdec.util.IProgressListener;
+import jpsxdec.util.IProgressListener.*;
 import jpsxdec.util.NotThisTypeException;
 
 /** Manages a collection of PSXMedia items. */
-public class MediaHandler implements Iterable<PSXMedia> {
+public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia> {
     
     static int DebugVerbose = 2;
     
@@ -45,60 +46,61 @@ public class MediaHandler implements Iterable<PSXMedia> {
     public MediaHandler(CDSectorReader oCD)
             throws IOException 
     {
-        this(oCD, (IProgressCallback)null);
+        this(oCD, (IProgressListener)null);
     }
     
-    /** Finds all the media on the CD */
-    public MediaHandler(CDSectorReader oCD, final IProgressCallback oCallbaker)
+    /** Finds all the media on the CD.
+     * @param oListener  Optional progress listener.  */
+    public MediaHandler(CDSectorReader oCD, final IProgressListener oListener)
             throws IOException 
     {
         m_oSourceCD = oCD;
         final double dblCDSize = oCD.size();
-        final GenericContainer<Boolean> oblnQuit = 
-                new GenericContainer<Boolean>(new Boolean(false));
-        
+        // need to make it a final array so the anonymous class can use it
+        final boolean[] oblnQuitIndexing = new boolean[] { false };
+
         PSXSectorRangeIterator oSectIterator = new PSXSectorRangeIterator(oCD);
         // If it doesn't even have 1 sector
-        if (!oSectIterator.hasNext() && !oblnQuit.get()) return;
+        if (!oSectIterator.hasNext() || oblnQuitIndexing[0]) return;
 
-        // set the callback
-        oSectIterator.setCallback(new PSXSectorRangeIterator.ICurrentSector() {
+        // add a progress listener
+        oSectIterator.setSectorChangeListener(new PSXSectorRangeIterator.ISectorChangeListener() {
             public void CurrentSector(int i) {
-                if (oCallbaker != null) {
-                    if (!oCallbaker.ProgressCallback("Sector " + i, i / dblCDSize))
-                        oblnQuit.set(new Boolean(true));
+                if (oListener != null) {
+                    if (!oListener.ProgressUpdate("Sector " + i, i / dblCDSize))
+                        oblnQuitIndexing[0] = true;
                 }
             }
         });
         
         int iIndex = 0;
-        while (oSectIterator.hasNext() && !oblnQuit.get()) {
+        while (oSectIterator.hasNext() && !oblnQuitIndexing[0]) {
             
             if (DebugVerbose > 6) 
                 System.err.println("Sector: " + oSectIterator.getIndex());
             
             try {
-                iIndex = AddMediaItem(new PSXMediaSTR(oSectIterator), iIndex, oCallbaker);
+                iIndex = AddMediaItem(new PSXMediaSTR(oSectIterator), iIndex, oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
             try {
-                iIndex = AddMediaItem(new PSXMediaXA(oSectIterator), iIndex, oCallbaker);
+                iIndex = AddMediaItem(new PSXMediaXA(oSectIterator), iIndex, oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
             try {
-                iIndex = AddMediaItem(new PSXMediaTIM(oSectIterator), iIndex, oCallbaker);
+                iIndex = AddMediaItem(new PSXMediaTIM(oSectIterator), iIndex, oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
             try {
-                iIndex = AddMediaItem(new PSXMediaFF8(oSectIterator), iIndex, oCallbaker);
+                iIndex = AddMediaItem(new PSXMediaFF8(oSectIterator), iIndex, oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
             try {
-                iIndex = AddMediaItem(new PSXMediaFF9(oSectIterator), iIndex, oCallbaker);
+                iIndex = AddMediaItem(new PSXMediaFF9(oSectIterator), iIndex, oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
@@ -107,14 +109,16 @@ public class MediaHandler implements Iterable<PSXMedia> {
         
     }
     
-    private int AddMediaItem(PSXMedia oMedia, int iIndex, IProgressCallback oCB) {
+    /** Adds a media item to the internal hash and array, and returns the
+     *  incremented index. */
+    private int AddMediaItem(PSXMedia oMedia, int iIndex, IProgressListener oCB) {
         oMedia.setIndex(iIndex);
         m_oMediaHash.put(new Integer(iIndex), oMedia);
         m_oMediaHash.put(oMedia.toString(), oMedia);
         m_oMediaList.add(oMedia);
-        if (DebugVerbose > 1) System.err.println(oMedia.toString());
-        if (oCB instanceof IProgressCallback.IProgressCallbackEvent)
-            ((IProgressCallback.IProgressCallbackEvent)oCB).ProgressCallback(oMedia.toString());
+        if (DebugVerbose > 3) System.err.println(oMedia.toString());
+        if (oCB instanceof IProgressEventListener)
+            ((IProgressEventListener)oCB).ProgressUpdate(oMedia.toString());
         return iIndex + 1;
     }
     
@@ -161,7 +165,10 @@ public class MediaHandler implements Iterable<PSXMedia> {
                     continue;
                 }
                 AddMediaItem(oPsxMedia, oPsxMedia.getIndex(), null);
-            } catch (NotThisTypeException e) {}
+            } catch (NotThisTypeException e) {
+                if (DebugVerbose > 3)
+                    System.err.println("Failed to parse possible item: " + sLine);
+            }
         }
         oReader.close();
         
@@ -172,12 +179,6 @@ public class MediaHandler implements Iterable<PSXMedia> {
             throws IOException 
     {
         oPrinter.println("# Lines that begin with # are comments");
-        oPrinter.println("# Format:");
-        oPrinter.println("#   media_num:STR:start_sector-end_sector:frame_start-frame_end:audio_sample_count");
-        oPrinter.println("#   media_num:XA:start_sector-end_sector:list,of,channels");
-        oPrinter.println("#   media_num:TIM:start_sector-end_sector:start_sector_offset");
-        oPrinter.println("#   media_num:FF8:start_sector-end_sector:frame_start-frame_end:has_video?");
-        oPrinter.println("#   media_num:FF9:start_sector-end_sector:frame_start-frame_end");
         oPrinter.println(m_oSourceCD.toString());
         for (PSXMedia oMedia : this) {
             oPrinter.println(oMedia.toString());
@@ -200,10 +201,19 @@ public class MediaHandler implements Iterable<PSXMedia> {
     public int size() {
         return m_oMediaHash.size();
     }
-
-    /** [implements Iterable] */
+    
+    /* [implements Iterable] */
     public Iterator<PSXMedia> iterator() {
         return m_oMediaList.iterator();
+    }
+
+    // AbstractListModel stuff /////////////////////////////////////////////////
+    public int getSize() {
+        return size();
+    }
+
+    public Object getElementAt(int index) {
+        return getByIndex(index);
     }
 
 }

@@ -9,27 +9,38 @@ IDCT.java copyright (c) Joerg Anders is also licensed under the
 GNU GENERAL PUBLIC LICENSE Version 2.
 http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html
 
+AudioWriter.java copyright (c) Columbia University was originally part of 
+MEAPsoft, and is also lisensed under the General Public License version 2.
+http://labrosa.ee.columbia.edu/meapsoft/
+
 The text of this license is contained in this file.
+
 
 CmdLineParser.java copyright (c) Steve Purcell, Vidar Holen, 
 Michal Ceresna, and Ewan Mellor, is licensed under the BSD License.
 http://jargs.sourceforge.net/
-
 The text of this license is contained in this file.
 
 The code for StephensIDCT.java originally came from code written by
-Stephen Manley. He generouslly offers his code free, 
-without copyright or licence. http://www.nyx.net/~smanley/
+Stephen Manley. He generouslly offers his code free, without restriction.
+http://www.nyx.net/~smanley/
 
-SwingWorker files, copyright Sun Microsystems, Inc., are licensed under 
-the GNU LESSER GENERAL PUBLIC LICENSE. See COPYING file in the swingworker
-directory for the text of this license.
+SwingWorker package, copyright Sun Microsystems, Inc., is licensed under 
+the GNU LESSER GENERAL PUBLIC LICENSE.
 
 Fraction.java
   Originally written by Doug Lea and released into the public domain.
   This may be used for any purposes whatsoever without acknowledgment.
   Thanks for the assistance and support of Sun Microsystems Labs,
   and everyone contributing, testing, and using this code.
+
+AviWriter.java
+  Very loosly based on the ImageJ package at http://rsb.info.nih.gov/ij
+  which has been released to the public domain. See AviWriter.java for more
+  details.
+
+
+
 
 Following:
 

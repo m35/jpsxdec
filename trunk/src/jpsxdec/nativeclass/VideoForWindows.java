@@ -32,9 +32,9 @@ public class VideoForWindows {
         return OS.indexOf("windows") > -1;
     }
     private static boolean isRecentWin() {
-        return ( (OS.indexOf("windows nt") > -1)
-         || (OS.indexOf("windows 2000") > -1 )
-         || (OS.indexOf("windows xp") > -1) );
+        return (OS.indexOf("windows nt")   > -1 )
+            || (OS.indexOf("windows 2000") > -1 )
+            || (OS.indexOf("windows xp")   > -1 );
     }
     private static boolean isOldWin() {
         return (OS.indexOf("windows 9") > -1);
@@ -58,13 +58,33 @@ public class VideoForWindows {
     public native int Close();
 
     public native int PromptForCompression(int hWnd);
+    
+    /** Calls win32 FindWindow() function.
+     * I find it interesting that Java sets the native win32 'Window Class' of
+     * a JFrame to be the actual Java class name.
+     * 
+     * e.g. FindWindow(myjframe.getClass().getName(), myjframe.getTitle());
+     * 
+     * @param sClass  Name of the JFrame class.
+     * @param sTitle  Caption of the window. 
+     * @return The win32 HWND of the JFrame    */
     public native int FindWindow(String sClass, String sTitle);
 
     public native int InitAVIWrite();
 
-    public native int WriteFrame(byte[] bRGB);
+    public int WriteAudio(byte[] ab, int i) {
+        if (i == ab.length)
+            return WriteAudio(ab);
+        else
+        {
+            byte[] ab2 = jpsxdec.util.Misc.copyOfRange(ab, 0, i-1);
+            return WriteAudio(ab2);
+        }
+    }
+
+    public native int WriteFrame(byte[] abRGB);
     
-    public native int WriteAudio(byte[] bSamples);
+    public native int WriteAudio(byte[] abSamples);
 
     @Override
     protected void finalize() throws Throwable {

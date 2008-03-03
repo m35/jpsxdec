@@ -31,21 +31,24 @@ import java.nio.BufferOverflowException;
  *  necessary for ADPCM decoding. Only one context needed if decoding
  *  mono audio. If stereo, need one context for the left, and one for
  *  the right channel.
- *  Writing works like ByteArrayOutputStream, but with shorts. */
+ *  Writing works similar to ByteArrayOutputStream, but with shorts. */
 public class ADPCMDecodingContext {
     
     /* ---------------------------------------------------------------------- */
     /* -- Fields ------------------------------------------------------------ */
     /* ---------------------------------------------------------------------- */
     
-    double m_dblScale;
+    /** How much to scale the decoded audio by before clamping. */
+    private double m_dblScale;
     
-    /** Position in the buffer being written to. */
-    int m_iPos;
+    /** Writing position in m_asiDecodedPCM. */
+    private int m_iPos;
     /** Buffer to hold the decoded PCM data */
-    short[] m_asiDecodedPCM;
+    private short[] m_asiDecodedPCM;
     
+    /** The last PCM sample decoded. */
     private double m_dblPreviousPCMSample1 = 0;
+    /** The second-to-last PCM sample decoded. */
     private double m_dblPreviousPCMSample2 = 0;
     
     /* ---------------------------------------------------------------------- */
@@ -78,7 +81,7 @@ public class ADPCMDecodingContext {
         return asi; // and return it
     }
     
-    /** @param dblSample raw PCM sample, before rounding or clamping */
+    /** @param dblSample  raw PCM sample, before rounding or clamping */
     public void writeSample(double dblSample) {
         if (m_iPos >= m_asiDecodedPCM.length)
             throw new BufferOverflowException();
@@ -91,6 +94,7 @@ public class ADPCMDecodingContext {
         m_iPos++;
     }
     
+    /** Clamps the PCM audio sample within a signed 16-bit value. */
     private short ClampPCM(long lngPCMSample) {
         if (lngPCMSample > 0x7FFF)
             return (short) 32767;
@@ -100,10 +104,12 @@ public class ADPCMDecodingContext {
                 return (short) lngPCMSample;
     }        
 
+    /** The last PCM sample decoded. */
     public double getPreviousPCMSample1() {
         return m_dblPreviousPCMSample1;
     }
 
+    /** The second-to-last PCM sample decoded. */
     public double getPreviousPCMSample2() {
         return m_dblPreviousPCMSample2;
     }

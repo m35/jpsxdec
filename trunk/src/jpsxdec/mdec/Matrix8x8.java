@@ -23,7 +23,7 @@
  * Matrix8x8.java
  */
 
-package jpsxdec.util;
+package jpsxdec.mdec;
 
 /** A very simple Matrix class. */
 public class Matrix8x8 {

@@ -25,14 +25,13 @@
 
 package jpsxdec.media;
 
+import java.awt.image.BufferedImage;
 import java.io.DataInputStream;
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CDSectorReader;
-import jpsxdec.demuxers.UnknownDataDemuxerIS;
+import jpsxdec.demuxers.UnknownDataPullDemuxerIS;
 import jpsxdec.sectortypes.PSXSector.PSXSectorUnknownData;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
@@ -40,10 +39,15 @@ import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 
-
+/** Represents a TIM file found in a PSX disc. Currently only searches at the
+ *  start of sectors for TIM files, but TIM files could be found anywhere
+ *  in a sector. Unforunately that will just slow down the already slow
+ *  PSX disc indexing.
+ *  TODO: Search everywhere */
 public class PSXMediaTIM extends PSXMedia {
     
     int m_iStartOffset;
+    
     
     public PSXMediaTIM(PSXSectorRangeIterator oSectIterator) throws NotThisTypeException, IOException
     {
@@ -59,7 +63,7 @@ public class PSXMediaTIM extends PSXMedia {
 
         m_iStartSector = oSectIterator.getIndex();
         
-        DataInputStream oDIS = new DataInputStream(new UnknownDataDemuxerIS(oSectIterator));
+        DataInputStream oDIS = new DataInputStream(new UnknownDataPullDemuxerIS(oSectIterator));
         try {
             
             if (oDIS.readInt() != 0x10000000)
@@ -108,50 +112,22 @@ public class PSXMediaTIM extends PSXMedia {
     }
     
     public String toString() {
-        return super.toString("TIM") + ":" + m_iStartOffset;
+        return super.toString("TIM") + m_iStartOffset;
     }
 
     public int getMediaType() {
         return PSXMedia.MEDIA_TYPE_IMAGE;
     }
 
-    @Override
-    public boolean hasImage() {
-        return true;
-    }
-
-    @Override
-    public void DecodeImage(String sFileBaseName, String sImgFormat) {
+    public Tim getTIM() throws IOException {
         
         PSXSectorRangeIterator oSectIter = GetSectorIterator();
         
-        String sImgFile =
-                sFileBaseName + "_p%02d." + sImgFormat;
-        
         try {
-            InputStream oIS = new UnknownDataDemuxerIS(oSectIter);
-            Tim oTim = new Tim(oIS);
-            for (int i = 0; i < oTim.getPaletteCount(); i++) {
-                if (!super.Progress("Decoding TIM palette " + i, 
-                        (double)i / oTim.getPaletteCount())) 
-                    return;
-        
-                ImageIO.write(
-                      oTim.toBufferedImage(i),
-                      sImgFormat,
-                      new File(String.format(sImgFile, i)));
-            }
-
-        } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
+            InputStream oIS = new UnknownDataPullDemuxerIS(oSectIter);
+            return new Tim(oIS);
         } catch (NotThisTypeException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
+            throw new IOException("This is not actually a TIM file?");
         }
 
     }

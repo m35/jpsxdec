@@ -1026,9 +1026,11 @@ FF8 Audio Chunk Header:
 There are 105 Sound Groups per sector, 14 Sound Units per Sound Group, and 2 samples per Sound Unit. The Sound Data is not interleaved, so the decoding process is much more linear than the normal PSX audio sector format.
 
 FF8 Sound Group:
-    - 2 bytes;  sound parameters
+    - 1 byte;  sound parameter
+	- 1 byte;  unknown
     - 14 Sound Units
         - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
+Size of FF8 Sound Group: 16 bytes
 
 FF8 uses filter tables with one extra item:
     K0[5] = { 0.0, 0.9375, 1.796875,  1.53125,  1.90625 }
@@ -1071,6 +1073,13 @@ In total:
     At 44100 samples per second, each frame generates 0.067 seconds of audio,
     which is exactly how long it takes for the PSX to spin the disc through 10
     sectors at 2x speed (150 sectors/second).
+
+	44100 samples/second
+	15 frames/second
+	150 sectors/second
+	10 sectors/frame
+	(14 * 2 * 105) = 2940 samples/frame (for each channel)
+	0.0667 seconds/frame
 
 ===============
 ==== Video ====
@@ -1123,12 +1132,87 @@ FF9 Audio Chunk Header:
   - 116 bytes; unknown
   - 4 bytes; Case 1: "AKAO" (big-endian)  Case 2: 0x00000000
   - 4 bytes; Case 1: frame number - 1     Case 2: 0x00000000
-  - 88 bytes; unknown
-  - 1680 bytes; audio data
-  - 144 bytes; unknown
+  - 72 bytes; unknown
+  - 1826 bytes; audio data = 2 * 11 * 83
+  - 14 bytes; unused?
 
-The audio data is the same format as FF8. See the FF8 chapter for details.
+    83*2 sound groups
+	  - 1 byte; params
+	  - 10 bytes; sound units -> 20 samples
+	  = 3220 sound units
+  
+  - 1840 bytes; audio data = 23 * 5 * 2^4
 
+    114 sound groups
+    - 1 byte;  sound parameter
+    - 1 byte;  nil
+    - 14 Sound Units
+        - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
+	  = 3192 sound units
+
+    1 sound groups
+    - 1 byte;  sound parameter
+    - 1 byte;  nil
+    - 4 Sound Units
+        - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
+
+
+
+
+	47880 samples/second
+	15 frames/second
+	150 sectors/second
+	10 sectors/frame
+	(14*2*114)=3192 samples/frame (for each channel)
+	0.0667 seconds/frame
+
+	48000 samples/second
+	15 frames/second
+	150 sectors/second
+	10 sectors/frame
+	(14*2*115)=(3220) 3200 samples/frame (for each channel)
+	0.0667 seconds/frame
+
+There are 115 Sound Groups per sector, 14 Sound Units per Sound Group, and 2 samples per Sound Unit. The Sound Data is not interleaved, so the decoding process is much more linear than the normal PSX audio sector format.
+
+FF9 Sound Group:
+    - 1 byte;  sound parameter
+    - 14 Sound Units
+        - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
+Size of FF9 Sound Group: 16 bytes
+
+FF8 uses filter tables with one extra item:
+    K0[5] = { 0.0, 0.9375, 1.796875,  1.53125,  1.90625 }
+    K1[5] = { 0.0, 0.0,     -0.8125, -0.859375, -0.9375 }
+    
+ -- Pseudocode to decode FF8 audio sector data --------------------------------
+    PreviousSample1 = 0
+    PreviousSample2 = 0
+    For SoundGroup = 1 to 105
+        SoundParameter = InputStream.ReadByte()
+        InputStream.SkipByte() /* odd that this byte is skipped */
+        
+        Range = SoundParameter & 0x0F
+        Filter1 = K0[SoundParameter >> 4]
+        Filter2 = K1[SoundParameter >> 4]
+        
+        For SoundUnit = 1 to 14
+            ADPCMSample1 = InputStream.ReadSignedBits(4)
+            ADPCMSample2 = InputStream.ReadSignedBits(4)
+            
+            PCMSample = ADPCMSampleToPCMSample(ADPCMSample1, 
+                                               Range, Filter1, Filter2,
+                                               byref PreviousSample1,
+                                               byref PreviousSample2)
+            OutputStream.Write(PCMSample)
+            PCMSample = ADPCMSampleToPCMSample(ADPCMSample2,
+                                               Range, Filter1, Filter2,
+                                               byref PreviousSample1,
+                                               byref PreviousSample2)
+            OutputStream.Write(PCMSample)
+        Next
+    Next
+ ------------------------------------------------------------------------------
 ===============
 ==== Video ====
 ===============
@@ -1346,7 +1430,7 @@ The q-gears development team for their forums, source code, and documentation (h
 
 smf, developer for MAME, for figuring out that everyone was getting the order of CrCb wrong (http://smf.mameworld.info/?p=12).
 
-Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org/cdxa/  http://jonatkins.org/cdxa/, mirrored at http://code.google.com/p/jpsxdec/downloads/list).
+Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org:8080/cdxa/  http://jonatkins.org:8080/cdxa/).
 
 The PCSX Team, creators of one of the two open source Playstation emulators (http://www.pcsx.net/). This version of their mdec.c file is particularly useful http://www.koders.com/c/fidF23C1EAFCEAF84CA539927A01093D37D9695722A.aspx
 
@@ -1355,6 +1439,8 @@ Developers of the pSX emulator. While not open source, at least it is still unde
 "Fyiro", the Japanese fellow that wrote the source code for the PsxMC FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
 
 T_chan for sharing a bit of his knowledge about the FF9 format (http://www.network54.com/Forum/119865/thread/1196268797/last-1197023290/Final+Fantasy+9+Format).
+
+The most excellent folks at IRCNet #lain :D
 
 
 Finally, a very special thanks to all the Playstation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs are real men of genius.

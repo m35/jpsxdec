@@ -11,7 +11,7 @@ The q-gears development team for their forums, source code, and documentation (h
 
 smf, developer for MAME, for figuring out that everyone was getting the order of CrCb wrong (http://smf.mameworld.info/?m=200603).
 
-Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org/cdxa/  http://jonatkins.org/cdxa/).
+Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org:8080/cdxa/  http://jonatkins.org:8080/cdxa/).
 
 The PCSX Team, creators of one of the two open source Playstation emulators (http://www.pcsx.net/). This version of their mdec.c file is particularly useful http://www.koders.com/c/fidF23C1EAFCEAF84CA539927A01093D37D9695722A.aspx
 
@@ -32,6 +32,8 @@ Rodrigo Reyes for the JSmooth tool (http://jsmooth.sourceforge.net/).
 Jen (a.k.a. punistation) for her long standing Playstation Serial Experiments Lain page (http://www.geocities.com/punistation10/).
 
 Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating anime.   
+
+The most excellent folks at IRCNet #lain :D
 
 
 Finally, a very special thanks to all the Playstation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs, are real men of genius.

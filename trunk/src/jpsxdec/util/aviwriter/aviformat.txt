@@ -1,0 +1,103 @@
+********************************************************************************************
+Layout of the AVI file.
+Originally from pvdtools.sourceforge.net/aviformat.txt
+Corrected and expanded, but still contains errors.
+********************************************************************************************
+DOESN'T COVER OPENDML EXTENTIONS
+
+"RIFF"
+size of RIFF chunk; - Chunk Size in Bytes
+    "AVI "
+    "LIST"
+    size of LIST chunk; - LIST chunk size
+        "hdrl"
+        AVIMAINHEADER
+        [	"avih"
+        [	dwMicroSecPerFrame; - Specifies the number of microseconds between frames. This value indicates the overall timing for the file.
+        [	dwMaxBytesPerSec; - Specifies the approximate maximum data rate of the file. This value indicates the number of bytes per second the system must handle to present an AVI sequence as specified by the other parameters contained in the main header and stream header chunks.
+        [	dwReserved1; - set to 0, reserved
+        [	dwFlags; - [Bit 4 - Has index(idx1), Bit 5 - Use index to determine how to read the AVI data, rather than the physical order of the chunks with the RIFF file, Bit 8 - AVI file is interleaved, Bit 16 - AVI file is optimized for live video capture, Bit 17 - AVI file contains copyrighted data]
+        [	dwTotalFrames; - Total number of frames
+        [	dwInitialFrames; - Specifies the initial frame for interleaved files. Noninterleaved files should specify zero. If you are creating interleaved files, specify the number of frames in the file prior to the initial frame of the AVI sequence in this member. For more information about the contents of this member, see "Special Information for Interleaved Files" in the Video for Windows Programmer's Guide.
+        [	dwStreams; - Specifies the number of streams in the file. For example, a file with audio and video has two streams.
+        [	dwSuggestedBufferSize; - Specifies the suggested buffer size for reading the file. Generally, this size should be large enough to contain the largest chunk in the file. If set to zero, or if it is too small, the playback software will have to reallocate memory during playback, which will reduce performance. For an interleaved file, the buffer size should be large enough to read an entire record, and not just a chunk.
+        [	dwWidth; - Specifies the width of the AVI file in pixels.
+        [	dwHeight; - Specifies the height of the AVI file in pixels.
+        [	dwReserved[4]; - Reserved, set this array to 0
+        "LIST"
+        size of LIST chunk; - LIST chunk size
+            "strl"
+            AVISTREAMHEADER
+            [	"strh"
+            [	dwstrhSize; - size of strh
+            [	fccType; - FourCC code for type of data contained in this stream - 'auds' = audio stream, 'mids' = MIDI stream, 'txts' = Text stream, 'vids' = Video sterm
+            [	fccHandler; - FourCC of codec to use, for PVDTools this should be "DIB " or "Y8  " or "Y800" or "GREY" and eventually "Y4  "
+            [	dwFlags; - Ignore, too little documentation
+            [	wPriority; - Ignore
+            [	wLanguage; - Ignore
+            [	dwInitialFrames; - "How far audio data is skewed ahead of video frames in interleaved file."
+            [	dwScale; - "Used with dwRate(see below) to specify the time scale that this stream will use."  Divide dwRate by dwScale to get frame rate/sample rate
+            [	dwRate; - See dwScale
+            [	dwStart; - "Specifies starting time for this stream."  Usually 0.
+            [	dwLength; - Length of stream in units specified by dwRate and dwScale (i.e. video frames)
+            [	dwSuggestedBufferSize; - Ignore
+            [	dwQualty; - Ignore
+            [	dwSampleSize; - Sample size, zero if varies - same a nBlockAlign in WAVEFORAMTEX
+            [	rcFrame; - RECT structure(struct of 4 shorts), ignore
+            "strf"
+            size of strf
+                BITMAPINFOHEADER
+        "LIST"
+        size of LIST chunk; - LIST chunk size
+            "strl"
+            AVISTREAMHEADER
+            [	"strh"
+            [	dwstrhSize; - size of AVISTREAMHEADER
+            [	fccType; - FourCC code for type of data contained in this stream - 'auds' = audio stream, 'mids' = MIDI stream, 'txts' = Text stream, 'vids' = Video sterm
+            [	fccHandler; - FourCC of codec to use, for PVDTools this should be "DIB " or "Y8  " or "Y800" or "GREY" and eventually "Y4  "
+            [	dwFlags; - Ignore, too little documentation
+            [	wPriority; - Ignore
+            [	wLanguage; - Ignore
+            [	dwInitialFrames; - "How far audio data is skewed ahead of video frames in interleaved file."
+            [	dwScale; - "Used with dwRate(see below) to specify the time scale that this stream will use."  Divide dwRate by dwScale to get frame rate/sample rate
+            [	dwRate; - See dwScale
+            [	dwStart; - "Specifies starting time for this stream."  Usually 0.
+            [	dwLength; - Length of stream in units specified by dwRate and dwScale (i.e. audio samples)
+            [	dwSuggestedBufferSize; - Ignore
+            [	dwQualty; - Ignore
+            [	dwSampleSize; - Sample size, zero if varies - same a nBlockAlign in WAVEFORAMTEX
+            [	rcFrame; - RECT structure(struct of 4 shorts), ignore
+            "strf"
+            size of strf
+                WAVEFORMATEX
+                    [   wFormatTag
+                    [   nChannels
+                    [   nSamplesPerSec
+                    [   nAvgBytesPerSec
+                    [   nBlockAlign
+                    [   wBitsPerSample
+                    [ // note the cbSize isn't written
+    "JUNK" [typically a "JUNK" chunk goes here when using VirtualDub 1.5.xx or higher]
+    size of JUNK
+        [junk data]
+    "LIST"
+    size of this LIST chunk
+        "movi"
+        -----------------------------------------------------------------------------------------+
+        "01wb" -- (audio data, 01 stands for second stream identified in header)                 |
+        size of audio data                                                                       |
+                [audio data]                                                                     | repeat as necessary
+        "00db" -- (uncompressed video, 00 stands for first stream identified in header)          |
+        size of video data                                                                       |
+                [video data]                                                                     |
+        -----------------------------------------------------------------------------------------+
+        AVIOLDINDEX
+        [	"idx1"
+        [	size of AVIOLDINDEX
+        [-----------------------------------------------------+
+        [	chunkId  - "01wb" or "00db"                   |
+        [	flags                                         | repeat to match data above
+        [	offset of chunk - from "movi"                 | (usually easiest to construct this as you write data)
+        [	size of chunk   - size of the audio/video data|
+        [-----------------------------------------------------+ 
+

@@ -29,7 +29,6 @@ import java.awt.Component;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 import org.jdesktop.swingworker.SwingWorker;
 
 public class Progress<T> extends javax.swing.JDialog implements PropertyChangeListener {
@@ -46,6 +45,9 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
         super(parent, true);
         initComponents();
         guiDescriptionLbl.setText(sDescription);
+        this.pack(); // repack after changing the label text
+        this.setLocationRelativeTo(parent); // center on parent
+        
         m_oTask = oTask;
         m_oTask.m_oParent = this;
         m_oTask.addPropertyChangeListener(this);
@@ -142,11 +144,11 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
             .add(layout.createSequentialGroup()
                 .addContainerGap()
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.LEADING)
-                    .add(guiDescriptionLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 186, Short.MAX_VALUE)
-                    .add(guiEventLvl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 186, Short.MAX_VALUE)
-                    .add(guiProgressLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 186, Short.MAX_VALUE)
+                    .add(guiDescriptionLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 214, Short.MAX_VALUE)
+                    .add(guiEventLvl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 214, Short.MAX_VALUE)
+                    .add(guiProgressLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 214, Short.MAX_VALUE)
                     .add(guiCancelBtn)
-                    .add(guiProgressBar, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 186, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
+                    .add(guiProgressBar, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 214, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(

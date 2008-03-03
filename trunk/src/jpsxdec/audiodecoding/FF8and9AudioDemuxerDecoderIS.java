@@ -35,8 +35,8 @@ import jpsxdec.sectortypes.PSXSector.*;
 import jpsxdec.util.AdvancedIOIterator;
 import jpsxdec.util.IO.Short2DArrayInputStream;
 
-/** Conceniently, Final Fantasy 8 and Final Fantasy 9 store the audio in the
- *  same format. */
+/** Final Fantasy 8 and Final Fantasy 9 store the audio in 
+ *  similar format. */
 public class FF8and9AudioDemuxerDecoderIS extends InputStream {
 
     public static int DebugVerbose = 2;
@@ -109,6 +109,14 @@ public class FF8and9AudioDemuxerDecoderIS extends InputStream {
     public boolean hasAudio() {
         return m_oCurrentDecodedBuffer != null;
     }
+    
+    public int getMonoStereo() {
+        return 2;
+    }
+    
+    public int getSamplesPerSec() {
+        return 44100;
+    }
 
     /* ---------------------------------------------------------------------- */
     /* Public Functions ----------------------------------------------------- */
@@ -148,11 +156,11 @@ public class FF8and9AudioDemuxerDecoderIS extends InputStream {
         if (oAudioSect == null) return null;
         short[][] asi = new short[2][];
         asi[0] = StrADPCMDecoder.DecodeMoreFF8(new DataInputStream((PSXSector)oAudioSect),
-                                                m_oLeftContext);
+                                                m_oLeftContext, 2940);
         oAudioSect = FindNextMatchingSector(oIter, 2);
         if (oAudioSect == null) return null;
         asi[1] = StrADPCMDecoder.DecodeMoreFF8(new DataInputStream((PSXSector)oAudioSect),
-                                                m_oRightContext);
+                                                m_oRightContext, 2940);
         return asi;
     }
 

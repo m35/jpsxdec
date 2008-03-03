@@ -4,8 +4,6 @@
 
 package jpsxdec.mdec;
 
-import jpsxdec.util.Matrix8x8;
-
 /**
  * <h3><b>A Java implementation of the Inverse Discreet Cosine Transform</b></h3><br><br>
  * <hr>

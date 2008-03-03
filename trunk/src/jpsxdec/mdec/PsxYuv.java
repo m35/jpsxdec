@@ -28,13 +28,14 @@ package jpsxdec.mdec;
 import java.awt.image.BufferedImage;
 //import java.awt.image.WritableRaster;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.IOException;
 import jpsxdec.util.*;
 
-/**
+/** <pre>
  * Class to handle YUV (YCbCr) image data of the PSX MDEC chip.
  * Converts the YUV data to either yuv4mpeg2 format, or RGB format
  * (BufferedImage).
@@ -61,7 +62,7 @@ import jpsxdec.util.*;
  * 
  * Also:
  * http://wiki.multimedia.cx/index.php?title=YUV4MPEG2
- *
+ * </pre>
  */
 public class PsxYuv {
     
@@ -74,7 +75,7 @@ public class PsxYuv {
     private double[] m_adblCb;
     private double[] m_adblCr;
     
-    /** Creates a new instance of Yuv4mpeg2 
+    /** Creates a new instance of PsxYuv. 
      * @param iWidth - Width of image (in Luminance values) 
      * @param iHeight - Height of image (in Luminance values) */
     public PsxYuv(int iWidth, int iHeight) {
@@ -94,10 +95,10 @@ public class PsxYuv {
     public BufferedImage toBufferedImage() {
         return toBufferedImage(BufferedImage
                 //.TYPE_USHORT_565_RGB); 
-                .TYPE_INT_RGB);
+                .TYPE_3BYTE_BGR);
     }
     /** Converts yuv image to a BufferedImage, converting, rounding, and 
-     * clamping RGB values */
+     * clamping RGB values. */
     public BufferedImage toBufferedImage(int iImgType) {
         int[] aiRGB = new int[m_iWidth * m_iHeight];
         
@@ -136,7 +137,7 @@ public class PsxYuv {
         return bi;
     }
     
-    /** Set a block of luminance values 
+    /** Set a block of luminance values.
      * @param iDestX - Top left corner where block starts (in Luminance pixels)
      * @param iDestY - Top left corner where block starts (in Luminance pixels)
      * @param iWidth - Width of block (in Luminance pixels)
@@ -162,7 +163,7 @@ public class PsxYuv {
         }
     }
     
-    /** Set a block of Cr and Cb values
+    /** Set a block of Cr and Cb values.
      * @param iDestX - Top left corner where block starts (in Chrominance pixels)
      * @param iDestY - Top left corner where block starts (in Chrominance pixels)
      * @param iWidth - Width of block (in Chrominance pixels)
@@ -244,6 +245,36 @@ public class PsxYuv {
         setCbCr(iX / 2, iY / 2, 
                 oYuv.m_iWidth / 2, oYuv.m_iHeight / 2, 
                 oYuv.m_adblCb, oYuv.m_adblCr);
+    }
+
+    public byte[] toRowReverseRGBArray() {
+        ByteArrayOutputStream oBAOS = 
+                new ByteArrayOutputStream(m_iWidth * m_iHeight * 3);
+        
+        for (int iY = m_iHeight-1; iY >= 0; iY--) {
+            int iLinePos = iY * m_iWidth;
+            int iChromLinePos = iY / 2 * m_iWidth / 2;
+            for (int iX = 0; iX < m_iWidth; iX++) {
+                
+                double y = m_adblY[iLinePos + iX] + 128;
+                double cb = m_adblCb[iChromLinePos + iX / 2];
+                double cr = m_adblCr[iChromLinePos + iX / 2];
+                
+                int r = (int)jpsxdec.util.Math.round(y +                1.402  * cr);
+                int g = (int)jpsxdec.util.Math.round(y - 0.3437  * cb - 0.7143 * cr);
+                int b = (int)jpsxdec.util.Math.round(y + 1.772   * cb              );
+                
+                if (r < 0) {r = 0;} else {if (r > 255) r = 255;}
+                if (g < 0) {g = 0;} else {if (g > 255) g = 255;}
+                if (b < 0) {b = 0;} else {if (b > 255) b = 255;}
+                
+                oBAOS.write((byte)b);
+                oBAOS.write((byte)g);
+                oBAOS.write((byte)r);
+            }
+        }
+        
+        return oBAOS.toByteArray();
     }
     
 }

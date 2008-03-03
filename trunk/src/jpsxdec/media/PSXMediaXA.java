@@ -25,25 +25,23 @@
 
 package jpsxdec.media;
 
-import java.io.File;
+import java.io.DataInputStream;
 import java.io.IOException;
-import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import jpsxdec.audiodecoding.ADPCMDecodingContext;
+import jpsxdec.audiodecoding.StrADPCMDecoder;
 import jpsxdec.cdreaders.CDSectorReader;
-import jpsxdec.audiodecoding.StrAudioDemuxerDecoderIS;
 import jpsxdec.sectortypes.PSXSector.PSXSectorAudioChunk;
 import jpsxdec.sectortypes.PSXSector.PSXSectorNull;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
+import jpsxdec.util.IO.Short2DArrayInputStream;
 import jpsxdec.util.NotThisTypeException;
 
+// TODO:
 
-
-/**************************************************************************/
-/**************************************************************************/
-
-public class PSXMediaXA extends PSXMedia {
+public class PSXMediaXA extends PSXMedia.PSXMediaStreaming {
     
     long m_iAudioPeriod = -1;
     
@@ -165,62 +163,98 @@ public class PSXMediaXA extends PSXMedia {
                 oSB.append(i);
             }
         }
-        return super.toString("XA") + ":" + oSB.toString();
+        return super.toString("XA") + oSB.toString();
     }
 
     public int getMediaType() {
         return PSXMedia.MEDIA_TYPE_XA;
     }
 
+    public int[] getChannelList() {
+        // count how many channels there are
+        int i = 0;
+        for (long l : m_alngChannelHasAudio) {
+            if (l > 0) i++;
+        }
+        // create an int array of those channels
+        int[] lst = new int[i];
+        i = 0;
+        for (int j = 0; j < m_alngChannelHasAudio.length; j++) {
+            if (m_alngChannelHasAudio[j] > 0) {
+                lst[i] = j;
+                i++;
+            }
+        }
+        return lst;
+    }
+
+    //--------------------------------------------------------------------------
+    //-- Playing ---------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    
+    private static class ContextListener {
+        IAudListener Listen;
+        ADPCMDecodingContext LeftContext;
+        ADPCMDecodingContext RightContext;
+
+        public ContextListener(IAudListener Listen, ADPCMDecodingContext LeftContext, ADPCMDecodingContext RightContext) {
+            this.Listen = Listen;
+            this.LeftContext = LeftContext;
+            this.RightContext = RightContext;
+        }
+    }
+    
+    ContextListener[] m_oAud = new ContextListener[32];
+    public void addChannelListener(IAudListener oAud, int iChannel) {
+        if (iChannel < 0 || iChannel > 31) 
+            throw new IllegalArgumentException("Channel should be 0 to 31");
+        // even though we're creating 2 contexts, the 2nd won't be used unless it's stereo
+        m_oAud[iChannel] = new ContextListener(oAud, new ADPCMDecodingContext(1.0), new ADPCMDecodingContext(1.0));
+    }
+    
+    
     @Override
-    public boolean hasXAChannels() {
-        return true;
+    protected void startPlay() {
+        
     }
 
     @Override
-    public void DecodeXA(String sFileBaseName, String sAudFormat, Double odblScale, Integer oiChannel) {
-        
-        int iChannelStart, iChannelEnd, iChannelIndex;
-        
-        if (oiChannel == null) { // decode all if the channel is null
-            iChannelStart = 0;
-            iChannelEnd = 31;
-        } else if (oiChannel >= 0 && oiChannel <= 31)
-            iChannelStart = iChannelEnd = oiChannel;
-        else
-            throw new IllegalArgumentException("Invalid channel");
-        
-        AudioFileFormat.Type oType = 
-                super.AudioFileFormatStringToType(sAudFormat);
-        
-        for (iChannelIndex = iChannelStart; iChannelIndex <= iChannelEnd; iChannelIndex++) {
-            if (m_alngChannelHasAudio[iChannelIndex] == 0) continue;
-            
-            if (!super.Progress("Decoding channel " + iChannelIndex, 
-                    (iChannelIndex - iChannelStart) / 
-                         (double)(iChannelEnd - iChannelStart)
-                    ))
-                    return;
-            
-            try {
-                PSXSectorRangeIterator oIter =
-                        new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
-                StrAudioDemuxerDecoderIS dec =
-                        new StrAudioDemuxerDecoderIS(oIter, iChannelIndex);
-                AudioInputStream str =
-                        new AudioInputStream(dec, dec.getFormat(), dec.getLength());
+    protected boolean playSector(PSXSector oPSXSect) throws IOException {
+        if (m_oAud != null) {
+            if (oPSXSect instanceof PSXSectorAudioChunk) {
+                PSXSectorAudioChunk oAudChk = (PSXSectorAudioChunk)oPSXSect;
+                ContextListener cl = m_oAud[(int)oAudChk.getChannel()];
+                if (cl.Listen != null) { 
+                    short[][] asiDecoded = 
+                            StrADPCMDecoder.DecodeMore(new DataInputStream(oAudChk), 
+                                                       oAudChk.getBitsPerSample(), 
+                                                       oAudChk.getMonoStereo(), 
+                                                       cl.LeftContext, 
+                                                       cl.RightContext);
+                    boolean bln = cl.Listen.event(
+                        new AudioInputStream(
+                            new Short2DArrayInputStream(asiDecoded), 
+                            oAudChk.getAudioFormat(),
+                            AudioSystem.NOT_SPECIFIED
+                        ),
+                        oAudChk.getSector()
+                    );
 
-                String sFileName = String.format(
-                        sFileBaseName + "_c%02d." + sAudFormat,
-                        iChannelIndex);
-
-                AudioSystem.write(str, oType, new File(sFileName));
-
-            } catch (IOException ex) {
-                super.Error(ex);
+                    if (bln) return true;
+                }
             }
         }
+        return false;
+    }
+    
+    @Override
+    protected void endPlay() throws IOException {
+    }
 
+    @Override
+    public void clearListeners() {
+        m_oAud = new ContextListener[32];
+        super.clearListeners();
     }
 
 }

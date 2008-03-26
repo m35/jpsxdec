@@ -23,8 +23,9 @@
  * BufferedBitReader.java
  */
 
-package jpsxdec.util;
+package jpsxdec.uncompressors;
 
+import jpsxdec.util.*;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.EOFException;

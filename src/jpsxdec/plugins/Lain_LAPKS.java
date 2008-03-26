@@ -76,7 +76,7 @@ public class Lain_LAPKS {
                             oCell.Height);
                 PsxYuv yuv =
                         MDEC.DecodeFrame(
-                            dec, 
+                            dec.getStream(), 
                             dec.getWidth(), 
                             dec.getHeight());
                 

@@ -32,7 +32,10 @@ import java.io.*;
 public final class IO {
     
     /** When you want an input stream to have getFilePointer(). */
-    public static class InputStreamWithFP extends InputStream implements IGetFilePointer {
+    public static class InputStreamWithFP 
+            extends InputStream 
+            implements IGetFilePointer 
+    {
 
         private InputStream is;
         private long i = 0;
@@ -53,6 +56,12 @@ public final class IO {
         
     }
     
+    public static int ReadUInt8(InputStream oIS) throws IOException {
+        int i = oIS.read();
+        if (i < 0) throw new EOFException();
+        return i;
+    }
+    
     /** Reads little-endian 16 bits from InputStream. 
      *  Throws an exception if at the end of the stream. */
     public static long ReadUInt16LE(InputStream oIS) throws IOException 
@@ -64,6 +73,16 @@ public final class IO {
         if (b2 < 0)
             throw new EOFException("Unexpected end of file in ReadUInt16LE");
         return (b2 << 8) | b1;
+    }
+    
+    public static int ReadInt16BE(InputStream oIS) throws IOException 
+    {
+        int b1 = oIS.read();
+        int b2 = oIS.read();
+        int b3 = oIS.read();
+        int b4 = oIS.read();
+        if ((b1 | b2 | b3 | b4) < 0) throw new EOFException();
+        return (b1 << 24) + (b2 << 16) + (b3 << 8) + (b4 << 0);
     }
     
     /** Reads little-endian 16 bits from RandomAccessFile. 
@@ -79,18 +98,22 @@ public final class IO {
         return (b2 << 8) | b1;
     }
     
-    public static void WriteInt16LE(OutputStream oOS, long lng) throws IOException 
+    public static void WriteInt16LE(OutputStream oOS, long lng) 
+            throws IOException 
     {
         oOS.write((int)(lng & 0xFF));
         oOS.write((int)((lng >>> 8) & 0xFF));
     }
 
-    public static void WriteInt16LE(RandomAccessFile raf, int lng) throws IOException {
+    public static void WriteInt16LE(RandomAccessFile raf, int lng) 
+            throws IOException 
+    {
         raf.write((int)(lng & 0xFF));
         raf.write((int)((lng >>> 8) & 0xFF));
     }
 
-    public static void WriteInt32LE(OutputStream oOS, long lng) throws IOException 
+    public static void WriteInt32LE(OutputStream oOS, long lng) 
+            throws IOException 
     {
         oOS.write((int)( lng         & 0xFF));
         oOS.write((int)((lng >>>  8) & 0xFF));
@@ -178,48 +201,13 @@ public final class IO {
         fos.close();
     }
     
-    /** Same idea as ByteArrayInputStream, only with a 2D array of shorts. */
-    public static class Short2DArrayInputStream extends InputStream {
-
-        private short[][] m_ShortArray;
-        private int m_iSampleIndex = 0;
-        private int m_iChannelIndex = 0;
-        private int m_iByteIndex = 0;
-
-        public Short2DArrayInputStream(short[][] ShortArray) {
-            m_ShortArray = ShortArray;
-        }
-
-        public int read() throws IOException {
-            if (m_iSampleIndex >= m_ShortArray[m_iChannelIndex].length) 
-                return -1;
-
-            int iRet = m_ShortArray[m_iChannelIndex][m_iSampleIndex];
-
-            if (m_iByteIndex == 0)
-                iRet &= 0xFF;
-            else // m_iByteIndex == 1
-                iRet = (iRet >>> 8) & 0xFF;
-
-            Increment();
-
-            return iRet;
-
-        }
-        
-        private void Increment() {
-            m_iByteIndex = (m_iByteIndex + 1) % 2;
-            if (m_iByteIndex == 0) { // if m_iByteIndex overflowed
-                m_iChannelIndex = (m_iChannelIndex + 1) % m_ShortArray.length;
-                if (m_iChannelIndex == 0) { // if m_iChannelIndex overflowed
-                    m_iSampleIndex++;
-                }
-            }
-        }
-    }    
     
     public static void writeIStoFile(InputStream is, String sFile) throws IOException {
         FileOutputStream fos = new FileOutputStream(sFile);
+        writeIStoOS(is, fos);
+    }
+    public static void writeIStoFile(InputStream is, File oFile) throws IOException {
+        FileOutputStream fos = new FileOutputStream(oFile);
         writeIStoOS(is, fos);
     }
     public static void writeIStoOS(InputStream is, OutputStream os) throws IOException {
@@ -234,6 +222,17 @@ public final class IO {
         byte[] ab = readByteArray(raf, (int)raf.length());
         raf.close();
         return ab;
+    }
+    
+    public static void main(String[] args) throws IOException {
+        // test reading a -1
+        byte[] ab = {(byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF};
+        
+        ByteArrayInputStream bais = new ByteArrayInputStream(ab);
+        
+        long i = ReadUInt32LE(bais);
+        System.out.println(i);
+        
     }
     
 }

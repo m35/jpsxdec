@@ -11,11 +11,11 @@ package jpsxdec.mdec;
  *
  */
 
-/**<pre>
+/*
  ****************************************************************************************
  *                                                                                      *
- *                                   "IDCT.java"                                        *
- *                                                                                      *
+ *                                   "IDCT.java"                                        */
+/**<pre>                                                                                *
  * This file contains the class "IDCT" which provides methods to perform the inverse    *
  * discrete cosine transform. Actually a IDFT (inverse discrete fourier transform) is   *
  * implemented. To gain the DFT values from the DCT values the quantization matrices    *

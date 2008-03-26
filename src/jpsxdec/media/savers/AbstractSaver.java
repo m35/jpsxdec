@@ -23,43 +23,46 @@
  * AbstractSaver.java
  */
 
-package jpsxdec.savers;
+package jpsxdec.media.savers;
 
 import java.io.IOException;
+import jpsxdec.media.PSXMediaStreaming;
 import jpsxdec.util.IProgressListener;
 
 /** Attaches to PSXMedia classes to handle the physical saving 
  *  of media as the media item is played. */
-public abstract class AbstractSaver {
+public abstract class AbstractSaver implements PSXMediaStreaming.IErrorListener {
     
     private IProgressListener m_oListener;
+    
+    public AbstractSaver(PSXMediaStreaming oMedia) {
+        oMedia.addErrorListener(this);
+    }
     
     public void addProgressListener(IProgressListener oListener) {
         m_oListener = oListener;
     }
     
-    protected boolean fireProgressUpdate(String msg, long lngStartPos, long lngEndPos, long lngCurPos) {
-        if (m_oListener != null)
-            return m_oListener.ProgressUpdate(
+    protected void fireProgressUpdate(String msg, long lngStartPos, long lngEndPos, long lngCurPos) throws StopPlayingException {
+        if (m_oListener != null) {
+            boolean bln = m_oListener.ProgressUpdate(
                     msg, 
                     (lngCurPos - lngStartPos)
                     / (double)(lngEndPos - lngStartPos));
-        return false;
+            if (bln) throw new StopPlayingException();
+        }
     }
     
-    protected void fireProgressError(Exception ex) {
+    public void error(Exception ex) throws StopPlayingException {
         if (m_oListener != null && 
             m_oListener instanceof IProgressListener.IProgressErrorListener) 
         {
             ((IProgressListener.IProgressErrorListener)m_oListener).ProgressUpdate(ex);
         }
     }
-    
+
     /** Performs cleanup after the media is done playing (closes files,
      *  detaches listeners, etc.). */
     public abstract void done() throws IOException;
     
-    /** Get any exception that was thrown during the decoding/saving of
-     *  media. */
-    public abstract IOException getException();
 }

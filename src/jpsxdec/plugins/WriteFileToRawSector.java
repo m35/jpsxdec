@@ -35,8 +35,8 @@ public class WriteFileToRawSector {
     
     public static void main(String[] args) throws IOException {
         WriteFileToSector(
-                "C:\\Documents and Settings\\Michael\\Desktop\\mdec\\jpsxdec\\enc\\Dc1046.str",
-                "C:\\Documents and Settings\\Michael\\Desktop\\LainImg\\disc2hack.bin",
+                "enc\\Dc1046.str",
+                "..\\..\\LainImg\\disc2hack.bin",
                 91138
                 );
     }

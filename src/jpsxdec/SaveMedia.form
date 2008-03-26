@@ -1,0 +1,545 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<Form version="1.3" maxVersion="1.5" type="org.netbeans.modules.form.forminfo.JDialogFormInfo">
+  <NonVisualComponents>
+    <Component class="jpsxdec.BoundedRangeDocumentModel" name="modelJpegQuality">
+      <Properties>
+        <Property name="value" type="int" value="75"/>
+      </Properties>
+    </Component>
+  </NonVisualComponents>
+  <Properties>
+    <Property name="defaultCloseOperation" type="int" value="2"/>
+    <Property name="title" type="java.lang.String" value="Save"/>
+  </Properties>
+  <SyntheticProperties>
+    <SyntheticProperty name="formSizePolicy" type="int" value="1"/>
+  </SyntheticProperties>
+  <AuxValues>
+    <AuxValue name="FormSettings_autoResourcing" type="java.lang.Integer" value="0"/>
+    <AuxValue name="FormSettings_autoSetComponentName" type="java.lang.Boolean" value="false"/>
+    <AuxValue name="FormSettings_generateMnemonicsCode" type="java.lang.Boolean" value="false"/>
+    <AuxValue name="FormSettings_i18nAutoMode" type="java.lang.Boolean" value="false"/>
+    <AuxValue name="FormSettings_layoutCodeTarget" type="java.lang.Integer" value="2"/>
+    <AuxValue name="FormSettings_listenerGenerationStyle" type="java.lang.Integer" value="0"/>
+    <AuxValue name="FormSettings_variablesLocal" type="java.lang.Boolean" value="false"/>
+    <AuxValue name="FormSettings_variablesModifier" type="java.lang.Integer" value="2"/>
+  </AuxValues>
+
+  <Layout>
+    <DimensionLayout dim="0">
+      <Group type="103" groupAlignment="0" attributes="0">
+          <Group type="102" alignment="0" attributes="0">
+              <Group type="103" groupAlignment="0" attributes="0">
+                  <Group type="102" alignment="0" attributes="0">
+                      <EmptySpace min="10" pref="10" max="10" attributes="0"/>
+                      <Component id="lblFolder" min="-2" max="-2" attributes="0"/>
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Component id="txtFolder" pref="257" max="32767" attributes="0"/>
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Component id="btnBrowse" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <Group type="102" alignment="0" attributes="0">
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Group type="103" groupAlignment="0" attributes="0">
+                          <Component id="panelVideo" alignment="1" max="32767" attributes="2"/>
+                          <Group type="102" alignment="0" attributes="0">
+                              <Component id="chkVideo" min="-2" max="-2" attributes="0"/>
+                              <EmptySpace pref="178" max="32767" attributes="0"/>
+                              <Component id="lblSaveAsVideo" min="-2" max="-2" attributes="0"/>
+                              <EmptySpace max="-2" attributes="0"/>
+                              <Component id="cmbSaveAsVideo" min="-2" max="-2" attributes="0"/>
+                          </Group>
+                      </Group>
+                  </Group>
+                  <Group type="102" alignment="0" attributes="0">
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Group type="103" groupAlignment="0" attributes="0">
+                          <Group type="102" alignment="1" attributes="0">
+                              <EmptySpace pref="224" max="-2" attributes="0"/>
+                              <Component id="btnCancel" min="-2" pref="75" max="-2" attributes="0"/>
+                              <EmptySpace max="-2" attributes="0"/>
+                              <Component id="btnSave" min="-2" pref="75" max="-2" attributes="0"/>
+                          </Group>
+                          <Component id="panelAudio" alignment="1" max="32767" attributes="0"/>
+                          <Group type="102" alignment="0" attributes="0">
+                              <Component id="chkAudio" min="-2" max="-2" attributes="0"/>
+                              <EmptySpace pref="173" max="32767" attributes="0"/>
+                              <Component id="lblSaveAsAudio" min="-2" max="-2" attributes="0"/>
+                              <EmptySpace max="-2" attributes="0"/>
+                              <Component id="cmbSaveAsAudio" min="-2" pref="108" max="-2" attributes="0"/>
+                          </Group>
+                      </Group>
+                  </Group>
+              </Group>
+              <EmptySpace max="-2" attributes="0"/>
+          </Group>
+      </Group>
+    </DimensionLayout>
+    <DimensionLayout dim="1">
+      <Group type="103" groupAlignment="0" attributes="0">
+          <Group type="102" alignment="0" attributes="0">
+              <EmptySpace max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component id="lblFolder" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="btnBrowse" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="txtFolder" alignment="3" min="-2" pref="20" max="-2" attributes="0"/>
+              </Group>
+              <EmptySpace type="separate" max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component id="chkVideo" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="cmbSaveAsVideo" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="lblSaveAsVideo" alignment="3" min="-2" max="-2" attributes="0"/>
+              </Group>
+              <EmptySpace max="-2" attributes="0"/>
+              <Component id="panelVideo" min="-2" max="-2" attributes="1"/>
+              <EmptySpace type="separate" max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component id="chkAudio" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="lblSaveAsAudio" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="cmbSaveAsAudio" alignment="3" min="-2" max="-2" attributes="0"/>
+              </Group>
+              <EmptySpace max="-2" attributes="0"/>
+              <Component id="panelAudio" min="-2" max="-2" attributes="0"/>
+              <EmptySpace max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component id="btnCancel" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="btnSave" alignment="3" min="-2" max="-2" attributes="0"/>
+              </Group>
+              <EmptySpace max="32767" attributes="0"/>
+          </Group>
+      </Group>
+    </DimensionLayout>
+  </Layout>
+  <SubComponents>
+    <Component class="javax.swing.JLabel" name="lblFolder">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Folder:"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JTextField" name="txtFolder">
+    </Component>
+    <Component class="javax.swing.JButton" name="btnBrowse">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Browse..."/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnBrowseActionPerformed"/>
+      </Events>
+    </Component>
+    <Container class="javax.swing.JPanel" name="panelVideo">
+      <Properties>
+        <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
+          <Border info="org.netbeans.modules.form.compat2.border.EtchedBorderInfo">
+            <EtchetBorder/>
+          </Border>
+        </Property>
+      </Properties>
+
+      <Layout>
+        <DimensionLayout dim="0">
+          <Group type="103" groupAlignment="0" attributes="0">
+              <Group type="102" alignment="0" attributes="0">
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="1" attributes="0">
+                      <Component id="lblFrames" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblDecodeQuality" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFrameRate" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFrameSize" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFormat" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblJpegQuality" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFileNameVideo" alignment="1" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="0" attributes="0">
+                      <Group type="102" alignment="0" attributes="0">
+                          <Component id="lblFrameSizeWidth" min="-2" max="-2" attributes="0"/>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Component id="lblFrameSizeX" min="-2" max="-2" attributes="0"/>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Component id="lblFrameSizeHeight" min="-2" max="-2" attributes="0"/>
+                          <EmptySpace type="unrelated" max="-2" attributes="0"/>
+                          <Component id="chkDontCrop" min="-2" max="-2" attributes="0"/>
+                      </Group>
+                      <Component id="cmbDecodeQuality" alignment="0" pref="275" max="32767" attributes="0"/>
+                      <Component id="txtFileNameVideo" alignment="0" pref="275" max="32767" attributes="0"/>
+                      <Group type="102" alignment="1" attributes="0">
+                          <Component id="slideJpegQuality" pref="237" max="32767" attributes="0"/>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Component id="txtJpegQuality" min="-2" pref="32" max="-2" attributes="0"/>
+                      </Group>
+                      <Component id="cmbFormat" alignment="0" pref="275" max="32767" attributes="0"/>
+                      <Component id="cmbFrameRate" alignment="0" pref="275" max="32767" attributes="0"/>
+                      <Group type="102" attributes="0">
+                          <Component id="lblFramesStart" min="-2" max="-2" attributes="0"/>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Component id="lblFramesto" min="-2" max="-2" attributes="0"/>
+                          <EmptySpace max="-2" attributes="0"/>
+                          <Component id="lblFramesEnd" min="-2" max="-2" attributes="0"/>
+                      </Group>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+              </Group>
+          </Group>
+        </DimensionLayout>
+        <DimensionLayout dim="1">
+          <Group type="103" groupAlignment="0" attributes="0">
+              <Group type="102" alignment="0" attributes="0">
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="lblFrameSize" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFrameSizeWidth" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFrameSizeX" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFrameSizeHeight" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="chkDontCrop" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="lblFrames" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFramesStart" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFramesto" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFramesEnd" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="lblFrameRate" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="cmbFrameRate" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="lblDecodeQuality" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="cmbDecodeQuality" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="lblFormat" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="cmbFormat" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="2" attributes="0">
+                      <Component id="slideJpegQuality" alignment="2" max="32767" attributes="1"/>
+                      <Component id="txtJpegQuality" alignment="2" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblJpegQuality" alignment="2" min="-2" max="-2" attributes="1"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="txtFileNameVideo" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFileNameVideo" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace min="-2" max="-2" attributes="0"/>
+              </Group>
+          </Group>
+        </DimensionLayout>
+      </Layout>
+      <SubComponents>
+        <Component class="javax.swing.JLabel" name="lblFrameSize">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Frame size:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFrameSizeWidth">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="320"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFrameSizeX">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="x"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFrameSizeHeight">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="240"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JCheckBox" name="chkDontCrop">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Don&apos;t crop"/>
+            <Property name="enabled" type="boolean" value="false"/>
+          </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="chkDontCropActionPerformed"/>
+          </Events>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFrameRate">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Frame rate:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JComboBox" name="cmbFrameRate">
+          <Properties>
+            <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
+              <StringArray count="1">
+                <StringItem index="0" value="15 fps"/>
+              </StringArray>
+            </Property>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblDecodeQuality">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Decode quality:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JComboBox" name="cmbDecodeQuality">
+          <Properties>
+            <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
+              <StringArray count="1">
+                <StringItem index="0" value="High quality/slow decode"/>
+              </StringArray>
+            </Property>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFormat">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Format:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JComboBox" name="cmbFormat">
+          <Properties>
+            <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
+              <StringArray count="7">
+                <StringItem index="0" value="demux"/>
+                <StringItem index="1" value="mdec"/>
+                <StringItem index="2" value="jpeg"/>
+                <StringItem index="3" value="bmp"/>
+                <StringItem index="4" value="png"/>
+                <StringItem index="5" value="gif"/>
+                <StringItem index="6" value="yuv"/>
+              </StringArray>
+            </Property>
+          </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="cmbFormatActionPerformed"/>
+          </Events>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblJpegQuality">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="JPEG quality:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JSlider" name="slideJpegQuality">
+          <Properties>
+            <Property name="minorTickSpacing" type="int" value="25"/>
+            <Property name="paintLabels" type="boolean" value="true"/>
+            <Property name="paintTicks" type="boolean" value="true"/>
+            <Property name="model" type="javax.swing.BoundedRangeModel" editor="org.netbeans.modules.form.ComponentChooserEditor">
+              <ComponentRef name="modelJpegQuality"/>
+            </Property>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JTextField" name="txtJpegQuality">
+          <Properties>
+            <Property name="document" type="javax.swing.text.Document" editor="org.netbeans.modules.form.ComponentChooserEditor">
+              <ComponentRef name="modelJpegQuality"/>
+            </Property>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFileNameVideo">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="File name:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JTextField" name="txtFileNameVideo">
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="txtFileNameVideoActionPerformed"/>
+            <EventHandler event="focusLost" listener="java.awt.event.FocusListener" parameters="java.awt.event.FocusEvent" handler="txtFileNameVideoFocusLost"/>
+          </Events>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFrames">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Frames:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFramesStart">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="1"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFramesto">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="to"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFramesEnd">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="453"/>
+          </Properties>
+        </Component>
+      </SubComponents>
+    </Container>
+    <Component class="javax.swing.JCheckBox" name="chkVideo">
+      <Properties>
+        <Property name="selected" type="boolean" value="true"/>
+        <Property name="text" type="java.lang.String" value="Video"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="chkVideoActionPerformed"/>
+      </Events>
+    </Component>
+    <Component class="javax.swing.JLabel" name="lblSaveAsVideo">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Save as:"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JComboBox" name="cmbSaveAsVideo">
+      <Properties>
+        <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
+          <StringArray count="2">
+            <StringItem index="0" value="AVI"/>
+            <StringItem index="1" value="Separate images"/>
+          </StringArray>
+        </Property>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="cmbSaveAsVideoActionPerformed"/>
+      </Events>
+    </Component>
+    <Component class="javax.swing.JButton" name="btnCancel">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Close"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnCancelActionPerformed"/>
+      </Events>
+    </Component>
+    <Component class="javax.swing.JButton" name="btnSave">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Save"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnSaveActionPerformed"/>
+      </Events>
+    </Component>
+    <Container class="javax.swing.JPanel" name="panelAudio">
+      <Properties>
+        <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
+          <Border info="org.netbeans.modules.form.compat2.border.EtchedBorderInfo">
+            <EtchetBorder/>
+          </Border>
+        </Property>
+      </Properties>
+
+      <Layout>
+        <DimensionLayout dim="0">
+          <Group type="103" groupAlignment="0" attributes="0">
+              <Group type="102" alignment="0" attributes="0">
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="0" attributes="0">
+                      <Component id="lblChannels" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblBitsPerSample" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblSampleRate" alignment="1" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFileNameAudio" alignment="1" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="0" attributes="0">
+                      <Component id="lblChannelsValue" alignment="0" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblBitsPerSampleValue" alignment="0" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblSampleRateValue" alignment="0" min="-2" max="-2" attributes="0"/>
+                      <Component id="txtFileNameAudio" alignment="0" pref="274" max="32767" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+              </Group>
+          </Group>
+        </DimensionLayout>
+        <DimensionLayout dim="1">
+          <Group type="103" groupAlignment="0" attributes="0">
+              <Group type="102" alignment="0" attributes="0">
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="lblChannels" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblChannelsValue" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="lblBitsPerSample" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblBitsPerSampleValue" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="lblSampleRate" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblSampleRateValue" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="txtFileNameAudio" alignment="3" min="-2" max="-2" attributes="0"/>
+                      <Component id="lblFileNameAudio" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace max="32767" attributes="0"/>
+              </Group>
+          </Group>
+        </DimensionLayout>
+      </Layout>
+      <SubComponents>
+        <Component class="javax.swing.JLabel" name="lblChannels">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Channels:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblChannelsValue">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Stereo"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblBitsPerSample">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Bits per sample:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblBitsPerSampleValue">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="16"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblSampleRate">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Sample rate:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblSampleRateValue">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="44100"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JLabel" name="lblFileNameAudio">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="File name:"/>
+          </Properties>
+        </Component>
+        <Component class="javax.swing.JTextField" name="txtFileNameAudio">
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="txtFileNameAudioActionPerformed"/>
+            <EventHandler event="focusLost" listener="java.awt.event.FocusListener" parameters="java.awt.event.FocusEvent" handler="txtFileNameAudioFocusLost"/>
+          </Events>
+        </Component>
+      </SubComponents>
+    </Container>
+    <Component class="javax.swing.JCheckBox" name="chkAudio">
+      <Properties>
+        <Property name="selected" type="boolean" value="true"/>
+        <Property name="text" type="java.lang.String" value="Audio"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="chkAudioActionPerformed"/>
+      </Events>
+    </Component>
+    <Component class="javax.swing.JLabel" name="lblSaveAsAudio">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Save as:"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JComboBox" name="cmbSaveAsAudio">
+      <Properties>
+        <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
+          <StringArray count="3">
+            <StringItem index="0" value="part of AVI"/>
+            <StringItem index="1" value="wav"/>
+            <StringItem index="2" value="aiff"/>
+          </StringArray>
+        </Property>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="cmbSaveAsAudioActionPerformed"/>
+      </Events>
+    </Component>
+  </SubComponents>
+</Form>

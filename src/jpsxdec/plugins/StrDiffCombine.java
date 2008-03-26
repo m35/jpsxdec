@@ -42,7 +42,7 @@ import jpsxdec.mdec.MDEC.Mdec16Bits;
 import jpsxdec.media.MediaHandler;
 import jpsxdec.media.PSXMediaSTR;
 import jpsxdec.sectortypes.PSXSector;
-import jpsxdec.sectortypes.PSXSector.PSXSectorFrameChunk;
+import jpsxdec.sectortypes.PSXSectorFrameChunk;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.uncompressors.StrFrameRecompressorIS;
 import jpsxdec.uncompressors.StrFrameUncompressorIS;

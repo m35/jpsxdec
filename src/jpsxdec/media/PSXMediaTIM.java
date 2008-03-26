@@ -25,14 +25,13 @@
 
 package jpsxdec.media;
 
-import java.awt.image.BufferedImage;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.demuxers.UnknownDataPullDemuxerIS;
-import jpsxdec.sectortypes.PSXSector.PSXSectorUnknownData;
+import jpsxdec.sectortypes.PSXSectorUnknownData;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.util.IO;
@@ -51,7 +50,7 @@ public class PSXMediaTIM extends PSXMedia {
     
     public PSXMediaTIM(PSXSectorRangeIterator oSectIterator) throws NotThisTypeException, IOException
     {
-        super(oSectIterator);
+        super(oSectIterator.getSourceCD());
         
         PSXSector oPsxSect = oSectIterator.peekNext();
         

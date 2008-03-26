@@ -31,11 +31,18 @@ import jpsxdec.*;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.util.AdvancedIOIterator;
 import jpsxdec.util.IGetFilePointer;
-import jpsxdec.sectortypes.PSXSector.IVideoChunkSector;
+import jpsxdec.sectortypes.IVideoChunkSector;
+import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IWidthHeight;
 
 /** Demuxes a series of frame chunk sectors into a solid stream.
- * Pulls frame chunks from an iterator as they are needed. */
+ * Pulls frame chunks from an iterator (i.e. reads them from a disc) only as 
+ * they are needed, so you may not need to read all the sectors of a frame
+ * before you can decode it. 
+ * 
+ * But now that I think about it, this really doesn't
+ * save any reading, because the next frame still has to read all the leftover
+ * sectors before it reaches the first sector of its frame. */
 public class StrFramePullDemuxerIS extends InputStream 
         implements IGetFilePointer, IWidthHeight
 {
@@ -49,7 +56,7 @@ public class StrFramePullDemuxerIS extends InputStream
     
     /** Holds the current chunk being read.
      *  Will be null when reading is done. */
-    IVideoChunkSector m_oCurrentChunk;
+    ByteArrayFPIS m_oCurrentChunk;
 
     // All Video Frame Chunks should match these values
     private long m_lngFrame = -1;
@@ -81,8 +88,8 @@ public class StrFramePullDemuxerIS extends InputStream
     {
         m_lngFrame = lngFrame;
         m_oPsxSectorIterator = oPsxIter;
-        m_oCurrentChunk = FindNextMatchingChunk();
-        m_lngSize += ((PSXSector)m_oCurrentChunk).getPsxUserDataSize();
+        m_oCurrentChunk = FindNextMatchingChunk().getUserDataStream();
+        m_lngSize += m_oCurrentChunk.size();
     }
     
     /** Finds the next matching sector. Does NOT devour any more sectors
@@ -211,12 +218,12 @@ public class StrFramePullDemuxerIS extends InputStream
             m_lngLastFilePointer = m_oCurrentChunk.getFilePointer();
             
             // try to get the next chunk
-            m_oCurrentChunk = FindNextMatchingChunk();
+            m_oCurrentChunk = FindNextMatchingChunk().getUserDataStream();
             if (m_oCurrentChunk == null) {
                 // end of matching chunks
                 return -1; // end of stream
             } else {
-                m_lngSize += ((PSXSector)m_oCurrentChunk).getPsxUserDataSize();
+                m_lngSize += m_oCurrentChunk.size();
                 iByte = m_oCurrentChunk.read(); // try again
             }
             

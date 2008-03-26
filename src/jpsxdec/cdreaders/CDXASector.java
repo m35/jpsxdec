@@ -26,10 +26,12 @@
 package jpsxdec.cdreaders;
 
 import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
+import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IGetFilePointer;
+import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 
@@ -74,30 +76,30 @@ public class CDXASector implements IGetFilePointer {
         // or just 0x0000.
         // If the user data was 2048, then final [276 bytes] is error correction
         
-        public CDXAHeader(DataInputStream oDIS) 
+        public CDXAHeader(InputStream oIS) 
                 throws IOException, NotThisTypeException 
         {
-            ReadHeader(oDIS);
+            ReadHeader(oIS);
         }
         
-        protected void ReadHeader(DataInputStream oDIS) 
+        protected void ReadHeader(InputStream oIS) 
             throws IOException, NotThisTypeException
         {
-            file_number = oDIS.readUnsignedByte();
-            channel     = oDIS.readUnsignedByte();
+            file_number = IO.ReadUInt8(oIS);
+            channel     = IO.ReadUInt8(oIS);
 
-            submode     = new SubMode(oDIS.readUnsignedByte());
-            coding_info = new CodingInfo(oDIS.readUnsignedByte());
+            submode     = new SubMode(IO.ReadUInt8(oIS));
+            coding_info = new CodingInfo(IO.ReadUInt8(oIS));
             
-            copy_of_file_number = oDIS.readUnsignedByte();
-            copy_of_channel     = oDIS.readUnsignedByte();
-            copy_of_submode     = oDIS.readUnsignedByte();
-            copy_of_coding_info = oDIS.readUnsignedByte();
+            copy_of_file_number = IO.ReadUInt8(oIS);
+            copy_of_channel     = IO.ReadUInt8(oIS);
+            copy_of_submode     = IO.ReadUInt8(oIS);
+            copy_of_coding_info = IO.ReadUInt8(oIS);
         }
         
         
         public static class SubMode {
-            /** bit 7: 0 for all sectors except last sector of a file. */
+            /** bit 7:  0 for all sectors except last sector of a file. */
             public final byte eof_marker;     
             
             /** bit 6:  1 for real time mode. */
@@ -146,6 +148,21 @@ public class CDXASector implements IGetFilePointer {
                         (audio         << 2) |
                         (video         << 1) |
                         (end_of_record     ));
+            }
+            
+            public String toString() {
+                StringBuilder oSb = new StringBuilder(8);
+                
+                oSb.append(eof_marker    == 1 ? '1' : '0');
+                oSb.append(real_time     == 1 ? '1' : '0');
+                oSb.append(form          == 1 ? '0' : '1');
+                oSb.append(trigger       == 1 ? '1' : '0');
+                oSb.append(data          == 1 ? '1' : '0');
+                oSb.append(audio         == 1 ? '1' : '0');
+                oSb.append(video         == 1 ? '1' : '0');
+                oSb.append(end_of_record == 1 ? '1' : '0');
+                
+                return oSb.toString();
             }
         }
 
@@ -207,29 +224,29 @@ public class CDXASector implements IGetFilePointer {
         public int sectors;     // [1 byte] timecode relative to start of disk
         public int mode;        // [1 byte] Should always be Mode 2 for PSX data tracks
         
-        public CDXAHeaderWithSync(DataInputStream oDIS) 
+        public CDXAHeaderWithSync(InputStream oIS) 
                 throws IOException, NotThisTypeException
         {
-            super(oDIS);
+            super(oIS);
         }
         
         @Override
-        protected void ReadHeader(DataInputStream oDIS) 
+        protected void ReadHeader(InputStream oIS) 
                 throws IOException, NotThisTypeException
         {
-            if ((SyncHeader1 = oDIS.readInt()) != SECTOR_SYNC_HEADER[0]) 
+            if ((SyncHeader1 = IO.ReadInt16BE(oIS)) != SECTOR_SYNC_HEADER[0]) 
                 throw new NotThisTypeException("Sector missing sync");
-            if ((SyncHeader2 = oDIS.readInt()) != SECTOR_SYNC_HEADER[1]) 
+            if ((SyncHeader2 = IO.ReadInt16BE(oIS)) != SECTOR_SYNC_HEADER[1]) 
                 throw new NotThisTypeException("Sector missing sync");
-            if ((SyncHeader3 = oDIS.readInt()) != SECTOR_SYNC_HEADER[2]) 
+            if ((SyncHeader3 = IO.ReadInt16BE(oIS)) != SECTOR_SYNC_HEADER[2]) 
                 throw new NotThisTypeException("Sector missing sync");
             
-            minutes = oDIS.readUnsignedByte();
-            seconds = oDIS.readUnsignedByte();
-            sectors = oDIS.readUnsignedByte();
-            mode    = oDIS.readUnsignedByte();
+            minutes = IO.ReadUInt8(oIS);
+            seconds = IO.ReadUInt8(oIS);
+            sectors = IO.ReadUInt8(oIS);
+            mode    = IO.ReadUInt8(oIS);
             
-            super.ReadHeader(oDIS);
+            super.ReadHeader(oIS);
         }
         
     }
@@ -238,11 +255,13 @@ public class CDXASector implements IGetFilePointer {
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    CDXAHeader m_oHeader = null;
-    int m_iSector = -1;
-    long m_lngFilePointer;
-    byte[] m_abSectorBytes;
-    int m_iRawSectorSize;
+    private CDXAHeader m_oHeader = null;
+    private int m_iSector = -1;
+    private long m_lngFilePointer;
+    private byte[] m_abSectorBytes;
+    private int m_iRawSectorSize;
+    private int m_iUserDataStart;
+    private int m_iUserDataSize;
 
     public CDXASector(int iRawSectorSize, byte[] abSectorBytes, 
                       int iSector, long lngFilePointer) 
@@ -253,17 +272,29 @@ public class CDXASector implements IGetFilePointer {
         m_lngFilePointer = lngFilePointer;
         m_abSectorBytes = abSectorBytes;
         m_iRawSectorSize = iRawSectorSize;
-        DataInputStream oDIS = new DataInputStream(new ByteArrayInputStream(abSectorBytes));
+        ByteArrayInputStream oBAIS = new ByteArrayInputStream(abSectorBytes);
         try {
-            switch (iRawSectorSize) {
+            switch (m_iRawSectorSize) {
                 case SECTOR_MODE1_OR_MODE2_FORM1:
                     // 2048
+                    m_iUserDataStart = 0;
+                    m_iUserDataSize = SECTOR_MODE1_OR_MODE2_FORM1;
                     break;
                 case SECTOR_MODE2:
-                    m_oHeader = new CDXAHeader(oDIS);
+                    m_oHeader = new CDXAHeader(oBAIS);
+                    m_iUserDataStart = CDXAHeader.SIZE;
+                    if (m_oHeader.submode.form == 1)
+                        m_iUserDataSize = SECTOR_MODE1_OR_MODE2_FORM1;
+                    else
+                        m_iUserDataSize = SECTOR_MODE2_FORM2;
                     break;
                 case SECTOR_RAW_AUDIO:
-                    m_oHeader = new CDXAHeaderWithSync(oDIS);
+                    m_oHeader = new CDXAHeaderWithSync(oBAIS);
+                    m_iUserDataStart = CDXAHeaderWithSync.SIZE;
+                    if (m_oHeader.submode.form == 1)
+                        m_iUserDataSize = SECTOR_MODE1_OR_MODE2_FORM1;
+                    else
+                        m_iUserDataSize = SECTOR_MODE2_FORM2;
                     break;
                 default:
                     throw new RuntimeException("Should never happen: what kind of sector size is this?");
@@ -279,35 +310,19 @@ public class CDXASector implements IGetFilePointer {
         }
     }
 
-    /** @return  The 'user data' portion of the sector. */
+    /** Returns copy of the 'user data' portion of the sector. */
     public byte[] getSectorData() {
-
-        switch (m_iRawSectorSize) {
-            case SECTOR_MODE1_OR_MODE2_FORM1:
-                // 2048
-                return m_abSectorBytes.clone();
-            case SECTOR_MODE2:
-                // 2336
-                if (m_oHeader.submode.form == 2) {
-                    return jpsxdec.util.Misc.copyOfRange(m_abSectorBytes, CDXAHeader.SIZE, CDXAHeader.SIZE + SECTOR_MODE2_FORM2);
-                } else {
-                    return jpsxdec.util.Misc.copyOfRange(m_abSectorBytes, CDXAHeader.SIZE, CDXAHeader.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
-                }
-            case SECTOR_RAW_AUDIO:
-                // 2352
-                if ((((CDXAHeaderWithSync) m_oHeader).mode == 2) && m_oHeader.submode.form == 2) {
-                    return jpsxdec.util.Misc.copyOfRange(m_abSectorBytes, CDXAHeaderWithSync.SIZE, CDXAHeaderWithSync.SIZE + SECTOR_MODE2_FORM2);
-                } else {
-                    return jpsxdec.util.Misc.copyOfRange(m_abSectorBytes, CDXAHeaderWithSync.SIZE, CDXAHeaderWithSync.SIZE + SECTOR_MODE1_OR_MODE2_FORM1);
-                }
-            default:
-                throw new RuntimeException("A sector size of " + m_iRawSectorSize + " should never happen.");
-        }
+        return jpsxdec.util.Misc.copyOfRange(m_abSectorBytes, m_iUserDataStart, m_iUserDataSize);
     }
     
-    /** Takes care of making a ByteArrayOutputStream out of the sector user data. */
-    public ByteArrayInputStream getSectorDataStream() {
-        return new ByteArrayInputStream(getSectorData());
+    /** Returns the size of the 'user data' portion of the sector. */
+    public int getUserDataSize() {
+        return m_iUserDataSize;
+    }
+    
+    /** Returns an InputStream of the sector user data. */
+    public ByteArrayFPIS getSectorDataStream() {
+        return new ByteArrayFPIS(m_abSectorBytes, m_iUserDataStart, m_iUserDataSize, m_lngFilePointer);
     }
     
     /** Returns the entire raw sector data, with raw header/footer and 
@@ -397,5 +412,9 @@ public class CDXASector implements IGetFilePointer {
         } else {
             return m_lngFilePointer + m_oHeader.getSize();
         }
+    }
+    
+    public String toString() {
+        return m_oHeader.toString();
     }
 }

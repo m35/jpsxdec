@@ -156,7 +156,7 @@ public class CDSectorReader {
         
         CDXASector oSect = getSector(iSector);
         
-        if (oSect.getSectorData().length != abSrcUserData.length)
+        if (oSect.getUserDataSize() != abSrcUserData.length)
             throw new IOException("Data to write is not the right size");
         
         long lngUserDataOfs = oSect.getFilePointer();

@@ -29,8 +29,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 
 /** Represents the C WAVEFORMATEX structure. 
- * http://msdn2.microsoft.com/en-us/library/ms713497(VS.85).aspx */
-public class WAVEFORMATEX extends AVIstruct {
+ *  http://msdn2.microsoft.com/en-us/library/ms713497(VS.85).aspx */
+class WAVEFORMATEX extends AVIstruct {
 
     static short WAVE_FORMAT_PCM = 1;
     

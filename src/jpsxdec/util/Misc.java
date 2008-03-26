@@ -28,6 +28,9 @@ package jpsxdec.util;
 import java.util.Collections;
 import java.util.Vector;
 import javax.imageio.ImageIO;
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioFileFormat.Type;
+import javax.sound.sampled.AudioSystem;
 
 public final class Misc {
     
@@ -37,13 +40,69 @@ public final class Misc {
         String[] asReaderFormats = ImageIO.getReaderFormatNames();
         for (String s : asReaderFormats) {
             s = s.toLowerCase();
-            if (oValidFormats.indexOf(s) < 0)
+            if (oValidFormats.indexOf(s) < 0) {
                 oValidFormats.add(s);
+            }
         }
         
         Collections.sort(oValidFormats);
         
         return oValidFormats;
+    }
+    
+    /** Gets the AudioFileFormat.Type from its string representation */
+    public static Type AudioFileFormatStringToType(String sFormat) {
+        if (sFormat.equals(Type.AIFC.toString()))
+            return AudioFileFormat.Type.AIFC;
+        else if (sFormat.equals(Type.AIFF.toString()))
+            return AudioFileFormat.Type.AIFF;
+        else if (sFormat.equals(Type.AU.toString()))
+            return AudioFileFormat.Type.AU;
+        else if (sFormat.equals(Type.SND.toString()))
+            return AudioFileFormat.Type.SND;
+        else if (sFormat.equals(Type.WAVE.toString()))
+            return AudioFileFormat.Type.WAVE;
+        else
+            return null;
+    }
+    
+    /** Gets the string representation of an AudioFileFormat.Type *
+    public static String AudioFileFormatTypeToString(Type oFormat) {
+        if (oFormat.equals(AudioFileFormat.Type.AIFC))
+            return "aifc";
+        else if (oFormat.equals(AudioFileFormat.Type.AIFF))
+            return "aiff";
+        else if (oFormat.equals(AudioFileFormat.Type.AU))
+            return "au";
+        else if (oFormat.equals(AudioFileFormat.Type.SND))
+            return "snd";
+        else if (oFormat.equals(AudioFileFormat.Type.WAVE))
+            return "wav";
+        else
+            return null;
+    }*/
+    
+    public static Vector<String> GetJavaAudioFormats() {
+        Vector<String> v = new Vector<String>();
+        for (Type t : AudioSystem.getAudioFileTypes()) {
+            v.add(t.toString());
+        }
+
+        return v;                
+    }
+    
+    public static Vector<String> append(Vector<String> v, String[] as) {
+        for (String s : as) {
+            v.add(s);
+        }
+        return v;
+    }
+    
+    public static Vector<String> append(String[] as, Vector<String> v) {
+        for (int i = 0; i < as.length; i++) {
+            v.insertElementAt(as[i], i);
+        }
+        return v;
     }
     
     /** Manual implementation of the Java 6 Array.copyOfRange function. 
@@ -74,7 +133,7 @@ public final class Misc {
 
     /** Splits a string into an array of ints. 
      *  Returns null if non-int values encoutnered. */
-    public static int[] splitint(String s, String regex) {
+    public static int[] splitInt(String s, String regex) {
         String[] split = s.split(regex);
         int[] ai = new int[split.length];
         

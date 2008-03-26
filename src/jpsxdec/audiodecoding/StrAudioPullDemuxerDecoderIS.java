@@ -29,12 +29,9 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.DataInputStream;
-import jpsxdec.*;
 import jpsxdec.sectortypes.PSXSector;
-import jpsxdec.sectortypes.PSXSector.*;
+import jpsxdec.sectortypes.PSXSectorAudioChunk;
 import jpsxdec.util.AdvancedIOIterator;
-import jpsxdec.util.IO.Short2DArrayInputStream;
 
 /** Demuxes audio sectors together, and decodes them. */
 public class StrAudioPullDemuxerDecoderIS extends InputStream {
@@ -51,7 +48,7 @@ public class StrAudioPullDemuxerDecoderIS extends InputStream {
     /** Buffer to hold the current decoded PCM data that will be sent out
      *  through the read() functon. This will be null when there is no
      *  more data to be read. */
-    private Short2DArrayInputStream m_oCurrentDecodedBuffer;
+    private Short2dArrayInputStream m_oCurrentDecodedBuffer;
     
     /** How much to scale the decoded audio by before clamping. */
     private double m_dblScale;
@@ -85,8 +82,9 @@ public class StrAudioPullDemuxerDecoderIS extends InputStream {
     {
         this(oPsxIter, 1.0f);
     }
-    /**  @param oPsxIter  Sector iterator 
-     *   @param iChannel  Channel to decode. If -1, decodes the first channel found. */
+    /** Decodes the desired channel.  
+     * @param oPsxIter  Sector iterator 
+     * @param iChannel  Channel to decode. If -1, decodes the first channel found. */
     public StrAudioPullDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter, 
                                      int iChannel) 
             throws IOException
@@ -123,7 +121,7 @@ public class StrAudioPullDemuxerDecoderIS extends InputStream {
         if (asiDecoded == null)
             m_oCurrentDecodedBuffer = null;
         else
-            m_oCurrentDecodedBuffer = new Short2DArrayInputStream(asiDecoded);
+            m_oCurrentDecodedBuffer = new Short2dArrayInputStream(asiDecoded);
     }
     
     /* ---------------------------------------------------------------------- */
@@ -166,7 +164,7 @@ public class StrAudioPullDemuxerDecoderIS extends InputStream {
                 m_oCurrentDecodedBuffer = null;
                 return -1;
             } else {
-                m_oCurrentDecodedBuffer = new Short2DArrayInputStream(asiDecoded);
+                m_oCurrentDecodedBuffer = new Short2dArrayInputStream(asiDecoded);
             }
             
             iByte = m_oCurrentDecodedBuffer.read(); // try again
@@ -188,9 +186,8 @@ public class StrAudioPullDemuxerDecoderIS extends InputStream {
             return null;
 
         // now decode the data
-        DataInputStream oDatStream = new DataInputStream(oAudSect);
         short[][] asiDecoded = 
-                StrADPCMDecoder.DecodeMore(oDatStream, 
+                StrADPCMDecoder.DecodeMore(oAudSect.getUserDataStream(), 
                                            m_iBitsPerSample, 
                                            m_iMonoStereo, 
                                            m_oAudioDecodingContexts[0], 

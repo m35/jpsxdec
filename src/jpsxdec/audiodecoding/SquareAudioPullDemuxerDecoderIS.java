@@ -20,7 +20,7 @@
  */
 
 /*
- * FF8and9AudioDemuxerDecoderIS
+ * SquareAudioPullDemuxerDecoderIS.java
  */
 
 package jpsxdec.audiodecoding;
@@ -29,15 +29,14 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.DataInputStream;
+import jpsxdec.sectortypes.ISquareAudioSector;
 import jpsxdec.sectortypes.PSXSector;
-import jpsxdec.sectortypes.PSXSector.*;
 import jpsxdec.util.AdvancedIOIterator;
-import jpsxdec.util.IO.Short2DArrayInputStream;
 
-/** Final Fantasy 8 and Final Fantasy 9 store the audio in 
- *  similar format. */
-public class FF8and9AudioDemuxerDecoderIS extends InputStream {
+/** Square games Final Fantasy 8, Final Fantasy 9, and Chrono Cross store the 
+ * audio in similar format. This decodes the audio one sector at a time
+ * as it is read. */
+public class SquareAudioPullDemuxerDecoderIS extends InputStream {
 
     public static int DebugVerbose = 2;
 
@@ -51,39 +50,42 @@ public class FF8and9AudioDemuxerDecoderIS extends InputStream {
     /** Buffer to hold the current decoded PCM data that will be sent out
      *  through the read() functon. This will be null when there is no
      *  more data to be read. */
-    private Short2DArrayInputStream m_oCurrentDecodedBuffer;
+    private Short2dArrayInputStream m_oCurrentDecodedBuffer;
     
     /** Decoding context for the left channel. */
     private ADPCMDecodingContext m_oLeftContext;
     /** Decoding context for the right channel. */
     private ADPCMDecodingContext m_oRightContext;
+    
+    private long m_lngFrame = 1;
+    private int m_iSamplesPerSecond = -1;
 
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public FF8and9AudioDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter) 
+    public SquareAudioPullDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter) 
             throws IOException
     {
-        this(oPsxIter, 1.0f);
+        this(oPsxIter, 1.0);
     }
-    public FF8and9AudioDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter, 
-                                     double dblScale)
+    public SquareAudioPullDemuxerDecoderIS(AdvancedIOIterator<PSXSector> oPsxIter, 
+                                           double dblScale)
             throws IOException
     {
         m_oPsxSectorIterator = oPsxIter;
         
-        // FF8/FF9 audio is always in stereo, so create the
+        // FF8/FF9/Chrono Cross audio is always in stereo, so create the
         // ADPCM contexts for left and right channels.
         m_oLeftContext = new ADPCMDecodingContext(dblScale);
         m_oRightContext = new ADPCMDecodingContext(dblScale);
         
-        short[][] asiDecoded = FindAndDecodeNextFrame(m_oPsxSectorIterator);
+        short[][] asiDecoded = FindAndDecodeNextFrame(m_oPsxSectorIterator, m_lngFrame);
 
         if (asiDecoded == null)
             m_oCurrentDecodedBuffer = null;
         else
-            m_oCurrentDecodedBuffer = new Short2DArrayInputStream(asiDecoded);
+            m_oCurrentDecodedBuffer = new Short2dArrayInputStream(asiDecoded);
     }
     
     /* ---------------------------------------------------------------------- */
@@ -92,7 +94,7 @@ public class FF8and9AudioDemuxerDecoderIS extends InputStream {
 
     public AudioFormat getFormat() {
         return new AudioFormat(
-                44100,     // FF8/FF9 audio is always this frequency
+                m_iSamplesPerSecond,
                 16,        // we're turning it into a 16 bit signed pcm
                 2,         // stereo
                 true,      // signed
@@ -115,7 +117,7 @@ public class FF8and9AudioDemuxerDecoderIS extends InputStream {
     }
     
     public int getSamplesPerSec() {
-        return 44100;
+        return m_iSamplesPerSecond;
     }
 
     /* ---------------------------------------------------------------------- */
@@ -129,13 +131,14 @@ public class FF8and9AudioDemuxerDecoderIS extends InputStream {
         int iByte = m_oCurrentDecodedBuffer.read();
         while (iByte < 0)
         {
-            short[][] asiDecoded = FindAndDecodeNextFrame(m_oPsxSectorIterator);
+            m_lngFrame++;
+            short[][] asiDecoded = FindAndDecodeNextFrame(m_oPsxSectorIterator, m_lngFrame);
 
             if (asiDecoded == null) {
                 m_oCurrentDecodedBuffer = null;
                 return -1;
             } else {
-                m_oCurrentDecodedBuffer = new Short2DArrayInputStream(asiDecoded);
+                m_oCurrentDecodedBuffer = new Short2dArrayInputStream(asiDecoded);
             }
             
             iByte = m_oCurrentDecodedBuffer.read(); // try again
@@ -149,40 +152,73 @@ public class FF8and9AudioDemuxerDecoderIS extends InputStream {
     /* ---------------------------------------------------------------------- */
     
     
-    private short[][] FindAndDecodeNextFrame(AdvancedIOIterator<PSXSector> oIter) throws IOException {
+    private short[][] FindAndDecodeNextFrame(AdvancedIOIterator<PSXSector> oIter, long frame) 
+            throws IOException 
+    {
+        PSXSector oSector;
+        ISquareAudioSector oAudioSect;
+        
+        ISquareAudioSector oLeftChunk = null;
+        ISquareAudioSector oRightChunk = null;
+        
+        // seek ahead until we find the first sector of the desired frame
+        while (oIter.hasNext()) {
 
-        IFF8or9AudioSector oAudioSect;
-        oAudioSect = FindNextMatchingSector(oIter, 1);
-        if (oAudioSect == null) return null;
+            oSector = oIter.next();
+            if (!(oSector instanceof ISquareAudioSector)) continue;
+            oAudioSect = (ISquareAudioSector)oSector;
+
+            if (oAudioSect.getFrameNumber() < frame) 
+                continue;
+            else if (oAudioSect.getFrameNumber() > frame) 
+                throw new IOException("Error demuxing audio: Already past target frame");
+                
+            if (oAudioSect.getAudioChunkNumber() != 0) 
+                throw new IOException("Error demuxing audio: Already past target sector");
+
+            oLeftChunk = oAudioSect;
+            break;
+        }
+        
+        // if we're at the end of the iterator, we're done
+        if (oLeftChunk == null) return null;
+        
+        // then the next sector should be the right audio channel
+        if (!oIter.hasNext()) {
+            oSector = oIter.next();
+            if (!(oSector instanceof ISquareAudioSector)) {
+                oAudioSect = (ISquareAudioSector)oSector;
+                if (oAudioSect.getFrameNumber() == frame &&
+                    oAudioSect.getAudioChunkNumber() == 1)
+                {
+                    oRightChunk = oAudioSect;
+                }
+            }
+        }
+        
+        if (oRightChunk == null)
+            throw new IOException("Error demuxing audio: Found only half the channels");
+
+        if (oLeftChunk.getSamplesPerSecond() != oRightChunk.getSamplesPerSecond())
+            // should never happen
+            throw new IOException("Error demuxing audio: Left/Right channels have different samples/second");
+        
+        if (m_iSamplesPerSecond < 0) // first sector gives us samples/sector
+            m_iSamplesPerSecond = oLeftChunk.getSamplesPerSecond();
+        else if (m_iSamplesPerSecond != oLeftChunk.getSamplesPerSecond())
+            // should never happen
+            throw new IOException("Error demuxing audio: Samples/second changed");
+        
         short[][] asi = new short[2][];
-        asi[0] = StrADPCMDecoder.DecodeMoreFF8(new DataInputStream((PSXSector)oAudioSect),
-                                                m_oLeftContext, 2940);
-        oAudioSect = FindNextMatchingSector(oIter, 2);
-        if (oAudioSect == null) return null;
-        asi[1] = StrADPCMDecoder.DecodeMoreFF8(new DataInputStream((PSXSector)oAudioSect),
-                                                m_oRightContext, 2940);
+        
+        asi[0] = SquareADPCMDecoder.DecodeMore(oLeftChunk.getUserDataStream(),
+                                                m_oLeftContext,
+                                                oLeftChunk.getAudioDataSize());
+            
+        asi[1] = SquareADPCMDecoder.DecodeMore(oRightChunk.getUserDataStream(),
+                                                m_oRightContext,
+                                                oRightChunk.getAudioDataSize());
         return asi;
     }
-
-    /** Find the next left or right channel audio sector.
-     * @param iLeftRight  Search for either the next left or right channel */
-    private IFF8or9AudioSector FindNextMatchingSector(AdvancedIOIterator<PSXSector> oPsxSectorIter, int iLeftRight) throws IOException {
-
-        while (oPsxSectorIter.hasNext()) {
-
-            PSXSector oSector = oPsxSectorIter.next();
-
-            if (!(oSector instanceof IFF8or9AudioSector)) continue;
-
-
-            IFF8or9AudioSector oAudioSect = (IFF8or9AudioSector)oSector;
-
-            if (oAudioSect.isLeftOrRightChannel() == iLeftRight) 
-                return oAudioSect;
-        }
-
-        return null;
-    }
-
 
 }

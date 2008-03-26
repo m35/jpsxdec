@@ -41,6 +41,7 @@ import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.media.MediaHandler;
 import jpsxdec.media.PSXMedia;
 import jpsxdec.media.PSXMediaFF9;
+import jpsxdec.media.PSXMediaStreaming;
 import jpsxdec.nativeclass.VideoForWindows;
 import jpsxdec.util.IProgressListener;
 
@@ -49,7 +50,6 @@ public class Gui extends javax.swing.JFrame {
     
     private CDSectorReader m_oCD;
     private MediaHandler m_oMediaList;
-    private DefaultComboBoxModel m_oOutputFormatItems;
     private String m_sIndexFile;
     private File m_oLastBrowseFolder;
     private File m_oLastSaveFolder;
@@ -70,13 +70,6 @@ public class Gui extends javax.swing.JFrame {
         
         guiMediaList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         
-        Vector<String> oImgFrmts = jpsxdec.util.Misc.GetJavaImageFormats();
-        //{"yuv", "y4m", "mdec", "demux"}
-        oImgFrmts.add("demux");
-        oImgFrmts.add("mdec");
-        m_oOutputFormatItems = new DefaultComboBoxModel(oImgFrmts);
-        guiOutputFormat.setModel(m_oOutputFormatItems);
-        guiOutputFormat.setSelectedItem("png");
         if (INI_FILE.exists()) {
             try {
                 BufferedReader oReader = new BufferedReader(new FileReader(INI_FILE));
@@ -138,21 +131,7 @@ public class Gui extends javax.swing.JFrame {
     
     
     private void DecodeMediaItem(final PSXMedia oMedia, String sFile) {
-        
-        final boolean blnDecodeVideo = true;
-        final boolean blnDecodeAudio = true;
-        final double dblAudioScale = 1.0;
-        final String sOutputAudFormat = "wav";
-        final int iChannel = -1;
-        final long lngStartFrame = -1;
-        final long lngEndFrame = -1;
 
-        final String sFinalName = 
-                String.format("%s%03d", 
-                    sFile,
-                    oMedia.getIndex());
-
-        final String sOutputImgFormat = guiOutputFormat.getSelectedItem().toString();
         
         Progress oSaveTask = new Progress(this, "Saving " + oMedia.toString(), new Progress.SimpleWorker<Void>() {
             @Override
@@ -169,7 +148,7 @@ public class Gui extends javax.swing.JFrame {
 
             }
         }
-
+        
     }
     
     /** This method is called from within the constructor to
@@ -188,7 +167,6 @@ public class Gui extends javax.swing.JFrame {
         guiLoadIdx = new javax.swing.JButton();
         guiIndexFileLbl = new javax.swing.JLabel();
         guiIndexFile = new javax.swing.JLabel();
-        guiOutputFormat = new javax.swing.JComboBox();
         guiSave = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -255,19 +233,20 @@ public class Gui extends javax.swing.JFrame {
                 .addContainerGap()
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.LEADING)
                     .add(org.jdesktop.layout.GroupLayout.TRAILING, layout.createSequentialGroup()
-                        .add(guiMediaListPanel, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 265, Short.MAX_VALUE)
+                        .add(guiMediaListPanel, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 281, Short.MAX_VALUE)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                         .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.TRAILING, false)
-                            .add(org.jdesktop.layout.GroupLayout.LEADING, guiSave)
                             .add(org.jdesktop.layout.GroupLayout.LEADING, guiLoadIdx, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .add(org.jdesktop.layout.GroupLayout.LEADING, guiOutputFormat, 0, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .add(org.jdesktop.layout.GroupLayout.LEADING, guiIndexFileLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .add(guiGenerateIdx, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .add(org.jdesktop.layout.GroupLayout.LEADING, guiIndexFile, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 97, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)))
+                            .add(org.jdesktop.layout.GroupLayout.LEADING, guiSave, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                     .add(layout.createSequentialGroup()
-                        .add(guiInputFile, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 295, Short.MAX_VALUE)
+                        .add(guiInputFile, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 311, Short.MAX_VALUE)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
-                        .add(guiBrowseBtn)))
+                        .add(guiBrowseBtn))
+                    .add(layout.createSequentialGroup()
+                        .add(guiIndexFileLbl)
+                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
+                        .add(guiIndexFile, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 339, Short.MAX_VALUE)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -278,20 +257,18 @@ public class Gui extends javax.swing.JFrame {
                     .add(guiBrowseBtn)
                     .add(guiInputFile, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
+                .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.BASELINE)
+                    .add(guiIndexFileLbl)
+                    .add(guiIndexFile))
+                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.LEADING)
                     .add(layout.createSequentialGroup()
                         .add(guiGenerateIdx)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                         .add(guiLoadIdx)
-                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
-                        .add(guiIndexFileLbl)
-                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
-                        .add(guiIndexFile, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 116, Short.MAX_VALUE)
-                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
-                        .add(guiOutputFormat, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
+                        .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 162, Short.MAX_VALUE)
                         .add(guiSave))
-                    .add(guiMediaListPanel, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 249, Short.MAX_VALUE))
+                    .add(guiMediaListPanel, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 237, Short.MAX_VALUE))
                 .addContainerGap())
         );
 
@@ -300,21 +277,13 @@ public class Gui extends javax.swing.JFrame {
 
     
     private void guiSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_guiSaveActionPerformed
-        FileDialog fd = new FileDialog(this, "Save", FileDialog.SAVE);
-        if (m_oLastSaveFolder != null && m_oLastSaveFolder.exists())
-            fd.setDirectory(m_oLastSaveFolder.getPath());
-        fd.setVisible(true);
-        m_oLastSaveFolder = new File(fd.getDirectory());
-        if (fd.getFile() != null && new File(fd.getDirectory()).exists()) {
-            String sFile = new File(fd.getDirectory(), fd.getFile()).getPath();
-            // decode and save file(s)
-            
-            //JOptionPane.showMessageDialog(this, sFile);
-            
-            final PSXMedia oMedia = (PSXMedia)guiMediaList.getSelectedValue();
-            DecodeMediaItem(oMedia, sFile);
-            
-        } // if valid file
+
+        final PSXMedia oMedia = (PSXMedia)guiMediaList.getSelectedValue();
+        if (oMedia instanceof PSXMediaStreaming) 
+        {
+            SaveMedia ve = new SaveMedia(this, (PSXMediaStreaming)oMedia);
+            ve.setVisible(true);
+        }
 
     }//GEN-LAST:event_guiSaveActionPerformed
 
@@ -474,7 +443,6 @@ public class Gui extends javax.swing.JFrame {
     private javax.swing.JButton guiLoadIdx;
     private javax.swing.JList guiMediaList;
     private javax.swing.JScrollPane guiMediaListPanel;
-    private javax.swing.JComboBox guiOutputFormat;
     private javax.swing.JButton guiSave;
     // End of variables declaration//GEN-END:variables
     

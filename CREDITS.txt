@@ -35,6 +35,8 @@ Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating anime.
 
 The most excellent folks at IRCNet #lain :D
 
+Bernhard Huber for his very nice javadoc-templates (http://members.aon.at/bhuber14/ http://plugins.netbeans.org/PluginPortal/faces/PluginDetailPage.jsp?pluginid=1168)
+
 
 Finally, a very special thanks to all the Playstation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs, are real men of genius.
 

@@ -35,66 +35,90 @@ import jpsxdec.audiodecoding.ADPCMDecodingContext;
 import jpsxdec.audiodecoding.StrADPCMDecoder;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.cdreaders.CDXASector;
-import jpsxdec.demuxers.StrFramePushDemuxerIS;
-import jpsxdec.sectortypes.PSXSector;
-import jpsxdec.sectortypes.PSXSector.*;
-import jpsxdec.sectortypes.PSXSectorRangeIterator;
-import jpsxdec.util.IO.Short2DArrayInputStream;
-import jpsxdec.util.NotThisTypeException;
 import jpsxdec.media.StrFpsCalc.*;
+import jpsxdec.media.savers.StopPlayingException;
+import jpsxdec.sectortypes.PSXSector;
+import jpsxdec.sectortypes.PSXSectorRangeIterator;
+import jpsxdec.sectortypes.PSXSectorAudio2048;
+import jpsxdec.sectortypes.PSXSectorAudioChunk;
+import jpsxdec.sectortypes.PSXSectorFrameChunk;
+import jpsxdec.sectortypes.PSXSectorNull;
+import jpsxdec.audiodecoding.Short2dArrayInputStream;
+import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.Misc;
 
 
 /** Represents standard STR movies, and STR movies that deviate slightly from
- *  standard STR movies: Lain and FF7 */
-public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo 
+ *  standard STR movies: Lain and FF7. */
+public class PSXMediaSTR extends PSXMediaStreaming 
 {
-    /** List of known sectors/frame and sectors/audio combinations.
+    /** List of many theoretically possible 
+     * sectors/frame and sectors/audio combinations.
      * @see StrFpsCalc */
-    public static FrameSequence[] KNOWN_CHUNK_SEQUENCES = new FrameSequence[] {
+    public static FrameSequence[] POSSIBLE_CHUNK_SEQUENCES = {
           // sectors/frame, sectors/audio
       new FrameSequence(15, 32),
       new FrameSequence(12, 32), // river1.str
       new FrameSequence(10, 32),
+      new FrameSequence( 9, 32),
+      new FrameSequence( 6, 32),
       new FrameSequence( 5, 32),
+      new FrameSequence( 3, 32),
       new FrameSequence(15, 16),
+      new FrameSequence(12, 16),
       new FrameSequence(10, 16),
+      new FrameSequence( 9, 16),
+      new FrameSequence( 6, 16),
       new FrameSequence( 5, 16),
+      new FrameSequence( 3, 16),
       new FrameSequence(15,  8),
+      new FrameSequence(12,  8),
       new FrameSequence(10,  8),
+      new FrameSequence( 9,  8),
+      new FrameSequence( 6,  8),
       new FrameSequence( 5,  8),
+      new FrameSequence( 3,  8),
       new FrameSequence(15,  4),
+      new FrameSequence(12,  4),
       new FrameSequence(10,  4),
+      new FrameSequence( 9,  4),
+      new FrameSequence( 6,  4),
       new FrameSequence( 5,  4),
+      new FrameSequence( 3,  4),
       new FrameSequence(15),
+      new FrameSequence(12),
       new FrameSequence(10),
-      new FrameSequence( 6), // Valkarie profile
-      new FrameSequence( 5)
+      new FrameSequence( 9),
+      new FrameSequence( 6), // Valkyrie profile
+      new FrameSequence( 5),
+      new FrameSequence( 3)
     };
     
     // video
-    long m_lngWidth = -1;
-    long m_lngHeight = -1;
+    private long m_lngWidth = -1;
+    private long m_lngHeight = -1;
     
-    long m_lngStartFrame = -1;
-    long m_lngEndFrame = -1;
+    /** First video frame number. */
+    private long m_lngStartFrame = -1;
+    /** Last video frame number. */
+    private long m_lngEndFrame = -1;
     
     // audio
     /** 0 if it doesn't have audio, 1 for mono, 2 for stereo */
-    int m_iAudioChannels = 0;
+    private int m_iAudioChannels = 0;
     
-    int m_iAudioPeriod = -1;
-    int m_iAudioSampleRate = -1;
-    int m_iAudioBitsPerSample = -1;
+    private int m_iAudioPeriod = -1;
+    private int m_iAudioSampleRate = -1;
+    private int m_iAudioBitsPerSample = -1;
     
     /** 0 if it doesn't have audio, >0 if it does */
-    long m_lngAudioTotalSamples = 0;
+    private long m_lngAudioTotalSamples = 0;
     
-    final FramesPerSecond[] m_aoPossibleFps;
+    private final FramesPerSecond[] m_aoPossibleFps;
     
     public PSXMediaSTR(PSXSectorRangeIterator oSectIterator) throws NotThisTypeException, IOException
     {
-        super(oSectIterator);
+        super(oSectIterator.getSourceCD());
         
         AudioChannelInfo oAudInf = null;
         
@@ -118,8 +142,8 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
         m_lngStartFrame = oFrame.getFrameNumber();
         m_lngEndFrame = oFrame.getFrameNumber();
         
-        LinkedList<StrFpsCalc.SequenceWalker> oSequences = 
-            StrFpsCalc.GenerateSequenceWalkers(oFrame, KNOWN_CHUNK_SEQUENCES);
+        LinkedList<StrFpsCalc.FrameSequenceWalker> oSequences = 
+            StrFpsCalc.GenerateSequenceWalkers(oFrame, POSSIBLE_CHUNK_SEQUENCES);
         
         if (DebugVerbose > 2)
             System.err.println(oPsxSect.toString());
@@ -155,12 +179,12 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
                         oAudInf.LastAudioSect = oPsxSect.getSector();
                         oAudInf.MonoStereo = oAudio.getMonoStereo();
                         oAudInf.SamplesPerSecond = oAudio.getSamplesPerSecond();
-                        oAudInf.BitsPerSampele = oAudio.getBitsPerSample();
+                        oAudInf.BitsPerSample = oAudio.getBitsPerSample();
                         oAudInf.Channel = oAudio.getChannel();
                     } else {
                         if (oAudio.getMonoStereo() != oAudInf.MonoStereo ||
                             oAudio.getSamplesPerSecond() != oAudInf.SamplesPerSecond ||
-                            oAudio.getBitsPerSample() != oAudInf.BitsPerSampele ||
+                            oAudio.getBitsPerSample() != oAudInf.BitsPerSample ||
                             oAudio.getChannel() != oAudInf.Channel) 
                         {
                             break;
@@ -180,8 +204,8 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
             if (oPsxSect != null && DebugVerbose > 2)
                 System.err.println(oPsxSect.toString());
             
-            for (Iterator<StrFpsCalc.SequenceWalker> it = oSequences.iterator(); it.hasNext();) {
-                StrFpsCalc.SequenceWalker oWalker = it.next();
+            for (Iterator<StrFpsCalc.FrameSequenceWalker> it = oSequences.iterator(); it.hasNext();) {
+                StrFpsCalc.FrameSequenceWalker oWalker = it.next();
                 if (!oWalker.Next(oPsxSect))
                     it.remove();
             }
@@ -194,11 +218,10 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
         long lngSectorsPerMovie = (super.m_iEndSector - super.m_iStartSector + 1);
         
         // now wrap up the frame rate calculation
-        if (oAudInf != null) {
-            // if there is audio, then we can figure out the frames/second for sure
+        if (oAudInf != null && oAudInf.AudioPeriod >= 1) {
             m_iAudioPeriod = (int)oAudInf.AudioPeriod;
             m_iAudioChannels = (int)oAudInf.MonoStereo;
-            m_iAudioBitsPerSample = (int)oAudInf.BitsPerSampele;
+            m_iAudioBitsPerSample = (int)oAudInf.BitsPerSample;
             m_iAudioSampleRate = (int)oAudInf.SamplesPerSecond;
             
             long lngSectorsPerSecond = StrFpsCalc.GetSectorsPerSecond(
@@ -236,7 +259,7 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
         
         try {
             IndexLineParser parse = new IndexLineParser(
-                    "$| Frames #-# #x# | Audio channels # | ", sSerial);
+                    "$| Frames #-# #x# | Audio channels # |", sSerial);
             
             parse.skip();
             m_lngStartFrame  = parse.get(m_lngStartFrame);
@@ -249,7 +272,7 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
             
             if (m_iAudioChannels > 0) {
                 parse = new IndexLineParser(
-                        "Period # Rate # Bits # Total # | ", sRemain);
+                        " Period # Rate # Bits # Total # |", sRemain);
                 
                 m_iAudioPeriod         = parse.get(m_iAudioPeriod);
                 m_iAudioSampleRate     = parse.get(m_iAudioSampleRate);
@@ -262,7 +285,7 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
             oFps = new ArrayList<FramesPerSecond>(10);
             do {
                 parse = new IndexLineParser(
-                        "#x #/#", sRemain);
+                        " #x #/#", sRemain);
 
                 int iSpd = parse.get(0);
                 long iNum   = parse.get(0L);
@@ -318,6 +341,15 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
         return m_lngEndFrame;
     }
 
+    @Override
+    public long getWidth() {
+        return m_lngWidth;
+    }
+
+    @Override
+    public long getHeight() {
+        return m_lngHeight;
+    }
     
     public int getMediaType() {
         if (m_lngAudioTotalSamples == 0)
@@ -340,12 +372,18 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
     public FramesPerSecond[] getPossibleFPS() {
         return m_aoPossibleFps;
     }
+
+    @Override
+    public int getSamplesPerSecond() {
+        return m_iAudioSampleRate;
+    }
+    
+    
     
     //--------------------------------------------------------------------------
     //-- Playing ---------------------------------------------------------------
     //--------------------------------------------------------------------------
 
-    StrFramePushDemuxerIS m_oFrameChunks;
     private ADPCMDecodingContext m_oLeftContext;
     private ADPCMDecodingContext m_oRightContext;
     
@@ -356,75 +394,53 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
     }
 
     @Override
-    protected boolean playSector(PSXSector oPSXSect) throws IOException {
+    protected void playSector(PSXSector oPSXSect) throws StopPlayingException, IOException {
         if (oPSXSect instanceof PSXSectorFrameChunk) {
-            // only process the frame if there is a listener for it
-            if (super.m_oVidDemux != null || super.m_oMdec != null || super.m_oFrame != null) {
-                
-                PSXSectorFrameChunk oFrmChk = (PSXSectorFrameChunk)oPSXSect;
-                
-                if (m_oFrameChunks == null) {
-                    m_oFrameChunks = new StrFramePushDemuxerIS();
-                } else if (oFrmChk.getFrameNumber() != m_oFrameChunks.getFrameNumber()) {
-                    // if it's another frame (should be the next frame)
-                    if (super.handleEndOfFrame(m_oFrameChunks)) {
-                        m_oFrameChunks = null;
-                        return true;
-                    }
-                    m_oFrameChunks = new StrFramePushDemuxerIS();
-                }
-                
-                // add the frame chunk to the list
-                m_oFrameChunks.addChunk(oFrmChk);
-                
-            }
+            
+            super.playVideoSector((PSXSectorFrameChunk)oPSXSect);
+            
         } else if (oPSXSect instanceof PSXSectorAudioChunk) {
             // only process the audio if there is a listener for it
-            if (super.m_oAudio != null) {
+            if (super.m_oAudioListener != null) {
                 PSXSectorAudioChunk oAudChk = (PSXSectorAudioChunk)oPSXSect;
                 
                 short[][] asiDecoded = 
-                        StrADPCMDecoder.DecodeMore(new DataInputStream(oAudChk), 
+                        StrADPCMDecoder.DecodeMore(oAudChk.getUserDataStream(), 
                                                    oAudChk.getBitsPerSample(), 
                                                    oAudChk.getMonoStereo(), 
                                                    m_oLeftContext, 
                                                    m_oRightContext);
                 
-                boolean bln = m_oAudio.event(
+                m_oAudioListener.event(
                     new AudioInputStream(
-                        new Short2DArrayInputStream(asiDecoded), 
+                        new Short2dArrayInputStream(asiDecoded), 
                         oAudChk.getAudioFormat(),
-                        this.getAudioSampleLength()
+                        oAudChk.getSampleLength()
                     ),
                     oAudChk.getSector()
                 );
                         
-                if (bln) return true;
             }
         }
-        return false;
     }
     
     
     @Override
     protected void endPlay() throws IOException {
-        if (m_oFrameChunks != null) {
-            super.handleEndOfFrame(m_oFrameChunks);
-        }
-        m_oFrameChunks = null;
         m_oLeftContext = null;
         m_oRightContext = null;
+        super.endPlay();
     }
 
     @Override
-    public void seek(int iFrame) throws IOException {
+    public void seek(long lngFrame) throws IOException {
         // clamp the desired frame
-        if (iFrame < m_lngStartFrame) 
-            iFrame = (int)m_lngStartFrame; 
-        else if (iFrame > m_lngEndFrame) 
-            iFrame = (int)m_lngEndFrame;
+        if (lngFrame < m_lngStartFrame) 
+            lngFrame = (int)m_lngStartFrame; 
+        else if (lngFrame > m_lngEndFrame) 
+            lngFrame = (int)m_lngEndFrame;
         // calculate an estimate where the frame will land
-        double percent = (iFrame - m_lngStartFrame) / (double)(m_lngEndFrame - m_lngStartFrame);
+        double percent = (lngFrame - m_lngStartFrame) / (double)(m_lngEndFrame - m_lngStartFrame);
         // backup 10% of the size of the media to 
         // hopefully land shortly before the frame
         int iSect = (int)
@@ -438,7 +454,7 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
         CDXASector oCDSect = super.m_oCDIter.peekNext();
         PSXSector oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
         while (!(oPsxSect instanceof PSXSectorFrameChunk) ||
-               ((PSXSectorFrameChunk)oPsxSect).getFrameNumber() < iFrame) 
+               ((PSXSectorFrameChunk)oPsxSect).getFrameNumber() < lngFrame) 
         {
             super.m_oCDIter.skipNext();
             oCDSect = super.m_oCDIter.peekNext();
@@ -448,7 +464,7 @@ public class PSXMediaSTR extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
         // in case we ended up past the desired frame, backup until we're
         // at the first sector of the desired frame
         while (!(oPsxSect instanceof PSXSectorFrameChunk) ||
-               ((PSXSectorFrameChunk)oPsxSect).getFrameNumber() > iFrame ||
+               ((PSXSectorFrameChunk)oPsxSect).getFrameNumber() > lngFrame ||
                ((PSXSectorFrameChunk)oPsxSect).getChunkNumber() > 0)
         {
             super.m_oCDIter.gotoIndex(m_oCDIter.getIndex() - 1);

@@ -224,10 +224,9 @@ public final class MDEC {
     
     /** Main input function. Reads MDEC codes from the stream until an
      *  entire image of width x height has been decoded. Returns the
-     *  decoded image as a yuv4mpeg2 class. */
+     *  decoded image as a PsxYuv class. */
     public static PsxYuv DecodeFrame(InputStream oStream, 
                                      long lngWidth, long lngHeight)
-        throws DecodingException
     {                                  
         
         // Calculate actual width/height in macroblocks 
@@ -260,7 +259,7 @@ public final class MDEC {
                 }
             }
         } catch (IOException ex) {
-            throw new DecodingException(ex, oImg);
+            oImg.setDecodingError(ex);
         }
         
         return oImg;
@@ -381,7 +380,7 @@ public final class MDEC {
             
             // The decoded run length codes should never exceed 64
             if (iVectorPos > 63) {
-                throw new IOException("[MDEC] Run length out of bounds: " + 
+                throw new MdecException("[MDEC] Run length out of bounds: " + 
                                        (iVectorPos + 1));
             }
             

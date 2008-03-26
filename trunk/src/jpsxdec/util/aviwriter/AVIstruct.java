@@ -31,7 +31,7 @@ import java.io.*;
  *  helper functions, some required interface of the sub-classes, and the
  *  ability to easily go back and write the structure to a prior location
  *  in the AVI file. */
-public abstract class AVIstruct {
+abstract class AVIstruct {
 
     public static void write32LE(RandomAccessFile raf, int i) throws IOException {
         raf.write(i & 0xFF);

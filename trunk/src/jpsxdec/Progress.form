@@ -30,14 +30,15 @@
   <Layout>
     <DimensionLayout dim="0">
       <Group type="103" groupAlignment="0" attributes="0">
-          <Group type="102" alignment="0" attributes="0">
+          <Group type="102" attributes="0">
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" attributes="0">
-                  <Component id="guiDescriptionLbl" alignment="0" pref="214" max="32767" attributes="0"/>
-                  <Component id="guiEventLvl" alignment="0" pref="214" max="32767" attributes="0"/>
-                  <Component id="guiProgressLbl" alignment="0" pref="214" max="32767" attributes="0"/>
+                  <Component id="guiDescriptionLbl" alignment="0" pref="237" max="32767" attributes="0"/>
+                  <Component id="guiEventLvl" alignment="0" pref="237" max="32767" attributes="0"/>
+                  <Component id="guiProgressLbl" alignment="0" pref="237" max="32767" attributes="0"/>
+                  <Component id="guiProgressBar" alignment="0" pref="237" max="32767" attributes="0"/>
+                  <Component id="txtErrorsScroll" alignment="0" pref="237" max="32767" attributes="0"/>
                   <Component id="guiCancelBtn" alignment="0" min="-2" max="-2" attributes="0"/>
-                  <Component id="guiProgressBar" alignment="0" pref="214" max="32767" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
           </Group>
@@ -46,17 +47,19 @@
     <DimensionLayout dim="1">
       <Group type="103" groupAlignment="0" attributes="0">
           <Group type="102" alignment="1" attributes="0">
-              <EmptySpace max="-2" attributes="0"/>
+              <EmptySpace min="-2" max="-2" attributes="0"/>
               <Component id="guiDescriptionLbl" min="-2" max="-2" attributes="0"/>
-              <EmptySpace max="-2" attributes="0"/>
+              <EmptySpace min="-2" max="-2" attributes="0"/>
               <Component id="guiProgressLbl" min="-2" max="-2" attributes="0"/>
-              <EmptySpace max="-2" attributes="0"/>
+              <EmptySpace min="-2" max="-2" attributes="0"/>
               <Component id="guiEventLvl" min="-2" max="-2" attributes="0"/>
-              <EmptySpace pref="33" max="32767" attributes="0"/>
+              <EmptySpace min="-2" max="-2" attributes="0"/>
               <Component id="guiProgressBar" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="guiCancelBtn" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
+              <Component id="txtErrorsScroll" max="32767" attributes="0"/>
+              <EmptySpace min="-2" max="-2" attributes="0"/>
           </Group>
       </Group>
     </DimensionLayout>
@@ -87,5 +90,21 @@
         <Property name="text" type="java.lang.String" value=" "/>
       </Properties>
     </Component>
+    <Container class="javax.swing.JScrollPane" name="txtErrorsScroll">
+      <AuxValues>
+        <AuxValue name="autoScrollPane" type="java.lang.Boolean" value="true"/>
+      </AuxValues>
+
+      <Layout class="org.netbeans.modules.form.compat2.layouts.support.JScrollPaneSupportLayout"/>
+      <SubComponents>
+        <Component class="javax.swing.JTextArea" name="txtErrors">
+          <Properties>
+            <Property name="columns" type="int" value="20"/>
+            <Property name="editable" type="boolean" value="false"/>
+            <Property name="rows" type="int" value="5"/>
+          </Properties>
+        </Component>
+      </SubComponents>
+    </Container>
   </SubComponents>
 </Form>

@@ -31,7 +31,7 @@ import java.io.OutputStream;
 import java.util.Hashtable;
 import java.util.NoSuchElementException;
 import jpsxdec.mdec.MDEC.Mdec16Bits;
-import jpsxdec.util.BufferedBitReader;
+import jpsxdec.uncompressors.BufferedBitReader;
 import jpsxdec.util.IO;
 
 /** An extention of the StrFrameUncompresserIS which can re-compress the 

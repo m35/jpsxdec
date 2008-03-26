@@ -27,23 +27,11 @@ package jpsxdec.media;
 
 import java.util.*;
 import java.io.*;
-import javax.sound.sampled.AudioFileFormat;
-import javax.sound.sampled.AudioFileFormat.Type;
-import javax.sound.sampled.AudioInputStream;
 import jpsxdec.*;
 import jpsxdec.cdreaders.CDSectorReader;
-import jpsxdec.cdreaders.CDXAIterator;
-import jpsxdec.cdreaders.CDXASector;
-import jpsxdec.demuxers.StrFramePushDemuxerIS;
-import jpsxdec.mdec.MDEC;
-import jpsxdec.mdec.PsxYuv;
-import jpsxdec.media.StrFpsCalc.FramesPerSecond;
-import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.sectortypes.PSXSector.*;
-import jpsxdec.uncompressors.StrFrameUncompressorIS;
-
 
 
 /** Abstract PSX media type. Constructors of sub-classes will attempt to
@@ -67,8 +55,8 @@ public abstract class PSXMedia implements Comparable {
     /** Index number of the media item in the file. */
     private int m_iMediaIndex;
     
-    public PSXMedia(PSXSectorRangeIterator oSectIterator) {
-        m_oCD = oSectIterator.getSourceCD();
+    public PSXMedia(CDSectorReader oCD) {
+        m_oCD = oCD;
     }
     
     /** Deserializes the start and end sectors */
@@ -91,6 +79,7 @@ public abstract class PSXMedia implements Comparable {
         }
     }
     
+    /** For sorting purposes. */
     public int compareTo(Object o) {
         if (o instanceof PSXMedia) {
             PSXMedia om = (PSXMedia)o;
@@ -132,233 +121,74 @@ public abstract class PSXMedia implements Comparable {
         return new PSXSectorRangeIterator(m_oCD, m_iStartSector, m_iEndSector);
     }
     
+    public String getSuggestedName() {
+        String s = new File(m_oCD.getSourceFile()).getName();
+        int i = s.indexOf('.');
+        if (i >= 0)
+            s = s.substring(0, i);
+        return String.format("%s%03d", s, m_iMediaIndex);
+    }
+    
     // -------------------------------------------------------------------------
     // Stuff shared by more than one sub-class ---------------------------------
     // -------------------------------------------------------------------------
     
-    protected static long Clamp(long iVal, long iMin, long iMax) {
-        if (iVal < iMin)
-            return iMin;
-        else if (iVal > iMax)
-            return iMax;
-        return iVal;
-    }
-    
     /** Handy class to help with indexing audio. */
     protected static class AudioChannelInfo {
         public long Channel          = -1;
-        public long BitsPerSampele   = -1;
+        public long BitsPerSample    = -1;
         public long SamplesPerSecond = -1;
         public long MonoStereo       = -1;
         public long LastAudioSect    = -1;
-        public long AudioPeriod      = -1;
-    }
-    
-    /** Gets the AudioFileFormat.Type from its string representation */
-    public static Type AudioFileFormatStringToType(String sFormat) {
-        if (sFormat.equals("aifc"))
-            return AudioFileFormat.Type.AIFC;
-        else if (sFormat.equals("aiff"))
-            return AudioFileFormat.Type.AIFF;
-        else if (sFormat.equals("au"))
-            return AudioFileFormat.Type.AU;
-        else if (sFormat.equals("snd"))
-            return AudioFileFormat.Type.SND;
-        else if (sFormat.equals("wav"))
-            return AudioFileFormat.Type.WAVE;
-        else
-            return null;
-    }
-    
-    /** Gets the string representation of an AudioFileFormat.Type */
-    public static String AudioFileFormatTypeToString(Type oFormat) {
-        if (oFormat.equals(AudioFileFormat.Type.AIFC))
-            return "aifc";
-        else if (oFormat.equals(AudioFileFormat.Type.AIFF))
-            return "aiff";
-        else if (oFormat.equals(AudioFileFormat.Type.AU))
-            return "au";
-        else if (oFormat.equals(AudioFileFormat.Type.SND))
-            return "snd";
-        else if (oFormat.equals(AudioFileFormat.Type.WAVE))
-            return "wav";
-        else
-            return null;
-    }
+        public long AudioPeriod      = 0;
 
-    // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-    
-    public static abstract class PSXMediaStreaming extends PSXMedia {
-        CDXAIterator m_oCDIter;
-        
-        public PSXMediaStreaming(PSXSectorRangeIterator oSectIterator) {
-            super(oSectIterator);
-            Reset();
+        public AudioChannelInfo() {
         }
 
-        public PSXMediaStreaming(CDSectorReader oCD, String sSerial, String sType) 
-                throws NotThisTypeException
-        {
-            super(oCD, sSerial, sType);
-            Reset();
-        }
-        
-        public void Reset() {
-            m_oCDIter = new CDXAIterator(m_oCD, super.m_iStartSector, super.m_iEndSector);
-        }
+        public AudioChannelInfo(String sSerial) throws NotThisTypeException {
+            try {
+                IndexLineParser oParse = new IndexLineParser(
+                        "Channel # $ Bits/Sample # Samples/sec # Perod #"
+                        , sSerial);
 
-        private boolean m_blnPlaying = false;
-        public void Play() throws IOException {
-            m_blnPlaying = true;
-            startPlay();
-
-            while (m_oCDIter.hasNext() && m_blnPlaying) {
-                CDXASector oSect = m_oCDIter.next();
-                if (m_oRawRead != null) if (m_oRawRead.event(oSect)) return;
-
-                PSXSector oPSXSect = PSXSector.SectorIdentifyFactory(oSect);
-
-                if (oPSXSect == null) continue;
-
-                if (playSector(oPSXSect)) return;
-            }
-
-            endPlay();
-            m_blnPlaying = false;
-        }
-        
-        public void Stop() {
-            m_blnPlaying = false;
-        }
-        
-        protected abstract void startPlay();
-        protected abstract void endPlay() throws IOException;
-        protected abstract boolean playSector(PSXSector oPSXSect) throws IOException;
-
-        public void clearListeners() {
-            m_oRawRead = null;
-        }
-        
-        
-        private IRawListener m_oRawRead;
-        public void addRawListener(IRawListener oListen) {
-            m_oRawRead = oListen;
-        }
-
-        ////////////////////////////////////////////////////////////////////////
-        
-        public static interface IRawListener {
-            /** @return true to stop, false to continue. */
-            boolean event(CDXASector oSect);
-        }
-        public static interface IVidListener {
-            /** @return true to stop, false to continue. */
-            boolean event(InputStream is, long frame);
-        }
-        public static interface IAudListener {
-            /** @return true to stop, false to continue. */
-            boolean event(AudioInputStream is, int sector);
-        }
-        
-        ////////////////////////////////////////////////////////////////////////
-        ////////////////////////////////////////////////////////////////////////
-        
-        public static abstract class PSXMediaVideo extends PSXMediaStreaming {
-            public PSXMediaVideo(PSXSectorRangeIterator oSectIterator) {
-                super(oSectIterator);
-            }
-
-            public PSXMediaVideo(CDSectorReader oCD, String sSerial, String sType) 
-                    throws NotThisTypeException
-            {
-                super(oCD, sSerial, sType);
-            }
-            
-            abstract public void seek(int iFrame) throws IOException;
-            
-            protected IVidListener m_oVidDemux;
-            public void addVidDemuxListener(IVidListener oListen) {
-                m_oVidDemux = oListen;
-            }
-        
-            protected IVidListener m_oMdec;
-            public void addMdecListener(IVidListener o) {
-                m_oMdec = o;
-            }
-            protected IFrameListener m_oFrame;
-            public void addFrameListener(IFrameListener o) {
-                m_oFrame = o;
-            }
-            protected IAudListener m_oAudio;
-            public void addAudioListener(IAudListener o) {
-                m_oAudio = o;
-            }
-            
-            @Override
-            public void clearListeners() {
-                m_oVidDemux = null;
-                m_oAudio = null;
-                m_oFrame = null;
-                m_oMdec = null;
-                super.clearListeners();
-            }
-
-            public static interface IFrameListener {
-                /** @return true to stop, false to continue. */
-                boolean event(PsxYuv o, long frame);
-            }
-            
-            public abstract int getAudioChannels();
-
-            public abstract FramesPerSecond[] getPossibleFPS();
+                Channel = oParse.get(Channel);
+                String s = oParse.get((String)null);
+                if (s.equals("Mono")) 
+                    MonoStereo = 1;
+                else if (s.equals("Stereo"))
+                    MonoStereo = 2;
+                else
+                    throw new NotThisTypeException();
+                BitsPerSample = oParse.get(BitsPerSample);
+                SamplesPerSecond = oParse.get(SamplesPerSecond);
                 
-            public abstract boolean hasVideo();
-            
-            public abstract long getStartFrame();
-            public abstract long getEndFrame();
-
-            /** After the last sector of a frame has been read, 
-             *  this is called to then process it. */
-            final protected boolean handleEndOfFrame(StrFramePushDemuxerIS oDemux) throws IOException {
-
-                // send out the demux event if there is listener
-                if (m_oVidDemux != null) {
-                    if (m_oVidDemux.event(oDemux, oDemux.getFrameNumber())) return true;
-                    return false;
-                }
-
-                // continue only if listener
-                if (m_oMdec != null || m_oFrame != null) {
-                    StrFrameUncompressorIS oUncomprs = new StrFrameUncompressorIS(oDemux, oDemux.getWidth(), oDemux.getHeight());
-                    // send mdec event if listener
-                    if (m_oMdec != null) {
-                        if (m_oMdec.event(oUncomprs, oDemux.getFrameNumber())) return true;
-                        return false;
-                    }
-
-                    // finally decode frame and event if listener
-                    if (m_oFrame != null) { 
-                        try {
-                            //TODO need to pass the error but still decode
-                            PsxYuv yuv = MDEC.DecodeFrame(oUncomprs, oUncomprs.getWidth(), oUncomprs.getHeight());
-                            if (m_oFrame.event(yuv, oDemux.getFrameNumber())) return true;
-                        } catch (MDEC.DecodingException ex) {
-                            if (m_oFrame.event(ex.getYuv(), oDemux.getFrameNumber())) return true;
-                        }
-                        return false;
-                    }
-
-                }
-
-                return false;
+                AudioPeriod = oParse.get(AudioPeriod);
+                
+            } catch (NoSuchElementException ex) {
+                throw new NotThisTypeException();
+            } catch (NumberFormatException ex) {
+                throw new NotThisTypeException();
+            } catch (IllegalArgumentException ex) {
+                throw new NotThisTypeException();
             }
+            
         }
-
+        
+        
+        
+        public String toString() {
+            return String.format(
+                    "Channel %d %s Bits/Sample %d Samples/sec %d Perod %d", 
+                    Channel,
+                    (MonoStereo == 1) ? "Mono" : "Stereo",
+                    BitsPerSample,
+                    SamplesPerSecond,
+                    AudioPeriod
+                    
+                    );
+        }
+        
     }
-    
-    
     
 }
 

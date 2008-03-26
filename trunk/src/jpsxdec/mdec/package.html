@@ -1,0 +1,31 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+    <body bgcolor="white">
+        Interfaces and classes for simulating the MDEC 
+        (Motion Decoder) chip found in Playstation 1.
+        <p>
+            The {@link jpsxdec.mdec.MDEC} is the main entry point for all the
+            functionality of this package.
+        </p>
+        <p>
+            There are 3 implementations of the Inverse Discrete Cosine
+            Transform:
+        </p>
+        <ul>
+            <li> {@link jpsxdec.mdec.SimpleIDCT}
+            <li> {@link jpsxdec.mdec.StephensIDCT}
+            <li> {@link jpsxdec.mdec.IDCT}
+        </ul>
+        <p>
+            All three implement {@link jpsxdec.mdec.IDCTinterface}.
+        </p>
+        
+        <p>
+            An overview of the MDEC decoding process can be found in the latest
+            STR_file_format.txt document.
+        </p>
+        <ul>
+            <li><a href="http://code.google.com/p/jpsxdec/downloads/list">jPSXdec downloads</a>
+        </ul>
+    </body>
+</html>

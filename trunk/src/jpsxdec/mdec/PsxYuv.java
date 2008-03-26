@@ -26,14 +26,14 @@
 package jpsxdec.mdec;
 
 import java.awt.image.BufferedImage;
-//import java.awt.image.WritableRaster;
+import java.awt.image.WritableRaster;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.IOException;
-import jpsxdec.util.*;
+import jpsxdec.util.Fraction;
 
 /** <pre>
  * Class to handle YUV (YCbCr) image data of the PSX MDEC chip.
@@ -75,6 +75,16 @@ public class PsxYuv {
     private double[] m_adblCb;
     private double[] m_adblCr;
     
+    private IOException m_oDecodingError;
+
+    public IOException getDecodingError() {
+        return m_oDecodingError;
+    }
+
+    void setDecodingError(IOException ex) {
+        this.m_oDecodingError = ex;
+    }
+    
     /** Creates a new instance of PsxYuv. 
      * @param iWidth - Width of image (in Luminance values) 
      * @param iHeight - Height of image (in Luminance values) */
@@ -95,15 +105,15 @@ public class PsxYuv {
     public BufferedImage toBufferedImage() {
         return toBufferedImage(BufferedImage
                 //.TYPE_USHORT_565_RGB); 
-                .TYPE_3BYTE_BGR);
+                .TYPE_INT_RGB);
     }
     /** Converts yuv image to a BufferedImage, converting, rounding, and 
      * clamping RGB values. */
     public BufferedImage toBufferedImage(int iImgType) {
-        int[] aiRGB = new int[m_iWidth * m_iHeight];
+        int[] aiARGB = new int[m_iWidth * m_iHeight];
         
         for (int iLinePos = 0, iY = 0; iY < m_iHeight; iLinePos += m_iWidth, iY++) {
-            int iChromLinePos = iY / 2 * m_iWidth / 2;
+            int iChromLinePos = (iY / 2) * (m_iWidth / 2);
             for (int iX = 0; iX < m_iWidth; iX++) {
                 /* Only brifly mentioned in a few YCbCr texts, 
                  * the normal equations for converting YUV to RGB
@@ -124,16 +134,19 @@ public class PsxYuv {
                 if (g < 0) {g = 0;} else {if (g > 255) g = 255;}
                 if (b < 0) {b = 0;} else {if (b > 255) b = 255;}
                 
-                aiRGB[iLinePos + iX] = r << 16 | g << 8 | b;
+                aiARGB[iLinePos + iX] = 0xFF000000 | r << 16 | g << 8 | b;
             }
         }
         
         BufferedImage bi = new BufferedImage(m_iWidth, m_iHeight, iImgType);
-        // using the raster below would be faster, but then we would be
-        // limited to just one type of BuffereImage format.
-        //WritableRaster wr = bi.getRaster();
-        //wr.setDataElements(0, 0, m_iWidth, m_iHeight, aiRGB);
-        bi.setRGB(0, 0, m_iWidth, m_iHeight, aiRGB, 0, m_iWidth);
+        if (iImgType == BufferedImage.TYPE_INT_RGB) {
+            // using the raster should be faster, but can only be used
+            // if in the proper color space
+            WritableRaster wr = bi.getRaster();
+            wr.setDataElements(0, 0, m_iWidth, m_iHeight, aiARGB);
+        } else {
+            bi.setRGB(0, 0, m_iWidth, m_iHeight, aiARGB, 0, m_iWidth);
+        }
         return bi;
     }
     
@@ -154,7 +167,8 @@ public class PsxYuv {
         int iSrcLineStart = 0;
         int iDestLineStart = (int)(iDestX + iDestY * m_iWidth);
                 
-        for (int iLine = 0; iLine < iHeight; 
+        for (int iLine = 0; 
+             iLine < iHeight; 
              iLine++, iDestLineStart += m_iWidth, iSrcLineStart += iWidth) 
         {
             for (int iCol = 0; iCol < iWidth; iCol++) {
@@ -193,26 +207,35 @@ public class PsxYuv {
     }
     
     /** Write a yuv4mpeg2 image file. */
-    public void Write(String sFile) throws IOException {
-        BufferedOutputStream bof = 
-                new BufferedOutputStream(new FileOutputStream(sFile));
-        Write(bof);
-        bof.close();
+    public void Write(String sFile, Fraction fps) throws IOException {
+        Write(new File(sFile), fps);
     }
     
     /** Write a yuv4mpeg2 image file. */
-    public void Write(OutputStream os) throws IOException {
-        OutputStreamWriter ow = new OutputStreamWriter(os, "US-ASCII");
-
+    public void Write(File oFile, Fraction fps) throws IOException {
+        BufferedOutputStream bof = 
+                new BufferedOutputStream(new FileOutputStream(oFile));
+        Write(bof, fps);
+        bof.close();
+    }
+    
+    private void WriteYuvHeader(OutputStreamWriter ow, Fraction fps) throws IOException {
         // write the header
         ow.write("YUV4MPEG2");
         ow.write(" W" + m_iWidth);
         ow.write(" H" + m_iHeight);
         ow.write(" C" + m_sChromaSubsampling);
         ow.write(" A1:1"); // aspect ratio 1:1
-        ow.write(" F15:1"); // 15 fps
+        ow.write(" F" + fps.numerator() + ":" + fps.denominator());
         ow.write(" Ip");  // none/progressive
         ow.write('\n');
+    }
+    
+    /** Write a yuv4mpeg2 image file. */
+    public void Write(OutputStream os, Fraction fps) throws IOException {
+        OutputStreamWriter ow = new OutputStreamWriter(os, "US-ASCII");
+
+        WriteYuvHeader(ow, fps);
         ow.write("FRAME");
         ow.write('\n');
         ow.flush();
@@ -221,18 +244,18 @@ public class PsxYuv {
         // write the data
         // "The values 0 and 255 are used for sync encoding."
         // According to MrVacBob, analog encoding is dead, so it's not really important
-        int i;
+        long i;
         for (double d : m_adblY) {
-            i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
+            i = jpsxdec.util.Math.round(d) + 128;
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : (int)i));
         } System.out.println();
         for (double d : m_adblCb) {
-            i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
+            i = jpsxdec.util.Math.round(d) + 128;
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : (int)i));
         }
         for (double d : m_adblCr) {
-            i = (int)jpsxdec.util.Math.round(d) + 128;
-            os.write(i < 0 ? 0 : (i > 255 ? 255 : i));
+            i = jpsxdec.util.Math.round(d) + 128;
+            os.write(i < 0 ? 0 : (i > 255 ? 255 : (int)i));
         }
     }
 
@@ -247,16 +270,35 @@ public class PsxYuv {
                 oYuv.m_adblCb, oYuv.m_adblCr);
     }
 
-    public byte[] toRowReverseRGBArray() {
-        ByteArrayOutputStream oBAOS = 
-                new ByteArrayOutputStream(m_iWidth * m_iHeight * 3);
+    /** Converts the YUV image to BMP style array of BGR bytes. 
+     *  Intended for writing uncompressed AVI frames. In theory this
+     *  should be faster than converting to BufferedImage and then
+     *  using ImageIO to write it out as BMP and extracting just the image
+     *  data.
+     *  <p>
+     *  BMP images store the image data upside down, in BGR order, and the
+     *  width padded to a 4 byte boundary. */
+    public byte[] toRowReverseBGRArray() {
+        // pad the width to a 4 byte boundary
+        int iBmpWidth = (m_iWidth*3 + 3) & 0xFFFFFFFC;
         
-        for (int iY = m_iHeight-1; iY >= 0; iY--) {
-            int iLinePos = iY * m_iWidth;
-            int iChromLinePos = iY / 2 * m_iWidth / 2;
-            for (int iX = 0; iX < m_iWidth; iX++) {
+        // allocate the BMP image
+        byte[] ab = new byte[iBmpWidth * m_iHeight];
+
+        // iY to hold the current YUV line being read,
+        // iBmpLinePos hold the start of the current BMP line being written
+        for (int iY = m_iHeight-1, iBmpLinePos = 0; 
+             iY >= 0; 
+             iY--, iBmpLinePos+=iBmpWidth) 
+        {
+            // iLuminLinePos holds the start of the current 'Y' line being read
+            // iChromLinePos hold the start of the current 'Cb/Cr' line being read
+            int iLuminLinePos = iY * m_iWidth;
+            int iChromLinePos = (iY / 2) * (m_iWidth / 2);
+            for (int iX = 0, iBmpPos = iBmpLinePos; iX < m_iWidth; iX++) {
                 
-                double y = m_adblY[iLinePos + iX] + 128;
+                //System.out.print(iBmpPos + ", ");
+                double y = m_adblY[iLuminLinePos + iX] + 128;
                 double cb = m_adblCb[iChromLinePos + iX / 2];
                 double cr = m_adblCr[iChromLinePos + iX / 2];
                 
@@ -268,13 +310,14 @@ public class PsxYuv {
                 if (g < 0) {g = 0;} else {if (g > 255) g = 255;}
                 if (b < 0) {b = 0;} else {if (b > 255) b = 255;}
                 
-                oBAOS.write((byte)b);
-                oBAOS.write((byte)g);
-                oBAOS.write((byte)r);
+                ab[iBmpPos++] = (byte)b;
+                ab[iBmpPos++] = (byte)g;
+                ab[iBmpPos++] = (byte)r;
             }
+            //System.out.println();
         }
         
-        return oBAOS.toByteArray();
+        return ab;
     }
     
 }

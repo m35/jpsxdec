@@ -28,6 +28,8 @@ package jpsxdec.demuxers;
 import java.io.*;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
+import jpsxdec.sectortypes.PSXSectorUnknownData;
+import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IGetFilePointer;
 
 /** Demuxes a series of PSXSectorUnknownData into a solid stream.
@@ -36,36 +38,40 @@ public class UnknownDataPullDemuxerIS extends InputStream implements IGetFilePoi
 {
     
     PSXSectorRangeIterator m_oPsxSectIter;
-    /** Holds the current sector being read */
-    PSXSector m_oPsxSect; 
+    /** Holds the current sector's stream being read */
+    ByteArrayFPIS m_oPsxSectStream;
     boolean m_blnAtEnd = false;
     
+    // holds the marked position, both the sector and the stream
     int m_iMarkIndex = -1;
-    int m_iMarkPos = -1;
+    ByteArrayFPIS m_oMarkSectStream;
     
     public UnknownDataPullDemuxerIS(PSXSectorRangeIterator oPsxSectIter) 
             throws IOException 
     {
         m_oPsxSectIter = oPsxSectIter;
-        m_oPsxSect = oPsxSectIter.peekNext();
-        if (!(m_oPsxSect instanceof PSXSector.PSXSectorUnknownData)) {
+        PSXSector oSect = m_oPsxSectIter.peekNext();
+        if (!(oSect instanceof PSXSectorUnknownData)) {
             m_blnAtEnd = true;
-            m_oPsxSect = null;
+            m_oPsxSectStream = null;
+        } else {
+            m_oPsxSectStream = oSect.getUserDataStream();
         }
     }
 
-    @Override /* [InputStream] */
+    /** [InputStream] */ @Override 
     public int read() throws IOException {
-        if ((m_oPsxSect == null) || m_blnAtEnd)
+        if ((m_oPsxSectStream == null) || m_blnAtEnd)
             return -1;
         else {
-            int i = m_oPsxSect.read();
+            int i = m_oPsxSectStream.read();
             while (i < 0) {
                 m_oPsxSectIter.skipNext();
                 if (m_oPsxSectIter.hasNext()) {
-                    m_oPsxSect = m_oPsxSectIter.peekNext();
-                    if (m_oPsxSect instanceof PSXSector.PSXSectorUnknownData) {
-                        i = m_oPsxSect.read();
+                    PSXSector oSect = m_oPsxSectIter.peekNext();
+                    if (oSect instanceof PSXSectorUnknownData) {
+                        m_oPsxSectStream = oSect.getUserDataStream();
+                        i = m_oPsxSectStream.read();
                     } else {
                         m_blnAtEnd = true;
                         return -1;
@@ -81,19 +87,22 @@ public class UnknownDataPullDemuxerIS extends InputStream implements IGetFilePoi
 
     /* [implements IGetFilePointer] */
     public long getFilePointer() {
-        if (m_oPsxSect == null)  // there were never any sectors
+        if (m_oPsxSectStream == null)  // there were never any sectors
             return -1;
         else
-            return m_oPsxSect.getFilePointer();
+            return m_oPsxSectStream.getFilePointer();
     }
 
     /** @param readlimit ignored. You can read forever. */
     @Override /* [InputStream] */
     public void mark(int readlimit) {
-        // TODO: what would happen if we marked at the end of the stream?
-        if (m_oPsxSect != null) { // there were never any sectors to mark
+        if (m_oPsxSectStream != null) { // there were never any sectors to mark
+            // save the sector index
             m_iMarkIndex = m_oPsxSectIter.getIndex();
-            m_iMarkPos = m_oPsxSect.getSectorPos();
+            // and save the stream in case 
+            // furthur reads move past the current stream
+            m_oMarkSectStream = m_oPsxSectStream;
+            m_oMarkSectStream.mark(readlimit);
         }
     }
 
@@ -102,15 +111,17 @@ public class UnknownDataPullDemuxerIS extends InputStream implements IGetFilePoi
         if (m_iMarkIndex < 0)
             throw new RuntimeException("Trying to reset when mark has not been called.");
         
-        // TODO: what would happen if we reset when at the end of the stream?
+        // go back to the sector we were at (if we've moved since then)
         if (m_iMarkIndex != m_oPsxSectIter.getIndex()) {
             m_oPsxSectIter.gotoIndex(m_iMarkIndex);
-            m_oPsxSect = m_oPsxSectIter.peekNext();
         }
-        m_oPsxSect.setSectorPos(m_iMarkPos);
+        // restore the original stream (in case we moved on since then)
+        m_oPsxSectStream = m_oMarkSectStream;
+        // and reset the original position
+        m_oPsxSectStream.reset();
         
         m_iMarkIndex = -1;
-        m_iMarkPos = -1;
+        m_oMarkSectStream = null;
     }
 
     @Override /* [InputStream] */

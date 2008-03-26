@@ -30,7 +30,7 @@ import java.io.RandomAccessFile;
 
 /** Represents the C BITMAPINFOHEADER structure. 
  * http://msdn2.microsoft.com/en-us/library/ms532290(VS.85).aspx */
-public class BITMAPINFOHEADER extends AVIstruct {
+class BITMAPINFOHEADER extends AVIstruct {
     
     public final static int BI_RGB = 0;
 

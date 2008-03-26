@@ -1,6 +1,6 @@
 
                    The Playstation 1 Video File (STR) Format
-                            v0.42 draft,  Jan 2008
+                          v0.43 draft,  March 2008
                       http://code.google.com/p/jpsxdec/
                         http://jpsxdec.blogspot.com/
 
@@ -8,6 +8,7 @@
 This document, copyright (c) 2008 Michael Sabin, is licensed under the MIT License. Permission has been obtained 
 (http://sourceforge.net/mailarchive/message.php?msg_name=474C4DEB.5080304%40multimedia.cx)
 to also include source code from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this licence is at the end of this file.
+Note that the related jPSXdec program is NOT licensed under the MIT license, but is licensed under the GPL v2.
 --------------------------------------------------------------------------------
 History
 v0.2 draft
@@ -29,8 +30,13 @@ v0.41 draft
     - ch 3.2: Added note about FF8 audio-only 'movie'.
     - ch 3.3: Checked and fixed FF9 decoding.
 v0.42 draft
+    - ch 3.3: Corrected FF9 audio decoding.
     - ch 3.4: Added note that Lain DC Coefficients are handled in the normal
               version 2 method.
+v0.43 draft
+    - ch 3.2: Flushed out more of the FF8 audio header
+    - ch 3.3: Added some audio variations found on FF9 disc 4.
+    - ch 3.4: Added Chrono Cross audio sector format.
 --------------------------------------------------------------------------------
 
 ##
@@ -983,7 +989,7 @@ Frame Chunk Header:
   
 //TODO: Confirm these
   
-At the start of a demultiplexed frame is an additional 40 bytes of what is believed to be camera data.
+At the start of some demultiplexed frames is an additional 40 bytes of what is believed to be camera angle data.
 
 Frame Data Header:
   - 40 bytes; camera data?
@@ -994,7 +1000,7 @@ Frame Data Header:
   - 16 bits; 1, the version of the video frame
   - Compressed macro blocks...
 
-The frame version claims to be 1, but decodes just like version 2 frames, except for one difference. The variable-length-code escape codes will sometimes decode to some # of zeros, followed by an AC Cofficient of zero. This never seems to happen in version 2 or version 3 frames.
+The frame version claims to be 1, but decodes just like version 2 frames, except for one difference. The variable-length-code escape codes will sometimes decode to some # of zeros, followed by an AC Cofficient of zero (e.g. (6, 0) ). This never seems to happen in version 2 or version 3 frames. This makes me think they changed the frame's quantization scale to make it smaller, but didn't combine the empty run-length codes.
 
 ################################################################################
 ## 3.2. Final Fantasy VIII
@@ -1013,30 +1019,39 @@ There is at least one exception found on disc 1: a movie with no video. Each 'fr
 Audio sectors, like the video sectors, are "Mode 2 Form 1".
 
 FF8 Audio Chunk Header:
+  * non character/string values are little-endian
   - 4 bytes; 'S' 'M' ? '\1'
        - ? = 'N' for left audio channel
        - ? = 'R' for right audio channel
-  * remaining values are little-endian
-  - 1 byte;    chunk number (from 0 to numchunks)
-  - 1 byte;    number of chunks (always 9?)
-  - 2 bytes;   frame number (starts at 0)
-  - 360 bytes; unknown (camera data?)
+  - 1 byte;     chunk number (from 0 to numchunks)
+  - 1 byte;     number of chunks (9 or 1)
+  - 2 bytes;    frame number (starts at 0)
+  - 232 bytes;  unknown (camera data?)
+  - 6 bytes;    usually 'MORIYA', sometimes 'SHUN.M'
+  - 10 bytes;   unknown
+  - 4 bytes;    'AKAO'
+  - 4 bytes;    frame number (again)
+  - 20 bytes;   unknown
+  - 4 bytes;    unknown constant 0x00001000
+  - 4 bytes;    number of bytes of audio data (1680)
+  - 76 bytes;   unknown
   - 1680 bytes; audio data
 
 There are 105 Sound Groups per sector, 14 Sound Units per Sound Group, and 2 samples per Sound Unit. The Sound Data is not interleaved, so the decoding process is much more linear than the normal PSX audio sector format.
 
-FF8 Sound Group:
+FF8/FF9/Chrono Cross Sound Group:
     - 1 byte;  sound parameter
-	- 1 byte;  unknown
+    - 1 byte;  unknown
     - 14 Sound Units
         - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
-Size of FF8 Sound Group: 16 bytes
+Size of FF8/FF9 Sound Group: 16 bytes
+Each sound group generates 28 samples of audio.
 
-FF8 uses filter tables with one extra item:
+FF8/FF9/Chrono Cross use filter tables with one extra item:
     K0[5] = { 0.0, 0.9375, 1.796875,  1.53125,  1.90625 }
     K1[5] = { 0.0, 0.0,     -0.8125, -0.859375, -0.9375 }
     
- -- Pseudocode to decode FF8 audio sector data --------------------------------
+ -- Pseudocode to decode Square's unique ADPCM audio sector data ---------------
     PreviousSample1 = 0
     PreviousSample2 = 0
     For SoundGroup = 1 to 105
@@ -1074,12 +1089,12 @@ In total:
     which is exactly how long it takes for the PSX to spin the disc through 10
     sectors at 2x speed (150 sectors/second).
 
-	44100 samples/second
-	15 frames/second
-	150 sectors/second
-	10 sectors/frame
-	(14 * 2 * 105) = 2940 samples/frame (for each channel)
-	0.0667 seconds/frame
+    44100 samples/second
+    15 frames/second
+    150 sectors/second
+    10 sectors/frame
+    (14 * 2 * 105) = 2940 samples/frame (for each channel)
+    0.0667 seconds/frame
 
 ===============
 ==== Video ====
@@ -1127,92 +1142,71 @@ FF9 Audio Chunk Header:
   * all values are little-endian
   - 4 bytes; 0x00080160
   - 2 bytes; chunk number (0 to numchunks - 1)
-  - 2 bytes; number of chunks (always 10?)
+  - 2 bytes; number of chunks (always 10)
   - 4 bytes; frame number (starts at 1)
   - 116 bytes; unknown
-  - 4 bytes; Case 1: "AKAO" (big-endian)  Case 2: 0x00000000
-  - 4 bytes; Case 1: frame number - 1     Case 2: 0x00000000
-  - 72 bytes; unknown
-  - 1826 bytes; audio data = 2 * 11 * 83
-  - 14 bytes; unused?
+  - 4 bytes; has audio: "AKAO" (big-endian)  no audio: 0x00000000
+  - 4 bytes; has audio: frame number - 1     no audio: 0x00000000
+  - 20 bytes; unknown
+  - 4 bytes; has audio: 0x0000116a           no audio: 0x00000000
+  - 4 bytes; number of bytes of audio data: 
+             0, 1824, 1840, or 1680 for the final movie
+  - 44 bytes; unknown
+  - 1840 bytes; audio data and/or leftovers
 
-    83*2 sound groups
-	  - 1 byte; params
-	  - 10 bytes; sound units -> 20 samples
-	  = 3220 sound units
+There is an exception to this for the last frame of a movie on disc 4.
+
+Strange FF9 Audio Chunk Header:
+  * all values are little-endian
+  - 4 bytes; 0x00080160
+  - 2 bytes; chunk number (0 to numchunks - 1)
+  - 2 bytes; number of chunks (always 10)
+  - 4 bytes; frame number (starts at 1)
+  - 116 bytes; unknown
+  - 1920 bytes; 1920 bytes of 0xab
   
-  - 1840 bytes; audio data = 23 * 5 * 2^4
-
-    114 sound groups
-    - 1 byte;  sound parameter
-    - 1 byte;  nil
-    - 14 Sound Units
-        - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
-	  = 3192 sound units
-
-    1 sound groups
-    - 1 byte;  sound parameter
-    - 1 byte;  nil
-    - 4 Sound Units
-        - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
+I believe this can just be considered a frame with no audio.
 
 
+FF9 audio is essentially the same as FF8 audio, just most movies have a different sample rate.
+
+See the FF8 chapter for details on how to decode the data.
 
 
-	47880 samples/second
-	15 frames/second
-	150 sectors/second
-	10 sectors/frame
-	(14*2*114)=3192 samples/frame (for each channel)
-	0.0667 seconds/frame
+The playback rate for all but the final movie is 48000 samples/second, and the number of sound groups per sector vary depending on how much audio data there is.
 
-	48000 samples/second
-	15 frames/second
-	150 sectors/second
-	10 sectors/frame
-	(14*2*115)=(3220) 3200 samples/frame (for each channel)
-	0.0667 seconds/frame
-
-There are 115 Sound Groups per sector, 14 Sound Units per Sound Group, and 2 samples per Sound Unit. The Sound Data is not interleaved, so the decoding process is much more linear than the normal PSX audio sector format.
-
-FF9 Sound Group:
-    - 1 byte;  sound parameter
-    - 14 Sound Units
-        - 1 byte; ADPCM sound data, 4 bits-per-sample (2 samples)
-Size of FF9 Sound Group: 16 bytes
-
-FF8 uses filter tables with one extra item:
-    K0[5] = { 0.0, 0.9375, 1.796875,  1.53125,  1.90625 }
-    K1[5] = { 0.0, 0.0,     -0.8125, -0.859375, -0.9375 }
+    1824 bytes / 16 bytes/sound group = 114 sound groups
+    which generate (114 sound groups * 28 samples/sound group) = 3192 samples
     
- -- Pseudocode to decode FF8 audio sector data --------------------------------
-    PreviousSample1 = 0
-    PreviousSample2 = 0
-    For SoundGroup = 1 to 105
-        SoundParameter = InputStream.ReadByte()
-        InputStream.SkipByte() /* odd that this byte is skipped */
-        
-        Range = SoundParameter & 0x0F
-        Filter1 = K0[SoundParameter >> 4]
-        Filter2 = K1[SoundParameter >> 4]
-        
-        For SoundUnit = 1 to 14
-            ADPCMSample1 = InputStream.ReadSignedBits(4)
-            ADPCMSample2 = InputStream.ReadSignedBits(4)
-            
-            PCMSample = ADPCMSampleToPCMSample(ADPCMSample1, 
-                                               Range, Filter1, Filter2,
-                                               byref PreviousSample1,
-                                               byref PreviousSample2)
-            OutputStream.Write(PCMSample)
-            PCMSample = ADPCMSampleToPCMSample(ADPCMSample2,
-                                               Range, Filter1, Filter2,
-                                               byref PreviousSample1,
-                                               byref PreviousSample2)
-            OutputStream.Write(PCMSample)
-        Next
-    Next
- ------------------------------------------------------------------------------
+    1840 bytes / 16 bytes/sound group = 115 sound groups
+    which generate (115 sound groups * 28 samples/sound group) = 3220 samples
+
+The size of audio data follows a 7 frame sequence:
+    1840, 1824, 1824, 1840, 1824, 1824, 1824
+
+Over 7 frames, that is (1840*2+1824*5) = 12800 bytes of ADPCM audio data.
+12800 bytes / (16 bytes/sound group) * (28 samples/sound group) = 22400 samples. 
+22400 samples / 7 frames = 3200 samples/frame, which is exactly what we need for 48000 samples/second.
+
+    22400 bytes for every 7 frames (for each channel)
+    3200 samples/frame (average)
+    10 sectors/frame
+    150 sectors/second
+    15 frames/second
+    0.0667 seconds/frame (average)
+    48000 samples/second
+    
+The final movie is different because every frame has 1680 bytes of audio data (like FF8), so it must be played back at 44100 samples/second.
+    
+Final movie:
+    1680 bytes per frame
+    2940 samples/frame
+    10 sectors/frame
+    150 sectors/second
+    15 frames/second
+    0.0667 seconds/frame
+    44100 samples/second
+
 ===============
 ==== Video ====
 ===============
@@ -1226,8 +1220,8 @@ FF9 Frame Chunk Header:
   - 2 bytes; number of chunks (always 10?)
   - 4 bytes; frame number (starts at 1)
   - 4 bytes; seemingly random number. frame duration?
-  - 2 bytes; width
-  - 2 bytes; height
+  - 2 bytes; width (always 320)
+  - 2 bytes; height (always 224)
   - 2 bytes; the number of run length codes in the frame?
              or size of data (in bytes) following this header?
   - 2 bytes; 0x3800
@@ -1237,36 +1231,63 @@ FF9 Frame Chunk Header:
   - 2292 bytes; Frame Chunk Data
 
 
+################################################################################
+## 3.4. Chrono Cross
+################################################################################
+
+Like FF8 and FF9, Chrono Cross frames are 10 sectors long, starting with 2 sectors for audio, followed by 8 sectors of video. It uses FF9 style audio sectors, but standard STR video sectors. All movie sectors are "Mode 2 Form 1".
+
+===============
+==== Audio ====
+===============
+
+Chrono Cross Audio Chunk Header:
+  * all values are little-endian
+  - 4 bytes; 0x00000160 or 0x00010160
+  - 2 bytes; chunk number (0 to numchunks - 1)
+  - 2 bytes; number of chunks (always 2)
+  - 2 bytes; frame number (starts at 1)
+  - 118 bytes; unknown
+  - 4 bytes; always "AKAO" (big-endian)
+  - 4 bytes; always frame number - 1
+  - 20 bytes; unknown
+  - 4 bytes; always 0x00001000
+  - 4 bytes; number of bytes of audio data: always 1680
+  - 44 bytes; unknown
+  - 1680 bytes; audio data
+  - 160 bytes; unknown
+
+Like the final FF9 movie, with 1680 bytes of audio data, the audio would play back at 44100 samples/second.
 
 ################################################################################
-## 3.4. Serial Experiments Lain
+## 3.5. Serial Experiments Lain
 ################################################################################
 
 Frame Chunk Header:
   * only header values are little-endian
-  - 32 bits; 0x80010160
-  - 16 bits; 'chunk number' of this video frame (0 to numchunks-1)
-  - 16 bits; number of chunks in this frame
-  - 32 bits; frame number (starts at 1)
-  - 32 bits; seemingly random number. frame duration?
-  - 16 bits; width of frame in pixels
-  - 16 bits; height of frame in pixels
-  - 8 bits;  quantization scale for luminance blocks
-  - 8 bits;  quantization scale for chrominance blocks
-  - 16 bits; all but the last movie: 0x3800
+  - 4 bytes; 0x80010160
+  - 2 bytes; 'chunk number' of this video frame (0 to numchunks-1)
+  - 2 bytes; number of chunks in this frame
+  - 4 bytes; frame number (starts at 1)
+  - 4 bytes; seemingly random number. frame duration?
+  - 2 bytes; width of frame in pixels
+  - 2 bytes; height of frame in pixels
+  - 1 byte;  quantization scale for luminance blocks
+  - 1 byte;  quantization scale for chrominance blocks
+  - 2 bytes; all but the last movie: 0x3800
              the last movie: frame number (again)
-  - 16 bits; number of run length codes in the frame
-  - 16 bits; 0, version of the video frame
-  - 32 bits; always 0x00000000
+  - 2 bytes; number of run length codes in the frame
+  - 2 bytes; 0, version of the video frame
+  - 4 bytes; always 0x00000000
 
 Frame Data Header:
   * only header values are little-endian
-  - 8 bits;  quantization scale for luminance blocks (again)
-  - 8 bits;  quantization scale for chrominance blocks (again)
-  - 16 bits; all but the last movie: 0x3800 (again)
+  - 1 byte;  quantization scale for luminance blocks (again)
+  - 1 byte;  quantization scale for chrominance blocks (again)
+  - 2 bytes; all but the last movie: 0x3800 (again)
              the last movie: frame number (again again)
-  - 16 bits; number of run length codes in the frame (again)
-  - 16 bits; 0, the version of the video frame (again)
+  - 2 bytes; number of run length codes in the frame (again)
+  - 2 bytes; 0, the version of the video frame (again)
 
 The video frame version is always 0.
 
@@ -1276,7 +1297,7 @@ The bit stream data following the header is read in *BIG-ENDIAN* order.
 
 The DC coefficient is stored in the standard version 2 style.
 
-It uses a unique set of variable-length-codes:
+A unique set of variable-length-codes are used:
 
     11s                     (0, 1)
     011s                    (0, 2)

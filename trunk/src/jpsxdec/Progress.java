@@ -40,6 +40,21 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
     /** Holds any exception thrown by the task. */
     private Exception m_oException;
     
+    private boolean m_blnTaskDone = false;
+    
+    /** Creates new form Progress */
+    public Progress(java.awt.Dialog parent, String sDescription, SimpleWorker oTask) {
+        super(parent, true);
+        initComponents();
+        guiDescriptionLbl.setText(sDescription);
+        this.pack(); // repack after changing the label text
+        this.setLocationRelativeTo(parent); // center on parent
+        
+        m_oTask = oTask;
+        m_oTask.m_oParent = this;
+        m_oTask.addPropertyChangeListener(this);
+    }
+    
     /** Creates new form Progress */
     public Progress(java.awt.Frame parent, String sDescription, SimpleWorker oTask) {
         super(parent, true);
@@ -63,20 +78,28 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
             guiEventLvl.setText(evt.getNewValue().toString());
         } else if (evt.getPropertyName().equals("return") ) {
             m_oReturn = (T)evt.getNewValue();
-            this.setVisible(false);
-            this.dispose();
+            TaskComplete();
         } else if (evt.getPropertyName().equals("error") ) {
             // non-fatal exception
-            m_oException = (Exception)evt.getNewValue();
-            int i = JOptionPane.showConfirmDialog(this, m_oException.getMessage(), "Error", JOptionPane.ERROR_MESSAGE | JOptionPane.OK_CANCEL_OPTION);
-            if (i == JOptionPane.CANCEL_OPTION) m_oTask.cancel(true);
+            Exception ex = (Exception)evt.getNewValue();
+            txtErrors.append(ex.toString() + "\n");
         } else if (evt.getPropertyName().equals("exception") ) {
-            // fatal exception
+            // fatal/unhandled exception
             m_oException = (Exception)evt.getNewValue();
-            JOptionPane.showMessageDialog(this, m_oException.getMessage(), "Exception", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, m_oException.toString(), "Exception", JOptionPane.ERROR_MESSAGE);
+            //m_oException.printStackTrace(System.err); // debug
+            TaskComplete();
+        }        
+    }
+    
+    private void TaskComplete() {
+        m_blnTaskDone = true;
+        if (txtErrors.getText().length() > 0) {
+            guiCancelBtn.setText("Close");
+        } else {
             this.setVisible(false);
             this.dispose();
-        }        
+        }
     }
     
     /** Returns the object returned from the task. */
@@ -112,6 +135,8 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
         guiDescriptionLbl = new javax.swing.JLabel();
         guiProgressLbl = new javax.swing.JLabel();
         guiEventLvl = new javax.swing.JLabel();
+        txtErrorsScroll = new javax.swing.JScrollPane();
+        txtErrors = new javax.swing.JTextArea();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
         setTitle("Progress...");
@@ -137,6 +162,11 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
 
         guiEventLvl.setText(" ");
 
+        txtErrors.setColumns(20);
+        txtErrors.setEditable(false);
+        txtErrors.setRows(5);
+        txtErrorsScroll.setViewportView(txtErrors);
+
         org.jdesktop.layout.GroupLayout layout = new org.jdesktop.layout.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -144,11 +174,12 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
             .add(layout.createSequentialGroup()
                 .addContainerGap()
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.LEADING)
-                    .add(guiDescriptionLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 214, Short.MAX_VALUE)
-                    .add(guiEventLvl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 214, Short.MAX_VALUE)
-                    .add(guiProgressLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 214, Short.MAX_VALUE)
-                    .add(guiCancelBtn)
-                    .add(guiProgressBar, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 214, Short.MAX_VALUE))
+                    .add(guiDescriptionLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 237, Short.MAX_VALUE)
+                    .add(guiEventLvl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 237, Short.MAX_VALUE)
+                    .add(guiProgressLbl, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 237, Short.MAX_VALUE)
+                    .add(guiProgressBar, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 237, Short.MAX_VALUE)
+                    .add(txtErrorsScroll, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 237, Short.MAX_VALUE)
+                    .add(guiCancelBtn))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -160,10 +191,12 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
                 .add(guiProgressLbl)
                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                 .add(guiEventLvl)
-                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 33, Short.MAX_VALUE)
+                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                 .add(guiProgressBar, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                 .add(guiCancelBtn)
+                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
+                .add(txtErrorsScroll)
                 .addContainerGap())
         );
 
@@ -175,9 +208,14 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
     }//GEN-LAST:event_formWindowOpened
 
     private void guiCancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_guiCancelBtnActionPerformed
-        m_oTask.cancel(true);
-        guiCancelBtn.setEnabled(false);
-        // the task will trigger a 'done' or 'error' event once it's canceled
+        if (m_blnTaskDone) {
+            this.setVisible(false);
+            this.dispose();
+        } else {
+            m_oTask.cancel(true);
+            guiCancelBtn.setEnabled(false);
+            // the task will trigger a 'done' or 'error' event once it's canceled
+        }
 }//GEN-LAST:event_guiCancelBtnActionPerformed
         
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -186,6 +224,8 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
     private javax.swing.JLabel guiEventLvl;
     private javax.swing.JProgressBar guiProgressBar;
     private javax.swing.JLabel guiProgressLbl;
+    private javax.swing.JTextArea txtErrors;
+    private javax.swing.JScrollPane txtErrorsScroll;
     // End of variables declaration//GEN-END:variables
 
 
@@ -203,7 +243,8 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
             { m_oTask = oTask; m_oProgressWindow = oParent; }
             // was cancel pressed?
             public boolean cancelPressed()       { return m_oTask.isCancelled(); }
-            // send updates to the progress form
+            /** Send updates to the progress form. 
+             * @param i  between 0 and 100. */
             public void updateProgress(int i) { m_oTask.setProgress(i); }
             private String m_sLastNote = null;
             public void updateNote(String s) {
@@ -235,7 +276,7 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
             }
         }
 
-        abstract T task(final TaskInfo task);
+        abstract T task(final TaskInfo task) throws Exception;
 
     }
 }

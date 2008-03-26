@@ -25,28 +25,30 @@
   <Layout>
     <DimensionLayout dim="0">
       <Group type="103" groupAlignment="0" attributes="0">
-          <Group type="102" alignment="0" attributes="0">
-              <EmptySpace max="-2" attributes="0"/>
+          <Group type="102" attributes="0">
+              <EmptySpace min="-2" max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" attributes="0">
                   <Group type="102" alignment="1" attributes="0">
-                      <Component id="guiMediaListPanel" pref="265" max="32767" attributes="0"/>
+                      <Component id="guiMediaListPanel" pref="281" max="32767" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="1" max="-2" attributes="0">
-                          <Component id="guiSave" alignment="0" min="-2" max="-2" attributes="0"/>
                           <Component id="guiLoadIdx" alignment="0" max="32767" attributes="1"/>
-                          <Component id="guiOutputFormat" alignment="0" max="32767" attributes="1"/>
-                          <Component id="guiIndexFileLbl" alignment="0" max="32767" attributes="1"/>
                           <Component id="guiGenerateIdx" alignment="1" max="32767" attributes="1"/>
-                          <Component id="guiIndexFile" alignment="0" min="-2" pref="97" max="-2" attributes="1"/>
+                          <Component id="guiSave" alignment="0" max="32767" attributes="1"/>
                       </Group>
                   </Group>
-                  <Group type="102" alignment="0" attributes="0">
-                      <Component id="guiInputFile" pref="295" max="32767" attributes="0"/>
+                  <Group type="102" attributes="0">
+                      <Component id="guiInputFile" pref="311" max="32767" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="guiBrowseBtn" min="-2" max="-2" attributes="0"/>
                   </Group>
+                  <Group type="102" attributes="0">
+                      <Component id="guiIndexFileLbl" min="-2" max="-2" attributes="1"/>
+                      <EmptySpace max="-2" attributes="0"/>
+                      <Component id="guiIndexFile" pref="339" max="32767" attributes="2"/>
+                  </Group>
               </Group>
-              <EmptySpace max="-2" attributes="0"/>
+              <EmptySpace min="-2" max="-2" attributes="0"/>
           </Group>
       </Group>
     </DimensionLayout>
@@ -59,21 +61,20 @@
                   <Component id="guiInputFile" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component id="guiIndexFileLbl" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="guiIndexFile" alignment="3" min="-2" max="-2" attributes="0"/>
+              </Group>
+              <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" attributes="0">
-                  <Group type="102" alignment="0" attributes="0">
+                  <Group type="102" attributes="0">
                       <Component id="guiGenerateIdx" min="-2" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="guiLoadIdx" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace max="-2" attributes="0"/>
-                      <Component id="guiIndexFileLbl" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace max="-2" attributes="0"/>
-                      <Component id="guiIndexFile" pref="116" max="32767" attributes="0"/>
-                      <EmptySpace max="-2" attributes="0"/>
-                      <Component id="guiOutputFormat" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace max="-2" attributes="0"/>
+                      <EmptySpace pref="162" max="32767" attributes="0"/>
                       <Component id="guiSave" min="-2" max="-2" attributes="0"/>
                   </Group>
-                  <Component id="guiMediaListPanel" alignment="0" pref="249" max="32767" attributes="0"/>
+                  <Component id="guiMediaListPanel" pref="237" max="32767" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
           </Group>
@@ -140,13 +141,6 @@
         <Property name="text" type="java.lang.String" value="None"/>
         <Property name="verticalAlignment" type="int" value="1"/>
         <Property name="focusable" type="boolean" value="false"/>
-      </Properties>
-    </Component>
-    <Component class="javax.swing.JComboBox" name="guiOutputFormat">
-      <Properties>
-        <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
-          <StringArray count="0"/>
-        </Property>
       </Properties>
     </Component>
     <Component class="javax.swing.JButton" name="guiSave">

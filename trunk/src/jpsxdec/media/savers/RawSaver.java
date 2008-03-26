@@ -23,56 +23,50 @@
  * RawSaver.java
  */
 
-package jpsxdec.savers;
+package jpsxdec.media.savers;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import jpsxdec.cdreaders.CDXASector;
 import jpsxdec.media.PSXMedia;
-import jpsxdec.media.PSXMedia.PSXMediaStreaming;
+import jpsxdec.media.PSXMediaStreaming;
 
 /** Attaches to PSXMedia classes to handle the physical saving 
  *  of media as the media item is played. Saves raw sectors of the media, 
  * to create XA or STR files (currently without RIFF header). */
 public class RawSaver extends AbstractSaver
-        implements PSXMedia.PSXMediaStreaming.IRawListener 
+        implements PSXMediaStreaming.IRawListener 
 {
 
     private PSXMediaStreaming m_oMedia;
-    private FileOutputStream m_oFileOut;
-    private IOException m_oFailure;
+    private BufferedOutputStream m_oFileOut;
 
-    public IOException getException() {
-        return m_oFailure;
-    }
-    
-    public RawSaver(PSXMediaStreaming oMedia, String sOutputFile) 
+    public RawSaver(PSXMediaStreaming oMedia, File oOutputFile) 
             throws IOException 
     {
-        m_oFileOut = new FileOutputStream(sOutputFile);
+        super(oMedia);
+        
+        m_oFileOut = new BufferedOutputStream(new FileOutputStream(oOutputFile));
         
         oMedia.addRawListener(this);
         
         m_oMedia = oMedia;
     }
     
-    public boolean event(CDXASector oSect) {
-        try {
-            fireProgressUpdate("Reading audio sector " + oSect.getSector(), 
-                        m_oMedia.getStartSector(),
-                        m_oMedia.getEndSector(),
-                        oSect.getSector());
-            m_oFileOut.write(oSect.getRawSectorData());
-        } catch (IOException ex) {
-            m_oFailure = ex;
-            fireProgressError(ex);
-            return true;
-        }
-        return false;
+    public void event(CDXASector oSect) throws StopPlayingException, IOException {
+        fireProgressUpdate("Reading raw sector " + oSect.getSector(), 
+                    m_oMedia.getStartSector(),
+                    m_oMedia.getEndSector(),
+                    oSect.getSector());
+
+        m_oFileOut.write(oSect.getRawSectorData());
     }
     
     public void done() throws IOException {
         m_oMedia.clearListeners();
+        m_oFileOut.flush();
         m_oFileOut.close();
     }
 

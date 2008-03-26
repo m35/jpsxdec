@@ -25,28 +25,19 @@
 
 package jpsxdec.media;
 
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import jpsxdec.audiodecoding.ADPCMDecodingContext;
 import jpsxdec.cdreaders.CDSectorReader;
-import jpsxdec.audiodecoding.StrADPCMDecoder;
-import jpsxdec.cdreaders.CDXASector;
 import jpsxdec.sectortypes.PSXSector;
-import jpsxdec.sectortypes.PSXSector.PSXSectorFF8Abstract;
-import jpsxdec.sectortypes.PSXSector.PSXSectorFF8AudioChunk;
-import jpsxdec.sectortypes.PSXSector.PSXSectorFF8FrameChunk;
+import jpsxdec.sectortypes.PSXSectorFF8;
+import jpsxdec.sectortypes.PSXSectorFF8.*;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
-import jpsxdec.util.IO.Short2DArrayInputStream;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.media.StrFpsCalc.*;
 
 // TODO:
 
-public class PSXMediaFF8 extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
+public class PSXMediaFF8 extends PSXMediaSquare
 {
     
     long m_lngStartFrame = -1;
@@ -56,19 +47,19 @@ public class PSXMediaFF8 extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
     public PSXMediaFF8(PSXSectorRangeIterator oSectIterator) 
                 throws NotThisTypeException, IOException
     {
-        super(oSectIterator);
+        super(oSectIterator.getSourceCD());
         
         PSXSector oPsxSect = oSectIterator.peekNext();
         
-        if (!(oPsxSect instanceof PSXSectorFF8Abstract))
+        if (!(oPsxSect instanceof PSXSectorFF8))
             throw new NotThisTypeException();
         
         if (DebugVerbose > 2)
             System.err.println(oPsxSect.toString());
         
-        PSXSectorFF8Abstract oFF8Sect;
+        PSXSectorFF8 oFF8Sect;
         
-        oFF8Sect = (PSXSectorFF8Abstract)oPsxSect;
+        oFF8Sect = (PSXSectorFF8)oPsxSect;
 
         super.m_iStartSector = oPsxSect.getSector();
         super.m_iEndSector = m_iStartSector;
@@ -81,9 +72,9 @@ public class PSXMediaFF8 extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
         while (oSectIterator.hasNext()) {
             oPsxSect = oSectIterator.peekNext();
             
-            if (oPsxSect instanceof PSXSectorFF8Abstract) {
+            if (oPsxSect instanceof PSXSectorFF8) {
                 
-                oFF8Sect = (PSXSectorFF8Abstract)oPsxSect;
+                oFF8Sect = (PSXSectorFF8)oPsxSect;
                 if (oFF8Sect.getFrameNumber() == iCurFrame ||
                     oFF8Sect.getFrameNumber() == iCurFrame+1) 
                 {
@@ -93,7 +84,7 @@ public class PSXMediaFF8 extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
                     break;
                 }
                 
-                if (oPsxSect instanceof PSXSectorFF8FrameChunk)
+                if (oPsxSect instanceof PSXSectorFF8Video)
                     m_blnHasVideo = true;
                 m_iEndSector = oPsxSect.getSector();
             }  else {
@@ -167,114 +158,10 @@ public class PSXMediaFF8 extends PSXMedia.PSXMediaStreaming.PSXMediaVideo
     public FramesPerSecond[] getPossibleFPS() {
         return new FramesPerSecond[] {new FramesPerSecond(15, 1, 150)};
     }
-
-    //--------------------------------------------------------------------------
-    //-- Playing ---------------------------------------------------------------
-    //--------------------------------------------------------------------------
-    
-    PSXSectorFF8FrameChunk[] m_oFrameChunks;
-    PSXSectorFF8AudioChunk m_oLeftAudioChunk;
-    private ADPCMDecodingContext m_oLeftContext;
-    private ADPCMDecodingContext m_oRightContext;
     
     @Override
-    protected void startPlay() {
-        m_oFrameChunks = new PSXSectorFF8FrameChunk[8];
-        m_oLeftContext = new ADPCMDecodingContext(1.0);
-        m_oRightContext = new ADPCMDecodingContext(1.0);
-    }
-    
-    @Override
-    protected boolean playSector(PSXSector oPSXSect) throws IOException {
-        if (oPSXSect instanceof PSXSectorFF8FrameChunk) {
-            // only process the frame if there is a listener for it
-            if (super.m_oVidDemux != null || super.m_oMdec != null || super.m_oFrame != null) {
-                
-            }
-        } else if (oPSXSect instanceof PSXSectorFF8AudioChunk) {
-            // only process the audio if there is a listener for it
-            if (super.m_oAudio != null) {
-                PSXSectorFF8AudioChunk oAudChk = (PSXSectorFF8AudioChunk)oPSXSect;
-                
-                if (m_oLeftAudioChunk == null) {
-                    m_oLeftAudioChunk = oAudChk;
-                } else {
-                    short[][] asi = new short[2][];
-                    asi[0] = StrADPCMDecoder.DecodeMoreFF8(new DataInputStream(m_oLeftAudioChunk),
-                                                            m_oLeftContext, 2940);
-                    asi[1] = StrADPCMDecoder.DecodeMoreFF8(new DataInputStream(oAudChk),
-                                                            m_oRightContext, 2940);
-
-                    boolean bln = m_oAudio.event(
-                        new AudioInputStream(
-                            new Short2DArrayInputStream(asi), 
-                            new AudioFormat(
-                                44100,
-                                16,        
-                                2, 
-                                true,      
-                                false
-                            ),
-                            AudioSystem.NOT_SPECIFIED
-                        ),
-                        oAudChk.getSector()
-                    );
-                    m_oLeftAudioChunk = null;
-                    if (bln) return true;
-                }
-            }
-        }
-        return false;
-    }
-    
-    @Override
-    protected void endPlay() throws IOException {
-        m_oFrameChunks = null;
-        m_oLeftAudioChunk = null;
-        m_oLeftContext = null;
-        m_oRightContext = null;
+    public int getSamplesPerSecond() {
+        return 44100;
     }
 
-    @Override
-    public void seek(int iFrame) throws IOException {
-        // clamp the desired frame
-        if (iFrame < m_lngStartFrame) 
-            iFrame = (int)m_lngStartFrame; 
-        else if (iFrame > m_lngEndFrame) 
-            iFrame = (int)m_lngEndFrame;
-        // calculate an estimate where the frame will land
-        double percent = (iFrame - m_lngStartFrame) / (double)(m_lngEndFrame - m_lngStartFrame);
-        // backup 10% of the size of the media to 
-        // hopefully land shortly before the frame
-        int iSect = (int)
-                ( (super.m_iEndSector - super.m_iStartSector) * (percent-0.1) ) 
-                + super.m_iStartSector;
-        if (iSect < super.m_iStartSector) iSect = super.m_iStartSector;
-        
-        super.m_oCDIter.gotoIndex(iSect);
-        
-        // now seek ahead until we read the desired frame
-        CDXASector oCDSect = super.m_oCDIter.peekNext();
-        PSXSector oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
-        while (!(oPsxSect instanceof PSXSectorFF8Abstract) ||
-               ((PSXSectorFF8Abstract)oPsxSect).getFrameNumber() < iFrame) 
-        {
-            super.m_oCDIter.skipNext();
-            oCDSect = super.m_oCDIter.peekNext();
-            oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
-        }
-        
-        // in case we ended up past the desired frame, backup until we're
-        // at the first sector of the desired frame
-        while (!(oPsxSect instanceof PSXSectorFF8Abstract) ||
-               ((PSXSectorFF8Abstract)oPsxSect).getFrameNumber() > iFrame ||
-               ((PSXSectorFF8Abstract)oPsxSect).getFF8ChunkNumber() > 0)
-        {
-            super.m_oCDIter.gotoIndex(m_oCDIter.getIndex() - 1);
-            oCDSect = super.m_oCDIter.peekNext();
-            oPsxSect = PSXSector.SectorIdentifyFactory(oCDSect);
-        }
-        
-    }
-    
 }

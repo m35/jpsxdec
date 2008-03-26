@@ -26,45 +26,32 @@
 package jpsxdec.demuxers;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Stack;
 import jpsxdec.sectortypes.PSXSector;
-import jpsxdec.sectortypes.PSXSector.PSXSectorFF9Video;
+import jpsxdec.sectortypes.PSXSectorFF9.PSXSectorFF9Video;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.util.AdvancedIOIterator;
-import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IWidthHeight;
+import jpsxdec.util.SequenceFPIS;
 
-// TODO:
-
-/** Demuxes a series of FF9 frame chunk sectors into a solid stream. */
-public class FF9FramePullDemuxerIS 
-        extends InputStream 
-        implements IGetFilePointer, IWidthHeight 
+/** Demuxes a series of FF9 frame chunk sectors into a solid stream. 
+ *  Since FF9 chunks are stored in reverse order, we have no choice
+ *  but to just read all of them before we can demux them (unless we
+ *  want to read from the disc backward, but that's kinda weird). 
+ *  So it just uses the StrFramePushDemuxer for most of the work. */
+public class FF9FramePullDemuxerIS implements IWidthHeight 
 {
 
+    private StrFramePushDemuxerIS m_oPushDemuxer;
+    
     /** The iterator to walk through searching for the the sectors we need */
     AdvancedIOIterator<PSXSector> m_oPsxSectorIterator;
-    
-    private long m_lngFrame = -1;
-    private long m_lngWidth = -1;
-    private long m_lngHeight = -1;
-    
-    private long m_lngLastFilePointer = -1;
-    
-    private Stack<PSXSectorFF9Video> m_oFrameSectors
-            = new Stack<PSXSectorFF9Video>();
     
     public FF9FramePullDemuxerIS(PSXSectorRangeIterator oPsxIter, long lngFrame) 
             throws IOException
     {
-        m_lngFrame = lngFrame;
+        m_oPushDemuxer = new StrFramePushDemuxerIS(lngFrame);
         m_oPsxSectorIterator = oPsxIter;
         FindFrameSectors();
-        if (m_oFrameSectors.size() != 8)
-            throw new IOException(
-                    "FF9 Frame " + m_lngFrame + " is missing sectors. " +
-                    "Unable to decode.");
     }
 
     /** Find the 8 frame sectors for the desired frame. 
@@ -81,85 +68,43 @@ public class FF9FramePullDemuxerIS
                 m_oPsxSectorIterator.skipNext();
                 continue;
             }
-
+            
             PSXSectorFF9Video oFF9FrameChunk = (PSXSectorFF9Video)oSector;
 
             // if no specific frame desired...
-            if (m_lngFrame < 0) {
-                // base our matching on the first sector received
-                m_lngFrame = oFF9FrameChunk.getFrameNumber();
-                m_lngWidth = oFF9FrameChunk.getWidth();
-                m_lngHeight = oFF9FrameChunk.getHeight();
-                // put the sector in like a stack because
-                // they come in reverse order
-                m_oFrameSectors.push(oFF9FrameChunk);
+            if (m_oPushDemuxer.getFrameNumber() < 0) {
+                m_oPushDemuxer.addChunk(oFF9FrameChunk);
             } else {
                 // we know what frame number we're looking for
-                if (m_lngFrame  == oFF9FrameChunk.getFrameNumber()) 
+                if (m_oPushDemuxer.getFrameNumber()  == oFF9FrameChunk.getFrameNumber()) 
                 {
                     // we found another match
-                    m_lngWidth = oFF9FrameChunk.getWidth();
-                    m_lngHeight = oFF9FrameChunk.getHeight();
-                    // put the sector in like a stack because
-                    // they come in reverse order
-                    m_oFrameSectors.push(oFF9FrameChunk);
-                } else if (oFF9FrameChunk.getFrameNumber() > m_lngFrame) {
+                    m_oPushDemuxer.addChunk(oFF9FrameChunk);
+                } else if (oFF9FrameChunk.getFrameNumber() > m_oPushDemuxer.getFrameNumber()) {
                     // we passed the frame already, so we're done
-                    /* Since all FF9 movies (hopefully) have the same format,
+                    /* Since all FF9 movies have the same format,
                      * we can safely assume this. */
-                    return; // return before skipping this sector (we still need it)
+                    return; // return so we don't skip this sector
                 }
             }
             // we're done with this sector, go to next
             m_oPsxSectorIterator.skipNext();
         }
     }
-
     
-    /** [implements IGetFilePointer] */
-    public long getFilePointer() {
-        if (m_oFrameSectors.size() == 0)
-            return m_lngLastFilePointer;
-        else
-            return m_oFrameSectors.peek().getFilePointer();
-    }
-    
-    /** [InputStream] */ @Override 
-    public int read() throws IOException {
-        if (m_oFrameSectors.size() == 0) {
-            // we're at the end of the chunks
-            // or we never got any to begin with
-            return -1;
-        }
-        
-        int iByte = m_oFrameSectors.peek().read();
-        while (iByte < 0) { // at the end of the chunk?
-
-            m_lngLastFilePointer = m_oFrameSectors.peek().getFilePointer();
-            
-            // remove the head of the list
-            m_oFrameSectors.pop();
-            
-            // try to get the next chunk
-            if (m_oFrameSectors.size() == 0) {
-                // end of matching chunks
-                return -1; // end of stream
-            } else {
-                iByte = m_oFrameSectors.peek().read(); // try again
-            }
-            
-        }
-        return iByte;
+    public SequenceFPIS getStream() {
+        return m_oPushDemuxer.getStream();
     }
 
+    
     /** [implements IWidthHeight] */
     public long getWidth() {
-        return m_lngWidth;
+        return m_oPushDemuxer.getWidth();
     }
 
     /** [implements IWidthHeight] */
     public long getHeight() {
-        return m_lngHeight;
+        return m_oPushDemuxer.getHeight();
     }
 
 }

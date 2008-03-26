@@ -1,0 +1,82 @@
+/* Javadoc style sheet */
+/*
+Reference this javadoc.css
+by specifying it in an ant task, like:
+<javadoc
+...
+stylesheetfile="${path-to-javadoc.css}/javadoc.css"
+/>
+*/
+/* Define colors, fonts and other style attributes here to override the defaults */
+
+/* Page background color */
+body { 
+    font-family: Verdana, Helvetica, Arial, sans-serif;
+    background-color: #FFFFFF;
+    padding: 4px;    
+    font-size: 90%;
+}
+
+/* Headings */
+h1 { 
+}
+
+
+/* Table colors */
+.TableHeadingColor {
+    background-color: #A3BBFF;
+    border-collapse: collapse;
+}
+.TableSubHeadingColor  { 
+    background-color: #D9E3FF;
+}
+.TableRowColor { 
+    background: #FFFFFF;
+} /* White */
+
+tr[class=TableRowColor] td {
+    border-right: 1px solid #446600;
+    border-left: 0px;
+    border-bottom: 0px;
+    border-top: 1px solid #446600;
+}
+
+/* Font used in left-hand frame lists */
+/* .FrameTitleFont   { font-size: 100%; } 
+.FrameHeadingFont { font-size:  90%; }
+.FrameItemFont    { font-size:  90%; }*/
+
+/* Navigation bar fonts and colors */
+.NavBarCell1    { background-color: #FFF8EA;
+}
+.NavBarCell1Rev { background-color: #FFE8BA;
+}
+.NavBarFont1    { color: #222222; }
+.NavBarFont1Rev { color: #000000; }
+
+.NavBarCell2    { 
+    background-color: #FFFFFF;
+}
+
+.NavBarCell3    { background-color: #FFFFFF;
+}
+
+HR  {
+    color: #CCCCCC;
+    background-color: #CCCCCC;
+    
+    width: 100%;
+    height: 2px;
+    
+    border-width: 0px;
+    padding: 0px;
+}
+
+PRE {
+    padding: 5px;
+    
+    border-style: dotted;
+    border-width: 2px;
+    border-color: #CCCCCC;
+}
+

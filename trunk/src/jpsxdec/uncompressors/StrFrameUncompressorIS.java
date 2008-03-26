@@ -32,7 +32,7 @@ import java.util.NoSuchElementException;
 import jpsxdec.mdec.MDEC;
 import jpsxdec.demuxers.StrFramePullDemuxerIS;
 import jpsxdec.mdec.MDEC.Mdec16Bits;
-import jpsxdec.util.BufferedBitReader;
+import jpsxdec.uncompressors.BufferedBitReader;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IWidthHeight;
 
@@ -40,8 +40,8 @@ import jpsxdec.util.IWidthHeight;
  *  Playstation disc. This class handles every known variation
  *  of compressed zero-run-length codes, and accompanying headers. */
 public class StrFrameUncompressorIS 
-    extends InputStream 
-    implements IGetFilePointer, IWidthHeight
+    //extends InputStream 
+    implements /*IGetFilePointer,*/ IWidthHeight
 {
     /*########################################################################*/
     /*## Static stuff ########################################################*/
@@ -513,7 +513,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                 }
 
                 public void remove() {
-                    throw new UnsupportedOperationException("Can't remove.");
+                    throw new UnsupportedOperationException("Can't remove macroblocks from list.");
                 }
             };
         }
@@ -740,11 +740,11 @@ new DCVariableLengthCode("100"     , 0,  null)
                 break;
                 
             case FRAME_LOGO_IKI:
-                throw new IOException(
-                        "This appears to be the infamous logo.iki.\n" +
+                throw new CriticalUncompressException(
+                        "This appears to be the infamous logo.iki. " +
                         "Sorry, but I have no idea how to decode this thing.");
             default:
-                throw new IOException("Unknown frame type.");
+                throw new CriticalUncompressException("Unknown frame type.");
         }
         
         // provide some debug about what was found
@@ -765,16 +765,16 @@ new DCVariableLengthCode("100"     , 0,  null)
         
         // We only can handle version 0, 1, 2, or 3 so far
         if (m_lngVersion < 0 || m_lngVersion > 3)
-            throw new IOException("We don't know how to handle version " 
+            throw new CriticalUncompressException("We don't know how to handle version " 
                                    + m_lngVersion);
 
         // make sure we got a 0x3800 in the header
         if (m_lngHeader3800 != 0x3800 && m_iFrameType != FRAME_LAIN_FINAL_MOVIE)
-            throw new IOException("0x3800 not found in start of frame");
+            throw new CriticalUncompressException("0x3800 not found in start of frame");
         
         // make sure the quantization scale isn't 0
         if (m_lngQuantizationScaleChrom == 0 || m_lngQuantizationScaleLumin == 0)
-            throw new IOException("Quantization scale of 0");
+            throw new CriticalUncompressException("Quantization scale of 0");
         
         /////////////////////////////////////////////////////////////
         
@@ -822,7 +822,7 @@ new DCVariableLengthCode("100"     , 0,  null)
         
     }
     
-    protected static int IdentifyFrame(byte[] abHeaderBytes, InputStream oIS) throws IOException {
+    protected static int IdentifyFrame(byte[] abHeaderBytes, InputStream oIS) throws CriticalUncompressException {
         
         // if 0x3800 found at the normal position
         if (abHeaderBytes[2] == 0x38 && abHeaderBytes[3] == 0x00)
@@ -839,9 +839,9 @@ new DCVariableLengthCode("100"     , 0,  null)
                     if ((((abHeaderBytes[4] & 0xFF) << 8) | (abHeaderBytes[5] & 0xFF)) == 320)
                         return FRAME_LOGO_IKI;
                     else
-                        throw new IOException("Unknown frame version " + iVersion);
+                        throw new CriticalUncompressException("Unknown frame version " + iVersion);
                 default:
-                    throw new IOException("Unknown frame version " + iVersion);
+                    throw new CriticalUncompressException("Unknown frame version " + iVersion);
             }
         } 
         // if 0x3800 is found 40 bytes from where it should be, and the
@@ -870,13 +870,13 @@ new DCVariableLengthCode("100"     , 0,  null)
                     // probably lain final movie
                     return FRAME_LAIN_FINAL_MOVIE;
                 } else {
-                    throw new IOException("0x3800 not found in start of frame");
+                    throw new CriticalUncompressException("0x3800 not found in start of frame");
                 }
             } else {
-                throw new IOException("0x3800 not found in start of frame");
+                throw new CriticalUncompressException("0x3800 not found in start of frame");
             }
         }
-        throw new IOException("Unknown frame type");
+        throw new CriticalUncompressException("Unknown frame type");
     }
     
     protected static long CalculateMacroBlocks(long lngWidth, long lngHeight) {
@@ -939,27 +939,18 @@ new DCVariableLengthCode("100"     , 0,  null)
     }
     
     
-    
-    /* ---------------------------------------------------------------------- */
-    /* InputStream functions ------------------------------------------------ */
-    /* ---------------------------------------------------------------------- */
-    
-    /** Returns the file position in the underlying stream.
-     * [implements IGetFilePointer] */
-    public long getFilePointer() { 
-        return m_oMdecReader.getFilePointer();
+    public MdecReader getStream() {
+        return new MdecReader(m_oMdecList);
     }
     
-    /** [extends InputStream] */
-    public int read() throws IOException {
-        return m_oMdecReader.read();
-    }
     
     /* ---------------------------------------------------------------------- */
     /* Private Functions ---------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    protected long UncompressMacroBlock(MacroBlock oThisMacBlk) throws IOException {
+    protected long UncompressMacroBlock(MacroBlock oThisMacBlk) 
+            throws IOException, UncompressionException 
+    {
         
         long lngTotalCodesRead = 0;
         
@@ -1027,7 +1018,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             }
             
         } else {
-            throw new IOException("Error decoding macro block: Unhandled version " + m_lngVersion);
+            throw new UncompressionException("Error decoding macro block: Unhandled version " + m_lngVersion);
         }
         
         return lngTotalCodesRead;
@@ -1095,7 +1086,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                          int iLongestVariableLengthCode, 
                          DCVariableLengthCode DCVariableLengthCodeTable[],
                          String sBlockName, Block oThisBlk) 
-        throws IOException 
+        throws IOException, UncompressionException 
     {
         MDEC.Mdec16Bits oDCChrominanceOrLuminance = 
                 new MDEC.Mdec16Bits();
@@ -1146,7 +1137,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             }
         } 
         if (!blnFoundCode) 
-            throw new IOException("Error decoding macro block:" +
+            throw new UncompressionException("Error decoding macro block:" +
                                   " Unknown DC " + sBlockName + 
                                   " variable length code " + sBits);
         
@@ -1174,7 +1165,9 @@ new DCVariableLengthCode("100"     , 0,  null)
     /** Decodes all the block's AC Coefficients in the stream, 
      * and adds the resulting MDEC codes to the queue.
      * AC Coefficients are decoded the same for version 2 and 3 frames */
-    protected long Decode_AC_Coefficients(Block oThisBlk) throws IOException {
+    protected long Decode_AC_Coefficients(Block oThisBlk) 
+            throws IOException, UncompressionException 
+    {
         ArrayList<MDEC.Mdec16Bits> oACCoefficients =
                 new ArrayList<MDEC.Mdec16Bits>();
         MDEC.Mdec16Bits oMdecCode;
@@ -1223,7 +1216,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             
             // Hopefully we haven't gone over
             if (iTotalRunLength > 63) {
-                throw new IOException(String.format(
+                throw new UncompressionException(String.format(
                         "Error decoding macro block: " +
                         "Run length out of bounds: %d at %1.3f",
                         iTotalRunLength + 1,
@@ -1240,7 +1233,9 @@ new DCVariableLengthCode("100"     , 0,  null)
     
     /** Decodes the next AC Coefficient bits in the stream and returns the
      *  resulting MDEC code. */
-    protected MDEC.Mdec16Bits Decode_AC_Code() throws IOException {
+    protected MDEC.Mdec16Bits Decode_AC_Code() 
+            throws IOException, UncompressionException 
+    {
         
         // Peek at the upcoming bits
         String sBits = 
@@ -1268,7 +1263,9 @@ new DCVariableLengthCode("100"     , 0,  null)
 
     /** Decodes the AC Escape Code bits from the stream and returns the
      *  resulting MDEC code. */
-    protected MDEC.Mdec16Bits Decode_AC_EscapeCode() throws IOException {
+    protected MDEC.Mdec16Bits Decode_AC_EscapeCode() 
+            throws IOException, UncompressionException 
+    {
         MDEC.Mdec16Bits tRlc = new MDEC.Mdec16Bits();
         
         // Save the escape code bits, then skip them in the stream
@@ -1297,7 +1294,7 @@ new DCVariableLengthCode("100"     , 0,  null)
                 // if this is FF7
                 if (m_iFrameType != FRAME_FF7 && m_iFrameType != FRAME_FF7_WITHOUT_CAMERA) 
                     // If not FF7, throw an error
-                    throw new IOException(
+                    throw new UncompressionException(
                             "Error decoding macro block: " +
                             "AC Escape code: Run length is zero at " 
                             + m_oBitReader.getPosition());
@@ -1362,7 +1359,7 @@ new DCVariableLengthCode("100"     , 0,  null)
      * @param sBits  A string of 16 bits if possible.
      */
     protected MDEC.Mdec16Bits Decode_AC_VariableLengthCode(String sBits) 
-        throws IOException 
+        throws IOException, UncompressionException 
     {
         MDEC.Mdec16Bits tRlc = new MDEC.Mdec16Bits();
         boolean blnFoundCode = false;
@@ -1406,12 +1403,12 @@ new DCVariableLengthCode("100"     , 0,  null)
         
         if (! blnFoundCode) {
             if (sBits.length() < 16)
-                throw new IOException(
+                throw new UncompressionException(
                         "Error decoding macro block: " +
                         "End bit stream cut off AC variable length code: " +
                          sBits + " at " + String.format("%1.3f", m_oBitReader.getPosition()));
             else
-                throw new IOException(
+                throw new UncompressionException(
                         "Error decoding macro block: " +
                         "Unmatched AC variable length code: " +
                          sBits + " at " + String.format("%1.3f", m_oBitReader.getPosition()));

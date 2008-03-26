@@ -73,34 +73,43 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
             }
         });
         
-        int iIndex = 0;
         while (oSectIterator.hasNext() && !oblnQuitIndexing[0]) {
             
             if (DebugVerbose > 6) 
                 System.err.println("Sector: " + oSectIterator.getIndex());
             
             try {
-                iIndex = AddMediaItem(new PSXMediaSTR(oSectIterator), iIndex, oListener);
+                AddMediaItem(new PSXMediaSTR(oSectIterator), oListener);
+                continue;
+            } catch (NotThisTypeException e) {}
+
+            {
+                ArrayList<PSXMediaXA> oXAList = PSXMediaXA.FindXAs(oSectIterator);
+                if (oXAList != null) {
+                    for (PSXMediaXA oXA : oXAList) {
+                        AddMediaItem(oXA, oListener);
+                    }
+                    continue;
+                }
+            }
+            
+            try {
+                AddMediaItem(new PSXMediaTIM(oSectIterator), oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
             try {
-                iIndex = AddMediaItem(new PSXMediaXA(oSectIterator), iIndex, oListener);
+                AddMediaItem(new PSXMediaFF8(oSectIterator), oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
             try {
-                iIndex = AddMediaItem(new PSXMediaTIM(oSectIterator), iIndex, oListener);
+                AddMediaItem(new PSXMediaFF9(oSectIterator), oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
             try {
-                iIndex = AddMediaItem(new PSXMediaFF8(oSectIterator), iIndex, oListener);
-                continue;
-            } catch (NotThisTypeException e) {}
-            
-            try {
-                iIndex = AddMediaItem(new PSXMediaFF9(oSectIterator), iIndex, oListener);
+                AddMediaItem(new PSXMediaChronoX(oSectIterator), oListener);
                 continue;
             } catch (NotThisTypeException e) {}
             
@@ -111,7 +120,8 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
     
     /** Adds a media item to the internal hash and array, and returns the
      *  incremented index. */
-    private int AddMediaItem(PSXMedia oMedia, int iIndex, IProgressListener oCB) {
+    private void AddMediaItem(PSXMedia oMedia, IProgressListener oCB) {
+        int iIndex = m_oMediaList.size();
         oMedia.setIndex(iIndex);
         m_oMediaHash.put(new Integer(iIndex), oMedia);
         m_oMediaHash.put(oMedia.toString(), oMedia);
@@ -119,9 +129,16 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
         if (DebugVerbose > 3) System.err.println(oMedia.toString());
         if (oCB instanceof IProgressEventListener)
             ((IProgressEventListener)oCB).ProgressUpdate(oMedia.toString());
-        return iIndex + 1;
     }
     
+    private void AddMediaItem(PSXMedia oMedia, int iIndex, IProgressListener oCB) {
+        m_oMediaHash.put(new Integer(iIndex), oMedia);
+        m_oMediaHash.put(oMedia.toString(), oMedia);
+        m_oMediaList.add(oMedia);
+        if (DebugVerbose > 3) System.err.println(oMedia.toString());
+        if (oCB instanceof IProgressEventListener)
+            ((IProgressEventListener)oCB).ProgressUpdate(oMedia.toString());
+    }
     
     /** Deserializes the CD index file, and creates a
      *  list of media items on the CD */
@@ -150,17 +167,22 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
                 continue;
             }
             
+            String[] asParts = sLine.split(":");
+            if (asParts.length < 2) continue;
+            
             try {
-                if (sLine.substring(3, 8).equals(":STR:")) {
+                if (asParts[1].equals("STR")) {
                     oPsxMedia = new PSXMediaSTR(oCD, sLine);
-                } else if (sLine.substring(3, 7).equals(":XA:")) {
+                } else if (asParts[1].equals("XA")) {
                     oPsxMedia = new PSXMediaXA(oCD, sLine);
-                } else if (sLine.substring(3, 8).equals(":TIM:")) {
+                } else if (asParts[1].equals("TIM")) {
                     oPsxMedia = new PSXMediaTIM(oCD, sLine);
-                } else if (sLine.substring(3, 8).equals(":FF8:")) {
+                } else if (asParts[1].equals("FF8")) {
                     oPsxMedia = new PSXMediaFF8(oCD, sLine);
-                } else if (sLine.substring(3, 8).equals(":FF9:")) {
+                } else if (asParts[1].equals("FF9")) {
                     oPsxMedia = new PSXMediaFF9(oCD, sLine);
+                } else if (asParts[1].equals("ChronoX")) {
+                    oPsxMedia = new PSXMediaChronoX(oCD, sLine);
                 } else {
                     continue;
                 }

@@ -1,22 +1,48 @@
-Incoming
-    - [Added new dialog to specify media conversion options]
-
+v0.33 (development release)
+    ! Basically all command-line decoding is disabled and needs to be re-implemented
+    - Added new dialog to specify media conversion options
+    - FF9 decoding working perfectly now
+    - FF8 decoding working again
+    - Added Chrono Cross decoding as well
+    - Numerous bug-fixes and optimizations
+    - STR_file_format.txt pretty much ready for 0.43 release
+    Internals:
+    - Cleaned up error handling during saving
+    - Made all videos demuxable via the Push demuxer
+    - Split up PSXSector
+    - Fixed AviWriter header creation, and some other fixes
+    - PsxYuv now generates its own BMP style data directly for use with AviWriter
+    - Unified and cleaned up Square decoding
+    - Fixed MediaHandler to handle discs with over 999 media items
+    - Added more documentation, including package level docs
+    - Most objects are no longer streams. They have a function to produce a stream
+      of the data. This has many advantages:
+      + Able to create multiple streams of the same data (necessary for multiple listeners of the data)
+      + Duplicating very little data for each stream (just indexes)
+      + Making a sub-stream of a stream is again very easy (just duplicate indexes)
+      + I suppose this breaks up the code to be a little more modular
+      + It uses more of well tested java classes, so less jpsxdec code, and more reliable
+      + Implements the read(byte[]) for faster bulk reading.
 v0.32 (development release)
     - Fixed decoding of Lain final movie (broke in 0.31)
-    - FF9 audio decoding output is currently not working right
+    - FF9 audio decoding output is not working right (output is almost correct, but still has an error) and video isn't re-implemented yet.
+    - FF8 video decoding isn't re-implemented yet.
     - Added AVI encoding
     - Revamped the index file format somewhat (old versions no longer compatable)
     - Cleaned up some GUI behavior/looks
-    - Removed GUI's ability to save anything
+    - Removed GUI's ability to save anything (need to re-implement)
+    - Saving TIM files is broken in some cases (in Main.java)
+    - STR_file_format.txt FF9 section is work-in-progress (lots of extra junk in there)
     Internals:
     - Changed to 'push' architechture.
     - Added FPS calculation (needed for AVI writing)
     - Adding some features for the S.E. Lain PSX Game Translation Project
     - Added ISO9660 directory parsing.
-    - Added CD Mode 2 ecc/edc generation.
+    - Added CD Mode 2 error correction (ecc/edc) generation.
     - Added TIM writing.
-    - Changed StrFrameUncompressorIS internals so hopefully nothing broke.
-    - Added ability to re-encode STR files (StrRecompressorIS)
+    - Changed StrFrameUncompressorIS internals (for StrRecompressorIS) so hopefully nothing broke.
+    - Added ability to re-encode STR files (StrDiffCombine.java and StrRecompressorIS.java). 
+      Still need to handle case when recompressed frame is too big to fit.
 v0.31
     - Added a GUI! I hope it works!
     - Fixed FF8 decoding to handle audio-only 'movies'

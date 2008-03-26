@@ -68,6 +68,8 @@ public class AudioWriter implements Runnable {
     ais = new AudioInputStream(pis, format, AudioSystem.NOT_SPECIFIED);
     
     new Thread(this).start();
+    Thread.yield();
+    if (e != null) throw e;
   }
 
   public void run() {

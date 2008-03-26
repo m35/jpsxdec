@@ -26,7 +26,6 @@
 package jpsxdec.audiodecoding;
 
 import java.io.InputStream;
-import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 
@@ -51,22 +50,24 @@ public final class StrADPCMDecoder {
      * @param oRightContext decoding context for right channel, or null if mono.
      * @return an array of short[channels][samples].
      */
-    public static short[][] DecodeMore(DataInputStream oStream, 
+    public static short[][] DecodeMore(InputStream oStream, 
                                        int iBitsPerSample, 
                                        int iMonoStereo,
                                        ADPCMDecodingContext oLeftOrMonoContext,
                                        ADPCMDecodingContext oRightContext)
     {
-        assert(iBitsPerSample == 4 || iBitsPerSample == 8); 
-        assert(iMonoStereo == 1 || iMonoStereo == 2);
+        if (iBitsPerSample != 4 && iBitsPerSample != 8) 
+            throw new IllegalArgumentException("bits/sample must be either 4 or 8");
+        if (iMonoStereo != 1 && iMonoStereo != 2) 
+            throw new IllegalArgumentException("audio must be mono or stereo");
         
         int aiSoundUnits[][];
         int aiSoundParams[]; // sound parameters
         if (iBitsPerSample == 8) {
-            aiSoundUnits = new int[4][28]; // 4 sound units when 8 bits/sample
+            aiSoundUnits  = new int[4][28]; // 4 sound units when 8 bits/sample
             aiSoundParams = new int[4]; // a sound parameter for each sound unit
         } else {
-            aiSoundUnits = new int[8][28]; // 8 sound units when 4 bits/sample
+            aiSoundUnits  = new int[8][28]; // 8 sound units when 4 bits/sample
             aiSoundParams = new int[8]; // a sound parameter for each sound unit
         }
         
@@ -74,10 +75,7 @@ public final class StrADPCMDecoder {
         if (iMonoStereo == 2)
             oRightContext.setArray(SAMPLES_IN_NORMAL_SECTOR / iMonoStereo);
         
-        int iByte = 0; // hold a byte read from the stream
-        
         try {
-            
             
             /* There are 18 sound groups, 
              * each having 16 bytes of sound parameters,
@@ -91,8 +89,9 @@ public final class StrADPCMDecoder {
                 // read, and de-interleave 112 bytes of inerleaved sound units
                 ReadInterleavedSoundUnits(oStream, iBitsPerSample, aiSoundUnits);
                 
-                // by our sound parameters and de-interleaved sound units 
-                // combined, we form PCM data.
+                // by our sound parameters and 
+                // de-interleaved sound units combined, 
+                // we form PCM data!
                 for (int iSoundUnit = 0; 
                      iSoundUnit < aiSoundUnits.length; 
                      iSoundUnit++) 
@@ -122,7 +121,7 @@ public final class StrADPCMDecoder {
         short[][] asiRet = new short[iMonoStereo][];
         asiRet[0] = oLeftOrMonoContext.getArray();
         if (iMonoStereo == 2)
-            asiRet[1] = asiRet[1] = oRightContext.getArray();
+            asiRet[1] = oRightContext.getArray();
         
         return asiRet;
     }
@@ -132,7 +131,7 @@ public final class StrADPCMDecoder {
     /** Read the 4 or 8 sound parameteres (depending on bits-per-sample, 
      * one for each sound unit) found in the 16 bytes at the
      *  start of each sound group. */
-    private static void ReadSoundParameters(DataInputStream oStream,
+    private static void ReadSoundParameters(InputStream oStream,
                                             int iBitsPerSample,
                                             int[] aiSoundParams)
             throws IOException
@@ -199,7 +198,7 @@ public final class StrADPCMDecoder {
      *      ...
      * </pre>
      */
-    private static void ReadInterleavedSoundUnits(DataInputStream oStream,
+    private static void ReadInterleavedSoundUnits(InputStream oStream,
                                                   int iBitsPerSample,
                                                   int[][] aiSoundUnits) 
             throws IOException
@@ -315,91 +314,4 @@ public final class StrADPCMDecoder {
         return dblresult;
     }
     
-    //--------------------------------------------------------------------------
-    //--------------------------------------------------------------------------
-    
-    
-    public static short[] DecodeMoreFF8(InputStream oStream,
-                                        ADPCMDecodingContext oContext,
-                                        int iNumOfSamples)
-            throws IOException
-    {
-        oContext.setArray(iNumOfSamples);
-        
-        for (int iSoundGroup = 0; iSoundGroup < iNumOfSamples/28; iSoundGroup++) {
-            int iSoundParameter1 = oStream.read();
-            if (iSoundParameter1 < 0) 
-                throw new EOFException("Unexpected end of audio data");
-            
-            if (oStream.skip(1) != 1)
-                throw new EOFException("Unexpected end of audio data");
-            
-            for (int iSoundUnit = 0; iSoundUnit < 14; iSoundUnit++) {
-                int i = oStream.read();
-                if (i < 0) throw new EOFException("Unexpected end of audio data");
-                int iADPCMSample1 = i & 0x0F;
-                int iADPCMSample2 = (i >>> 4) & 0x0F;
-                
-                double dblPCMSample;
-                dblPCMSample = FF8_ADPCMtoPCM(iSoundParameter1, iADPCMSample1,
-                        oContext.getPreviousPCMSample1(), 
-                        oContext.getPreviousPCMSample2());
-    
-                oContext.writeSample(dblPCMSample);
-                
-                dblPCMSample = FF8_ADPCMtoPCM(iSoundParameter1, iADPCMSample2,
-                        oContext.getPreviousPCMSample1(), 
-                        oContext.getPreviousPCMSample2());
-    
-                oContext.writeSample(dblPCMSample);
-            }
-        }
-        
-        return oContext.getArray();
-    }
-    
-    // ........................................................................
-    
-    /** FF8 K0 multiplier (don't ask me, it's just how it is) */
-    final private static double FF8_K0[] = new double[] {
-        0.0,
-        0.9375,
-        1.796875,
-        1.53125,
-        1.90625
-    };
-    /** FF8 K1 multiplier (don't ask me, it's just how it is) */
-    final private static double FF8_K1[] = new double[] {
-        0.0,
-        0.0,
-        -0.8125,
-        -0.859375,
-        -0.9375
-    };
-    
-    private static double FF8_ADPCMtoPCM(
-                                     int iSoundParameter, 
-                                     int iSample, 
-                                     double dblPreviousPCMSample1, 
-                                     double dblPreviousPCMSample2) 
-    {
-        byte bRange =  (byte)(iSoundParameter & 0xF);
-        byte bFilterIndex = (byte)((iSoundParameter >>> 4) & 0xF);
-
-        // shift the nibble into the top of a short
-        long lngResult = (short)(iSample << 12);
-        
-        // shift sound data according to the range, keeping the sign
-        lngResult = (lngResult >> bRange); 
-        
-        // adjust according to the filter
-        double dblresult = 
-            (lngResult + FF8_K0[bFilterIndex] * dblPreviousPCMSample1 
-                       + FF8_K1[bFilterIndex] * dblPreviousPCMSample2);
-        
-        return dblresult;
-    }
-    
-    
-
 }

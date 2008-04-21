@@ -25,479 +25,709 @@
 
 package jpsxdec;
 
-import java.io.*;
-import jpsxdec.util.CmdLineParser;
-import jpsxdec.util.CmdLineParser.Option;
-import java.util.*;
-import javax.imageio.ImageIO;
+import argparser.ArgParser;
+import argparser.BooleanHolder;
+import argparser.IntHolder;
+import argparser.StringHolder;
+import java.io.File;
+import java.util.Vector;
+import jpsxdec.media.savers.Formats;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.Misc;
+
 
 public class Settings {
     
-    public final static String[] VALID_FORMATS = GetValidFormats();
-    
-    // the main commands
-    public final static int DECODE_ONE = 1;
-    public final static int DECODE_ALL = 2;
-    public final static int DECODE_SECTORS_FRAME = 3;
-    public final static int DECODE_SECTORS_AUDIO = 4;
-    public final static int SECTOR_LIST = 5;
-    public final static int SPECIAL_IN_FILE = 6;
-    public final static int INDEX_ONLY = 7;
-    public final static int PLUGIN_LAPKS = 8;
-    public final static int PLUGIN_SITE = 9;
-    
-    
-    /*------------------------------------------------------------------------*/
-    /*-- Static Fields -------------------------------------------------------*/
-    /*------------------------------------------------------------------------*/
-    
-    private int m_iMainCommandType = -1;
-    
-    
-    private int m_iMediaItemToDecode = -1;
-    
-    private boolean m_blnDecodeAudio = true;
-    private boolean m_blnDecodeVideo = true;
-    
-    private String m_sIndexFile = null;
-    
-    private int m_iStartFrame = -1;
-    private int m_iEndFrame = -1;
-    
-    private int[] m_aiSectorList = null;
-    
-    private double m_dblAudioScale = 1.0;
-    private int m_iChannel = -1;
-    
-    // format (default png)
-    private String m_sFormat = "png";
-    
-    private int[] m_aiVerbosityLevels = new int[] {2, 2, 2, 2, 2};
-    
-    private String m_sInputFileName = null;
-    private String m_sOutputFileName = null;
-    
-    private String m_sSpecialInFileType = null;
-    private int m_iWidth = -1;
-    private int m_iHeight = -1;
+    public static void main(String[] args) {
+        
+        Settings m = new Settings(args);
+        
+        if (m.getMainCommand() == Settings.MAIN_CMD_STARTGUI) {
+            System.out.println("Starting gui");
+        }
 
-    /*------------------------------------------------------------------------*/
-    /*-- Static Properties ---------------------------------------------------*/
-    /*------------------------------------------------------------------------*/
-    
-    public int getItemToDecode() {
-        return m_iMediaItemToDecode;
     }
     
-    public boolean DecodeAudio() {
-        return m_blnDecodeAudio;
+    
+    private static class MyArgParser extends ArgParser {
+
+        public MyArgParser(String arg0, boolean arg1) {
+            super(arg0, arg1);
+        }
+
+        public MyArgParser(String arg0) {
+            super(arg0);
+        }
+
+        @Override
+        public void printErrorAndExit(String msg) {
+            ExitWithError(msg);
+        }
+
+        @Override
+        public String getHelpMessage() {
+            return HELP_MESSAGE;
+        }
+        
+        
+        
     }
     
-    public boolean DecodeVideo() {
-        return m_blnDecodeVideo;
-    }
     
-    public String getIndexFile() {
-        return m_sIndexFile;
-    }
+    //=================================================================
     
-    /** -1 for first frame. */
-    public int getStartFrame() {
-        return m_iStartFrame;
-    }
-    
-    /** -1 for last frame. */
-    public int getEndFrame() {
-        return m_iEndFrame;
-    }
-    
-    public double getAudioScale() {
-        return m_dblAudioScale;
-    }
-    
-    /** -1 for all channels */
-    public int getChannel() {
-        return m_iChannel;
-    }
-    
-    public String getOutputFormat() {
-        return m_sFormat;
-    }
-    
-    public int[] getVerbosityLevels() {
-        return m_aiVerbosityLevels;
-    }
-    
-    public String getInputFile() {
-        return m_sInputFileName;
-    }
-    
-    /** demux, or mdec */
-    public String getInputFileFormat() {
-        return m_sSpecialInFileType;
-    }
-    
-    public String getOutputFile() {
-        return m_sOutputFileName;
-    }
-    
-    public int[] getSectorList() {
-        return m_aiSectorList;
-    }
-    
-    public long getWidth() {
-        return m_iWidth;
-    }
-    
-    public long getHeight() {
-        return m_iHeight;
-    }
-    
-    public int getMainCommandType() {
-        return m_iMainCommandType;
-    }
-    
-    /*------------------------------------------------------------------------*/
-    /*-- Output --------------------------------------------------------------*/
-    /*------------------------------------------------------------------------*/
-    
-    private void ExitWithError(String sError) {
+    private static void ExitWithError(String sError) {
         System.err.println("Error: " + sError);
         System.err.println("Try -? for help.");
         System.err.println();
-        System.exit(2);
+        System.exit(1);
     }
     
-    private void PrintUsage() {
-        String[] sUseMsg = {
-        Main.VerString,
-        "",
-        "Usage:",
-        "  java -jar jpsxdec [options] <input-file> <output-file>",
-        "",
-        "Where:",
-        "  <input-file>           Name of the input file",
-        "  <output-file>          Base name of the output file",
-        "",
-        "  -d/--decode #          Decode the media item #",
-        "  -a/--decode-all        Decode all media items",
-        "  --decode-frame <list>  Decode list of sectors into a frame",
-        "  --decode-audio <list>  Decode list of sectors into audio",
-        "  --sector-list          Dumps list of sector types",
-        "  -?/-h/--help           Display this message",
-        "  --in-file <type>       Decode special input file type: demux, mdec",
-        "  -i/--index <file>      Name of the index file to use/create",
-        "  --plugin <name>        Name of the plugin to use",
-        "",
-        "  --noaudio              Don't decode audio",
-        "  --onlyaudio            Don't decode video",
-        "  -f/--frame #           Only decode frame #",
-        "  -s/--frames #-#        Decode frames from # to #",
-        "  -c/--channel #         Only decode audio channel #",
-        "  -o/--format <format>   Output format",
-        "   " + Misc.join(VALID_FORMATS, ", "),
-        "  --width #              Used with --in-file",
-        "  --height #             Used with --in-file",
-        "  --verbose #,#,#,#,#    Verbosity output levels (debug)",
-        ""
-        };
+    private final static String AUD_FMT_LIST;
+    private final static String TIM_IMG_FMT_LIST;
+    private final static String IMAGE_FMT_DESCRIPTION;
+    static {
         
-        for (String s : sUseMsg) {
-            System.out.println(s);
-        }
+        AUD_FMT_LIST = joinExts(Formats.getJavaAudFormats());
+        TIM_IMG_FMT_LIST = joinExts(Formats.getAllJavaImgFormats());
+        
+        String sVidImgFormats = joinExts(Formats.getVidCompatableImgFmts());
+        
+        // TODO: Clean this mess up
+        
+        IMAGE_FMT_DESCRIPTION = 
+"          Image sequence: " + sVidImgFormats + "\n" +
+joinExts(Formats.getExtendedSeqFormats(), 26, true) +
+"                     Avi: " + joinId(Formats.getAviVidFormats(), true);
+        
     }
     
-    /*------------------------------------------------------------------------*/
-    /*-- Main function -------------------------------------------------------*/
-    /*------------------------------------------------------------------------*/
+    private static String joinExts(Vector<? extends Formats.Format> oFmts) {
+        return joinExts(oFmts, 0, false);
+    }
+    private static String joinExts(Vector<? extends Formats.Format> oFmts, boolean withDesc) {
+        return joinExts(oFmts, 0, withDesc);
+    }
+    private static String joinExts(Vector<? extends Formats.Format> oFmts, int indent, boolean withDesc) {
+        StringBuilder oSB = new StringBuilder();
+        boolean blnFirst = true;
+        for (Formats.Format fmt : oFmts) {
+            if (indent > 0)
+                oSB.append(Misc.dup(" ", indent));
+            else
+                if (!blnFirst) oSB.append(", "); else blnFirst = false;
+            oSB.append(fmt.getExt());
+            if (withDesc) {
+                oSB.append(" (");
+                oSB.append(fmt.getDesciption());
+                oSB.append(")");
+            }
+            if (indent > 0)
+                oSB.append('\n');
+        }
+        return oSB.toString();
+    }
+    private static String joinId(Vector<? extends Formats.Format> oFmts, boolean withDesc) {
+        StringBuilder oSB = new StringBuilder();
+        boolean blnFirst = true;
+        for (Formats.Format fmt : oFmts) {
+            if (!blnFirst) oSB.append(", "); else blnFirst = false;
+            oSB.append(fmt.getId());
+            if (withDesc) {
+                oSB.append(" (");
+                oSB.append(fmt.getDesciption());
+                oSB.append(")");
+            }
+        }
+        return oSB.toString();
+    }
     
-    /** Processes arguments. If there is an error, exits the program. */
+    private static String HELP_MESSAGE = 
+Main.VerString + "\n\n" +
+"Usage:                                                                    \n" +
+"    java -jar jpsxdec.jar INFILE [out] {main option} [additional options] \n" +
+"                                                                          \n" +
+"Where:                                                                    \n" +
+"    INFILE                    Input file name                             \n" +
+"    out                       Output file base name (optional)            \n" +
+"                                                                          \n" +
+"Main options (require one):                                               \n" +
+"    -?/-help                  Show this message                           \n" +
+"    -decode/-d { # | all }    Decode one or all media items               \n" +
+"    -index/-idx/-i <file>     Save index file                             \n" +
+"    -sectordump <file>        Write list of sector types (for debugging)  \n" +
+"    -intype { demux | mdec }  Decode special type with -width & -height   \n" +
+"    -plugin <name>            Use top-secret plugins                      \n" +
+"    -dir                      If INFILE is CD, lists files on it          \n" +
+"    -copy <name>              Copy raw file out of CD                     \n" +
+"                                                                          \n" +
+"Additional options (optional):                                            \n" +
+"    -index/-idx/-i <file>     Load and/or save index file during task     \n" +
+"    -vidfmt/-vf <format>      Save video as:                              \n" +
+                         IMAGE_FMT_DESCRIPTION                          + "\n" +
+"    -audfmt/-af <format>      Save audio as:                              \n" +
+"                                 " +    AUD_FMT_LIST                   + "\n" +
+"    -tim <format>             Save TIM files as:                          \n" +            
+"                                 " +    TIM_IMG_FMT_LIST               + "\n" +
+"    -jpg #                    JPEG or MJPG quality: 0 to 100              \n" +
+"    -vol #                    Audio volume: 0 to 100                      \n" +
+"    -novid                    Don't decode video                          \n" +
+"    -noaud                    Don't decode audio                          \n" +
+"    -f/-frame[s] { # | #-# }  Decode one frame, or range of frames        \n" +
+"    -fps { # | #/# }          Write avi/yuv with specified frame rate     \n" +
+"    -nocrop                   Don't crop frames with dims not div by 16   \n" +
+"\n"+            
+"    -width #                  Width of special -intype file               \n" +
+"    -height #                 Height of special -intype file              \n" +
+"\n"+            
+"    -debug #,#,#,#,#          Prints verbose debugging messages           \n" +
+"                                                                          \n" +
+"Default is to save video as compressed AVI,                               \n" +
+"audio as part of AVI, and TIM as PNG.                                     \n" +
+"If no options provided, GUI is started.                                   \n";
+    
+    private static void HelpAndExit() {
+        System.out.println(HELP_MESSAGE);
+        System.exit(0);
+    }
+    
+    
+    /*------------------------------------------------------------------------*/
+    /*- Properties -----------------------------------------------------------*/
+    /*------------------------------------------------------------------------*/
+
+    private int m_iMainCmd;
+    public int getMainCommand() { return m_iMainCmd; }
+    
+    private String[] m_asRemaining;
+    public String[] getRemainingArgs() {
+        return m_asRemaining;
+    }
+    
+    private String m_sInputFile;
+    private String m_sInputFileBase;
+    public String getInputFile() { return m_sInputFile; }
+    public String getInputFileBase() { return m_sInputFileBase; }
+
+    Fraction m_oFps;
+    public boolean gotFps() { return m_oFps != null; }
+    public Fraction getFps() { return m_oFps; }
+    
+    //...............................................................
+
+    private String m_sOutputFolder;
+    private String m_sOutputFile;
+    
+    public boolean gotOutputFolder() { return m_sOutputFolder != null; }
+    public String getOutputFolder() { return m_sOutputFolder; }
+    
+    public boolean gotOutputFile() { return m_sOutputFile != null; }
+    public String getOutputFile() { return m_sOutputFile; }
+    
+    public String constructOutPath(String sDefFile) {
+        if (gotOutputFile())
+            sDefFile = getOutputFile();
+        
+        if (gotOutputFolder())
+            return new File(getOutputFolder(), sDefFile).toString();
+        else
+            return sDefFile;
+    }
+    
+    //...............................................................
+    
+    private String m_sFileToCopy;
+    public String getFileToCopy() { return m_sFileToCopy; }
+    
+    private String m_sPluginCommand;
+    public String getPluginCommand() { return m_sPluginCommand; }
+    private String m_sSectorDumpFile;
+    public String getSectorDumpFile() { return m_sSectorDumpFile; }
+
+    private String m_sIndexFile;
+    public boolean gotIndexFile() { return m_sIndexFile != null; }
+    public String getIndexFile() { return m_sIndexFile; }
+
+
+    private int m_iDecodeIndex;
+    public boolean gotDecodeIndex() { return m_iDecodeIndex >= 0; }
+    public int getDecodeIndex() { return m_iDecodeIndex; }
+
+
+    private boolean m_blnDecodeVid = true;
+    private boolean m_blnDecodeAud = true;
+    public boolean decodeAudio() { return m_blnDecodeAud; }
+    public boolean decodeVideo() { return m_blnDecodeVid; }
+
+    private boolean m_blnNoCrop = false;
+    public boolean noCrop() { return m_blnNoCrop; }
+
+    private int m_iStartFrame = -1;
+    private int m_iEndFrame = -1;
+    public boolean gotFrames() { return m_iEndFrame >= 0 && m_iStartFrame >= 0; };
+    public int getStartFrame() { return m_iStartFrame; }
+    public int getEndFrame() { return m_iEndFrame; }
+
+    private String m_sSpecialInType;
+    private int m_iWidth;
+    private int m_iHeight;
+    public String getSpecialInType() { return m_sSpecialInType; }
+    public int getHeight() { return m_iHeight; }
+    public int getWidth() { return m_iWidth; }
+
+    private int m_iJpgQuality = -1;
+    public boolean gotJpgQuality() { return m_iJpgQuality >= 0; };
+    public int getJpgQuality() { return m_iJpgQuality; }
+
+    private int m_iVolume = -1;
+    public boolean gotVolume() { return m_iVolume >= 0; }
+    public int getVolume() { return m_iVolume; }
+
+    private Formats.Format m_oAudFormat;
+    public boolean gotAudFormat() { return m_oAudFormat != null; }
+    public Formats.Format getAudFormat() { return m_oAudFormat; }
+
+    private Formats.Format m_oVidFormat;
+    public boolean gotVidFormat() { return m_oVidFormat != null; }
+    public Formats.Format getVidFormat() { return m_oVidFormat; }
+
+    private int[] m_aiDebug;
+    public boolean gotDebug() { return m_aiDebug != null; }
+    public int[] getDebug() { return m_aiDebug; }
+    
+    private Formats.ImgSeqVidFormat m_oTimFormat;
+    public boolean gotTimFormat() { return m_oTimFormat != null; }
+    public Formats.ImgSeqVidFormat  getTimFormat() { return m_oTimFormat; }
+    
+    /*------------------------------------------------------------------------*/
+    /*------------------------------------------------------------------------*/
+
+    public final static int MAIN_CMD_HELP        = 1 << 0;
+    public final static int MAIN_CMD_STARTGUI    = 1 << 1;
+    public final static int MAIN_CMD_DECODE      = 1 << 2;
+    public final static int MAIN_CMD_SECTORDUMP  = 1 << 3;
+    public final static int MAIN_CMD_PLUGIN      = 1 << 4;
+    public final static int MAIN_CMD_INDEX       = 1 << 5;
+    public final static int MAIN_CMD_SPECIALFILE = 1 << 6;
+    public final static int MAIN_CMD_DIR         = 1 << 7;
+    public final static int MAIN_CMD_COPY        = 1 << 8;
+    
     public Settings(String[] args) {
         
-        CmdLineParser oParser = new CmdLineParser();
+        // look for help option if it exists
+        ArgParser parser = new MyArgParser("", true);
+        parser.matchAllArgs(args, 0, ArgParser.EXIT_ON_ERROR);
+
         
-        // Main command types
-        Option oblnMainHelp1 = oParser.addBooleanOption('?', "help");
-        Option oblnMainHelp2 = oParser.addBooleanOption('h', "help");
-        Option oiMainDecode1 = oParser.addIntegerOption('d', "decode");
-        Option oblnMainDecodeAll = oParser.addBooleanOption('a', "decode-all");
-        Option oblnMainSectorList = oParser.addBooleanOption("sector-list");
-        Option osMainDecodeFrameSects = oParser.addStringOption("decode-frame");
-        Option osMainDecodeAudioSects = oParser.addStringOption("decode-audio");
-        Option osMainSpecialInFileType = oParser.addStringOption("in-file");
-        Option osMainPlugin = oParser.addStringOption("plugin");
-        
-        // both main and optional command depending on main command type
-        Option osMainOptIndexFile = oParser.addStringOption('i', "index");
-        
-        // optional commands depending on main command type
-        Option oblnOptNoAudio = oParser.addBooleanOption("noaudio");
-        Option oblnOptOnlyAudio = oParser.addBooleanOption("onlyaudio");
-        Option oiOptFrameNum = oParser.addIntegerOption('f', "frame");
-        Option osOptFrameRange = oParser.addStringOption('s', "frames");
-        Option oiOptChannel = oParser.addIntegerOption('c', "channel");
-        Option odblOptVolScale = oParser.addDoubleOption("vol-scale");
-        Option osOptFrameFormat = oParser.addStringOption('o', "format");
-        
-        // special required options for in-file option
-        Option oiSpecialWidth = oParser.addIntegerOption("width");
-        Option oiSpecialHeight = oParser.addIntegerOption("height");
-        
-        // Always an option
-        Option oiOptVerbosity = oParser.addStringOption("verbose");
-        
-        try {
-            oParser.parse(args);
-        } catch (CmdLineParser.OptionException e) {
-            ExitWithError(e.getMessage());
-        }
-        
-        //----------------------------------------------------------------------
-        
-        Object oOpt;
-        
-        //..............................................................
-        // Check main command types
-        
-        // help
-        if (oParser.getOptionValue(oblnMainHelp1) != null || 
-            oParser.getOptionValue(oblnMainHelp2) != null) 
-        {
-            // just wanting help
-            PrintUsage();
-            System.exit(0);
-        }
-        
-        // Decode one media item
-        oOpt = oParser.getOptionValue(oiMainDecode1);
-        if (oOpt != null) {
-            m_iMediaItemToDecode = (Integer)oOpt;
-            if (m_iMediaItemToDecode < 0) ExitWithError("Negitive numbers are silly");
-            m_iMainCommandType = DECODE_ONE;
-        }
-        
-        // Decode all media items
-        oOpt = oParser.getOptionValue(oblnMainDecodeAll);
-        if (oOpt != null) {
-            if (m_iMainCommandType > 0) ExitWithError("Too many main commands");
-            m_iMainCommandType = DECODE_ALL;
-        }
-        
-        // Sector list dump
-        oOpt = oParser.getOptionValue(oblnMainSectorList);
-        if (oOpt != null) {
-            if (m_iMainCommandType > 0) ExitWithError("Too many main commands");
-            m_iMainCommandType = SECTOR_LIST;
-        }
-        
-        // Special input file type
-        oOpt = oParser.getOptionValue(osMainSpecialInFileType);
-        if (oOpt != null) {
-            if (m_iMainCommandType > 0) ExitWithError("Too many main commands");
-            m_iMainCommandType = SPECIAL_IN_FILE;
-            m_sSpecialInFileType = (String)oOpt;
+        // if 0 or 1 args, start gui with supplied in-file (if any)
+        if (args.length == 0) {
+            m_iMainCmd = MAIN_CMD_STARTGUI;
+        } else if (args.length == 1) {
+            parseInputFile(args);
+            m_iMainCmd = MAIN_CMD_STARTGUI;
+        } else {
+            // if 2 or more, let's see what we got
             
-            oOpt = oParser.getOptionValue(oiSpecialWidth);
-            if (oOpt == null) ExitWithError("Missing --width option");
-            m_iWidth = (Integer)oOpt;
-            if (m_iWidth < 0) ExitWithError("Negitive numbers are silly");
+            // first remove the first arg
+            parseInputFile(args);
+            String[] remain = new String[args.length-1];
+            System.arraycopy(args, 1, remain, 0, remain.length);
+
+            // parse the commands
+            remain = parseMainCommand(remain);
             
-            oOpt = oParser.getOptionValue(oiSpecialHeight);
-            if (oOpt == null) ExitWithError("Missing --height option");
-            m_iHeight = (Integer)oOpt;
-            if (m_iHeight < 0) ExitWithError("Negitive numbers are silly");
-        }
-        
-        // Decode a list of sectors to a frame
-        oOpt = oParser.getOptionValue(osMainDecodeFrameSects);
-        if (oOpt != null) {
-            if (m_iMainCommandType > 0) 
-                ExitWithError("Too many main commands");
-            m_aiSectorList = HandleSectorListOption((String)oOpt);
-            if (m_aiSectorList == null) 
-                ExitWithError("Invalid list of sectors or file not found");
-            m_iMainCommandType = DECODE_SECTORS_FRAME;
-        }
-        
-        // Decode a list of sectors to audio
-        oOpt = oParser.getOptionValue(osMainDecodeAudioSects);
-        if (oOpt != null) {
-            if (m_iMainCommandType > 0) 
-                ExitWithError("Too many main commands");
-            m_aiSectorList = HandleSectorListOption((String)oOpt);
-            if (m_aiSectorList == null) 
-                ExitWithError("Invalid list of sectors or file not found");
-            m_iMainCommandType = DECODE_SECTORS_AUDIO;
-        }
-        
-        oOpt = oParser.getOptionValue(osMainPlugin); 
-        if (oOpt != null) {
-            if (m_iMainCommandType > 0) 
-                ExitWithError("Too many main commands");
-            String sPluginName = (String)oOpt;
-            if (sPluginName.toLowerCase().equals("lapks")) {
-                m_iMainCommandType = PLUGIN_LAPKS;
-            } else if (sPluginName.toLowerCase().equals("site")) {
-                m_iMainCommandType = PLUGIN_SITE;
+            // if there is at least one leftover arg,
+            if (remain != null && remain.length > 0) {
+                // assume it is the output file name
+                
+                parseOutputFile(remain[0]);
+
+                // remove it from the remaining args
+                if (remain.length > 1) {
+                    m_asRemaining = new String[remain.length-1];
+                    System.arraycopy(remain, 1, m_asRemaining, 0, m_asRemaining.length);
+                } else {
+                    m_asRemaining = null;
+                }
             } else {
-                ExitWithError("Unknown plugin " + sPluginName);
+                m_asRemaining = null;
             }
         }
         
-        // Get index file if there is one
-        m_sIndexFile = (String)oParser.getOptionValue(osMainOptIndexFile);
+    }
+    
+    private void parseInputFile(String[] args) {
+        if (args.length < 1) return;
         
-        // If no other main command options were provided, but
-        // index file was provided, then index file becomes the main command
-        int iAdditionalArgs = 2;
-        if (m_iMainCommandType < 0 && m_sIndexFile != null) {
-            m_iMainCommandType = INDEX_ONLY;
-            iAdditionalArgs = 1;
+        String s = args[0];
+        
+        File oFile = new File(s);
+
+        if (!oFile.exists())  {
+            String abs = oFile.getAbsolutePath().toUpperCase();
+            boolean isRoot = false;
+            for (File root : File.listRoots()) {
+                if (abs.equals(root.getAbsolutePath().toUpperCase())) {
+                    isRoot = true;
+                    break;
+                }
+            }
+            
+            if (!isRoot)
+                ExitWithError(s + " does not exist.");
         }
         
-        // Make sure we got a main command
-        if (m_iMainCommandType < 0)
-            ExitWithError("Missing a main command");
+        m_sInputFile = s;
+        m_sInputFileBase = Misc.getBaseName(oFile.getName());
+    }
+    
+    private void parseOutputFile(String s) {
+        /* path\
+         * path\path\
+         * path\file
+         * \file
+         */
         
-        //..............................................................
-        // Check remaining args
+        File oPath = new File(s);
         
-        String[] asRemainingArgs = oParser.getRemainingArgs();
-        if (asRemainingArgs.length < iAdditionalArgs)
-            ExitWithError("Too few additional arguments (should be "+iAdditionalArgs+").");
-        else if (asRemainingArgs.length > iAdditionalArgs)
-            ExitWithError("Too many additional arguments (should only be "+iAdditionalArgs+").");
-        
-        if (iAdditionalArgs > 0)
-            m_sInputFileName = asRemainingArgs[0];
-        // TODO:
-        // output-file could be stdout, but only in the following cases:
-        //   --decode # , --frame # and --noaudio are used together
-        //   --decode # and --onlyaudio
-        //   --sector-list
-        //   --decode-frame
-        //   --decode-audio
-        // This could be slightly improved if we output multiple yuv frames
-        // in a single stream. Then we could use --decode # and --noaudio
-        if (iAdditionalArgs > 1)
-            m_sOutputFileName = asRemainingArgs[1];
-        
-        
-        //..............................................................
-        // Check some of the optional options
-        
-        m_blnDecodeAudio = 
-            !(Boolean)oParser.getOptionValue(oblnOptNoAudio, new Boolean(false));
-        m_blnDecodeVideo = 
-         !(Boolean)oParser.getOptionValue(oblnOptOnlyAudio, new Boolean(false));
-        m_dblAudioScale = 
-            (Double)oParser.getOptionValue(odblOptVolScale, new Double(1.0));
-        m_iChannel = 
-            (Integer)oParser.getOptionValue(oiOptChannel, new Integer(-1));
-        
-        //..............................................................
-        // Check frame number options
-        
-        oOpt = oParser.getOptionValue(oiOptFrameNum);
-        if (oOpt != null) {
-            m_iStartFrame = (Integer)oOpt;
-            if (m_iStartFrame < 0) ExitWithError("Negitive numbers are silly");
-            m_iEndFrame = m_iStartFrame;
-            m_blnDecodeAudio = false;
-            m_blnDecodeVideo = true;
+        File oParent = oPath.getParentFile();
+        if (oParent != null && !oParent.isDirectory()) {
+            ExitWithError("Invalid output path " + oParent.toString());
         }
         
-        oOpt = oParser.getOptionValue(osOptFrameRange);
-        if (oOpt != null) {
-            int[] aiFrames = Misc.ParseDelimitedInts((String)oOpt, "-");
-            if (aiFrames == null || aiFrames.length != 2)
-                ExitWithError("Invalid range of frames");
-            m_iStartFrame = aiFrames[0];
-            m_iEndFrame = aiFrames[1];
-            m_blnDecodeAudio = false;
-            m_blnDecodeVideo = true;
+        if (oPath.isDirectory()) {
+            m_sOutputFolder = oPath.getAbsolutePath();
+        } else {
+            if (oParent != null)
+                m_sOutputFolder = oParent.getAbsolutePath();
+            m_sOutputFile = oPath.getName();
         }
-        
-        //..............................................................
-        // Check frame output format option
-        
-        
-        m_sFormat = (String)oParser.getOptionValue(osOptFrameFormat, "png");
-        m_sFormat = m_sFormat.toLowerCase();
-        if (Arrays.binarySearch(VALID_FORMATS, m_sFormat) < 0)
-            ExitWithError("Invalid output format (valid formats are " 
-                          + Misc.join(VALID_FORMATS, ", ") + ").");
-        
-        //..............................................................
-        // Check verbosity option
-        
-        oOpt = oParser.getOptionValue(oiOptVerbosity);
-        if (oOpt != null)
-        {
-            int[] ai = Misc.ParseDelimitedInts((String)oOpt, ",");
-            if (ai != null) m_aiVerbosityLevels = ai;
-        }
-        
         
     }
     
-    /*------------------------------------------------------------------------*/
-    /*-- Private helper functions --------------------------------------------*/
-    /*------------------------------------------------------------------------*/
     
-    /** Returns a sorted array of available ImageIO formats, plus our own 
-     * special formats. */
-    private static String[] GetValidFormats() {
-        ArrayList<String> oValidFormats = new ArrayList<String>();
-        oValidFormats.add("yuv");
-        oValidFormats.add("y4m");
-        oValidFormats.add("demux");
-        oValidFormats.add("mdec");
-        oValidFormats.add("avi");
-        oValidFormats.add("avi-mjpg");
-        oValidFormats.add("xa");
-        oValidFormats.add("str");
-        String[] asReaderFormats = ImageIO.getReaderFormatNames();
-        for (String s : asReaderFormats) {
-            s = s.toLowerCase();
-            if (oValidFormats.indexOf(s) < 0)
-                oValidFormats.add(s);
+    
+    private final static String PLUGINS = "lapks, site";
+    
+    private String[] parseMainCommand(String[] args) {
+        
+        
+        ArgParser parser = new MyArgParser("", false);
+        
+        //----------------------------------------
+        
+        StringHolder decode = new StringHolder();
+        parser.addOption("-decode,-d %s", decode);
+        
+        StringHolder sectordump = new StringHolder();
+        parser.addOption("-sectordump %s", sectordump);
+        
+        StringHolder plugin = new StringHolder();
+        parser.addOption("-plugin %s {"+ PLUGINS +"}", plugin);
+        
+        StringHolder index = new StringHolder();
+        parser.addOption("-index,-i,-idx %s", index);
+        
+        StringHolder intype = new StringHolder();
+        parser.addOption("-intype %s {demux, mdec}", intype);
+        
+        StringHolder debug = new StringHolder();
+        parser.addOption("-debug %s", debug);
+        
+        StringHolder copy = new StringHolder();
+        parser.addOption("-copy %s", copy);
+
+        BooleanHolder dir = new BooleanHolder(false);
+        parser.addOption("-dir %v", dir);
+        
+        //.........................................
+        
+        IntHolder width = new IntHolder(-1);
+        parser.addOption("-width %i {[0, 99999]}", width);
+
+        IntHolder height = new IntHolder(-1);
+        parser.addOption("-height %i {[0, 99999]}", height);
+
+        //-----------------------------------------
+        
+        String[] remain = parser.matchAllArgs(args, 0, ArgParser.EXIT_ON_ERROR);
+        
+        //-----------------------------------------
+        
+        if (debug.value != null)
+            m_aiDebug = parseDebug(debug.value);
+        
+
+        if (decode.value != null) m_iMainCmd |= MAIN_CMD_DECODE;
+        if (sectordump.value != null) m_iMainCmd |= MAIN_CMD_SECTORDUMP;
+        if (plugin.value != null) m_iMainCmd |= MAIN_CMD_PLUGIN;
+        if (intype.value != null) m_iMainCmd |= MAIN_CMD_SPECIALFILE;
+        if (copy.value != null) m_iMainCmd |= MAIN_CMD_COPY;
+        if (dir.value) m_iMainCmd |= MAIN_CMD_DIR;
+        
+        if (m_iMainCmd == 0 && index.value != null) m_iMainCmd = MAIN_CMD_INDEX;
+        
+        //-----------------------------------------
+        
+
+        m_sIndexFile = index.value;
+        
+        switch (m_iMainCmd) {
+            case MAIN_CMD_SPECIALFILE:
+                if (width.value < 0 || height.value < 0)
+                    ExitWithError("-intype command must have -with and -height options.");
+        
+                m_sSpecialInType = intype.value;
+                m_iWidth = width.value;
+                m_iHeight = height.value;
+                
+                remain = parseDecodeOptions(remain);
+                break;
+                
+            case MAIN_CMD_DECODE: 
+
+                m_iDecodeIndex = parseDecodeItem(decode.value);
+                
+                remain = parseDecodeOptions(remain);
+                break;
+                
+            case MAIN_CMD_SECTORDUMP:
+                m_sSectorDumpFile = sectordump.value;
+                break;
+                
+            case MAIN_CMD_INDEX:
+                break;
+                
+            case MAIN_CMD_PLUGIN:
+                m_sPluginCommand = plugin.value;
+                break;
+                
+            case MAIN_CMD_COPY:
+                m_sFileToCopy = copy.value;
+                break;
+                
+            case MAIN_CMD_DIR:
+                break;
+                
+            case 0:
+                ExitWithError("Need a main command.");
+                break;
+            default:
+                ExitWithError("Too many main commands.");
+                break;
         }
         
-        Collections.sort(oValidFormats);
         
-        return oValidFormats.toArray(new String[0]);
+        return remain;
+        
     }
     
-    /** Either parses the supplied comma-separated list of sectors, or
-     *  tries to open the supplied file to read a list of sectors. 
-     *  Returns the list of sectors as an array of ints, or null if there
-     *  is any error. */
-    private int[] HandleSectorListOption(String sListOrFile) {
-        int[] ai = Misc.ParseDelimitedInts(sListOrFile, ",");
-        if (ai == null) {
-            if (new File(sListOrFile).exists()) {
-                StringBuilder oSB = null;
-                try {
-                    FileReader fr = new FileReader(sListOrFile);
-                    BufferedReader br = new BufferedReader(fr);
-                    oSB = new StringBuilder();
-                    String sLine;
-                    while ((sLine = br.readLine()) != null) {
-                        oSB.append(sLine);
-                        oSB.append(" ");
+    
+    public final static int DECODE_ALL = -1;
+    
+    private static int parseDecodeItem(String s) {
+        if (s.equals("all"))
+            return DECODE_ALL;
+        else {
+            try {
+                int i = Integer.parseInt(s);
+                if (i < 0) throw new NumberFormatException();
+                return i;
+            } catch (NumberFormatException ex) {
+                ExitWithError("Invalid item to decode: " + s);
+                throw new RuntimeException("Invalid item to decode: " + s);
+            }
+        }
+    }
+    
+    
+    private static int[] parseDebug(String s) {
+        try {
+            String[] split = s.split(",");
+            
+            if (split.length != 5) {
+                ExitWithError("Invalid debug option: " + s);
+            }
+            
+            int[] aidbg = new int[split.length];
+            for (int i = 0; i < aidbg.length; i++) {
+                aidbg[i] = Integer.parseInt(split[i]);
+            }
+            
+            return aidbg;
+
+        } catch (NumberFormatException ex) {
+            ExitWithError("Invalid debug option: " + s);
+            throw new RuntimeException("Invalid debug option: " + s);
+        }
+    }
+    
+    
+    
+    private String[] parseDecodeOptions(String[] args) {
+        
+        if (args == null) return null;
+        
+        ArgParser parser = new MyArgParser("", false);
+        
+        //----------------------------------------
+        
+        BooleanHolder noaud = new BooleanHolder(false);
+        parser.addOption("-noaud %v", noaud);
+        
+        BooleanHolder novid = new BooleanHolder(false);
+        parser.addOption("-novid %v", novid);
+        
+        IntHolder jpg = new IntHolder(-1);
+        parser.addOption("-jpg %i {[0, 100]}", jpg);
+        
+        IntHolder vol = new IntHolder(-1);
+        parser.addOption("-vol %i {[0, 100]}", vol);
+        
+        StringHolder frames = new StringHolder();
+        parser.addOption("-frame,-frames,-f %s", frames);
+        
+        StringHolder fps = new StringHolder();
+        parser.addOption("-fps %s", fps);
+        
+        BooleanHolder nocrop = new BooleanHolder(false);
+        parser.addOption("-nocrop %v", nocrop);
+        
+        StringHolder vidfmt = new StringHolder();
+        parser.addOption("-vidfmt,-vf %s", vidfmt);
+        
+        StringHolder audfmt = new StringHolder();
+        parser.addOption("-audfmt,-af %s", audfmt);
+        
+        StringHolder tim = new StringHolder();
+        parser.addOption("-tim %s", tim);
+        
+        
+        //-----------------------------------------
+        
+        String[] remain = null;
+        remain = parser.matchAllArgs(args, 0, ArgParser.EXIT_ON_ERROR);
+        
+        //-----------------------------------------
+        
+        m_blnDecodeAud = !noaud.value;
+        m_blnDecodeVid = !novid.value;
+        
+        m_iJpgQuality = jpg.value;
+        m_iVolume = vol.value;
+        
+        if (frames.value != null) {
+            int[] aiframes = parseFrames(frames.value);
+            m_iStartFrame = aiframes[0];
+            m_iEndFrame = aiframes[1];
+        }
+        
+        if (fps.value != null) {
+            m_oFps = parseFps(fps.value);
+        }
+        
+        m_blnNoCrop = nocrop.value;
+        
+        if (vidfmt.value != null) {
+            for (Formats.ImgSeqVidFormat fmt : Formats.getVidCompatableImgFmts()) {
+                if (fmt.getExt().equalsIgnoreCase(vidfmt.value)) {
+                    m_oVidFormat = fmt;
+                    break;
+                }
+            }
+            if (m_oVidFormat == null) {
+                for (Formats.ImgSeqVidFormat fmt : Formats.getExtendedSeqFormats()) {
+                    if (fmt.getExt().equalsIgnoreCase(vidfmt.value)) {
+                        m_oVidFormat = fmt;
+                        break;
                     }
-                    fr.close();
-                } catch (IOException ex) {
-                    ex.printStackTrace();
                 }
-                if (oSB != null && oSB.length() > 0) {
-                    ai = Misc.StringArrayToIntArray(oSB.toString().split("[^\\d]"));
+                if (m_oVidFormat == null) {
+                    for (Formats.AviVidFormat fmt : Formats.getAviVidFormats()) {
+                        if (fmt.getId().equalsIgnoreCase(vidfmt.value)) {
+                            m_oVidFormat = fmt;
+                            break;
+                        }
+                    }
                 }
             }
+            if (m_oVidFormat == null)
+                ExitWithError("Unhandled video format " + vidfmt.value + ".");
         }
-        return ai;
+        
+        if (audfmt.value != null) {
+            for (Formats.AudFormat fmt : Formats.getJavaAudFormats()) {
+                if (fmt.getExt().equalsIgnoreCase(audfmt.value)) {
+                    m_oAudFormat = fmt;
+                    break;
+                }
+            }
+            if (m_oAudFormat == null)
+                ExitWithError("Unhandled audio format " + audfmt.value + ".");
+        }
+        
+        if (tim.value != null) {
+            for (Formats.ImgSeqVidFormat fmt : Formats.getAllJavaImgFormats()) {
+                if (fmt.getExt().equalsIgnoreCase(tim.value)) {
+                    m_oTimFormat = fmt;
+                    break;
+                }
+            }
+            if (m_oTimFormat == null)
+                ExitWithError("Unhandled TIM format " + tim.value + ".");
+        }
+        
+        return remain;
     }
+    
+
+    private static Fraction parseFps(String s) {
+        String[] split = s.split("/");
+        try {
+            
+            int num;
+            int denom;
+            
+            if (split.length == 1) {
+                num = Integer.parseInt(split[0]);
+                denom = 1;
+            } else if (split.length == 2) {
+                num = Integer.parseInt(split[0]);
+                denom = Integer.parseInt(split[1]);
+            } else {
+                ExitWithError("Invalid frames per second: " + s);
+                throw new RuntimeException("Invalid frames per second: " + s);
+            }
+            return new Fraction(num, denom);
+            
+        } catch (NumberFormatException ex) {
+            ExitWithError("Invalid frames per second: " + s);
+            throw new RuntimeException("Invalid frames per second: " + s);
+        }
+    }
+    
+    private static int[] parseFrames(String s) {
+        int iStart, iEnd;
+        String[] split = s.split("-");
+        try {
+            
+            if (split.length == 2) {
+                iStart = Integer.parseInt(split[0]);
+                iEnd = Integer.parseInt(split[1]);
+            } else {
+                iStart = iEnd = Integer.parseInt(s);
+            }
+            
+            return new int[] {iStart, iEnd};
+            
+        } catch (NumberFormatException ex) {
+            ExitWithError("Invalid frame: " + s);
+            throw new RuntimeException("Invalid frame: " + s);
+        }
+    }
+    
+    
+    
     
 }
+

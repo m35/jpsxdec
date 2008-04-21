@@ -27,6 +27,7 @@ package jpsxdec.media;
 
 import java.util.Iterator;
 import java.util.LinkedList;
+import jpsxdec.sectortypes.IVideoChunkSector;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorAudio2048;
 import jpsxdec.sectortypes.PSXSectorAudioChunk;
@@ -267,7 +268,7 @@ public class StrFpsCalc {
      *  that would match the submitted PSXSector.
      *  Returns a LinkedList of only valid FrameSequences. */
     public static LinkedList<FrameSequenceWalker> GenerateSequenceWalkers(
-            PSXSectorFrameChunk oChk, 
+            IVideoChunkSector oChk, 
             FrameSequence[] aoPossibleChunkSequences) 
     {
         LinkedList<FrameSequenceWalker> oList = new LinkedList<FrameSequenceWalker>();

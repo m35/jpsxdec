@@ -35,11 +35,11 @@ import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 /** The Playstation 1 TIM file. Used in many Playstation games.
- * This is based on the excellent documentation here.
+ * This is based on the excellent documentation here: 
  * http://wiki.qhimm.com/PSX/TIM_file
- * 
+ * <p>
  * The semi-transparent bit used in TIM files is represented in BufferedImages
- * by any alpha value from 1 to 254 (exported as 128).
+ * by any alpha value from 1 to 254 (written as 128).
  */
 public class Tim {
     
@@ -664,127 +664,132 @@ public class Tim {
     
     /** @param iPalette  Which palette to use for the decoded image.
      *  @see #getPaletteCount() */
-    public BufferedImage toBufferedImage(int iPalette) throws IOException {
+    public BufferedImage toBufferedImage(int iPalette) {
 
-        // setup the palette
-        IndexColorModel colorModel = null;
-        ByteArrayOutputStream oBAOS;
-        switch (m_iBitsPerPixel) {
-            case 4:
-                // convert CLUT to array of RGBA bytes
-                oBAOS = new ByteArrayOutputStream(16 * 4);
-                if (m_oClut == null) {
-                    for (int i = 0; i < 256; i+=16) {
-                        oBAOS.write(i); // r
-                        oBAOS.write(i); // g
-                        oBAOS.write(i); // b
-                        if (i == 0)
-                            oBAOS.write(255);
-                        else
-                            oBAOS.write(0);
-                    }
-                } else {
-                    int[] aiColorData = m_oClut.getColorData();
-                    for (int i = 0; i < 16; i++) {
-                        oBAOS.write(Color16toColor4B(aiColorData[iPalette * 16 + i]));
-                    }
-                }
-                colorModel = new IndexColorModel(4, 16, oBAOS.toByteArray(), 0, true);
-                break;
-            case 8:
-                // convert CLUT to array of RGBA bytes
-                oBAOS = new ByteArrayOutputStream(256 * 4);
-                if (m_oClut == null) {
-                    for (int i = 0; i < 256; i++) {
-                        oBAOS.write(i); // r
-                        oBAOS.write(i); // g
-                        oBAOS.write(i); // b
-                        if (i == 0)
-                            oBAOS.write(255);
-                        else
-                            oBAOS.write(0);
-                    }
-                } else {
-                    int[] aiColorData = m_oClut.getColorData();
-                    for (int i = 0; i < 256; i++) {
-                        oBAOS.write(Color16toColor4B(aiColorData[iPalette * 256 + i]));
-                    }
-                }
-                colorModel = new IndexColorModel(8, 256, oBAOS.toByteArray(), 0, true);
-                break;
-                
-        }
-        
-        // Now write the image data    
-        
-        DataInputStream oDIS = new DataInputStream(new ByteArrayInputStream(m_abImageData));
-        BufferedImage bi;
-        WritableRaster raster;
-        
-        //bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_INT_ARGB);
-        int iByte, iColor16, iColor32;
-        switch (m_iBitsPerPixel) {
-            case 4:
-                bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_BYTE_INDEXED, colorModel);
-                raster = bi.getRaster();
-                for (int y = 0; y < m_iPixelHeight; y++) {
-                    for (int x = 0; x < m_iPixelWidth; x++) {
-                        iByte = oDIS.readUnsignedByte();
-                        int iNibble = iByte & 0xF;
-                        raster.setSample(x, y, 0, iNibble);
-                        
-                        x++;
-                        if (x < m_iPixelWidth) { // in case of odd width
-                            iNibble = (iByte >>> 4) & 0xF;
-                            raster.setSample(x, y, 0, iNibble);
+        try {
+
+            // setup the palette
+            IndexColorModel colorModel = null;
+            ByteArrayOutputStream oBAOS;
+            switch (m_iBitsPerPixel) {
+                case 4:
+                    // convert CLUT to array of RGBA bytes
+                    oBAOS = new ByteArrayOutputStream(16 * 4);
+                    if (m_oClut == null) {
+                        for (int i = 0; i < 256; i+=16) {
+                            oBAOS.write(i); // r
+                            oBAOS.write(i); // g
+                            oBAOS.write(i); // b
+                            if (i == 0)
+                                oBAOS.write(255);
+                            else
+                                oBAOS.write(0);
+                        }
+                    } else {
+                        int[] aiColorData = m_oClut.getColorData();
+                        for (int i = 0; i < 16; i++) {
+                            oBAOS.write(Color16toColor4B(aiColorData[iPalette * 16 + i]));
                         }
                     }
-                }
-                break;
-            case 8:
-                bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_BYTE_INDEXED, colorModel);
-                raster = bi.getRaster();
-                for (int y = 0; y < m_iPixelHeight; y++) {
-                    for (int x = 0; x < m_iPixelWidth; x++) {
-                        iByte = oDIS.readUnsignedByte();
-                        raster.setSample(x, y, 0, iByte);
+                    colorModel = new IndexColorModel(4, 16, oBAOS.toByteArray(), 0, true);
+                    break;
+                case 8:
+                    // convert CLUT to array of RGBA bytes
+                    oBAOS = new ByteArrayOutputStream(256 * 4);
+                    if (m_oClut == null) {
+                        for (int i = 0; i < 256; i++) {
+                            oBAOS.write(i); // r
+                            oBAOS.write(i); // g
+                            oBAOS.write(i); // b
+                            if (i == 0)
+                                oBAOS.write(255);
+                            else
+                                oBAOS.write(0);
+                        }
+                    } else {
+                        int[] aiColorData = m_oClut.getColorData();
+                        for (int i = 0; i < 256; i++) {
+                            oBAOS.write(Color16toColor4B(aiColorData[iPalette * 256 + i]));
+                        }
+                    }
+                    colorModel = new IndexColorModel(8, 256, oBAOS.toByteArray(), 0, true);
+                    break;
+
+            }
+
+            // Now write the image data    
+
+            ByteArrayInputStream oDIS = new ByteArrayInputStream(m_abImageData);
+            BufferedImage bi;
+            WritableRaster raster;
+
+            //bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_INT_ARGB);
+            int iByte, iColor16, iColor32;
+            switch (m_iBitsPerPixel) {
+                case 4:
+                    bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_BYTE_INDEXED, colorModel);
+                    raster = bi.getRaster();
+                    for (int y = 0; y < m_iPixelHeight; y++) {
+                        for (int x = 0; x < m_iPixelWidth; x++) {
+                            iByte = IO.ReadUInt8(oDIS);
+                            int iNibble = iByte & 0xF;
+                            raster.setSample(x, y, 0, iNibble);
+
+                            x++;
+                            if (x < m_iPixelWidth) { // in case of odd width
+                                iNibble = (iByte >>> 4) & 0xF;
+                                raster.setSample(x, y, 0, iNibble);
+                            }
+                        }
+                    }
+                    break;
+                case 8:
+                    bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_BYTE_INDEXED, colorModel);
+                    raster = bi.getRaster();
+                    for (int y = 0; y < m_iPixelHeight; y++) {
+                        for (int x = 0; x < m_iPixelWidth; x++) {
+                            iByte = IO.ReadUInt8(oDIS);
+                            raster.setSample(x, y, 0, iByte);
+                            if (DebugVerbose > 2)
+                                System.err.print(String.format("%02x ",iByte));
+                        }
                         if (DebugVerbose > 2)
-                            System.err.print(String.format("%02x ",iByte));
+                            System.err.println();
                     }
-                    if (DebugVerbose > 2)
-                        System.err.println();
-                }
-                break;
-            case 16:
-                bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_INT_ARGB);
-                for (int y = 0; y < m_iPixelHeight; y++) {
-                    for (int x = 0; x < m_iPixelWidth; x++) {
-                        iColor16 = (int)IO.ReadUInt16LE(oDIS);
-                        iColor32 = Color16toColor32(iColor16);
-                        bi.setRGB(x, y, iColor32);
+                    break;
+                case 16:
+                    bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_INT_ARGB);
+                    for (int y = 0; y < m_iPixelHeight; y++) {
+                        for (int x = 0; x < m_iPixelWidth; x++) {
+                            iColor16 = (int)IO.ReadUInt16LE(oDIS);
+                            iColor32 = Color16toColor32(iColor16);
+                            bi.setRGB(x, y, iColor32);
+                        }
                     }
-                }
-                break;
-            case 24:
-                bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_INT_ARGB);
-                for (int y = 0; y < m_iPixelHeight; y++) {
-                    for (int x = 0; x < m_iPixelWidth; x++) {
-                        int r = oDIS.readUnsignedByte();
-                        int g = oDIS.readUnsignedByte();
-                        int b = oDIS.readUnsignedByte();
-                        iColor32 = RGBA(r, g, b, 255);
-                        bi.setRGB(x, y, iColor32);
+                    break;
+                case 24:
+                    bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_INT_ARGB);
+                    for (int y = 0; y < m_iPixelHeight; y++) {
+                        for (int x = 0; x < m_iPixelWidth; x++) {
+                            int r = IO.ReadUInt8(oDIS);
+                            int g = IO.ReadUInt8(oDIS);
+                            int b = IO.ReadUInt8(oDIS);
+                            iColor32 = RGBA(r, g, b, 255);
+                            bi.setRGB(x, y, iColor32);
+                        }
+                        // TODO: Need to check this logic
+                        if ((m_iPixelWidth % 2) == 1) // in case of odd width
+                            oDIS.skip(1);
                     }
-                    // TODO: Need to check this logic
-                    if ((m_iPixelWidth % 2) == 1) // in case of odd width
-                        oDIS.skip(1);
-                }
-                break;
-            default:
-                throw new RuntimeException("This should never happen");
+                    break;
+                default:
+                    throw new RuntimeException("This should never happen");
+            }
+
+            return bi;
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
         }
-        
-        return bi;
     }
     
     public int[] getColorData() {

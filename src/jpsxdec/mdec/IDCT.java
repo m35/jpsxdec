@@ -6,8 +6,8 @@ package jpsxdec.mdec;
  * - Lines 14-80: Changed header comment to be javadoc compatable
  * - Line 82: implements IDCTinterface
  * - Lines 89-96: Changed #define lines to Java final variables
- * - Line 127: Change norm() function to accept an array of doubles
- * - Lines 147-176 : Added IDCT() function
+ * - Lines 145-162: Added norm() function to accept an array of doubles
+ * - Lines 165-194 : Added IDCT() function
  *
  */
 
@@ -124,6 +124,24 @@ public class IDCT implements IDCTinterface {
     /* It is called in class "MPEG_scan" and changes the quantization values such	*/
     /* that a DCT-->DFT tranformation occurs during quantization step.			*/
 
+    public void norm(int m1[]) {
+        int i, j;
+        double d;
+
+        for (j = 0; j < 8; j++) {
+            for (i = 0; i < 8; i++) {
+                d = (double) m1[j*8+i];
+                if (i == 0 && j == 0) {
+                    d /= 8.0;
+                } else if (i == 0 || j == 0) {
+                    d /= 8.0 / Math.sqrt(2.0);
+                } else {
+                    d /= 4.0;
+                }
+                m1[j*8+i] = (int) (d * (1 << VAL_BITS) * Math.cos(Math.PI * i / 16.0) * Math.cos(Math.PI * j / 16.0) + 0.5);
+            }
+        }
+    }
     public void norm(double m1[]) {
         int i, j;
         double d;

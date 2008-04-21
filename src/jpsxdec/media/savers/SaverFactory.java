@@ -20,17 +20,17 @@
  */
 
 /*
- * Save.java
+ * SaverFactory.java
  */
 
 package jpsxdec.media.savers;
 
 import java.io.IOException;
 import jpsxdec.media.PSXMediaStreaming;
-import jpsxdec.util.IProgressListener;
+import jpsxdec.media.IProgressListener;
 
 
-public class Save {
+public class SaverFactory {
 
     public static void DecodeStreaming(SavingOptions oOptions,
                                        IProgressListener oListener) 
@@ -44,12 +44,16 @@ public class Save {
         AviSaver oAviSaver = null;
         ImageSequenceSaver oImageSaver = null;
         
-        if (oOptions.decodeVideo() && oMedia.hasVideo()) {
+        if (oOptions.getDecodeVideo()) {
         
-            if (oOptions.getStartFrame() != oMedia.getStartFrame())
-                oMedia.seek(oOptions.getStartFrame());
+            // try to seek if the media type allows it (XA can't seek)
+            try {
+                if (oOptions.getStartFrame() != oMedia.getStartFrame()) {
+                        oMedia.seek(oOptions.getStartFrame());
+                }
+            } catch (UnsupportedOperationException ex) {}
                 
-            if (oOptions.getVideoFormat().equals(SavingOptions.AVI_FORMAT.getId()))
+            if (oOptions.getVideoFormat() instanceof Formats.AviVidFormat)
             {
                 oAviSaver = new AviSaver(oOptions);
                 oAviSaver.addProgressListener(oListener);
@@ -63,7 +67,8 @@ public class Save {
         }
         
         AudioSaver oAudioSaver = null;
-        if (oOptions.decodeAudio() && !oOptions.getAudioFormat().equals(SavingOptions.AVI_AUDIO.getId())) 
+        if (oOptions.getDecodeAudio() && 
+            !(oOptions.getAudioFormat() instanceof Formats.AviAudFormat)) 
         {
             oAudioSaver = new AudioSaver(oOptions);
             oAudioSaver.addProgressListener(oListener);

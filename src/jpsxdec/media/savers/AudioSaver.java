@@ -25,15 +25,16 @@
 
 package jpsxdec.media.savers;
 
+import jpsxdec.media.StopPlayingException;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import javax.sound.sampled.AudioInputStream;
 import jpsxdec.media.PSXMediaStreaming;
 import jpsxdec.media.PSXMediaStreaming.IAudListener;
+import jpsxdec.media.savers.Formats.AudFormat;
 import jpsxdec.util.AudioWriter;
 import jpsxdec.util.IO;
-import jpsxdec.util.Misc;
 
 /** Attaches to PSXMedia classes to handle the physical saving 
  *  of media as the media item is played. Saves audio to wav file. */
@@ -42,7 +43,7 @@ public class AudioSaver extends AbstractSaver implements IAudListener {
     protected final PSXMediaStreaming m_oMedia;
     private AudioWriter m_oAudWriter;
     private final File m_oFile;
-    private final String m_sAudioFormat;
+    private final Formats.AudFormat m_sAudioFormat;
 
     public AudioSaver(SavingOptions oOptions) {
         super(oOptions.getMedia());
@@ -53,9 +54,9 @@ public class AudioSaver extends AbstractSaver implements IAudListener {
             throw new IllegalArgumentException("Media must have 1 or 2 channels of audio.");
         
         m_oFile = new File(oOptions.getFolder(),
-            oOptions.getAudioFilenameBase() + "." + oOptions.getAudioFilenameExt());
+            oOptions.getAudioFilenameBase() + oOptions.getAudioFilenameExt());
         
-        m_sAudioFormat = oOptions.getAudioFormat();
+        m_sAudioFormat = (AudFormat)oOptions.getAudioFormat();
         
         m_oMedia.addAudioListener(this);
     }
@@ -66,7 +67,7 @@ public class AudioSaver extends AbstractSaver implements IAudListener {
             m_oAudWriter = new AudioWriter(
                 m_oFile, 
                 is.getFormat(), 
-                Misc.AudioFileFormatStringToType(m_sAudioFormat));
+                m_sAudioFormat.getType());
         }
         
         fireProgressUpdate("Reading audio sector " + sector, 

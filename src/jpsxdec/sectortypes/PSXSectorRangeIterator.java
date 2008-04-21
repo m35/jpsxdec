@@ -29,15 +29,16 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import jpsxdec.*;
 import jpsxdec.cdreaders.CDSectorReader;
-import jpsxdec.cdreaders.CDXASector;
 import jpsxdec.util.AdvancedIOIterator;
 
 /** Class to walk a range of sectors of a CD and automatically convert them
  *  to PSXSectors before returning them. */
 public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
-    CDSectorReader m_oCD;
-    int m_iSectorIndex;
-    int m_iStartSector, m_iEndSector;
+    private CDSectorReader m_oCD;
+    private int m_iSectorIndex;
+    private int m_iStartSector, m_iEndSector;
+    private PSXSector m_oCachedSector;
+    private boolean m_blnCached = false;
     
     /** Interface for listener classes. */
     public static interface ISectorChangeListener {
@@ -61,8 +62,13 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     }
 
     public PSXSector peekNext() throws IOException {
-        if (!hasNext()) throw new NoSuchElementException();
-        return PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
+        if (!hasNext()) 
+            throw new NoSuchElementException();
+        if (!m_blnCached) {
+            m_oCachedSector = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
+            m_blnCached = true;
+        }
+        return m_oCachedSector;
     }
     
     public boolean hasNext() {
@@ -71,8 +77,14 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
 
     public PSXSector next() throws IOException {
         if (!hasNext()) throw new NoSuchElementException();
-        CDXASector oCDSect = m_oCD.getSector(m_iSectorIndex);
-        PSXSector oPSXSect = PSXSector.SectorIdentifyFactory(oCDSect);
+        PSXSector oPSXSect;
+        if (!m_blnCached)
+            oPSXSect = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
+        else {
+            oPSXSect = m_oCachedSector;
+            m_oCachedSector = null;
+            m_blnCached = false;
+        }
         m_iSectorIndex++;
         if (m_oCallBack != null) m_oCallBack.CurrentSector(m_iSectorIndex);
         return oPSXSect;
@@ -80,6 +92,8 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     
     public void skipNext() {
         if (!hasNext()) throw new NoSuchElementException();
+        m_blnCached = false;
+        m_oCachedSector = null;
         m_iSectorIndex++;
         if (m_oCallBack != null) m_oCallBack.CurrentSector(m_iSectorIndex);
     }
@@ -91,6 +105,8 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     
     public void gotoIndex(int i) {
         if (i < m_iStartSector || i > m_iEndSector+1) throw new NoSuchElementException();
+        m_blnCached = false;
+        m_oCachedSector = null;
         m_iSectorIndex = i;
     }
 

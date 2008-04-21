@@ -176,6 +176,27 @@ public class PsxYuv {
             }
         }
     }
+
+    public void setY(int iDestX, int iDestY, 
+                     int iWidth, int iHeight, int[] adblY) 
+    {
+        assert(iDestX > 0 && iDestY > 0 && iWidth > 0 && iHeight > 0);
+        assert(iDestX + iWidth < m_iWidth && iDestY + iHeight < m_iHeight);
+        assert((iDestX % 2) == 0 && (iDestY % 2) == 0);
+        assert(adblY.length == iWidth * iHeight);
+        
+        int iSrcLineStart = 0;
+        int iDestLineStart = (int)(iDestX + iDestY * m_iWidth);
+                
+        for (int iLine = 0; 
+             iLine < iHeight; 
+             iLine++, iDestLineStart += m_iWidth, iSrcLineStart += iWidth) 
+        {
+            for (int iCol = 0; iCol < iWidth; iCol++) {
+                m_adblY[iDestLineStart + iCol] = adblY[iSrcLineStart + iCol];
+            }
+        }
+    }
     
     /** Set a block of Cr and Cb values.
      * @param iDestX - Top left corner where block starts (in Chrominance pixels)
@@ -187,6 +208,28 @@ public class PsxYuv {
     public void setCbCr(int iDestX, int iDestY, 
                         int iWidth, int iHeight, 
                         double[] dblCb, double[] dblCr) 
+    {
+        assert(iDestX > 0 && iDestY > 0 && iWidth > 0 && iHeight > 0);
+        assert(iDestX + iWidth < m_iWidth/2 && iDestY + iHeight < m_iHeight/2);
+        assert(dblCb.length == iWidth * iHeight);
+        assert(dblCr.length == iWidth * iHeight);
+        
+        int iSrcLineStart = 0;
+        int iDestLineStart = (int)(iDestX + iDestY * m_iWidth / 2);
+                
+        for (int iLine = 0; iLine < iHeight; 
+             iLine++, iDestLineStart += m_iWidth / 2, iSrcLineStart += iWidth) 
+        {
+            for (int iCol = 0; iCol < iWidth; iCol++) {
+                m_adblCb[iDestLineStart + iCol] = dblCb[iSrcLineStart + iCol];
+                m_adblCr[iDestLineStart + iCol] = dblCr[iSrcLineStart + iCol];
+            }
+        }
+    }
+    
+    public void setCbCr(int iDestX, int iDestY, 
+                        int iWidth, int iHeight, 
+                        int[] dblCb, int[] dblCr) 
     {
         assert(iDestX > 0 && iDestY > 0 && iWidth > 0 && iHeight > 0);
         assert(iDestX + iWidth < m_iWidth/2 && iDestY + iHeight < m_iHeight/2);

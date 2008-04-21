@@ -20,7 +20,7 @@
  */
 
 /*
- * StrFrameUncompresserIS.java
+ * StrFrameUncompresser.java
  */
 
 package jpsxdec.uncompressors;
@@ -32,14 +32,13 @@ import java.util.NoSuchElementException;
 import jpsxdec.mdec.MDEC;
 import jpsxdec.demuxers.StrFramePullDemuxerIS;
 import jpsxdec.mdec.MDEC.Mdec16Bits;
-import jpsxdec.uncompressors.BufferedBitReader;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IWidthHeight;
 
 /** Class to decode/uncompress the demuxed video frame data from a 
  *  Playstation disc. This class handles every known variation
  *  of compressed zero-run-length codes, and accompanying headers. */
-public class StrFrameUncompressorIS 
+public class StrFrameUncompressor 
     //extends InputStream 
     implements /*IGetFilePointer,*/ IWidthHeight
 {
@@ -88,8 +87,8 @@ new DCVariableLengthCode("11110"    , 5, DCDifferential( -31,  -16,   16,  31)),
 new DCVariableLengthCode("1110"     , 4, DCDifferential( -15,   -8,    8,  15)),
 new DCVariableLengthCode("110"      , 3, DCDifferential(  -7,   -4,    4,   7)),
 new DCVariableLengthCode("10"       , 2, DCDifferential(  -3,   -2,    2,   3)),
+new DCVariableLengthCode("00"       , 0, null),
 new DCVariableLengthCode("01"       , 1, DCDifferential(  -1,   -1,    1,   1)),
-new DCVariableLengthCode("00"       , 0, null)
     };
     
     
@@ -105,10 +104,10 @@ new DCVariableLengthCode("111110"  , 7,  DCDifferential(-127,  -64,   64, 127)),
 new DCVariableLengthCode("11110"   , 6,  DCDifferential( -63,  -32,   32,  63)),
 new DCVariableLengthCode("1110"    , 5,  DCDifferential( -31,  -16,   16,  31)),
 new DCVariableLengthCode("110"     , 4,  DCDifferential( -15,   -8,    8,  15)),
+new DCVariableLengthCode("100"     , 0,  null),
 new DCVariableLengthCode("101"     , 3,  DCDifferential(  -7,   -4,    4,   7)),
-new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
 new DCVariableLengthCode("00"      , 1,  DCDifferential(  -1,   -1,    1,   1)),
-new DCVariableLengthCode("100"     , 0,  null)            
+new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
     };
 
     /** Construct a DC differential lookup list. Used only for the
@@ -178,117 +177,129 @@ new DCVariableLengthCode("100"     , 0,  null)
           decoding does not follow this rule. */
         
                              //  Code               "Run" "Level"
-        new ACVariableLengthCode("11"                , 0 , 1  ),
-        new ACVariableLengthCode("011"               , 1 , 1  ),
-        new ACVariableLengthCode("0100"              , 0 , 2  ),
-        new ACVariableLengthCode("0101"              , 2 , 1  ),
-        new ACVariableLengthCode("00101"             , 0 , 3  ),
-        new ACVariableLengthCode("00110"             , 4 , 1  ),
-        new ACVariableLengthCode("00111"             , 3 , 1  ),
-        new ACVariableLengthCode("000100"            , 7 , 1  ),
-        new ACVariableLengthCode("000101"            , 6 , 1  ),
-        new ACVariableLengthCode("000110"            , 1 , 2  ),
-        new ACVariableLengthCode("000111"            , 5 , 1  ),
-        new ACVariableLengthCode("0000100"           , 2 , 2  ),
-        new ACVariableLengthCode("0000101"           , 9 , 1  ),
-        new ACVariableLengthCode("0000110"           , 0 , 4  ),
-        new ACVariableLengthCode("0000111"           , 8 , 1  ),
-        new ACVariableLengthCode("00100000"          , 13, 1  ),
-        new ACVariableLengthCode("00100001"          , 0 , 6  ),
-        new ACVariableLengthCode("00100010"          , 12, 1  ),
-        new ACVariableLengthCode("00100011"          , 11, 1  ),
-        new ACVariableLengthCode("00100100"          , 3 , 2  ),
-        new ACVariableLengthCode("00100101"          , 1 , 3  ),
-        new ACVariableLengthCode("00100110"          , 0 , 5  ),
-        new ACVariableLengthCode("00100111"          , 10, 1  ),
-        new ACVariableLengthCode("0000001000"        , 16, 1  ),
-        new ACVariableLengthCode("0000001001"        , 5 , 2  ),
-        new ACVariableLengthCode("0000001010"        , 0 , 7  ),
-        new ACVariableLengthCode("0000001011"        , 2 , 3  ),
-        new ACVariableLengthCode("0000001100"        , 1 , 4  ),
-        new ACVariableLengthCode("0000001101"        , 15, 1  ),
-        new ACVariableLengthCode("0000001110"        , 14, 1  ),
-        new ACVariableLengthCode("0000001111"        , 4 , 2  ),
-        new ACVariableLengthCode("000000010000"      , 0 , 11 ),
-        new ACVariableLengthCode("000000010001"      , 8 , 2  ),
-        new ACVariableLengthCode("000000010010"      , 4 , 3  ),
-        new ACVariableLengthCode("000000010011"      , 0 , 10 ),
-        new ACVariableLengthCode("000000010100"      , 2 , 4  ),
-        new ACVariableLengthCode("000000010101"      , 7 , 2  ),
-        new ACVariableLengthCode("000000010110"      , 21, 1  ),
-        new ACVariableLengthCode("000000010111"      , 20, 1  ),
-        new ACVariableLengthCode("000000011000"      , 0 , 9  ),
-        new ACVariableLengthCode("000000011001"      , 19, 1  ),
-        new ACVariableLengthCode("000000011010"      , 18, 1  ),
-        new ACVariableLengthCode("000000011011"      , 1 , 5  ),
-        new ACVariableLengthCode("000000011100"      , 3 , 3  ),
-        new ACVariableLengthCode("000000011101"      , 0 , 8  ),
-        new ACVariableLengthCode("000000011110"      , 6 , 2  ),
-        new ACVariableLengthCode("000000011111"      , 17, 1  ),
-        new ACVariableLengthCode("0000000010000"     , 10, 2  ),
-        new ACVariableLengthCode("0000000010001"     , 9 , 2  ),
-        new ACVariableLengthCode("0000000010010"     , 5 , 3  ),
-        new ACVariableLengthCode("0000000010011"     , 3 , 4  ),
-        new ACVariableLengthCode("0000000010100"     , 2 , 5  ),
-        new ACVariableLengthCode("0000000010101"     , 1 , 7  ),
-        new ACVariableLengthCode("0000000010110"     , 1 , 6  ),
-        new ACVariableLengthCode("0000000010111"     , 0 , 15 ),
-        new ACVariableLengthCode("0000000011000"     , 0 , 14 ),
-        new ACVariableLengthCode("0000000011001"     , 0 , 13 ),
-        new ACVariableLengthCode("0000000011010"     , 0 , 12 ),
-        new ACVariableLengthCode("0000000011011"     , 26, 1  ),
-        new ACVariableLengthCode("0000000011100"     , 25, 1  ),
-        new ACVariableLengthCode("0000000011101"     , 24, 1  ),
-        new ACVariableLengthCode("0000000011110"     , 23, 1  ),
-        new ACVariableLengthCode("0000000011111"     , 22, 1  ),
-        new ACVariableLengthCode("00000000010000"    , 0 , 31 ),
-        new ACVariableLengthCode("00000000010001"    , 0 , 30 ),
-        new ACVariableLengthCode("00000000010010"    , 0 , 29 ),
-        new ACVariableLengthCode("00000000010011"    , 0 , 28 ),
-        new ACVariableLengthCode("00000000010100"    , 0 , 27 ),
-        new ACVariableLengthCode("00000000010101"    , 0 , 26 ),
-        new ACVariableLengthCode("00000000010110"    , 0 , 25 ),
-        new ACVariableLengthCode("00000000010111"    , 0 , 24 ),
-        new ACVariableLengthCode("00000000011000"    , 0 , 23 ),
-        new ACVariableLengthCode("00000000011001"    , 0 , 22 ),
-        new ACVariableLengthCode("00000000011010"    , 0 , 21 ),
-        new ACVariableLengthCode("00000000011011"    , 0 , 20 ),
-        new ACVariableLengthCode("00000000011100"    , 0 , 19 ),
-        new ACVariableLengthCode("00000000011101"    , 0 , 18 ),
-        new ACVariableLengthCode("00000000011110"    , 0 , 17 ),
-        new ACVariableLengthCode("00000000011111"    , 0 , 16 ),
-        new ACVariableLengthCode("000000000010000"   , 0 , 40 ),
-        new ACVariableLengthCode("000000000010001"   , 0 , 39 ),
-        new ACVariableLengthCode("000000000010010"   , 0 , 38 ),
-        new ACVariableLengthCode("000000000010011"   , 0 , 37 ),
-        new ACVariableLengthCode("000000000010100"   , 0 , 36 ),
-        new ACVariableLengthCode("000000000010101"   , 0 , 35 ),
-        new ACVariableLengthCode("000000000010110"   , 0 , 34 ),
-        new ACVariableLengthCode("000000000010111"   , 0 , 33 ),
-        new ACVariableLengthCode("000000000011000"   , 0 , 32 ),
-        new ACVariableLengthCode("000000000011001"   , 1 , 14 ),
-        new ACVariableLengthCode("000000000011010"   , 1 , 13 ),
-        new ACVariableLengthCode("000000000011011"   , 1 , 12 ),
-        new ACVariableLengthCode("000000000011100"   , 1 , 11 ),
-        new ACVariableLengthCode("000000000011101"   , 1 , 10 ),
-        new ACVariableLengthCode("000000000011110"   , 1 , 9  ),
-        new ACVariableLengthCode("000000000011111"   , 1 , 8  ),
-        new ACVariableLengthCode("0000000000010000"  , 1 , 18 ),
-        new ACVariableLengthCode("0000000000010001"  , 1 , 17 ),
-        new ACVariableLengthCode("0000000000010010"  , 1 , 16 ),
-        new ACVariableLengthCode("0000000000010011"  , 1 , 15 ),
-        new ACVariableLengthCode("0000000000010100"  , 6 , 3  ),
-        new ACVariableLengthCode("0000000000010101"  , 16, 2  ),
-        new ACVariableLengthCode("0000000000010110"  , 15, 2  ),
-        new ACVariableLengthCode("0000000000010111"  , 14, 2  ),
-        new ACVariableLengthCode("0000000000011000"  , 13, 2  ),
-        new ACVariableLengthCode("0000000000011001"  , 12, 2  ),
-        new ACVariableLengthCode("0000000000011010"  , 11, 2  ),
-        new ACVariableLengthCode("0000000000011011"  , 31, 1  ),
-        new ACVariableLengthCode("0000000000011100"  , 30, 1  ),
-        new ACVariableLengthCode("0000000000011101"  , 29, 1  ),
-        new ACVariableLengthCode("0000000000011110"  , 28, 1  ),
-        new ACVariableLengthCode("0000000000011111"  , 27, 1  )
+/*  0 */new ACVariableLengthCode("11"                , 0 , 1  ),
+        
+/*  1 */new ACVariableLengthCode("011"               , 1 , 1  ),
+        
+/*  2 */new ACVariableLengthCode("0100"              , 0 , 2  ),
+/*  3 */new ACVariableLengthCode("0101"              , 2 , 1  ),
+        
+/*  4 */new ACVariableLengthCode("00101"             , 0 , 3  ),
+/*  5 */new ACVariableLengthCode("00110"             , 4 , 1  ),
+/*  6 */new ACVariableLengthCode("00111"             , 3 , 1  ),
+        
+/*  7 */new ACVariableLengthCode("000100"            , 7 , 1  ),
+/*  8 */new ACVariableLengthCode("000101"            , 6 , 1  ),
+/*  9 */new ACVariableLengthCode("000110"            , 1 , 2  ),
+/* 10 */new ACVariableLengthCode("000111"            , 5 , 1  ),
+        
+/* 11 */new ACVariableLengthCode("0000100"           , 2 , 2  ),
+/* 12 */new ACVariableLengthCode("0000101"           , 9 , 1  ),
+/* 13 */new ACVariableLengthCode("0000110"           , 0 , 4  ),
+/* 14 */new ACVariableLengthCode("0000111"           , 8 , 1  ),
+        
+/* 15 */new ACVariableLengthCode("00100000"          , 13, 1  ),
+/* 16 */new ACVariableLengthCode("00100001"          , 0 , 6  ),
+/* 17 */new ACVariableLengthCode("00100010"          , 12, 1  ),
+/* 18 */new ACVariableLengthCode("00100011"          , 11, 1  ),
+/* 19 */new ACVariableLengthCode("00100100"          , 3 , 2  ),
+/* 20 */new ACVariableLengthCode("00100101"          , 1 , 3  ),
+/* 21 */new ACVariableLengthCode("00100110"          , 0 , 5  ),
+/* 22 */new ACVariableLengthCode("00100111"          , 10, 1  ),
+        
+/* 23 */new ACVariableLengthCode("0000001000"        , 16, 1  ),
+/* 24 */new ACVariableLengthCode("0000001001"        , 5 , 2  ),
+/* 25 */new ACVariableLengthCode("0000001010"        , 0 , 7  ),
+/* 26 */new ACVariableLengthCode("0000001011"        , 2 , 3  ),
+/* 27 */new ACVariableLengthCode("0000001100"        , 1 , 4  ),
+/* 28 */new ACVariableLengthCode("0000001101"        , 15, 1  ),
+/* 29 */new ACVariableLengthCode("0000001110"        , 14, 1  ),
+/* 30 */new ACVariableLengthCode("0000001111"        , 4 , 2  ),
+        
+/* 31 */new ACVariableLengthCode("000000010000"      , 0 , 11 ),
+/* 32 */new ACVariableLengthCode("000000010001"      , 8 , 2  ),
+/* 33 */new ACVariableLengthCode("000000010010"      , 4 , 3  ),
+/* 34 */new ACVariableLengthCode("000000010011"      , 0 , 10 ),
+/* 35 */new ACVariableLengthCode("000000010100"      , 2 , 4  ),
+/* 36 */new ACVariableLengthCode("000000010101"      , 7 , 2  ),
+/* 37 */new ACVariableLengthCode("000000010110"      , 21, 1  ),
+/* 38 */new ACVariableLengthCode("000000010111"      , 20, 1  ),
+/* 39 */new ACVariableLengthCode("000000011000"      , 0 , 9  ),
+/* 40 */new ACVariableLengthCode("000000011001"      , 19, 1  ),
+/* 41 */new ACVariableLengthCode("000000011010"      , 18, 1  ),
+/* 42 */new ACVariableLengthCode("000000011011"      , 1 , 5  ),
+/* 43 */new ACVariableLengthCode("000000011100"      , 3 , 3  ),
+/* 44 */new ACVariableLengthCode("000000011101"      , 0 , 8  ),
+/* 45 */new ACVariableLengthCode("000000011110"      , 6 , 2  ),
+/* 46 */new ACVariableLengthCode("000000011111"      , 17, 1  ),
+        
+/* 47 */new ACVariableLengthCode("0000000010000"     , 10, 2  ),
+/* 48 */new ACVariableLengthCode("0000000010001"     , 9 , 2  ),
+/* 49 */new ACVariableLengthCode("0000000010010"     , 5 , 3  ),
+/* 50 */new ACVariableLengthCode("0000000010011"     , 3 , 4  ),
+/* 51 */new ACVariableLengthCode("0000000010100"     , 2 , 5  ),
+/* 52 */new ACVariableLengthCode("0000000010101"     , 1 , 7  ),
+/* 53 */new ACVariableLengthCode("0000000010110"     , 1 , 6  ),
+/* 54 */new ACVariableLengthCode("0000000010111"     , 0 , 15 ),
+/* 55 */new ACVariableLengthCode("0000000011000"     , 0 , 14 ),
+/* 56 */new ACVariableLengthCode("0000000011001"     , 0 , 13 ),
+/* 57 */new ACVariableLengthCode("0000000011010"     , 0 , 12 ),
+/* 58 */new ACVariableLengthCode("0000000011011"     , 26, 1  ),
+/* 59 */new ACVariableLengthCode("0000000011100"     , 25, 1  ),
+/* 60 */new ACVariableLengthCode("0000000011101"     , 24, 1  ),
+/* 61 */new ACVariableLengthCode("0000000011110"     , 23, 1  ),
+/* 62 */new ACVariableLengthCode("0000000011111"     , 22, 1  ),
+        
+/* 63 */new ACVariableLengthCode("00000000010000"    , 0 , 31 ),
+/* 64 */new ACVariableLengthCode("00000000010001"    , 0 , 30 ),
+/* 65 */new ACVariableLengthCode("00000000010010"    , 0 , 29 ),
+/* 66 */new ACVariableLengthCode("00000000010011"    , 0 , 28 ),
+/* 67 */new ACVariableLengthCode("00000000010100"    , 0 , 27 ),
+/* 68 */new ACVariableLengthCode("00000000010101"    , 0 , 26 ),
+/* 69 */new ACVariableLengthCode("00000000010110"    , 0 , 25 ),
+/* 70 */new ACVariableLengthCode("00000000010111"    , 0 , 24 ),
+/* 71 */new ACVariableLengthCode("00000000011000"    , 0 , 23 ),
+/* 72 */new ACVariableLengthCode("00000000011001"    , 0 , 22 ),
+/* 73 */new ACVariableLengthCode("00000000011010"    , 0 , 21 ),
+/* 74 */new ACVariableLengthCode("00000000011011"    , 0 , 20 ),
+/* 75 */new ACVariableLengthCode("00000000011100"    , 0 , 19 ),
+/* 76 */new ACVariableLengthCode("00000000011101"    , 0 , 18 ),
+/* 77 */new ACVariableLengthCode("00000000011110"    , 0 , 17 ),
+/* 78 */new ACVariableLengthCode("00000000011111"    , 0 , 16 ),
+        
+/* 79 */new ACVariableLengthCode("000000000010000"   , 0 , 40 ),
+/* 80 */new ACVariableLengthCode("000000000010001"   , 0 , 39 ),
+/* 81 */new ACVariableLengthCode("000000000010010"   , 0 , 38 ),
+/* 82 */new ACVariableLengthCode("000000000010011"   , 0 , 37 ),
+/* 83 */new ACVariableLengthCode("000000000010100"   , 0 , 36 ),
+/* 84 */new ACVariableLengthCode("000000000010101"   , 0 , 35 ),
+/* 85 */new ACVariableLengthCode("000000000010110"   , 0 , 34 ),
+/* 86 */new ACVariableLengthCode("000000000010111"   , 0 , 33 ),
+/* 87 */new ACVariableLengthCode("000000000011000"   , 0 , 32 ),
+/* 88 */new ACVariableLengthCode("000000000011001"   , 1 , 14 ),
+/* 89 */new ACVariableLengthCode("000000000011010"   , 1 , 13 ),
+/* 90 */new ACVariableLengthCode("000000000011011"   , 1 , 12 ),
+/* 91 */new ACVariableLengthCode("000000000011100"   , 1 , 11 ),
+/* 92 */new ACVariableLengthCode("000000000011101"   , 1 , 10 ),
+/* 93 */new ACVariableLengthCode("000000000011110"   , 1 , 9  ),
+/* 94 */new ACVariableLengthCode("000000000011111"   , 1 , 8  ),
+        
+/* 95 */new ACVariableLengthCode("0000000000010000"  , 1 , 18 ),
+/* 96 */new ACVariableLengthCode("0000000000010001"  , 1 , 17 ),
+/* 97 */new ACVariableLengthCode("0000000000010010"  , 1 , 16 ),
+/* 98 */new ACVariableLengthCode("0000000000010011"  , 1 , 15 ),
+/* 99 */new ACVariableLengthCode("0000000000010100"  , 6 , 3  ),
+/*100 */new ACVariableLengthCode("0000000000010101"  , 16, 2  ),
+/*101 */new ACVariableLengthCode("0000000000010110"  , 15, 2  ),
+/*102 */new ACVariableLengthCode("0000000000010111"  , 14, 2  ),
+/*103 */new ACVariableLengthCode("0000000000011000"  , 13, 2  ),
+/*104 */new ACVariableLengthCode("0000000000011001"  , 12, 2  ),
+/*105 */new ACVariableLengthCode("0000000000011010"  , 11, 2  ),
+/*106 */new ACVariableLengthCode("0000000000011011"  , 31, 1  ),
+/*107 */new ACVariableLengthCode("0000000000011100"  , 30, 1  ),
+/*108 */new ACVariableLengthCode("0000000000011101"  , 29, 1  ),
+/*109 */new ACVariableLengthCode("0000000000011110"  , 28, 1  ),
+/*110 */new ACVariableLengthCode("0000000000011111"  , 27, 1  )
     };
 
     /** The custom Serial Experiments Lain Playstation game
@@ -568,9 +579,10 @@ new DCVariableLengthCode("100"     , 0,  null)
         
         MDEC.Mdec16Bits m_oCurrentMdecCode;
         
-        public MdecReader(MacroBlock[] aoMacroBlocks) {
+        private MdecReader(MacroBlock[] aoMacroBlocks) {
             m_aoMacroBlocks = aoMacroBlocks;
-            m_oCurrentMdecCode = m_aoMacroBlocks[0].Cr.DCCoefficient;
+            if (m_aoMacroBlocks[0] != null && m_aoMacroBlocks[0].Cr != null)
+                m_oCurrentMdecCode = m_aoMacroBlocks[0].Cr.DCCoefficient;
         }
         
         @Override
@@ -629,7 +641,7 @@ new DCVariableLengthCode("100"     , 0,  null)
      * InputStream to read as a bit stream. */
     protected BufferedBitReader m_oBitReader;
     
-    /** A queue to store the uncompressed data as MDEC codes. */
+    /** An array to store the uncompressed data as MacroBlock structures. */
     protected MacroBlock[] m_oMdecList;
     
     // Frame info
@@ -669,13 +681,11 @@ new DCVariableLengthCode("100"     , 0,  null)
     public final static int FRAME_FF7_WITHOUT_CAMERA = 11;
     public final static int FRAME_LOGO_IKI = 256;
 
-    MdecReader m_oMdecReader;
-    
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    public StrFrameUncompressorIS(InputStream oIS, long lngWidth, 
+    public StrFrameUncompressor(InputStream oIS, long lngWidth, 
                                                    long lngHeight) 
         throws IOException 
     {
@@ -688,7 +698,12 @@ new DCVariableLengthCode("100"     , 0,  null)
         /////////////////////////////////////////////////////////////
         // Determine the frame type from the first 50 bytes of data
         /////////////////////////////////////////////////////////////
-        m_iFrameType = IdentifyFrame(m_oBitReader.PeekBytes(50), oIS);
+        {
+            long lngFrameNum = -1;
+            if (oIS instanceof StrFramePullDemuxerIS)
+                lngFrameNum = ((StrFramePullDemuxerIS)oIS).getFrameNumber();
+            m_iFrameType = IdentifyFrame(m_oBitReader.PeekBytes(50), lngFrameNum);
+        }
         
         if (DebugVerbose >= 3) {
             System.err.print("Identified frame as ");
@@ -817,12 +832,9 @@ new DCVariableLengthCode("100"     , 0,  null)
         if (DebugVerbose >= 4)
             System.err.println(lngTotalCodesRead + " codes read");
         
-        // Setup for being read from the MDEC codes collected
-        m_oMdecReader = new MdecReader(m_oMdecList);
-        
     }
     
-    protected static int IdentifyFrame(byte[] abHeaderBytes, InputStream oIS) throws CriticalUncompressException {
+    static int IdentifyFrame(byte[] abHeaderBytes, long lngFrameNum) throws CriticalUncompressException {
         
         // if 0x3800 found at the normal position
         if (abHeaderBytes[2] == 0x38 && abHeaderBytes[3] == 0x00)
@@ -859,8 +871,8 @@ new DCVariableLengthCode("100"     , 0,  null)
                 // and the supposed 0x3800 bytes...
                 int iFrameNum = (((abHeaderBytes[2] & 0xFF) << 8) | (abHeaderBytes[3] & 0xFF));
                 // ...happend to equal the frame number (if available)
-                if (oIS instanceof StrFramePullDemuxerIS) {
-                    if (((StrFramePullDemuxerIS)oIS).getFrameNumber() == iFrameNum) {
+                if (lngFrameNum >= 0) {
+                    if (lngFrameNum == iFrameNum) {
                         // definitely lain final movie
                         return FRAME_LAIN_FINAL_MOVIE;
                     }
@@ -956,6 +968,7 @@ new DCVariableLengthCode("100"     , 0,  null)
         
         if (m_iFrameType == FRAME_VER2 || 
             m_iFrameType == FRAME_FF7  ||
+            m_iFrameType == FRAME_FF7_WITHOUT_CAMERA  ||
             m_iFrameType == FRAME_LAIN || 
             m_iFrameType == FRAME_LAIN_FINAL_MOVIE) 
         {
@@ -1018,7 +1031,7 @@ new DCVariableLengthCode("100"     , 0,  null)
             }
             
         } else {
-            throw new UncompressionException("Error decoding macro block: Unhandled version " + m_lngVersion);
+            throw new UncompressionException("Error decoding macro block: Unhandled type " + m_iFrameType);
         }
         
         return lngTotalCodesRead;
@@ -1138,8 +1151,8 @@ new DCVariableLengthCode("100"     , 0,  null)
         } 
         if (!blnFoundCode) 
             throw new UncompressionException("Error decoding macro block:" +
-                                  " Unknown DC " + sBlockName + 
-                                  " variable length code " + sBits);
+                                             " Unknown DC " + sBlockName + 
+                                             " variable length code " + sBits);
         
         // The bottom 10 bits now hold the DC Coefficient for the block,
         // now squeeze the frame's quantization scale into the top 6 bits
@@ -1163,8 +1176,8 @@ new DCVariableLengthCode("100"     , 0,  null)
     
     
     /** Decodes all the block's AC Coefficients in the stream, 
-     * and adds the resulting MDEC codes to the queue.
-     * AC Coefficients are decoded the same for version 2 and 3 frames */
+     * and adds the resulting MDEC codes to the supplied Block.
+     * AC Coefficients are decoded the same for all types of frames. */
     protected long Decode_AC_Coefficients(Block oThisBlk) 
             throws IOException, UncompressionException 
     {

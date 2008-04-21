@@ -36,6 +36,7 @@ public class CDXAIterator implements AdvancedIOIterator<CDXASector> {
     private CDSectorReader m_oCD;
     int m_iSectorIndex;
     int m_iStartSector, m_iEndSector;
+    CDXASector m_oCachedSector;
     
     public CDXAIterator(CDSectorReader oCD, int iStartSector, int iEndSector) {
         m_oCD = oCD;
@@ -46,7 +47,9 @@ public class CDXAIterator implements AdvancedIOIterator<CDXASector> {
     
     public CDXASector peekNext() throws IOException {
         if (!hasNext()) throw new NoSuchElementException();
-        return m_oCD.getSector(m_iSectorIndex);
+        if (m_oCachedSector ==  null)
+            m_oCachedSector = m_oCD.getSector(m_iSectorIndex);
+        return m_oCachedSector;
     }
     
     public boolean hasNext() {
@@ -55,13 +58,20 @@ public class CDXAIterator implements AdvancedIOIterator<CDXASector> {
 
     public CDXASector next() throws IOException {
         if (!hasNext()) throw new NoSuchElementException();
-        CDXASector oCDSect = m_oCD.getSector(m_iSectorIndex);
+        CDXASector oCDSect;
+        if (m_oCachedSector == null)
+            oCDSect = m_oCD.getSector(m_iSectorIndex);
+        else {
+            oCDSect = m_oCachedSector;
+            m_oCachedSector = null;
+        }
         m_iSectorIndex++;
         return oCDSect;
     }
     
     public void skipNext() {
         if (!hasNext()) throw new NoSuchElementException();
+        m_oCachedSector = null;
         m_iSectorIndex++;
     }
     
@@ -71,6 +81,7 @@ public class CDXAIterator implements AdvancedIOIterator<CDXASector> {
     
     public void gotoIndex(int i) {
         if (i < m_iStartSector || i > m_iEndSector+1) throw new NoSuchElementException();
+        m_oCachedSector = null;
         m_iSectorIndex = i;
     }
 

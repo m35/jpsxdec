@@ -20,7 +20,7 @@
  */
 
 /*
- * StrDiffCombine.java
+ * WriteFileToRawSector.java
  */
 
 package jpsxdec.plugins;

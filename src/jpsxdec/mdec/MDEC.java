@@ -32,13 +32,13 @@ import jpsxdec.util.IO;
 /** Simple (and slow) emulation of the Playstation MDEC ("Motion Decoder") chip.
   * While it doesn't process 9000 macroblocks per second, it shouldn't be very
   * difficult to read. */
-public final class MDEC {
+public class MDEC {
     
     /** How much debugging do you want to see? */
     public static int DebugVerbose = 2;
     /** This is the inverse discrete cosine transform that will be used
      *  during decoding. */
-    public static IDCTinterface IDCT = new StephensIDCT();
+    private IDCTinterface IDCT = new StephensIDCT();
     
     // :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     
@@ -46,7 +46,7 @@ public final class MDEC {
      *  the post-DCT matrix. This matrix is identical to the MPEG-1
      *  quantization matrix, except the first value is 2 instead of 8. 
      *  This needs to be public so the IDCT.java class can modifty it. */
-    public static final Matrix8x8 PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX = 
+    private final Matrix8x8 PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX = 
             new Matrix8x8(new double[] {
         /* 8 */  2, 16, 19, 22, 26, 27, 29, 34, 
                 16, 16, 22, 24, 27, 29, 34, 37, 
@@ -59,7 +59,7 @@ public final class MDEC {
     });
     
     /** The order that the zig-zag vector is ordered. */
-    static final Matrix8x8 REVERSE_ZIG_ZAG_SCAN_MATRIX =
+    private static final Matrix8x8 REVERSE_ZIG_ZAG_SCAN_MATRIX =
             new Matrix8x8(new double[] {
                  0,  1,  5,  6, 14, 15, 27, 28,
                  2,  4,  7, 13, 16, 26, 29, 42,
@@ -216,7 +216,44 @@ public final class MDEC {
     /* Static class --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    private MDEC() {}
+    private static MDEC slowMdec;
+    public static MDEC getSlowMdec() {
+        if (slowMdec == null) {
+            slowMdec = new MDEC();
+            slowMdec.IDCT = new jpsxdec.mdec.SimpleIDCT();
+        }
+        return slowMdec;
+    }
+    
+    private static MDEC qualityMdec;
+    public static MDEC getQualityMdec() {
+        if (qualityMdec == null) {
+            qualityMdec = new MDEC();
+        }
+        return qualityMdec;
+    }
+    
+    private static MDEC fastMdec;
+    public static MDEC getFastMdec() {
+        if (fastMdec == null) {
+            fastMdec = new MDEC();
+            jpsxdec.mdec.IDCT idct = new jpsxdec.mdec.IDCT();
+            fastMdec.IDCT = idct;
+            idct.norm(fastMdec.PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX.getPoints());
+        }
+        return fastMdec;
+    }
+    
+    private static MDECfast superFastMdec;
+    public static MDECfast getSuperFastMdec() {
+        if (superFastMdec == null) {
+            superFastMdec = new MDECfast();
+        }
+        return superFastMdec;
+    }
+    
+    protected MDEC() {
+    }
     
     /* ---------------------------------------------------------------------- */
     /* Public Functions ----------------------------------------------------- */
@@ -225,7 +262,7 @@ public final class MDEC {
     /** Main input function. Reads MDEC codes from the stream until an
      *  entire image of width x height has been decoded. Returns the
      *  decoded image as a PsxYuv class. */
-    public static PsxYuv DecodeFrame(InputStream oStream, 
+    public PsxYuv DecodeFrame(InputStream oStream, 
                                      long lngWidth, long lngHeight)
     {                                  
         
@@ -272,7 +309,7 @@ public final class MDEC {
     
     /** Decodes an entire macro block from oStream and returns it as a 
      *  16x16 YUV image. */
-    private static PsxYuv DecodeMacroBlock(InputStream oStream) 
+    protected PsxYuv DecodeMacroBlock(InputStream oStream) 
         throws IOException 
     {
         
@@ -314,22 +351,22 @@ public final class MDEC {
         // Cr: -128 to +127
         
         // Combine all these into a 16x16 YCbCr (YUV) macro block
-        PsxYuv oMacroBlock = new PsxYuv(16, 16);
+        PsxYuv oMacroBlockYuv = new PsxYuv(16, 16);
         
-        oMacroBlock.setY(0, 0, 8, 8, oY1Matrix.getPoints());
-        oMacroBlock.setY(8, 0, 8, 8, oY2Matrix.getPoints());
-        oMacroBlock.setY(0, 8, 8, 8, oY3Matrix.getPoints());
-        oMacroBlock.setY(8, 8, 8, 8, oY4Matrix.getPoints());
+        oMacroBlockYuv.setY(0, 0, 8, 8, oY1Matrix.getPoints());
+        oMacroBlockYuv.setY(8, 0, 8, 8, oY2Matrix.getPoints());
+        oMacroBlockYuv.setY(0, 8, 8, 8, oY3Matrix.getPoints());
+        oMacroBlockYuv.setY(8, 8, 8, 8, oY4Matrix.getPoints());
         
-        oMacroBlock.setCbCr(0, 0, 8, 8, oCbMatrix.getPoints(), 
+        oMacroBlockYuv.setCbCr(0, 0, 8, 8, oCbMatrix.getPoints(), 
                                         oCrMatrix.getPoints());
         
-        return oMacroBlock;
+        return oMacroBlockYuv;
         
     }
     
     /** Decodes a single block from oStream. */
-    private static Matrix8x8 DecodeBlock(InputStream oStream) throws IOException 
+    protected Matrix8x8 DecodeBlock(InputStream oStream) throws IOException 
     {
         
         long lngMdecWord; // little-endian 16 bits read from the stream
@@ -431,7 +468,7 @@ public final class MDEC {
     
     
     
-    private static Matrix8x8 UnZigZagVector(int aiVector[]) {
+    protected Matrix8x8 UnZigZagVector(int aiVector[]) {
         Matrix8x8 tUnZigZagedList = new Matrix8x8();
         
         for (int x = 0; x < tUnZigZagedList.getWidth(); x++) {
@@ -445,7 +482,7 @@ public final class MDEC {
     }
     
     /** Dequanitizes the matrix using the table and scale. */
-    private static Matrix8x8 Dequantize(int iDC_Coefficient,
+    protected Matrix8x8 Dequantize(int iDC_Coefficient,
                                          Matrix8x8 oMatrix, 
                                          Matrix8x8 QuantizationTable, 
                                          double dblScale) 
@@ -472,9 +509,9 @@ public final class MDEC {
     }
     
     /** Performs the  Inverse Discrete Cosine Transform on a matrix.
-     *  This uses the IDCT static variable object to perform the
+     *  This uses the IDCT variable object to perform the
      *  operation. */
-    private static Matrix8x8 InverseDiscreteCosineTransform(Matrix8x8 oMatrix) {
+    protected Matrix8x8 InverseDiscreteCosineTransform(Matrix8x8 oMatrix) {
         return IDCT.IDCT(oMatrix);
     }
 

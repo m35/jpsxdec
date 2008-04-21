@@ -145,7 +145,7 @@ public class BufferedBitReader {
      * 15 = 0111111111111111
      * 16 = 1111111111111111
      *</pre>*/
-    private static int BIT_MASK[] = new int[] {
+    private static final int BIT_MASK[] = new int[] {
         0x0000, 0x0001, 0x0003, 0x0007, 0x000F,
         0x001F, 0x003F, 0x007F, 0x00FF,
         0x01FF, 0x03FF, 0x07FF, 0x0FFF,
@@ -218,13 +218,12 @@ public class BufferedBitReader {
     /** Reads in the bits and returns the unsigned value. */
     public long ReadUnsignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
-        if (BufferEnoughForBits(iCount) != iCount)
-            throw new EOFException("Unexpected end of bit file");
-        long lngRet = ReadUBits(m_iBitsRemainging, iCount, m_oBitBuffer);
-        if (iCount <= m_iBitsRemainging)
-            m_iBitsRemainging -= iCount;
+        int iGot = BufferEnoughForBits(iCount);
+        long lngRet = ReadUBits(m_iBitsRemainging, iGot, m_oBitBuffer) << (iCount - iGot);
+        if (iGot <= m_iBitsRemainging)
+            m_iBitsRemainging -= iGot;
         else
-            m_iBitsRemainging = 16 - ((iCount - m_iBitsRemainging) % 16);
+            m_iBitsRemainging = 16 - ((iGot - m_iBitsRemainging) % 16);
         return lngRet;
     }
     
@@ -232,14 +231,13 @@ public class BufferedBitReader {
      *  bit shifting. */
     public long ReadSignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
-        if (BufferEnoughForBits(iCount) != iCount)
-            throw new EOFException("Unexpected end of bit file");
-        long lngRet = ReadUBits(m_iBitsRemainging, iCount, m_oBitBuffer);
-        if (iCount <= m_iBitsRemainging)
-            m_iBitsRemainging -= iCount;
+        int iGot = BufferEnoughForBits(iCount);
+        long lngRet = ReadUBits(m_iBitsRemainging, iGot, m_oBitBuffer) << (iCount - iGot);
+        if (iGot <= m_iBitsRemainging)
+            m_iBitsRemainging -= iGot;
         else
-            m_iBitsRemainging = 16 - ((iCount - m_iBitsRemainging) % 16);
-        return (lngRet << (64 - iCount)) >> (64 - iCount); // change to signed
+            m_iBitsRemainging = 16 - ((iGot - m_iBitsRemainging) % 16);
+        return (lngRet << (64 - iGot)) >> (64 - iGot); // change to signed
     }
     
     /** Reads the bits into a string of "1" and "0". */
@@ -260,10 +258,9 @@ public class BufferedBitReader {
      *  move the stream position forward.  */
     public long PeekUnsignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
-        if (BufferEnoughForBits(iCount) != iCount)
-            throw new EOFException("Unexpected end of bit file");
-        long lngRet = ReadUBits(m_iBitsRemainging, iCount,
-                m_oBitBuffer.ShallowCopy());
+        int iGot = BufferEnoughForBits(iCount);
+        long lngRet = ReadUBits(m_iBitsRemainging, iGot,
+                m_oBitBuffer.ShallowCopy()) << (iCount - iGot);
         return lngRet;
     }
     
@@ -271,10 +268,9 @@ public class BufferedBitReader {
      *  move the stream position forward.  */
     public long PeekSignedBits(int iCount) throws IOException {
         assert(iCount < 32 && iCount > 0);
-        if (BufferEnoughForBits(iCount) != iCount)
-            throw new EOFException("Unexpected end of bit file");
-        long lngRet = ReadUBits(m_iBitsRemainging, iCount,
-                m_oBitBuffer.ShallowCopy());
+        int iGot = BufferEnoughForBits(iCount);
+        long lngRet = ReadUBits(m_iBitsRemainging, iGot,
+                m_oBitBuffer.ShallowCopy()) << (iCount - iGot);
         return (lngRet << (64 - iCount)) >> (64 - iCount); // change to signed
     }
     
@@ -419,7 +415,7 @@ public class BufferedBitReader {
             m_iBitsRemainging = 16; // and now we have 8 bits for the head again
         }
         
-        int iTotalBitsBuffed = m_oBitBuffer.size() * 8 - (16 - m_iBitsRemainging);
+        int iTotalBitsBuffed = (m_oBitBuffer.size() /*8*/ << 3) - (16 - m_iBitsRemainging);
         
         // keep buffering data until the requested number of bits were
         // buffered, or we hit the end of the stream.
@@ -427,7 +423,7 @@ public class BufferedBitReader {
             int iBytesBuffered = BufferData();
             if (iBytesBuffered < 2)
                 return iTotalBitsBuffed;
-            iTotalBitsBuffed += iBytesBuffered * 8;
+            iTotalBitsBuffed += iBytesBuffered /*8*/ << 3;
         }
         
         return iCount;

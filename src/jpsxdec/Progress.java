@@ -28,7 +28,10 @@ package jpsxdec;
 import java.awt.Component;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import javax.swing.JOptionPane;
+import jpsxdec.util.Misc;
 import org.jdesktop.swingworker.SwingWorker;
 
 public class Progress<T> extends javax.swing.JDialog implements PropertyChangeListener {
@@ -76,6 +79,8 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
             guiProgressLbl.setText(evt.getNewValue().toString());
         } else if (evt.getPropertyName().equals("event") ) {
             guiEventLvl.setText(evt.getNewValue().toString());
+        } else if (evt.getPropertyName().equals("message") ) {
+            txtErrors.append(evt.getNewValue().toString() + "\n");
         } else if (evt.getPropertyName().equals("return") ) {
             m_oReturn = (T)evt.getNewValue();
             TaskComplete();
@@ -86,6 +91,7 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
         } else if (evt.getPropertyName().equals("exception") ) {
             // fatal/unhandled exception
             m_oException = (Exception)evt.getNewValue();
+            txtErrors.append(Misc.stack2string(m_oException));
             JOptionPane.showMessageDialog(this, m_oException.toString(), "Exception", JOptionPane.ERROR_MESSAGE);
             //m_oException.printStackTrace(System.err); // debug
             TaskComplete();
@@ -95,6 +101,7 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
     private void TaskComplete() {
         m_blnTaskDone = true;
         if (txtErrors.getText().length() > 0) {
+            guiCancelBtn.setEnabled(true);
             guiCancelBtn.setText("Close");
         } else {
             this.setVisible(false);
@@ -258,6 +265,9 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
             }
             public void showError(Exception e) {
                 m_oTask.firePropertyChange("error", null, e);
+            }
+            public void showMessage(String s) {
+                m_oTask.firePropertyChange("message", null, s);
             }
             
             public java.awt.Component getWindow() {

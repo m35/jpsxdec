@@ -25,17 +25,14 @@
 
 package jpsxdec.media;
 
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
 import jpsxdec.audiodecoding.ADPCMDecodingContext;
 import jpsxdec.audiodecoding.StrADPCMDecoder;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.media.StrFpsCalc.FramesPerSecond;
-import jpsxdec.media.savers.StopPlayingException;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorAudioChunk;
 import jpsxdec.sectortypes.PSXSectorNull;
@@ -43,7 +40,7 @@ import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.audiodecoding.Short2dArrayInputStream;
 import jpsxdec.util.NotThisTypeException;
 
-// TODO:
+// TODO: Add doc
 
 public class PSXMediaXA extends PSXMediaStreaming {
     
@@ -262,7 +259,7 @@ public class PSXMediaXA extends PSXMediaStreaming {
 
     @Override
     public void seek(long lngFrame) throws IOException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException("Seeking in XA is not available.");
     }
 
     @Override

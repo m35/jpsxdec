@@ -37,6 +37,7 @@ import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.cdreaders.CDXAIterator;
 import jpsxdec.cdreaders.CDXASector;
+import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.demuxers.StrFramePullDemuxerIS;
 import jpsxdec.mdec.MDEC.Mdec16Bits;
 import jpsxdec.media.MediaHandler;
@@ -44,10 +45,10 @@ import jpsxdec.media.PSXMediaSTR;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorFrameChunk;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
-import jpsxdec.uncompressors.StrFrameRecompressorIS;
-import jpsxdec.uncompressors.StrFrameUncompressorIS;
-import jpsxdec.uncompressors.StrFrameUncompressorIS.Block;
-import jpsxdec.uncompressors.StrFrameUncompressorIS.MacroBlock;
+import jpsxdec.uncompressors.StrFrameRecompressor;
+import jpsxdec.uncompressors.StrFrameUncompressor;
+import jpsxdec.uncompressors.StrFrameUncompressor.Block;
+import jpsxdec.uncompressors.StrFrameUncompressor.MacroBlock;
 
 /** Simple command-line to combine two STR files. Used for Lain sub-titling. */
 public class StrDiffCombine {
@@ -78,8 +79,8 @@ public class StrDiffCombine {
             throw new IllegalArgumentException("There needs to be the same number of files.");
 
         // Open the original movie /////////////////////////////////////////////
-        CDSectorReader oCD;
-        oCD = new CDSectorReader(args[2], true);
+        CDFileSectorReader oCD;
+        oCD = new CDFileSectorReader(args[2], true);
         
         MediaHandler oMedias;
         oMedias = new MediaHandler(oCD);
@@ -104,8 +105,8 @@ public class StrDiffCombine {
         {
             // decompress the frame from the original image //////////////////
             StrFramePullDemuxerIS oOriginalDemux = new StrFramePullDemuxerIS(oOriginalIter, iFrame);
-            StrFrameRecompressorIS oOriginalFrame = 
-                    new StrFrameRecompressorIS(oOriginalDemux, 
+            StrFrameRecompressor oOriginalFrame = 
+                    new StrFrameRecompressor(oOriginalDemux, 
                     oOriginalDemux.getWidth(), oOriginalDemux.getHeight());
                     
             int iFile = iFrame - (int)oOriginalMedia.getStartFrame();
@@ -142,7 +143,7 @@ public class StrDiffCombine {
     private static PSXMediaSTR GetMediaItem(String sFile) throws IOException {
         //open input file
         CDSectorReader oCD;
-        oCD = new CDSectorReader(sFile);
+        oCD = new CDFileSectorReader(sFile);
         
         MediaHandler oMedias;
         oMedias = new MediaHandler(oCD);
@@ -173,7 +174,7 @@ public class StrDiffCombine {
     
     public static ByteArrayOutputStream CompareFrames(
             BufferedImage bi1, BufferedImage bi2, 
-            StrFrameRecompressorIS oOriginalFrame, 
+            StrFrameRecompressor oOriginalFrame, 
             PSXSectorRangeIterator[] oQualityIters, 
             long lngMaximumFrameSize,
             int iFrame) 
@@ -234,7 +235,7 @@ public class StrDiffCombine {
     private static ByteArrayOutputStream FindBestFit(
             ArrayList<Point> oDiffBlks, 
             PSXSectorRangeIterator[] oSubTitleQualityIters,
-            StrFrameRecompressorIS oOriginalFrame, 
+            StrFrameRecompressor oOriginalFrame, 
             long lngMaximumFrameSize,
             int iFrame) 
             throws IOException 
@@ -272,14 +273,14 @@ public class StrDiffCombine {
     private static void CopyMacroBlocks(
             ArrayList<Point> oDiffMacBlks, 
             PSXSectorRangeIterator oSubtitleIter, 
-            StrFrameRecompressorIS oOriginalFrame, int iFrame) 
+            StrFrameRecompressor oOriginalFrame, int iFrame) 
             throws IOException 
     {
         // uncompress the sub-titled frame
         StrFramePullDemuxerIS oSubtitleDemux = new StrFramePullDemuxerIS(oSubtitleIter, iFrame);
         
-        StrFrameUncompressorIS oSubtitledFrame = 
-                new StrFrameUncompressorIS(oSubtitleDemux, 
+        StrFrameUncompressor oSubtitledFrame = 
+                new StrFrameUncompressor(oSubtitleDemux, 
                 oSubtitleDemux.getWidth(), oSubtitleDemux.getHeight());
         
         // get the macro-blocks of both
@@ -389,7 +390,7 @@ public class StrDiffCombine {
     
     /** Overwrites the demuxed frame data with new data. 
      * @return how many bytes were written. */
-    private static int RemuxFrame(CDSectorReader oCD, PSXMediaSTR oMovie, long lngFrame, byte[] abDemux) throws IOException {
+    private static int RemuxFrame(CDFileSectorReader oCD, PSXMediaSTR oMovie, long lngFrame, byte[] abDemux) throws IOException {
         // get the iterator
         CDXAIterator oCDIter = new CDXAIterator(oCD, 
                 (int)oMovie.getStartSector(), (int)oMovie.getEndSector());

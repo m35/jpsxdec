@@ -87,6 +87,8 @@ public class CDXASector implements IGetFilePointer {
         {
             file_number = IO.ReadUInt8(oIS);
             channel     = IO.ReadUInt8(oIS);
+            if (channel >= 32) 
+                throw new NotThisTypeException("XA audio sector is corrupted.");
 
             submode     = new SubMode(IO.ReadUInt8(oIS));
             coding_info = new CodingInfo(IO.ReadUInt8(oIS));

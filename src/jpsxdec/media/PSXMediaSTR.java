@@ -36,7 +36,6 @@ import jpsxdec.audiodecoding.StrADPCMDecoder;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.cdreaders.CDXASector;
 import jpsxdec.media.StrFpsCalc.*;
-import jpsxdec.media.savers.StopPlayingException;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.sectortypes.PSXSectorAudio2048;
@@ -44,6 +43,8 @@ import jpsxdec.sectortypes.PSXSectorAudioChunk;
 import jpsxdec.sectortypes.PSXSectorFrameChunk;
 import jpsxdec.sectortypes.PSXSectorNull;
 import jpsxdec.audiodecoding.Short2dArrayInputStream;
+import jpsxdec.sectortypes.IVideoChunkSector;
+import jpsxdec.sectortypes.PSXSectorAliceFrameChunk;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.Misc;
 
@@ -124,13 +125,14 @@ public class PSXMediaSTR extends PSXMediaStreaming
         
         PSXSector oPsxSect = oSectIterator.peekNext();
         
-        if (!(oPsxSect instanceof PSXSectorFrameChunk))
+        if (!(oPsxSect instanceof PSXSectorFrameChunk) &&
+            !(oPsxSect instanceof PSXSectorAliceFrameChunk))
             throw new NotThisTypeException();
         
-        PSXSectorFrameChunk oFrame;
+        IVideoChunkSector oFrame;
         PSXSectorAudioChunk oAudio;
         
-        oFrame = (PSXSectorFrameChunk) oPsxSect;
+        oFrame = (IVideoChunkSector) oPsxSect;
 
         m_lngWidth = oFrame.getWidth();
         m_lngHeight = oFrame.getHeight();
@@ -156,9 +158,11 @@ public class PSXMediaSTR extends PSXMediaStreaming
                 // just skip it
             } else if (oPsxSect instanceof PSXSectorAudio2048) {
                 // just skip it
-            } else if (oPsxSect instanceof PSXSectorFrameChunk) {
+            } else if ((oPsxSect instanceof PSXSectorFrameChunk) || 
+                       (oPsxSect instanceof PSXSectorAliceFrameChunk)) 
+            {
                         
-                oFrame = (PSXSectorFrameChunk) oPsxSect;
+                oFrame = (IVideoChunkSector) oPsxSect;
                 if (oFrame.getWidth() == m_lngWidth &&
                         oFrame.getHeight() == m_lngHeight &&
                         (oFrame.getFrameNumber() == lngCurFrame ||
@@ -192,7 +196,7 @@ public class PSXMediaSTR extends PSXMediaStreaming
 
                         oAudInf.AudioPeriod = oPsxSect.getSector() - oAudInf.LastAudioSect;
                         oAudInf.LastAudioSect = oPsxSect.getSector();
-
+                        
                         m_lngAudioTotalSamples += oAudio.getSampleLength();
                     }
 
@@ -245,8 +249,6 @@ public class PSXMediaSTR extends PSXMediaStreaming
                 StrFpsCalc.FigureOutFps(oSequences, 75, lngFramesPerMovie, lngSectorsPerMovie)
             };
         }
-        
-        //System.out.println("The next item is sect/frame: " + jpsxdec.util.Misc.join(m_aoPossibleFps, ", "));
         
     }
     
@@ -395,9 +397,9 @@ public class PSXMediaSTR extends PSXMediaStreaming
 
     @Override
     protected void playSector(PSXSector oPSXSect) throws StopPlayingException, IOException {
-        if (oPSXSect instanceof PSXSectorFrameChunk) {
+        if (oPSXSect instanceof IVideoChunkSector) {
             
-            super.playVideoSector((PSXSectorFrameChunk)oPSXSect);
+            super.playVideoSector((IVideoChunkSector)oPSXSect);
             
         } else if (oPSXSect instanceof PSXSectorAudioChunk) {
             // only process the audio if there is a listener for it
@@ -441,10 +443,10 @@ public class PSXMediaSTR extends PSXMediaStreaming
             lngFrame = (int)m_lngEndFrame;
         // calculate an estimate where the frame will land
         double percent = (lngFrame - m_lngStartFrame) / (double)(m_lngEndFrame - m_lngStartFrame);
-        // backup 10% of the size of the media to 
-        // hopefully land shortly before the frame
+        // jump to the sector
+        // hopefully land near the frame
         int iSect = (int)
-                ( (super.m_iEndSector - super.m_iStartSector) * (percent-0.1) ) 
+                ( (super.m_iEndSector - super.m_iStartSector) * (percent) ) 
                 + super.m_iStartSector;
         if (iSect < super.m_iStartSector) iSect = super.m_iStartSector;
         

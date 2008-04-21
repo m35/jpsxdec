@@ -25,71 +25,21 @@
 
 package jpsxdec.util;
 
-import java.util.Collections;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Vector;
-import javax.imageio.ImageIO;
-import javax.sound.sampled.AudioFileFormat;
-import javax.sound.sampled.AudioFileFormat.Type;
-import javax.sound.sampled.AudioSystem;
+import javax.swing.JTextField;
 
 public final class Misc {
     
-    /** Returns a sorted list of available ImageIO formats. */
-    public static Vector<String> GetJavaImageFormats() {
-        Vector<String> oValidFormats = new Vector<String>();
-        String[] asReaderFormats = ImageIO.getReaderFormatNames();
-        for (String s : asReaderFormats) {
-            s = s.toLowerCase();
-            if (oValidFormats.indexOf(s) < 0) {
-                oValidFormats.add(s);
-            }
-        }
-        
-        Collections.sort(oValidFormats);
-        
-        return oValidFormats;
+    /** http://www.rgagnon.com/javadetails/java-0029.html */
+    public static String stack2string(Exception e) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        e.printStackTrace(pw);
+        return sw.toString();
     }
     
-    /** Gets the AudioFileFormat.Type from its string representation */
-    public static Type AudioFileFormatStringToType(String sFormat) {
-        if (sFormat.equals(Type.AIFC.toString()))
-            return AudioFileFormat.Type.AIFC;
-        else if (sFormat.equals(Type.AIFF.toString()))
-            return AudioFileFormat.Type.AIFF;
-        else if (sFormat.equals(Type.AU.toString()))
-            return AudioFileFormat.Type.AU;
-        else if (sFormat.equals(Type.SND.toString()))
-            return AudioFileFormat.Type.SND;
-        else if (sFormat.equals(Type.WAVE.toString()))
-            return AudioFileFormat.Type.WAVE;
-        else
-            return null;
-    }
-    
-    /** Gets the string representation of an AudioFileFormat.Type *
-    public static String AudioFileFormatTypeToString(Type oFormat) {
-        if (oFormat.equals(AudioFileFormat.Type.AIFC))
-            return "aifc";
-        else if (oFormat.equals(AudioFileFormat.Type.AIFF))
-            return "aiff";
-        else if (oFormat.equals(AudioFileFormat.Type.AU))
-            return "au";
-        else if (oFormat.equals(AudioFileFormat.Type.SND))
-            return "snd";
-        else if (oFormat.equals(AudioFileFormat.Type.WAVE))
-            return "wav";
-        else
-            return null;
-    }*/
-    
-    public static Vector<String> GetJavaAudioFormats() {
-        Vector<String> v = new Vector<String>();
-        for (Type t : AudioSystem.getAudioFileTypes()) {
-            v.add(t.toString());
-        }
-
-        return v;                
-    }
     
     public static Vector<String> append(Vector<String> v, String[] as) {
         for (String s : as) {
@@ -105,6 +55,25 @@ public final class Misc {
         return v;
     }
     
+    public static Vector join(Vector v1, Vector v2) {
+        Vector v = new Vector(v1.size() + v2.size());
+        for (Object i : v1) {
+            v.add(i);
+        }
+        for (Object i : v2) {
+            v.add(i);
+        }
+        return v;
+    }
+    
+    public static String dup(String s, int count) {
+        StringBuilder oSB = new StringBuilder(s.length() * count);
+        for (int i = 0; i < count; i++) {
+            oSB.append(s);
+        }
+        return oSB.toString();
+    }
+    
     /** Manual implementation of the Java 6 Array.copyOfRange function. 
      *  Borrowed from some older Apache code. */
     public static byte[] copyOfRange(byte[] original, int from, int to) {
@@ -118,6 +87,42 @@ public final class Misc {
         System.arraycopy(original, from, arr, 0, len);
         
         return arr;
+    }
+
+    
+    public static String getBaseName(JTextField tf) {
+        return getBaseName(tf.getText());
+    }
+    
+    public static String getBaseName(String txt) {
+        int i = txt.indexOf('.');
+        if (i >= 0)
+            return txt.substring(0, i);
+        else
+            return txt;
+    }
+    
+    public static String getExt(JTextField tf) {
+        return getExt(tf.getText());
+    }
+    
+    public static String getExt(String txt) {
+        int i = txt.indexOf('.');
+        if (i >= 0)
+            return txt.substring(i+1);
+        else
+            return "";
+    }
+    
+    
+    public static String join(Iterable ao, String sBetween) {
+        StringBuilder oSB = new StringBuilder();
+        boolean blnFirst = true;
+        for (Object o : ao) {
+            if (!blnFirst) oSB.append(sBetween); else blnFirst = false;
+            oSB.append(o.toString());
+        }
+        return oSB.toString();
     }
 
     
@@ -168,6 +173,15 @@ public final class Misc {
             return aiVals;
         } catch (NumberFormatException ex) {
             return null;
+        }
+    }
+    
+    public static String[] parseFilename(String s) {
+        int i = s.lastIndexOf('.');
+        if (i >= 0) {
+            return new String[] {s.substring(0, i), s.substring(i)};
+        } else {
+            return new String[] {s, ""};
         }
     }
     

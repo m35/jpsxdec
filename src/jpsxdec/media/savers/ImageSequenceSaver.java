@@ -25,32 +25,34 @@
 
 package jpsxdec.media.savers;
 
+import java.awt.image.BufferedImage;
+import jpsxdec.demuxers.StrFramePushDemuxer;
+import jpsxdec.media.StopPlayingException;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import javax.imageio.ImageIO;
-import jpsxdec.mdec.PsxYuv;
 import jpsxdec.media.PSXMediaStreaming;
-import jpsxdec.media.PSXMediaStreaming.IFrameListener;
-import jpsxdec.media.PSXMediaStreaming.IVidListener;
-import jpsxdec.util.Fraction;
+import jpsxdec.media.PSXMediaStreaming.IDemuxListener;
+import jpsxdec.media.savers.Formats.ImgSeqVidFormat;
 import jpsxdec.util.IO;
 
 /** Attaches to PSXMedia classes to handle the physical saving 
  *  of media as the media item is played. Saves a series of images, 
  *  demux, mdec files. */
 public class ImageSequenceSaver extends AbstractSaver 
-        implements IVidListener, IFrameListener 
+        implements IDemuxListener
 {
 
     private final PSXMediaStreaming m_oMedia;
     private final File m_oFolder;
     private final String m_sFileVidBase;
-    private final String m_sOutputFormat;
-    private final Long m_olngEndFrame;
-    private Fraction m_oFps;
+    private final Formats.ImgSeqVidFormat m_oOutputFormat;
+    private final long m_lngEndFrame;
     private boolean m_blnUseDefaultJpeg;
     private float m_fltJpegQuality;
+    
+    private Decoders.DemuxToRgb oDecoder = Decoders.MakeDemuxToRgb(null);
+    private Decoders.DemuxToUncompress oUncompressor = Decoders.MakeDemuxToUncompress();
     
     private String m_sFileVidExt;
     
@@ -59,27 +61,13 @@ public class ImageSequenceSaver extends AbstractSaver
         
         m_oMedia = oOptions.getMedia();
         m_oFolder = oOptions.getFolder();
-        m_sFileVidBase = oOptions.getVideoFilenameBase();
-        m_sOutputFormat = oOptions.getVideoFormat();
-        m_sFileVidExt = oOptions.getVideoFilenameExt();
+        m_sFileVidBase = oOptions.getVidFilenameBase();
+        m_oOutputFormat = (ImgSeqVidFormat)oOptions.getVideoFormat();
+        m_sFileVidExt = oOptions.getVidFilenameExt();
         
-        m_olngEndFrame = oOptions.getEndFrame();
-            
-        if (m_sOutputFormat.equals("demux"))
-            m_oMedia.addVidDemuxListener(this);
-        else if (m_sOutputFormat.equals("mdec"))
-            m_oMedia.addMdecListener(this);
-        else {
-            if (m_sOutputFormat.equals("yuv")) {
-                m_oFps = oOptions.getFramesPerSecond();
-            }
-            if (m_sOutputFormat.equals("jpeg")) {
-                m_blnUseDefaultJpeg = oOptions.useDefaultJpegQuality();
-                if (!m_blnUseDefaultJpeg)
-                    m_fltJpegQuality = oOptions.getJpegQuality();
-            }
-            m_oMedia.addFrameListener(this);
-        }
+        m_lngEndFrame = oOptions.getEndFrame();
+        
+        m_oMedia.addVidDemuxListener(this);
     }
 
     @Override
@@ -88,44 +76,40 @@ public class ImageSequenceSaver extends AbstractSaver
     }
 
     private File FileName(long frame) {
-        return new File(m_oFolder, String.format( "%s%04d.%s",
+        return new File(m_oFolder, String.format( "%s%04d%s",
                 m_sFileVidBase, frame, m_sFileVidExt));
     }
     
-    public void event(InputStream is, long frame) throws StopPlayingException, IOException {
-            if (m_olngEndFrame != null && frame > m_olngEndFrame) new StopPlayingException();
-            fireProgressUpdate("Reading frame " + frame, 
-                        m_oMedia.getStartFrame(),
-                        m_oMedia.getEndFrame(),
-                        frame);
-            
-        IO.writeIStoFile(is, FileName(frame));
-        if (m_olngEndFrame != null && frame >= m_olngEndFrame) new StopPlayingException();
-    }
-
-    public void event(PsxYuv yuv, long frame) throws StopPlayingException, IOException {
-        if (m_olngEndFrame != null && frame > m_olngEndFrame) new StopPlayingException();
-            
+    public void event(StrFramePushDemuxer oDemux) throws StopPlayingException, IOException {
+        long frame = oDemux.getFrameNumber();
+        
+        if (m_lngEndFrame >= 0 && frame > m_lngEndFrame) throw new StopPlayingException();
+        
         fireProgressUpdate("Reading frame " + frame, 
                     m_oMedia.getStartFrame(),
                     m_oMedia.getEndFrame(),
                     frame);
 
-        File oFile = FileName(frame);
-            
-        if (m_sOutputFormat.equals("yuv")) {
-            yuv.Write(oFile, m_oFps);
-        } else if (m_sOutputFormat.equals("jpeg") && !m_blnUseDefaultJpeg) {
-            // TODO: write jpeg with quality
-            ImageIO.write(yuv.toBufferedImage(), m_sOutputFormat, oFile);
+        Exception[] e = new Exception[1];
+        if (m_oOutputFormat == Formats.DEMUX) {
+            IO.writeIStoFile(oDemux.getStream(), FileName(frame));
+        } else if (m_oOutputFormat == Formats.MDEC) {
+            IO.writeIStoFile(oUncompressor.Uncompress(oDemux, e), FileName(frame));
         } else {
-            // write default jpeg quality, or other format
-            boolean ok = ImageIO.write(yuv.toBufferedImage(), m_sOutputFormat, oFile);
-            if (!ok) throw new IOException("Unable to write frames as " + m_sOutputFormat + " file format.");
+            BufferedImage bi = oDecoder.UncompressDecodeRgb(oDemux, e);
+            // TODO: Write jpg with custom quality
+            if (m_oOutputFormat == Formats.JPEG_IMG_SEQ && !m_blnUseDefaultJpeg) {
+                boolean ok = ImageIO.write(bi, m_oOutputFormat.getId(), FileName(frame));
+                if (!ok) throw new IOException("Unable to write frames as " + m_oOutputFormat.getDesciption() + " file format.");
+            } else {
+                boolean ok = ImageIO.write(bi, m_oOutputFormat.getId(), FileName(frame));
+                if (!ok) throw new IOException("Unable to write frames as " + m_oOutputFormat.getDesciption() + " file format.");
+            }
         }
-            
-        if (m_olngEndFrame != null && frame >= m_olngEndFrame) new StopPlayingException();
-            
+        
+        if (e[0] != null) error(e[0]);
+        
+        if (m_lngEndFrame >= 0 && frame >= m_lngEndFrame) throw new StopPlayingException();
     }
 
 }

@@ -1,13 +1,32 @@
+/*
+ * jPSXdec: Playstation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007  Michael Sabin
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
+ *
+ */
+
+/*
+ * MediaHandler.java
+ */
+
 package jpsxdec;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.BoundedRangeModel;
 import javax.swing.DefaultBoundedRangeModel;
-import javax.swing.InputVerifier;
-import javax.swing.JComponent;
-import javax.swing.JTextField;
-import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -25,17 +44,15 @@ import javax.swing.text.Segment;
 public class BoundedRangeDocumentModel //extends InputVerifier 
         implements 
         Document, BoundedRangeModel, 
-        DocumentListener, ChangeListener
+        DocumentListener
 {
     private PlainDocument doc = new PlainDocument();
     private DefaultBoundedRangeModel range = new DefaultBoundedRangeModel();
 
     public BoundedRangeDocumentModel() {
         doc.addDocumentListener(this);
-        //range.addChangeListener(this);
-        
     }
-
+    
     // Document
     //<editor-fold defaultstate="collapsed" desc="Document">
     
@@ -71,11 +88,47 @@ public class BoundedRangeDocumentModel //extends InputVerifier
         doc.remove(offs, len);
     }
 
-    public void insertString(int offset, String str, AttributeSet a) throws BadLocationException {
-        if (!str.matches("\\d*")) return;
-        doc.insertString(offset, str, a);
-    }
+    public void insertString(int offset,
+                String string, AttributeSet attributes)
+                throws BadLocationException 
+    {
 
+        if (string == null) {
+            return;
+        } else {
+            String newValue;
+            int length = getLength();
+            if (length == 0) {
+                newValue = string;
+            } else {
+                String currentContent =
+                        doc.getText(0, length);
+                StringBuffer currentBuffer =
+                        new StringBuffer(currentContent);
+                currentBuffer.insert(offset, string);
+                newValue = currentBuffer.toString();
+            }
+            
+            // limit the number of leading zeros, or whatnot
+            if (newValue.length() > Integer.toString(range.getMaximum()).length())
+                return;
+            
+            try {
+                // make sure it's a number
+                int i = Integer.parseInt(newValue);
+                
+                // make sure it's within range
+                if (i < range.getMinimum() || i > range.getMaximum())
+                    return;
+                
+                doc.insertString(offset, string, attributes);
+            } catch (NumberFormatException ex) {
+
+            }
+        }
+    }
+    
+   
     public String getText(int offset, int length) throws BadLocationException {
         return doc.getText(offset, length);
     }
@@ -192,7 +245,7 @@ public class BoundedRangeDocumentModel //extends InputVerifier
         try {
             String txt = doc.getText(0, doc.getLength());
             if (txt.length() == 0)
-                range.setValue(0);
+                range.setValue(range.getMinimum());
             else
                 range.setValue(Integer.parseInt(txt));
         } catch (BadLocationException ex) {
@@ -200,34 +253,4 @@ public class BoundedRangeDocumentModel //extends InputVerifier
         }
     }
 
-    /////////////////////////////////////////////////////////////////////////////
-    
-    // InputVerifier
-    
-    //@Override
-    public boolean verify(JComponent input) {
-        JTextField tf = (JTextField) input;
-        String txt = tf.getText();
-        try {
-            int i = Integer.parseInt(txt);
-            if (i < range.getMinimum()) return false;
-            if (i > range.getMaximum()) return false;
-        } catch (NumberFormatException numberFormatException) {
-            return false;
-        }
-        return true;
-    }
-
-    public void stateChanged(ChangeEvent e) {
-        try {
-            if (!range.getValueIsAdjusting()) {
-                doc.replace(0, doc.getLength(), Integer.toString(range.getValue()), null);
-            }
-        } catch (BadLocationException ex) {
-            
-        }
- 
-    }
-
-    
 }

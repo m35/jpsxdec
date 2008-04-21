@@ -31,7 +31,7 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import jpsxdec.*;
 import jpsxdec.mdec.MDEC;
-import jpsxdec.uncompressors.StrFrameUncompressorIS;
+import jpsxdec.uncompressors.StrFrameUncompressor;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -69,13 +69,13 @@ public class Lain_LAPKS {
             Lain_LAPKS lnpk = new Lain_LAPKS(sInLAPKS_BIN);
             Lain_LAPKS.LaPkCellIS oCell;
             while ((oCell = lnpk.NextCell()) != null ){
-                StrFrameUncompressorIS dec = 
-                        new StrFrameUncompressorIS(
+                StrFrameUncompressor dec = 
+                        new StrFrameUncompressor(
                             oCell, 
                             oCell.Width, 
                             oCell.Height);
                 PsxYuv yuv =
-                        MDEC.DecodeFrame(
+                        MDEC.getQualityMdec().DecodeFrame(
                             dec.getStream(), 
                             dec.getWidth(), 
                             dec.getHeight());

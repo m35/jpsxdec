@@ -25,22 +25,26 @@
 
 package jpsxdec.media;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Iterator;
 import javax.swing.AbstractListModel;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
-import jpsxdec.util.IProgressListener;
-import jpsxdec.util.IProgressListener.*;
+import jpsxdec.media.IProgressListener.*;
 import jpsxdec.util.NotThisTypeException;
 
 /** Manages a collection of PSXMedia items. */
 public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia> {
     
-    static int DebugVerbose = 2;
+    public static int DebugVerbose = 2;
     
     private Hashtable<Object, PSXMedia> m_oMediaHash = new Hashtable<Object, PSXMedia>();
-    private LinkedList<PSXMedia> m_oMediaList = new LinkedList<PSXMedia>();
+    private ArrayList<PSXMedia> m_oMediaList = new ArrayList<PSXMedia>();
     private CDSectorReader m_oSourceCD;
     
     public MediaHandler(CDSectorReader oCD)
@@ -94,11 +98,6 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
             }
             
             try {
-                AddMediaItem(new PSXMediaTIM(oSectIterator), oListener);
-                continue;
-            } catch (NotThisTypeException e) {}
-            
-            try {
                 AddMediaItem(new PSXMediaFF8(oSectIterator), oListener);
                 continue;
             } catch (NotThisTypeException e) {}
@@ -112,6 +111,15 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
                 AddMediaItem(new PSXMediaChronoX(oSectIterator), oListener);
                 continue;
             } catch (NotThisTypeException e) {}
+            
+            try {
+                AddMediaItem(new PSXMediaTIM(oSectIterator), oListener);
+                continue;
+            } catch (NotThisTypeException e) {
+                // Because TIM searching actually does increment the iterator
+                // we need to make sure we aren't at the end of the iterator.
+                if (!oSectIterator.hasNext()) break;
+            }
             
             oSectIterator.skipNext();
         }
@@ -221,7 +229,7 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
     }
 
     public int size() {
-        return m_oMediaHash.size();
+        return m_oMediaList.size();
     }
     
     /* [implements Iterable] */
@@ -231,11 +239,11 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
 
     // AbstractListModel stuff /////////////////////////////////////////////////
     public int getSize() {
-        return size();
+        return m_oMediaList.size();
     }
 
     public Object getElementAt(int index) {
-        return getByIndex(index);
+        return m_oMediaList.get(index);
     }
 
 }

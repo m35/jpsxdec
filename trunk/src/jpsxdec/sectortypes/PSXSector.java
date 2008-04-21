@@ -26,7 +26,6 @@
 package jpsxdec.sectortypes;
 
 import java.io.*;
-import jpsxdec.util.IGetFilePointer;
 import jpsxdec.cdreaders.CDXASector;
 import jpsxdec.sectortypes.PSXSectorFF8.*;
 import jpsxdec.sectortypes.PSXSectorFF9.*;
@@ -36,7 +35,7 @@ import jpsxdec.util.NotThisTypeException;
 /** Base class for all PSX sector types. Encapsulates raw sectors with
  *  special meaning. Note that this doesn't store the whole underlying raw 
  *  sector data in order to save memory. */
-public abstract class PSXSector /*extends InputStream implements IGetFilePointer*/ {
+public abstract class PSXSector {
     
 
     /** Identify the type of the supplied sector. */
@@ -90,6 +89,11 @@ public abstract class PSXSector /*extends InputStream implements IGetFilePointer
             return oPsxSector;
         } catch (NotThisTypeException ex) {}
         
+        try {
+            oPsxSector = new PSXSectorAliceFrameChunk(oCDSect);
+            return oPsxSector;
+        } catch (NotThisTypeException ex) {}
+        
         // we dunno what this sector is, default to PSXSectorUnknownData
         oPsxSector = new PSXSectorUnknownData(oCDSect);
         return oPsxSector;
@@ -133,7 +137,7 @@ public abstract class PSXSector /*extends InputStream implements IGetFilePointer
     protected abstract int getDemuxedDataLength(int iDataSize);
     
     public int getPsxUserDataSize() {
-        return m_abUserData.size(); 
+        return getDemuxedDataLength(m_abUserData.size()); 
     }
     
     public ByteArrayFPIS getUserDataStream() {

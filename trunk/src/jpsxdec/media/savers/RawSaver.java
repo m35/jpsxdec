@@ -25,12 +25,12 @@
 
 package jpsxdec.media.savers;
 
+import jpsxdec.media.StopPlayingException;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import jpsxdec.cdreaders.CDXASector;
-import jpsxdec.media.PSXMedia;
 import jpsxdec.media.PSXMediaStreaming;
 
 /** Attaches to PSXMedia classes to handle the physical saving 

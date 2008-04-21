@@ -101,7 +101,7 @@ public class VolumePrimaryDescriptor extends ISOstruct {
         /* file_structure_version */ magic1(is, 1);
         /* unused4                */ magic1(is, 0);
            application_data        = readX(is, 512);
-        /* unused5                */ magicXzero(is, 653);
+        /* unused5                   magicXzero(is, 653); */
     }
     
     

@@ -1,3 +1,28 @@
+/*
+ * jPSXdec: Playstation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007  Michael Sabin
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
+ * Boston, MA  02110-1301, USA.
+ *
+ */
+
+/*
+ * PSXMediaStreaming.java
+ */
+
 package jpsxdec.media;
 
 import java.util.*;
@@ -7,16 +32,12 @@ import jpsxdec.*;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.cdreaders.CDXAIterator;
 import jpsxdec.cdreaders.CDXASector;
-import jpsxdec.demuxers.StrFramePushDemuxerIS;
-import jpsxdec.mdec.MDEC;
-import jpsxdec.mdec.PsxYuv;
+import jpsxdec.demuxers.StrFramePushDemuxer;
 import jpsxdec.media.StrFpsCalc.FramesPerSecond;
-import jpsxdec.media.savers.StopPlayingException;
 import jpsxdec.sectortypes.IVideoChunkSector;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.sectortypes.PSXSector.*;
-import jpsxdec.uncompressors.StrFrameUncompressorIS;
 
 
 public abstract class PSXMediaStreaming extends PSXMedia {
@@ -34,8 +55,12 @@ public abstract class PSXMediaStreaming extends PSXMedia {
         Reset();
     }
 
+
     public abstract void seek(long lngFrame) throws IOException;
     public abstract boolean hasVideo();
+    public boolean hasAudio() {
+        return getAudioChannels() > 0;
+    }
     public abstract int getAudioChannels();
 
     public abstract FramesPerSecond[] getPossibleFPS();
@@ -83,9 +108,7 @@ public abstract class PSXMediaStreaming extends PSXMedia {
                 playSector(oPSXSect);
             }
         } catch (StopPlayingException ex) {
-            Throwable eex = ex.getCause();
-            if (eex instanceof IOException)
-                throw (IOException)eex;
+            
         } finally {
             m_blnPlaying = false;
             endPlay();
@@ -97,27 +120,14 @@ public abstract class PSXMediaStreaming extends PSXMedia {
     }
 
 
-    protected void endPlay() throws IOException {
-        if (m_oFrameDemuxer != null) {
-            try {
-                PlayDemuxFrame(m_oFrameDemuxer);
-            } catch (StopPlayingException ex) {
-
-            } finally {
-                m_oFrameDemuxer = null;
-            }
-        }
-    }        
-
-
     private boolean m_blnPlaying = false;
-    private StrFramePushDemuxerIS m_oFrameDemuxer;
+    private StrFramePushDemuxer m_oFrameDemuxer;
     protected void playVideoSector(IVideoChunkSector oFrmChk) throws StopPlayingException, IOException {
         // only process the frame if there is a listener for it
-        if (m_oVidDemuxListener != null || m_oMdecListener != null || m_oFrameListener != null) {
+        if (m_oVidDemuxListener != null) {
 
             if (m_oFrameDemuxer == null) {
-                m_oFrameDemuxer = new StrFramePushDemuxerIS();
+                m_oFrameDemuxer = new StrFramePushDemuxer();
                 m_oFrameDemuxer.addChunk(oFrmChk);
             } else if (oFrmChk.getFrameNumber() != m_oFrameDemuxer.getFrameNumber()) {
                 // if it's another frame (should be the next frame).
@@ -126,26 +136,25 @@ public abstract class PSXMediaStreaming extends PSXMedia {
                 // is missing some chunks of the prior frame.
 
                 // Save the demuxer and clear it from the class
-                StrFramePushDemuxerIS oOldDemux = m_oFrameDemuxer;
+                StrFramePushDemuxer oOldDemux = m_oFrameDemuxer;
                 m_oFrameDemuxer = null;
 
                 // create a new demuxer for the new frame sector
-                StrFramePushDemuxerIS oNewDemux = new StrFramePushDemuxerIS();
+                StrFramePushDemuxer oNewDemux = new StrFramePushDemuxer();
                 oNewDemux.addChunk(oFrmChk);
 
                 // pass the completed frame along
                 try {
-                    PlayDemuxFrame(oOldDemux);
-
+                    m_oVidDemuxListener.event(oOldDemux);
                 } catch (StopPlayingException ex) {
                     if (m_oFrameDemuxer != null) {
                         try {
-                            PlayDemuxFrame(m_oFrameDemuxer);
+                            m_oVidDemuxListener.event(m_oFrameDemuxer);
                         } finally {
                             m_oFrameDemuxer = null;
                         }
                     }
-                    throw ex;
+                    throw ex; // continue up the stop-playing chain
                 }
 
                 // only if there isn't an error, or a Stop,
@@ -159,47 +168,18 @@ public abstract class PSXMediaStreaming extends PSXMedia {
         }
     }
 
-
-    /** After the last sector of a frame has been read, 
-     *  this is called to then process it. */
-    final protected void PlayDemuxFrame(StrFramePushDemuxerIS oDemux) 
-            throws IOException, StopPlayingException
-    {
-
-        // send out the demux event if there is listener
-        if (m_oVidDemuxListener != null) {
-            m_oVidDemuxListener.event(oDemux.getStream(), oDemux.getFrameNumber());
-        }
-
-        // continue only if listener
-        if (m_oMdecListener != null || m_oFrameListener != null) {
-            StrFrameUncompressorIS oUncomprs;
+    protected void endPlay() throws IOException {
+        if (m_oFrameDemuxer != null && m_oVidDemuxListener != null) {
             try {
-                oUncomprs = new StrFrameUncompressorIS(oDemux.getStream(), oDemux.getWidth(), oDemux.getHeight());
-            } catch (IOException ex) {
-                if (m_oErrListener != null)
-                    m_oErrListener.error(ex);
-                return;
+                // send out the demux event if there is listener
+                m_oVidDemuxListener.event(m_oFrameDemuxer);
+            } catch (StopPlayingException ex) {
+
+            } finally {
+                m_oFrameDemuxer = null;
             }
-            // send mdec event if listener
-            if (m_oMdecListener != null) {
-                m_oMdecListener.event(oUncomprs.getStream(), oDemux.getFrameNumber());
-            }
-
-            // finally decode frame and event if listener
-            if (m_oFrameListener != null) { 
-                
-                PsxYuv yuv = MDEC.DecodeFrame(oUncomprs.getStream(), oUncomprs.getWidth(), oUncomprs.getHeight());
-
-                if (yuv.getDecodingError() != null && m_oErrListener != null)
-                    m_oErrListener.error(yuv.getDecodingError());
-
-                m_oFrameListener.event(yuv, oDemux.getFrameNumber());
-            }
-
         }
-
-    }
+    }        
 
     ////////////////////////////////////////////////////////////////////////
     public static interface IErrorListener {
@@ -208,16 +188,12 @@ public abstract class PSXMediaStreaming extends PSXMedia {
     public static interface IRawListener {
         void event(CDXASector oSect) throws StopPlayingException, IOException;
     }
-    public static interface IVidListener {
-        void event(InputStream is, long frame) throws StopPlayingException, IOException;
+    public static interface IDemuxListener {
+        void event(StrFramePushDemuxer oDemux) throws StopPlayingException, IOException;
     }
     public static interface IAudListener {
         void event(AudioInputStream is, int sector) throws StopPlayingException, IOException;
     }
-    public static interface IFrameListener {
-        void event(PsxYuv o, long frame) throws StopPlayingException, IOException ;
-    }
-
     ////////////////////////////////////////////////////////////////////////
     
     private IRawListener m_oRawRead;
@@ -230,21 +206,11 @@ public abstract class PSXMediaStreaming extends PSXMedia {
         m_oErrListener = oListen;
     }
 
-    protected IVidListener m_oVidDemuxListener;
-    public void addVidDemuxListener(IVidListener oListen) {
+    protected IDemuxListener m_oVidDemuxListener;
+    public void addVidDemuxListener(IDemuxListener oListen) {
         m_oVidDemuxListener = oListen;
     }
 
-    protected IVidListener m_oMdecListener;
-    public void addMdecListener(IVidListener o) {
-        m_oMdecListener = o;
-    }
-    
-    protected IFrameListener m_oFrameListener;
-    public void addFrameListener(IFrameListener o) {
-        m_oFrameListener = o;
-    }
-    
     protected IAudListener m_oAudioListener;
     public void addAudioListener(IAudListener o) {
         m_oAudioListener = o;
@@ -255,7 +221,5 @@ public abstract class PSXMediaStreaming extends PSXMedia {
         m_oErrListener = null;
         m_oVidDemuxListener = null;
         m_oAudioListener = null;
-        m_oFrameListener = null;
-        m_oMdecListener = null;
     }
 }

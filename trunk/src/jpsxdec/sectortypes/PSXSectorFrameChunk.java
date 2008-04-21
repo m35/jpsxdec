@@ -99,6 +99,10 @@ public class PSXSectorFrameChunk extends PSXSector
 
         m_lngWidth = IO.ReadUInt16LE(oBAIS);
         m_lngHeight = IO.ReadUInt16LE(oBAIS);
+        
+        if (m_lngWidth < 1 || m_lngHeight < 1)
+            throw new NotThisTypeException();
+        
         m_lngRunLengthCodeCount = IO.ReadUInt16LE(oBAIS);
 
         // We aren't verifying this value because we also want to accept

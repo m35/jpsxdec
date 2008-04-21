@@ -353,12 +353,14 @@ public class AviWriter {
         if (m_iWidth < 0)
             m_iWidth = bi.getWidth();
         else if (m_iWidth != bi.getWidth())
-            throw new IllegalArgumentException("AviWriter: Frame width is inconsistent.");
+            throw new IllegalArgumentException("AviWriter: Frame width is inconsistent" +
+                    " (was " + m_iWidth + ", now " + bi.getWidth() + ").");
         
         if (m_iHeight < 0)
             m_iHeight = bi.getHeight();
         else if (m_iHeight != bi.getHeight())
-            throw new IllegalArgumentException("AviWriter: Frame height is inconsistent.");
+            throw new IllegalArgumentException("AviWriter: Frame height is inconsistent" +
+                    " (was " + m_iHeight + ", now " + bi.getHeight() + ").");
         
         if (m_blnMJPG) {
             writeFrame(Image2MJPEG(bi));

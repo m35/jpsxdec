@@ -20,7 +20,7 @@
  */
 
 /*
- * StrFrameRecompressorIS.java
+ * StrFrameRecompressor.java
  */
 
 package jpsxdec.uncompressors;
@@ -36,7 +36,7 @@ import jpsxdec.util.IO;
 
 /** An extention of the StrFrameUncompresserIS which can re-compress the 
  *  uncompressed data. */
-public class StrFrameRecompressorIS extends StrFrameUncompressorIS {
+public class StrFrameRecompressor extends StrFrameUncompressor {
 
     /** Generate a quick reverse lookup of variable-length-code table.
      *  Map of run-length-code "#,#" to the bit code "101010101" */
@@ -57,8 +57,8 @@ public class StrFrameRecompressorIS extends StrFrameUncompressorIS {
     
     // #########################################################################
 
-    /** Just a wrapper for StrFrameUncompressorIS. */
-    public StrFrameRecompressorIS(InputStream oIS, long m_lngWidth, long m_lngHeight) 
+    /** Just a wrapper for StrFrameUncompressor. */
+    public StrFrameRecompressor(InputStream oIS, long m_lngWidth, long m_lngHeight) 
             throws IOException 
     {
         super(oIS, m_lngWidth, m_lngHeight);

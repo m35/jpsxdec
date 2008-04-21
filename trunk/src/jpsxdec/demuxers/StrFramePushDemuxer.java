@@ -20,7 +20,7 @@
  */
 
 /*
- * StrFramePushDemuxerIS.java
+ * StrFramePushDemuxer.java
  */
 
 package jpsxdec.demuxers;
@@ -32,7 +32,7 @@ import jpsxdec.util.SequenceFPIS;
 
 /** Demuxes a series of frame chunk sectors into a solid stream.
  *  Sectors need to be added ('pushed') in their proper order. */
-public class StrFramePushDemuxerIS implements IWidthHeight
+public class StrFramePushDemuxer implements IWidthHeight
 {
     
     /* ---------------------------------------------------------------------- */
@@ -51,12 +51,12 @@ public class StrFramePushDemuxerIS implements IWidthHeight
     /* Constructors---------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public StrFramePushDemuxerIS() {
+    public StrFramePushDemuxer() {
         m_lngFrame = -1;
     }
     
     /** @param lngFrame  -1 for the frame of the first chunk received. */
-    public StrFramePushDemuxerIS(long lngFrame) {
+    public StrFramePushDemuxer(long lngFrame) {
         m_lngFrame = lngFrame;
     }
     
@@ -119,14 +119,14 @@ public class StrFramePushDemuxerIS implements IWidthHeight
 	    System.arraycopy(oldData, 0, m_oChunks, 0, oldData.length);
         }
         
-        // add the chunk where it belongs in the list, 
-        
+        // now add the chunk where it belongs in the list
         int iChkNum = (int)oChk.getChunkNumber();
+        // make sure we don't alrady have the chunk
         if (m_oChunks[iChkNum] != null)
             throw new IllegalArgumentException("Chunk number " + iChkNum + " already received.");
         
         m_oChunks[iChkNum] = oChk;
-        
+        // record add the sector's data size to the total
         m_lngDemuxFrameSize += oChk.getPsxUserDataSize();
     }
     

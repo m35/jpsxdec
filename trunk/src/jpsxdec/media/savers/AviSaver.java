@@ -25,11 +25,11 @@
 
 package jpsxdec.media.savers;
 
+import jpsxdec.demuxers.StrFramePushDemuxer;
+import jpsxdec.media.StopPlayingException;
 import java.io.File;
 import java.io.IOException;
 import javax.sound.sampled.AudioInputStream;
-import jpsxdec.mdec.PsxYuv;
-import jpsxdec.media.PSXMedia;
 import jpsxdec.media.PSXMediaStreaming;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.aviwriter.AviWriter;
@@ -37,7 +37,7 @@ import jpsxdec.util.aviwriter.AviWriter;
 /** Attaches to PSXMedia classes to handle the physical saving 
  *  of media as the media item is played. Saves audio/video to AVI. */
 public class AviSaver extends AbstractSaver
-        implements PSXMediaStreaming.IFrameListener, PSXMediaStreaming.IAudListener 
+        implements PSXMediaStreaming.IDemuxListener, PSXMediaStreaming.IAudListener 
 {
 
     private AviWriter m_oAviWriter;
@@ -46,6 +46,8 @@ public class AviSaver extends AbstractSaver
     private long m_lngEndFrame;
     private boolean m_blnUseMjpg;
     private boolean m_blnDoNotCrop;
+    
+    private Decoders.DemuxToRgb oDecoder = Decoders.MakeDemuxToRgb(null);
 
     public IOException getException() {
         return m_oFailure;
@@ -57,23 +59,23 @@ public class AviSaver extends AbstractSaver
         super(oOptions.getMedia());
         
         m_oMedia = oOptions.getMedia();
-        m_blnUseMjpg = oOptions.getAviCodec().equals("MJPG");
-        m_blnDoNotCrop = oOptions.doNotCrop();
+        m_blnUseMjpg = oOptions.getVideoFormat() == Formats.MJPG_AVI;
+        m_blnDoNotCrop = oOptions.getDoNotCrop();
         
         int iChannels = m_oMedia.getAudioChannels();
-        if (!oOptions.decodeAudio() ||
-            !oOptions.getAudioFormat().equals(SavingOptions.AVI_AUDIO.getId())) 
+        if (!oOptions.getDecodeAudio() ||
+            !(oOptions.getAudioFormat() instanceof Formats.AviAudFormat))
             iChannels = 0;
         
         File oFile = new File(oOptions.getFolder(),
-                oOptions.getVideoFilenameBase() + "." + oOptions.getVideoFilenameExt());
+                oOptions.getVidFilenameBase() + oOptions.getVidFilenameExt());
         
         if (!m_blnUseMjpg) {
             m_oAviWriter = new AviWriter(
                     oFile, 
                     iChannels);
         } else {
-            if (oOptions.useDefaultJpegQuality())
+            if (oOptions.getUseDefaultJpegQuality())
                 m_oAviWriter = new AviWriter(
                         oFile, 
                         iChannels,
@@ -85,47 +87,51 @@ public class AviSaver extends AbstractSaver
                         oOptions.getJpegQuality());
         }
         
-        Fraction fps = oOptions.getFramesPerSecond();
+        Fraction fps = oOptions.getFps();
         
         m_oAviWriter.setFramesPerSecond((int)fps.numerator(), 
                                         (int)fps.denominator());
         
         if (m_blnDoNotCrop) {
+            // TODO: Add do not crop option
             m_oAviWriter.setDimensions((int)m_oMedia.getActualWidth(), (int)m_oMedia.getActualHeight());
         } else {
             m_oAviWriter.setDimensions((int)m_oMedia.getActualWidth(), (int)m_oMedia.getActualHeight());
         }
+        
+        if (iChannels > 0)
+            m_oAviWriter.setSamplesPerSecond(m_oMedia.getSamplesPerSecond());
 
         m_lngEndFrame = oOptions.getEndFrame();
         
-        m_oMedia.addFrameListener(this);
+        m_oMedia.addVidDemuxListener(this);
         if (iChannels > 0) m_oMedia.addAudioListener(this);
         
     }
     
-    /** [implements IFrameListener] */
-    public void event(PsxYuv o, long frame) throws StopPlayingException, IOException {
-        if (m_lngEndFrame != -1 && frame > m_lngEndFrame) throw new StopPlayingException();
+    public void event(StrFramePushDemuxer oDemux) throws StopPlayingException, IOException {
+        long frame = oDemux.getFrameNumber();
+        
+        if (m_lngEndFrame >= 0 && frame > m_lngEndFrame) throw new StopPlayingException();
+        
         fireProgressUpdate("Reading frame " + frame, 
                     m_oMedia.getStartFrame(),
                     m_oMedia.getEndFrame(),
                     frame);
 
-        // TODO: Make PsxYuv decode to cropped/not cropped image
-        if (m_blnUseMjpg) {
-            if (m_blnDoNotCrop)
-                m_oAviWriter.writeFrame(o.toBufferedImage());
-            else
-                m_oAviWriter.writeFrame(o.toBufferedImage());
-        } else {
-            if (m_blnDoNotCrop)
-                m_oAviWriter.writeFrame(o.toRowReverseBGRArray());
-            else
-                m_oAviWriter.writeFrame(o.toRowReverseBGRArray());
-        }
-        if (m_lngEndFrame != -1 && frame >= m_lngEndFrame) throw new StopPlayingException();
+        Exception[] e = new Exception[1];
+        if (m_blnDoNotCrop)
+            // TODO: add crop option
+            m_oAviWriter.writeFrame(oDecoder.UncompressDecodeRgb(oDemux, e));
+        else
+            m_oAviWriter.writeFrame(oDecoder.UncompressDecodeRgb(oDemux, e));
+        
+        if (e[0] != null)
+            error(e[0]);
+        
+        if (m_lngEndFrame >= 0 && frame >= m_lngEndFrame) throw new StopPlayingException();
     }
-    
+
     /** [implements IAudioListener] */
     public void event(AudioInputStream is, int sector) throws StopPlayingException, IOException {
         fireProgressUpdate("Reading audio sector " + sector, 
@@ -133,8 +139,8 @@ public class AviSaver extends AbstractSaver
                 m_oMedia.getEndSector(), 
                 sector);
         m_oAviWriter.writeAudio(is);
-    }
-
+    }    
+    
     public void done() throws IOException {
         m_oMedia.clearListeners();
         m_oAviWriter.close();

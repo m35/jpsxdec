@@ -1,7 +1,7 @@
 Copyright information
 ---------------------
 
-Source code for jPSXdec copyright (c) Michael Sabin is
+Source code for jPSXdec copyright (c) Michael Sabin 2007-2008 is
 licensed under the "GNU GENERAL PUBLIC LICENSE Version 2, June 1991"
 except where noted. 
 
@@ -13,39 +13,27 @@ AudioWriter.java copyright (c) Columbia University was originally part of
 MEAPsoft, and is also lisensed under the General Public License version 2.
 http://labrosa.ee.columbia.edu/meapsoft/
 
-The text of this license is contained in this file.
-
-
-CmdLineParser.java copyright (c) Steve Purcell, Vidar Holen, 
-Michal Ceresna, and Ewan Mellor, is licensed under the BSD License.
-http://jargs.sourceforge.net/
-The text of this license is contained in this file.
+FileNameExtensionFilter.java
+swing-layout-1.0.3-src.zip
+swing-worker-src-1.1.zip
+All copyright (c) Sun Microsystems, Inc., are also all licensed under 
+the GNU LESSER GENERAL PUBLIC LICENSE v2.
 
 The code for StephensIDCT.java originally came from code written by
 Stephen Manley. He generouslly offers his code free, without restriction.
 http://www.nyx.net/~smanley/
 
-SwingWorker package, copyright Sun Microsystems, Inc., is licensed under 
-the GNU LESSER GENERAL PUBLIC LICENSE.
-
 Fraction.java
   Originally written by Doug Lea and released into the public domain.
-  This may be used for any purposes whatsoever without acknowledgment.
+  "This may be used for any purposes whatsoever without acknowledgment.
   Thanks for the assistance and support of Sun Microsystems Labs,
-  and everyone contributing, testing, and using this code.
+  and everyone contributing, testing, and using this code."
 
-AviWriter.java
-  Very loosly based on the ImageJ package at http://rsb.info.nih.gov/ij
-  which has been released to the public domain. See AviWriter.java for more
-  details.
+argparser.zip is Copyright John E. Lloyd, 2004. 
+See argparser.zip COPYRIGHT file for details.
 
-
-
-
-Following:
-
-- GNU General Public License v. 2
-- BSD License
+Note that the related STR_file_format.txt document is NOT licensed under the
+GPL, but is under a MIT license.
 
 -----------------------------------------------------------------------
 
@@ -388,35 +376,3 @@ proprietary programs.  If your program is a subroutine library, you may
 consider it more useful to permit linking proprietary applications with the
 library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.
-
------------------------------------------------------------------------
-
-Copyright (c) 2001-2003 Steve Purcell.
-Copyright (c) 2002      Vidar Holen.
-Copyright (c) 2002      Michal Ceresna.
-Copyright (c) 2005      Ewan Mellor.
-
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met: Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer. Redistributions in
-binary form must reproduce the above copyright notice, this list of
-conditions and the following disclaimer in the documentation and/or other
-materials provided with the distribution. Neither the name of the copyright
-holder nor the names of its contributors may be used to endorse or promote
-products derived from this software without specific prior written
-permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.

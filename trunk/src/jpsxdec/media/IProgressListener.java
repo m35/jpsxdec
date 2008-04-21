@@ -20,15 +20,27 @@
  */
 
 /*
- * StopPlayingException.java
+ * IProgressListener.java
  */
 
-package jpsxdec.media.savers;
+package jpsxdec.media;
 
-
-public class StopPlayingException extends Exception {
-
-    StopPlayingException() {
+/** A general purpose listener interface for reporting progress. */
+public interface IProgressListener {
+    /** Return true to stop, false to continue */
+    boolean ProgressUpdate(String sWhatDoing, double dblPercentComplete);
+    
+    public static interface IProgressEventListener extends IProgressListener {
+        /** Return true to stop, false to continue */
+        boolean ProgressUpdate(String sEvent);
+    }
+    
+    public static interface IProgressErrorListener extends IProgressListener {
+        /** Return true to stop, false to continue */
+        void ProgressUpdate(Exception e);
+    }
+    
+    public static interface IProgressEventErrorListener extends IProgressEventListener, IProgressErrorListener {
     }
     
 }

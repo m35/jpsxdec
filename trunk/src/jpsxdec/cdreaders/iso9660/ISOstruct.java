@@ -124,7 +124,8 @@ public abstract class ISOstruct {
         for (int i = 0; i < iCount; i++) {
             int b = is.read();
             if (b < 0) throw new EOFException();
-            if (b != 0) throw new NotThisTypeException();
+            if (b != 0) 
+                throw new NotThisTypeException();
         }
     }
     

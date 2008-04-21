@@ -1,6 +1,6 @@
 
                    The Playstation 1 Video File (STR) Format
-                          v0.43 draft,  March 2008
+                          v0.44 draft,  March 2008
                       http://code.google.com/p/jpsxdec/
                         http://jpsxdec.blogspot.com/
 
@@ -37,6 +37,9 @@ v0.43 draft
     - ch 3.2: Flushed out more of the FF8 audio header
     - ch 3.3: Added some audio variations found on FF9 disc 4.
     - ch 3.4: Added Chrono Cross audio sector format.
+v0.44 draft
+    - Got rid of the mention of "Software" in the license to avoid confusion.
+    - ch 33.1: It looks like Final Fantasy Tactics also says v1 frames?
 --------------------------------------------------------------------------------
 
 ##
@@ -107,11 +110,11 @@ Playstation video frames are stored on the disc in "Mode 2 Form 1" sectors, whic
 
 Audio on Playstation discs are stored in "Mode 2 Form 2" sectors. These sectors only use 28 bytes for the sector header and error correction. This leaves 2324 bytes for data.
 
-These "From 2" sectors are intermingled with "Form 1" sectors. Modern operating systems don't like "Mode 2 Form 2" sectors, so you need special programs to get these sectors off the disc.
+These "From 2" sectors are intermingled with "Form 1" sectors. Modern operating systems usually don't like "Mode 2 Form 2" sectors, so you usually need special programs to get these sectors off the disc.
 
 Knowing the raw sector data on the disc is mostly important for understanding Playstation 1 audio, but it also helps with the video.
 
-A CD-XA Sector Header will contain information about the sector: specifically whether it contains audio, video, or data. For audio sectors, it will also contain the audio format used (channels, sample rate, and bits-per-sample).
+A raw CD-XA Sector Header will contain information about the sector: specifically whether it contains audio, video, or data. For audio sectors, it will also contain the audio format used (channels, sample rate, and bits-per-sample).
 
 CD-XA Header: [mostly from xine media player source code: demux_str.c]
   -   12 bytes: sync header (00 FF FF FF FF FF FF FF FF FF FF 00)
@@ -194,7 +197,7 @@ The most common and easily accessible way to read the full raw sectors off the d
 
 Alternatively, you may find tools to copy just the raw sectors that contain movie data (such as the popular PSmplay tool). There is no standard on how to sore these raw sectors from CDs. Depending on the tool used, the specifics of the resulting file may vary slightly. Some programs add a RIFF header at the start of the file.
 
-Finally, you might sometimes get the data off the disc using the normal copying of files by your operating system. However, like ISO image files, your operating system will only copy the normal 2048 bytes per sector, missing the raw sector information.
+Finally, you might sometimes get the data off the disc using the normal copying of files by your operating system. However, like ISO image files, your operating system will probably only copy the normal 2048 bytes per sector, missing the raw sector information.
 
 ################################################################################
 ## 2. Decoding a Playstation 1 video frame
@@ -683,7 +686,7 @@ Here's some pseudocode that would print the full 64 values of the list.
         Length += 1
         Run_Length_Code = Next_16_Bits()
     End While
-    For 1 To (64 – Length) /* fill the rest with zeros */
+    For 1 To (64 ï¿½ Length) /* fill the rest with zeros */
         Print "0"
     Next
  ------------------------------------------------------------------------------
@@ -969,7 +972,7 @@ If Blue  > 255 Then Blue  = 255 Else If Blue  < 0 Then Blue  = 0
 ###############################################################################
 
 ################################################################################
-## 3.1. Final Fantasy VII
+## 3.1. Final Fantasy VII (and Final Fantasy Tactics?)
 ################################################################################
 
 Frame Chunk Header:
@@ -989,7 +992,7 @@ Frame Chunk Header:
   
 //TODO: Confirm these
   
-At the start of some demultiplexed frames is an additional 40 bytes of what is believed to be camera angle data.
+At the start of *some* demultiplexed frames is an additional 40 bytes of what is believed to be camera angle data.
 
 Frame Data Header:
   - 40 bytes; camera data?
@@ -1470,19 +1473,19 @@ Finally, a very special thanks to all the Playstation hackers who thought it was
 Copyright (c) 2008 Michael Sabin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
+of this file (the "Document"), to deal
+in the Document without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
+copies of the Document, and to permit persons to whom the Document is
 furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+all copies or substantial portions of the Document.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE DOCUMENT IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+OUT OF OR IN CONNECTION WITH THE DOCUMENT OR THE USE OR OTHER DEALINGS IN
+THE DOCUMENT.

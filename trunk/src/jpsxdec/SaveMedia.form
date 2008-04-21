@@ -83,7 +83,7 @@
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component id="lblFolder" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="btnBrowse" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="txtFolder" alignment="3" min="-2" pref="20" max="-2" attributes="0"/>
+                  <Component id="txtFolder" alignment="3" min="-2" pref="23" max="-2" attributes="0"/>
               </Group>
               <EmptySpace type="separate" max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
@@ -164,9 +164,9 @@
                       <Component id="cmbDecodeQuality" alignment="0" pref="275" max="32767" attributes="0"/>
                       <Component id="txtFileNameVideo" alignment="0" pref="275" max="32767" attributes="0"/>
                       <Group type="102" alignment="1" attributes="0">
-                          <Component id="slideJpegQuality" pref="237" max="32767" attributes="0"/>
+                          <Component id="slideJpegQuality" pref="220" max="32767" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
-                          <Component id="txtJpegQuality" min="-2" pref="32" max="-2" attributes="0"/>
+                          <Component id="txtJpegQuality" min="-2" pref="49" max="-2" attributes="0"/>
                       </Group>
                       <Component id="cmbFormat" alignment="0" pref="275" max="32767" attributes="0"/>
                       <Component id="cmbFrameRate" alignment="0" pref="275" max="32767" attributes="0"/>
@@ -217,9 +217,9 @@
                   </Group>
                   <EmptySpace max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="2" attributes="0">
+                      <Component id="lblJpegQuality" alignment="2" min="-2" max="-2" attributes="1"/>
                       <Component id="slideJpegQuality" alignment="2" max="32767" attributes="1"/>
                       <Component id="txtJpegQuality" alignment="2" min="-2" max="-2" attributes="0"/>
-                      <Component id="lblJpegQuality" alignment="2" min="-2" max="-2" attributes="1"/>
                   </Group>
                   <EmptySpace max="-2" attributes="0"/>
                   <Group type="103" groupAlignment="3" attributes="0">
@@ -320,8 +320,8 @@
         <Component class="javax.swing.JSlider" name="slideJpegQuality">
           <Properties>
             <Property name="minorTickSpacing" type="int" value="25"/>
-            <Property name="paintLabels" type="boolean" value="true"/>
             <Property name="paintTicks" type="boolean" value="true"/>
+            <Property name="value" type="int" value="75"/>
             <Property name="model" type="javax.swing.BoundedRangeModel" editor="org.netbeans.modules.form.ComponentChooserEditor">
               <ComponentRef name="modelJpegQuality"/>
             </Property>

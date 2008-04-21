@@ -32,6 +32,7 @@ import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.sectortypes.PSXSector.*;
+import jpsxdec.util.Misc;
 
 
 /** Abstract PSX media type. Constructors of sub-classes will attempt to
@@ -122,11 +123,8 @@ public abstract class PSXMedia implements Comparable {
     }
     
     public String getSuggestedName() {
-        String s = new File(m_oCD.getSourceFile()).getName();
-        int i = s.indexOf('.');
-        if (i >= 0)
-            s = s.substring(0, i);
-        return String.format("%s%03d", s, m_iMediaIndex);
+        String s = Misc.parseFilename(new File(m_oCD.getSourceFile()).getName())[0];
+        return String.format("%s[%d]", s, m_iMediaIndex);
     }
     
     // -------------------------------------------------------------------------

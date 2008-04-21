@@ -33,10 +33,12 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import jpsxdec.media.PSXMediaStreaming;
 import jpsxdec.media.StrFpsCalc.FramesPerSecond;
-import jpsxdec.media.savers.Save;
+import jpsxdec.media.savers.SaverFactory;
 import jpsxdec.media.savers.SavingOptions;
 import jpsxdec.util.Fraction;
-import jpsxdec.util.IProgressListener.IProgressEventErrorListener;
+import jpsxdec.media.IProgressListener.IProgressEventErrorListener;
+import jpsxdec.media.savers.Formats;
+import jpsxdec.util.Misc;
 
 public class SaveMedia extends javax.swing.JDialog {
 
@@ -58,6 +60,10 @@ public class SaveMedia extends javax.swing.JDialog {
         }
     }
     
+    private static final String SAVE_AS_AVI = "AVI";
+    private static final String SAVE_AS_IMAGES = "Seperate images";
+    
+    
     private DefaultComboBoxModel modelAviFormats;
     private DefaultComboBoxModel modelImageFormats;
     private DefaultComboBoxModel modelAudioFormats;
@@ -65,25 +71,25 @@ public class SaveMedia extends javax.swing.JDialog {
     
     private void CreateModels(FramesPerSecond[] afps) {
         modelAviFormats = 
-            new DefaultComboBoxModel(SavingOptions.AVI_CODECS);    
+            new DefaultComboBoxModel(Formats.getAviVidFormats());
         
         ////////////////////////////////////////////////////////////////////////
         
-        modelImageFormats = new DefaultComboBoxModel( SavingOptions.GetImageFormats(false) );
+        modelImageFormats = new DefaultComboBoxModel( Misc.join(Formats.getVidCompatableImgFmts(), Formats.getExtendedSeqFormats()) );
                 
         ////////////////////////////////////////////////////////////////////////
 
-        modelAudioFormats = new DefaultComboBoxModel( SavingOptions.GetAudioFormats(false) );
+        modelAudioFormats = new DefaultComboBoxModel( Formats.getJavaAudFormats() );
         
         ////////////////////////////////////////////////////////////////////////
         
-        modelAVIAudioFormats = new DefaultComboBoxModel( SavingOptions.GetAudioFormats(true) );
+        modelAVIAudioFormats = new DefaultComboBoxModel( Misc.join(Formats.getAviAudFormats(), Formats.getJavaAudFormats()) );
         
         ////////////////////////////////////////////////////////////////////////
         
-        cmbSaveAsVideo.setModel(new DefaultComboBoxModel(new DisplayValue[] {
-            new DisplayValue("AVI", "avi"),
-            new DisplayValue("Seperate images", "img")
+        cmbSaveAsVideo.setModel(new DefaultComboBoxModel(new String[] {
+            SAVE_AS_AVI,
+            SAVE_AS_IMAGES
         }));
         
         ////////////////////////////////////////////////////////////////////////
@@ -101,8 +107,8 @@ public class SaveMedia extends javax.swing.JDialog {
         }
     }
     
-    private String m_sVidBaseName = "out";
-    private String m_sAudBaseName = "out";
+    private String m_sVidBaseName;
+    private String m_sAudBaseName;
     
     private long m_lngWidth;
     private long m_lngHeight;
@@ -170,6 +176,7 @@ public class SaveMedia extends javax.swing.JDialog {
         } else {
             lblBitsPerSampleValue.setText("");
             lblChannelsValue.setText("");
+            lblSampleRateValue.setText("");
             chkAudio.setSelected(false);
             chkAudio.setEnabled(false);
         }
@@ -180,113 +187,95 @@ public class SaveMedia extends javax.swing.JDialog {
     
     private void updateEnabling() {
         
+        Object sel;
+        
         boolean blnVidChked = chkVideo.getModel().isSelected();
         
         cmbSaveAsVideo.setEnabled(blnVidChked);
         
-        cmbFrameRate.setEnabled(blnVidChked && cmbSaveAsVideo.getSelectedItem().equals("avi"));
+        cmbFrameRate.setEnabled(blnVidChked && cmbSaveAsVideo.getSelectedItem() == SAVE_AS_AVI);
         cmbDecodeQuality.setEnabled(blnVidChked);
         
         cmbFormat.setEnabled(blnVidChked);
         
         chkDontCrop.setEnabled(blnVidChked);
         
-        boolean blnJpgEnabled = blnVidChked && (
-                    cmbFormat.getSelectedItem().equals("jpeg") ||
-                    cmbFormat.getSelectedItem().equals("MJPG")
-                );
+        txtFileNameVideo.setEnabled(blnVidChked);
+        
+        
+        if ( cmbSaveAsVideo.getSelectedItem() == SAVE_AS_AVI) 
+        {
+            cmbFormat.setModel(modelAviFormats);
+            txtFileNameVideo.setText(m_sVidBaseName + ".avi");
+        } else {
+            cmbFormat.setModel(modelImageFormats);
+            
+            sel = cmbFormat.getSelectedItem();
+            Formats.Format vidfmt =(Formats.Format)sel;
 
+            txtFileNameVideo.setText(m_sVidBaseName + "." + vidfmt.getExt());
+        }
+        
+        sel = cmbFormat.getSelectedItem();
+        boolean blnJpgEnabled = blnVidChked && 
+                (sel instanceof Formats.HasJpeg) &&
+                ((Formats.HasJpeg)sel).hasJpeg();
                 
         slideJpegQuality.setEnabled(blnJpgEnabled);
         txtJpegQuality.setEnabled(blnJpgEnabled);
         
-        txtFileNameVideo.setEnabled(blnVidChked);
+        //----------------------------------------------------------------------
         
-        
-        if ( chkVideo.getModel().isSelected() &&
-             cmbSaveAsVideo.getSelectedItem().equals("avi")) 
+        if ( blnVidChked && cmbSaveAsVideo.getSelectedItem() == SAVE_AS_AVI) 
         {
-            cmbFormat.setModel(modelAviFormats);
             cmbSaveAsAudio.setModel(modelAVIAudioFormats);
-            
-            txtFileNameVideo.setText(m_sVidBaseName + ".avi");
         } else {
-            cmbFormat.setModel(modelImageFormats);
             cmbSaveAsAudio.setModel(modelAudioFormats);
-
-            Object sel = cmbFormat.getSelectedItem();
-            SavingOptions.VideoFormat vidfmt =(SavingOptions.VideoFormat)sel;
-
-            txtFileNameVideo.setText(m_sVidBaseName + "." + vidfmt.getExt());
-            
         }
         
         boolean blnAudChecked = chkAudio.getModel().isSelected();
         
         cmbSaveAsAudio.setEnabled(blnAudChecked);
-        String s = cmbSaveAsAudio.getSelectedItem().toString();
-        txtFileNameAudio.setEnabled(blnAudChecked && !cmbSaveAsAudio.getSelectedItem().equals(SavingOptions.AVI_FORMAT.getId()));
         
-        btnSave.setEnabled(blnVidChked || blnAudChecked);
-        
-
-        Object sel = cmbSaveAsAudio.getSelectedItem();
-        SavingOptions.AudioFormat aufmt = (SavingOptions.AudioFormat)sel;
-        
-        if (!aufmt.equals(SavingOptions.AVI_AUDIO))
+        sel = cmbSaveAsAudio.getSelectedItem();
+        Formats.Format aufmt = (Formats.Format)sel;
+        txtFileNameAudio.setEnabled(blnAudChecked && !(aufmt == Formats.AVI_WAV));
+        if (!(aufmt == Formats.AVI_WAV))
             txtFileNameAudio.setText(m_sAudBaseName + "." + aufmt.getExt());
         
-        
+        btnSave.setEnabled(blnVidChked || blnAudChecked);
+
     }
-    
-    private static String getBaseName(JTextField tf) {
-        String txt = tf.getText();
-        int i = txt.indexOf('.');
-        if (i >= 0)
-            return txt.substring(0, i);
-        else
-            return txt;
-    }
-    
-    private static String getExt(JTextField tf) {
-        String txt = tf.getText();
-        int i = txt.indexOf('.');
-        if (i >= 0)
-            return txt.substring(i+1);
-        else
-            return "";
-    }
-    
     
     private void DecodeMediaItem() {
 
         boolean decodeVideo = chkVideo.getModel().isSelected();
         boolean decodeAudio = chkAudio.getModel().isSelected();
         
-        final SavingOptions oOptions = new SavingOptions(m_oVidMedia, m_sVidBaseName, decodeVideo, decodeAudio);
+        final SavingOptions oOptions = new SavingOptions(m_oVidMedia);
+        oOptions.setDecodeVideo(decodeVideo);
+        oOptions.setDecodeAudio(decodeAudio);
 
         oOptions.setFolder(new File(txtFolder.getText()));
         
         if (decodeVideo) {
-            
-            oOptions.setVideoFilenameExt(getExt(txtFileNameVideo));
+            oOptions.setVidFilename(txtFileNameVideo.getText());
+            //oOptions.setVideoFilenameBase(m_sVidBaseName);
+            //oOptions.setVideoFilenameExt(Misc.getExt(txtFileNameVideo));
             oOptions.setDoNotCrop(chkDontCrop.getModel().isSelected());
-            oOptions.setFramesPerSecond((Fraction)((DisplayValue)cmbFrameRate.getSelectedItem()).Value);
+            oOptions.setFps((Fraction)((DisplayValue)cmbFrameRate.getSelectedItem()).Value);
             oOptions.setJpegQuality(slideJpegQuality.getValue() / 100.0f);
             oOptions.setUseDefaultJpegQuality(false);
             
-            if (cmbSaveAsVideo.getSelectedItem().equals("avi")) {
-                oOptions.setVideoFormat(SavingOptions.AVI_FORMAT);
-                oOptions.setAviCodec((SavingOptions.AviCodec)cmbFormat.getSelectedItem());
-            } else {
-                oOptions.setVideoFormat((SavingOptions.VideoFormat)cmbFormat.getSelectedItem());
-            }
+            oOptions.setVideoFormat((Formats.Format)cmbFormat.getSelectedItem());
+            
         }
         
         if (decodeAudio) {
-            oOptions.setAudioFilenameBase(m_sAudBaseName);
-            oOptions.setAudioFilenameExt(getExt(txtFileNameAudio));
-            oOptions.setAudioFormat((SavingOptions.AudioFormat)cmbSaveAsAudio.getSelectedItem());
+            oOptions.setAudioFilename(txtFileNameAudio.getText());
+            //oOptions.setAudioFilenameBase(m_sAudBaseName);
+            //oOptions.setAudioFilenameExt(Misc.getExt(txtFileNameAudio));
+            oOptions.setAudioFormat((Formats.Format)cmbSaveAsAudio.getSelectedItem());
         }
 
         Progress oSaveTask = new Progress(
@@ -295,6 +284,8 @@ public class SaveMedia extends javax.swing.JDialog {
                 new Progress.SimpleWorker<Void>() {
                     @Override
                     Void task(final TaskInfo task) throws Exception {
+                        long startTime =System.currentTimeMillis();
+                        task.showMessage("Start: " + startTime);
                         
                         IProgressEventErrorListener oListen = 
                         new IProgressEventErrorListener() {
@@ -315,10 +306,15 @@ public class SaveMedia extends javax.swing.JDialog {
                             }
                         };
                         
-                        Save.DecodeStreaming(
+                        SaverFactory.DecodeStreaming(
                                 oOptions,
                                 oListen
                         );
+                        
+                        long endTime = System.currentTimeMillis();
+                        task.showMessage("End: " + endTime);
+                        long elapsedTimeInSecond = (endTime - startTime) / 1000;                        
+                        task.showMessage("Seconds: " + elapsedTimeInSecond);
                         
                         return null;
                     }
@@ -440,8 +436,8 @@ public class SaveMedia extends javax.swing.JDialog {
         lblJpegQuality.setText("JPEG quality:");
 
         slideJpegQuality.setMinorTickSpacing(25);
-        slideJpegQuality.setPaintLabels(true);
         slideJpegQuality.setPaintTicks(true);
+        slideJpegQuality.setValue(75);
         slideJpegQuality.setModel(modelJpegQuality);
 
         txtJpegQuality.setDocument(modelJpegQuality);
@@ -494,9 +490,9 @@ public class SaveMedia extends javax.swing.JDialog {
                     .add(cmbDecodeQuality, 0, 275, Short.MAX_VALUE)
                     .add(txtFileNameVideo, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 275, Short.MAX_VALUE)
                     .add(org.jdesktop.layout.GroupLayout.TRAILING, panelVideoLayout.createSequentialGroup()
-                        .add(slideJpegQuality, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 237, Short.MAX_VALUE)
+                        .add(slideJpegQuality, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 220, Short.MAX_VALUE)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
-                        .add(txtJpegQuality, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 32, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
+                        .add(txtJpegQuality, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 49, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
                     .add(cmbFormat, 0, 275, Short.MAX_VALUE)
                     .add(cmbFrameRate, 0, 275, Short.MAX_VALUE)
                     .add(panelVideoLayout.createSequentialGroup()
@@ -537,9 +533,9 @@ public class SaveMedia extends javax.swing.JDialog {
                     .add(cmbFormat, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                 .add(panelVideoLayout.createParallelGroup(org.jdesktop.layout.GroupLayout.CENTER)
+                    .add(lblJpegQuality)
                     .add(slideJpegQuality, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .add(txtJpegQuality, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
-                    .add(lblJpegQuality))
+                    .add(txtJpegQuality, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                 .add(panelVideoLayout.createParallelGroup(org.jdesktop.layout.GroupLayout.BASELINE)
                     .add(txtFileNameVideo, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
@@ -710,7 +706,7 @@ public class SaveMedia extends javax.swing.JDialog {
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.BASELINE)
                     .add(lblFolder)
                     .add(btnBrowse)
-                    .add(txtFolder, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 20, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
+                    .add(txtFolder, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 23, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
                 .add(18, 18, 18)
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.BASELINE)
                     .add(chkVideo)
@@ -736,7 +732,7 @@ public class SaveMedia extends javax.swing.JDialog {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnBrowseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBrowseActionPerformed
-        JFileChooser fc = new JFileChooser(".");
+        JFileChooser fc = new BetterFileChooser(".");
         fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         int ret = fc.showOpenDialog(this);
         if (ret == JFileChooser.APPROVE_OPTION) {
@@ -757,11 +753,11 @@ public class SaveMedia extends javax.swing.JDialog {
     }//GEN-LAST:event_cmbFormatActionPerformed
 
     private void txtFileNameVideoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFileNameVideoActionPerformed
-        m_sVidBaseName = getBaseName(txtFileNameVideo);
+        m_sVidBaseName = Misc.getBaseName(txtFileNameVideo);
     }//GEN-LAST:event_txtFileNameVideoActionPerformed
 
     private void txtFileNameVideoFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtFileNameVideoFocusLost
-        m_sVidBaseName = getBaseName(txtFileNameVideo);
+        m_sVidBaseName = Misc.getBaseName(txtFileNameVideo);
     }//GEN-LAST:event_txtFileNameVideoFocusLost
 
     private void chkVideoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_chkVideoActionPerformed
@@ -782,11 +778,11 @@ public class SaveMedia extends javax.swing.JDialog {
     }//GEN-LAST:event_btnSaveActionPerformed
 
     private void txtFileNameAudioActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtFileNameAudioActionPerformed
-        m_sAudBaseName = getBaseName(txtFileNameAudio);
+        m_sAudBaseName = Misc.getBaseName(txtFileNameAudio);
     }//GEN-LAST:event_txtFileNameAudioActionPerformed
 
     private void txtFileNameAudioFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_txtFileNameAudioFocusLost
-        m_sAudBaseName = getBaseName(txtFileNameAudio);
+        m_sAudBaseName = Misc.getBaseName(txtFileNameAudio);
     }//GEN-LAST:event_txtFileNameAudioFocusLost
 
     private void chkAudioActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_chkAudioActionPerformed

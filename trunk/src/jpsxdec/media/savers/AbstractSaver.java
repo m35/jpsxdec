@@ -25,9 +25,10 @@
 
 package jpsxdec.media.savers;
 
+import jpsxdec.media.StopPlayingException;
 import java.io.IOException;
 import jpsxdec.media.PSXMediaStreaming;
-import jpsxdec.util.IProgressListener;
+import jpsxdec.media.IProgressListener;
 
 /** Attaches to PSXMedia classes to handle the physical saving 
  *  of media as the media item is played. */

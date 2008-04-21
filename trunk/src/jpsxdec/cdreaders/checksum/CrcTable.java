@@ -2,8 +2,7 @@
 package jpsxdec.cdreaders.checksum;
 /** This table was ported from cdrdao: crctable.c
  * http://ftp.fmed.uc.pt/pub/OpenBSD/distfiles/cdrdao-1.1.3.src.tar.gz 
- * which is released under the GNU GENERAL PUBLIC LICENSE ver 2.
- */
+ * which is released under the GNU GENERAL PUBLIC LICENSE ver 2. */
 public interface CrcTable {
     
     /*****************************************************************/

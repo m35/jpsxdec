@@ -41,7 +41,7 @@ import jpsxdec.util.SequenceFPIS;
 public class FF9FramePullDemuxerIS implements IWidthHeight 
 {
 
-    private StrFramePushDemuxerIS m_oPushDemuxer;
+    private StrFramePushDemuxer m_oPushDemuxer;
     
     /** The iterator to walk through searching for the the sectors we need */
     AdvancedIOIterator<PSXSector> m_oPsxSectorIterator;
@@ -49,7 +49,7 @@ public class FF9FramePullDemuxerIS implements IWidthHeight
     public FF9FramePullDemuxerIS(PSXSectorRangeIterator oPsxIter, long lngFrame) 
             throws IOException
     {
-        m_oPushDemuxer = new StrFramePushDemuxerIS(lngFrame);
+        m_oPushDemuxer = new StrFramePushDemuxer(lngFrame);
         m_oPsxSectorIterator = oPsxIter;
         FindFrameSectors();
     }

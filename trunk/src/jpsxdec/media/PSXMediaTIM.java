@@ -28,7 +28,6 @@ package jpsxdec.media;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.demuxers.UnknownDataPullDemuxerIS;
 import jpsxdec.sectortypes.PSXSectorUnknownData;
@@ -123,7 +122,7 @@ public class PSXMediaTIM extends PSXMedia {
         PSXSectorRangeIterator oSectIter = GetSectorIterator();
         
         try {
-            InputStream oIS = new UnknownDataPullDemuxerIS(oSectIter);
+            UnknownDataPullDemuxerIS oIS = new UnknownDataPullDemuxerIS(oSectIter);
             return new Tim(oIS);
         } catch (NotThisTypeException ex) {
             throw new IOException("This is not actually a TIM file?");

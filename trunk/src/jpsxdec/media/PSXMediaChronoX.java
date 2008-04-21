@@ -41,6 +41,9 @@ public class PSXMediaChronoX extends PSXMediaSquare {
     private long m_lngStartFrame = -1;
     private long m_lngEndFrame = -1;
     
+    private long m_lngWidth = -1;
+    private long m_lngHeight = -1;
+    
     public PSXMediaChronoX(PSXSectorRangeIterator oSectIterator) 
                 throws NotThisTypeException, IOException 
     {
@@ -67,29 +70,36 @@ public class PSXMediaChronoX extends PSXMediaSquare {
         while (oSectIterator.hasNext()) {
             oPsxSect = oSectIterator.peekNext();
             
-            if ( (oPsxSect instanceof PSXSectorChronoXAudio) || 
-                 (oPsxSect instanceof PSXSectorFrameChunk) )
-            {
-                long lngThisFrame;
-                if (oPsxSect instanceof PSXSectorChronoXAudio)
-                    lngThisFrame = ((PSXSectorChronoXAudio)oPsxSect).getFrameNumber();
+            long lngThisFrame;
+            if (oPsxSect instanceof PSXSectorChronoXAudio) {
+                lngThisFrame = ((PSXSectorChronoXAudio)oPsxSect).getFrameNumber();
+            } else if (oPsxSect instanceof PSXSectorFrameChunk) {
+                PSXSectorFrameChunk oFrmChk = (PSXSectorFrameChunk)oPsxSect;
+                lngThisFrame = oFrmChk.getFrameNumber();
+                if (m_lngWidth < 0)
+                    m_lngWidth = oFrmChk.getWidth();
                 else
-                    lngThisFrame = ((PSXSectorFrameChunk)oPsxSect).getFrameNumber();
+                    if (m_lngWidth != oFrmChk.getWidth())
+                        break;
                 
-                if (lngThisFrame == iCurFrame ||
-                    lngThisFrame == iCurFrame+1) 
-                {
-                    m_lngEndFrame = iCurFrame = lngThisFrame;
-                } else {
-                    break;
-                }
-                
-                m_iEndSector = oPsxSect.getSector();
-                
+                if (m_lngHeight < 0)
+                    m_lngHeight = oFrmChk.getHeight();
+                else
+                    if (m_lngHeight != oFrmChk.getHeight())
+                        break;
             }  else {
                 break; // some other sector type? we're done.
             }
             
+            if (lngThisFrame == iCurFrame ||
+                lngThisFrame == iCurFrame+1) 
+            {
+                m_lngEndFrame = iCurFrame = lngThisFrame;
+            } else {
+                break;
+            }
+
+            m_iEndSector = oPsxSect.getSector();
             
             if (oPsxSect != null && DebugVerbose > 2)
                 System.err.println(oPsxSect.toString());
@@ -104,11 +114,13 @@ public class PSXMediaChronoX extends PSXMediaSquare {
         super(oCD, sSerial, "ChronoX");
         try {
             IndexLineParser parse = new IndexLineParser(
-                    "$| Frames #-#", sSerial);
+                    "$| Frames #-# #x#", sSerial);
 
             parse.skip();
             m_lngStartFrame = parse.get(m_lngStartFrame);
             m_lngEndFrame   = parse.get(m_lngEndFrame);
+            m_lngWidth      = parse.get(m_lngWidth);
+            m_lngHeight     = parse.get(m_lngHeight);
         
         } catch (NumberFormatException ex) {
             throw new NotThisTypeException();
@@ -121,8 +133,9 @@ public class PSXMediaChronoX extends PSXMediaSquare {
     }
     public String toString() {
         return super.toString("ChronoX") + String.format(
-                "| Frames %d-%d",
-                m_lngStartFrame, m_lngEndFrame);
+                "| Frames %d-%d %dx%d",
+                m_lngStartFrame, m_lngEndFrame,
+                m_lngWidth, m_lngHeight);
     }
 
     public int getMediaType() {
@@ -147,6 +160,16 @@ public class PSXMediaChronoX extends PSXMediaSquare {
     @Override
     public long getEndFrame() {
         return m_lngEndFrame;
+    }
+
+    @Override
+    public long getWidth() {
+        return m_lngWidth;
+    }
+    
+    @Override
+    public long getHeight() {
+        return m_lngHeight;
     }
 
     @Override

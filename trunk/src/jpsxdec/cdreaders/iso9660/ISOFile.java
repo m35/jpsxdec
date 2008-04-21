@@ -20,27 +20,34 @@
  */
 
 /*
- * IProgressListener.java
+ * ISOFile.java
  */
 
-package jpsxdec.util;
+package jpsxdec.cdreaders.iso9660;
 
-/** A general purpose listener interface for reporting progress. */
-public interface IProgressListener {
-    /** Return true to stop, false to continue */
-    boolean ProgressUpdate(String sWhatDoing, double dblPercentComplete);
+import java.io.File;
+
+public class ISOFile extends File {
+
+    private final long m_iStartSector;
+    private final long m_iSize;
     
-    public static interface IProgressEventListener extends IProgressListener {
-        /** Return true to stop, false to continue */
-        boolean ProgressUpdate(String sEvent);
+    public ISOFile(File oDir, String sFileName, long iStartSector, long iSize) {
+        super(oDir, sFileName);
+        m_iStartSector = iStartSector;
+        m_iSize = iSize;
+    }
+
+    public long getLength() {
+        return (m_iSize+2047) / 2048;
+    }
+
+    public long getEndSector() {
+        return m_iStartSector + getLength() - 1;
     }
     
-    public static interface IProgressErrorListener extends IProgressListener {
-        /** Return true to stop, false to continue */
-        void ProgressUpdate(Exception e);
-    }
-    
-    public static interface IProgressEventErrorListener extends IProgressEventListener, IProgressErrorListener {
+    public long getStartSector() {
+        return m_iStartSector;
     }
     
 }

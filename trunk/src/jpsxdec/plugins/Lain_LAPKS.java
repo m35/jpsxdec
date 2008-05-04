@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,8 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import jpsxdec.*;
 import jpsxdec.mdec.MDEC;
-import jpsxdec.uncompressors.StrFrameUncompressor;
+import jpsxdec.videodecoding.CriticalUncompressException;
+import jpsxdec.videodecoding.StrFrameUncompressor;
 import jpsxdec.util.IGetFilePointer;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -108,6 +109,9 @@ public class Lain_LAPKS {
                 //biscreen = addImage(oCell.BitMask, (int)x, (int)y, (int)w, (int)h);
                 ImageIO.write(oCell.BitMask, "png", new File(s + "_mask.png"));
             } 
+        } catch (CriticalUncompressException ex) {
+            ex.printStackTrace();
+            return -1;
         } catch (IOException ex) {
             ex.printStackTrace();
             return -1;

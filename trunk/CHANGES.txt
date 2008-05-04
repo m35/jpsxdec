@@ -1,3 +1,20 @@
+v0.35
+    - NEW SUPER FAST DECODING AVAILABLE!
+    - AVI writing fixed some more.
+    - Filler frames are produced for frames unable to be decoded at all
+      (text of error printed on frame).
+    - Added missing credits and copyrights for code from Joerg Anders's 
+      MPEG player.
+    - Progress window can now be closed by clicking on the X.
+    - Added workaround for Java's 'All files' filter bug.
+    - Fixed scaling of TIM previews in TIM saver window.
+    - Fixed indexing error that can occur in some cases (because of TIM searching).
+    - Added command-line -copysect and -quality options.
+    - Added Chrono Cross handling for all movies on disc 2 except final movie.
+    - Fixed command-line so -debug can always be used.
+    Internals:
+    - Pulled frame identification into its own class.
+    - Changed AviWriter to uses JFIF header instead of AVI1.
 v0.34
     - Command-line options changed, now nicer and uses new parsing lib
     - Cache PSXSector types in iterators for MAJOR speed increase with 
@@ -5,13 +22,14 @@ v0.34
     - Fixed decoding of FF7 without camera data (broke in v0.32 or 0.31)
     - Added new TIM saving GUI that's real snazzy.
     - Removed yuv saving until it is re-implemented properly.
+    - Added -copy and -dir command-line options.
     Internals:
     - Began adding raw CD reading for Windows.
     - Began adding new fast Java decoder (will never be fast enough for real-time).
     - Began adding a native decoder (for real-time playback someday).
     - Fixed indexing error if TIM was being searched at the end of the input file
     - Pulled the actual uncompressing/decoding out of the savers and abstracted 
-      it so decoders can be interchangable.
+      it so decoders can be interchangeable.
     - Lots of new, undocumented classes that will eventually be used for faster decoding.
 v0.33 (development release)
     ! Basically all command-line decoding is disabled and needs to be re-implemented

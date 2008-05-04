@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -45,15 +45,16 @@ import jpsxdec.media.PSXMediaSTR;
 import jpsxdec.sectortypes.PSXSector;
 import jpsxdec.sectortypes.PSXSectorFrameChunk;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
-import jpsxdec.uncompressors.StrFrameRecompressor;
-import jpsxdec.uncompressors.StrFrameUncompressor;
-import jpsxdec.uncompressors.StrFrameUncompressor.Block;
-import jpsxdec.uncompressors.StrFrameUncompressor.MacroBlock;
+import jpsxdec.videodecoding.CriticalUncompressException;
+import jpsxdec.videodecoding.StrFrameRecompressor;
+import jpsxdec.videodecoding.StrFrameUncompressor;
+import jpsxdec.videodecoding.StrFrameUncompressor.Block;
+import jpsxdec.videodecoding.StrFrameUncompressor.MacroBlock;
 
 /** Simple command-line to combine two STR files. Used for Lain sub-titling. */
 public class StrDiffCombine {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, CriticalUncompressException {
 
         if (args.length != 4) {
             String[] sHelp = new String[] {
@@ -178,7 +179,7 @@ public class StrDiffCombine {
             PSXSectorRangeIterator[] oQualityIters, 
             long lngMaximumFrameSize,
             int iFrame) 
-            throws IOException 
+            throws IOException, CriticalUncompressException 
     {
         
         int iWidth = bi1.getWidth();
@@ -238,7 +239,7 @@ public class StrDiffCombine {
             StrFrameRecompressor oOriginalFrame, 
             long lngMaximumFrameSize,
             int iFrame) 
-            throws IOException 
+            throws IOException, CriticalUncompressException 
     {
         
         int iCurrentQuality = oSubTitleQualityIters.length / 2;
@@ -274,7 +275,7 @@ public class StrDiffCombine {
             ArrayList<Point> oDiffMacBlks, 
             PSXSectorRangeIterator oSubtitleIter, 
             StrFrameRecompressor oOriginalFrame, int iFrame) 
-            throws IOException 
+            throws IOException, CriticalUncompressException 
     {
         // uncompress the sub-titled frame
         StrFramePullDemuxerIS oSubtitleDemux = new StrFramePullDemuxerIS(oSubtitleIter, iFrame);

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,71 +26,88 @@
 /* TODO:
  * 
  * GAME SPECIFIC:
- * - Soul Reaver has some 'almost' TIM files. Test these with PsxMC
  * - Soul Reaver 009:TIM is extra wide and saved as jpg looks weird
  * - FF Chronicles has a tim file being saved as blank
  * - That FF7 gold movie has audio and video displacement like no other
- * - Very large audio pop at beginning of jumpingflash2_movie-01.str. Test with other decoders
- * - FF Chron:Chrono Trigger movies are encoded choppy?? Test with other decoders.
- * - Pop at end of 429:XA disc 1. Test with PsxMC
  * - Legend of Mana has 000:TIM with 64 palettes! One being saved all transparent?
+ * - Super Puzzle Figher 2: First movie, last frame is split because audio sector changes format
+ * - Japanese Tekken 3 has subtitles for the english movie? but where is the data for that?
+ * - Chrono Chross final movie - need to add handling for it
+ * - Castlevania seems to have movies with lots of extra frames at the end?
  * 
- * - Linux: 
-        VLC claims avi files are broken. Always shows even after repair
-        mplayer plays MJPG stretched virt and crashes with DIB. 
-                Plays vid upside-down + horz stretched after VLC repair
-        totem shows some messy green stuff in MJPG
+ * - Lots of games have some 'almost' TIM files. Test these with PsxMC
+ * // Very large audio pop at beginning of jumpingflash2_movie-01.str. Test with other decoders. >> None want to play the dang thing.
+ * // FF Chron:Chrono Trigger movies are encoded choppy?? Test with other decoders. -- Seems the same there too
+ * - Pop at end of 429:XA (FF Chron?) disc 1. Test with PsxMC
+ * 
+ * // Linux - VLC claims avi files are broken. Always shows even after repair -- fixed
+ * // Linux - mplayer plays MJPG stretched virt and crashes with DIB. Plays vid upside-down + horz stretched after VLC repair >> mplayer sucks
+ * - linux totem shows some messy green stuff in MJPG -- learn more about MJPG
  * - Linux (Compiz): Progress gui often appears blank, so there's no way to close it
- * ? Make avi saving more robust by writing as much of the header as possible
- *   and updating the frame count, file size, etc in the headers as frames as written,
- *   and maybe even writing the index after each frame, then backing up and
- *   overwriting it with the next frame and then the index again (could really
- *   slow down the writing, maybe provide this as an option?)
+ * // AVI (both types) can't be played in quicktime
+ * 
  * /- Pull the uncompressing and MDEC decoding out of the PSXMedia and put it in
- *   the savers/players.
- * - Organize 2.5 uncompressors: 1) Current straight-forward one
- *                               2) The optimized if-bit-tree one
- *                              .5) The optimized if-bit-tree that immediately 
- *                                  pumps it into MDEC decoding.
- *   and 2.5 MDEC: 1) Current high-quality MDEC that can use high-quality slow as hell IDCT
- *                 2) Current high-quality MDEC that can use high-quality Stephen's IDCT
- *                .5) Combined ultra-fast IDCT with (.5) Uncompressor
- *   And finally create a native lib that will also perform the (.5) case like a bat outta hell
+ *   a decoder factory.
+ * - Make all types of decoders: 1) Debug uncompress 
+ *                               2) Debug MDEC 
+ *                               3) Debug YUV
+ *                               4) Swift Uncompress+MDEC (->YUV)
+ *                               4) Swift Java full decode
+ *                               5) Swift Java Uncompress
+ *                               6) Swift MDEC->RGB
+ *                               7) Native full decode
+ * 
+ * - Figure out how the heck to REALLY handle variable frame rates (Alice)
+ * - No thanks to Puzzle Figher 2, it may finally be time to take PsxMC's decoding approach
  * 
  * - Create a "player" (like a saver) that watches how much time has elapsed
  *   and skips decoding frames as necessary.
+ * /- add crazy super fast native decoder
+ * - add swift Java decoder
+ * - add swift Java uncompressor
  * - Create a separate class for demux and mdec 'image' saving 
  * 
  * - Add abstract protected function "IdentifySector()" in MediaStreaming
  *   to more quickly figure out what type of sectors are read (since it won't
  *   have to go through the whole list of like 10 types).
  * 
+ * - Raw CD reading seems fickle and often won't return raw sectors for certain
+ *   sector/track types. Figure out how to skip a bulk of such sector types
+ *   so raw CD reading isn't so slow.
+ * - add the audio channel # to STR serialization (handy reference)
  * - inform user if corrupted data is found while reading sectors
- * - unify the audio/video format handling so i'm not just passing strings around
  * - Re-add storing the saving folder to ini file
- * - Figure out why jlist has empty entries at the end
+ * - Figure out how netbeans uses a folder chooser so I can use it too
  * - Add some checking during index file load to stop a 600mb scan of death
+ * - Change IndexLineParser to just use regex for parsing
  * - change TIM serialization to include how many palettes it has
  * - change gui to use JFileChooser
  * - clean up main
- * // add tim decoding gui
- * ! unify Settings and SaveOpions classes
- * ! add the more thorough searching for TIM files to PSXMedia. do it like
+ * - add the more thorough searching for TIM files to PSXMedia. do it like
  *   XA searching with a static function in PSXMediaTIM
- * ! Progress gui- when fatal exception occurs, throw the stack trace into the text box
+ * /- fix avi saving
+ * !! TODO: Give credits for Yuv2Rgb function
+ * /! add option to select the IDCT
+ * // Find license file mentioned in FileNameExtensionFilter
+ * /! Combine all video decoding into one package
+ * /! make progress window closable
  * ? make playback listeners more robust by allowing any number of listeners
  * - add volume option to gui
- * - make IDCT easier to interchange
+ * /- make IDCT easier to interchange
  * - test test test
  * - in progress gui, setup a timer to only update the display at most every second 
  * - combine IProgressListener and Progress gui interfaces so there is only one
- * - Change IndexLineParser to just use regex for parsing
+ * // unify the audio/video format handling so i'm not just passing strings around
+ * // Figure out why jlist has empty entries at the end
+ * // add tim decoding gui
+ * // unify CommandLine and SaveOpions classes
+ * // Progress gui- when fatal exception occurs, throw the stack trace into the text box
  * 
  * - change media list to be a tree list showing all the files on the disc
  *   and what media belongs to what file. if not a disc image, just show
  *   the file name and the media it contains
  * - visually populate the list as the disc/file is being indexed
- * - use ISO9660 to help name media items
+ * * use ISO9660 to help name media items
  * - add MediaVideo.DecodeFrame for quick thumbnailing
  * - add best guess for Audio2048 properties so fps calc has a chance to figure it out
  * 
@@ -100,33 +117,23 @@
  *   so multiple images can be written to the same stream
  * - fix output of YUV images to adjust for yuv4mpeg2 color space
  * 
- * /- change Settings class to use a tiered architecture, remvoing
+ * - to pipe to ffmpeg/mencoder (on Linux only), use named pipes and write yuv data to one
+ *   and audio data to the other.
+ * 
+ * /- change CommandLine class to use a tiered architecture, remvoing
  *   elements from the array as we find matching commands and passing the
  *   rest furthur down the stream
  * 
  * // Finish encoder gui.
- * // Find if XA is interleaved in Saiyuki
  * // Test the new games
- * // Figure out chrono cross audio format
  * // Add jpeg quality settings to AviWriter MJPG output
- * // Demuxer: Use ArrayList to hold sectors
- * // rename .0rlc to .mdec
- * // add TIM writing
- * // Change architechture to use Push. Unify the interface for
- *   movie, xa, and image. Create listener interface for each
- * // Rearrage CDXASector so submode is its own class, and referring it can be
- *   via sector.getSubmode.getByte(), sector.getSubmode.getEofMarker(), etc
- * // Probably get rid of VideoFrameConverter instance stuff, and move the
- *   static stuff into PSXMedia.java
- * // Perhaps put the ADPCMdecoder code into StrAudioDemuxerDecoder and FF8AudioDemuxerDecoder
- * // Create entire separate classes for 'play' decoding to the different major types of media
  *
  * OPTIMIZE:
  * // All InputStreams: implement read(byte[]) methods for hopefully faster reading.
  * - audio decoding: Str audio write directly to byte array and use ByteArrayInputStream
  *                   Square audio write directy to byte array and use a Byte2DArrayInputStream
  *                   or write to an InterleavedShort2DArrayOutputStream
- * ? don't use streams to read headers, just pass the original byte array and read values out of it
+ * // don't use streams to read headers, just pass the original byte array and read values out of it
  * 
  * /- finish STR format documentation
  * - make code documentation
@@ -139,15 +146,20 @@
  * OPTIONS:
  * - need to clean up plugin command-line
  * - add option to set 24/16 bit color, or yuv420/yuv422
- * - add option to select the IDCT
- * - add option to ignore checks and just decode whatever it can (probably part of --decode-frame/--decode-audio)
- * - add option to copy str/xa sectors from image
+ * - add option to walk through a file byte by byte to find any compressed mdec data
+ * xx add option to ignore checks and just decode whatever it can (probably part of --decode-frame/--decode-audio)
+ * /- add option to copy str/xa sectors from image
  * - add --format option to LAPKS
  * - add --nocrop option
- * - add option to save audio to the other formats
+ * // add option to save audio to the other formats
  *
  * CONSIDER:
- * ? get rid of mdec & yuv listener. the demux istener must handle the rest of the decoding.
+ * ? Make avi saving more robust by writing as much of the header as possible
+ *   and updating the frame count, file size, etc in the headers as frames as written,
+ *   and maybe even writing the index after each frame, then backing up and
+ *   overwriting it with the next frame and then the index again (could really
+ *   slow down the writing, maybe provide this as an option?)
+ * // get rid of mdec & yuv listener. the demux istener must handle the rest of the decoding.
  * ? Consider making PSXSector just a subclass of CDXASector
  *
  * FUTURE VERSIONS:
@@ -173,7 +185,6 @@ import javax.sound.sampled.*;
 import jpsxdec.cdreaders.CDXAIterator;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.cdreaders.iso9660.ISOFile;
-import jpsxdec.cdreaders.iso9660.PathTableBE;
 import jpsxdec.cdreaders.iso9660.TestISO;
 import jpsxdec.cdreaders.iso9660.VolumePrimaryDescriptor;
 import jpsxdec.mdec.MDEC;
@@ -185,15 +196,16 @@ import jpsxdec.media.savers.*;
 import jpsxdec.media.savers.Formats.ImgSeqVidFormat;
 import jpsxdec.plugins.*;
 import jpsxdec.sectortypes.*;
-import jpsxdec.uncompressors.StrFrameUncompressor;
+import jpsxdec.videodecoding.CriticalUncompressException;
+import jpsxdec.videodecoding.StrFrameUncompressor;
 import jpsxdec.util.*;
 
 public class Main {
     
     public static int DebugVerbose = 2;
-    public final static String Version = "0.34(beta)";
+    public final static String Version = "0.35(beta)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
-    private static Settings m_oMainSettings;
+    private static CommandLine m_oMainSettings;
 
     private static void timsearch() {
         try {
@@ -245,7 +257,7 @@ public class Main {
         
         //timsearch(); // test
         
-        m_oMainSettings = new Settings(args);
+        m_oMainSettings = new CommandLine(args);
 
         if (m_oMainSettings.gotDebug()) {
             // set verbosity
@@ -257,7 +269,12 @@ public class Main {
             MDEC.DebugVerbose = aiVerbosityLevels[4];
         }
         
-        if (m_oMainSettings.getMainCommand() == Settings.MAIN_CMD_STARTGUI) {
+        if (DebugVerbose >= 3)
+            System.err.println(System.getProperty("java.class.path"));
+        if (DebugVerbose >= 3)
+            System.err.println(System.getProperty("java.library.path"));
+        
+        if (m_oMainSettings.getMainCommand() == CommandLine.MAIN_CMD_STARTGUI) {
             java.awt.EventQueue.invokeLater(new Runnable() {
 
                 public void run() {
@@ -274,24 +291,27 @@ public class Main {
             System.err.println(VerString);
         
         switch (m_oMainSettings.getMainCommand()) {
-            case Settings.MAIN_CMD_INDEX:
+            case CommandLine.MAIN_CMD_INDEX:
                 System.exit(IndexOnly());
                 break;
-            case Settings.MAIN_CMD_DECODE:
+            case CommandLine.MAIN_CMD_DECODE:
                 System.exit(NormalDecode());
                 break;
-            case Settings.MAIN_CMD_SPECIALFILE:
+            case CommandLine.MAIN_CMD_SPECIALFILE:
                 System.exit(DecodeSpecialFrameFile());
                 break;
-            case Settings.MAIN_CMD_SECTORDUMP:
+            case CommandLine.MAIN_CMD_SECTORDUMP:
                 System.exit(SectorList());
                 break;
-            case Settings.MAIN_CMD_PLUGIN:
+            case CommandLine.MAIN_CMD_PLUGIN:
                 System.exit(Plugin());
                 break;
-            case Settings.MAIN_CMD_DIR:
-            case Settings.MAIN_CMD_COPY:
+            case CommandLine.MAIN_CMD_DIR:
+            case CommandLine.MAIN_CMD_COPY:
                 System.exit(DirCopy());
+                break;
+            case CommandLine.MAIN_CMD_COPYSECT:
+                System.exit(CopySectors());
                 break;
         }
         
@@ -300,19 +320,51 @@ public class Main {
     
     //--------------------------------------------------------------------------
     
+    private static int CopySectors() {
+        //open input file
+        CDSectorReader oCD;
+        try {
+            oCD = CDSectorReader.Open(m_oMainSettings.getInputFile());
+
+            int[] aiSectors = m_oMainSettings.getSectorsToCopy();
+            
+            CDXAIterator oCDIter = new CDXAIterator(oCD, aiSectors[0], aiSectors[1]);
+            
+            if (DebugVerbose > 0)
+                System.err.println("Copying sectors " + aiSectors[0] + " to " + aiSectors[1]);
+            
+            FileOutputStream fos = new FileOutputStream(
+                    m_oMainSettings.constructOutPath(m_oMainSettings.getInputFileBase()
+                    + aiSectors[0] + "-" + aiSectors[1] + ".dat"));
+            
+            while (oCDIter.hasNext()) {
+                CDXASector oSect = oCDIter.next();
+                if (oSect == null) {
+                    //todo err
+                } else {
+                    fos.write(oSect.getRawSectorData());
+                }
+            }
+            
+            fos.close();
+            
+            return 0;
+            
+        } catch (IOException ex) {
+            if (DebugVerbose > 2)
+                ex.printStackTrace();
+            else if (DebugVerbose > 0)
+                System.err.println(ex.getMessage());
+            return -1;
+        }
+    }
+    
     private static int DirCopy() {
         //open input file
         CDSectorReader oCD;
         try {
             oCD = CDSectorReader.Open(m_oMainSettings.getInputFile());
         
-            if (!oCD.HasSectorHeader()) {
-                if (DebugVerbose > 0) {
-                    System.err.println("Copying a CD type file without a header seems kinda useless?");
-                }
-                return -1;
-            }
-
             VolumePrimaryDescriptor vpd = 
                     new VolumePrimaryDescriptor(oCD.getSector(16).getSectorDataStream());
             
@@ -327,20 +379,27 @@ public class Main {
             ISOFile fileToCopy = null;
             
             for (ISOFile ofile : oFileList) {
-                if (m_oMainSettings.getMainCommand() == Settings.MAIN_CMD_DIR) {
+                if (m_oMainSettings.getMainCommand() == CommandLine.MAIN_CMD_DIR) {
                     System.out.println(ofile.getPath() 
                             + " " + ofile.getStartSector() + "-" + 
                             ofile.getEndSector());
-                } else if (m_oMainSettings.getMainCommand() == Settings.MAIN_CMD_COPY) {
+                } else if (m_oMainSettings.getMainCommand() == CommandLine.MAIN_CMD_COPY) {
                     if (ofile.getPath().equals(m_oMainSettings.getFileToCopy())) {
                         fileToCopy = ofile;
                     }
                 }
             }
             
-            if (m_oMainSettings.getMainCommand() == Settings.MAIN_CMD_DIR)
+            if (m_oMainSettings.getMainCommand() == CommandLine.MAIN_CMD_DIR)
                 return 0;
             
+            if (!oCD.HasSectorHeader()) {
+                if (DebugVerbose > 0) {
+                    System.err.println("Copying files out of a CD image without raw headers seems kinda useless?");
+                }
+                return -1;
+            }
+
             if (fileToCopy != null)
                 System.out.println("Going to copy " + fileToCopy.toString());
             else {
@@ -531,7 +590,7 @@ public class Main {
         // decode the desired media item(s)
         try {
             
-            if (m_oMainSettings.getDecodeIndex() == Settings.DECODE_ALL) {
+            if (m_oMainSettings.getDecodeIndex() == CommandLine.DECODE_ALL) {
                 
                 for (PSXMedia oMedia : oHandler) {
                     System.err.println(oMedia.toString());
@@ -626,10 +685,10 @@ public class Main {
         oOptions.setDecodeAudio(m_oMainSettings.decodeAudio());
         
         if (m_oMainSettings.gotOutputFile()) {
-        
             oOptions.setVideoFilenameBase(m_oMainSettings.getOutputFile());
             oOptions.setAudioFilenameBase(m_oMainSettings.getOutputFile());
         }
+        
         if (m_oMainSettings.gotOutputFolder()) 
             oOptions.setFolder(new File(m_oMainSettings.getOutputFolder()));
         
@@ -643,6 +702,9 @@ public class Main {
             oOptions.setStartFrame(m_oMainSettings.getStartFrame());
             oOptions.setEndFrame(m_oMainSettings.getEndFrame());
         }
+        
+        if (m_oMainSettings.gotDecoder())
+            oOptions.setDecodeQuality(m_oMainSettings.getDecoder());
         
         if (m_oMainSettings.gotFps())
             oOptions.setFps(m_oMainSettings.getFps());
@@ -810,7 +872,7 @@ public class Main {
             InputStream str, 
             long lngWidth,
             long lngHeight) 
-            throws IOException 
+            throws IOException
     {
         
         if (str instanceof IWidthHeight) {
@@ -830,7 +892,12 @@ public class Main {
             }
 
             
-            str = new StrFrameUncompressor(str, lngWidth, lngHeight).getStream();
+            try {
+                str = new StrFrameUncompressor(str, lngWidth, lngHeight).getStream();
+            } catch (CriticalUncompressException ex) {
+                ex.printStackTrace(System.err);
+                return;
+            }
             if (sOutputFormat.equals("mdec")) {
                 FileOutputStream fos = new FileOutputStream(sFrameFile);
                 int ib;

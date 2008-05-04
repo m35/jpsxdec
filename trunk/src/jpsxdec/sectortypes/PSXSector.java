@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -124,7 +124,7 @@ public abstract class PSXSector {
         m_lngSectorFilePointer = oCDSect.getFilePointer();
         m_abUserData = oCDSect.getSectorDataStream();
         if (oCDSect.hasSectorHeader())
-            m_sSubMode = " Submode:" + oCDSect.getSubMode().toString();
+            m_sSubMode = " Subcode:" + oCDSect.getSubMode().toString();
         else
             m_sSubMode = "";
     }

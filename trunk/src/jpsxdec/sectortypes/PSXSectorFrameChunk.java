@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,6 +41,7 @@ public class PSXSectorFrameChunk extends PSXSector
     // .. Static stuff .....................................................
 
     public static final long VIDEO_CHUNK_MAGIC = 0x80010160;
+    public static final long VIDEO_CHUNK_MAGIC_CHRONO_CROSS = 0x81010160;
     public static final int FRAME_CHUNK_HEADER_SIZE = 32;
 
     // .. Instance fields ..................................................
@@ -80,7 +81,8 @@ public class PSXSectorFrameChunk extends PSXSector
             throws NotThisTypeException, IOException 
     {
         m_lngMagic = IO.ReadUInt32LE(oBAIS);
-        if (m_lngMagic != VIDEO_CHUNK_MAGIC)
+        // TODO: This extra Chrono Cross hack is ugly, fix it
+        if (m_lngMagic != VIDEO_CHUNK_MAGIC && m_lngMagic != VIDEO_CHUNK_MAGIC_CHRONO_CROSS)
             throw new NotThisTypeException();
 
         m_lngChunkNumber = IO.ReadUInt16LE(oBAIS);

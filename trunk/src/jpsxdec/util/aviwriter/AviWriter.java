@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -41,7 +41,6 @@ import javax.imageio.ImageWriter;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
-import jpsxdec.util.IO;
 import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
 
 /**
@@ -298,7 +297,7 @@ public class AviWriter {
                     strf_vid.endChunk(raFile);
                     
                 LIST_strl_vid.endChunk(raFile);
-
+                
                 if (m_iChannels > 0) { // if there is audio
                 LIST_strl_aud = new Chunk(raFile, "LIST", "strl");
 
@@ -382,15 +381,15 @@ public class AviWriter {
         if (m_iBytesPerSample < 0)
         {}//m_iBytesPerSample = fmt.getFrameSize();
         else if (fmt.getSampleSizeInBits() != m_iBytesPerSample * 8)
-            throw new IOException();
+            throw new IOException("The bytes per sample don't match.");
         
         if (m_iChannels != fmt.getChannels())
-            throw new IOException();
+            throw new IOException("The number of audio channels don't match.");
         
         if (m_iSamplesPerSecond < 0)
             m_iSamplesPerSecond = (int)fmt.getSampleRate();
         else if (m_iSamplesPerSecond != (int)fmt.getSampleRate())
-            throw new IOException();
+            throw new IOException("The sample rate doesn't match.");
         
         Chunk data_size;
 
@@ -430,13 +429,18 @@ public class AviWriter {
 
         if (blnIsVideo) { // if video
 
-            idxentry.dwChunkId = AVIstruct.string2int("00db");
+            String sChunkId;
+            if (m_blnMJPG)
+                sChunkId = "00dc";  // dc for compressed frame
+            else
+                sChunkId = "00db";  // db for uncompressed frame
+            idxentry.dwChunkId = AVIstruct.string2int(sChunkId);
             idxentry.dwFlags = AVIOLDINDEX.AVIIF_KEYFRAME; // Write the flags - select AVIIF_KEYFRAME
                                                            // AVIIF_KEYFRAME 0x00000010L
                                                            // The flag indicates key frames in the video sequence.
             m_iFrameCount++;
             
-            data_size = new Chunk(raFile, "00db");
+            data_size = new Chunk(raFile, sChunkId);
         } else { // if audio
             // TODO: Maybe have better handling if half a sample is provided
             if (abData.length % m_iBytesPerSample != 0 || 
@@ -491,7 +495,7 @@ public class AviWriter {
         //avih.fcc                 = 'avih';  // the avih sub-CHUNK
         //avih.cb                  = 0x38;    // the length of the avih sub-CHUNK (38H) not including the
                                               // the first 8 bytes for avihSignature and the length            
-        avih.dwMicroSecPerFrame    = (int)((m_iFrames/(double)m_iPerSecond)*1.0e6);
+        avih.dwMicroSecPerFrame    = (int)((m_iPerSecond/(double)m_iFrames)*1.0e6);
         avih.dwMaxBytesPerSec      = 0;       // (maximum data rate of the file in bytes per second)
         avih.dwPaddingGranularity  = 0;
         avih.dwFlags               = AVIMAINHEADER.AVIF_HASINDEX | 
@@ -624,7 +628,7 @@ public class AviWriter {
             wavfmt.nAvgBytesPerSec  = m_iBytesPerSample * m_iSamplesPerSecond * m_iChannels;
             wavfmt.nBlockAlign      = (short)(m_iBytesPerSample * m_iChannels);
             wavfmt.wBitsPerSample   = m_iBytesPerSample * 8;
-            //wavfmt.cbSize           = 0; // ignored                
+            //wavfmt.cbSize           = 0; // not written                
 
         }
         
@@ -747,16 +751,19 @@ public class AviWriter {
     }
     
     
-    /** Converts JPEG file data to be used in an MJPG AVI. The 4 byte
-     *  'JFIF' magic number at offset 6 just needs to be changed to
-     *  'AVI1'. */
+    /** Converts JPEG file data to be used in an MJPG AVI. */
     private static void JPEG2MJPEG(byte [] ab) throws IOException {
         if (ab[6] != 'J' || ab[7] != 'F' || ab[8] != 'I' || ab[9] != 'F')
             throw new IOException("JFIF header not found in jpeg data, unable to write frame to AVI.");
+        // http://cekirdek.pardus.org.tr/~ismail/ffmpeg-docs/mjpegdec_8c-source.html#l00869
+        // ffmpeg treats the JFIF and AVI1 header differently. It's probably
+        // safer to stick with standard JFIF header since that's what JPEG uses.
+        /*
         ab[6] = 'A';
         ab[7] = 'V';
         ab[8] = 'I';
         ab[9] = '1';
+        */
     }
     
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,14 +34,14 @@ import jpsxdec.util.NotThisTypeException;
 
 public class CDDriveSectorReaderWin extends CDSectorReader {
 
+    private final static int SECTORS_TO_BUFFER = 128;
+
     private char m_cSrcDrive;
     private int m_iDiscSize;
     private int m_iFirstBufferedSector = -1;
     private int m_iBufferedSectorLength = -1;
     private final byte[] m_abBufferedSectors = new byte[SECTORS_TO_BUFFER * RawCdRead.RAW_SECTOR_SIZE];
     
-    private final static int SECTORS_TO_BUFFER = 128;
-
     public CDDriveSectorReaderWin(char cDrive) throws IOException {
         RawCdRead.Open(cDrive);
         m_cSrcDrive = cDrive;
@@ -76,14 +76,20 @@ public class CDDriveSectorReaderWin extends CDSectorReader {
         }
         
         if (m_iFirstBufferedSector < 0) {
-            m_iFirstBufferedSector = iSector;
             if (iSector + SECTORS_TO_BUFFER > m_iDiscSize)
                 m_iBufferedSectorLength = m_iDiscSize - iSector;
             else
                 m_iBufferedSectorLength = SECTORS_TO_BUFFER;
             
-            RawCdRead.ReadSector(iSector, m_abBufferedSectors, m_iBufferedSectorLength);
-            /*
+            try {
+                RawCdRead.ReadSector(iSector, m_abBufferedSectors, m_iBufferedSectorLength);
+                // only if no error is thrown do we want to flag that we have cached sectors
+                m_iFirstBufferedSector = iSector;
+            } catch (SectorReadErrorException ex) {
+                return null;
+            }
+            
+            /*  // DEBUG
             FileOutputStream fos = new FileOutputStream("test.dat");
             fos.write(m_abBufferedSectors);
             fos.close();
@@ -102,6 +108,7 @@ public class CDDriveSectorReaderWin extends CDSectorReader {
             // Some possible causes:
             //  - It's a raw CD audio sector
             //  - XA audio data is incorrect (corrupted)
+            //throw new SectorReadErrorException("Sector " + iSector + " appears to be corrupted.");
             return null;
         }
     }
@@ -127,4 +134,9 @@ public class CDDriveSectorReaderWin extends CDSectorReader {
         super.finalize();
     }
     
+    @Override
+    public String toString() {
+        return "SourceFile|" + getSourceFile() 
+                + "|" + m_iDiscSize;
+    }
 }

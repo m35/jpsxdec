@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -97,7 +97,13 @@ public class PsxYuvInt {
     private final static int CB_FAC = 0x1C5A2;             /* 1.772   * 2^16 */
     private final static int CR_DIFF_FAC = 0xB6DC;         /* 0.7143 * 2^16 */
     private final static int CB_DIFF_FAC = 0x57FD;         /* 0.3437 * 2^16 */
-
+    /** This function, and related constants, are originally from 
+     *  Joerg Anders's MPG-1 player. Copyright Joerg Anders, licensed under
+     *  GNU GENERAL PUBLIC LICENSE Version 2.
+     *  http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html
+     * <p>
+     *  Modified to work with jpsxdec and the unique Playstation quirks.
+     */
     private static void YCbCr2RGB(
             int PixelsY[], int PixelsCb[], int PixelsCr[], 
             int PixelsRGB[],

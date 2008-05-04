@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -50,7 +50,7 @@ public class PSXSectorAliceFrameChunk extends PSXSector
     protected long m_lngChunksInThisFrame;    //  6    [2 bytes]
     protected long m_lngFrameNumber;          //  8    [4 bytes]
     protected long m_lngChunkDuration;        //  12   [4 bytes] (frame duration?)
-    // 16 bytes -- zeros
+    // 16 bytes -- zeros?
     //   32 TOTAL
     // .. Constructor .....................................................
 
@@ -88,6 +88,10 @@ public class PSXSectorAliceFrameChunk extends PSXSector
         m_lngFrameNumber &= 0x3FFF; // the high bit signifys the end of a video
         
         m_lngChunkDuration = IO.ReadUInt32LE(oBAIS);
+        
+        for (int i = 0; i < 16; i++)
+            if (oBAIS.read() != 0)
+                throw new NotThisTypeException();
 
     }
 

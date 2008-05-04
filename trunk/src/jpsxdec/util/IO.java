@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -61,6 +61,9 @@ public final class IO {
         if (i < 0) throw new EOFException();
         return i;
     }
+    public static int ReadUInt8(byte[] ab, int i) {
+        return ab[i] & 0xFF;
+    }
     
     /** Reads little-endian 16 bits from InputStream. 
      *  Throws an exception if at the end of the stream. */
@@ -72,6 +75,13 @@ public final class IO {
         int b2 = oIS.read();
         if (b2 < 0)
             throw new EOFException("Unexpected end of file in ReadUInt16LE");
+        return (b2 << 8) | b1;
+    }
+    
+    public static long ReadUInt16LE(byte[] ab, int i) 
+    {
+        int b1 = ab[i] & 0xFF;
+        int b2 = ab[i+1] & 0xFF;
         return (b2 << 8) | b1;
     }
     
@@ -140,6 +150,15 @@ public final class IO {
         long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
         if (total == -1) throw 
                new IOException("Reading of unsigned 32 bits 0xFFFFFFFF -> -1");
+        return total;
+    }
+    
+    public static long ReadUInt32LE(byte[] ab, int i) {
+        int b1 = ab[i] & 0xFF;
+        int b2 = ab[i+1] & 0xFF;
+        int b3 = ab[i+2] & 0xFF;
+        int b4 = ab[i+3] & 0xFF;
+        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
         return total;
     }
     

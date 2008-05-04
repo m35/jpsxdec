@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,14 +42,17 @@ public class TIMPaletteCheck extends javax.swing.JPanel {
 
     @Override
     protected void paintChildren(Graphics g) {
-        int iWidth = this.getWidth() - 2;
-        int iHeight = this.getHeight() - 2;
+        int iWidth = this.getWidth() - 4;
+        int iHeight = this.getHeight() - 4;
+        
+        double dblHScale = iWidth / (double)m_obi.getWidth();
+        double dblVScale = iHeight / (double)m_obi.getHeight();
         
         double dblScale;
-        if (iWidth < iHeight)
-            dblScale = iWidth / (double)m_obi.getWidth();
+        if (dblHScale < dblVScale)
+            dblScale = dblHScale;
         else
-            dblScale = iHeight / (double)m_obi.getHeight();
+            dblScale = dblVScale;
         
         if (dblScale > 2) dblScale = 2;
         

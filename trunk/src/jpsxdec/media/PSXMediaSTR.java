@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,15 +44,15 @@ import jpsxdec.sectortypes.PSXSectorFrameChunk;
 import jpsxdec.sectortypes.PSXSectorNull;
 import jpsxdec.audiodecoding.Short2dArrayInputStream;
 import jpsxdec.sectortypes.IVideoChunkSector;
-import jpsxdec.sectortypes.PSXSectorAliceFrameChunk;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.Misc;
 
 
 /** Represents standard STR movies, and STR movies that deviate slightly from
- *  standard STR movies: Lain and FF7. */
+ *  standard STR movies, such as Lain and FF7. */
 public class PSXMediaSTR extends PSXMediaStreaming 
 {
+    // TODO: This list is getting too long, should probably try to unify it somehow
     /** List of many theoretically possible 
      * sectors/frame and sectors/audio combinations.
      * @see StrFpsCalc */
@@ -112,7 +112,7 @@ public class PSXMediaSTR extends PSXMediaStreaming
     private int m_iAudioSampleRate = -1;
     private int m_iAudioBitsPerSample = -1;
     
-    /** 0 if it doesn't have audio, >0 if it does */
+    /** 0 if it doesn't have audio, 1 or 2 if it does */
     private long m_lngAudioTotalSamples = 0;
     
     private final FramesPerSecond[] m_aoPossibleFps;
@@ -125,8 +125,7 @@ public class PSXMediaSTR extends PSXMediaStreaming
         
         PSXSector oPsxSect = oSectIterator.peekNext();
         
-        if (!(oPsxSect instanceof PSXSectorFrameChunk) &&
-            !(oPsxSect instanceof PSXSectorAliceFrameChunk))
+        if (!(oPsxSect instanceof PSXSectorFrameChunk))
             throw new NotThisTypeException();
         
         IVideoChunkSector oFrame;
@@ -158,8 +157,7 @@ public class PSXMediaSTR extends PSXMediaStreaming
                 // just skip it
             } else if (oPsxSect instanceof PSXSectorAudio2048) {
                 // just skip it
-            } else if ((oPsxSect instanceof PSXSectorFrameChunk) || 
-                       (oPsxSect instanceof PSXSectorAliceFrameChunk)) 
+            } else if ((oPsxSect instanceof PSXSectorFrameChunk)) 
             {
                         
                 oFrame = (IVideoChunkSector) oPsxSect;

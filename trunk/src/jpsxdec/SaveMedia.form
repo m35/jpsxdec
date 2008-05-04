@@ -35,7 +35,7 @@
                       <EmptySpace min="10" pref="10" max="10" attributes="0"/>
                       <Component id="lblFolder" min="-2" max="-2" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
-                      <Component id="txtFolder" pref="257" max="32767" attributes="0"/>
+                      <Component id="txtFolder" pref="230" max="32767" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
                       <Component id="btnBrowse" min="-2" max="-2" attributes="0"/>
                   </Group>
@@ -45,7 +45,7 @@
                           <Component id="panelVideo" alignment="1" max="32767" attributes="2"/>
                           <Group type="102" alignment="0" attributes="0">
                               <Component id="chkVideo" min="-2" max="-2" attributes="0"/>
-                              <EmptySpace pref="178" max="32767" attributes="0"/>
+                              <EmptySpace pref="151" max="32767" attributes="0"/>
                               <Component id="lblSaveAsVideo" min="-2" max="-2" attributes="0"/>
                               <EmptySpace max="-2" attributes="0"/>
                               <Component id="cmbSaveAsVideo" min="-2" max="-2" attributes="0"/>
@@ -56,18 +56,17 @@
                       <EmptySpace max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
                           <Group type="102" alignment="1" attributes="0">
-                              <EmptySpace pref="224" max="-2" attributes="0"/>
-                              <Component id="btnCancel" min="-2" pref="75" max="-2" attributes="0"/>
+                              <Component id="btnCancel" min="-2" pref="92" max="-2" attributes="0"/>
                               <EmptySpace max="-2" attributes="0"/>
-                              <Component id="btnSave" min="-2" pref="75" max="-2" attributes="0"/>
+                              <Component id="btnSave" min="-2" pref="92" max="-2" attributes="0"/>
                           </Group>
                           <Component id="panelAudio" alignment="1" max="32767" attributes="0"/>
                           <Group type="102" alignment="0" attributes="0">
                               <Component id="chkAudio" min="-2" max="-2" attributes="0"/>
-                              <EmptySpace pref="173" max="32767" attributes="0"/>
+                              <EmptySpace pref="176" max="32767" attributes="0"/>
                               <Component id="lblSaveAsAudio" min="-2" max="-2" attributes="0"/>
                               <EmptySpace max="-2" attributes="0"/>
-                              <Component id="cmbSaveAsAudio" min="-2" pref="108" max="-2" attributes="0"/>
+                              <Component id="cmbSaveAsAudio" min="-2" max="-2" attributes="0"/>
                           </Group>
                       </Group>
                   </Group>
@@ -83,13 +82,13 @@
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component id="lblFolder" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="btnBrowse" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="txtFolder" alignment="3" min="-2" pref="23" max="-2" attributes="0"/>
+                  <Component id="txtFolder" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace type="separate" max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component id="chkVideo" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="cmbSaveAsVideo" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="lblSaveAsVideo" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="cmbSaveAsVideo" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="panelVideo" min="-2" max="-2" attributes="1"/>
@@ -103,8 +102,8 @@
               <Component id="panelAudio" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
-                  <Component id="btnCancel" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="btnSave" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="btnCancel" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="32767" attributes="0"/>
           </Group>
@@ -161,15 +160,15 @@
                           <EmptySpace type="unrelated" max="-2" attributes="0"/>
                           <Component id="chkDontCrop" min="-2" max="-2" attributes="0"/>
                       </Group>
-                      <Component id="cmbDecodeQuality" alignment="0" pref="275" max="32767" attributes="0"/>
-                      <Component id="txtFileNameVideo" alignment="0" pref="275" max="32767" attributes="0"/>
+                      <Component id="cmbDecodeQuality" alignment="0" pref="248" max="32767" attributes="0"/>
+                      <Component id="txtFileNameVideo" alignment="0" pref="248" max="32767" attributes="0"/>
                       <Group type="102" alignment="1" attributes="0">
-                          <Component id="slideJpegQuality" pref="220" max="32767" attributes="0"/>
+                          <Component id="slideJpegQuality" pref="193" max="32767" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
                           <Component id="txtJpegQuality" min="-2" pref="49" max="-2" attributes="0"/>
                       </Group>
-                      <Component id="cmbFormat" alignment="0" pref="275" max="32767" attributes="0"/>
-                      <Component id="cmbFrameRate" alignment="0" pref="275" max="32767" attributes="0"/>
+                      <Component id="cmbFormat" alignment="0" pref="248" max="32767" attributes="0"/>
+                      <Component id="cmbFrameRate" alignment="0" pref="248" max="32767" attributes="0"/>
                       <Group type="102" attributes="0">
                           <Component id="lblFramesStart" min="-2" max="-2" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
@@ -435,7 +434,7 @@
                       <Component id="lblChannelsValue" alignment="0" min="-2" max="-2" attributes="0"/>
                       <Component id="lblBitsPerSampleValue" alignment="0" min="-2" max="-2" attributes="0"/>
                       <Component id="lblSampleRateValue" alignment="0" min="-2" max="-2" attributes="0"/>
-                      <Component id="txtFileNameAudio" alignment="0" pref="274" max="32767" attributes="0"/>
+                      <Component id="txtFileNameAudio" alignment="0" pref="247" max="32767" attributes="0"/>
                   </Group>
                   <EmptySpace max="-2" attributes="0"/>
               </Group>

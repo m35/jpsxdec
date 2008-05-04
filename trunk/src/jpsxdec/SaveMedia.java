@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +28,6 @@ package jpsxdec;
 import java.io.File;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JFileChooser;
-import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import jpsxdec.media.PSXMediaStreaming;
@@ -37,7 +36,9 @@ import jpsxdec.media.savers.SaverFactory;
 import jpsxdec.media.savers.SavingOptions;
 import jpsxdec.util.Fraction;
 import jpsxdec.media.IProgressListener.IProgressEventErrorListener;
+import jpsxdec.media.savers.Decoders;
 import jpsxdec.media.savers.Formats;
+import jpsxdec.nativeclass.NativeDecoder;
 import jpsxdec.util.Misc;
 
 public class SaveMedia extends javax.swing.JDialog {
@@ -99,11 +100,33 @@ public class SaveMedia extends javax.swing.JDialog {
             DisplayValue[] adv = new DisplayValue[afps.length];
             for (int i = 0; i < adv.length; i++) {
                 adv[i] = new DisplayValue(
-                        String.format("%1.1f fps", afps[i].asDouble()), 
+                        String.format("%1.2f fps", afps[i].asDouble()), 
                         afps[i]);
             }
 
             cmbFrameRate.setModel(new DefaultComboBoxModel(adv));
+        }
+        
+        ////////////////////////////////////////////////////////////////////////
+        if (NativeDecoder.hasNativeDecoder()) {
+            cmbDecodeQuality.setModel(new DefaultComboBoxModel(
+                new DisplayValue[] {
+                    new DisplayValue("Fastest native (lower quality)", Decoders.NATIVE_DECODER),
+                    new DisplayValue("Fast (lower quality)", Decoders.JAVA_FAST_DECODER),
+                    //TODO: The high quality decoder should use Fast uncompressor, but debug MDEC
+                    new DisplayValue("High quality (slower)", Decoders.DEBUG_DECODER),
+                    new DisplayValue("Debug", Decoders.DEBUG_DECODER),
+                }
+            ));
+        } else {
+            cmbDecodeQuality.setModel(new DefaultComboBoxModel(
+                new DisplayValue[] {
+                    new DisplayValue("Fast (lower quality)", Decoders.JAVA_FAST_DECODER),
+                    //TODO: The high quality decoder should use Fast uncompressor, but debug MDEC
+                    new DisplayValue("High quality (slower)", Decoders.DEBUG_DECODER),
+                    new DisplayValue("Debug", Decoders.DEBUG_DECODER),
+                }
+            ));
         }
     }
     
@@ -257,6 +280,10 @@ public class SaveMedia extends javax.swing.JDialog {
         oOptions.setDecodeAudio(decodeAudio);
 
         oOptions.setFolder(new File(txtFolder.getText()));
+        
+        oOptions.setDecodeQuality(
+            (Integer)((DisplayValue)cmbDecodeQuality.getSelectedItem()).Value
+        );
         
         if (decodeVideo) {
             oOptions.setVidFilename(txtFileNameVideo.getText());
@@ -487,14 +514,14 @@ public class SaveMedia extends javax.swing.JDialog {
                         .add(lblFrameSizeHeight)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.UNRELATED)
                         .add(chkDontCrop))
-                    .add(cmbDecodeQuality, 0, 275, Short.MAX_VALUE)
-                    .add(txtFileNameVideo, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 275, Short.MAX_VALUE)
+                    .add(cmbDecodeQuality, 0, 248, Short.MAX_VALUE)
+                    .add(txtFileNameVideo, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 248, Short.MAX_VALUE)
                     .add(org.jdesktop.layout.GroupLayout.TRAILING, panelVideoLayout.createSequentialGroup()
-                        .add(slideJpegQuality, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 220, Short.MAX_VALUE)
+                        .add(slideJpegQuality, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 193, Short.MAX_VALUE)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                         .add(txtJpegQuality, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 49, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
-                    .add(cmbFormat, 0, 275, Short.MAX_VALUE)
-                    .add(cmbFrameRate, 0, 275, Short.MAX_VALUE)
+                    .add(cmbFormat, 0, 248, Short.MAX_VALUE)
+                    .add(cmbFrameRate, 0, 248, Short.MAX_VALUE)
                     .add(panelVideoLayout.createSequentialGroup()
                         .add(lblFramesStart)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
@@ -617,7 +644,7 @@ public class SaveMedia extends javax.swing.JDialog {
                     .add(lblChannelsValue)
                     .add(lblBitsPerSampleValue)
                     .add(lblSampleRateValue)
-                    .add(txtFileNameAudio, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 274, Short.MAX_VALUE))
+                    .add(txtFileNameAudio, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 247, Short.MAX_VALUE))
                 .addContainerGap())
         );
         panelAudioLayout.setVerticalGroup(
@@ -669,7 +696,7 @@ public class SaveMedia extends javax.swing.JDialog {
                         .add(10, 10, 10)
                         .add(lblFolder)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
-                        .add(txtFolder, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 257, Short.MAX_VALUE)
+                        .add(txtFolder, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, 230, Short.MAX_VALUE)
                         .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                         .add(btnBrowse))
                     .add(layout.createSequentialGroup()
@@ -678,7 +705,7 @@ public class SaveMedia extends javax.swing.JDialog {
                             .add(org.jdesktop.layout.GroupLayout.TRAILING, panelVideo, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .add(layout.createSequentialGroup()
                                 .add(chkVideo)
-                                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 178, Short.MAX_VALUE)
+                                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 151, Short.MAX_VALUE)
                                 .add(lblSaveAsVideo)
                                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                                 .add(cmbSaveAsVideo, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))))
@@ -686,17 +713,16 @@ public class SaveMedia extends javax.swing.JDialog {
                         .addContainerGap()
                         .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.LEADING)
                             .add(org.jdesktop.layout.GroupLayout.TRAILING, layout.createSequentialGroup()
-                                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 224, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
-                                .add(btnCancel, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 75, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
+                                .add(btnCancel, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 92, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
-                                .add(btnSave, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 75, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
+                                .add(btnSave, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 92, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
                             .add(org.jdesktop.layout.GroupLayout.TRAILING, panelAudio, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .add(layout.createSequentialGroup()
                                 .add(chkAudio)
-                                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 173, Short.MAX_VALUE)
+                                .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED, 176, Short.MAX_VALUE)
                                 .add(lblSaveAsAudio)
                                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
-                                .add(cmbSaveAsAudio, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 108, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)))))
+                                .add(cmbSaveAsAudio, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)))))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -706,12 +732,12 @@ public class SaveMedia extends javax.swing.JDialog {
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.BASELINE)
                     .add(lblFolder)
                     .add(btnBrowse)
-                    .add(txtFolder, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, 23, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
+                    .add(txtFolder, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
                 .add(18, 18, 18)
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.BASELINE)
                     .add(chkVideo)
-                    .add(cmbSaveAsVideo, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
-                    .add(lblSaveAsVideo))
+                    .add(lblSaveAsVideo)
+                    .add(cmbSaveAsVideo, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                 .add(panelVideo, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
                 .add(18, 18, 18)
@@ -723,8 +749,8 @@ public class SaveMedia extends javax.swing.JDialog {
                 .add(panelAudio, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE, org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, org.jdesktop.layout.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(org.jdesktop.layout.LayoutStyle.RELATED)
                 .add(layout.createParallelGroup(org.jdesktop.layout.GroupLayout.BASELINE)
-                    .add(btnCancel)
-                    .add(btnSave))
+                    .add(btnSave)
+                    .add(btnCancel))
                 .addContainerGap(org.jdesktop.layout.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
  * StrFrameUncompresser.java
  */
 
-package jpsxdec.uncompressors;
+package jpsxdec.videodecoding;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -38,9 +38,7 @@ import jpsxdec.util.IWidthHeight;
 /** Class to decode/uncompress the demuxed video frame data from a 
  *  Playstation disc. This class handles every known variation
  *  of compressed zero-run-length codes, and accompanying headers. */
-public class StrFrameUncompressor 
-    //extends InputStream 
-    implements /*IGetFilePointer,*/ IWidthHeight
+public class StrFrameUncompressor implements IWidthHeight
 {
     /*########################################################################*/
     /*## Static stuff ########################################################*/
@@ -644,17 +642,6 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
     /** An array to store the uncompressed data as MacroBlock structures. */
     protected MacroBlock[] m_oMdecList;
     
-    // Frame info
-    protected long m_lngNumberOfRunLenthCodes;
-    protected long m_lngHeader3800;
-    /** The Chrominance quantization scale used throughout the frame. */
-    protected long m_lngQuantizationScaleChrom;
-    /** The Luminance quantization scale used throughout the frame. */
-    protected long m_lngQuantizationScaleLumin;
-    
-    /** Most games use verion 2 or version 3. Currently handled exceptions
-     *  are: FF7 uses version 1, Lain uses version 0 */
-    protected long m_lngVersion;
 
     /** Width of the frame in pixels */
     protected long m_lngWidth;
@@ -671,15 +658,7 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
      * reaches the end of everything that could be decoded. */
     protected IOException m_oFailException = null;
 
-    protected int m_iFrameType = -1;
-    
-    public final static int FRAME_VER2 = 2;
-    public final static int FRAME_VER3 = 3;
-    public final static int FRAME_LAIN = 0;
-    public final static int FRAME_LAIN_FINAL_MOVIE = 10;
-    public final static int FRAME_FF7 = 1;
-    public final static int FRAME_FF7_WITHOUT_CAMERA = 11;
-    public final static int FRAME_LOGO_IKI = 256;
+    protected StrFrameHeader m_oFrameHeader;
 
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
@@ -687,125 +666,73 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
     
     public StrFrameUncompressor(InputStream oIS, long lngWidth, 
                                                    long lngHeight) 
-        throws IOException 
+        throws IOException, CriticalUncompressException 
     {
         
         // New bit reader. 
-        // Read the data as Little-endian (not big-endian)
+        // Start by reading the data as big-endian
         // Be prepared to buffer 30 WORDs of data
-        m_oBitReader = new BufferedBitReader(oIS, false, 30);
+        m_oBitReader = new BufferedBitReader(oIS, true, 30);
         
         /////////////////////////////////////////////////////////////
         // Determine the frame type from the first 50 bytes of data
+        // And read the stream header information
         /////////////////////////////////////////////////////////////
         {
             long lngFrameNum = -1;
             if (oIS instanceof StrFramePullDemuxerIS)
                 lngFrameNum = ((StrFramePullDemuxerIS)oIS).getFrameNumber();
-            m_iFrameType = IdentifyFrame(m_oBitReader.PeekBytes(50), lngFrameNum);
+
+            // TODO: Handle case where the reader can't read 50 bytes of data
+            m_oFrameHeader = new StrFrameHeader(m_oBitReader.PeekBytes(50), lngFrameNum);
+            
+            m_oBitReader.setBigEndian(!m_oFrameHeader.LittleEndian);
+            m_oBitReader.SkipBits(m_oFrameHeader.DataStart * 8);
         }
+        
         
         if (DebugVerbose >= 3) {
             System.err.print("Identified frame as ");
-            switch (m_iFrameType) {
-                case FRAME_VER2: System.err.println("Standard v2"); break;
-                case FRAME_VER3: System.err.println("Standard v3"); break;
-                case FRAME_LAIN: System.err.println("Lain"); break;
-                case FRAME_LAIN_FINAL_MOVIE: 
+            switch (m_oFrameHeader.FrameType) {
+                case StrFrameHeader.FRAME_VER2: 
+                    System.err.println("Standard v2"); break;
+                case StrFrameHeader.FRAME_VER3: 
+                    System.err.println("Standard v3"); break;
+                case StrFrameHeader.FRAME_LAIN: 
+                    System.err.println("Lain"); break;
+                case StrFrameHeader.FRAME_LAIN_FINAL_MOVIE: 
                     System.err.println("Lain-Final Movie"); break;
-                case FRAME_FF7: System.err.println("Final Fantasy 7"); break;
-                case FRAME_FF7_WITHOUT_CAMERA: 
+                case StrFrameHeader.FRAME_FF7: 
+                    System.err.println("Final Fantasy 7"); break;
+                case StrFrameHeader.FRAME_FF7_WITHOUT_CAMERA: 
                     System.err.println("Final Fantasy 7-no camera"); break;
-                case FRAME_LOGO_IKI:
+                case StrFrameHeader.FRAME_LOGO_IKI:
                     System.err.println("logo.iki"); break;
                 default:
                     System.err.println("Unknown??");
             }
         }
 
-        /////////////////////////////////////////////////////////////
-        // Now read the stream header information
-        /////////////////////////////////////////////////////////////
-        
-        switch (m_iFrameType) {
-            case FRAME_FF7:
-                // FF7 videos have 40 bytes of camera data at the start of the frame
-                m_oBitReader.SkipBits(40*8);
-            case FRAME_FF7_WITHOUT_CAMERA:
-            case FRAME_VER2: case FRAME_VER3:
-                m_lngNumberOfRunLenthCodes = m_oBitReader.ReadUnsignedBits(16);
-                m_lngHeader3800 = m_oBitReader.ReadUnsignedBits(16);
-                m_lngQuantizationScaleChrom = 
-                m_lngQuantizationScaleLumin = (int)m_oBitReader.ReadUnsignedBits(16);
-                m_lngVersion = (int)m_oBitReader.ReadUnsignedBits(16);
-                break;
-                
-            case FRAME_LAIN_FINAL_MOVIE:
-            case FRAME_LAIN:
-                // because it's set to little-endian right now, 
-                // these 16 bits are reversed
-                m_lngQuantizationScaleChrom = (int)m_oBitReader.ReadUnsignedBits(8);
-                m_lngQuantizationScaleLumin = (int)m_oBitReader.ReadUnsignedBits(8);
-                
-                m_lngHeader3800 = m_oBitReader.ReadUnsignedBits(16);
-                m_lngNumberOfRunLenthCodes = (int)m_oBitReader.ReadUnsignedBits(16);
-                m_lngVersion = (int)m_oBitReader.ReadUnsignedBits(16);
-                // Lain also uses an actual byte stream, so we want big-endian reads
-                m_oBitReader.setBigEndian(true);
-                break;
-                
-            case FRAME_LOGO_IKI:
-                throw new CriticalUncompressException(
-                        "This appears to be the infamous logo.iki. " +
-                        "Sorry, but I have no idea how to decode this thing.");
-            default:
-                throw new CriticalUncompressException("Unknown frame type.");
-        }
-        
         // provide some debug about what was found
         if (DebugVerbose >= 3) {
-            System.err.println("Frame Header:");
-            System.err.println(String.format("  %04x -> Run Lenth Code Count (?) %d", 
-                    m_lngNumberOfRunLenthCodes, 
-                    m_lngNumberOfRunLenthCodes));
-            System.err.println(String.format("  %04x", 
-                    m_lngHeader3800));
-            System.err.println(String.format("  %04x -> Quantization scale %d", 
-                    m_lngQuantizationScaleChrom,
-                    m_lngQuantizationScaleChrom));
-            System.err.println(String.format("  %04x -> Version %d", 
-                    m_lngVersion,
-                    m_lngVersion));
+            m_oFrameHeader.printInfo(System.err);
         }
-        
-        // We only can handle version 0, 1, 2, or 3 so far
-        if (m_lngVersion < 0 || m_lngVersion > 3)
-            throw new CriticalUncompressException("We don't know how to handle version " 
-                                   + m_lngVersion);
 
-        // make sure we got a 0x3800 in the header
-        if (m_lngHeader3800 != 0x3800 && m_iFrameType != FRAME_LAIN_FINAL_MOVIE)
-            throw new CriticalUncompressException("0x3800 not found in start of frame");
-        
-        // make sure the quantization scale isn't 0
-        if (m_lngQuantizationScaleChrom == 0 || m_lngQuantizationScaleLumin == 0)
-            throw new CriticalUncompressException("Quantization scale of 0");
-        
         /////////////////////////////////////////////////////////////
-        
+
         // Save width and height
         m_lngWidth = lngWidth;
         m_lngHeight = lngHeight;
-        
+
         // Calculate number of macro-blocks in the frame
         long lngMacroBlockCount = CalculateMacroBlocks(lngWidth, lngHeight);
-        
+
         // Set the array to match
         m_oMdecList = new MacroBlock[(int)lngMacroBlockCount];
-        
-        if (DebugVerbose >= 3) System.err.println(
+
+        if (DebugVerbose >= 4) System.err.println(
                     "Expecting " + lngMacroBlockCount + " macroblocks");
-        
+
         /////////////////////////////////////////////////////////////
         // We have everything we need
         // now uncompress the entire frame, one macroblock at a time
@@ -815,7 +742,7 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
         long lngTotalCodesRead = 0;
         try {
             for (int i = 0; i < lngMacroBlockCount; i++) {
-                if (DebugVerbose >= 3)
+                if (DebugVerbose >= 4)
                     System.err.println("Decoding macroblock " + i);
                 
                 MacroBlock oThisMacBlk = new MacroBlock();
@@ -834,63 +761,7 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
         
     }
     
-    static int IdentifyFrame(byte[] abHeaderBytes, long lngFrameNum) throws CriticalUncompressException {
-        
-        // if 0x3800 found at the normal position
-        if (abHeaderBytes[2] == 0x38 && abHeaderBytes[3] == 0x00)
-        {
-            // check the version at the normal position
-            int iVersion = ((abHeaderBytes[6] & 0xFF) << 8) | (abHeaderBytes[7] & 0xFF);
-            switch (iVersion) {
-                case 0: return FRAME_LAIN;
-                // if for some reason it's an ff7 frame without the camera data
-                case 1: return FRAME_FF7_WITHOUT_CAMERA; 
-                case 2: return FRAME_VER2;
-                case 3: return FRAME_VER3;
-                case 256:
-                    if ((((abHeaderBytes[4] & 0xFF) << 8) | (abHeaderBytes[5] & 0xFF)) == 320)
-                        return FRAME_LOGO_IKI;
-                    else
-                        throw new CriticalUncompressException("Unknown frame version " + iVersion);
-                default:
-                    throw new CriticalUncompressException("Unknown frame version " + iVersion);
-            }
-        } 
-        // if 0x3800 is found 40 bytes from where it should be, and the
-        // relative frame version is 1
-        else if (abHeaderBytes[40+2] == 0x38 && abHeaderBytes[40+3] == 0x00 &&
-                 abHeaderBytes[40+7] == 1) 
-        {
-            // it's an ff7 header
-            return FRAME_FF7;
-        } 
-        else // what else could it be?
-        {
-            // if the supposed 'version' is 0
-            if (abHeaderBytes[7] == 0) {
-                // and the supposed 0x3800 bytes...
-                int iFrameNum = (((abHeaderBytes[2] & 0xFF) << 8) | (abHeaderBytes[3] & 0xFF));
-                // ...happend to equal the frame number (if available)
-                if (lngFrameNum >= 0) {
-                    if (lngFrameNum == iFrameNum) {
-                        // definitely lain final movie
-                        return FRAME_LAIN_FINAL_MOVIE;
-                    }
-                // .. or are at least less-than the number
-                //    of frames in the final Lain movie
-                } else if (iFrameNum >= 1 && iFrameNum <= 4765){
-                    // probably lain final movie
-                    return FRAME_LAIN_FINAL_MOVIE;
-                } else {
-                    throw new CriticalUncompressException("0x3800 not found in start of frame");
-                }
-            } else {
-                throw new CriticalUncompressException("0x3800 not found in start of frame");
-            }
-        }
-        throw new CriticalUncompressException("Unknown frame type");
-    }
-    
+
     protected static long CalculateMacroBlocks(long lngWidth, long lngHeight) {
         // Actual width/height in macroblocks 
         // (since you can't have a partial macroblock)
@@ -923,19 +794,19 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
     }
         
     public long getFrameVersion() {
-        return m_lngVersion;
+        return m_oFrameHeader.Version;
     }
     
     public int getFrameType() {
-        return m_iFrameType;
+        return m_oFrameHeader.FrameType;
     }
 
     public long getQuantizationScaleChrominance() {
-        return m_lngQuantizationScaleChrom;
+        return m_oFrameHeader.QuantizationScaleChrom;
     }
 
     public long getQuantizationScaleLuminance() {
-        return m_lngQuantizationScaleLumin;
+        return m_oFrameHeader.QuantizationScaleLumin;
     }
     
     public MacroBlock[] getDecodedMacroBlocks() {
@@ -943,11 +814,11 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
     }
 
     public long getNumberOfRunLenthCodes() {
-        return m_lngNumberOfRunLenthCodes;
+        return m_oFrameHeader.NumberOfRunLenthCodes;
     }
 
     public long getHeader3800() {
-        return m_lngHeader3800;
+        return m_oFrameHeader.Header3800;
     }
     
     
@@ -966,11 +837,11 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
         
         long lngTotalCodesRead = 0;
         
-        if (m_iFrameType == FRAME_VER2 || 
-            m_iFrameType == FRAME_FF7  ||
-            m_iFrameType == FRAME_FF7_WITHOUT_CAMERA  ||
-            m_iFrameType == FRAME_LAIN || 
-            m_iFrameType == FRAME_LAIN_FINAL_MOVIE) 
+        if (m_oFrameHeader.FrameType == StrFrameHeader.FRAME_VER2 || 
+            m_oFrameHeader.FrameType == StrFrameHeader.FRAME_FF7  ||
+            m_oFrameHeader.FrameType == StrFrameHeader.FRAME_FF7_WITHOUT_CAMERA  ||
+            m_oFrameHeader.FrameType == StrFrameHeader.FRAME_LAIN || 
+            m_oFrameHeader.FrameType == StrFrameHeader.FRAME_LAIN_FINAL_MOVIE) 
         {
             
             // For version 2, all Cr, Cb, Y1, Y2, Y3, Y4 
@@ -985,7 +856,7 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
                 oThisMacBlk.setBlock(sBlock, oThisBlk);
             }
             
-        } else if (m_iFrameType == FRAME_VER3) 
+        } else if (m_oFrameHeader.FrameType == StrFrameHeader.FRAME_VER3) 
         {
             Block oThisBlk;
             
@@ -1031,7 +902,7 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
             }
             
         } else {
-            throw new UncompressionException("Error decoding macro block: Unhandled type " + m_iFrameType);
+            throw new UncompressionException("Error decoding macro block: Unhandled type " + m_oFrameHeader.FrameType);
         }
         
         return lngTotalCodesRead;
@@ -1057,22 +928,23 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
         oDCChrominanceOrLuminance.Bottom10Bits = 
                                            (int)m_oBitReader.ReadSignedBits(10);
         
-        if (m_iFrameType != FRAME_LAIN && m_iFrameType != FRAME_LAIN_FINAL_MOVIE)
+        if (m_oFrameHeader.FrameType != StrFrameHeader.FRAME_LAIN && 
+            m_oFrameHeader.FrameType != StrFrameHeader.FRAME_LAIN_FINAL_MOVIE)
             
             // The bottom 10 bits now hold the DC Coefficient for the block,
             // now squeeze the frame's quantization scale into the top 6 bits
             oDCChrominanceOrLuminance.Top6Bits = 
-                                        (int)(m_lngQuantizationScaleChrom & 63);
+                    (int)(m_oFrameHeader.QuantizationScaleChrom & 63);
         
         else {
             // Lain uses different values for the 
             // chorminance and luminance DC coefficients
             if (sBlock.startsWith("Y")) // if luminance
                 oDCChrominanceOrLuminance.Top6Bits = 
-                                        (int)(m_lngQuantizationScaleLumin & 63);
+                    (int)(m_oFrameHeader.QuantizationScaleLumin & 63);
             else
                 oDCChrominanceOrLuminance.Top6Bits = 
-                                        (int)(m_lngQuantizationScaleChrom & 63);
+                    (int)(m_oFrameHeader.QuantizationScaleChrom & 63);
 
         }
         
@@ -1157,11 +1029,11 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
         // The bottom 10 bits now hold the DC Coefficient for the block,
         // now squeeze the frame's quantization scale into the top 6 bits
         oDCChrominanceOrLuminance.Top6Bits = 
-                (int)(m_lngQuantizationScaleChrom & 63);
+                (int)(m_oFrameHeader.QuantizationScaleChrom & 63);
         
         if (DebugVerbose >= 7)
             System.err.println(String.format(
-                    "%d: %s -> %s DC coefficient %d",
+                    "%1.3f: %s -> %s DC coefficient %d",
                     m_oBitReader.getPosition(), 
                     oDCChrominanceOrLuminance.VariableLengthCodeBits,
                     sBlockName,
@@ -1290,7 +1162,8 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
                 m_oBitReader.PeekBitsToString(6);
         tRlc.Top6Bits = (int)m_oBitReader.ReadUnsignedBits(6);
 
-        if (m_iFrameType != FRAME_LAIN && m_iFrameType != FRAME_LAIN_FINAL_MOVIE)
+        if (m_oFrameHeader.FrameType != StrFrameHeader.FRAME_LAIN && 
+            m_oFrameHeader.FrameType != StrFrameHeader.FRAME_LAIN_FINAL_MOVIE)
         {
             // Normal playstation encoding stores the escape code in 16 bits:
             // 6 for run of zeros (already read), 10 for AC Coefficient
@@ -1305,7 +1178,8 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
                 // Normally this is concidered an error
                 // but FF7 has these pointless codes. So we'll only allow it
                 // if this is FF7
-                if (m_iFrameType != FRAME_FF7 && m_iFrameType != FRAME_FF7_WITHOUT_CAMERA) 
+                if (m_oFrameHeader.FrameType != StrFrameHeader.FRAME_FF7 && 
+                    m_oFrameHeader.FrameType != StrFrameHeader.FRAME_FF7_WITHOUT_CAMERA) 
                     // If not FF7, throw an error
                     throw new UncompressionException(
                             "Error decoding macro block: " +
@@ -1379,7 +1253,8 @@ new DCVariableLengthCode("01"      , 2,  DCDifferential(  -3,   -2,    2,   3)),
         ACVariableLengthCode tVarLenCodes[];
         
         // Use the correct AC variable length code list
-        if (m_iFrameType != FRAME_LAIN && m_iFrameType != FRAME_LAIN_FINAL_MOVIE) 
+        if (m_oFrameHeader.FrameType != StrFrameHeader.FRAME_LAIN && 
+            m_oFrameHeader.FrameType != StrFrameHeader.FRAME_LAIN_FINAL_MOVIE) 
         {
             tVarLenCodes = AC_VARIABLE_LENGTH_CODES_MPEG1;
         } else {

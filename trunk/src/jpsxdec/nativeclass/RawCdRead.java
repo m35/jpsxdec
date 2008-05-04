@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@
 package jpsxdec.nativeclass;
 
 import java.io.IOException;
+import jpsxdec.cdreaders.SectorReadErrorException;
 
 
 public class RawCdRead {
@@ -203,7 +204,7 @@ public class RawCdRead {
             case ERR_GETTING_DRIVE_HANDLE:        throw new IOException("Unable to acquire CD drive handle.");
             case ERR_UNABLE_TO_LOCK_CD:           throw new IOException("Unable to lock CD drive.");
             case ERR_UNABLE_TO_READ_TRACK_TABLE:  throw new IOException("Unable to read CD track table.");
-            case ERR_UNABLE_TO_READ_SECTOR:       throw new IOException("Unable to read sector " + iSector + ".");
+            case ERR_UNABLE_TO_READ_SECTOR:       throw new SectorReadErrorException("Unable to read sector " + iSector + ".");
             default:
                 throw new IOException("Unknown CD ReadSector() error " + err + ".");
         }

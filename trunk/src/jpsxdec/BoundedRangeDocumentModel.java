@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,8 +40,8 @@ import javax.swing.text.Position;
 import javax.swing.text.Segment;
 
 
-
-public class BoundedRangeDocumentModel //extends InputVerifier 
+/** A model that syncronizes a BoundedRangeModel and a Document model. */
+public class BoundedRangeDocumentModel
         implements 
         Document, BoundedRangeModel, 
         DocumentListener

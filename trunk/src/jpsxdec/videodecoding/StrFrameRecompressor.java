@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
  * StrFrameRecompressor.java
  */
 
-package jpsxdec.uncompressors;
+package jpsxdec.videodecoding;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +31,6 @@ import java.io.OutputStream;
 import java.util.Hashtable;
 import java.util.NoSuchElementException;
 import jpsxdec.mdec.MDEC.Mdec16Bits;
-import jpsxdec.uncompressors.BufferedBitReader;
 import jpsxdec.util.IO;
 
 /** An extention of the StrFrameUncompresserIS which can re-compress the 
@@ -59,14 +58,14 @@ public class StrFrameRecompressor extends StrFrameUncompressor {
 
     /** Just a wrapper for StrFrameUncompressor. */
     public StrFrameRecompressor(InputStream oIS, long m_lngWidth, long m_lngHeight) 
-            throws IOException 
+            throws IOException, CriticalUncompressException 
     {
         super(oIS, m_lngWidth, m_lngHeight);
     }
     
     /** Changes the number of run-length codes specified in the header. */
     public void setNumberOfRunLenthCodes(long lng) {
-        super.m_lngNumberOfRunLenthCodes = lng;
+        super.m_oFrameHeader.NumberOfRunLenthCodes = lng;
     }
     
     /** Recompresses the frame and writes it to the OutputStream. */
@@ -75,8 +74,8 @@ public class StrFrameRecompressor extends StrFrameUncompressor {
         WriteFrameHeader(os);
         
         BitStringWriter bsw = new BitStringWriter(os);
-        if (super.m_iFrameType == FRAME_LAIN || 
-            super.m_iFrameType == FRAME_LAIN_FINAL_MOVIE)
+        if (super.m_oFrameHeader.FrameType == StrFrameHeader.FRAME_LAIN || 
+            super.m_oFrameHeader.FrameType == StrFrameHeader.FRAME_LAIN_FINAL_MOVIE)
             bsw.setBigEndian(true);
         else
             bsw.setBigEndian(false);
@@ -102,28 +101,28 @@ public class StrFrameRecompressor extends StrFrameUncompressor {
     
     private void WriteFrameHeader(OutputStream os) throws IOException {
         
-        switch (m_iFrameType) {
-            case FRAME_FF7:
+        switch (m_oFrameHeader.FrameType) {
+            case StrFrameHeader.FRAME_FF7:
                 // FF7 videos have 40 bytes of camera data 
                 // at the start of the frame. just write zeros
                 os.write(new byte[40]);
-            case FRAME_FF7_WITHOUT_CAMERA:
-            case FRAME_VER2: case FRAME_VER3:
-                IO.WriteInt16LE(os, super.m_lngNumberOfRunLenthCodes);
-                IO.WriteInt16LE(os, super.m_lngHeader3800);
-                IO.WriteInt16LE(os, super.m_lngQuantizationScaleChrom);
-                IO.WriteInt16LE(os, super.m_lngVersion);
+            case StrFrameHeader.FRAME_FF7_WITHOUT_CAMERA:
+            case StrFrameHeader.FRAME_VER2: case StrFrameHeader.FRAME_VER3:
+                IO.WriteInt16LE(os, super.m_oFrameHeader.NumberOfRunLenthCodes);
+                IO.WriteInt16LE(os, super.m_oFrameHeader.Header3800);
+                IO.WriteInt16LE(os, super.m_oFrameHeader.QuantizationScaleChrom);
+                IO.WriteInt16LE(os, super.m_oFrameHeader.Version);
                 break;
                 
-            case FRAME_LAIN_FINAL_MOVIE:
-            case FRAME_LAIN:
+            case StrFrameHeader.FRAME_LAIN_FINAL_MOVIE:
+            case StrFrameHeader.FRAME_LAIN:
                 // bytes are reversed for little-endian writing
-                os.write((byte)super.m_lngQuantizationScaleLumin);
-                os.write((byte)super.m_lngQuantizationScaleChrom);
+                os.write((byte)super.m_oFrameHeader.QuantizationScaleLumin);
+                os.write((byte)super.m_oFrameHeader.QuantizationScaleChrom);
                 
-                IO.WriteInt16LE(os, super.m_lngHeader3800);
-                IO.WriteInt16LE(os, super.m_lngNumberOfRunLenthCodes);
-                IO.WriteInt16LE(os, super.m_lngVersion);
+                IO.WriteInt16LE(os, super.m_oFrameHeader.Header3800);
+                IO.WriteInt16LE(os, super.m_oFrameHeader.NumberOfRunLenthCodes);
+                IO.WriteInt16LE(os, super.m_oFrameHeader.Version);
                 break;
                 
             default:
@@ -157,25 +156,25 @@ public class StrFrameRecompressor extends StrFrameUncompressor {
                     System.err.println("Compressing " + sBlock);
         
                 // First compress the DC coefficient
-                switch (m_iFrameType) {
-                    case FRAME_VER2:
-                    case FRAME_FF7:
-                    case FRAME_FF7_WITHOUT_CAMERA:
-                    case FRAME_LAIN:
-                    case FRAME_LAIN_FINAL_MOVIE:
+                switch (super.m_oFrameHeader.FrameType) {
+                    case StrFrameHeader.FRAME_VER2:
+                    case StrFrameHeader.FRAME_FF7:
+                    case StrFrameHeader.FRAME_FF7_WITHOUT_CAMERA:
+                    case StrFrameHeader.FRAME_LAIN:
+                    case StrFrameHeader.FRAME_LAIN_FINAL_MOVIE:
                         if (sBlock.startsWith("Y"))
                             oOriginalBlk.DCCoefficient.VariableLengthCodeBits = 
-                                 Compress_v2_DC_Coefficient(oOriginalBlk.DCCoefficient, m_lngQuantizationScaleLumin);
+                                 Compress_v2_DC_Coefficient(oOriginalBlk.DCCoefficient, super.m_oFrameHeader.QuantizationScaleLumin);
                         else
                             oOriginalBlk.DCCoefficient.VariableLengthCodeBits = 
-                                Compress_v2_DC_Coefficient(oOriginalBlk.DCCoefficient, m_lngQuantizationScaleChrom);
+                                Compress_v2_DC_Coefficient(oOriginalBlk.DCCoefficient, super.m_oFrameHeader.QuantizationScaleChrom);
                         break;
-                    case FRAME_VER3:
+                    case StrFrameHeader.FRAME_VER3:
                         oOriginalBlk.DCCoefficient.VariableLengthCodeBits = 
                             Compress_v3_DC_Coefficient(oOriginalBlk.DCCoefficient);
                         break;
                     default:
-                        throw new IllegalArgumentException("Unhandled frame type " + m_iFrameType);
+                        throw new IllegalArgumentException("Unhandled frame type " + super.m_oFrameHeader.FrameType);
                 }
 
                 // then compress the AC coefficients (except the EOB)
@@ -219,7 +218,7 @@ public class StrFrameRecompressor extends StrFrameUncompressor {
      *  If fails, creates an escape code. */
     private String Compress_AC_Coefficient(Mdec16Bits oOriginalMdec) {
         String sBits;
-        if (m_iFrameType == FRAME_LAIN || m_iFrameType == FRAME_LAIN_FINAL_MOVIE) {
+        if (super.m_oFrameHeader.FrameType == StrFrameHeader.FRAME_LAIN || super.m_oFrameHeader.FrameType == StrFrameHeader.FRAME_LAIN_FINAL_MOVIE) {
             sBits = AC_VARIABLE_LENGTH_CODES_LAIN_REVERSE.get(
                     oOriginalMdec.Top6Bits + "," + Math.abs(oOriginalMdec.Bottom10Bits));
             if (sBits == null)

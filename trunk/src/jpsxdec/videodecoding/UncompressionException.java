@@ -20,27 +20,19 @@
  */
 
 /*
- * IProgressListener.java
+ * UncompressionException.java
  */
 
-package jpsxdec.media;
+package jpsxdec.videodecoding;
 
-/** A general purpose listener interface for reporting progress. */
-public interface IProgressListener {
-    /** Return true to stop, false to continue */
-    boolean ProgressUpdate(String sWhatDoing, double dblPercentComplete);
-    
-    public static interface IProgressEventListener extends IProgressListener {
-        /** Return true to stop, false to continue */
-        boolean ProgressUpdate(String sEvent);
+import java.io.IOException;
+
+/** Error during uncompression of the frame. A portion was likely decoded
+ *  before this error occured. */
+public class UncompressionException extends IOException {
+
+    public UncompressionException(String message) {
+        super(message);
     }
-    
-    public static interface IProgressErrorListener extends IProgressListener {
-        /** Return true to stop, false to continue */
-        void ProgressUpdate(Exception e);
-    }
-    
-    public static interface IProgressEventErrorListener extends IProgressEventListener, IProgressErrorListener {
-    }
-    
+
 }

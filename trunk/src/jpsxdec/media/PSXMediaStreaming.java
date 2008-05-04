@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -121,7 +121,7 @@ public abstract class PSXMediaStreaming extends PSXMedia {
 
 
     private boolean m_blnPlaying = false;
-    private StrFramePushDemuxer m_oFrameDemuxer;
+    protected StrFramePushDemuxer m_oFrameDemuxer;
     protected void playVideoSector(IVideoChunkSector oFrmChk) throws StopPlayingException, IOException {
         // only process the frame if there is a listener for it
         if (m_oVidDemuxListener != null) {
@@ -182,9 +182,6 @@ public abstract class PSXMediaStreaming extends PSXMedia {
     }        
 
     ////////////////////////////////////////////////////////////////////////
-    public static interface IErrorListener {
-        void error(Exception ex) throws StopPlayingException;
-    }
     public static interface IRawListener {
         void event(CDXASector oSect) throws StopPlayingException, IOException;
     }
@@ -201,11 +198,6 @@ public abstract class PSXMediaStreaming extends PSXMedia {
         m_oRawRead = oListen;
     }
 
-    protected IErrorListener m_oErrListener;
-    public void addErrorListener(IErrorListener oListen) {
-        m_oErrListener = oListen;
-    }
-
     protected IDemuxListener m_oVidDemuxListener;
     public void addVidDemuxListener(IDemuxListener oListen) {
         m_oVidDemuxListener = oListen;
@@ -218,7 +210,6 @@ public abstract class PSXMediaStreaming extends PSXMedia {
 
     public void clearListeners() {
         m_oRawRead = null;
-        m_oErrListener = null;
         m_oVidDemuxListener = null;
         m_oAudioListener = null;
     }

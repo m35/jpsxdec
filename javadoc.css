@@ -6,6 +6,8 @@ by specifying it in an ant task, like:
 ...
 stylesheetfile="${path-to-javadoc.css}/javadoc.css"
 />
+Or in Netbeans under Documenting add 
+-stylesheetfile "${basedir}/${src.dir}/javadoc.css"
 */
 /* Define colors, fonts and other style attributes here to override the defaults */
 

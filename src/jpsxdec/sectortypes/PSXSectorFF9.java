@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -174,27 +174,31 @@ public abstract class PSXSectorFF9 extends PSXSector {
         }
 
         /** Returns the chunk nubmer in order of how they should be demuxed
-         * (i.e. 8, 7, 6, ..., 1, 0). [implements IVideoSector] */
+         * (i.e. 8, 7, 6, ..., 1, 0). [implements IVideoChunkSector] */
         public long getChunkNumber() {
             return 9 - super.m_lngChunkNumber;
         }
-        /** [implements IVideoSector] */
+        /** [implements IVideoChunkSector] */
         public long getChunksInFrame() {
             return super.m_lngChunksInThisFrame - 2; // i.e. return 8
         }
 
+        /** [implements IVideoChunkSector] */
         public long getWidth() {
             return m_lngWidth;
         }
 
+        /** [implements IVideoChunkSector] */
         public long getHeight() {
             return m_lngHeight;
         }
 
+        /** [extends PSXSector] */
         protected int getDemuxedDataStart(int iDataSize) {
             // skipping the frame header
             return FRAME_CHUNK_HEADER_SIZE;
         }
+        /** [extends PSXSector] */
         protected int getDemuxedDataLength(int iDataSize) {
             return iDataSize - FRAME_CHUNK_HEADER_SIZE;
         }

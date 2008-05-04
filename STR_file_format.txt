@@ -141,7 +141,7 @@ CD-XA Header: [mostly from xine media player source code: demux_str.c]
     - bit 3: DATA       -- set to 1 to indicate DATA  sector, otherwise 0
     - bit 2: AUDIO      -- set to 1 to indicate AUDIO sector, otherwise 0
     - bit 1: VIDEO      -- set to 1 to indicate VIDEO sector, otherwise 0
-    - bit 0: end_audio  -- end of audio frame (never set in PSX STR streams)
+    - bit 0: end_audio  -- end of audio frame (rarely set in PSX STR streams)
     - bits 1, 2 and 3 are mutually exclusive
   - coding_info is a set of bits, interpretation is dependant on the
     DATA/AUDIO/VIDEO bits setting of subcode.
@@ -1235,7 +1235,7 @@ FF9 Frame Chunk Header:
 
 
 ################################################################################
-## 3.4. Chrono Cross
+## 3.4. Chrono Cross & Legend of Mana
 ################################################################################
 
 Like FF8 and FF9, Chrono Cross frames are 10 sectors long, starting with 2 sectors for audio, followed by 8 sectors of video. It uses FF9 style audio sectors, but standard STR video sectors. All movie sectors are "Mode 2 Form 1".
@@ -1246,7 +1246,7 @@ Like FF8 and FF9, Chrono Cross frames are 10 sectors long, starting with 2 secto
 
 Chrono Cross Audio Chunk Header:
   * all values are little-endian
-  - 4 bytes; 0x00000160 or 0x00010160
+  - 4 bytes; 0x00000160, 0x00010160, 0x01000160, 0x01010160
   - 2 bytes; chunk number (0 to numchunks - 1)
   - 2 bytes; number of chunks (always 2)
   - 2 bytes; frame number (starts at 1)
@@ -1261,6 +1261,12 @@ Chrono Cross Audio Chunk Header:
   - 160 bytes; unknown
 
 Like the final FF9 movie, with 1680 bytes of audio data, the audio would play back at 44100 samples/second.
+
+Chrono Cross:   
+    On disc 1, video frame chunks are standard.
+    On disc 2, the video frame chunks begin with 0x81010160, but otherwise are identical to standard STR frame chunks.
+    All except for the final movie, which has additional properties.
+
 
 ################################################################################
 ## 3.5. Serial Experiments Lain
@@ -1441,6 +1447,29 @@ The escape code is handled in the MPEG1 fashion: 6 bits for the run, then either
     ...   
     0000 0000 1111 1110     254   
     0000 0000 1111 1111     255   
+
+################################################################################
+## 3.6. Alice In Cyberland
+################################################################################
+
+Frame Chunk Header:
+  * all values are little-endian
+  - 4 bytes; always 0x00000160
+  - 2 bytes; 'chunk number' of this video frame (0 to numchunks-1)
+  - 2 bytes; number of chunks in this frame
+  - 4 bytes; frame number (starts at 1)
+  - 4 bytes; seemingly random number. frame duration?
+  - 16 bytes; all zeros
+Size of Frame Chunk Header: 32 bytes
+
+Frames are always 320 x 240.
+
+Standard STR movies begin with frame chunk sectors, but Alice movies begin with an audio sector. 
+
+The last frame of a movie has the high bit set (0x8000). There is also an empty frame with a frame number of 0xFFFF at the end of movies. For some reason there are extra audio sectors inbetween movies as well.
+
+Many of the movies also change the frame-rate at some point.
+
 
 ################################################################################
 ## 4. Thanks, credits, etc.

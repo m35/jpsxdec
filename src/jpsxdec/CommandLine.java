@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,7 +20,7 @@
  */
 
 /*
- * Settings.java
+ * CommandLine.java
  */
 
 package jpsxdec;
@@ -31,24 +31,19 @@ import argparser.IntHolder;
 import argparser.StringHolder;
 import java.io.File;
 import java.util.Vector;
+import jpsxdec.media.savers.Decoders;
 import jpsxdec.media.savers.Formats;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.Misc;
 
+/** Parses the command-line and holds the results. All options have a 'got'
+ *  method to check if an argument was supplied, and a 'get' method to get
+ *  the value.
+ */
+public class CommandLine {
 
-public class Settings {
-    
-    public static void main(String[] args) {
-        
-        Settings m = new Settings(args);
-        
-        if (m.getMainCommand() == Settings.MAIN_CMD_STARTGUI) {
-            System.out.println("Starting gui");
-        }
-
-    }
-    
-    
+    /** Extending ArgParser so I can display my own help and 
+     *  error messages. */
     private static class MyArgParser extends ArgParser {
 
         public MyArgParser(String arg0, boolean arg1) {
@@ -69,10 +64,7 @@ public class Settings {
             return HELP_MESSAGE;
         }
         
-        
-        
     }
-    
     
     //=================================================================
     
@@ -160,6 +152,7 @@ Main.VerString + "\n\n" +
 "    -plugin <name>            Use top-secret plugins                      \n" +
 "    -dir                      If INFILE is CD, lists files on it          \n" +
 "    -copy <name>              Copy raw file out of CD                     \n" +
+"    -copysect { # | #-# }     Copy raw sectors out of a CD                \n" +
 "                                                                          \n" +
 "Additional options (optional):                                            \n" +
 "    -index/-idx/-i <file>     Load and/or save index file during task     \n" +
@@ -172,6 +165,7 @@ Main.VerString + "\n\n" +
 "    -jpg #                    JPEG or MJPG quality: 0 to 100              \n" +
 "    -vol #                    Audio volume: 0 to 100                      \n" +
 "    -novid                    Don't decode video                          \n" +
+"    -quality { high | fast }  Decoding quality of video                   \n" +
 "    -noaud                    Don't decode audio                          \n" +
 "    -f/-frame[s] { # | #-# }  Decode one frame, or range of frames        \n" +
 "    -fps { # | #/# }          Write avi/yuv with specified frame rate     \n" +
@@ -182,15 +176,9 @@ Main.VerString + "\n\n" +
 "\n"+            
 "    -debug #,#,#,#,#          Prints verbose debugging messages           \n" +
 "                                                                          \n" +
-"Default is to save video as compressed AVI,                               \n" +
+"Default is to fast decode and save video as compressed AVI,               \n" +
 "audio as part of AVI, and TIM as PNG.                                     \n" +
-"If no options provided, GUI is started.                                   \n";
-    
-    private static void HelpAndExit() {
-        System.out.println(HELP_MESSAGE);
-        System.exit(0);
-    }
-    
+"If no options, or only an input file name is provided, GUI is started.    \n";
     
     /*------------------------------------------------------------------------*/
     /*- Properties -----------------------------------------------------------*/
@@ -224,6 +212,9 @@ Main.VerString + "\n\n" +
     public boolean gotOutputFile() { return m_sOutputFile != null; }
     public String getOutputFile() { return m_sOutputFile; }
     
+    /** Constructs a path using any folder supplied for output, and using
+     *  the file name from the command-line, or the file name
+     *  sDefFile argument. */
     public String constructOutPath(String sDefFile) {
         if (gotOutputFile())
             sDefFile = getOutputFile();
@@ -236,73 +227,130 @@ Main.VerString + "\n\n" +
     
     //...............................................................
     
+    /** For the -quality command. */
+    private int m_iDecoder = -1;
+    /** For the -quality command. */
+    public boolean gotDecoder() { return m_iDecodeIndex >= 0; }
+    /** For the -quality command. */
+    public int getDecoder() { return m_iDecoder; }
+    
+    /** For the -copy %s command. */
     private String m_sFileToCopy;
+    /** For the -copy %s command. */
     public String getFileToCopy() { return m_sFileToCopy; }
     
+    private int[] m_aiSectorsToCopy;
+    public int[] getSectorsToCopy() { return m_aiSectorsToCopy; }
+    
+    /** For the -plugin %s command. */
     private String m_sPluginCommand;
+    /** For the -plugin %s command. */
     public String getPluginCommand() { return m_sPluginCommand; }
+
+    /** For the -sectordump %s command. */
     private String m_sSectorDumpFile;
+    /** For the -sectordump %s command. */
     public String getSectorDumpFile() { return m_sSectorDumpFile; }
 
+    /** For the -index %s command. */
     private String m_sIndexFile;
+    /** For the -index %s command. */
     public boolean gotIndexFile() { return m_sIndexFile != null; }
+    /** For the -index %s command. */
     public String getIndexFile() { return m_sIndexFile; }
 
 
+    /** For the -decode { # | all} command. */
     private int m_iDecodeIndex;
+    /** For the -decode { # | all} command. */
     public boolean gotDecodeIndex() { return m_iDecodeIndex >= 0; }
+    /** For the -decode { # | all} command. */
     public int getDecodeIndex() { return m_iDecodeIndex; }
 
 
+    /** For the -noaud command. */
     private boolean m_blnDecodeVid = true;
-    private boolean m_blnDecodeAud = true;
+    /** For the -noaud command. */
     public boolean decodeAudio() { return m_blnDecodeAud; }
+    /** For the -novid command. */
+    private boolean m_blnDecodeAud = true;
+    /** For the -novid command. */
     public boolean decodeVideo() { return m_blnDecodeVid; }
 
+    /** For the -nocrop command. */
     private boolean m_blnNoCrop = false;
+    /** For the -nocrop command. */
     public boolean noCrop() { return m_blnNoCrop; }
 
+    /** For the -frames { # | #-# } command. */
     private int m_iStartFrame = -1;
+    /** For the -frames { # | #-# } command. */
     private int m_iEndFrame = -1;
+    /** For the -frames { # | #-# } command. */
     public boolean gotFrames() { return m_iEndFrame >= 0 && m_iStartFrame >= 0; };
+    /** For the -frames { # | #-# } command. */
     public int getStartFrame() { return m_iStartFrame; }
+    /** For the -frames { # | #-# } command. */
     public int getEndFrame() { return m_iEndFrame; }
 
+    /** For the -intype and -width # -height # commands. */
     private String m_sSpecialInType;
+    /** For the -intype and -width # -height # commands. */
     private int m_iWidth;
+    /** For the -intype and -width # -height # commands. */
     private int m_iHeight;
+    /** For the -intype and -width # -height # commands. */
     public String getSpecialInType() { return m_sSpecialInType; }
+    /** For the -intype and -width # -height # commands. */
     public int getHeight() { return m_iHeight; }
+    /** For the -intype and -width # -height # commands. */
     public int getWidth() { return m_iWidth; }
 
+    /** For the -jpg # command. */
     private int m_iJpgQuality = -1;
+    /** For the -jpg # command. */
     public boolean gotJpgQuality() { return m_iJpgQuality >= 0; };
+    /** For the -jpg # command. */
     public int getJpgQuality() { return m_iJpgQuality; }
 
+    /** For the -vol # command. */
     private int m_iVolume = -1;
+    /** For the -vol # command. */
     public boolean gotVolume() { return m_iVolume >= 0; }
+    /** For the -vol # command. */
     public int getVolume() { return m_iVolume; }
 
+    /** For the -af %s command. */
     private Formats.Format m_oAudFormat;
+    /** For the -af %s command. */
     public boolean gotAudFormat() { return m_oAudFormat != null; }
+    /** For the -af %s command. */
     public Formats.Format getAudFormat() { return m_oAudFormat; }
 
+    /** For the -vf %s command. */
     private Formats.Format m_oVidFormat;
+    /** For the -vf %s command. */
     public boolean gotVidFormat() { return m_oVidFormat != null; }
+    /** For the -vf %s command. */
     public Formats.Format getVidFormat() { return m_oVidFormat; }
 
+    /** For the -debug #,#,#,#,# command. */
     private int[] m_aiDebug;
+    /** For the -debug #,#,#,#,# command. */
     public boolean gotDebug() { return m_aiDebug != null; }
+    /** For the -debug #,#,#,#,# command. */
     public int[] getDebug() { return m_aiDebug; }
     
+    /** For the -tim %s command. */
     private Formats.ImgSeqVidFormat m_oTimFormat;
+    /** For the -tim %s command. */
     public boolean gotTimFormat() { return m_oTimFormat != null; }
-    public Formats.ImgSeqVidFormat  getTimFormat() { return m_oTimFormat; }
+    /** For the -tim %s command. */
+    public Formats.ImgSeqVidFormat getTimFormat() { return m_oTimFormat; }
     
     /*------------------------------------------------------------------------*/
     /*------------------------------------------------------------------------*/
 
-    public final static int MAIN_CMD_HELP        = 1 << 0;
     public final static int MAIN_CMD_STARTGUI    = 1 << 1;
     public final static int MAIN_CMD_DECODE      = 1 << 2;
     public final static int MAIN_CMD_SECTORDUMP  = 1 << 3;
@@ -311,27 +359,35 @@ Main.VerString + "\n\n" +
     public final static int MAIN_CMD_SPECIALFILE = 1 << 6;
     public final static int MAIN_CMD_DIR         = 1 << 7;
     public final static int MAIN_CMD_COPY        = 1 << 8;
+    public final static int MAIN_CMD_COPYSECT    = 1 << 9;
     
-    public Settings(String[] args) {
+    public CommandLine(String[] args) {
         
-        // look for help option if it exists
+        // look for -help and -debug options if they exist
         ArgParser parser = new MyArgParser("", true);
-        parser.matchAllArgs(args, 0, ArgParser.EXIT_ON_ERROR);
+        
+        StringHolder debug = new StringHolder();
+        parser.addOption("-debug %s", debug);
+        
+        String[] remain = parser.matchAllArgs(args, 0, ArgParser.EXIT_ON_ERROR);
 
+        if (debug.value != null)
+            m_aiDebug = parseDebug(debug.value);
         
         // if 0 or 1 args, start gui with supplied in-file (if any)
-        if (args.length == 0) {
+        if (remain == null) {
             m_iMainCmd = MAIN_CMD_STARTGUI;
-        } else if (args.length == 1) {
-            parseInputFile(args);
+        } else if (remain.length == 1) {
+            parseInputFile(remain);
             m_iMainCmd = MAIN_CMD_STARTGUI;
         } else {
             // if 2 or more, let's see what we got
             
             // first remove the first arg
-            parseInputFile(args);
-            String[] remain = new String[args.length-1];
-            System.arraycopy(args, 1, remain, 0, remain.length);
+            parseInputFile(remain);
+            String[] remain2 = new String[remain.length-1];
+            System.arraycopy(remain, 1, remain2, 0, remain2.length);
+            remain = remain2;
 
             // parse the commands
             remain = parseMainCommand(remain);
@@ -374,7 +430,7 @@ Main.VerString + "\n\n" +
             }
             
             if (!isRoot)
-                ExitWithError(s + " does not exist.");
+                ExitWithError("\"" + s + "\" file not found.");
         }
         
         m_sInputFile = s;
@@ -431,14 +487,14 @@ Main.VerString + "\n\n" +
         StringHolder intype = new StringHolder();
         parser.addOption("-intype %s {demux, mdec}", intype);
         
-        StringHolder debug = new StringHolder();
-        parser.addOption("-debug %s", debug);
-        
         StringHolder copy = new StringHolder();
         parser.addOption("-copy %s", copy);
 
         BooleanHolder dir = new BooleanHolder(false);
         parser.addOption("-dir %v", dir);
+        
+        StringHolder copysect = new StringHolder();
+        parser.addOption("-copysect %s", copysect);
         
         //.........................................
         
@@ -453,10 +509,6 @@ Main.VerString + "\n\n" +
         String[] remain = parser.matchAllArgs(args, 0, ArgParser.EXIT_ON_ERROR);
         
         //-----------------------------------------
-        
-        if (debug.value != null)
-            m_aiDebug = parseDebug(debug.value);
-        
 
         if (decode.value != null) m_iMainCmd |= MAIN_CMD_DECODE;
         if (sectordump.value != null) m_iMainCmd |= MAIN_CMD_SECTORDUMP;
@@ -464,6 +516,7 @@ Main.VerString + "\n\n" +
         if (intype.value != null) m_iMainCmd |= MAIN_CMD_SPECIALFILE;
         if (copy.value != null) m_iMainCmd |= MAIN_CMD_COPY;
         if (dir.value) m_iMainCmd |= MAIN_CMD_DIR;
+        if (copysect.value != null) m_iMainCmd |= MAIN_CMD_COPYSECT;
         
         if (m_iMainCmd == 0 && index.value != null) m_iMainCmd = MAIN_CMD_INDEX;
         
@@ -507,6 +560,10 @@ Main.VerString + "\n\n" +
                 break;
                 
             case MAIN_CMD_DIR:
+                break;
+                
+            case MAIN_CMD_COPYSECT:
+                m_aiSectorsToCopy = parseNumberRange(copysect.value);
                 break;
                 
             case 0:
@@ -602,6 +659,8 @@ Main.VerString + "\n\n" +
         StringHolder tim = new StringHolder();
         parser.addOption("-tim %s", tim);
         
+        StringHolder quality = new StringHolder();
+        parser.addOption("-quality %s {fast, high}", quality);
         
         //-----------------------------------------
         
@@ -617,7 +676,7 @@ Main.VerString + "\n\n" +
         m_iVolume = vol.value;
         
         if (frames.value != null) {
-            int[] aiframes = parseFrames(frames.value);
+            int[] aiframes = parseNumberRange(frames.value);
             m_iStartFrame = aiframes[0];
             m_iEndFrame = aiframes[1];
         }
@@ -677,6 +736,13 @@ Main.VerString + "\n\n" +
                 ExitWithError("Unhandled TIM format " + tim.value + ".");
         }
         
+        if (quality.value != null) {
+            if (quality.value.equalsIgnoreCase("high"))
+                m_iDecoder = Decoders.DEBUG_DECODER;
+            else // "fast"
+                m_iDecoder = Decoders.JAVA_FAST_DECODER;
+        }
+        
         return remain;
     }
     
@@ -706,7 +772,7 @@ Main.VerString + "\n\n" +
         }
     }
     
-    private static int[] parseFrames(String s) {
+    private static int[] parseNumberRange(String s) {
         int iStart, iEnd;
         String[] split = s.split("-");
         try {
@@ -725,9 +791,6 @@ Main.VerString + "\n\n" +
             throw new RuntimeException("Invalid frame: " + s);
         }
     }
-    
-    
-    
     
 }
 

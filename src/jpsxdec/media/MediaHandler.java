@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,6 +34,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import javax.swing.AbstractListModel;
 import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.SectorReadErrorException;
 import jpsxdec.sectortypes.PSXSectorRangeIterator;
 import jpsxdec.media.IProgressListener.*;
 import jpsxdec.util.NotThisTypeException;
@@ -75,6 +76,12 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
                         oblnQuitIndexing[0] = true;
                 }
             }
+
+            public void ReadError(SectorReadErrorException ex) {
+                if (oListener instanceof IProgressErrorListener) {
+                    ((IProgressErrorListener)oListener).ProgressUpdate(ex);
+                }
+            }
         });
         
         while (oSectIterator.hasNext() && !oblnQuitIndexing[0]) {
@@ -113,12 +120,19 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
             } catch (NotThisTypeException e) {}
             
             try {
+                AddMediaItem(new PSXMediaAlice(oSectIterator), oListener);
+                continue;
+            } catch (NotThisTypeException e) {}
+            
+            int iCurSect = oSectIterator.getIndex();
+            try {
                 AddMediaItem(new PSXMediaTIM(oSectIterator), oListener);
                 continue;
             } catch (NotThisTypeException e) {
-                // Because TIM searching actually does increment the iterator
-                // we need to make sure we aren't at the end of the iterator.
-                if (!oSectIterator.hasNext()) break;
+                // if TIM searching devoured any sectors, we don't want to
+                // skip the next one in case one of the above media types need it
+                if (iCurSect < oSectIterator.getIndex())
+                    continue;
             }
             
             oSectIterator.skipNext();
@@ -191,6 +205,8 @@ public class MediaHandler extends AbstractListModel implements Iterable<PSXMedia
                     oPsxMedia = new PSXMediaFF9(oCD, sLine);
                 } else if (asParts[1].equals("ChronoX")) {
                     oPsxMedia = new PSXMediaChronoX(oCD, sLine);
+                } else if (asParts[1].equals("ALICE")) {
+                    oPsxMedia = new PSXMediaAlice(oCD, sLine);
                 } else {
                     continue;
                 }

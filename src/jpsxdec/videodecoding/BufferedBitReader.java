@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
  * BufferedBitReader.java
  */
 
-package jpsxdec.uncompressors;
+package jpsxdec.videodecoding;
 
 import jpsxdec.util.*;
 import java.io.InputStream;
@@ -410,7 +410,8 @@ public class BufferedBitReader {
             }
             if (m_oBitBuffer.size() == 0) { // now if the buffer is empty
                 // add a little more to the buffer
-                if (BufferData() < 2) throw new EOFException("Unexpected end of bit file");
+                if (BufferData() < 2) 
+                    throw new EOFException("Unexpected end of bit stream.");
             }
             m_iBitsRemainging = 16; // and now we have 8 bits for the head again
         }

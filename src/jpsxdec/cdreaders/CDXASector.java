@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -127,7 +127,7 @@ public class CDXASector implements IGetFilePointer {
             public final byte video;          
             
             /** bit 0:  identifies end of audio frame */                                                
-            public final byte end_of_record;  
+            public final byte end_audio;  
             
             SubMode(int b) {
                 eof_marker    = (byte)( (b >> 7) & 1);
@@ -137,7 +137,7 @@ public class CDXASector implements IGetFilePointer {
                 data          = (byte)( (b >> 3) & 1);
                 audio         = (byte)( (b >> 2) & 1);
                 video         = (byte)( (b >> 1) & 1);
-                end_of_record = (byte)( (b     ) & 1);
+                end_audio     = (byte)( (b     ) & 1);
             }
             
             public byte toByte() {
@@ -149,7 +149,7 @@ public class CDXASector implements IGetFilePointer {
                         (data          << 3) |
                         (audio         << 2) |
                         (video         << 1) |
-                        (end_of_record     ));
+                        (end_audio     ));
             }
             
             public String toString() {
@@ -162,7 +162,7 @@ public class CDXASector implements IGetFilePointer {
                 oSb.append(data          == 1 ? '1' : '0');
                 oSb.append(audio         == 1 ? '1' : '0');
                 oSb.append(video         == 1 ? '1' : '0');
-                oSb.append(end_of_record == 1 ? '1' : '0');
+                oSb.append(end_audio     == 1 ? '1' : '0');
                 
                 return oSb.toString();
             }

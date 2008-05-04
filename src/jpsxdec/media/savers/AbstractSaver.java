@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,18 +27,13 @@ package jpsxdec.media.savers;
 
 import jpsxdec.media.StopPlayingException;
 import java.io.IOException;
-import jpsxdec.media.PSXMediaStreaming;
 import jpsxdec.media.IProgressListener;
 
 /** Attaches to PSXMedia classes to handle the physical saving 
  *  of media as the media item is played. */
-public abstract class AbstractSaver implements PSXMediaStreaming.IErrorListener {
+public abstract class AbstractSaver {
     
-    private IProgressListener m_oListener;
-    
-    public AbstractSaver(PSXMediaStreaming oMedia) {
-        oMedia.addErrorListener(this);
-    }
+    protected IProgressListener m_oListener;
     
     public void addProgressListener(IProgressListener oListener) {
         m_oListener = oListener;
@@ -54,14 +49,6 @@ public abstract class AbstractSaver implements PSXMediaStreaming.IErrorListener 
         }
     }
     
-    public void error(Exception ex) throws StopPlayingException {
-        if (m_oListener != null && 
-            m_oListener instanceof IProgressListener.IProgressErrorListener) 
-        {
-            ((IProgressListener.IProgressErrorListener)m_oListener).ProgressUpdate(ex);
-        }
-    }
-
     /** Performs cleanup after the media is done playing (closes files,
      *  detaches listeners, etc.). */
     public abstract void done() throws IOException;

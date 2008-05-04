@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,7 +47,7 @@ public class AviSaver extends AbstractSaver
     private boolean m_blnUseMjpg;
     private boolean m_blnDoNotCrop;
     
-    private Decoders.DemuxToRgb oDecoder = Decoders.MakeDemuxToRgb(null);
+    private Decoders.DemuxToRgb oDecoder;
 
     public IOException getException() {
         return m_oFailure;
@@ -56,11 +56,11 @@ public class AviSaver extends AbstractSaver
     public AviSaver(SavingOptions oOptions) 
             throws IOException 
     {
-        super(oOptions.getMedia());
         
         m_oMedia = oOptions.getMedia();
         m_blnUseMjpg = oOptions.getVideoFormat() == Formats.MJPG_AVI;
         m_blnDoNotCrop = oOptions.getDoNotCrop();
+        oDecoder = Decoders.MakeDemuxToRgb(oOptions.getDecodeQuality());
         
         int iChannels = m_oMedia.getAudioChannels();
         if (!oOptions.getDecodeAudio() ||
@@ -119,15 +119,11 @@ public class AviSaver extends AbstractSaver
                     m_oMedia.getEndFrame(),
                     frame);
 
-        Exception[] e = new Exception[1];
         if (m_blnDoNotCrop)
             // TODO: add crop option
-            m_oAviWriter.writeFrame(oDecoder.UncompressDecodeRgb(oDemux, e));
+            m_oAviWriter.writeFrame(oDecoder.UncompressDecodeRgb(oDemux, super.m_oListener));
         else
-            m_oAviWriter.writeFrame(oDecoder.UncompressDecodeRgb(oDemux, e));
-        
-        if (e[0] != null)
-            error(e[0]);
+            m_oAviWriter.writeFrame(oDecoder.UncompressDecodeRgb(oDemux, super.m_oListener));
         
         if (m_lngEndFrame >= 0 && frame >= m_lngEndFrame) throw new StopPlayingException();
     }

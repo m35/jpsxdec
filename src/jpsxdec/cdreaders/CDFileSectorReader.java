@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,11 +29,8 @@ import java.io.*;
 import java.util.*;
 import jpsxdec.util.NotThisTypeException;
 
-/** Encapsulates the reading of a CD. 
- *  The term "CD" can mean an actual CD (not implemented yet), a CD image 
- *  (BIN/CUE, ISO), or a file containing some sectors of a CD. The resulting 
- *  data is mostly the same. This class does its best to guess what type of
- *  file it is. */
+/** Reads a CD image (BIN/CUE, ISO), or a file containing some sectors of a CD 
+ *  as a CD. This class does its best to guess what type of file it is. */
 public class CDFileSectorReader extends CDSectorReader {
     
     /* ---------------------------------------------------------------------- */
@@ -48,17 +45,19 @@ public class CDFileSectorReader extends CDSectorReader {
     
     int m_iSectorHeaderSize;
     
-    
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    /** Opens a CD file for reading. */
+    /** Opens a CD file for reading only. */
     public CDFileSectorReader(String sFile) throws IOException {
         this(sFile, false);
     }
 
-    public CDFileSectorReader(String sFile, boolean blnAllowWrites) throws IOException {
+    /** Opens a CD file for reading, with the option of allowing writing. */
+    public CDFileSectorReader(String sFile, boolean blnAllowWrites) 
+            throws IOException 
+    {
         m_sSourceFilePath = new File(sFile).getPath();
         if (blnAllowWrites)
             m_oInputFile = new RandomAccessFile(sFile, "rw");
@@ -122,7 +121,9 @@ public class CDFileSectorReader extends CDSectorReader {
     //..........................................................................
     
     /** Returns the requested sector. */
-    public CDXASector getSector(int iSector) throws IOException, IndexOutOfBoundsException {
+    public CDXASector getSector(int iSector) 
+            throws IOException, IndexOutOfBoundsException 
+    {
         if (iSector < 0 || iSector >= m_iSectorCount)
             throw new IndexOutOfBoundsException("Sector not in bounds of CD");
         
@@ -150,13 +151,15 @@ public class CDFileSectorReader extends CDSectorReader {
             // unable to create a CDXA sector from the data.
             // Some possible causes:
             //  - It's a raw CD audio sector
-            //  - At the end of the CD and the last sector is incomplete
+            //  - At the end of the CD and the last sector is incomplete?
             //  - XA audio data is incorrect (corrupted)
-            return null;
+            throw new SectorReadErrorException("Sector " + iSector + " appears to be corrupted.");
         }
     }
     
-    public void writeSector(int iSector, byte[] abSrcUserData) throws IOException {
+    public void writeSector(int iSector, byte[] abSrcUserData) 
+            throws IOException 
+    {
         
         CDXASector oSect = getSector(iSector);
         

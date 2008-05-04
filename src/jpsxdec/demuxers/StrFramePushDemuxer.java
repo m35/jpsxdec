@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,7 +39,7 @@ public class StrFramePushDemuxer implements IWidthHeight
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    private IVideoChunkSector[] m_oChunks;
+    private IVideoChunkSector[] m_aoChunks;
             
     private long m_lngWidth = -1;
     private long m_lngHeight = -1;
@@ -84,10 +84,14 @@ public class StrFramePushDemuxer implements IWidthHeight
     }
     
     public boolean isFull() {
-        for (IVideoChunkSector chk : m_oChunks) {
+        for (IVideoChunkSector chk : m_aoChunks) {
             if (chk == null) return false;
         }
         return true;
+    }
+    
+    public int getChunksInFrame() {
+        return m_aoChunks.length;
     }
     
     /* ---------------------------------------------------------------------- */
@@ -111,21 +115,21 @@ public class StrFramePushDemuxer implements IWidthHeight
             throw new IllegalArgumentException("Not all chunks have the same height");
 
         // if this is the first chunk added
-        if (m_oChunks == null)
-            m_oChunks = new IVideoChunkSector[(int)oChk.getChunksInFrame()];
-        else if (oChk.getChunkNumber() >= m_oChunks.length) {
-            IVideoChunkSector[] oldData = m_oChunks;
-	    m_oChunks = new IVideoChunkSector[(int)oChk.getChunkNumber()+1];
-	    System.arraycopy(oldData, 0, m_oChunks, 0, oldData.length);
+        if (m_aoChunks == null)
+            m_aoChunks = new IVideoChunkSector[(int)oChk.getChunksInFrame()];
+        else if (oChk.getChunkNumber() >= m_aoChunks.length) {
+            IVideoChunkSector[] oldData = m_aoChunks;
+	    m_aoChunks = new IVideoChunkSector[(int)oChk.getChunkNumber()+1];
+	    System.arraycopy(oldData, 0, m_aoChunks, 0, oldData.length);
         }
         
         // now add the chunk where it belongs in the list
         int iChkNum = (int)oChk.getChunkNumber();
         // make sure we don't alrady have the chunk
-        if (m_oChunks[iChkNum] != null)
+        if (m_aoChunks[iChkNum] != null)
             throw new IllegalArgumentException("Chunk number " + iChkNum + " already received.");
         
-        m_oChunks[iChkNum] = oChk;
+        m_aoChunks[iChkNum] = oChk;
         // record add the sector's data size to the total
         m_lngDemuxFrameSize += oChk.getPsxUserDataSize();
     }
@@ -137,7 +141,8 @@ public class StrFramePushDemuxer implements IWidthHeight
     }
     
     public SequenceFPIS getStream() {
-        return new SequenceFPIS(new SequenceFPIS.ArrayEnum(m_oChunks));
+        // TODO: Should add better error handling if chunks are missing
+        return new SequenceFPIS(new SequenceFPIS.ArrayEnum(m_aoChunks));
     }
 
 }

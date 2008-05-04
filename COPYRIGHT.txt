@@ -5,19 +5,29 @@ Source code for jPSXdec copyright (c) Michael Sabin 2007-2008 is
 licensed under the "GNU GENERAL PUBLIC LICENSE Version 2, June 1991"
 except where noted. 
 
-IDCT.java copyright (c) Joerg Anders is also licensed under the 
+IDCT.java 
+copyright (c) Joerg Anders is also licensed under the 
 GNU GENERAL PUBLIC LICENSE Version 2.
 http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html
+
+PsxYuvInt.YCbCr2RGB() and StrFrameDecoderFast.YCbCr2RGB()
+are also originally from Joerg Anders's MPG-1 player, 
+Copyright Joerg Anders and licensed under GNU GENERAL PUBLIC LICENSE Version 2.
+These functions have been changed as needed to work with jPSXdec and
+the unique Playstation behavior.
 
 AudioWriter.java copyright (c) Columbia University was originally part of 
 MEAPsoft, and is also lisensed under the General Public License version 2.
 http://labrosa.ee.columbia.edu/meapsoft/
 
 FileNameExtensionFilter.java
-swing-layout-1.0.3-src.zip
-swing-worker-src-1.1.zip
-All copyright (c) Sun Microsystems, Inc., are also all licensed under 
-the GNU LESSER GENERAL PUBLIC LICENSE v2.
+copyright (c) Sun Microsystems, Inc., is also licensed under 
+the GNU GENERAL PUBLIC LICENSE Version 2.
+
+swing-layout-1.0.3-src.zip and swing-worker-src-1.1.zip
+Copyright (c) Sun Microsystems, Inc., are both licensed under 
+the GNU LESSER GENERAL PUBLIC LICENSE v2.1. Please see the
+corresponding zip files for their COPYING information.
 
 The code for StephensIDCT.java originally came from code written by
 Stephen Manley. He generouslly offers his code free, without restriction.

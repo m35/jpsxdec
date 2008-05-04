@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,18 +20,17 @@
  */
 
 /*
- * CriticalUncompressException.java
+ * SectorReadErrorException.java
  */
 
-package jpsxdec.uncompressors;
+package jpsxdec.cdreaders;
 
 import java.io.IOException;
 
-/** Unable to uncompress any of a frame due to errors in the header. */
-public class CriticalUncompressException extends IOException {
+public class SectorReadErrorException extends IOException {
 
-    public CriticalUncompressException(String message) {
+    public SectorReadErrorException(String message) {
         super(message);
     }
-    
+   
 }

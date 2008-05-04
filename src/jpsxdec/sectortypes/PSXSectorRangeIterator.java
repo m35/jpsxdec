@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import jpsxdec.*;
 import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.SectorReadErrorException;
 import jpsxdec.util.AdvancedIOIterator;
 
 /** Class to walk a range of sectors of a CD and automatically convert them
@@ -43,8 +44,9 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     /** Interface for listener classes. */
     public static interface ISectorChangeListener {
         void CurrentSector(int i);
+        void ReadError(SectorReadErrorException ex);
     }
-    ISectorChangeListener m_oCallBack;
+    private ISectorChangeListener m_oListener;
 
     public PSXSectorRangeIterator(CDSectorReader oCD) {
         this(oCD, 0, oCD.size()-1);
@@ -65,8 +67,13 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
         if (!hasNext()) 
             throw new NoSuchElementException();
         if (!m_blnCached) {
-            m_oCachedSector = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
-            m_blnCached = true;
+            try {
+                m_oCachedSector = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
+                m_blnCached = true;
+            } catch (SectorReadErrorException ex) {
+                if (m_oListener != null) m_oListener.ReadError(ex);
+                return null;
+            }
         }
         return m_oCachedSector;
     }
@@ -77,16 +84,20 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
 
     public PSXSector next() throws IOException {
         if (!hasNext()) throw new NoSuchElementException();
-        PSXSector oPSXSect;
-        if (!m_blnCached)
-            oPSXSect = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
-        else {
+        PSXSector oPSXSect = null;
+        if (!m_blnCached) {
+            try {
+                oPSXSect = PSXSector.SectorIdentifyFactory(m_oCD.getSector(m_iSectorIndex));
+            } catch (SectorReadErrorException ex) {
+                if (m_oListener != null) m_oListener.ReadError(ex);
+            }
+        } else {
             oPSXSect = m_oCachedSector;
             m_oCachedSector = null;
             m_blnCached = false;
         }
         m_iSectorIndex++;
-        if (m_oCallBack != null) m_oCallBack.CurrentSector(m_iSectorIndex);
+        if (m_oListener != null) m_oListener.CurrentSector(m_iSectorIndex);
         return oPSXSect;
     }
     
@@ -95,7 +106,7 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
         m_blnCached = false;
         m_oCachedSector = null;
         m_iSectorIndex++;
-        if (m_oCallBack != null) m_oCallBack.CurrentSector(m_iSectorIndex);
+        if (m_oListener != null) m_oListener.CurrentSector(m_iSectorIndex);
     }
 
     
@@ -115,7 +126,7 @@ public class PSXSectorRangeIterator implements AdvancedIOIterator<PSXSector> {
     
     /** Set a listener for whenever the sector is incremented. */
     public void setSectorChangeListener(ISectorChangeListener oCallbk) {
-        m_oCallBack = oCallbk;
+        m_oListener = oCallbk;
     }
 
 }

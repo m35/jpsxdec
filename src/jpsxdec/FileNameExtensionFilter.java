@@ -156,8 +156,9 @@ public final class FileNameExtensionFilter extends FileFilter {
      * @return a string representation of this {@code FileNameExtensionFilter}
      */
     public String toString() {
-        // Java is so awesome that the Linux version uses toString() instead of
-        // getDescription() in the list of file extention filters.
+        // [M.Sabin edit] Java is so awesome that the Linux version 
+        // uses toString() instead of getDescription() in the list 
+        // of file extention filters.
         return description; 
     }
 }

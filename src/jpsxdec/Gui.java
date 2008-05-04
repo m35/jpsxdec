@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -83,18 +83,10 @@ public class Gui extends javax.swing.JFrame {
                 Logger.getLogger(Gui.class.getName()).log(Level.SEVERE, null, ex);
             } 
         }
+        
+        this.setTitle(Main.VerString);
     }
     
-    private boolean VerifyInputFile() {
-        if (new File(guiInputFile.getText()).exists()) {
-            return true;
-        } else {
-            JOptionPane.showMessageDialog(this, "Input file does not exist");
-            return false;
-        }
-            
-    }
-
     private void PopulateList() {
         guiMediaList.setModel(m_oMediaList);
     }
@@ -132,27 +124,6 @@ public class Gui extends javax.swing.JFrame {
         }
     }
     
-    
-    private void DecodeMediaItem(final PSXMedia oMedia, String sFile) {
-
-        
-        Progress oSaveTask = new Progress(this, "Saving " + oMedia.toString(), new Progress.SimpleWorker<Void>() {
-            @Override
-            Void task(final TaskInfo task) {
-                return null;
-            }
-        });
-            
-        oSaveTask.setVisible(true);
-        if (oSaveTask.threwException()) {
-
-        } else {
-            if (oSaveTask.wasCanceled()) {
-
-            }
-        }
-        
-    }
     
     /** This method is called from within the constructor to
      * initialize the form.
@@ -308,124 +279,131 @@ public class Gui extends javax.swing.JFrame {
 
     
     private void guiLoadIdxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_guiLoadIdxActionPerformed
-        //if (VerifyInputFile()) {
-            try {
-                m_oCD = CDSectorReader.Open(guiInputFile.getText());
 
-                
-                String sFldr = ".";
-                if (m_oLastBrowseFolder != null)
-                    sFldr = m_oLastBrowseFolder.getPath();
+        try {
+            m_oCD = CDSectorReader.Open(guiInputFile.getText());
 
-                JFileChooser fc = new BetterFileChooser(sFldr);
-                fc.setDialogTitle("Load Index");
-                int ret = fc.showOpenDialog(this);
-                if (ret == JFileChooser.APPROVE_OPTION) {
-                    guiInputFile.setText(fc.getSelectedFile().toString());
-                    m_oLastBrowseFolder = fc.getCurrentDirectory();
 
-                    m_sIndexFile = fc.getSelectedFile().getPath();
-                    if (new File(m_sIndexFile).exists()) {
-                        // if everything went swimmingly
-                        // load index
-                        m_oMediaList = new MediaHandler(m_oCD, m_sIndexFile);
-                        if (m_oMediaList.size() > 0) {
-                            DisableIndexButtons();
-                            PopulateList();
-                            guiIndexFile.setText(m_sIndexFile);
-                        } else {
-                            JOptionPane.showMessageDialog(this, "No data found. Are you sure this is an index file?");
-                            m_oMediaList = null;
-                        }
+            String sFldr = ".";
+            if (m_oLastBrowseFolder != null)
+                sFldr = m_oLastBrowseFolder.getPath();
+
+            JFileChooser fc = new BetterFileChooser(sFldr);
+            fc.setDialogTitle("Load Index");
+            int ret = fc.showOpenDialog(this);
+            if (ret == JFileChooser.APPROVE_OPTION) {
+                guiInputFile.setText(fc.getSelectedFile().toString());
+                m_oLastBrowseFolder = fc.getCurrentDirectory();
+
+                m_sIndexFile = fc.getSelectedFile().getPath();
+                if (new File(m_sIndexFile).exists()) {
+                    // if everything went swimmingly
+                    // load index
+                    m_oMediaList = new MediaHandler(m_oCD, m_sIndexFile);
+                    if (m_oMediaList.size() > 0) {
+                        DisableIndexButtons();
+                        PopulateList();
+                        guiIndexFile.setText(m_sIndexFile);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "No data found. Are you sure this is an index file?");
+                        m_oMediaList = null;
                     }
                 }
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, ex.toString());
             }
-        //}
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.toString());
+        }
+
     }//GEN-LAST:event_guiLoadIdxActionPerformed
 
     private void guiGenerateIdxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_guiGenerateIdxActionPerformed
-        //if (VerifyInputFile()) {
-            try {
+        try {
 
-                m_oCD = CDSectorReader.Open(guiInputFile.getText());
+            m_oCD = CDSectorReader.Open(guiInputFile.getText());
 
-                if (!m_oCD.HasSectorHeader())
-                    JOptionPane.showMessageDialog(this, 
-                            "This file does not contain entire raw CD sectors.\n" +
-                            "Audio cannot be decoded.");
-                // generate index
-                Progress oIndexTask = new Progress(this, "Indexing " + m_oCD.getSourceFile(), new Progress.SimpleWorker<Void>() {
+            if (!m_oCD.HasSectorHeader())
+                JOptionPane.showMessageDialog(this, 
+                        "This file does not contain entire raw CD sectors.\n" +
+                        "Audio may not be decodable.");
+            // generate index
+            Progress oIndexTask = new Progress(this, "Indexing " + m_oCD.getSourceFile(), new Progress.SimpleWorker<Void>() {
 
-                    @Override
-                    Void task(final TaskInfo task) {
-                        try {
-                            m_oMediaList = new MediaHandler(m_oCD, new IProgressListener.IProgressEventErrorListener() {
+                @Override
+                Void task(final TaskInfo task) {
+                    try {
+                        m_oMediaList = new MediaHandler(m_oCD, new IProgressListener.IProgressEventErrorListener() {
 
-                                public boolean ProgressUpdate(String sEvent) {
-                                    task.updateEvent(sEvent);
-                                    return !task.cancelPressed();
-                                }
+                            public boolean ProgressUpdate(String sEvent) {
+                                task.updateEvent(sEvent);
+                                return !task.cancelPressed();
+                            }
 
-                                public boolean ProgressUpdate(String sWhatDoing, double dblPercentComplete) {
-                                    task.updateProgress((int) (dblPercentComplete*100));
-                                    task.updateNote(sWhatDoing);
-                                    return !task.cancelPressed();
-                                }
+                            public boolean ProgressUpdate(String sWhatDoing, double dblPercentComplete) {
+                                task.updateProgress((int) (dblPercentComplete*100));
+                                task.updateNote(sWhatDoing);
+                                return !task.cancelPressed();
+                            }
 
-                                public void ProgressUpdate(Exception e) {
-                                    task.showError(e);
-                                }
-                            });
-                            return null;
-                        } catch (IOException ex) {
-                            task.showError(ex);
-                        }
+                            public void ProgressUpdate(Exception e) {
+                                task.showError(e);
+                            }
+                        });
                         return null;
+                    } catch (IOException ex) {
+                        task.showError(ex);
                     }
-                });
-                oIndexTask.setVisible(true);
-                if (!oIndexTask.wasCanceled() && 
-                    !oIndexTask.threwException() && 
-                    m_oMediaList != null && 
-                    m_oMediaList.size() > 0) 
+                    return null;
+                }
+            });
+            oIndexTask.setVisible(true);
+            if (!oIndexTask.wasCanceled() && 
+                !oIndexTask.threwException() && 
+                m_oMediaList != null)
+            {
+                if(m_oMediaList.size() > 0) 
                 {
                     this.DisableIndexButtons();
                     this.PopulateList();
                     PromptToSaveIndex();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Sorry, no decodable media found.");
+                    m_oMediaList = null;
                 }
-                
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, ex.toString());
             }
-                
-                
-        //}
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.toString());
+        }
+
     }//GEN-LAST:event_guiGenerateIdxActionPerformed
 
     
     
     
     private void guiBrowseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_guiBrowseBtnActionPerformed
-        String sFldr = ".";
-        if (m_oLastBrowseFolder != null)
-            sFldr = m_oLastBrowseFolder.getPath();
-        JFileChooser fc = new BetterFileChooser(sFldr);
-        fc.setDialogTitle("Open");
+        try {
         
-        FileFilter allTypes = new FileNameExtensionFilter("All PSX types", "bin", "iso", "str", "mov", "xa", "xai", "tim");
-        
-        fc.setFileFilter(allTypes);
-        fc.setFileFilter(new FileNameExtensionFilter("cd image (*.bin; *.iso)", "bin", "iso"));
-        fc.setFileFilter(new FileNameExtensionFilter("STR (*.str; *.mov)", "str", "mov"));
-        fc.setFileFilter(new FileNameExtensionFilter("XA (*.xa; *.xai)", "xa", "xai"));
-        fc.setFileFilter(new FileNameExtensionFilter("TIM (*.tim)", "tim"));
-        fc.setFileFilter(allTypes);
-        int ret = fc.showOpenDialog(this);
-        if (ret == JFileChooser.APPROVE_OPTION) {
-            guiInputFile.setText(fc.getSelectedFile().toString());
-            m_oLastBrowseFolder = fc.getCurrentDirectory();
+            String sFldr = ".";
+            if (m_oLastBrowseFolder != null)
+                sFldr = m_oLastBrowseFolder.getPath();
+            JFileChooser fc = new BetterFileChooser(sFldr);
+            fc.setDialogTitle("Open");
+
+            FileFilter allTypes = new FileNameExtensionFilter("All PSX types", "bin", "iso", "img", "str", "mov", "xa", "xai", "tim");
+
+            fc.setFileFilter(allTypes);
+            fc.setFileFilter(new FileNameExtensionFilter("cd image (*.bin; *.iso; *.img)", "bin", "iso", "img"));
+            fc.setFileFilter(new FileNameExtensionFilter("STR (*.str; *.mov)", "str", "mov"));
+            fc.setFileFilter(new FileNameExtensionFilter("XA (*.xa; *.xai)", "xa", "xai"));
+            fc.setFileFilter(new FileNameExtensionFilter("TIM (*.tim)", "tim"));
+            fc.setFileFilter(allTypes);
+            int ret = fc.showOpenDialog(this);
+            if (ret == JFileChooser.APPROVE_OPTION) {
+                guiInputFile.setText(fc.getSelectedFile().toString());
+                m_oLastBrowseFolder = fc.getCurrentDirectory();
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.toString());
         }
     }//GEN-LAST:event_guiBrowseBtnActionPerformed
 
@@ -436,39 +414,16 @@ public class Gui extends javax.swing.JFrame {
             oFOS.println(m_oLastBrowseFolder != null ? m_oLastBrowseFolder.toString() : "");
             oFOS.println(m_oLastSaveFolder != null ? m_oLastSaveFolder.toString() : "");
             oFOS.close();
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(Gui.class.getName()).log(Level.SEVERE, null, ex);
         }
         
     }//GEN-LAST:event_formWindowClosing
 
     private void guiIndexFileLblMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_guiIndexFileLblMouseClicked
-        
-        /*
-        PSXMedia oMedia = m_oMediaList.getBySting(guiMediaList.getSelectedValue().toString());
-            
-        if (oMedia instanceof PSXMediaSTR) {
-            PSXMediaSTR oStrMedia = (PSXMediaSTR)oMedia;
 
-            //JOptionPane.showMessageDialog(this, oStrMedia.CalculateFrameLength());
-            JOptionPane.showMessageDialog(this, oStrMedia.CalculateFrameRateBase() + "\n" + oStrMedia.CalculateFrameRateWacked());
-        }
-        */  
+        // secret debug stuff
         
-        //JOptionPane.showMessageDialog(this, this.getClass().getName() +"\n"+ this.getTitle());
-        
-        /*
-        JOptionPane.showMessageDialog(this, 
-                ovfw.FindWindow(this.getClass().getName(), this.getTitle())
-        );
-        */
-        
-        if (guiMediaList.getSelectedValue() != null) {
-            PSXMedia oMedia = m_oMediaList.getBySting(guiMediaList.getSelectedValue().toString());
-
-            if (oMedia instanceof PSXMediaFF9) {
-            }
-        }
     }//GEN-LAST:event_guiIndexFileLblMouseClicked
     
     

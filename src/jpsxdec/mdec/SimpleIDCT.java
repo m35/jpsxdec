@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,13 +27,13 @@ package jpsxdec.mdec;
 
 /** This is the simplest implementation of the Inverse Discrete Cosine 
  *  Transform. If I understand correctly, it's inverse 2D DCT-II, specifically.
- *
+ *<p>
  * It's as simple as I could make it, and as such, it's about as
  * slow as can be.
- *
+ *<p>
  * Note: Using the Stephen's version is about 13 times faster!!!!
  * The results are almost indistinguishable. I don't think there
- * is any intentional loss of precision with the optimized version.
+ * is any intentional loss of precision with his optimized version.
  * It's just how the floating point numbers happen to round.
  */
 public class SimpleIDCT implements IDCTinterface {

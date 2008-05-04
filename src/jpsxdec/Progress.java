@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,8 +28,7 @@ package jpsxdec;
 import java.awt.Component;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.PrintStream;
-import java.io.PrintWriter;
+import java.util.concurrent.TimeUnit;
 import javax.swing.JOptionPane;
 import jpsxdec.util.Misc;
 import org.jdesktop.swingworker.SwingWorker;
@@ -151,6 +150,9 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
         setModal(true);
         setName("guiProgressDlg"); // NOI18N
         addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent evt) {
+                formWindowClosing(evt);
+            }
             public void windowOpened(java.awt.event.WindowEvent evt) {
                 formWindowOpened(evt);
             }
@@ -216,14 +218,35 @@ public class Progress<T> extends javax.swing.JDialog implements PropertyChangeLi
 
     private void guiCancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_guiCancelBtnActionPerformed
         if (m_blnTaskDone) {
+            // cancel has already been sent
+            // but if the task is still running
+            if (!m_oTask.isDone()) {
+                try {
+                    // wait 2 more seconds
+                    m_oTask.get(2, TimeUnit.SECONDS);
+                } catch (Exception ex) {}
+                // then kill it
+                m_oTask.cancel(true);
+            }
             this.setVisible(false);
             this.dispose();
         } else {
             m_oTask.cancel(true);
             guiCancelBtn.setEnabled(false);
-            // the task will trigger a 'done' or 'error' event once it's canceled
+            // the task will (hopefully) trigger a 'done' or 'error' event once it's canceled
         }
 }//GEN-LAST:event_guiCancelBtnActionPerformed
+
+    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
+        if (m_blnTaskDone) {
+            this.setVisible(false);
+            this.dispose();
+        } else {
+            m_oTask.cancel(true);
+            guiCancelBtn.setEnabled(false);
+            // the task will (hopefully) trigger a 'done' or 'error' event once it's canceled
+        }
+    }//GEN-LAST:event_formWindowClosing
         
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton guiCancelBtn;

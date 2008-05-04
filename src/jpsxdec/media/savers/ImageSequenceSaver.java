@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,6 +30,7 @@ import jpsxdec.demuxers.StrFramePushDemuxer;
 import jpsxdec.media.StopPlayingException;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import javax.imageio.ImageIO;
 import jpsxdec.media.PSXMediaStreaming;
 import jpsxdec.media.PSXMediaStreaming.IDemuxListener;
@@ -51,13 +52,12 @@ public class ImageSequenceSaver extends AbstractSaver
     private boolean m_blnUseDefaultJpeg;
     private float m_fltJpegQuality;
     
-    private Decoders.DemuxToRgb oDecoder = Decoders.MakeDemuxToRgb(null);
-    private Decoders.DemuxToUncompress oUncompressor = Decoders.MakeDemuxToUncompress();
+    private Decoders.DemuxToRgb oDecoder;
+    private Decoders.DemuxToUncompress oUncompressor;
     
     private String m_sFileVidExt;
     
     public ImageSequenceSaver(SavingOptions oOptions) {
-        super(oOptions.getMedia());
         
         m_oMedia = oOptions.getMedia();
         m_oFolder = oOptions.getFolder();
@@ -65,6 +65,9 @@ public class ImageSequenceSaver extends AbstractSaver
         m_oOutputFormat = (ImgSeqVidFormat)oOptions.getVideoFormat();
         m_sFileVidExt = oOptions.getVidFilenameExt();
         
+        oDecoder = Decoders.MakeDemuxToRgb(oOptions.getDecodeQuality());
+        oUncompressor = Decoders.MakeDemuxToUncompress(oOptions.getDecodeQuality());
+
         m_lngEndFrame = oOptions.getEndFrame();
         
         m_oMedia.addVidDemuxListener(this);
@@ -90,24 +93,23 @@ public class ImageSequenceSaver extends AbstractSaver
                     m_oMedia.getEndFrame(),
                     frame);
 
-        Exception[] e = new Exception[1];
         if (m_oOutputFormat == Formats.DEMUX) {
             IO.writeIStoFile(oDemux.getStream(), FileName(frame));
         } else if (m_oOutputFormat == Formats.MDEC) {
-            IO.writeIStoFile(oUncompressor.Uncompress(oDemux, e), FileName(frame));
+            InputStream is = oUncompressor.Uncompress(oDemux, super.m_oListener);
+            if (is != null)
+                IO.writeIStoFile(is, FileName(frame));
         } else {
-            BufferedImage bi = oDecoder.UncompressDecodeRgb(oDemux, e);
-            // TODO: Write jpg with custom quality
+            BufferedImage bi = oDecoder.UncompressDecodeRgb(oDemux, super.m_oListener);
             if (m_oOutputFormat == Formats.JPEG_IMG_SEQ && !m_blnUseDefaultJpeg) {
                 boolean ok = ImageIO.write(bi, m_oOutputFormat.getId(), FileName(frame));
                 if (!ok) throw new IOException("Unable to write frames as " + m_oOutputFormat.getDesciption() + " file format.");
             } else {
+                // TODO: Write jpg with custom quality
                 boolean ok = ImageIO.write(bi, m_oOutputFormat.getId(), FileName(frame));
                 if (!ok) throw new IOException("Unable to write frames as " + m_oOutputFormat.getDesciption() + " file format.");
             }
         }
-        
-        if (e[0] != null) error(e[0]);
         
         if (m_lngEndFrame >= 0 && frame >= m_lngEndFrame) throw new StopPlayingException();
     }

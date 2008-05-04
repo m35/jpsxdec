@@ -1,6 +1,6 @@
 /*
  * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007  Michael Sabin
+ * Copyright (C) 2007-2008  Michael Sabin
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,6 +40,8 @@ public class PSXSectorChronoXAudio extends PSXSector
 
     public static final int AUDIO_CHUNK_MAGIC1 = 0x00000160;
     public static final int AUDIO_CHUNK_MAGIC2 = 0x00010160;
+    public static final int AUDIO_CHUNK_MAGIC3 = 0x01000160;
+    public static final int AUDIO_CHUNK_MAGIC4 = 0x01010160;
     public static final int FRAME_AUDIO_CHUNK_HEADER_SIZE = 208;
 
     // .. Instance .........................................................
@@ -70,7 +72,9 @@ public class PSXSectorChronoXAudio extends PSXSector
             
             // make sure the magic nubmer is correct
             if (m_lngMagic != AUDIO_CHUNK_MAGIC1 && 
-                m_lngMagic != AUDIO_CHUNK_MAGIC2)
+                m_lngMagic != AUDIO_CHUNK_MAGIC2 &&
+                m_lngMagic != AUDIO_CHUNK_MAGIC3 &&
+                m_lngMagic != AUDIO_CHUNK_MAGIC4)
                 throw new NotThisTypeException();
 
             m_lngAudioChunkNumber = IO.ReadUInt16LE(oIS);

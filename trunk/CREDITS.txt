@@ -1,42 +1,90 @@
 CREDITS & THANKS
 ----------------
 
-The following people either helped make jPSXdec possible, or are just really cool people (usually both):
+The following people either helped make jPSXdec possible, or are just 
+really cool (usually both): 
 
-Mike Melanson and Stuart Caie for adding STR decoding support to xine, including the documentation in the source. (http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html) Also for archiving some example STR files (http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html).
+My dad, for evertyhing he did for me (1949-2009).
 
-The q-gears development team for their forums, source code, and documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/trunk/src/common/movie/decoders/).
+Mike Melanson and Stuart Caie for adding STR decoding support to xine, 
+including the documentation in the source. 
+(http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html)
+Also for archiving some example STR files.
+(http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html)
 
-"Everything You Have Always Wanted to Know about the Playstation But Were Afraid to Ask." compiled / edited by Joshua Walker. Even if it has the CrCb reversal error, it will always be a great reference for PSX hacking.
+The q-gears development team and forum members for their source code and 
+documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). 
+Their STR decoding source code PSXMDECDecoder.cpp was invaluable 
+(http://q-gears.svn.sourceforge.net/viewvc/q-gears/branches/old_sources/src/common/movie/decoders/). 
 
-smf, developer for MAME, for figuring out that everyone was getting the order of CrCb wrong (http://smf.mameworld.info/?m=200603).
+"Everything You Have Always Wanted to Know about the Playstation But 
+Were Afraid to Ask." 
+Compiled / edited by Joshua Walker.
+Perhaps the most valuable reference for any kind of PSX hacking, 
+especially the PSX assembly instruction set (note that it has CrCb 
+reversal error mentioned in ch 2.2). 
 
-Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org:8080/cdxa/  http://jonatkins.org:8080/cdxa/).
+smf, developer for MAME, for figuring out that everyone was getting the 
+order of CrCb wrong (http://smf.mameworld.info/?m=200603). 
 
-The PCSX Team, creators of one of the two open source Playstation emulators (http://www.pcsx.net/). This version of their mdec.c file is particularly useful http://www.koders.com/c/fidF23C1EAFCEAF84CA539927A01093D37D9695722A.aspx
+Jonathan Atkins for his open source cdxa code and documentation.
+(http://freshmeat.net/projects/cdxa/ 
+http://jcatki.no-ip.org:8080/cdxa/ 
+http://jonatkins.org:8080/cdxa/)
 
-Developers of the pSX emulator. While not open source, at least it is still under active development, and provides a very nice debugger for reverse engineering games (http://psxemulator.gazaxian.com/).
+The PCSX Team, creators of one of the two open source Playstation 
+emulators (http://www.pcsx.net/).
+One version of its mdec.c file is particularly useful 
+(http://www.google.com/codesearch?q=%22blk_zig+value%22) 
 
-"Fyiro", the Japanese fellow that wrote the source code for the PsxMC FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
+The MAME emulator team for their efforts to document and accurately
+emulate hardware, and for their license (http://mamedev.org/).
 
-T_chan for sharing a bit of his knowledge about the FF9 format (http://www.network54.com/Forum/119865/thread/1196268797/last-1197023290/Final+Fantasy+9+Format).
+Developers of the pSX emulator. While not open source, at least it is 
+still under development and provides a very nice debugger for reverse 
+engineering games (http://psxemulator.gazaxian.com/). 
 
-Stephen Manley for generously sharing his DCT.java class (http://www.nyx.net/~smanley/)
+"Fyiro", the Japanese fellow that wrote the source code for the PsxMC 
+FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/). 
 
-Steve Purcell et al. for the handy jargs library (http://jargs.sourceforge.net/).
+T_chan for sharing a bit of his knowledge about the FF9 format 
+(http://www.network54.com/Forum/119865/thread/1196268797). 
 
-Joerg Anders for managing to write an mpeg1 decoder in pure Java (http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html). His IDCT is being utilized.
+Stephen Manley for generously sharing his DCT.java class 
+(http://www.nyx.net/~smanley/).
 
-Rodrigo Reyes for the JSmooth tool (http://jsmooth.sourceforge.net/).
+Alexander Strange for porting the ffmpeg simple_idct to Java.
 
-Jen (a.k.a. punistation) for her long standing Playstation Serial Experiments Lain page (http://www.geocities.com/punistation10/).
+Doug Lea for sharing his Fraction.java class.
 
-Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating anime.   
+Sequence Point Software for the J2ME MPEG implementation of the IDCT
+(http://code.seqpoint.com/j2me_mpeg/).
 
-The most excellent folks at IRCNet #lain :D
+Eclipse SWT for the Java JPEG implementation of the IDCT.
 
-Bernhard Huber for his very nice javadoc-templates (http://members.aon.at/bhuber14/ http://plugins.netbeans.org/PluginPortal/faces/PluginDetailPage.jsp?pluginid=1168)
+John E. Lloyd for the handy argparser library 
+(http://people.cs.ubc.ca/~lloyd/java/argparser.html). 
 
+Joerg Anders for managing to write an mpeg1 decoder in pure Java 
+(http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html).
 
-Finally, a very special thanks to all the Playstation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs, are real men of genius.
+Rodrigo Reyes for the JSmooth tool (http://jsmooth.sourceforge.net/). 
+
+Jen (a.k.a. punistation) for her long standing Playstation Serial 
+Experiments Lain page (http://www.geocities.com/punistation10/). 
+
+Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating 
+anime. 
+
+The most excellent folks at IRCNet #lain :D 
+
+Bernhard Huber for his very nice javadoc-templates 
+(http://members.aon.at/bhuber14/ 
+http://plugins.netbeans.org/PluginPortal/faces/PluginDetailPage.jsp?pluginid=1168) 
+
+Finally, a very special thanks to all the Playstation hackers who 
+thought it was a good idea to keep their decoders/emulators/hacking 
+tools closed source, then completely stop working on them. Extra thanks 
+to those who now provide a 404 page for a web site. You sirs are real 
+men of genius. 
 

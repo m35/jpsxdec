@@ -1,36 +1,47 @@
 /*
- * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2008  Michael Sabin
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007-2010  Michael Sabin
+ * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
- * Boston, MA  02110-1301, USA.
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
  *
- */
-
-/*
- * IO.java
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package jpsxdec.util;
 
 import java.io.*;
 
-
-/** Additional functions to read/write streams. */
+/** Additional functions for reading, writing, and whatnot. */
 public final class IO {
-    
+
     /** When you want an input stream to have getFilePointer(). */
     public static class InputStreamWithFP 
             extends InputStream 
@@ -56,36 +67,112 @@ public final class IO {
         
     }
     
-    public static int ReadUInt8(InputStream oIS) throws IOException {
+    //== 8-bit =================================================================
+
+    public static int readUInt8(InputStream oIS) throws IOException {
         int i = oIS.read();
         if (i < 0) throw new EOFException();
         return i;
     }
-    public static int ReadUInt8(byte[] ab, int i) {
+    public static int readUInt8(byte[] ab, int i) {
         return ab[i] & 0xFF;
     }
-    
-    /** Reads little-endian 16 bits from InputStream. 
-     *  Throws an exception if at the end of the stream. */
-    public static long ReadUInt16LE(InputStream oIS) throws IOException 
-    {
+
+    //== 16-bit signed =========================================================
+
+    public static short readSInt16LE(InputStream oIS) throws IOException {
         int b1 = oIS.read();
         if (b1 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt16LE");
+            throw new EOFException("Unexpected end of file in readUInt16LE");
         int b2 = oIS.read();
         if (b2 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt16LE");
+            throw new EOFException("Unexpected end of file in readUInt16LE");
+        return (short)((b2 << 8) + (b1 << 0));
+    }
+
+    public static short readSInt16LE(byte[] ab, int i) {
+        int b1 = ab[i  ] & 0xFF;
+        int b2 = ab[i+1] & 0xFF;
+        return (short)((b2 << 8) + (b1 << 0));
+    }
+
+    public static short readSInt16BE(byte[] ab, int i) {
+        int b1 = ab[i+1] & 0xFF;
+        int b2 = ab[i  ] & 0xFF;
+        return (short)((b2 << 8) + (b1 << 0));
+    }
+    
+    //== 16-bit ================================================================
+
+    public static long readUInt16BE(InputStream inStream) throws IOException {
+        int b2 = inStream.read();
+        if (b2 < 0)
+            throw new EOFException("Unexpected end of file in readUInt16BE");
+        int b1 = inStream.read();
+        if (b1 < 0)
+            throw new EOFException("Unexpected end of file in readUInt16BE");
+        return (b2 << 8) | b1;
+    }
+
+    /** Reads little-endian 16 bits from InputStream. 
+     *  Throws an exception if at the end of the stream. */
+    public static long readUInt16LE(InputStream oIS) throws IOException {
+        int b1 = oIS.read();
+        if (b1 < 0)
+            throw new EOFException("Unexpected end of file in readUInt16LE");
+        int b2 = oIS.read();
+        if (b2 < 0)
+            throw new EOFException("Unexpected end of file in readUInt16LE");
         return (b2 << 8) | b1;
     }
     
-    public static long ReadUInt16LE(byte[] ab, int i) 
+    public static long readUInt16LE(byte[] ab, int i)
     {
         int b1 = ab[i] & 0xFF;
         int b2 = ab[i+1] & 0xFF;
         return (b2 << 8) | b1;
     }
+
+    /** Reads little-endian 16 bits from RandomAccessFile. 
+     *  Throws an exception if at the end of the file. */
+    public static long readUInt16LE(RandomAccessFile oRAF) throws IOException
+    {
+        int b1 = oRAF.read();
+        if (b1 < 0)
+            throw new EOFException("Unexpected end of file in readUInt16LE");
+        int b2 = oRAF.read();
+        if (b2 < 0)
+            throw new EOFException("Unexpected end of file in readUInt16LE");
+        return (b2 << 8) | b1;
+    }
     
-    public static int ReadInt16BE(InputStream oIS) throws IOException 
+    public static void writeInt16LE(OutputStream oOS, long lng)
+            throws IOException 
+    {
+        oOS.write((int)(lng & 0xFF));
+        oOS.write((int)((lng >>> 8) & 0xFF));
+    }
+
+    public static void writeInt16LE(RandomAccessFile raf, int lng)
+            throws IOException 
+    {
+        raf.write((int)(lng & 0xFF));
+        raf.write((int)((lng >>> 8) & 0xFF));
+    }
+
+    public static void writeInt16LE(byte[] ab, int pos, short si) {
+        ab[pos  ] = (byte)( si        & 0xFF);
+        ab[pos+1] = (byte)((si >>> 8) & 0xFF);
+    }
+
+    public static void writeInt16BE(byte[] ab, int pos, short si) {
+        ab[pos  ] = (byte)((si >>> 8) & 0xFF);
+        ab[pos+1] = (byte)( si        & 0xFF);
+    }
+
+    //== 32-bit ================================================================
+
+    public static int readSInt32BE(InputStream oIS) throws IOException
     {
         int b1 = oIS.read();
         int b2 = oIS.read();
@@ -94,35 +181,9 @@ public final class IO {
         if ((b1 | b2 | b3 | b4) < 0) throw new EOFException();
         return (b1 << 24) + (b2 << 16) + (b3 << 8) + (b4 << 0);
     }
-    
-    /** Reads little-endian 16 bits from RandomAccessFile. 
-     *  Throws an exception if at the end of the file. */
-    public static long ReadUInt16LE(RandomAccessFile oRAF) throws IOException 
-    {
-        int b1 = oRAF.read();
-        if (b1 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt16LE");
-        int b2 = oRAF.read();
-        if (b2 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt16LE");
-        return (b2 << 8) | b1;
-    }
-    
-    public static void WriteInt16LE(OutputStream oOS, long lng) 
-            throws IOException 
-    {
-        oOS.write((int)(lng & 0xFF));
-        oOS.write((int)((lng >>> 8) & 0xFF));
-    }
 
-    public static void WriteInt16LE(RandomAccessFile raf, int lng) 
-            throws IOException 
-    {
-        raf.write((int)(lng & 0xFF));
-        raf.write((int)((lng >>> 8) & 0xFF));
-    }
 
-    public static void WriteInt32LE(OutputStream oOS, long lng) 
+    public static void writeInt32LE(OutputStream oOS, long lng)
             throws IOException 
     {
         oOS.write((int)( lng         & 0xFF));
@@ -130,30 +191,37 @@ public final class IO {
         oOS.write((int)((lng >>> 16) & 0xFF));
         oOS.write((int)((lng >>> 24) & 0xFF));
     }
+
+    public static void writeInt32LE(byte[] ab, int pos, long lng) {
+        ab[pos  ] = (byte)( lng         & 0xFF);
+        ab[pos+1] = (byte)((lng >>>  8) & 0xFF);
+        ab[pos+2] = (byte)((lng >>> 16) & 0xFF);
+        ab[pos+3] = (byte)((lng >>> 24) & 0xFF);
+    }
     
     /** Reads little-endian 32 bits from a RandomAccessFile.
      *  Throws EOFException if at end of stream. 
      *  Throws IOException if 0xFFFFFFFF is read, causing an overflow to -1. */
-    public static long ReadUInt32LE(RandomAccessFile oRAF) throws IOException {
+    public static long readUInt32LE(RandomAccessFile oRAF) throws IOException {
         int b1 = oRAF.readUnsignedByte();
         if (b1 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt32LE");
+            throw new EOFException("Unexpected end of file in readUInt32LE");
         int b2 = oRAF.readUnsignedByte();
         if (b2 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt32LE");
+            throw new EOFException("Unexpected end of file in readUInt32LE");
         int b3 = oRAF.readUnsignedByte();
         if (b3 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt32LE");
+            throw new EOFException("Unexpected end of file in readUInt32LE");
         int b4 = oRAF.readUnsignedByte();
         if (b4 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt32LE");
+            throw new EOFException("Unexpected end of file in readUInt32LE");
         long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
         if (total == -1) throw 
                new IOException("Reading of unsigned 32 bits 0xFFFFFFFF -> -1");
         return total;
     }
     
-    public static long ReadUInt32LE(byte[] ab, int i) {
+    public static long readUInt32LE(byte[] ab, int i) {
         int b1 = ab[i] & 0xFF;
         int b2 = ab[i+1] & 0xFF;
         int b3 = ab[i+2] & 0xFF;
@@ -165,34 +233,53 @@ public final class IO {
     /** Function to read little-endian 32 bits from an InputStream.
      *  Throws EOFException if at end of stream. 
      *  Note that if 0xFFFFFFFF is read, it will overflow to -1. */
-    public static long ReadUInt32LE(InputStream oIS) throws IOException {
+    public static long readUInt32LE(InputStream oIS) throws IOException {
         // Note that if 0xFFFFFFFF, it will overflow to -1
         int b1 = oIS.read();
         if (b1 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt32LE");
+            throw new EOFException("Unexpected end of file in readUInt32LE");
         int b2 = oIS.read();
         if (b2 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt32LE");
+            throw new EOFException("Unexpected end of file in readUInt32LE");
         int b3 = oIS.read();
         if (b3 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt32LE");
+            throw new EOFException("Unexpected end of file in readUInt32LE");
         int b4 = oIS.read();
         if (b4 < 0)
-            throw new EOFException("Unexpected end of file in ReadUInt32LE");
+            throw new EOFException("Unexpected end of file in readUInt32LE");
         long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
         return total;
     }
     
-    
+    public static int readSInt32LE(InputStream oIS) throws IOException {
+        // Note that if 0xFFFFFFFF, it will overflow to -1
+        int b1 = oIS.read();
+        if (b1 < 0)
+            throw new EOFException("Unexpected end of file in readUInt32LE");
+        int b2 = oIS.read();
+        if (b2 < 0)
+            throw new EOFException("Unexpected end of file in readUInt32LE");
+        int b3 = oIS.read();
+        if (b3 < 0)
+            throw new EOFException("Unexpected end of file in readUInt32LE");
+        int b4 = oIS.read();
+        if (b4 < 0)
+            throw new EOFException("Unexpected end of file in readUInt32LE");
+        int total = ((b4 << 24) + (b3 << 16) + (b2 << 8) + (b1 << 0));
+        return total;
+    }
+
+    //== Other IO ==============================================================
+
     /** Because the read(byte[]) method won't always return the entire
      *  array for various reasons I don't really care about. */
-    public static byte[] readByteArray(InputStream oIS, int iBytes) throws IOException {
+    public static byte[] readByteArray(InputStream is, int iBytes) throws IOException {
         assert(iBytes > 0);
         byte[] ab = new byte[iBytes];
-        int pos = oIS.read(ab);
+        int pos = is.read(ab);
         if (pos < 0) throw new EOFException();
         while (pos < iBytes) {
-            int i = oIS.read(ab, pos, iBytes - pos);
+            int i = is.read(ab, pos, iBytes - pos);
             if (i < 0) throw new EOFException();
             pos += i;
         }
@@ -204,14 +291,42 @@ public final class IO {
     public static byte[] readByteArray(RandomAccessFile raf, int iBytes) throws IOException {
         assert(iBytes > 0);
         byte[] ab = new byte[iBytes];
-        int pos = raf.read(ab);
-        if (pos < 0) throw new EOFException();
-        while (pos < iBytes) {
-            int i = raf.read(ab, pos, iBytes - pos);
-            if (i < 0) throw new EOFException();
-            pos += i;
-        }
+        readByteArray(raf, ab);
         return ab;
+    }
+
+    /** Because the read(byte[]) method won't always return the entire
+     *  array for various reasons I don't really care about. */
+    public static void readByteArray(RandomAccessFile raf, byte[] abBuf) throws IOException {
+        readByteArray(raf, abBuf, 0, abBuf.length);
+    }
+
+    public static void readByteArray(RandomAccessFile raf, byte[] abBuf, int iStart, int iLen) throws IOException {
+        int iTotal = raf.read(abBuf, iStart, iLen);
+        if (iTotal < 0) throw new EOFException();
+        while (iTotal < iLen) {
+            int iCount = raf.read(abBuf, iStart + iTotal, iLen - iTotal);
+            if (iCount < 0) throw new EOFException();
+            iTotal += iCount;
+        }
+    }
+
+    public static void skip(InputStream is, long lngTotal) throws IOException {
+        while (lngTotal > 0) {
+            long lngCount = is.skip(lngTotal);
+            if (lngCount < 0)
+                throw new EOFException();
+            lngTotal -= lngCount;
+        }
+    }
+
+    public static void skip(RandomAccessFile raf, int iTotal) throws IOException {
+        while (iTotal > 0) {
+            int iCount = raf.skipBytes(iTotal);
+            if (iCount < 0)
+                throw new EOFException();
+            iTotal -= iCount;
+        }
     }
 
     public static void writeFile(String s, byte[] ab) throws IOException {
@@ -220,13 +335,18 @@ public final class IO {
         fos.close();
     }
     
+    public static void writeFile(File file, byte[] abData) throws IOException {
+        FileOutputStream fos = new FileOutputStream(file);
+        fos.write(abData);
+        fos.close();
+    }
     
     public static void writeIStoFile(InputStream is, String sFile) throws IOException {
         FileOutputStream fos = new FileOutputStream(sFile);
         writeIStoOS(is, fos);
     }
-    public static void writeIStoFile(InputStream is, File oFile) throws IOException {
-        FileOutputStream fos = new FileOutputStream(oFile);
+    public static void writeIStoFile(InputStream is, File file) throws IOException {
+        FileOutputStream fos = new FileOutputStream(file);
         writeIStoOS(is, fos);
     }
     public static void writeIStoOS(InputStream is, OutputStream os) throws IOException {
@@ -243,13 +363,47 @@ public final class IO {
         return ab;
     }
     
+    public static byte[] readFile(File file) throws IOException {
+        RandomAccessFile raf = new RandomAccessFile(file, "r");
+        byte[] ab = readByteArray(raf, (int)raf.length());
+        raf.close();
+        return ab;
+    }
+
+
+    /** Returns a sorted list of image files found in the folder. */
+    public static File[] getSortedFileList(String sDirectory, final String ... asExtensions)
+            throws FileNotFoundException
+    {
+        File oDir = new File(sDirectory);
+        if (!oDir.exists() || !oDir.isDirectory())
+            throw new FileNotFoundException("Folder " + oDir.getPath() + " does not exist.");
+        FilenameFilter oFilter = new FilenameFilter() {
+            public boolean accept(File dir, String name) {
+                for (String sExt : asExtensions) {
+                    if (name.endsWith(sExt)) return true;
+                }
+                return false;
+            }
+        };
+        File[] aoNames = oDir.listFiles(oFilter);
+        if (aoNames == null) {
+            return null;
+        } else {
+            java.util.Arrays.sort(aoNames);
+            return aoNames;
+        }
+    }
+    
+
+    /** Test */
     public static void main(String[] args) throws IOException {
         // test reading a -1
         byte[] ab = {(byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF};
         
         ByteArrayInputStream bais = new ByteArrayInputStream(ab);
         
-        long i = ReadUInt32LE(bais);
+        long i = readUInt32LE(bais);
         System.out.println(i);
         
     }

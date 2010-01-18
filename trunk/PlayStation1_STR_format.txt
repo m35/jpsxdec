@@ -1,0 +1,1824 @@
+﻿
+                      The PlayStation 1 Video (STR) Format
+                             v0.56, September 2009
+                       http://code.google.com/p/jpsxdec/
+                         http://jpsxdec.blogspot.com/
+
+--------------------------------------------------------------------------------
+This document, copyright (c) 2008-2009 Michael Sabin, is licensed under the MIT License. Permission has been obtained
+(http://sourceforge.net/mailarchive/message.php?msg_name=474C4DEB.5080304%40multimedia.cx)
+to also include some source code comments from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this license is at the end of this file.
+Note that the related jPSXdec program is NOT licensed under the MIT license, but is licensed under the GPL v2.
+--------------------------------------------------------------------------------
+
+Change History
+
+v0.2 draft
+    - Draft. Initial public release.
+v0.21 draft
+    - Corrected the PlayStation default quantization matrix, which in turn fixed the mysterious divide-by-four in the dequantization step.
+v0.22 draft
+    - Finished documenting FF8 movie format
+v0.30 draft
+    - Obtained permission to use xine source code. This entire document now under modified MIT License.
+    - ch 1.1: subcode.form is NOT unimportant
+    - ch 2.2: Added what DC and AC stand for
+v0.40 draft
+    - Changed license to just use the standard (unmodified) MIT License.
+    - ch 2.3.6: Corrected YUV -> RGB conversion to use PSX equations.
+    - ch 3.2: Checked and fixed FF8 audio decoding.
+    - ch 3.3: Added Final Fantasy 9 video format (untested).
+v0.41 draft
+    - ch 3.2: Added note about FF8 audio-only 'movie'.
+    - ch 3.3: Checked and fixed FF9 decoding.
+v0.42 draft
+    - ch 3.3: Corrected FF9 audio decoding.
+    - ch 3.4: Added note that Lain DC Coefficients are handled in the normal
+              version 2 method.
+v0.43 draft
+    - ch 3.2: Flushed out more of the FF8 audio header
+    - ch 3.3: Added some audio variations found on FF9 disc 4.
+    - ch 3.4: Added Chrono Cross audio sector format.
+v0.50
+    - Removed the mention of "Software" in the license to avoid confusion.
+    - ch 3.1: It looks like Final Fantasy Tactics also use v1 frames?
+    - ch 3.4: Chrono Cross has more variations on disc 2.
+              It looks like Legend of Mana is like Chrono Cross?
+    - ch 3.6: Added Alice In Cyber Land.
+    - All over: Lots of cleaning, rewording, and generally making things clearer
+v0.56
+    - Lots of cleaning, reformatting, fixing typos and rewording for clarity.
+    - ch 2.2.2, 2.3.1: The variable-length-codes have an END_OF_BLOCK code,
+                       but the MDEC codes have an END_OF_DATA code.
+    - ch 2.3.3: Fixed very incorrect dequantization calculation.
+    - ch 3.1 (FF7): Field at offset 12 in Frame Sector Header identified as
+                    bytes of data actually used in demuxed frame.
+                    First field (after camera data) in demultiplexed frame is
+                    always about half the number of variable-length-codes in the
+                    frame.
+    - ch 3.2 (FF8): Changed use of "sound unit" and "sound group" conventions.
+v0.58
+    - ch 2.2.2: The PlayStation decoder expects extra bits at the end of frames.
+    - ch 2.3.3, 2.3.4: The MDEC chip is partially programmable.
+    - ch 2.3.6: It's called a "level shift".
+    - Overall: A few tweaks and rewording.
+
+Left to do:
+* Confirm FF Tactics format
+* Confirm Legend of Mana format
+* Figure out Chrono Cross final movie format
+* Figure out Sonic Wings Special movie format
+* Figure out Ace Combat 3 formats
+* Add more game formats as they are found...
+--------------------------------------------------------------------------------
+
+##
+## Introduction
+## Conventions used
+##
+## 1. The disc
+##    1.1. How data is stored on the disc
+##    1.2. How the PlayStation reads data from the disc
+##    1.3. Getting the data off the disc
+## 2. Decoding a PlayStation 1 video frame
+##    2.1. Demultiplex the frame
+##    2.2. Uncompress the data
+##        2.2.1. Read the DC Coefficient
+##        2.2.2. Read all AC Coefficients
+##        2.2.3. Convert to MDEC format
+##    2.3. MDEC emulation
+##        2.3.1. Translate the DC and run length codes into a 64 value list
+##        2.3.2. Un-zig-zag the list into a matrix
+##        2.3.3. Dequantization of the matrix
+##        2.3.4. Apply Inverse Discrete Cosine Transform to the matrix
+##        2.3.5. Combine the blocks into (Y, Cb, Cr) pixels
+##        2.3.6. Convert the (Y, Cb, Cr) pixels into RGB pixels
+## 3. Variations by some PSX games
+##    3.1. Final Fantasy VII (and Final Fantasy Tactics?)
+##    3.2. Final Fantasy VIII
+##    3.3. Final Fantasy IX
+##    3.4. Chrono Cross (and Legend of Mana?)
+##    3.5. Serial Experiments Lain
+##    3.6. Alice in Cyber Land
+## 4. Credits, Thanks, etc.
+##
+
+################################################################################
+## Introduction
+################################################################################
+
+Sony PlayStation 1 videos, usually with the extension STR, MOV, or BIN, contain compressed video data similar to an MPEG1 movie. They also contain interleaved audio using a unique form of Adaptive Differential Pulse Code Modulation (ADPCM) compression.
+
+This document attempts to explain the decoding process of a single video frame. Audio is not covered in this document, but has already been documented by
+Jonathan Atkins (http://freshmeat.net/projects/cdxa/, also mirrored at http://code.google.com/p/jpsxdec/downloads/list).
+
+Like MPEG1 streams, the decoding process is long, and rather complicated. Specifically, Chapters 2.2 and 2.3 closely resemble two aspects of MPEG1 decoding: translation of variable length codes, and macro-block decoding.
+
+I have tried to keep the descriptions as clear and straight-forward as possible, and explain some of the details and terminology of MPEG1 decoding. However, this document doesn't contain everything, and I've been immersed in this stuff for so long that I no longer can see where my explanations fall short. Therefore, you may need other sources of information to fully grasp these steps.
+
+The most helpful source would be the MPEG1 specification (ISO/IEC 11172). It is available to purchase from the ISO web site for a small fortune. Alternatively, if you prefer to spend much less money, there are many good books that cover the MPEG1 format.
+
+There are some free alternatives that will help, but don't apply as well as the MPEG1 spec. H.261, the first specification using MPEG-like encoding, is available for free from ITU-T. Also available from ITU-T is H.262, which (according to Wikipedia) is "completely identical in all aspects" to the MPEG2 specification. Finally, you could also search for information about JPEG encoding, which can be found in many places on the web.
+
+################################################################################
+## Conventions used
+################################################################################
+
+Octets are referred to as 'bytes'. 
+Hex values are preceeded with '0x'.
+All other numeric values are decimal unless there is a note about it being binary.
+
+################################################################################
+## 1. The disc
+################################################################################
+
+
+################################################################################
+## 1.1. How data is stored on the disc
+################################################################################
+
+All compact discs are composed of hundreds of thousands of sectors (technically called "frames"). Each sector holds exactly 2352 bytes of data. There are three important sector formats to be aware of: "Mode 1" (from the "Red Book" standard), and "Mode 2 Form 1" and "Mode 2 Form 2" (from the "Green Book" standard).
+
+For a normal "Red Book" "Mode 1" sector, there are 24 bytes of header information, and 280 bytes of error correction at the end. This leaves 2048 of data per sector for information. "Mode 1" sectors are what nearly all computer software and operating systems are designed to work with. When you copy a file from a standard CD, you are only copying the 2048 bytes in the middle of the sectors.
+
+PlayStation video frames are stored in "Green Book" "Mode 2 Form 1" sectors. These are very similar to "Mode 1" sectors (it has small header and footer differences that won't be detailed in this document). Modern computer operating systems can usually read these sector types without problems, and copy the middle 2048 bytes.
+
+   A "Mode 2 Form 1" compact-disc sector
+ +-24 bytes--+-2048 bytes-------------------------------------+-280 bytes--+
+ |  CD-XA    | Normal sector data                             | error      |
+ |  Header   |                                                | correction |
+ |           |                                                | data       |
+ +-----------+------------------------------------------------+------------+
+
+XA stands for "eXtended Architecture" (extending the "Yellow Book" standard). The XA ADPCM Audio on PlayStation discs are stored in "Green Book" "Mode 2 Form 2" sectors. These sectors also have a 24 byte header, but there is no data at the end for error correction--just 4 leftover bytes. This leaves 2324 bytes for data.
+
+   A "Mode 2 Form 2" compact-disc sector
+ +-24 bytes--+-2324 bytes------------------------------------------+-- 4 --+
+ |  CD-XA    | Sector data                                         | bytes |
+ |  Header   |                                                     |       |
+ |           |                                                     |       |
+ +-----------+-----------------------------------------------------+-------+
+
+These "Mode 2 From 2" sectors are intermingled with "Mode 2 Form 1" sectors. Modern operating systems don't often like "Mode 2 Form 2" sectors, so you usually need special programs to get these sectors off the disc.
+
+Understanding the full "Mode 2 From 1" and "Mode 2 From 2" formats is really only necessary for decoding PlayStation 1 audio sectors, but it can also help with identifying video sectors.
+
+The raw CD-XA Sector Header for "Mode 2 From 1" and "Mode 2 From 2" sectors contain information about the sector: specifically whether it contains audio, video, or data. For audio sectors, it also contains the audio format used (channels, sample rate, and bits-per-sample).
+
+CD-XA Header: [originally from xine media player source code: demux_str.c]
+
+Sector Offset
+  0 +-------------------------------------------------------------------------+
+    | Sync header (12 bytes, big-endian)
+    | 00 FF FF FF FF FF FF FF FF FF FF 00
+ 12 +----------------------+-----------------+--------------------------------+
+    |   Header (4 bytes)   |  Block address  |  Minute (1 byte)
+    |                      |    (3 bytes)    |    Binary Coded Decimal (BCD)
+ 13 +--                  --+--             --+--------------------------------+
+    |                      |                 |  Second (1 byte)
+    |                      |                 |    Binary Coded Decimal (BCD)
+ 14 +--                  --+--             --+--------------------------------+
+    |                      |                 |  Block/Frame/Sector (1 byte)
+    |                      |                 |    Binary Coded Decimal (BCD)
+ 15 +--                  --+-----------------+--------------------------------+
+    |                      |  Mode (1 byte)
+    |                      |    Should always be 2 for PlayStation games
+ 16 +----------------------+--------------------------------------------------+
+    | Sub-header | Interleaved file (1 byte)
+    | (8 bytes)  |   1 if this file is interleaved, or 0 if not
+ 17 +--        --+------------------------------------------------------------+
+    |            | Channel number (1 byte)
+    |            |   The sub-channel in this 'file'. Video, audio and data
+    |            |   sectors can be mixed into the same channel or can be
+    |            |   on separate channels. Usually used for multiple audio
+    |            |   tracks (e.g. 5 different songs in the same 'file', on
+    |            |   channels 0, 1, 2, 3 and 4)
+ 18 +--        --+------------------------------------------------------------+
+    |            | Subcode (1 byte)
+    |            |   bit 7: eof_marker -- set if this sector is the end
+    |            |                        of the 'file'
+    |            |   bit 6: real_time  -- always set in PSX STR streams
+    |            |   bit 5: form       -- 0 = Form 1 (2048 user data bytes)
+    |            |                        1 = Form 2 (2324 user data bytes)
+    |            |   bit 4: trigger    -- for use by reader application
+    |            |                        (unimportant)
+    |            |   bit 3: DATA       -- set to indicate DATA  sector
+    |            |   bit 2: AUDIO      -- set to indicate AUDIO sector
+    |            |   bit 1: VIDEO      -- set to indicate VIDEO sector
+    |            |   bit 0: end_audio  -- end of audio frame
+    |            |                        (rarely set in PSX STR streams)
+    |            |
+    |            |   bits 1, 2 and 3 are mutually exclusive
+ 19 +--        --+------------------------------------------------------------+
+    |            | Coding info (1 byte)
+    |            | If Subcode.AUDIO bit is set:
+    |            |   bit 7: reserved -- should always be 0
+    |            |   bit 6: emphasis -- boost audio volume (ignored by us)
+    |            |   bit 5: bitssamp -- must always be 0
+    |            |   bit 4: bitssamp -- 0 for mode B/C
+    |            |                        (4 bits/sample, 8 sound sectors)
+    |            |                      1 for mode A
+    |            |                        (8 bits/sample, 4 sound sectors)
+    |            |   bit 3: samprate -- must always be 0
+    |            |   bit 2: samprate -- 0 for 37.8kHz playback
+    |            |                      1 for 18.9kHz playback
+    |            |   bit 1: stereo   -- must always be 0
+    |            |   bit 0: stereo   -- 0 for mono sound, 1 for stereo sound
+    |            |
+    |            | If Subcode.AUDIO bit is NOT set, this byte can be ignored
+ 20 +--        --+------------------------------------------------------------+
+    |               Sub-header duplicated
+    |                   (4 bytes)
+ 24 +-------------------------------------------------------------------------+
+
+
+################################################################################
+## 1.2. How the PlayStation reads data from the disc
+################################################################################
+
+Data is read from the disc one sector at a time at either 75 sectors per second (single speed) or 150 sectors per second (double speed). The video and audio are spaced out over these sectors so they can be delivered at the appropriate times.
+
+Example:
+    A movie in the game runs 15 frames per second. If the PlayStation is set to read the data at 75 sectors per second (single speed), each frame needs to be spaced over 5 disc sectors (75 sectors per second / 15 frames per second = 5 sectors per frame).
+
+Audio is also intermixed every so many sectors (4, 8, 16, or 32). Since video frame data doesn't (always? usually? ever?) need all the sectors allocated to it, an audio sector can quickly be squeezed in.
+
+Each audio sector generates 4032 samples of decoded audio. If the audio is in stereo, then the samples are split for the left/right channels, to 2016. As shown above, the raw CD-XA Sector Header explains how the data is stored, the sample rate, and if it is mono or stereo.
+
+Example:
+    A movie in the game has mono audio running at 37800 samples per second. If the PlayStation is set to read at 75 sectors per second, an audio sector needs to appear every 8 sectors (4032 samples per sector * 75 sectors per second / 37800 samples per second = 8 sectors between audio sector).
+
+    Sector 1:  Video frame 1, sector #0 (of 5)
+    Sector 2:  Video frame 1, sector #1 (of 5)
+    Sector 3:  Video frame 1, sector #2 (of 5)
+    Sector 3:  Video frame 1, sector #3 (of 5)
+    Sector 4:  Video frame 1, sector #4 (of 5)
+    Sector 5:  Video frame 2, sector #0 (of 4)
+    Sector 6:  Video frame 2, sector #1 (of 4)
+    Sector 7:  Video frame 2, sector #2 (of 4)
+    Sector 8:  4032 samples of audio at 37800 samples/second
+    Sector 9:  Video frame 2, sector #3 (of 4)
+    Sector 10: Video frame 3, sector #0 (of 5)
+    ...
+
+If you are interested in more details of how audio is decoded, you could check the "Green Book", Philips CD-i Specification. Or you could check out Jonathan Atkins's cdxa program (see the end of this document for credits and links). He has done a good job of including documentation.
+
+################################################################################
+## 1.3. Getting the data off the disc
+################################################################################
+
+Because audio "Mode 2 Form 2" sectors use the entire sector, it is necessary to copy the entire 2352 bytes of data off the disc for every sector. But if operating systems don't like "Mode 2 Form 2" sectors, how do you get the data off the disc?
+
+The most common and easily accessible way to read the full raw sectors off the disc is to copy the entire disc to a raw image file. This disc image format is commonly referred to as "BIN/CUE", or "BIN/TOC". There are many programs that can do this for every operating system. Note that the common "ISO" disc image format does NOT copy the full raw sector data off the disc (it only copies 2048 bytes of data from each disc sector).
+
+Alternatively, you may find tools to copy just the raw sectors that contain movie data (such as the popular PSmplay tool). There is no standard on how to store these raw sectors from CDs. Depending on the tool used, the specifics of the resulting file may vary slightly. Some programs add some form of a "RIFF" header at the start of the file.
+
+Finally, your operating system may actually let you copy the data off the disc using the normal method of copying files. You must check, however, that it is copying the full 2352 bytes of data, and not just 2048 like ISO image files.
+
+################################################################################
+## 2. Decoding a PlayStation 1 video frame
+################################################################################
+
+There are three major steps the PlayStation goes through to decode one frame out of a STR file.
+
+1) Read all the video sectors that contain the frame 'chunks' from the disc and "demultiplex" them into a solid stream (the PlayStation hardware/libraries and the game do this...I think)
+2) Decompress the demultiplexed data into MDEC compatible run length codes (it is entirely the game's responsibility to do this)
+3) Translate all those run length codes into actual image data, in 24 or 15 bit RGB format (what the MDEC chip does)
+
+The following sub-sections attempt to emulate these 3 steps.
+
+################################################################################
+## 2.1. Demultiplexing the frame
+################################################################################
+
+Each frame 'chunk' sector begins with 32 bytes of information, followed by 2012 bytes of multiplexed 'chunk data'.
+
+    How a frame chunk fits into a "Mode 2 Form 1" sector
+ +-24 bytes--+-32 bytes-+-2012 bytes-----------------------------+-280 bytes--+
+ | CD-XA     |  Chunk   | chunk data                             | error      |
+ | Header    |  Header  |                                        | correction |
+ +-----------+----------+----------------------------------------+------------+
+
+:: STR Frame Sector Header ::
+[originally from xine media player source code: demux_str.c]
+
+Offest   Size   Endian --------------------------------------------------------
+  0 . . . 4 . . little . Unknown
+                           Usually 0x80010160 for a video frame.
+                           According to PSX hardware guide, this value is
+                           written to mdec0 register:
+                            - bit 27: 1 for 16-bit colour
+                                      0 for 24-bit colour depth
+                            - bit 24: if 16-bit colour,
+                                      1/0=set/clear transparency bit
+                            - all other bits unknown
+  4 . . . 2 . . little . Multiplexed chunk number of this video frame
+                           0 to (Number of multiplexed chunks) - 1
+  6 . . . 2 . . little . Number of multiplexed chunks in this frame
+  8 . . . 2 . . little . Frame number: Starts at 1
+ 12 . . . 4 . . little . Unknown
+                           Seemingly random number. Frame duration?
+                           Bytes of data used in demuxed frame
+                           (including header)?
+ 16 . . . 2 . . little . Width of frame in pixels
+ 18 . . . 2 . . little . Height of frame in pixels
+ 20 . . . 2 . . little . Unknown
+                           The number of run length codes in the frame?
+                           Size of data (in bytes) following this header?
+ 22 . . . 2 . . little . Always 0x3800
+ 24 . . . 2 . . little . Frame's quantization scale
+ 28 . . . 2 . . little . Version of the video frame
+                           (see next section for details)
+ 28 . . . 2 . . little . Always 0x00000000
+ 32 ---------------------------------------------------------------------------
+
+
+The video frame 'chunk data' from all the sectors related to the frame need to be appended together to form a solid stream. This combining of all the frame parts is called "demultiplexing" (or "demuxing" for short) the frame.
+
+        +-2012 bytes----+-2012 bytes----+--     --+-2012 bytes-----+
+        | chunk 0 data  | chunk 1 data  |   ...   | chunk n-1 data |
+        +---------------+---------------+--     --+----------------+
+
+
+That was the easy part. It gets harder from here.
+
+
+################################################################################
+## 2.2. Uncompress the data
+################################################################################
+
+There are two common and understood video frame types found on PlayStation game discs: version 2, and version 3 (I don't know what happened to version 1). These two versions I assume cover the majority of video frame formats. My guess is they were part of the standard development tools given to game developers.
+
+It would be convenient if every movie found in every game used these two formats. However, since it is the game's responsibility to decompress the data off the disc, some studious game developers used their own method. Alas, the only way one could ever understand the decoding scheme used by some games would be to reverse engineer the game's code.
+
+So let us decode a version 2, or version 3 frame.
+
+At the highest level, a demultiplexed frame consists of:
+
+:: Demultiplexed STR frame ::
+
+Offest   Size   Endian ---------------------------------------------------
+  0 . . . 2 . . little . Unknown
+                           Number of run length codes in the frame?
+                           Size of data (in bytes) following this header?
+  2 . . . 2 . . little . Always 0x3800
+  4 . . . 2 . . little . Frame's quantization scale
+  6 . . . 2 . . little . Version of the frame
+  8  . . . . . . . . . . Compressed macro blocks
+                           Stream of 2 byte little-endian values
+                           Number of macro blocks =
+                             (width+15)/16 * (height+15)/16
+ -------------------------------------------------------------------------
+
+These "macro blocks" will eventually turn into 16 x 16 pixel squares. They start at the top left of the image, work their way down in a column, then continue at the top of the next column to the right, and so on.
+
+Example 64 x 32 image:
+    +-----------------+-----------------+
+    | 1st macro block | 5th macro block |
+    +-----------------+-----------------+
+    | 2nd macro block | 6th macro block |
+    +-----------------+-----------------+
+    | 3rd macro block | 7th macro block |
+    +-----------------+-----------------+
+    | 4th macro block | 8th macro block |
+    +-----------------+-----------------+
+
+If the frame dimensions are not divisible by 16, you must round up the width and/or height to be a multiple of 16. The extra data in the final decoded frame can simply be cropped off.
+
+Each 'macro block' consists of 6 'blocks' (in this order!):
+Macro-block:
+  - Chrominance Red (Cr) block
+  - Chrominance Blue (Cb) block
+  - Top-Left Luminance (Y1) block
+  - Top-Right Luminance (Y2) block
+  - Bottom-Left Luminance (Y3) block
+  - Bottom-Right Luminance (Y4) block
+
+Yes, as the MAME devleoper "smf" has clarified so well, Cr comes before Cb, contrary to what you may find in some other documentation and source code.
+
+Here is what each of those 6 blocks consist of:
+
+Block:
+  - One "Discrete Cosine Transform Direct Current Coefficient"
+  - Zero or more "Discrete Cosine Transform Alternating Current Coefficients"
+  - One "End of Block" code
+
+At the start of every block is what is called the "Discrete Cosine Transform Direct Current Coefficient". Most often it is simply referred to as "DC". It is the most important value of the block.
+
+Following the DC Coefficient are compressed "Discrete Cosine Transform Alternating Current Coefficients", usually referred to as simply "AC".
+
+        **!!          Note that the block bit stream data         !!**
+        **!!  is read 16-bits at a time in *little-endian* order  !!**
+
+################################################################################
+## 2.2.1. Read the DC Coefficient
+################################################################################
+
+For version 2 frames, the DC Coefficient of all 6 blocks are encoded the same:
+
+	10-bits, signed.
+	
+Very simple.
+
+For version 3 frames, each Chrominance Red (Cr) DC Coefficient is relative to the previous Cr DC Coefficient, and each Chrominance Blue (Cb) DC Coefficient is relative to the previous Cb DC Coefficient. They are also encoded using a tricky arrangement of binary "variable length codes" (also known as "Huffman codes").
+
+     Binary          Number of bits
+    Variable         used to store           Negative          Positive
+   Length Code       DC Coefficient        Differential      Differential
+    11111110               8              -255 to -128       128 to 255
+    1111110                7              -127 to -64         64 to 127
+    111110                 6               -63 to -32         32 to 63
+    11110                  5               -31 to -16         16 to 31
+    1110                   4               -15 to -8           8 to 15
+    110                    3                -7 to -4           4 to 7
+    10                     2                -3 to -2           2 to 3
+    01                     1                   -1                1
+    00                     0                    0                0
+
+After the variable length code, there is the corresponding number of bits for the DC Coefficient. The first of these bits is the sign bit. If it's 0, then use the 'Negative Differential' on the remaining bits. If it's 1, use the 'Positive Differential' on the remaining bits. Once that value is determined, it is then multiplied by 4 (for some reason).
+
+ -- Pseudocode to decode version 3 DC Coefficient for Cr or Cb -----------------
+
+    /* At the start of the frame, initialize
+       Previous_DC_Coefficient = 0
+    */
+
+    If Peek_Next_Bits() == "11111110"
+        Skip_Bits(8)
+        If Read_Bits(1) = "0" Then
+            DC_Coefficient = Read_UnsignedBits(7) - 255
+        Else
+            DC_Coefficient = Read_UnsignedBits(7) + 128
+        End If
+    Else If Peek_Next_Bits() == "1111110"
+        Skip_Bits(7)
+        If Read_Bits(1) = "0" Then
+            DC_Coefficient = Read_UnsignedBits(6) - 127
+        Else
+            DC_Coefficient = Read_UnsignedBits(6) + 64
+        End If
+    Else If Peek_Next_Bits() == "111110"
+        Skip_Bits(6)
+        If Read_Bits(1) = "0" Then
+            DC_Coefficient = Read_UnsignedBits(5) - 63
+        Else
+            DC_Coefficient = Read_UnsignedBits(5) + 32
+        End If
+
+        /* ...and so on... */
+
+    Else If Peek_Next_Bits() == "01"
+        Skip_Bits(2)
+        If Read_Bits(1) = "0" Then
+            DC_Coefficient = -1
+        Else
+            DC_Coefficient = 1
+        End If
+    Else If Peek_Next_Bits() == "00"
+        Skip_Bits(2)
+        DC_Coefficient = 0
+    End If
+
+    DC_Coefficient *= 4  /* for some reason we multiply by 4 */
+
+    /* If Cr, use previous Cr. If Cb, use previous Cb */
+    DC_Coefficient += Previous_DC_Coefficient
+    Previous_DC_Coefficient = DC_Coefficient
+
+ ------------------------------------------------------------------------------
+
+The DC Coefficient for the Luminance blocks (Y1, Y2, Y3, Y4) are all stored relative to the previous Luminance block (e.g. Y2 value is stored relative to Y1, etc.). They use a similar arrangement of variable length codes.
+
+     Binary          Number of bits
+    Variable         used to store          Negative          Positive
+   Length Code       DC Coefficient       Differential      Differential
+    1111110                8              -255 to -128       128 to 255
+    111110                 7              -127 to -64         64 to 127
+    11110                  6               -63 to -32         32 to 63
+    1110                   5               -31 to -16         16 to 31
+    110                    4               -15 to -8           8 to 15
+    101                    3                -7 to -4           4 to 7
+    01                     2                -3 to -2           2 to 3
+    00                     1                   -1                1
+    100                    0                    0                0
+
+
+The pseudocode for decoding will be similar to the Chrominance DC.
+
+################################################################################
+## 2.2.2. Read all AC Coefficients
+################################################################################
+
+The AC Coefficients are stored the same for both version 2 and 3 frames. They are each encoded using the standard MPEG1 AC Coefficient variable length codes.
+
+Here are all 111 variable length codes and their equivalent run of zeros and AC Coefficient. These decoded values are often referred to as "zero run-length codes".
+
+          Binary            # of zero-value            Non-zero
+   Variable length code     AC Coefficients      AC Coefficient value
+   11s                             0                      1
+   011s                            1                      1
+   0100 s                          0                      2
+   0101 s                          2                      1
+   0010 1s                         0                      3
+   0011 0s                         4                      1
+   0011 1s                         3                      1
+   0001 00s                        7                      1
+   0001 01s                        6                      1
+   0001 10s                        1                      2
+   0001 11s                        5                      1
+   0000 100s                       2                      2
+   0000 101s                       9                      1
+   0000 110s                       0                      4
+   0000 111s                       8                      1
+   0010 0000 s                     13                     1
+   0010 0001 s                     0                      6
+   0010 0010 s                     12                     1
+   0010 0011 s                     11                     1
+   0010 0100 s                     3                      2
+   0010 0101 s                     1                      3
+   0010 0110 s                     0                      5
+   0010 0111 s                     10                     1
+   0000 0010 00 s                  16                     1
+   0000 0010 01 s                  5                      2
+   0000 0010 10 s                  0                      7
+   0000 0010 11 s                  2                      3
+   0000 0011 00 s                  1                      4
+   0000 0011 01 s                  15                     1
+   0000 0011 10 s                  14                     1
+   0000 0011 11 s                  4                      2
+   0000 0001 0000 s                0                      11
+   0000 0001 0001 s                8                      2
+   0000 0001 0010 s                4                      3
+   0000 0001 0011 s                0                      10
+   0000 0001 0100 s                2                      4
+   0000 0001 0101 s                7                      2
+   0000 0001 0110 s                21                     1
+   0000 0001 0111 s                20                     1
+   0000 0001 1000 s                0                      9
+   0000 0001 1001 s                19                     1
+   0000 0001 1010 s                18                     1
+   0000 0001 1011 s                1                      5
+   0000 0001 1100 s                3                      3
+   0000 0001 1101 s                0                      8
+   0000 0001 1110 s                6                      2
+   0000 0001 1111 s                17                     1
+   0000 0000 1000 0s               10                     2
+   0000 0000 1000 1s               9                      2
+   0000 0000 1001 0s               5                      3
+   0000 0000 1001 1s               3                      4
+   0000 0000 1010 0s               2                      5
+   0000 0000 1010 1s               1                      7
+   0000 0000 1011 0s               1                      6
+   0000 0000 1011 1s               0                      15
+   0000 0000 1100 0s               0                      14
+   0000 0000 1100 1s               0                      13
+   0000 0000 1101 0s               0                      12
+   0000 0000 1101 1s               26                     1
+   0000 0000 1110 0s               25                     1
+   0000 0000 1110 1s               24                     1
+   0000 0000 1111 0s               23                     1
+   0000 0000 1111 1s               22                     1
+   0000 0000 0100 00s              0                      31
+   0000 0000 0100 01s              0                      30
+   0000 0000 0100 10s              0                      29
+   0000 0000 0100 11s              0                      28
+   0000 0000 0101 00s              0                      27
+   0000 0000 0101 01s              0                      26
+   0000 0000 0101 10s              0                      25
+   0000 0000 0101 11s              0                      24
+   0000 0000 0110 00s              0                      23
+   0000 0000 0110 01s              0                      22
+   0000 0000 0110 10s              0                      21
+   0000 0000 0110 11s              0                      20
+   0000 0000 0111 00s              0                      19
+   0000 0000 0111 01s              0                      18
+   0000 0000 0111 10s              0                      17
+   0000 0000 0111 11s              0                      16
+   0000 0000 0010 000s             0                      40
+   0000 0000 0010 001s             0                      39
+   0000 0000 0010 010s             0                      38
+   0000 0000 0010 011s             0                      37
+   0000 0000 0010 100s             0                      36
+   0000 0000 0010 101s             0                      35
+   0000 0000 0010 110s             0                      34
+   0000 0000 0010 111s             0                      33
+   0000 0000 0011 000s             0                      32
+   0000 0000 0011 001s             1                      14
+   0000 0000 0011 010s             1                      13
+   0000 0000 0011 011s             1                      12
+   0000 0000 0011 100s             1                      11
+   0000 0000 0011 101s             1                      10
+   0000 0000 0011 110s             1                      9
+   0000 0000 0011 111s             1                      8
+   0000 0000 0001 0000 s           1                      18
+   0000 0000 0001 0001 s           1                      17
+   0000 0000 0001 0010 s           1                      16
+   0000 0000 0001 0011 s           1                      15
+   0000 0000 0001 0100 s           6                      3
+   0000 0000 0001 0101 s           16                     2
+   0000 0000 0001 0110 s           15                     2
+   0000 0000 0001 0111 s           14                     2
+   0000 0000 0001 1000 s           13                     2
+   0000 0000 0001 1001 s           12                     2
+   0000 0000 0001 1010 s           11                     2
+   0000 0000 0001 1011 s           31                     1
+   0000 0000 0001 1100 s           30                     1
+   0000 0000 0001 1101 s           29                     1
+   0000 0000 0001 1110 s           28                     1
+   0000 0000 0001 1111 s           27                     1
+
+These stings of bits are mutually exclusive. The 's' at the end of every bit string is the 'sign bit'. If that bit is set, then the AC Coefficient should instead be negative. Simply walk the bits of data until a match is found, then record the corresponding number of zero-value AC Coefficients, and the non-zero AC Coefficient.
+
+The table above doesn't cover all possible combinations, so an escape code is provided for all other values.
+
+   000001                     Escape code
+
+Following the "000001" bits will be 16 bits: 6-bits unsigned for the number of zero-value AC Coefficients, and 10-bits signed for the non-zero AC Coefficient.
+
+Every block is terminated by an END_OF_BLOCK code.
+
+   10                         END_OF_BLOCK
+
+Note that unlike MPEG1, blocks may consist of only an END_OF_BLOCK code.
+
+// TODO: Confirm the following...
+
+Finally, frames end with an extra 11 bit block.
+
+	01111111110               End of frame, extra block
+
+This is equivalent to 011 (1, -1) 111 (0, -1) 111 (0, -1) 10 (EOB), which turns into this pre-IDCT matrix.
+
+  [  0  -1   0   0   0   0   0   0 ]
+  [ -1   0   0   0   0   0   0   0 ]
+  [ -1   0   0   0   0   0   0   0 ]
+  [  0   0   0   0   0   0   0   0 ]
+  [  0   0   0   0   0   0   0   0 ]
+  [  0   0   0   0   0   0   0   0 ]
+  [  0   0   0   0   0   0   0   0 ]
+  [  0   0   0   0   0   0   0   0 ]
+  
+While not necessary for custom decoding, games expect this block and will crash if not present. I suspect this extra block is added to make the game's bit-reader faster since it doesn't have to consider partially hitting the end of the buffer when reading bits.
+
+ -- Pseudocode to decode AC Coefficients in one block --------------------------
+
+    While Peek_Next_Bits() != END_OF_BLOCK
+
+        /*  11s   ->  (0 , 1)  */
+        If Peek_Next_Bits() == "110" Then
+            Print "Num of Zeros = 0, AC Coefficient = 1"
+            Skip_Bits(3)
+            Continue While
+        End If
+        If Peek_Next_Bits() == "111" Then
+            Print "Num of Zeros = 0, AC Coefficient = -1"
+            Skip_Bits(3)
+            Continue While
+        End If
+
+        /*  011s  ->  (1 , 1)  */
+        If Peek_Next_Bits() == "0110" Then
+            Print "Num of Zeros = 1, AC Coefficient = 1"
+            Skip_Bits(4)
+            Continue While
+        End If
+        If Peek_Next_Bits() == "0111" Then
+            Print "Num of Zeros = 1, AC Coefficient = -1"
+            Skip_Bits(4)
+            Continue While
+        End If
+
+        /*  0100s  ->  (0 , 2)  */
+        If Peek_Next_Bits() == "01000" Then
+            Print "Num of Zeros = 0, AC Coefficient = 2"
+            Skip_Bits(5)
+            Continue While
+        End If
+        If Peek_Next_Bits() == "01001" Then
+            Print "Num of Zeros = 0, AC Coefficient = -2"
+            Skip_Bits(5)
+            Continue While
+        End If
+
+        /*
+            ... and so on ...
+        */
+
+        If Peek_Next_Bits() == "000001" Then /* escape code */
+            Skip_Bits(6)
+            Num_of_0 = Read_Unsigned_Bits(6)
+            AC_Coeff = Read_Signed_Bits(10)
+            Print "Num of Zeros = " Num_of_0 ", AC Coefficient = " AC_Coeff
+        End If
+
+    End While
+
+ ------------------------------------------------------------------------------
+
+Once you've reached the END_OF_BLOCK code, the sum of all the zero-value AC Coefficients, plus the number of non-zero AC Coefficients read, should be less than or equal to 63.
+
+################################################################################
+## 2.2.3. Convert to MDEC format
+################################################################################
+
+Now we will pack all this data into the format the PlayStation MDEC chip understands.
+
+First we start with the frame's Quantization Scale (found in the Frame Sector Header, and in the Frame Data Header), and the block's DC coefficient. Pack the frame's Quantization Scale into 6 bits by chopping of the top 10 bits. Then combine it with the DC Coefficient.
+
+  ((Frame_Quantization_Scale & 0x3F) << 10) | (DC_Coefficient & 0x3FF)
+
+The # of zeros and AC Coefficient are packed similarly. You take the 6 bits from the # of zeros, and the 10 bits from the AC coefficient to form a 16 bit value.
+
+  ((Num_Of_Zeros & 0x3F) << 10) | (AC_Coefficient & 0x3FF)
+
+Finally, the binary '01' END_OF_BLOCK is converted to the MDEC END_OF_DATA code 0xFE00.
+
+ -- Pseudocode to generate a macro block readable by the MDEC ------------------
+
+    Print ((Frame_Quantization_Scale & 0x3F) << 10) | (DC_Coefficient & 0x3FF)
+    For 6 times // for Cr, Cb, Y1, Y2, Y3, Y4
+        AC_VLC = Get_Next_Decoded_AC_Variable_Length_Code()
+        While AC_VLC != END_OF_BLOCK
+            Print ((AC_VLC.RunOfZeroes & 0x3F) << 10) |
+                  (AC_VLC.AC_Coefficient & 0x3FF)
+            AC_VLC = Get_Next_Decoded_AC_Variable_Length_Code()
+        End While
+        Print 0xFE00
+    Next
+
+ ------------------------------------------------------------------------------
+
+Now you have a long list of 16 bit values ready to be sent to the MDEC.
+Note that since the MDEC reads data as little-endian, if these 16 bit values are stored as a stream, they should be done so as little-endian.
+
+################################################################################
+## 2.3. MDEC emulation
+################################################################################
+
+The MDEC chip simply works on macro blocks. It has no concept of frames. So all that a MDEC emulator needs to do is take in one macro-block, and spit out a 16x16 image (either 24 or 15 bit RGB). The 6 blocks in each macro block are decoded using the same steps that MPEG1 I-frames use. If you know how MPEG1 decodes macro blocks, then you can pretty much guess how the rest of this will go.
+
+It takes 6 steps to decode a macro-block to an RGB 16x16 pixel square.
+
+For each block (Cr, Cb, Y1, Y2, Y3, Y4):
+   1) Expand the 16-bit MDEC codes into a 64 value list.
+   2) Wind the list into an 8x8 matrix of values using the normal MPEG/JPEG zig-zag order.
+   3) De-quantize the values using the PSX specific quantization table and the macro-block's quantization scale.
+   4) Perform the complicated inverse discrete cosine transform on the 8x8 matrix
+5) Once that has been done for all 6 blocks, then merge the Cr and Cb values together with the Y1, Y2, Y3, Y4 values.
+6) Convert every YCbCr pixel into an RGB pixel
+
+################################################################################
+## 2.3.1. Translate the DC and AC run length codes into a 64 value list
+################################################################################
+
+As we saw in the previous section, the first 16 bits hold the Quantization Scale, and the DC Coefficient. We decode those values the same way we encoded them:
+
+    Quantization_Scale = (First_16_Bits() >> 10)
+    DC_Coefficient = (First_16_Bits() & 0x3FF)
+
+The remaining 16 bit values hold a run of zero-value AC coefficients, and a non-zero AC coefficient. These 16 bit values continue until the MDEC END_OF_DATA (0xFE00) code is encountered.
+
+Here's some pseudocode that would print the full 64 values of the list.
+
+ ------------------------------------------------------------------------------
+    Print DC_coefficient
+    Length = 1
+    Run_Length_Code = First_16_Bits()
+    While Run_Length_Code != END_OF_DATA /* 0xFE00 */
+        For 1 To (Run_Length_Code >> 10)
+            Print "0"
+            Length += 1
+        End Loop
+        Print (Run_Length_Code & 0x3FF)
+        Length += 1
+        Run_Length_Code = Next_16_Bits()
+    End While
+    For 1 To (64 - Length) /* fill the rest with zeros */
+        Print "0"
+    Next
+ ------------------------------------------------------------------------------
+
+Alternatively, here is some code that would fill an array of 64 values.
+
+ ------------------------------------------------------------------------------
+    Define Coefficient_List[64]
+
+    For i = 0 to 63 /* start by filling the array with zeros */
+        Coefficient_List[i] = 0
+    Next
+    Coefficient_List[0] = DC_coefficient
+    i = 0
+    Run_Length_Code = First_16_Bits()
+    While Run_Length_Code != END_OF_DATA
+        i += 1 + (Run_Length_Code >> 10)
+        Coefficient_List[i] = (Run_Length_Code & 0x3FF)
+        Run_Length_Code = Next_16_Bits()
+    End While
+ ------------------------------------------------------------------------------
+
+The resulting list will be one DC coefficient, and 63 AC coefficients (most of which will be zero).
+
+[DC, AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8, AC9, ... , AC61, AC62, AC63]
+
+################################################################################
+## 2.3.2. Un-zig-zag the list into a matrix
+################################################################################
+
+Unwind the list into an 8x8 matrix of values using the normal MPEG1/JPEG zig-zag order.
+
+Here is the standard MPEG1 zig-zag order:
+
+               ZIG_ZAG_MATRIX[x,y]
+        x=0   1   2   3   4   5   6   7
+        --------------------------------
+   y=0 |  0,  1,  5,  6, 14, 15, 27, 28 |
+     1 |  2,  4,  7, 13, 16, 26, 29, 42 |
+     2 |  3,  8, 12, 17, 25, 30, 41, 43 |
+     3 |  9, 11, 18, 24, 31, 40, 44, 53 |
+     4 | 10, 19, 23, 32, 39, 45, 52, 54 |
+     5 | 20, 22, 33, 38, 46, 51, 55, 60 |
+     6 | 21, 34, 37, 47, 50, 56, 59, 61 |
+     7 | 35, 36, 48, 49, 57, 58, 62, 63 |
+        --------------------------------
+
+
+Each value in that matrix represents an index in the list.
+
+ -- Pseudocode to un-zig-zag the list into a matrix ---------------------------
+    Define Coefficient_Matrix[8, 8]
+
+    For x = 0 to 7
+        For y = 0 to 7
+            Coefficient_Matrix[x, y] = Coefficient_List[ ZIG_ZAG_MATRIX[x, y] ]
+        Next
+    Next
+ ------------------------------------------------------------------------------
+
+Now you have an 8x8 matrix with the DC Coefficient and AC Coefficients in the correct order.
+
+                  Coefficient_Matrix[x, y]
+        x=0      1     2     3     4     5     6     7
+        ------------------------------------------------
+   y=0 | DC  , AC1 , AC5 , AC6 , AC14, AC15, AC27, AC28 |
+     1 | AC2 , AC4 , AC7 , AC13, AC16, AC26, AC29, AC42 |
+     2 | AC3 , AC8 , AC12, AC17, AC25, AC30, AC41, AC43 |
+     3 | AC9 , AC11, AC18, AC24, AC31, AC40, AC44, AC53 |
+     4 | AC10, AC19, AC23, AC32, AC39, AC45, AC52, AC54 |
+     5 | AC20, AC22, AC33, AC38, AC46, AC51, AC55, AC60 |
+     6 | AC21, AC34, AC37, AC47, AC50, AC56, AC59, AC61 |
+     7 | AC35, AC36, AC48, AC49, AC57, AC58, AC62, AC63 |
+        ------------------------------------------------
+
+################################################################################
+## 2.3.3. Dequantization of the matrix
+################################################################################
+
+To quantize basically means to divide a value by some number to make it smaller. De-quantization is just the opposite--we multiply the number back to its original value.
+
+The de-quantization matrix is actually programmable, but (nearly?) all games use the same table. It is identical to the MPEG-1 intra quantization matrix, except the first value is 2 instead of 8.
+
+          PSX_QUANIZATION_TABLE[x,y]
+       x=0   1   2   3   4   5   6   7
+       --------------------------------
+  y=0 |  2, 16, 19, 22, 26, 27, 29, 34 |
+    1 | 16, 16, 22, 24, 27, 29, 34, 37 |
+    2 | 19, 22, 26, 27, 29, 34, 34, 38 |
+    3 | 22, 22, 26, 27, 29, 34, 37, 40 |
+    4 | 22, 26, 27, 29, 32, 35, 40, 48 |
+    5 | 26, 27, 29, 32, 35, 40, 48, 58 |
+    6 | 26, 27, 29, 34, 38, 46, 56, 69 |
+    7 | 27, 29, 35, 38, 46, 56, 69, 83 |
+       --------------------------------
+
+All values in the matrix need to be multiplied by their corresponding value above. Also, all but the first matrix element (the DC Coefficient) need to be multiplied by the Quantization Scale provided at the beginning of this  macro block, along with additional scaling.
+
+ ------------------------------------------------------------------------------
+    Define Deqantizized_Matrix[8, 8]
+
+    For x = 0 to 7
+        For y = 0 to 7
+            If x == 0 And y == 0 Then
+                /* The DC coefficient is not multiplied
+                   by the quantization scale */
+                Deqantizized_Matrix[x, y] = Coefficient_Matrix[x, y]
+                                            * PSX_QUANIZATION_TABLE[x, y]
+            Else
+                Deqantizized_Matrix[x, y] = 2 * Coefficient_Matrix[x, y]
+                                              * Quantization_Scale
+                                              * PSX_QUANIZATION_TABLE[x, y]
+                                              / 16
+            End If
+        Next
+    Next
+ ------------------------------------------------------------------------------
+
+// TODO: Confirm
+This leaves us with values between -2048 and 2047 for each coefficient. 
+
+################################################################################
+## 2.3.4. Apply Inverse Discrete Cosine Transform to the matrix
+################################################################################
+
+The "two-dimensional discrete cosine transform" is a mathematical formula that, when applied to a "signal" (in this case, binary data) somehow pushes most of it into the top left corner. The 2d "inverse discrete cosine transform" restores the data to its original form. 
+
+In mathematical terms, the 2d inverse discrete cosine transform looks like this:
+
+             7   7                          2*x+1                2*y+1
+  f(x,y) =  sum sum c(u)*c(v)*F(u,v)* cos (------- *u*PI)* cos (------- *v*PI)
+            u=0 v=0                         2 * 8                2 * 8
+  
+   x,y=0,1,2,3,4,5,6,7
+  
+   F(u,v) is the input matrix
+   f(x,y) is the output matrix
+  
+   c(u) = { sqrt(1/8) when u=0
+          { sqrt(2/8) otherwise
+  
+   c(v) = { sqrt(1/8) when v=0
+          { sqrt(2/8) otherwise
+
+Here it is in pseudocode:
+
+ -- Pseudocode for the 2d inverse discrete cosine transform -------------------
+    Define block[8, 8]
+
+    For Block_x = 0 to 7
+        For Block_y = 0 to 7
+
+            Total = 0
+
+            For DCT_x 0 to 7
+                For DCT_y = 0 to 7
+
+                    Sub_Total = Deqantizized_Matrix[DCT_x, DCT_y]
+
+                    If DCT_x == 0
+                        Sub_Total *= Sqrt(1 / 8)
+                    Else
+                        Sub_Total *= Sqrt(2 / 8)
+                    End If
+
+                    If DCT_y == 0
+                        Sub_Total *= Sqrt(1 / 8)
+                    Else
+                        Sub_Total *= Sqrt(2 / 8)
+                    End If
+
+                    Sub_Total *=
+                        Cos( DCT_x * PI * (2 * Block_x + 1) / (2 * 8) )
+                    Sub_Total *=
+                        Cos( DCT_y * PI * (2 * Block_y + 1) / (2 * 8) )
+
+                    Total += Sub_Total;
+                Next
+            Next
+
+            block[Block_x, Block_y] = Total
+
+        Next
+    Next
+ ------------------------------------------------------------------------------
+
+Looking closely at this forumula, you may notice it is essentially two matrix multiplications using the following table of values (rounded to 3 decimal points for sake of space):
+
+             [ 0.354  0.354  0.354  0.354  0.354  0.354  0.354  0.354 ]
+             [ 0.490  0.416  0.278  0.098 -0.098 -0.278 -0.416 -0.490 ]
+             [ 0.462  0.191 -0.191 -0.462 -0.462 -0.191  0.191  0.462 ]
+             [ 0.416 -0.098 -0.490 -0.278  0.278  0.490  0.098 -0.416 ]
+IDCT_table = [ 0.354 -0.354 -0.354  0.354  0.354 -0.354 -0.354  0.354 ]
+             [ 0.278 -0.490  0.098  0.416 -0.416 -0.098  0.490 -0.278 ]
+             [ 0.191 -0.462  0.462 -0.191 -0.191  0.462 -0.462  0.191 ]
+             [ 0.098 -0.278  0.416 -0.490  0.490 -0.416  0.278 -0.098 ]
+
+IDCT_table * Deqantizized_Matrix * IDCT_table^transposed
+
+Like the de-quantization table, the IDCT matrix is programmable, but (nearly?) all games use the same table (game initializes it when starting):
+
+             [ 23170  23170  23170  23170  23170  23170  23170  23170 ]
+             [ 32138  27245  18204   6392  -6393 -18205 -27246 -32139 ]
+             [ 30273  12539 -12540 -30274 -30274 -12540  12539  30273 ]
+             [ 27245  -6393 -32139 -18205  18204  32138   6392 -27246 ]
+             [ 23170 -23171 -23171  23170  23170 -23171 -23171  23170 ]
+             [ 18204 -32139   6392  27245 -27246  -6393  32138 -18205 ]
+             [ 12539 -30274  30273 -12540 -12540  30273 -30274  12539 ]
+             [  6392 -18205  27245 -32139  32138 -27246  18204  -6393 ]
+
+The MDEC chip optimizises the math by using fixed point integer arithmatic, so you can see all those integers are approimately equal to the floating point values multiplied by 65536.
+
+################################################################################
+## 2.3.5. Combine the blocks into (Y, Cb, Cr) pixels
+################################################################################
+
+Now you have 6 block matrices of 8x8 values:
+ Cr_block, Cb_block, Y1_block, Y2_block, Y3_block, and Y4_block
+
+The four Luminance blocks (Y1, Y2, Y3, Y4) are arranged in a square: top-left, top-right, bottom-left, bottom-right. Then there is one Cb pixel and one Cr pixel for every 2x2 square of Luminance values (this is standard 4:2:0 sampling method used in JPEG and MPEG1).
+
+     +----+----+
+     | Y1 | Y2 |  +----+   +----+
+     +----+----+  | Cb |   | Cr |
+     | Y3 | Y4 |  +----+   +----+
+     +----+----+
+
+ Pseudocode to convert the Y1 Y2 Y3 Y4 and Cb and Cr blocks into a 16x16 array of (Y, Cb, Cr) pixels.
+ ------------------------------------------------------------------------------
+    Define Macroblock_YCbCr[16, 16] of structure {Y, Cb, Cr}
+
+    For x = 0 to 7
+        For y = 0 to 7
+            Macroblock_YCbCr[x,     y    ].Y = Y1_block[x, y]
+            Macroblock_YCbCr[x + 8, y    ].Y = Y2_block[x, y]
+            Macroblock_YCbCr[x,     y + 8].Y = Y3_block[x, y]
+            Macroblock_YCbCr[x + 8, y + 8].Y = Y4_block[x, y]
+
+            Macroblock_YCbCr[x * 2    , y * 2    ].Cb = Cb_block[x, y]
+            Macroblock_YCbCr[x * 2 + 1, y * 2    ].Cb = Cb_block[x, y]
+            Macroblock_YCbCr[x * 2    , y * 2 + 1].Cb = Cb_block[x, y]
+            Macroblock_YCbCr[x * 2 + 1, y * 2 + 1].Cb = Cb_block[x, y]
+
+            Macroblock_YCbCr[x * 2    , y * 2    ].Cr = Cr_block[x, y]
+            Macroblock_YCbCr[x * 2 + 1, y * 2    ].Cr = Cr_block[x, y]
+            Macroblock_YCbCr[x * 2    , y * 2 + 1].Cr = Cr_block[x, y]
+            Macroblock_YCbCr[x * 2 + 1, y * 2 + 1].Cr = Cr_block[x, y]
+        Next
+    Next
+ ------------------------------------------------------------------------------
+
+The resulting YCbCr "color space" is:
+    Y  (Luminance)      : -128 to +127
+    Cr (Crominance Red) : -128 to +127
+    Cb (Crominance Blue): -128 to +127
+
+################################################################################
+## 2.3.6. Convert the (Y, Cb, Cr) pixels into RGB pixels
+################################################################################
+
+The equations the MDEC uses to convert YCbCr to RGB are:
+    Red   = Y + 1.402 * Cr
+    Green = Y - 0.3437 * Cb - 0.7143 * Cr
+    Blue  = Y + 1.772 * Cb
+
+But these equations expect a "color space" of:
+    Y :    0 to  255
+    Cr: -128 to +127
+    Cb: -128 to +127
+
+So to convert from the YCbCr "color space" to RGB, you use these equations.
+Red   = (Y + 128) + 1.402  * Cr
+Green = (Y + 128) - 0.3437 * Cb - 0.7143 * Cr
+Blue  = (Y + 128) + 1.772  * Cb
+
+This adjustment of 128 is called "level shift" in the JPEG standard.
+
+Because this can result in RGB values below 0, and above 255, you also should "clamp" the Red, Green, and Blue within a range of 0 to 255.
+
+If Red   > 255 Then Red   = 255 Else If Red   < 0 Then Red   = 0
+If Green > 255 Then Green = 255 Else If Green < 0 Then Green = 0
+If Blue  > 255 Then Blue  = 255 Else If Blue  < 0 Then Blue  = 0
+
+ -- Pseudocode to convert from YCbCr to RGB -----------------------------------
+    Define Macroblock_RGB[16, 16] of structure {Red, Green, Blue}
+
+    For x = 0 to 15
+        For y = 0 to 15
+            r = (Macroblock_YCbCr[x, y].Y + 128)
+                    + 1.402 * Macroblock_YCbCr[x, y].Cr
+
+            g = (Macroblock_YCbCr[x, y].Y + 128)
+                    - 0.34414 * Macroblock_YCbCr[x, y].Cb
+                    - 0.71414 * Macroblock_YCbCr[x, y].Cr
+
+            b = (Macroblock_YCbCr[x, y].Y + 128)
+                    + 1.772 * Macroblock_YCbCr[x, y].Cb
+
+            Macroblock_RGB[x, y].Red    = Max( Min(r, 255), 0)
+            Macroblock_RGB[x, y].Green  = Max( Min(g, 255), 0)
+            Macroblock_RGB[x, y].Blue   = Max( Min(b, 255), 0)
+        Next
+    Next
+ ------------------------------------------------------------------------------
+
+
+################################################################################
+## 3. Variations by some PSX games
+###############################################################################
+
+As stated before, it is the game's responsibility to read the video data from the disc and prepare it to be fed into the MDEC chip. While most game developers used the standard approach in chapters 2.1 and 2.2, there are a number of games that did it their own way.
+
+Note that this information should be mostly correct, but there are likely errors here and there.
+
+################################################################################
+## 3.1. Final Fantasy VII (and Final Fantasy Tactics?)
+################################################################################
+
+:: FF7 Frame Sector Header ::
+
+Offest   Size   Endian --------------------------------------------------------
+  0 . . . 4 . . little . Always 0x80010160
+  4 . . . 2 . . little . Multiplexed chunk number of this video frame
+                           0 to (Number of multiplexed chunks) - 1
+  6 . . . 2 . . little . Number of multiplexed chunks in this frame
+  8 . . . 4 . . little . Frame number: Starts at 1
+ 12 . . . 4 . . little . Bytes of data actually used in the demuxed frame
+                           (including header)
+ 16 . . . 2 . . little . Width of frame in pixels
+ 18 . . . 2 . . little . Height of frame in pixels
+ 20 . . . 2 . . little . Unknown
+ 22 . . . 2 . . little . Unknown
+ 24 . . . 2 . . little . Unknown
+ 28 . . . 2 . . little . Unknown
+ 28 . . . 2 . . little . Always 0x00000000
+ 32 ---------------------------------------------------------------------------
+
+At the start of *some* demultiplexed frames is an additional 40 bytes of camera information.
+
+:: FF7 Demultiplexed frame for some movies ::
+
+Offest   Size   Endian --------------------------------------------------------
+  0 . . . 40  .  n/a   . Camera data
+ 40 . . . 2 . . little . Just over half the number of variable-length-codes
+                         in the frame (i.e. number of MDEC codes)? Always
+                         an even value.
+ 42 . . . 2 . . little . Always 0x3800
+ 44 . . . 2 . . little . Frame's quantization scale
+ 46 . . . 2 . . little . Version of the frame: Always 1
+ 48  . . . . . . . . . . Compressed macro blocks
+                           Stream of 2 byte little-endian values
+                           Number of macro blocks =
+                             (width+15)/16 * (height+15)/16
+  -----------------------------------------------------------------------------
+
+The frame version claims to be 1, but decodes just like version 2 frames, except for one difference: the variable-length-code escape codes will sometimes decode to some # of zeros, followed by an AC Coefficient of zero (e.g. (6, 0) ). This never seems to happen in version 2 or version 3 frames. This makes me think they changed the frame's quantization scale to make it smaller, but didn't combine the empty run-length codes.
+
+################################################################################
+## 3.2. Final Fantasy VIII
+################################################################################
+
+FF8 makes a large departure from how the data is stored in each sector.
+
+Each frame consists of 10 sectors. The first sector contains the left audio channel, the second contains the right audio channel. The remaining 8 sectors hold the video data for the frame. 10 sectors running at 2x speed (150 sectors/second) means 15 frames-per-second.
+
+There is one exception found on disc 1: a movie with no video. Each 'frame' consists of two sectors: the first is the left audio channel, the second is the right audio channel.
+
+===============
+==== Audio ====
+===============
+
+Audio sectors, like the video sectors, are "Mode 2 Form 1".
+
+:: FF8 Audio Sector Header ::
+
+Offset
+    0 +-----------------------------------------------------------------------+
+      |   Common FF8    | Magic string (4 bytes, big-endian)
+      |   Audio/Video   |    'S', 'M', ?, 0x01
+      |     Header      |              ? = 'N' for left audio channel
+      |    (8 bytes)    |              ? = 'R' for right audio channel
+    4 +--             --+-----------------------------------------------------+
+      |                 |  Multiplexed chunk number of this frame (1 byte)
+      |                 |    0 to (Number of sectors)
+    5 +--             --+-----------------------------------------------------+
+      |                 |  Number of sectors containing frame data - 1 (1 byte)
+      |                 |    Always 9 or 1
+    6 +--             --+-----------------------------------------------------+
+      |                 |  Frame number: starts at 0 (2 bytes, little-endian)
+    8 +-----------------------------------------------------------------------+
+      |      Audio      |  Unknown (camera data?) (232 bytes)
+  240 +--  Sub-header --+-----------------------------------------------------+
+      |   (360 bytes)   |  Audio magic string (6 bytes, big-endian)
+      |                 |    Usually 'MORIYA', sometimes 'SHUN.M'
+  250 +--             --+-----------------------------------------------------+
+      |                 |  Unknown (10 bytes)
+  256 +--             --+-----------------------------------------------------+
+      |                 |     Square     |  Magic string (4 byts, big-endian)
+      |                 |      AKAO      |    Always 'AKAO'
+  260 +--             --+--  Structure --+------------------------------------+
+      |                 |   (80 bytes)   |  Frame number
+      |                 |                |  (4 bytes, little-endian)
+  264 +--             --+--            --+------------------------------------+
+      |                 |                |  Unknown (20 bytes)
+  284 +--             --+--            --+------------------------------------+
+      |                 |                |  Unknown (4 bytes, little-endian)
+      |                 |                |    Always 0x00001000
+  288 +--             --+--            --+------------------------------------+
+      |                 |                |  Number of bytes of audio data
+      |                 |                |  (4 bytes, little-endian)
+      |                 |                |     always 1680
+  292 +--             --+--            --+------------------------------------+
+      |                 |                |  Unknown (44 bytes)
+  336 +--             --+----------------+------------------------------------+
+      |                 |    Unknown (32 bytes)
+  368 +-----------------------------------------------------------------------+
+      |    Audio data (1680 bytes)
+ 2048 +-----------------------------------------------------------------------+
+
+FF8 has 105 Sound Units per sector, each with 14 bytes of ADPCM data that generate 2 PCM samples per byte. The Sound Data is not interleaved, so the decoding process is much more linear than the normal PSX audio sector format.
+
+
+:: FF8/FF9/Chrono Cross Sound Unit ::
+
+Offset   Size -----------------------------------------------------------------
+  0 . . . 1 . . Sound parameter
+  1 . . . 1 . . Unknown
+  2 . . . 14  . ADPCM sound data, 4 bits-per-sample (2 samples per byte)
+ 16 ---------------------------------------------------------------------------
+
+Each sound unit generates 28 samples of audio.
+
+FF8/FF9/Chrono Cross use filter tables with one extra item:
+
+    K0[5] = { 0.0, 0.9375, 1.796875,  1.53125,  1.90625 }
+    K1[5] = { 0.0, 0.0,     -0.8125, -0.859375, -0.9375 }
+
+
+ -- Pseudocode to decode Square's unique ADPCM audio sector data --------------
+    PreviousSample1 = 0
+    PreviousSample2 = 0
+    For Each Sound Unit
+        SoundParameter = InputStream.ReadByte()
+        InputStream.SkipByte() /* odd that this byte is skipped */
+
+        Range = SoundParameter & 0x0F
+        Filter1 = K0[SoundParameter >> 4]
+        Filter2 = K1[SoundParameter >> 4]
+
+        For ADPCMBytes = 1 to 14
+            ADPCMSample1 = InputStream.ReadSignedBits(4)
+            ADPCMSample2 = InputStream.ReadSignedBits(4)
+
+            PCMSample = ADPCMSampleToPCMSample(ADPCMSample1,
+                                               Range, Filter1, Filter2,
+                                               byref PreviousSample1,
+                                               byref PreviousSample2)
+            OutputStream.Write(PCMSample)
+            PCMSample = ADPCMSampleToPCMSample(ADPCMSample2,
+                                               Range, Filter1, Filter2,
+                                               byref PreviousSample1,
+                                               byref PreviousSample2)
+            OutputStream.Write(PCMSample)
+        Next
+    Next
+ ------------------------------------------------------------------------------
+
+FF8 audio is played back at 44100 samples-per-second.
+
+In total:
+    14 ADPCM bytes with 2 samples per byte = 28 samples per Sound Unit.
+    28 samples * 105 Sound Units = 2940 samples per sector (for left & right).
+    At 44100 samples per second, each frame generates 0.067 seconds of audio,
+    which is exactly how long it takes for the PSX to spin the disc through 10
+    sectors at 2x speed (150 sectors/second).
+
+    44100 samples/second
+    15 frames/second
+    150 sectors/second
+    10 sectors/frame
+    (14 * 2 * 105) = 2940 samples/frame (for each channel)
+    0.0667 seconds/frame
+
+===============
+==== Video ====
+===============
+
+:: FF8 Video Sector Header ::
+
+Offset
+    0 +-----------------------------------------------------------------------+
+      |   Common FF8     | Magic string (4 bytes, big-endian)
+      |   Audio/Video    |    'S', 'M', 'J', 0x01
+    4 +--   Header     --+----------------------------------------------------+
+      |   (8 bytes)      |  Multiplexed chunk number of this frame (1 byte)
+      |                  |    0 to (Number of multiplexed chunks)
+    5 +--              --+----------------------------------------------------+
+      |                  |  Number of multiplexed chunks in frame - 1 (1 byte)
+      |                  |    Always 9 or 1
+    6 +--              --+----------------------------------------------------+
+      |                  |  Frame number: starts at 0 (2 bytes, little-endian)
+    8 +-----------------------------------------------------------------------+
+      |    Multiplexed frame data (2040 bytes)
+ 2048 +-----------------------------------------------------------------------+
+
+
+:: FF8 Frame Data Header & Macro-blocks (pretty much the same as normal) ::
+
+Offest   Size   Endian -------------------------------------------------
+  0 . . . 2 . . little . Unknown
+                           Number of run length codes in the frame?
+                           Size of data (in bytes) following this header?
+  2 . . . 2 . . little . Always 0x3800
+  4 . . . 2 . . little . Frame's quantization scale
+  6 . . . 2 . . little . Version of the frame: Always 2
+  8  . . . . . . . . . . Compressed macro blocks
+                           Stream, in 2 byte little-endian values
+                           Number of macro blocks = 320/16 * 224/16
+  -----------------------------------------------------------------------
+
+Video frames are always 320 x 224.
+
+################################################################################
+## 3.3. Final Fantasy IX
+################################################################################
+
+FF9 makes even a larger departure from how the data is stored in each sector.
+
+Like FF8, each frame consists of 10 sectors. The first sector contains the left audio channel, the second contains the right audio channel. The remaining 8 sectors hold the video data for the frame. 10 sectors running at 2x speed (150 sectors/second) means 15 frames-per-second.
+
+===============
+==== Audio ====
+===============
+
+The two audio sectors are in *Mode 2 Form 1* sectors.
+
+:: FF9 Audio Sector ::
+
+Offset
+    0 +-----------------------------------------------------------------------+
+      |   Common FF9    | Magic number (4 bytes, little-endian)
+      |   Audio/Video   |    0x00080160
+    4 +--   Sector    --+-----------------------------------------------------+
+      |     Header      |  Index of sector containing frame data
+      |                 |  (2 bytes, little-endian)
+      |                 |    0 to (Number of sectors - 1)
+    6 +--             --+-----------------------------------------------------+
+      |                 |  Number of sectors containing frame data
+      |                 |  (2 bytes, little-endian)
+      |                 |    Always 10
+    8 +--             --+-----------------------------------------------------+
+      |                 |  Frame number: starts at 1 (4 bytes, little-endian)
+   12 +-----------------------------------------------------------------------+
+      |      Audio      |  Unknown (camera data?) (116 bytes)
+  128 +--  Sub-header --+-----------------------------------------------------+
+      |                 |     Square     |  Magic string (4 byts, big-endian)
+      |                 |      AKAO      |    Always 'AKAO'
+  132 +--             --+--  Structure --+------------------------------------+
+      |                 |   (80 bytes)   |  Frame number - 1
+      |                 |                |    (4 bytes, little-endian)
+  138 +--             --+--            --+------------------------------------+
+      |                 |                |  Unknown (20 bytes)
+  158 +--             --+--            --+------------------------------------+
+      |                 |                |  Unknown (4 bytes, little-endian)
+      |                 |                |    Always 0x00001000
+  162 +--             --+--            --+------------------------------------+
+      |                 |                |  Number of bytes of audio data
+      |                 |                |  (4 bytes, little-endian)
+      |                 |                |     Most movies: 0, 1824, or 1840
+      |                 |                |     Final movie: 1680
+  168 +--             --+--             -+------------------------------------+
+      |                 |                |  Unknown (44 bytes)
+  212 +-----------------+-----------------------------------------------------+
+      |    Audio data and/or leftovers (1840 bytes)
+ 2048 +-----------------------------------------------------------------------+
+
+
+There is an exception to this for the last frame of a movie on disc 4.
+
+:: Strange FF9 Audio Sector ::
+
+Offset
+    0 +-----------------------------------------------------------------------+
+      |   Common FF9    | Magic number (4 bytes, little-endian)
+      |   Audio/Video   |    0x00080160
+    4 +--   Sector    --+-----------------------------------------------------+
+      |     Header      |  Index of sector containing frame data
+      |                 |  (2 bytes, little-endian)
+      |                 |    0 to (Number of sectors - 1)
+    6 +--             --+-----------------------------------------------------+
+      |                 |  Number of sectors containing frame data
+      |                 |  (2 bytes, little-endian)
+      |                 |    Always 10
+    8 +--             --+-----------------------------------------------------+
+      |                 |  Frame number: starts at 1 (4 bytes, little-endian)
+   12 +-----------------+-----------------------------------------------------+
+      |                 |  Unknown (camera data?) (116 bytes)
+  128 +-----------------+-----------------------------------------------------+
+      |    1920 bytes of 0xAB (1920 bytes)
+ 2048 +-----------------------------------------------------------------------+
+
+I believe this can just be considered a frame with no audio.
+
+
+FF9 audio is essentially the same as FF8 audio, just most movies have a different sample rate.
+
+See the FF8 chapter for details on how to decode the data.
+
+
+The playback rate for all but the final movie is 48000 samples/second, and the number of sound units per sector vary depending on how much audio data there is.
+
+    1824 bytes / 16 bytes/sound unit = 114 sound units
+    which generate (114 sound units * 28 samples/sound unit) = 3192 samples
+
+    1840 bytes / 16 bytes/sound unit = 115 sound units
+    which generate (115 sound units * 28 samples/sound unit) = 3220 samples
+
+The size of audio data follows a 7 frame sequence:
+    1840, 1824, 1824, 1840, 1824, 1824, 1824
+
+Over 7 frames, that is (1840*2+1824*5) = 12800 bytes of ADPCM audio data.
+12800 bytes / (16 bytes/sound unit) * (28 samples/sound unit) = 22400 samples.
+22400 samples / 7 frames = 3200 samples/frame, which is exactly what we need for 48000 samples/second.
+
+    22400 bytes for every 7 frames (for each channel)
+    3200 samples/frame (average)
+    10 sectors/frame
+    150 sectors/second
+    15 frames/second
+    0.0667 seconds/frame (average)
+    48000 samples/second
+
+The final movie is different because every frame has 1680 bytes of audio data (like FF8), so it must be played back at 44100 samples/second.
+
+Final movie:
+    1680 bytes per frame
+    2940 samples/frame
+    10 sectors/frame
+    150 sectors/second
+    15 frames/second
+    0.0667 seconds/frame
+    44100 samples/second
+
+===============
+==== Video ====
+===============
+
+The eight video frame sectors are in *Mode 2 Form 2*, so that means 2324 bytes of video data per sector. The chunks need to be demultiplexed *in reverse order*, so you order them from chunk 9 down to chunk 2.
+
+:: FF9 Video Sector ::
+
+Offset
+    0 +-----------------------------------------------------------------------+
+      |   Common FF9    | Magic number (4 bytes, little-endian)
+      |   Audio/Video   |    0x00080160
+    4 +--   Sector    --+-----------------------------------------------------+
+      |     Header      |  Index of sector containing frame data
+      |                 |  (2 bytes, little-endian)
+      |                 |    0 to (Number of sectors - 1)
+    6 +--             --+-----------------------------------------------------+
+      |                 |  Number of sectors containing frame data
+      |                 |  (2 bytes, little-endian)
+      |                 |    Always 10
+    8 +--             --+-----------------------------------------------------+
+      |                 |  Frame number: starts at 1 (4 bytes, little-endian)
+   12 +-----------------------------------------------------------------------+
+      |      Video      |  Unknown (4 bytes, little-endian)
+      |    Sub-header   |    seemingly random number. frame duration?
+   16 +--             --+-----------------------------------------------------+
+      |                 |  Frame width in pixels (2 bytes, little-endian)
+      |                 |    Always 320
+   18 +--             --+-----------------------------------------------------+
+      |                 |  Frame height in pixels (2 bytes, little-endian)
+      |                 |    Always 224
+   20 +--             --+-----------------------------------------------------+
+      |                 |  Unknown (2 bytes, little-endian)
+      |                 |    Number of run length codes in the frame?
+      |                 |    Size of data (in bytes) following this header?
+   22 +--             --+-----------------------------------------------------+
+      |                 |  Always 0x3800 (2 bytes, little-endian)
+   24 +--             --+-----------------------------------------------------+
+      |                 |  Frame's quantization scale (2 bytes, little-endian)
+   26 +--             --+-----------------------------------------------------+
+      |                 |  Version of the video frame (2 bytes, little-endian)
+      |                 |    Always 2
+   28 +--             --+-----------------------------------------------------+
+      |                 |  Unknown (4 bytes)
+      |                 |    Usually 0x00000000, but the 2nd sector in some
+      |                 |    movie's frames have different values
+   32 +-----------------+-----------------------------------------------------+
+      |    Multiplexed frame data (2292 bytes)
+ 2324 +-----------------------------------------------------------------------+
+
+
+################################################################################
+## 3.4. Chrono Cross (and Legend of Mana?)
+################################################################################
+
+Like FF8 and FF9, Chrono Cross frames are 10 sectors long, starting with 2 sectors for audio, followed by 8 sectors of video. It uses FF9 style audio sectors, but standard STR video sectors. All audio and video sectors are "Mode 2 Form 1".
+
+===============
+==== Audio ====
+===============
+
+:: Chrono Cross Audio Sector Header ::
+
+Offset
+    0 +-----------------------------------------------------------------------+
+      | Magic number (4 bytes, little-endian)
+      |   One of 0x00000160, 0x00010160, 0x01000160, 0x01010160
+    4 +-----------------------------------------------------------------------+
+      |  Index of sector containing frame audio data
+      |  (2 bytes, little-endian)
+      |    0 to (Number of sectors - 1)
+    6 +-----------------------------------------------------------------------+
+      |  Number of sectors containing frame audio data
+      |  (2 bytes, little-endian)
+      |    Always 2
+    8 +-----------------------------------------------------------------------+
+      |  Frame number: starts at 1 (2 bytes, little-endian)
+   10 +-----------------------------------------------------------------------+
+      |  Unknown (118 bytes)
+  128 +----------------+------------------------------------------------------+
+      |     Square     |  Magic string (4 byts, big-endian)
+      |      AKAO      |    Always 'AKAO'
+  132 +--  Structure --+------------------------------------------------------+
+      |   (80 bytes)   |  Frame number - 1 (4 bytes, little-endian)
+  136 +--            --+------------------------------------------------------+
+      |                |  Unknown (20 bytes)
+  156 +--            --+------------------------------------------------------+
+      |                |  Unknown (4 bytes, little-endian)
+      |                |    Always 0x00001000
+  160 +--            --+------------------------------------------------------+
+      |                |  Number of bytes of audio data
+      |                |  (4 bytes, little-endian)
+      |                |     Always 1680
+  164 +--            --+------------------------------------------------------+
+      |                |  Unknown (44 bytes)
+  208 +----------------+------------------------------------------------------+
+      |    Audio data (1680 bytes)
+ 1888 +-----------------------------------------------------------------------+
+      |    Unknown (160 bytes)
+ 2048 +-----------------------------------------------------------------------+
+
+Like the final FF9 movie, with 1680 bytes of audio data, the audio plays back at 44100 samples/second.
+
+Chrono Cross:
+    On disc 1, video frame sectors are standard.
+    On disc 2, the video frame sectors begin with 0x81010160, but otherwise are identical to standard STR frame sectors.
+    All except for the final movie, which has additional properties.
+
+    // TODO: Figure out the final movie format
+
+################################################################################
+## 3.5. Serial Experiments Lain
+################################################################################
+
+Serial Experiments Lain may be the only game that used its own unique set of compressed variable-length (huffman) codes. But besides that, and a slightly different frame sectors header, everything is in the standard format.
+
+:: S.E. Lain Video Sector Header ::
+
+Offest   Size   Endian --------------------------------------------------------
+  0 . . . 4 . . little . Always 0x80010160
+  4 . . . 2 . . little . Multiplexed chunk number of this video frame
+                           0 to (Number of multiplexed chunks) - 1
+  6 . . . 2 . . little . Number of multiplexed chunks in this frame
+  8 . . . 2 . . little . Frame number: Starts at 1
+ 12 . . . 4 . . little . Unknown
+                           Seemingly random number. Frame duration?
+                           Bytes of data used in demuxed frame
+                           (including header)?
+ 16 . . . 2 . . little . Width of frame in pixels
+ 18 . . . 2 . . little . Height of frame in pixels
+ 20 . . . 1 . .  n/a . . quantization scale for luminance blocks
+ 21 . . . 1 . .  n/a . . quantization scale for chrominance blocks
+ 22 . . . 2 . . little . All but the last movie: always 0x3800
+                         The last movie: frame number (again)
+ 24 . . . 2 . . little . Number of run length codes in the frame
+ 28 . . . 2 . . little . Version of the video frame: always 0
+ 28 . . . 4 . . little . Always 0x00000000
+ 32 ---------------------------------------------------------------------------
+
+:: S.E. Lain Frame Data Header ::
+
+Offest   Size   Endian ---------------------------------------------------
+  0 . . . 1 . .  n/a . . quantization scale for luminance blocks
+  1 . . . 1 . .  n/a . . quantization scale for chrominance blocks
+  2 . . . 2 . . little . All but the last movie: always 0x3800
+                         The last movie: frame number (again)
+  4 . . . 2 . . little . number of run length codes in the frame
+  6 . . . 2 . . little . Version of the video frame: always 0
+  8  . . . . . . . . . . Compressed macro blocks
+                           Stream, in big-endian values
+                           Number of macro blocks =
+                             (width+15)/16 * (height+15)/16
+ -------------------------------------------------------------------------
+
+The video frame version is always 0.
+
+The reason why the last movie doesn't have 0x3800 in the headers is because it needs to know what frame it is showing, since it blacks-out video frames you have not seen yet.
+
+The bit stream data following the header is read in *BIG-ENDIAN* order.
+
+The DC coefficient is read in the standard version 2 style.
+
+A unique set of variable-length-codes are used:
+
+    11s                     (0, 1)
+    011s                    (0, 2)
+    0100 s                  (1, 1)
+    0101 s                  (0, 3)
+    0010 1s                 (0, 4)
+    0011 0s                 (2, 1)
+    0011 1s                 (0, 5)
+    0001 00s                (0, 6)
+    0001 01s                (3, 1)
+    0001 10s                (1, 2)
+    0001 11s                (0, 7)
+    0000 100s               (0, 8)
+    0000 101s               (4, 1)
+    0000 110s               (0, 9)
+    0000 111s               (5, 1)
+    0010 0000 s             (0, 10)
+    0010 0001 s             (0, 11)
+    0010 0010 s             (1, 3)
+    0010 0011 s             (6, 1)
+    0010 0100 s             (0, 12)
+    0010 0101 s             (0, 13)
+    0010 0110 s             (7, 1)
+    0010 0111 s             (0, 14)
+    0000 0010 00s           (0, 15)
+    0000 0010 01s           (2, 2)
+    0000 0010 10s           (8, 1)
+    0000 0010 11s           (1, 4)
+    0000 0011 00s           (0, 16)
+    0000 0011 01s           (0, 17)
+    0000 0011 10s           (9, 1)
+    0000 0011 11s           (0, 18)
+    0000 0001 0000 s        (0, 19)
+    0000 0001 0001 s        (1, 5)
+    0000 0001 0010 s        (0, 20)
+    0000 0001 0011 s        (10, 1)
+    0000 0001 0100 s        (0, 21)
+    0000 0001 0101 s        (3, 2)
+    0000 0001 0110 s        (12, 1)
+    0000 0001 0111 s        (0, 23)
+    0000 0001 1000 s        (0, 22)
+    0000 0001 1001 s        (11, 1)
+    0000 0001 1010 s        (0, 24)
+    0000 0001 1011 s        (0, 28)
+    0000 0001 1100 s        (0, 25)
+    0000 0001 1101 s        (1, 6)
+    0000 0001 1110 s        (2, 3)
+    0000 0001 1111 s        (0, 27)
+    0000 0000 1000 0s       (0, 26)
+    0000 0000 1000 1s       (13, 1)
+    0000 0000 1001 0s       (0, 29)
+    0000 0000 1001 1s       (1, 7)
+    0000 0000 1010 0s       (4, 2)
+    0000 0000 1010 1s       (0, 31)
+    0000 0000 1011 0s       (0, 30)
+    0000 0000 1011 1s       (14, 1)
+    0000 0000 1100 0s       (0, 32)
+    0000 0000 1100 1s       (0, 33)
+    0000 0000 1101 0s       (1, 8)
+    0000 0000 1101 1s       (0, 35)
+    0000 0000 1110 0s       (0, 34)
+    0000 0000 1110 1s       (5, 2)
+    0000 0000 1111 0s       (0, 36)
+    0000 0000 1111 1s       (0, 37)
+    0000 0000 0100 00s      (2, 4)
+    0000 0000 0100 01s      (1, 9)
+    0000 0000 0100 10s      (1, 24)
+    0000 0000 0100 11s      (0, 38)
+    0000 0000 0101 00s      (15, 1)
+    0000 0000 0101 01s      (0, 39)
+    0000 0000 0101 10s      (3, 3)
+    0000 0000 0101 11s      (7, 3)
+    0000 0000 0110 00s      (0, 40)
+    0000 0000 0110 01s      (0, 41)
+    0000 0000 0110 10s      (0, 42)
+    0000 0000 0110 11s      (0, 43)
+    0000 0000 0111 00s      (1, 10)
+    0000 0000 0111 01s      (0, 44)
+    0000 0000 0111 10s      (6, 2)
+    0000 0000 0111 11s      (0, 45)
+    0000 0000 0010 000s     (0, 47)
+    0000 0000 0010 001s     (0, 46)
+    0000 0000 0010 010s     (16, 1)
+    0000 0000 0010 011s     (2, 5)
+    0000 0000 0010 100s     (0, 48)
+    0000 0000 0010 101s     (1, 11)
+    0000 0000 0010 110s     (0, 49)
+    0000 0000 0010 111s     (0, 51)
+    0000 0000 0011 000s     (0, 50)
+    0000 0000 0011 001s     (7, 2)
+    0000 0000 0011 010s     (0, 52)
+    0000 0000 0011 011s     (4, 3)
+    0000 0000 0011 100s     (0, 53)
+    0000 0000 0011 101s     (17, 1)
+    0000 0000 0011 110s     (1, 12)
+    0000 0000 0011 111s     (0, 55)
+    0000 0000 0001 0000 s   (0, 54)
+    0000 0000 0001 0001 s   (0, 56)
+    0000 0000 0001 0010 s   (0, 57)
+    0000 0000 0001 0011 s   (21, 1)
+    0000 0000 0001 0100 s   (0, 58)
+    0000 0000 0001 0101 s   (3, 4)
+    0000 0000 0001 0110 s   (1, 13)
+    0000 0000 0001 0111 s   (23, 1)
+    0000 0000 0001 1000 s   (8, 2)
+    0000 0000 0001 1001 s   (0, 59)
+    0000 0000 0001 1010 s   (2, 6)
+    0000 0000 0001 1011 s   (19, 1)
+    0000 0000 0001 1100 s   (0, 60)
+    0000 0000 0001 1101 s   (9, 2)
+    0000 0000 0001 1110 s   (24, 1)
+    0000 0000 0001 1111 s   (18, 1)
+    0000 01                 escape
+    10                      EOB
+
+The escape code is handled in the MPEG1 fashion: 6 bits for the run, then either 8 or 16 bits for the level according to this table:
+
+    Fixed Length Code       Level
+    forbidden               -256
+    1000 0000 0000 0001     -255
+    1000 0000 0000 0010     -254
+    ...
+    1000 0000 0111 1111     -129
+    1000 0000 1000 0000     -128
+    1000 0001               -127
+    1000 0010               -126
+    ...
+    1111 1110               -2
+    1111 1111               -1
+    forbidden                0
+    0000 0001                1
+    0000 0010                2
+    ...
+    0111 1110               126
+    0111 1111               127
+    0000 0000 1000 0000     128
+    0000 0000 1000 0001     129
+    ...
+    0000 0000 1111 1110     254
+    0000 0000 1111 1111     255
+
+################################################################################
+## 3.6. Alice In Cyber Land
+################################################################################
+
+:: Alice Frame Sector Header ::
+
+Offest   Size   Endian --------------------------------------------------------
+  0 . . . 4 . . little . Always 0x00000160
+  4 . . . 2 . . little . Multiplexed chunk number of this video frame
+                           0 to (Number of multiplexed chunks) - 1
+  6 . . . 2 . . little . Number of multiplexed chunks in this frame
+  8 . . . 2 . . little . Frame number: Starts at 1
+ 12 . . . 4 . . little . Unknown
+                           Seemingly random number. Frame duration?
+                           Bytes of data used in demuxed frame
+                           (including header)?
+ 16 . .  16 . .  n/a . . All zeroes
+ 32 ---------------------------------------------------------------------------
+
+Frames are always 320 x 240.
+
+Standard STR movies begin with frame chunk sectors, but Alice movies begin with an audio sector.
+
+The frame number of the last frame of a movie has the high bit set (0x8000). There is also an empty frame with a frame number of 0xFFFF at the end of movies. For some reason there are extra audio sectors in between movies as well.
+
+Many of the movies have a variable frame rage.
+All movies use one or more of the following frame rates:
+    7.5 fps, 10 fps, 15 fps, 30 fps
+
+################################################################################
+## 4. Thanks, credits, etc.
+################################################################################
+
+Mike Melanson and Stuart Caie for adding STR decoding support to xine, including the documentation in the source. (http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html) Also for archiving some example STR files (http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html).
+
+The q-gears development team and forum memebers for thier source code and documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/branches/old_sources/src/common/movie/decoders/).
+
+"Everything You Have Always Wanted to Know about the PlayStation But Were Afraid to Ask." compiled / edited by Joshua Walker. Perhaps the most valuable reference for any kind of PSX hacking, especially the PSX assembly instruction set (note that it has CrCb reversal error mentioned in ch 2.2).
+
+smf, developer for MAME, for figuring out that everyone was getting the order of CrCb wrong (http://smf.mameworld.info/?m=200603).
+
+Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org:8080/cdxa/  http://jonatkins.org:8080/cdxa/).
+
+The PCSX Team, creators of one of the two open source PlayStation emulators (http://www.pcsx.net/), and all the variants. One version of its mdec.c file is particularly useful (http://www.google.com/codesearch?q=%22blk_zig+value%22)
+
+The MAME emulator team for their efforts to document and accurately emulate hardware (http://mamedev.org/).
+
+Developers of the pSX emulator. While not open source, at least it is still under development and provides a very nice debugger for reverse engineering games (http://psxemulator.gazaxian.com/).
+
+"Fyiro", the Japanese fellow that wrote the source code for the PsxMC FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
+
+T_chan for sharing a bit of his knowledge about the FF9 format (http://www.network54.com/Forum/119865/thread/1196268797).
+
+The most excellent folks at IRCNet #lain :D
+
+
+Finally, a very special thanks to all the PlayStation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs are real men of genius.
+
+--------------------------------------------------------------------------------
+Copyright (c) 2008-2009 Michael Sabin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this file (the "Document"), to deal in the Document without restriction,
+including without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Document, and to permit
+persons to whom the Document is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Document.
+
+THE DOCUMENT IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE DOCUMENT OR THE USE OR OTHER DEALINGS IN
+THE DOCUMENT.
+--------------------------------------------------------------------------------
+
+This document and its author are not associated with Sony Computer Entertainment Inc. in any way. "Sony" and "PlayStation" are trademarks or registered trademarks of Sony Computer Entertainment Inc. All other trademarks are the property of their respective owners.

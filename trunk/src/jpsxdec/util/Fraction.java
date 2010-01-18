@@ -19,14 +19,20 @@ package jpsxdec.util;
  * Fractions are always maintained in reduced form.
  **/
 public class Fraction implements Cloneable, Comparable, java.io.Serializable {
+  public static final Fraction ZERO = new Fraction(0, 1);
+
   protected final long numerator_;
   protected final long denominator_;
 
-  /** Return the numerator **/
-  public final long numerator() { return numerator_; }
+  /** Return the getNumerator **/
+  public final long getNumerator() { return numerator_; }
 
-  /** Return the denominator **/
-  public final long denominator() { return denominator_; }
+  /** Return the getDenominator **/
+  public final long getDenominator() { return denominator_; }
+
+  public Fraction(int i) {
+    this(i, 1);
+  }
 
   /** Create a Fraction equal in value to num / den **/
   public Fraction(long num, long den) {
@@ -42,22 +48,22 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
 
   /** Create a fraction with the same value as Fraction f **/
   public Fraction(Fraction f) {
-    numerator_ = f.numerator();
-    denominator_ = f.denominator();
+    numerator_ = f.getNumerator();
+    denominator_ = f.getDenominator();
   }
 
-  public String toString() { 
-    if (denominator() == 1) 
-      return "" + numerator();
+  public String toString() {
+    if (getDenominator() == 1)
+      return String.format("%d (%3f)", getNumerator(), asDouble());
     else
-      return numerator() + "/" + denominator(); 
+      return String.format("%d/%d (%3f)", getNumerator(), getDenominator(), asDouble());
   }
 
-  public Object clone() { return new Fraction(this); }
+  public Fraction clone() { return new Fraction(this); }
 
   /** Return the value of the Fraction as a double **/
   public double asDouble() { 
-    return ((double)(numerator())) / ((double)(denominator()));
+    return ((double)(getNumerator())) / ((double)(getDenominator()));
   }
 
   /** 
@@ -85,50 +91,50 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
 
   /** return a Fraction representing the negated value of this Fraction **/
   public Fraction negative() {
-    long an = numerator();
-    long ad = denominator();
+    long an = getNumerator();
+    long ad = getDenominator();
     return new Fraction(-an, ad);
   }
 
   /** return a Fraction representing 1 / this Fraction **/
-  public Fraction inverse() {
-    long an = numerator();
-    long ad = denominator();
+  public Fraction reciprocal() {
+    long an = getNumerator();
+    long ad = getDenominator();
     return new Fraction(ad, an);
   }
 
 
   /** return a Fraction representing this Fraction plus b **/
-  public Fraction plus(Fraction b) {
-    long an = numerator();
-    long ad = denominator();
-    long bn = b.numerator();
-    long bd = b.denominator();
+  public Fraction add(Fraction b) {
+    long an = getNumerator();
+    long ad = getDenominator();
+    long bn = b.getNumerator();
+    long bd = b.getDenominator();
     return new Fraction(an*bd+bn*ad, ad*bd);
   }
 
   /** return a Fraction representing this Fraction plus n **/
-  public Fraction plus(long n) {
-    long an = numerator();
-    long ad = denominator();
+  public Fraction add(long n) {
+    long an = getNumerator();
+    long ad = getDenominator();
     long bn = n;
     long bd = 1;
     return new Fraction(an*bd+bn*ad, ad*bd);
   }
 
   /** return a Fraction representing this Fraction minus b **/
-  public Fraction minus(Fraction b) {
-    long an = numerator();
-    long ad = denominator();
-    long bn = b.numerator();
-    long bd = b.denominator();
+  public Fraction subtract(Fraction b) {
+    long an = getNumerator();
+    long ad = getDenominator();
+    long bn = b.getNumerator();
+    long bd = b.getDenominator();
     return new Fraction(an*bd-bn*ad, ad*bd);
   }
 
   /** return a Fraction representing this Fraction minus n **/
-  public Fraction minus(long n) {
-    long an = numerator();
-    long ad = denominator();
+  public Fraction subtract(long n) {
+    long an = getNumerator();
+    long ad = getDenominator();
     long bn = n;
     long bd = 1;
     return new Fraction(an*bd-bn*ad, ad*bd);
@@ -136,39 +142,43 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
 
 
   /** return a Fraction representing this Fraction times b **/
-  public Fraction times(Fraction b) {
-    long an = numerator();
-    long ad = denominator();
-    long bn = b.numerator();
-    long bd = b.denominator();
+  public Fraction multiply(Fraction b) {
+    long an = getNumerator();
+    long ad = getDenominator();
+    long bn = b.getNumerator();
+    long bd = b.getDenominator();
     return new Fraction(an*bn, ad*bd);
   }
 
   /** return a Fraction representing this Fraction times n **/
-  public Fraction times(long n) {
-    long an = numerator();
-    long ad = denominator();
+  public Fraction multiply(long n) {
+    long an = getNumerator();
+    long ad = getDenominator();
     long bn = n;
     long bd = 1;
     return new Fraction(an*bn, ad*bd);
   }
 
   /** return a Fraction representing this Fraction divided by b **/
-  public Fraction dividedBy(Fraction b) {
-    long an = numerator();
-    long ad = denominator();
-    long bn = b.numerator();
-    long bd = b.denominator();
+  public Fraction divide(Fraction b) {
+    long an = getNumerator();
+    long ad = getDenominator();
+    long bn = b.getNumerator();
+    long bd = b.getDenominator();
     return new Fraction(an*bd, ad*bn);
   }
 
   /** return a Fraction representing this Fraction divided by n **/
-  public Fraction dividedBy(long n) {
-    long an = numerator();
-    long ad = denominator();
+  public Fraction divide(long n) {
+    long an = getNumerator();
+    long ad = getDenominator();
     long bn = n;
     long bd = 1;
     return new Fraction(an*bd, ad*bn);
+  }
+
+  public Fraction abs() {
+      return new Fraction(Math.abs(numerator_), denominator_);
   }
 
   /** return a number less, equal, or greater than zero
@@ -177,10 +187,10 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
    **/
   public int compareTo(Object other) {
     Fraction b = (Fraction)(other);
-    long an = numerator();
-    long ad = denominator();
-    long bn = b.numerator();
-    long bd = b.denominator();
+    long an = getNumerator();
+    long ad = getDenominator();
+    long bn = b.getNumerator();
+    long bd = b.getDenominator();
     long l = an*bd;
     long r = bn*ad;
     return (l < r)? -1 : ((l == r)? 0: 1);
@@ -191,8 +201,8 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
    **/
 
   public int compareTo(long n) {
-    long an = numerator();
-    long ad = denominator();
+    long an = getNumerator();
+    long ad = getDenominator();
     long bn = n;
     long bd = 1;
     long l = an*bd;

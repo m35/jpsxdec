@@ -1,0 +1,140 @@
+[Key]
+ *   = normal priority
+ -   = normal priority sub-item
+ !   = high priority
+ ?   = not sure if will implement
+ x   = will not implement
+ //  = done
+ /   = partially done
+ /?/ = done?
+
+* Remove DemuxMovieWriterBuilder.open() and PCM16bitAudioWriter.open()
+  because it's not serving any value. Rename .create*() to .createAndOpen*().
+  Once that is done, I may be able to get rid of PCM16bitAudioWriter and just
+  use AudioOutputStream.
+* Add PAL and NTSC ratio selection to yuv4mpeg2 writing.
+* Add option to save copied files out with cdxa header
+* Display physical arrangement of disc items in some graphical form
+* Figure out why fps detects square-type movies having sectors/frame of 2
+? Introduce option to ignore errors: specifically for CD sector reading and frame uncompression
+* Change how FF7 frame camera data is treated:
+  keep it as part of the first sector and not part of the frame
+* Print unused/unrecognized command-line parameters
+* Use decoder comparison to create RGB conversion matricies
+  so images decoded with other programs can be re-encoded with consistent coloring
+/?/ Java sometimes makes .wav files that WMP can't play?
+* Change index and source file handling so only the index file is used most of the time
+	(index file points to source file, but can be manually specified if source file moved)
+* Add generating of silence for audio to keep in sync with video (both player and saver)
+* Make a simplier audio format normalization for parallel audio streams in videos
+    - Just normalize mono/stereo and sample rate
+* Add/finish api for selecting which parallel audio stream to play
+! Add more/improve frame rate detection logic
+! Find non-commercial use license
+    ? MAME non-commercial license and move to Kenai and Mercurial
+    - find new SSL SMTP lib
+    // find new fast idct
+* Remove DemuxImageUncompressor from plugin interface (somehow)
+* Automatic error reporting
+// Yuv4mpeg2 writing
+    // Implement PSX YUV -> Standard YUV
+    // Change Yuv4mpeg2 and MdecDecoder_double.readYuv() to use 4:2:0 subsampling.
+* Reimplement a GUI
+    - Figure out how netbeans uses a folder chooser so I can use it too
+    - show media list as a tree list showing all the files on the disc
+      and what media belongs to what file. if not a disc image, just show
+      the file name and the media it contains
+	- Use my various conceptual models (e.g. OneOfManyModel) for the types of source data
+* AVI Writing
+    - Subclass AVI writer to make a BufferedAviWriter to generate cleaner AVI files
+    - AVI PNG codec
+    ! AVI YUV codec (specifically fourcc YV12)
+* Real-time media playback/preview
+    // Abstract out the media player
+	// Change thread syncing to use PipedIOStream approach
+    - Make sure I'm not reusing the same buffer for all my audio streaming
+    - Cleanup
+    - Sync player: end of first frame with start of audio
+    - Add new state to queue: BUMP_WHEN_FULL that will empty the oldest item
+      when full and a new item is added. This state will be enabled by the audio
+      queue when it is empty to prevent blocking.
+    - Add choosing of interpolation option to api
+    = Add choosing of aspect ratio
+    - Add command-line options to pick zooming, interpolation, and aspect ratio
+    - Reduce amount of object creation/destruction so GC delays aren't ever a problem
+        Current process:
+            byte[] for sector data
+            CDSector to wrap that +
+                CDXAHeader + CodingInfo + SubMode
+            IdentifiedSector to wrap that
+            StrFramePushDemuxer to hold several IdentifiedSector
+                Also contains IdentifiedSector[]
+            byte[] created by StrFramePushDemuxer
+            DemuxImage created to hold byte[]
+            ArrayBitReader created to hold byte[] again
+            MdecDecoder_ creates one MdecCode per frame
+            BufferedImage created from rgb
+* Allow writing stuff to stdout
+* Fix the super.toString() for children of UnknownData
+* When displaying progress, setup a timer to only update the display at most every second
+// Two types of listeners: Verbose feedback, and Progress
+* inform user if corrupted data is found while reading sectors
+	- Don't show an error on every sector (try to group them)
+Indexing
+    * Visually populate a list as the disc/file is being indexed
+	* Make indexing faster (don't use constructors to identify sector types)
+	// Add some checking during index file load to stop a 600mb scan of death
+	* Static data handling
+		- Searching for static demux and MDEC data
+		- Finding and uncompressing lhz data, often used in PSX games
+		- Re-add TIM search
+	* When reading an existing index file, just print how many items were identified
+	* and also print when lines have errors
+	/?/ Serialize should keep key-value pairs in the order they are added
+	* Find a way to serialze the suggested base name so they're all unique and may be used to refer to item to decode
+	* STR indexing: add serialized value: Precise fps:Y/N. When there's no rate variance, then it can be used for -precisefps
+    * ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
+      When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
+! Finish re-adding TIM handling
+x Raw direct CD reading from the disc drive (somehow)
+x CD-i video formats
+x More game handling
+x CD track audio handling
+? Change package structure to <hosting site>.jspxdec.*
+* Display CD format details to the user
+? Add function "IdentifySector()" in PSXMediaStreaming
+  to more quickly figure out what type of sectors are read (since it won't
+  have to go through the whole list of like 10 types).
+? Create BigDecimal decoder
+? Consider making IdentifiedSector just a subclass of CDSector
+? add DiscItemVideo.decodeFrame(int) for quick thumbnailing
+* write code documentation
+* develop a test set
+// Figure out why ISO9660 isn't work on CD-i -> because it doesn't use ISO9660 (http://www.smart-projects.net/help.php?help=230)
+* Figure out why CD-i stereo XA leaves right audio silent
+
+GAME SPECIFIC:
+* Soul Reaver 009:TIM is extra wide and saved as jpg looks weird (transparency?)
+* FF Chronicles has a tim file being saved as blank
+* Legend of Mana has 000:TIM with 64 palettes! One being saved all transparent?
+* Super Puzzle Figher 2: First movie, last frame is split because audio sector changes format
+* Japanese Tekken 3 has subtitles for the english movie? but where is the data for that?
+* Chrono Chross final movie - need to add handling for it
+* Castlevania seems to have movies with lots of extra frames at the end?
+* Lain Disc 2 048:STR - End of movie has 2 audio sectors next to each other
+// Figure out how the heck to REALLY handle variable frame rates (Alice in cyberland)
+* Pop at end of 429:XA (FF Chron?) disc 1. Test with PsxMC
+* Lain movie of camera opening her door while she's takling to friend on computer
+  audio is way off for some reason
+
+
+New code style:
+    fields only preceeded with underscore '_'
+    object no longer have prefix of 'o'
+    don't have filename in comment before package name
+    arrays of objects will still be 'ao' prefix
+    primitive type objects will also still be 'io', 'blno', 'dblo' etc
+    nested non-static class fields can start with double underscore '__'
+    core types prefixes: long=lng int=i short=si byte=b
+                         double=dbl float=flt boolean=bln
+    array prefix: a<type> (e.g. int[] = ai)

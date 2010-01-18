@@ -1,49 +1,66 @@
 /*
- * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2008  Michael Sabin
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007-2010  Michael Sabin
+ * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
- * Boston, MA  02110-1301, USA.
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
  *
- */
-
-/*
- * CDFileSectorReader.java
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package jpsxdec.cdreaders;
 
 import java.io.*;
-import java.util.*;
+import java.util.Arrays;
+import java.util.logging.Logger;
+import jpsxdec.plugins.xa.JPSXPluginXAAudio;
+import jpsxdec.plugins.xa.SectorXA;
+import jpsxdec.plugins.IdentifiedSector;
+import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 /** Reads a CD image (BIN/CUE, ISO), or a file containing some sectors of a CD 
  *  as a CD. This class does its best to guess what type of file it is. */
 public class CDFileSectorReader extends CDSectorReader {
+
+    private static final Logger log = Logger.getLogger(CDFileSectorReader.class.getName());
     
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    RandomAccessFile m_oInputFile;
-    String m_sSourceFilePath;
-    long m_lngFirstSectorOffset = -1;
-    int m_iRawSectorTypeSize = -1;
-    int m_iSectorCount = -1;
-    
-    int m_iSectorHeaderSize;
+    private RandomAccessFile _inputFile;
+    private String _sSourceFilePath;
+    private long _lngFirstSectorOffset = -1;
+    private int _iRawSectorTypeSize = -1;
+    private int _iSectorCount = -1;
     
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
@@ -51,29 +68,66 @@ public class CDFileSectorReader extends CDSectorReader {
     
     /** Opens a CD file for reading only. */
     public CDFileSectorReader(String sFile) throws IOException {
-        this(sFile, false);
+        this(sFile, -1, false);
+    }
+
+    public CDFileSectorReader(String sFile, int iSectorSize) throws IOException {
+        this(sFile, iSectorSize, false);
+    }
+
+    public CDFileSectorReader(String sFile, boolean blnAllowWrites) throws IOException {
+        this(sFile, -1, blnAllowWrites);
     }
 
     /** Opens a CD file for reading, with the option of allowing writing. */
-    public CDFileSectorReader(String sFile, boolean blnAllowWrites) 
+    public CDFileSectorReader(String sFile, int iSectorSize, boolean blnAllowWrites)
             throws IOException 
     {
-        m_sSourceFilePath = new File(sFile).getPath();
+        _sSourceFilePath = new File(sFile).getPath();
+        log.info(_sSourceFilePath);
         if (blnAllowWrites)
-            m_oInputFile = new RandomAccessFile(sFile, "rw");
+            _inputFile = new RandomAccessFile(sFile, "rw");
         else
-            m_oInputFile = new RandomAccessFile(sFile, "r");
-        
-        FindFirstSectorOffsetAndSize();
-        if (m_lngFirstSectorOffset < 0) 
-            throw new IOException("Unable to determine file format.");
-        
-        m_iSectorCount = (int)((m_oInputFile.length() - m_lngFirstSectorOffset) 
-                            / m_iRawSectorTypeSize);
+            _inputFile = new RandomAccessFile(sFile, "r");
+
+        switch (iSectorSize) {
+            case CDSector.SECTOR_MODE1_OR_MODE2_FORM1:
+                _iRawSectorTypeSize = iSectorSize;
+                break;
+            case CDSector.SECTOR_MODE2:
+                test2336();
+                _iRawSectorTypeSize = iSectorSize;
+                break;
+            case CDSector.SECTOR_RAW_AUDIO:
+                test2352();
+                _iRawSectorTypeSize = iSectorSize;
+                break;
+            default:
+                // Step 1, search for FFFFFF sync header within the first SECTOR_RAW_AUDIO + a few bytes
+                // If found, jump though X sectors to make sure there are regular sync headers
+                // if not found, we can assume it's not SECTOR_RAW_AUDIO
+                // that will remove the chance of many false positives
+                if (test2352()) break;
+                if (test2336()) break;
+        }
+
+        if (_lngFirstSectorOffset < 0) {
+            // we couldn't figure out what it is, assuming ISO style
+            _lngFirstSectorOffset = 0;
+            _iRawSectorTypeSize = CDSector.SECTOR_MODE1_OR_MODE2_FORM1;
+        } else if (_lngFirstSectorOffset > 0) {
+            log.info("Disc type identified, sector size: " + _iRawSectorTypeSize);
+            // Back up to the first sector in case we matched at the second sector
+            _lngFirstSectorOffset =
+                    _lngFirstSectorOffset % _iRawSectorTypeSize;
+        }
+
+        _iSectorCount = (int)((_inputFile.length() - _lngFirstSectorOffset)
+                                / _iRawSectorTypeSize);
     }
 
     public void close() throws IOException {
-        m_oInputFile.close();
+        _inputFile.close();
     }
     
     /* ---------------------------------------------------------------------- */
@@ -81,7 +135,12 @@ public class CDFileSectorReader extends CDSectorReader {
     /* ---------------------------------------------------------------------- */
     
     public String getSourceFile() {
-        return m_sSourceFilePath;
+        return _sSourceFilePath;
+    }
+
+    @Override
+    public String getSourceFileBaseName() {
+        return new File(_sSourceFilePath).getName();
     }
 
     //..........................................................................
@@ -89,22 +148,20 @@ public class CDFileSectorReader extends CDSectorReader {
     /** Returns the actual offset in bytes from the start of the file/CD 
      *  to the start of iSector. */
     public long getFilePointer(int iSector) {
-        return iSector * m_iRawSectorTypeSize 
-                + m_lngFirstSectorOffset 
-                + m_iSectorHeaderSize;
+        return iSector * _iRawSectorTypeSize + _lngFirstSectorOffset ;
     }
 
     /* ---------------------------------------------------------------------- */
     /* Public Functions ----------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public boolean HasSectorHeader() {
-        switch (m_iRawSectorTypeSize) {
-            case CDXASector.SECTOR_MODE1_OR_MODE2_FORM1: // 2048
+    public boolean hasSectorHeader() {
+        switch (_iRawSectorTypeSize) {
+            case CDSector.SECTOR_MODE1_OR_MODE2_FORM1: // 2048
                 return false;
-            case CDXASector.SECTOR_MODE2:         // 2336
+            case CDSector.SECTOR_MODE2:         // 2336
                 return true;
-            case CDXASector.SECTOR_RAW_AUDIO:     // 2352
+            case CDSector.SECTOR_RAW_AUDIO:     // 2352
                 return true;
             default: 
                 throw new RuntimeException("Should never happen: what kind of sector size is this?");
@@ -115,30 +172,30 @@ public class CDFileSectorReader extends CDSectorReader {
 
     /** Returns the number of sectors in the file/CD */
     public int size() {
-        return m_iSectorCount;
+        return _iSectorCount;
     }
     
     //..........................................................................
     
     /** Returns the requested sector. */
-    public CDXASector getSector(int iSector) 
+    public CDSector getSector(int iSector) 
             throws IOException, IndexOutOfBoundsException 
     {
-        if (iSector < 0 || iSector >= m_iSectorCount)
+        if (iSector < 0 || iSector >= _iSectorCount)
             throw new IndexOutOfBoundsException("Sector not in bounds of CD");
         
-        byte abSectorBuff[] = new byte[m_iRawSectorTypeSize];
+        byte abSectorBuff[] = new byte[_iRawSectorTypeSize];
         int iBytesRead = 0;
         
-        long lngFileOffset = m_lngFirstSectorOffset 
-                          + m_iRawSectorTypeSize * iSector;
+        long lngFileOffset = _lngFirstSectorOffset
+                          + _iRawSectorTypeSize * iSector;
         
         // in the very unlikely case this class is ever used in a
         // multi-threaded environment, this is the only part
         // that needs to be syncronized.
         synchronized(this) {
-            m_oInputFile.seek(lngFileOffset);
-            iBytesRead = m_oInputFile.read(abSectorBuff);
+            _inputFile.seek(lngFileOffset);
+            iBytesRead = _inputFile.read(abSectorBuff);
         }
 
         if (iBytesRead != abSectorBuff.length) {
@@ -146,14 +203,14 @@ public class CDFileSectorReader extends CDSectorReader {
         }
         
         try {
-            return new CDXASector(m_iRawSectorTypeSize, abSectorBuff, iSector, lngFileOffset);
+            return new CDSector(_iRawSectorTypeSize, abSectorBuff, iSector, lngFileOffset);
         } catch (NotThisTypeException ex) {
             // unable to create a CDXA sector from the data.
             // Some possible causes:
             //  - It's a raw CD audio sector
             //  - At the end of the CD and the last sector is incomplete?
             //  - XA audio data is incorrect (corrupted)
-            throw new SectorReadErrorException("Sector " + iSector + " appears to be corrupted.");
+            throw new SectorReadErrorException("Sector " + iSector + " appears to be corrupted: " + ex.getMessage());
         }
     }
     
@@ -161,16 +218,16 @@ public class CDFileSectorReader extends CDSectorReader {
             throws IOException 
     {
         
-        CDXASector oSect = getSector(iSector);
+        CDSector oSect = getSector(iSector);
         
-        if (oSect.getUserDataSize() != abSrcUserData.length)
+        if (oSect.getCdUserDataSize() != abSrcUserData.length)
             throw new IOException("Data to write is not the right size");
         
         long lngUserDataOfs = oSect.getFilePointer();
         
         synchronized(this) {
-            m_oInputFile.seek(lngUserDataOfs);
-            m_oInputFile.write(abSrcUserData);
+            _inputFile.seek(lngUserDataOfs);
+            _inputFile.write(abSrcUserData);
         }
     }
     
@@ -178,108 +235,121 @@ public class CDFileSectorReader extends CDSectorReader {
     /* Private Functions ---------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    private final static int VIDEO_FRAME_MAGIC = 0x60010180;
-    
-    // Magic numbers found in ISO files
-    //private final static int  ISO_MAGIC_CD00_ = 0x43443030  ;
-    //private final static byte ISO_MAGIC_____1 =         0x31;
-    
-    private final static int PARTIAL_CD_SECTOR_HEADER = 0x00014800;
-
-    /** Searches through the first MODE2_FORM2_CDXA_SECTOR_SIZE*2 bytes 
-     *  for a CD sync mark, a video chunk sector, or an audio chunk sector.
-     *  If none are found, searches for the CD001 mark indicating an ISO.
-     *  If that's not found, then we give up cuz there's no way to tell
-     *  what type of file it is. 
-     *  Note !This assumes the input file has the data aligned at every 4 bytes!
+    /** Searches through the entire file for a full XA audio sector.
+     * TODO: That probably isn't a very good idea.
+     *<p>
+     *  Note: This assumes the input file has the data aligned at every 4 bytes!
      */
-    private void FindFirstSectorOffsetAndSize() throws IOException {
-        m_oInputFile.seek(0);
-        byte abFirstBytes[] = new byte[CDXASector.SECTOR_RAW_AUDIO*2];
-        int iBytesRead = m_oInputFile.read(abFirstBytes);
+    private boolean test2336() throws IOException {
 
-        // Create a DataInputStream from the bytes
-        DataInputStream oByteTester = 
-                new DataInputStream(
-                new ByteArrayInputStream(abFirstBytes));
-        
-        for (int i = 0; i < iBytesRead-16; i+=4) {
+        byte abTestSectorData[] = new byte[CDSector.SECTOR_MODE2];
 
-            oByteTester.mark(16);
-            
-            int iTestBytes1 = oByteTester.readInt();
-            int iTestBytes2 = oByteTester.readInt();
-            int iTestBytes3 = oByteTester.readInt();
-            
-            if (iTestBytes1 == CDXASector.SECTOR_SYNC_HEADER[0] && 
-                iTestBytes2 == CDXASector.SECTOR_SYNC_HEADER[1] && 
-                iTestBytes3 == CDXASector.SECTOR_SYNC_HEADER[2]) {
-                // CD Sync Header
-                m_lngFirstSectorOffset = i;
-                m_iRawSectorTypeSize = CDXASector.SECTOR_RAW_AUDIO;
-                break;
-            }
-            
-            // This logic is better associated with Video Frame stuff
-            if (iTestBytes1 == VIDEO_FRAME_MAGIC) {
-                // Video frame...hopefully
-                m_lngFirstSectorOffset = i;
-                m_iRawSectorTypeSize = CDXASector.SECTOR_MODE1_OR_MODE2_FORM1;
-                break;
-            }
-            
-            // output from movconv creates sectors like this
-            // hopefully this is the only format
-            if (iTestBytes1 == PARTIAL_CD_SECTOR_HEADER && 
-                iTestBytes2 == PARTIAL_CD_SECTOR_HEADER &&
-                iTestBytes3 == VIDEO_FRAME_MAGIC) {
-                m_lngFirstSectorOffset = i;
-                m_iRawSectorTypeSize = CDXASector.SECTOR_MODE2;
-                break;
-            }
-            
-            oByteTester.reset();
-            oByteTester.skip(4);
-        }
-        
-        if (m_lngFirstSectorOffset < 0) {
-            // we couldn't figure out what it is, assuming ISO style
-            m_lngFirstSectorOffset = 0;
-            m_iRawSectorTypeSize = CDXASector.SECTOR_MODE1_OR_MODE2_FORM1;
-            /*
-            // Couldn't find anything in first part of the file, 
-            // now search for ISO-9660 magic number
-            
-            // If this is a standard iso 9660 file, 
-            // 'CD001' usually occurs at byte 0x8001, 0x8801, or 0x9001
-    
-            for (long lngOffset: new long[] {0x8001, 0x8801, 0x9001}) {
-                m_oInputFile.seek(lngOffset);
-                if (m_oInputFile.readInt()  == ISO_MAGIC_CD00_ && 
-                    m_oInputFile.readByte() == ISO_MAGIC_____1   ) 
-                {
-                    m_lngFirstSectorOffset = 0;
-                    m_iRawSectorTypeSize = SECTOR_MODE1_OR_MODE2_FORM1;
-                    break;
+        // only search up to 33 sectors into the file
+        // because that's the maximum XA audio span
+        // (this misses audio that starts later in the file however)
+        int iMaxSearch = CDSector.SECTOR_MODE2 * 33;
+
+        // Only detect XA ADPCM audio sectors to determine if it's SECTOR_MODE2
+        for (long lngSectStart = 0;
+             lngSectStart < iMaxSearch - abTestSectorData.length;
+             lngSectStart+=4)
+        {
+            try {
+                _inputFile.seek(lngSectStart);
+                IO.readByteArray(_inputFile, abTestSectorData);
+                CDSector oCDSect = new CDSector(CDSector.SECTOR_MODE2, abTestSectorData, 0, -1);
+                IdentifiedSector oPSXSect = JPSXPluginXAAudio.getPlugin().identifySector(oCDSect);
+                if (oPSXSect instanceof SectorXA) {
+                    // we've found an XA audio sector
+                    // maybe try to find another just to be sure?
+
+                    // only check 146 sectors because, if the sector size was 2352,
+                    // then around 147, the offset difference adds up to another
+                    // whole 2352 sector
+                    for (long lngAdditionalOffset = 0, iTimes = 0;
+                         lngSectStart + lngAdditionalOffset < _inputFile.length() - abTestSectorData.length &&
+                         iTimes < 146;
+                         lngAdditionalOffset+=CDSector.SECTOR_MODE2,
+                         iTimes++)
+                    {
+                        _inputFile.seek(lngSectStart + lngAdditionalOffset);
+                        IO.readByteArray(_inputFile, abTestSectorData, 0, CDSector.SECTOR_MODE2);
+                        oPSXSect = JPSXPluginXAAudio.getPlugin().identifySector(oCDSect);
+                        if (oPSXSect instanceof SectorXA) {
+                            _lngFirstSectorOffset = lngSectStart;
+                            _iRawSectorTypeSize = CDSector.SECTOR_MODE2;
+                            return true;
+                        }
+                    }
                 }
+            } catch (NotThisTypeException ex) {
+
             }
-            */
         }
-        
-        // Back up to the first sector in case we matched at the second sector
-        if (m_lngFirstSectorOffset > 0) {
-            m_lngFirstSectorOffset = 
-                    m_lngFirstSectorOffset % m_iRawSectorTypeSize;
+        return false;
+    }
+
+    /** Searches through the first SECTOR_RAW_AUDIO*2 bytes
+     *  for a CD sync mark.
+     *<p>
+     *  Note: This assumes the input file has the data aligned at every 4 bytes!
+     */
+    private boolean test2352() throws IOException {
+        byte[] abSyncHeader = new byte[CDSector.SECTOR_SYNC_HEADER.length];
+
+        OuterSearch:
+        for (long lngSectStart = 0;
+             lngSectStart < CDSector.SECTOR_RAW_AUDIO * 2;
+             lngSectStart++)
+        {
+            _inputFile.seek(lngSectStart);
+            IO.readByteArray(_inputFile, abSyncHeader);
+            if (Arrays.equals(abSyncHeader, CDSector.SECTOR_SYNC_HEADER)) {
+                // we think we found a sync header
+                // check for 10 more seek headers after this one to be sure
+                for (int i = 0, iOfs = CDSector.SECTOR_RAW_AUDIO;
+                     i < 10;
+                     i++, iOfs+=CDSector.SECTOR_RAW_AUDIO)
+                {
+                    _inputFile.seek(lngSectStart + iOfs);
+                    IO.readByteArray(_inputFile, abSyncHeader);
+                    if (!Arrays.equals(abSyncHeader, CDSector.SECTOR_SYNC_HEADER))
+                        continue OuterSearch; // aw, too bad, back to the drawing board
+                }
+                _lngFirstSectorOffset = lngSectStart;
+                _iRawSectorTypeSize = CDSector.SECTOR_RAW_AUDIO;
+                log.info("Found sync header at " + lngSectStart);
+                return true;
+            }
         }
-        
+        return false;
+    }
+
+    public String serialize() {
+        return String.format("SourceFile|%s|%d|%d|%d",
+                _sSourceFilePath,
+                _iRawSectorTypeSize,
+                _iSectorCount,
+                _lngFirstSectorOffset);
     }
 
     @Override
     public String toString() {
-        return "SourceFile|" + m_sSourceFilePath 
-                + "|" + m_iRawSectorTypeSize 
-                + "|" + m_iSectorCount 
-                + "|" + m_lngFirstSectorOffset;
+        return serialize();
+    }
+
+    @Override
+    public String getTypeDescription() {
+        switch (_iRawSectorTypeSize) {
+            case CDSector.SECTOR_MODE1_OR_MODE2_FORM1: // 2048
+                return ".iso (2048 bytes/sector) format";
+            case CDSector.SECTOR_MODE2:         // 2336
+                return "partial header (2336 bytes/sector) format";
+            case CDSector.SECTOR_RAW_AUDIO:     // 2352
+                return "BIN/CUE (2352 bytes/sector) format";
+            default:
+                throw new RuntimeException("Should never happen: what kind of sector size is this?");
+        }
     }
     
     

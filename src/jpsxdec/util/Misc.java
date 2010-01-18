@@ -1,36 +1,89 @@
 /*
- * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2008  Michael Sabin
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007-2010  Michael Sabin
+ * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
- * Boston, MA  02110-1301, USA.
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
  *
- */
-
-/*
- * Misc.java
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package jpsxdec.util;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.swing.JTextField;
 
+/** Miscellaneous helper functions. */
 public final class Misc {
+
+    public static String[] regex(String regex, String s) {
+        return regex(Pattern.compile(regex), s);
+    }
+
+    public static String[] regex(Pattern regex, String s) {
+        Matcher m = regex.matcher(s);
+        if (!m.find()) return null;
+        String as[] = new String[m.groupCount()+1];
+        for (int i = 0; i < as.length; i++) {
+            as[i] = m.group(i);
+        }
+        return as;
+    }
+
+    public static String[] regexAll(Pattern regex, String s) {
+        Matcher m = regex.matcher(s);
+        String as[] = null;
+        while (m.find()) {
+            int iStart;
+            if (as == null) {
+                as = new String[m.groupCount()+1];
+                iStart = 0;
+            } else {
+                iStart = as.length;
+                String[] newas = new String[m.groupCount()+1 + iStart];
+                System.arraycopy(as, 0, newas, 0, as.length);
+                as = newas;
+            }
+            for (int i = iStart; i < as.length; i++) {
+                as[i] = m.group(i-iStart);
+            }
+        }
+        return as;
+    }
     
     /** http://www.rgagnon.com/javadetails/java-0029.html */
     public static String stack2string(Exception e) {
@@ -67,11 +120,21 @@ public final class Misc {
     }
     
     public static String dup(String s, int count) {
+        if (count == 0)
+            return "";
         StringBuilder oSB = new StringBuilder(s.length() * count);
         for (int i = 0; i < count; i++) {
             oSB.append(s);
         }
         return oSB.toString();
+    }
+
+    public static String dup(char c, int count) {
+        if (count == 0)
+            return "";
+        char[] ac = new char[count];
+        Arrays.fill(ac, c);
+        return new String(ac);
     }
     
     /** Manual implementation of the Java 6 Array.copyOfRange function. 
@@ -95,7 +158,7 @@ public final class Misc {
     }
     
     public static String getBaseName(String txt) {
-        int i = txt.indexOf('.');
+        int i = txt.lastIndexOf('.');
         if (i >= 0)
             return txt.substring(0, i);
         else
@@ -107,7 +170,7 @@ public final class Misc {
     }
     
     public static String getExt(String txt) {
-        int i = txt.indexOf('.');
+        int i = txt.lastIndexOf('.');
         if (i >= 0)
             return txt.substring(i+1);
         else
@@ -153,16 +216,32 @@ public final class Misc {
         }
     }
     
+    public static long[] splitLong(String s, String regex) {
+        String[] split = s.split(regex);
+        long[] ai = new long[split.length];
+        
+        try {
+            for (int i = 0; i < split.length; i++) {
+                ai[i] = Long.parseLong(split[i]);
+            }
+            return ai;
+
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+    
+    
     /** Splits string s via sDelimiter and parses the resulting array
      *  into an array of ints. If there is any error, then null is returned. */
-    public static int[] ParseDelimitedInts(String s, String sDelimiter) {
+    public static int[] parseDelimitedInts(String s, String sDelimiter) {
         String[] asParse = s.split(sDelimiter);
-        return StringArrayToIntArray(asParse);
+        return stringArrayToIntArray(asParse);
     }
 
     /** Parses an array of strings into an array of ints. If there is any
      *  error, or if any of the values are negitive, null is returned. */
-    public static int[] StringArrayToIntArray(String[] as) {
+    public static int[] stringArrayToIntArray(String[] as) {
         try {
             int[] aiVals = new int[as.length];
             for (int i = 0; i < as.length; i++) {
@@ -184,5 +263,49 @@ public final class Misc {
             return new String[] {s, ""};
         }
     }
-    
+
+    private final static String[] ZERO_PAD = new String[] {
+        "", "0", "00", "000", "0000", "00000", "000000", "0000000", "00000000",
+        "000000000", "0000000000", "00000000000", "000000000000",
+        "0000000000000", "00000000000000", "000000000000000",
+        "0000000000000000", "00000000000000000", "000000000000000000",
+        "0000000000000000000", "00000000000000000000", "000000000000000000000",
+        "0000000000000000000000", "00000000000000000000000",
+        "000000000000000000000000", "0000000000000000000000000",
+        "00000000000000000000000000", "000000000000000000000000000",
+        "0000000000000000000000000000", "00000000000000000000000000000",
+        "000000000000000000000000000000", "0000000000000000000000000000000",
+        "00000000000000000000000000000000"
+    };
+    public static String bitsToString(long val, int iCount) {
+        String sBin = Long.toBinaryString(val);
+        int len = sBin.length();
+
+        if (len < iCount)
+            return ZERO_PAD[iCount - len] + sBin;
+        else if (len > iCount)
+            return sBin.substring(0, iCount);
+        else
+            return sBin;
+    }
+
+    public static boolean listsEqual(List a, List b) {
+        if (a == b) return true;
+
+        if (a == null || b == null)
+            return false;
+
+        if (a.size() != b.size()) return false;
+
+        Iterator ai = a.iterator();
+        Iterator bi = b.iterator();
+
+        while (ai.hasNext() && bi.hasNext()) {
+            if (!ai.next().equals(bi.next()))
+                return false;
+        }
+
+        return true;
+    }
+
 }

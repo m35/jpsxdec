@@ -95,9 +95,9 @@ size of RIFF chunk; - Chunk Size in Bytes
         [	"idx1"
         [	size of AVIOLDINDEX
         [-----------------------------------------------------+
-        [	chunkId  - "01wb" or "00db"                   |
-        [	flags                                         | repeat to match data above
-        [	offset of chunk - from "movi"                 | (usually easiest to construct this as you write data)
-        [	size of chunk   - size of the audio/video data|
+        [	chunkId  - "01wb" or "00db"                       |
+        [	flags                                             | repeat to match data above
+        [	offset of chunk - from "movi"                     | (usually easiest to construct this as you write data)
+        [	size of chunk   - size of the audio/video data    |
         [-----------------------------------------------------+ 
 

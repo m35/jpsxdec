@@ -1,811 +1,426 @@
 /*
- * jPSXdec: Playstation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2008  Michael Sabin
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007-2010  Michael Sabin
+ * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor,   
- * Boston, MA  02110-1301, USA.
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
  *
- */
-
-/*
- * Main.java
- */
-
-/* TODO:
- * 
- * GAME SPECIFIC:
- * - Soul Reaver 009:TIM is extra wide and saved as jpg looks weird
- * - FF Chronicles has a tim file being saved as blank
- * - That FF7 gold movie has audio and video displacement like no other
- * - Legend of Mana has 000:TIM with 64 palettes! One being saved all transparent?
- * - Super Puzzle Figher 2: First movie, last frame is split because audio sector changes format
- * - Japanese Tekken 3 has subtitles for the english movie? but where is the data for that?
- * - Chrono Chross final movie - need to add handling for it
- * - Castlevania seems to have movies with lots of extra frames at the end?
- * 
- * - Lots of games have some 'almost' TIM files. Test these with PsxMC
- * // Very large audio pop at beginning of jumpingflash2_movie-01.str. Test with other decoders. >> None want to play the dang thing.
- * // FF Chron:Chrono Trigger movies are encoded choppy?? Test with other decoders. -- Seems the same there too
- * - Pop at end of 429:XA (FF Chron?) disc 1. Test with PsxMC
- * 
- * // Linux - VLC claims avi files are broken. Always shows even after repair -- fixed
- * // Linux - mplayer plays MJPG stretched virt and crashes with DIB. Plays vid upside-down + horz stretched after VLC repair >> mplayer sucks
- * - linux totem shows some messy green stuff in MJPG -- learn more about MJPG
- * - Linux (Compiz): Progress gui often appears blank, so there's no way to close it
- * // AVI (both types) can't be played in quicktime
- * 
- * /- Pull the uncompressing and MDEC decoding out of the PSXMedia and put it in
- *   a decoder factory.
- * - Make all types of decoders: 1) Debug uncompress 
- *                               2) Debug MDEC 
- *                               3) Debug YUV
- *                               4) Swift Uncompress+MDEC (->YUV)
- *                               4) Swift Java full decode
- *                               5) Swift Java Uncompress
- *                               6) Swift MDEC->RGB
- *                               7) Native full decode
- * 
- * - Figure out how the heck to REALLY handle variable frame rates (Alice)
- * - No thanks to Puzzle Figher 2, it may finally be time to take PsxMC's decoding approach
- * 
- * - Create a "player" (like a saver) that watches how much time has elapsed
- *   and skips decoding frames as necessary.
- * /- add crazy super fast native decoder
- * - add swift Java decoder
- * - add swift Java uncompressor
- * - Create a separate class for demux and mdec 'image' saving 
- * 
- * - Add abstract protected function "IdentifySector()" in MediaStreaming
- *   to more quickly figure out what type of sectors are read (since it won't
- *   have to go through the whole list of like 10 types).
- * 
- * - Raw CD reading seems fickle and often won't return raw sectors for certain
- *   sector/track types. Figure out how to skip a bulk of such sector types
- *   so raw CD reading isn't so slow.
- * - add the audio channel # to STR serialization (handy reference)
- * - inform user if corrupted data is found while reading sectors
- * - Re-add storing the saving folder to ini file
- * - Figure out how netbeans uses a folder chooser so I can use it too
- * - Add some checking during index file load to stop a 600mb scan of death
- * - Change IndexLineParser to just use regex for parsing
- * - change TIM serialization to include how many palettes it has
- * - change gui to use JFileChooser
- * - clean up main
- * - add the more thorough searching for TIM files to PSXMedia. do it like
- *   XA searching with a static function in PSXMediaTIM
- * /- fix avi saving
- * !! TODO: Give credits for Yuv2Rgb function
- * /! add option to select the IDCT
- * // Find license file mentioned in FileNameExtensionFilter
- * /! Combine all video decoding into one package
- * /! make progress window closable
- * ? make playback listeners more robust by allowing any number of listeners
- * - add volume option to gui
- * /- make IDCT easier to interchange
- * - test test test
- * - in progress gui, setup a timer to only update the display at most every second 
- * - combine IProgressListener and Progress gui interfaces so there is only one
- * // unify the audio/video format handling so i'm not just passing strings around
- * // Figure out why jlist has empty entries at the end
- * // add tim decoding gui
- * // unify CommandLine and SaveOpions classes
- * // Progress gui- when fatal exception occurs, throw the stack trace into the text box
- * 
- * - change media list to be a tree list showing all the files on the disc
- *   and what media belongs to what file. if not a disc image, just show
- *   the file name and the media it contains
- * - visually populate the list as the disc/file is being indexed
- * * use ISO9660 to help name media items
- * - add MediaVideo.DecodeFrame for quick thumbnailing
- * - add best guess for Audio2048 properties so fps calc has a chance to figure it out
- * 
- * - pull yuv writing to its own class, a YuvWriter, and let it accept
- *   PsxYuv images for each frame's input.
- * - Change PsxYuv.write(OutputStream) to only write the header if requested,
- *   so multiple images can be written to the same stream
- * - fix output of YUV images to adjust for yuv4mpeg2 color space
- * 
- * - to pipe to ffmpeg/mencoder (on Linux only), use named pipes and write yuv data to one
- *   and audio data to the other.
- * 
- * /- change CommandLine class to use a tiered architecture, remvoing
- *   elements from the array as we find matching commands and passing the
- *   rest furthur down the stream
- * 
- * // Finish encoder gui.
- * // Test the new games
- * // Add jpeg quality settings to AviWriter MJPG output
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
  *
- * OPTIMIZE:
- * // All InputStreams: implement read(byte[]) methods for hopefully faster reading.
- * - audio decoding: Str audio write directly to byte array and use ByteArrayInputStream
- *                   Square audio write directy to byte array and use a Byte2DArrayInputStream
- *                   or write to an InterleavedShort2DArrayOutputStream
- * // don't use streams to read headers, just pass the original byte array and read values out of it
- * 
- * /- finish STR format documentation
- * - make code documentation
- * - make manual
- * /- make CREDITS file
- * /- CLEANUP!!
- * // better organize the error reporting/checking
- * - develop a test set
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
  *
- * OPTIONS:
- * - need to clean up plugin command-line
- * - add option to set 24/16 bit color, or yuv420/yuv422
- * - add option to walk through a file byte by byte to find any compressed mdec data
- * xx add option to ignore checks and just decode whatever it can (probably part of --decode-frame/--decode-audio)
- * /- add option to copy str/xa sectors from image
- * - add --format option to LAPKS
- * - add --nocrop option
- * // add option to save audio to the other formats
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
  *
- * CONSIDER:
- * ? Make avi saving more robust by writing as much of the header as possible
- *   and updating the frame count, file size, etc in the headers as frames as written,
- *   and maybe even writing the index after each frame, then backing up and
- *   overwriting it with the next frame and then the index again (could really
- *   slow down the writing, maybe provide this as an option?)
- * // get rid of mdec & yuv listener. the demux istener must handle the rest of the decoding.
- * ? Consider making PSXSector just a subclass of CDXASector
- *
- * FUTURE VERSIONS:
- * // Add frame rate calculation
- * - add better stdin/stdout file handling
- * //- add FF9 audio decoding
- * /- add GUI
- * /- add raw CD reading for windows
- * /- add encoding to a video format
- * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package jpsxdec;
 
 
-import jpsxdec.cdreaders.CDXASector;
-import jpsxdec.media.IProgressListener;
+import java.awt.BorderLayout;
+import java.awt.event.WindowEvent;
+import jpsxdec.plugins.IdentifiedSectorRangeIterator;
+import jpsxdec.plugins.IdentifiedSector;
+import jpsxdec.cdreaders.CDSector;
 import java.io.*;
-import java.util.*;
-import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
-import javax.sound.sampled.*;
-import jpsxdec.cdreaders.CDXAIterator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import jpsxdec.cdreaders.CDSectorIterator;
 import jpsxdec.cdreaders.CDSectorReader;
-import jpsxdec.cdreaders.iso9660.ISOFile;
-import jpsxdec.cdreaders.iso9660.TestISO;
-import jpsxdec.cdreaders.iso9660.VolumePrimaryDescriptor;
-import jpsxdec.mdec.MDEC;
-import jpsxdec.demuxers.*;
-import jpsxdec.mdec.PsxYuv;
-import jpsxdec.media.*;
-import jpsxdec.media.PSXMediaStreaming;
-import jpsxdec.media.savers.*;
-import jpsxdec.media.savers.Formats.ImgSeqVidFormat;
-import jpsxdec.plugins.*;
-import jpsxdec.sectortypes.*;
-import jpsxdec.videodecoding.CriticalUncompressException;
-import jpsxdec.videodecoding.StrFrameUncompressor;
-import jpsxdec.util.*;
+import jpsxdec.player.PlayController;
+import jpsxdec.plugins.ConsoleProgressListener;
+import jpsxdec.plugins.DiscIndex;
+import jpsxdec.plugins.DiscItem;
+import jpsxdec.plugins.DiscItemSaver;
+import jpsxdec.plugins.JPSXPlugin;
+import jpsxdec.plugins.psx.str.DiscItemSTRVideo;
+import jpsxdec.plugins.psx.str.IVideoSector;
+import jpsxdec.plugins.xa.IDiscItemAudioStream;
+import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IO;
+import jpsxdec.util.NotThisTypeException;
 
+/** Main entry point to the jPSXdec program. */
 public class Main {
-    
-    public static int DebugVerbose = 2;
-    public final static String Version = "0.35(beta)";
+
+    private static final Logger log = Logger.getLogger(Main.class.getName());
+
+    private static FeedbackStream Outputter;
+
+    public final static String Version = "0.90.0 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
-    private static CommandLine m_oMainSettings;
+    private static MainCommandLineParser _mainSettings;
 
-    private static void timsearch() {
-        try {
-            CDSectorReader oCD = CDSectorReader.Open("..\\..\\disc1.iso");
-            
-            PSXSectorRangeIterator oIter = new PSXSectorRangeIterator(oCD);
-            int iCount = 0;
-            while (oIter.hasNext()) {
-                
-                while (oIter.hasNext())
-                {
-                    if (oIter.peekNext() instanceof PSXSectorUnknownData)
-                        break;
-                    else
-                        oIter.skipNext();
-                }
-                if (!oIter.hasNext()) break;
-
-                try {
-                    UnknownDataPullDemuxerIS oStrm = new UnknownDataPullDemuxerIS(oIter);
-                    while (true) {
-                        oStrm.mark(-1);
-                        long lng = oStrm.getFilePointer();
-                        try {
-                            Tim oTim = new Tim(oStrm);
-                            System.out.println(iCount + "# "+ lng + " to " + oStrm.getFilePointer());
-                            for (int i = 0; i < oTim.getPaletteCount(); i++) {
-                                ImageIO.write(oTim.toBufferedImage(i),"png", new File(iCount + "-" + lng + "-" + i + ".png"));
-                            }
-                            iCount++;
-                        } catch (NotThisTypeException ex) {}
-                        oStrm.reset();
-                        oStrm.skip(4);
-                    }
-                } catch (EOFException ex) {
-                    //ex.printStackTrace();
-                }
-            }
-            
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-
-        System.exit(0);
-    }
-    
-    
     public static void main(String[] args) {
-        
-        //timsearch(); // test
-        
-        m_oMainSettings = new CommandLine(args);
-
-        if (m_oMainSettings.gotDebug()) {
-            // set verbosity
-            int[] aiVerbosityLevels = m_oMainSettings.getDebug();
-            Main.DebugVerbose = aiVerbosityLevels[0];
-            MediaHandler.DebugVerbose = aiVerbosityLevels[1];
-            PSXMedia.DebugVerbose = aiVerbosityLevels[2];
-            StrFrameUncompressor.DebugVerbose = aiVerbosityLevels[3];
-            MDEC.DebugVerbose = aiVerbosityLevels[4];
+        try { // load the logger configuration
+            InputStream is = Main.class.getResourceAsStream("LogToFile.properties");
+            if (is != null)
+                java.util.logging.LogManager.getLogManager().readConfiguration(is);
+        } catch (IOException ex) {
+            log.log(Level.WARNING, null, ex);
         }
-        
-        if (DebugVerbose >= 3)
-            System.err.println(System.getProperty("java.class.path"));
-        if (DebugVerbose >= 3)
-            System.err.println(System.getProperty("java.library.path"));
-        
-        if (m_oMainSettings.getMainCommand() == CommandLine.MAIN_CMD_STARTGUI) {
+
+        _mainSettings = new MainCommandLineParser(args);
+
+        if (_mainSettings.getMainCommand() == MainCommandLineParser.MAIN_CMD_STARTGUI) {
+            /* disableded
             java.awt.EventQueue.invokeLater(new Runnable() {
 
                 public void run() {
                     new Gui().setVisible(true);
                 }
             });
-
+            */
             return;
         }
         
-        
+        Outputter = new FeedbackStream(System.err, _mainSettings.getVerbose());
                 
-        if (DebugVerbose > 0)
-            System.err.println(VerString);
-        
-        switch (m_oMainSettings.getMainCommand()) {
-            case CommandLine.MAIN_CMD_INDEX:
-                System.exit(IndexOnly());
+        Outputter.printlnNorm(VerString);
+
+        int iExitCode = 0;
+
+        switch (_mainSettings.getMainCommand()) {
+            case MainCommandLineParser.MAIN_CMD_INDEX:
+                iExitCode = indexOnly();
                 break;
-            case CommandLine.MAIN_CMD_DECODE:
-                System.exit(NormalDecode());
+            case MainCommandLineParser.MAIN_CMD_DECODE:
+                iExitCode = normalDecode();
                 break;
-            case CommandLine.MAIN_CMD_SPECIALFILE:
-                System.exit(DecodeSpecialFrameFile());
+            case MainCommandLineParser.MAIN_CMD_DECODE_ALL_TYPE:
+                iExitCode = decodeAllType();
                 break;
-            case CommandLine.MAIN_CMD_SECTORDUMP:
-                System.exit(SectorList());
+            case MainCommandLineParser.MAIN_CMD_STATICFILE:
+                iExitCode = decodeStaticFile();
                 break;
-            case CommandLine.MAIN_CMD_PLUGIN:
-                System.exit(Plugin());
+            case MainCommandLineParser.MAIN_CMD_SECTORLIST:
+                iExitCode = sectorDump();
                 break;
-            case CommandLine.MAIN_CMD_DIR:
-            case CommandLine.MAIN_CMD_COPY:
-                System.exit(DirCopy());
+            case MainCommandLineParser.MAIN_CMD_COPYSECT:
+                iExitCode = copySectors();
                 break;
-            case CommandLine.MAIN_CMD_COPYSECT:
-                System.exit(CopySectors());
+            case MainCommandLineParser.MAIN_CMD_FPS_DUMP:
+                iExitCode = fpsDump();
+                break;
+            case MainCommandLineParser.MAIN_CMD_ITEM_HELP:
+                iExitCode = itemHelp();
+                break;
+            case MainCommandLineParser.MAIN_CMD_PLAY:
+                iExitCode = player();
                 break;
         }
-        
-        return;
+
+        // display details of logging configuration right before program exits
+        //System.out.println(au.com.forward.logging.Logging.currentConfiguration());
+
+        System.exit(iExitCode);
     }
-    
+
+
     //--------------------------------------------------------------------------
-    
-    private static int CopySectors() {
-        //open input file
-        CDSectorReader oCD;
+
+    private static int itemHelp() {
+        CDSectorReader cdReader;
         try {
-            oCD = CDSectorReader.Open(m_oMainSettings.getInputFile());
-
-            int[] aiSectors = m_oMainSettings.getSectorsToCopy();
-            
-            CDXAIterator oCDIter = new CDXAIterator(oCD, aiSectors[0], aiSectors[1]);
-            
-            if (DebugVerbose > 0)
-                System.err.println("Copying sectors " + aiSectors[0] + " to " + aiSectors[1]);
-            
-            FileOutputStream fos = new FileOutputStream(
-                    m_oMainSettings.constructOutPath(m_oMainSettings.getInputFileBase()
-                    + aiSectors[0] + "-" + aiSectors[1] + ".dat"));
-            
-            while (oCDIter.hasNext()) {
-                CDXASector oSect = oCDIter.next();
-                if (oSect == null) {
-                    //todo err
-                } else {
-                    fos.write(oSect.getRawSectorData());
-                }
-            }
-            
-            fos.close();
-            
-            return 0;
-            
+            cdReader = CDSectorReader.open(_mainSettings.getInputFile());
         } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
+            log.log(Level.SEVERE, "Error opening CDSectorReader", ex);
+            Outputter.printlnErr(ex.getMessage());
             return -1;
         }
-    }
-    
-    private static int DirCopy() {
-        //open input file
-        CDSectorReader oCD;
-        try {
-            oCD = CDSectorReader.Open(m_oMainSettings.getInputFile());
-        
-            VolumePrimaryDescriptor vpd = 
-                    new VolumePrimaryDescriptor(oCD.getSector(16).getSectorDataStream());
-            
-            ArrayList<ISOFile> oFileList = new ArrayList<ISOFile>();
 
-            try {
-                TestISO.getFileList(vpd.root_directory_record, oCD, oFileList, new File(""));
-            } catch (IndexOutOfBoundsException ex) {
-                // try to read as much of the dir as is available
-            }
-            
-            ISOFile fileToCopy = null;
-            
-            for (ISOFile ofile : oFileList) {
-                if (m_oMainSettings.getMainCommand() == CommandLine.MAIN_CMD_DIR) {
-                    System.out.println(ofile.getPath() 
-                            + " " + ofile.getStartSector() + "-" + 
-                            ofile.getEndSector());
-                } else if (m_oMainSettings.getMainCommand() == CommandLine.MAIN_CMD_COPY) {
-                    if (ofile.getPath().equals(m_oMainSettings.getFileToCopy())) {
-                        fileToCopy = ofile;
-                    }
-                }
-            }
-            
-            if (m_oMainSettings.getMainCommand() == CommandLine.MAIN_CMD_DIR)
-                return 0;
-            
-            if (!oCD.HasSectorHeader()) {
-                if (DebugVerbose > 0) {
-                    System.err.println("Copying files out of a CD image without raw headers seems kinda useless?");
-                }
-                return -1;
-            }
+        DiscIndex discIndex = doTheIndex(cdReader, false);
+        if (discIndex == null)
+            return -1;
 
-            if (fileToCopy != null)
-                System.out.println("Going to copy " + fileToCopy.toString());
-            else {
-                System.out.println("File not found.");
-                return -1;
-            }
-            
-            CDXAIterator fileRange = new CDXAIterator(oCD, (int)fileToCopy.getStartSector(), (int)fileToCopy.getEndSector());
-            
-            FileOutputStream fos = new FileOutputStream(
-                    m_oMainSettings.constructOutPath(fileToCopy.getName()));
-            
-            while (fileRange.hasNext()) {
-                CDXASector oSect = fileRange.next();
-                if (oSect == null) {
-                    //todo err
-                } else {
-                    fos.write(oSect.getRawSectorData());
-                }
-            }
-            
-            fos.close();
-            
-            return 0;
-            
-        } catch (NotThisTypeException ex) {
-            if (DebugVerbose > 0)
-                System.err.println("CD/file does not have directory information.");
-            return -1;
-        } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
+        if (!discIndex.hasIndex(_mainSettings.getDecodeIndex())) {
+            Outputter.printlnErr("Can't find index " + _mainSettings.getDecodeIndex());
             return -1;
         }
-    }
-    
-    private static int Plugin() {
-        
-        String sOutFileBase = "";
-        String sOutFolder = "";
-        if (m_oMainSettings.gotOutputFile()) {
-            sOutFileBase = m_oMainSettings.getOutputFile();
-        }
-        if (m_oMainSettings.gotOutputFolder()) {
-            sOutFolder = m_oMainSettings.getOutputFolder();
-        }
-        
-        String sPath = new File(sOutFolder, sOutFileBase).getAbsolutePath();
-        
-        if (m_oMainSettings.getPluginCommand().equals("lapks"))
-            System.exit(Lain_LAPKS.DecodeLAPKS(m_oMainSettings.getInputFile(), sPath));
-        else if (m_oMainSettings.getPluginCommand().equals("site"))
-            System.exit(Lain_SITE.DecodeSITE(m_oMainSettings.getInputFile(), sPath));
-        
+
+        DiscItem item = discIndex.getByIndex(_mainSettings.getDecodeIndex());
+
+        Outputter.nl();
+
+        Outputter.printlnNorm("Help for");
+        Outputter.printlnNorm(item.toString());
+
+        DiscItemSaver saver = item.getSaver();
+        saver.printHelp(Outputter);
+
         return 0;
     }
-    
-    private static int IndexOnly() {
-        //open input file
-        CDSectorReader oCD;
-        try {
-            oCD = CDSectorReader.Open(m_oMainSettings.getInputFile());
-        } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
-            return -1;
-        }
-        
-        if (!oCD.HasSectorHeader() && DebugVerbose > 0) {
-            System.err.println("Warning: Input file does not contain entire raw CD sectors.");
-            System.err.println("         Audio cannot be decoded.");
-        }
-        
-        if (DebugVerbose > 0)
-            System.err.println("Creating index");
-        
-        // index the STR file
-        MediaHandler oMedias;
-        try {
-            PrintStream oPrinter;
-            if (m_oMainSettings.getIndexFile().equals("-"))
-                oPrinter = System.out;
-            else
-                oPrinter = new PrintStream(m_oMainSettings.getIndexFile());
-            oMedias = new MediaHandler(oCD, new IProgressListener.IProgressEventListener() {
-                public boolean ProgressUpdate(String sWhatDoing, double dblPercentComplete) {
-                    return true;
-                }
 
-                public boolean ProgressUpdate(String sEvent) {
-                    if (DebugVerbose > 0)
-                        System.err.println(sEvent);
-                    return false;
-                }
-            });
-            oMedias.SerializeMediaList(oPrinter);
-        } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
-            return -1;
-        }
-        
-        return 0;
-    }
-    
-    //--------------------------------------------------------------------------
-    
-    private static int NormalDecode() {
+    // =========================================================================
+
+    private static CDSectorReader openCD(boolean blnCheckHasHeaders) {
         //open input file
-        CDSectorReader oCD;
+        CDSectorReader cdReader;
         try {
-            oCD = CDSectorReader.Open(m_oMainSettings.getInputFile());
+            Outputter.printlnNorm("Opening " + _mainSettings.getInputFile());
+            cdReader = CDSectorReader.open(_mainSettings.getInputFile());
         } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
-            return -1;
+            log.log(Level.SEVERE, "Error opening input file", ex);
+            Outputter.printlnErr(ex.getMessage());
+            return null;
         }
-        
-        if (!oCD.HasSectorHeader() && DebugVerbose > 0) {
-            System.err.println("Warning: Input file does not contain entire raw CD sectors.");
-            System.err.println("         Audio cannot be decoded.");
+
+        Outputter.printlnNorm("Identified as " + cdReader.getTypeDescription());
+
+        if (blnCheckHasHeaders) {
+            if (!cdReader.hasSectorHeader()) {
+                Outputter.printlnWarn("Warning: Input file does not contain entire raw CD sectors.");
+                Outputter.printlnWarn("         Audio cannot be decoded.");
+            }
         }
-        
+
+        return cdReader;
+    }
+
+    private static DiscIndex doTheIndex(CDSectorReader cdReader, boolean blnIndexOnly) {
         // index the STR file
-        MediaHandler oHandler;
+        DiscIndex discIndex = new DiscIndex(cdReader);
         boolean blnSaveIndexFile = false;
-        try {
-            String sIndexFile = m_oMainSettings.getIndexFile();
-            if (sIndexFile  != null) {
-                if (new File(m_oMainSettings.getIndexFile()).exists()) {
-                    if (DebugVerbose > 1)
-                        System.err.println("Reading file index");
-                    oHandler = new MediaHandler(oCD, sIndexFile);
-                } else {
-                    if (DebugVerbose > 1)
-                        System.err.println("Indexing file");
-        
-                    oHandler = new MediaHandler(oCD);
-                    blnSaveIndexFile = true;
-                }
+        String sIndexFile = _mainSettings.getIndexFile();
+        if (sIndexFile  != null) {
+            if (blnIndexOnly || !new File(_mainSettings.getIndexFile()).exists()) {
+                Outputter.printlnNorm("Building index");
+                discIndex.indexDisc(new ConsoleProgressListener(Outputter));
+                blnSaveIndexFile = true;
             } else {
-                if (DebugVerbose > 1)
-                    System.err.println("Indexing file");
-        
-                oHandler = new MediaHandler(oCD);
+                Outputter.printlnNorm("Reading index file " + sIndexFile);
+                try {
+                    discIndex.deserializeIndex(sIndexFile);
+                } catch (NotThisTypeException ex) {
+                    log.log(Level.SEVERE, "Reading index error", ex);
+                    Outputter.printlnErr("Invalid index file");
+                    return null;
+                } catch (IOException ex) {
+                    log.log(Level.SEVERE, "IO error", ex);
+                    Outputter.printlnErr(ex.getMessage());
+                    return null;
+                }
             }
-        } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
-            return -1;
+        } else {
+            Outputter.printlnNorm("Building index");
+            discIndex.indexDisc(new ConsoleProgressListener(Outputter));
         }
 
         // save index file if necessary
         if (blnSaveIndexFile) {
+
+            PrintStream printer = null;
             try {
-                PrintStream oPrinter;
-                if (m_oMainSettings.getIndexFile().equals("-"))
-                    oPrinter = System.out;
-                else
-                    oPrinter = new PrintStream(m_oMainSettings.getIndexFile());
-                oHandler.SerializeMediaList(oPrinter);
-            } catch (IOException ex) {
-                if (DebugVerbose > 2)
-                    ex.printStackTrace();
-                else
-                    System.err.println(ex.getMessage());
-                return -1;
-            }
-        }
-        
-        // print the index for confirmation
-        if (DebugVerbose > 0) {
-            for (PSXMedia oMedia : oHandler) {
-                System.err.println(oMedia.toString());
-            }
-        }
-
-        // decode the desired media item(s)
-        try {
-            
-            if (m_oMainSettings.getDecodeIndex() == CommandLine.DECODE_ALL) {
-                
-                for (PSXMedia oMedia : oHandler) {
-                    System.err.println(oMedia.toString());
-                    DecodeMediaItem(oMedia);
-                } // for
-            
-            } else {
-
-                int iIndex = m_oMainSettings.getDecodeIndex();
-                if (oHandler.hasIndex(iIndex)) {
-                    PSXMedia oMedia = oHandler.getByIndex(iIndex);
-                    System.err.println(oMedia.toString());
-                    DecodeMediaItem(oMedia);
+                if (_mainSettings.getIndexFile().equals("-")) {
+                    printer = System.out;
+                    Outputter.printlnNorm("Writing index to stdout.");
                 } else {
-                    System.err.println("Sorry, couldn't find media item " 
-                            + iIndex);
+                    Outputter.printlnNorm("Saving index as " + _mainSettings.getIndexFile());
+                    printer = new PrintStream(_mainSettings.getIndexFile());
                 }
-
+                discIndex.serializeIndex(printer);
+            } catch (IOException ex) {
+                log.log(Level.SEVERE, "Error writing index file", ex);
+                Outputter.printlnErr(ex.getMessage());
+                return null;
+            } finally {
+                if (printer != null && printer != System.out)
+                    printer.close();
             }
-        
-            if (DebugVerbose > 1)
-                System.err.println("Media decoding complete.");
-        
-        } catch (IOException ex) {
-            ex.printStackTrace();
         }
+
+        // print the index
+        for (DiscItem item : discIndex) {
+            Outputter.printlnMore(item.toString());
+        }
+
+        return discIndex;
+    }
+
+    // =========================================================================
+
+    private static int copySectors() {
+        //open input file
+        CDSectorReader oCD;
+        try {
+            oCD = CDSectorReader.open(_mainSettings.getInputFile());
+
+            int[] aiSectors = _mainSettings.getSectorsToCopy();
             
-        return 0;
-    }
-    
-    
-/**<pre>
- *                 video             xa        tim
- *              +---------------|----------|--------|
- *              | +a+v: avi     |          |        |
- *          avi | -a+v: avi     |          |        |
- *              | +a-v: wav     | +a: wav  |        |
- *              |---------------| -a: n/a  |        |
- * img sequence | +a+v: img+wav |          |        |
- *         mdec | -a+v: img     |          | image  |
- *        demux | +a-v: wav     |          |        |
- *              |--------------------------|        |
- *              | +a+v: raw                |        |
- *         raw  | -a+v: raw                |        |
- *    (str, xa) | +a-v: raw                |        |
- *              +-----------------------------------|
- * 
- * if input is tim (not streaming)
- *  ... output image
- * else if (streaming & ) output is raw
- *  ... output raw
- * else if input is xa
- *  ... if decode aud, output wav else do nothing
- * else (if input is video)
- *  ... if decode vid && has vid
- *  ...  ... if avi
- *  ...  ... else (image sequence)
- *  ... else if decode audio
- *  ...  ... 
- *  ... else do nothing
- *</pre>*/
-    private static void DecodeMediaItem(PSXMedia oMedia) throws IOException {
-
-        if (oMedia instanceof PSXMediaStreaming) {
-            DecodeStreaming((PSXMediaStreaming)oMedia);
-        } else if (oMedia instanceof PSXMediaTIM) {
-            DecodeTIMMedia((PSXMediaTIM)oMedia);
-        }
-        
-    }
-    
-    private static void DecodeStreaming(PSXMediaStreaming oMedia) throws IOException {
-        
-        oMedia.Reset();
-        
-        IProgressListener oListener = new IProgressListener.IProgressEventErrorListener() {
-            public void ProgressUpdate(Exception e) {
-                e.printStackTrace(System.err);
+            CDSectorIterator cdIter = new CDSectorIterator(oCD, aiSectors[0], aiSectors[1]);
+            
+            Outputter.printlnErr("Copying sectors " + aiSectors[0] + " to " + aiSectors[1]);
+            
+            FileOutputStream fos = new FileOutputStream(
+                    _mainSettings.constructOutPath(_mainSettings.getInputFileBase()
+                    + aiSectors[0] + "-" + aiSectors[1] + ".dat"));
+            
+            while (cdIter.hasNext()) {
+                CDSector sector = cdIter.next();
+                if (sector == null) {
+                    Outputter.printlnErr("Error reading sector!");
+                    return -1;
+                    // TODO: err
+                } else {
+                    fos.write(sector.getRawSectorData());
+                }
             }
-            public boolean ProgressUpdate(String sWhatDoing, double dblPercentComplete) {
-                System.err.println(sWhatDoing);
-                return false;
-            }
-            public boolean ProgressUpdate(String sEvent) {
-                System.err.println(sEvent);
-                return false;
-            }
-        };
-
-        SavingOptions oOptions = new SavingOptions(oMedia);
-        oOptions.setDecodeVideo(m_oMainSettings.decodeVideo());
-        oOptions.setDecodeAudio(m_oMainSettings.decodeAudio());
-        
-        if (m_oMainSettings.gotOutputFile()) {
-            oOptions.setVideoFilenameBase(m_oMainSettings.getOutputFile());
-            oOptions.setAudioFilenameBase(m_oMainSettings.getOutputFile());
-        }
-        
-        if (m_oMainSettings.gotOutputFolder()) 
-            oOptions.setFolder(new File(m_oMainSettings.getOutputFolder()));
-        
-        if (m_oMainSettings.gotVidFormat())
-            oOptions.setVideoFormat(m_oMainSettings.getVidFormat());
-        
-        if (m_oMainSettings.gotAudFormat())
-            oOptions.setAudioFormat(m_oMainSettings.getAudFormat());
-        
-        if (m_oMainSettings.gotFrames()) {
-            oOptions.setStartFrame(m_oMainSettings.getStartFrame());
-            oOptions.setEndFrame(m_oMainSettings.getEndFrame());
-        }
-        
-        if (m_oMainSettings.gotDecoder())
-            oOptions.setDecodeQuality(m_oMainSettings.getDecoder());
-        
-        if (m_oMainSettings.gotFps())
-            oOptions.setFps(m_oMainSettings.getFps());
-        
-        if (m_oMainSettings.gotJpgQuality())
-            oOptions.setJpegQuality(m_oMainSettings.getJpgQuality() / 100.0f);
-
-        oOptions.setDoNotCrop(m_oMainSettings.noCrop());
-        
-        SaverFactory.DecodeStreaming(oOptions, oListener);
-        
-    }
-    
-    private static void DecodeTIMMedia(PSXMediaTIM oMedia) throws IOException {
-        String sBaseName;
-        
-        if (m_oMainSettings.gotOutputFile())
-            sBaseName = String.format("%s[%d]",
-                    m_oMainSettings.getOutputFile(), oMedia.getIndex());
-        else
-            sBaseName = oMedia.getSuggestedName();
-        
-        if (m_oMainSettings.gotOutputFolder())
-            sBaseName = new File(m_oMainSettings.getOutputFolder(), sBaseName).toString();
-        
-        Tim oTim = oMedia.getTIM();
-        // make sure output images format is ok
-        Formats.ImgSeqVidFormat oFmt;
-        if (m_oMainSettings.gotTimFormat())
-            oFmt = m_oMainSettings.getTimFormat();
-        else if (m_oMainSettings.getVidFormat() instanceof Formats.ImgSeqVidFormat) {
-            oFmt = (ImgSeqVidFormat) m_oMainSettings.getVidFormat();
-        } else {
-            oFmt = Formats.PNG_IMG_SEQ;
-        }
-        
-        for (int i = 0; i < oTim.getPaletteCount(); i++) {
-            BufferedImage bi = oTim.toBufferedImage(i);
-            ImageIO.write(bi, oFmt.getId(), 
-                    new File(String.format(
-                    "%s_p%02d.%s",
-                    sBaseName, i, oFmt.getExt())));
+            
+            fos.close();
+            
+            return 0;
+            
+        } catch (IOException ex) {
+            log.log(Level.SEVERE, "Error copying sectors.", ex);
+            Outputter.printlnErr(ex.getMessage());
+            return -1;
         }
     }
     
     //--------------------------------------------------------------------------
+    
+    private static int indexOnly() {
+        //open input file
+        CDSectorReader cdReader = openCD(false);
+        if (cdReader == null)
+            return -1;
+        
+        if (doTheIndex(cdReader, true) == null)
+            return -1;
+        else
+            return 0;
+    }
 
-    private static int DecodeSpecialFrameFile() {
+    //--------------------------------------------------------------------------
+    
+    private static int normalDecode() {
+        //open input file
+        CDSectorReader cdReader = openCD(true);
+        if (cdReader == null)
+            return -1;
         
-        Formats.Format oOutFormat;
+        DiscIndex discIndex = doTheIndex(cdReader, false);
+        if (discIndex == null)
+            return -1;
+
+        Outputter.nl();
         
-        /*
-         * Valid output formats:
-         *  <java image formats>
-         *  if demux, then mdec is ok
-         *  yuv
-         * 
-         */
-        
-        if (m_oMainSettings.gotVidFormat()) {
-            oOutFormat = m_oMainSettings.getVidFormat();
-            
-            if (oOutFormat == Formats.DEMUX) { // demux not allowed
-                oOutFormat = Formats.PNG_IMG_SEQ;
-            } else if (oOutFormat.equals("mdec")) { // mdec only if input is demux
-                if (m_oMainSettings.getSpecialInType().equals("mdec")) 
-                    oOutFormat = Formats.PNG_IMG_SEQ;
-            } else if (!Formats.getAllJavaImgFormats().contains(oOutFormat)) {
-                // otherwise it needs to be one of the valid output formats
-                oOutFormat = Formats.PNG_IMG_SEQ;
-            }
-            
-        } else {
-            oOutFormat = Formats.PNG_IMG_SEQ;
-        }
-            
-        String sOutFile = m_oMainSettings.constructOutPath(m_oMainSettings.getInputFileBase());
-            
+        // decode/extract the desired disc item
         try {
             
-            if (DebugVerbose > 0)
-                System.err.println("Reading frame file");
+            int iIndex = _mainSettings.getDecodeIndex();
+            if (discIndex.hasIndex(iIndex)) {
+                DiscItem item = discIndex.getByIndex(iIndex);
+                decodeDiscItem(item);
+                Outputter.printlnNorm("Disc decoding/extracting complete.");
+            } else {
+                Outputter.printlnWarn("Sorry, couldn't find disc item " + iIndex);
+            }
+
+        } catch (IOException ex) {
+            log.log(Level.SEVERE, "IO error", ex);
+            Outputter.printlnErr(ex.getMessage());
+            return -1;
+        }
+            
+        return 0;
+    }
+
+    // .........................................................................
+
+    private static int decodeAllType() {
+        //open input file
+        CDSectorReader cdReader = openCD(true);
+        if (cdReader == null)
+            return -1;
+
+        DiscIndex discIndex = doTheIndex(cdReader, false);
+        if (discIndex == null)
+            return -1;
+
+        // extract/decode all desired disc items
+        try {
+
+            boolean blnFound = false;
+
+            for (DiscItem item : discIndex) {
+                if (item.getTypeId().equalsIgnoreCase(_mainSettings.getDecodeAllType())) {
+                    blnFound = true;
+                    decodeDiscItem(item);
+                    Outputter.printlnNorm("Item complete.");
+                    Outputter.nl();
+                }
+            }
+
+            if (!blnFound) {
+                Outputter.printlnNorm("Sorry, couldn't find any disc items of type " +
+                        _mainSettings.getDecodeAllType());
+            }
+
+            Outputter.printlnNorm("Disc decoding/extracting complete.");
+        } catch (IOException ex) {
+            log.log(Level.SEVERE, "IO error", ex);
+            Outputter.printlnErr(ex.getMessage());
+            return -1;
+        }
+
+        return 0;
+    }
+    
+    
+    private static void decodeDiscItem(DiscItem item) throws IOException {
+
+        DiscItemSaver saver = item.getSaver();
+
+        Outputter.printlnNorm("Saving " + item.toString());
+
+        saver.commandLineOptions(_mainSettings.getRemainingArgs(), Outputter);
+        
+        saver.startSave(new ConsoleProgressListener(Outputter));
+    }
+    
+    //--------------------------------------------------------------------------
+
+    private static int decodeStaticFile() {
+        
+        try {
+            
+            Outputter.printlnNorm("Reading static file");
             
             final FileInputStream is;
-            is = new FileInputStream(m_oMainSettings.getInputFile());
+            is = new FileInputStream(_mainSettings.getInputFile());
             
-            InputStream iis = new IO.InputStreamWithFP(is);
-            
-            DecodeSpecialFile(
-                    sOutFile + "." + oOutFormat.getExt(),
-                    m_oMainSettings.getSpecialInType(),
-                    oOutFormat.getId(),
-                    iis, 
-                    m_oMainSettings.getWidth(), 
-                    m_oMainSettings.getHeight());
-            
+            InputStream isfp = new IO.InputStreamWithFP(is);
+
+            JPSXPlugin.identifyStatic(isfp);
+
         } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
+            log.log(Level.SEVERE, "IO error", ex);
+            Outputter.printlnErr(ex.getMessage());
             return -1;
         }
         
@@ -814,41 +429,28 @@ public class Main {
 
     //--------------------------------------------------------------------------
    
-    private static int SectorList() {
-        CDSectorReader oCD;
-        try {
-            oCD = CDSectorReader.Open(m_oMainSettings.getInputFile());
-        } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
+    private static int sectorDump() {
+        CDSectorReader cdReader = openCD(false);
+        if (cdReader == null)
             return -1;
-        }
         
-        if (!oCD.HasSectorHeader() && DebugVerbose > 0) {
-            System.err.println("Warning: Input file does not contain entire raw CD sectors.");
-            System.err.println("         Audio cannot be decoded.");
-        }
-        
-        if (DebugVerbose > 1)
-            System.err.println("Generating sector list");
+        Outputter.printlnNorm("Generating sector list");
         
         PrintStream ps;
         try {
-            if (m_oMainSettings.getSectorDumpFile().equals("-"))
+            if (_mainSettings.getSectorDumpFile().equals("-"))
                 ps = System.out;
             else
-                ps = new PrintStream(m_oMainSettings.getSectorDumpFile());
+                ps = new PrintStream(_mainSettings.getSectorDumpFile());
             
-            PSXSectorRangeIterator oIter = new PSXSectorRangeIterator(oCD);
+            IdentifiedSectorRangeIterator oIter = new IdentifiedSectorRangeIterator(cdReader);
             while (oIter.hasNext()) {
-                PSXSector oSect = oIter.next();
+                IdentifiedSector oSect = oIter.next();
                 if (oSect != null) {
                     String s = oSect.toString();
                     if (s != null) ps.println(s);
                 } else {
-                    ps.println("Error with sector " + (oIter.getIndex() - 1));
+                    // probably unknown sector
                 }
             }
             
@@ -857,69 +459,177 @@ public class Main {
             return 0;
             
         } catch (IOException ex) {
-            if (DebugVerbose > 2)
-                ex.printStackTrace();
-            else if (DebugVerbose > 0)
-                System.err.println(ex.getMessage());
+            log.log(Level.SEVERE, "IO error", ex);
+            Outputter.printlnErr(ex.getMessage());
             return -1;
         }
     }
 
-    private static void DecodeSpecialFile(
-            String sFrameFile,
-            String sInputFormat, 
-            String sOutputFormat, 
-            InputStream str, 
-            long lngWidth,
-            long lngHeight) 
-            throws IOException
-    {
-        
-        if (str instanceof IWidthHeight) {
-            lngWidth = ((IWidthHeight)str).getWidth();
-            lngHeight = ((IWidthHeight)str).getHeight();
-        }
-        
-        if (sInputFormat.equals("demux")) {
+    //--------------------------------------------------------------------------
 
-            if (sOutputFormat.equals("demux")) {
-                FileOutputStream fos = new FileOutputStream(sFrameFile);
-                int ib;
-                while ((ib = str.read()) >= 0)
-                    fos.write(ib);
-                fos.close();
-                return;
+    private static int fpsDump() {
+        CDSectorReader cdReader = openCD(false);
+        if (cdReader == null)
+            return -1;
+
+        DiscIndex discIndex = doTheIndex(cdReader, false);
+        if (discIndex == null)
+            return -1;
+
+        try {
+
+            int iIndex = _mainSettings.getFpsDumpItem();
+            if (discIndex.hasIndex(iIndex)) {
+                
+                PrintStream ps = new PrintStream("fps.txt");
+
+                DiscItem item = discIndex.getByIndex(iIndex);
+                if (item instanceof DiscItemSTRVideo) {
+                    DiscItemSTRVideo vid = (DiscItemSTRVideo)item;
+                    final int LENGTH = vid.getSectorLength();
+                    for (int iSector = 0; iSector < LENGTH; iSector++) {
+                        CDSector sector = vid.getSector(iSector);
+                        IdentifiedSector isect = JPSXPlugin.identifyPluginSector(sector);
+                        if (isect instanceof IVideoSector) {
+                            IVideoSector vidSect = (IVideoSector) isect;
+                            ps.println(String.format(
+                                    "%-5d %-4d %d/%d",
+                                    iSector,
+                                    vidSect.getFrameNumber(),
+                                    vidSect.getChunkNumber(),
+                                    vidSect.getChunksInFrame()
+                                    ));
+                        } else {
+                            ps.println(String.format(
+                                    "%5d X",
+                                    iSector));
+                        }
+
+                    }
+                }
+                ps.close();
+            } else {
+                Outputter.printlnWarn("Sorry, couldn't find disc item " + iIndex);
+                return -1;
             }
 
-            
-            try {
-                str = new StrFrameUncompressor(str, lngWidth, lngHeight).getStream();
-            } catch (CriticalUncompressException ex) {
-                ex.printStackTrace(System.err);
-                return;
-            }
-            if (sOutputFormat.equals("mdec")) {
-                FileOutputStream fos = new FileOutputStream(sFrameFile);
-                int ib;
-                while ((ib = str.read()) >= 0)
-                    fos.write(ib);
-                fos.close();
-                return;
-            }
-
-        }
-        
-        PsxYuv oYuv;
-        oYuv = MDEC.getQualityMdec().DecodeFrame(str, lngWidth, lngHeight);
-        if (sOutputFormat.equals("yuv") || sOutputFormat.equals("y4m")) {
-            FileOutputStream fos = new FileOutputStream(sFrameFile);
-            oYuv.Write(fos, new Fraction(15, 1));
-            fos.close();
-            return;
+        } catch (IOException ex) {
+            ex.printStackTrace(); // TODO: fixme
+            return -1;
         }
 
-        BufferedImage bi = oYuv.toBufferedImage();
-        ImageIO.write(bi, sOutputFormat, new File(sFrameFile));
+        return 0;
     }
-        
+
+    //--------------------------------------------------------------------------
+
+    private static int player() {
+        CDSectorReader cdReader = openCD(true);
+        if (cdReader == null)
+            return -1;
+
+        DiscIndex discIndex = doTheIndex(cdReader, false);
+        if (discIndex == null)
+            return -1;
+
+        DiscItem item = discIndex.getByIndex(_mainSettings.getPlayIndex());
+        if (item == null) {
+            Outputter.printlnErr("Item " + _mainSettings.getPlayIndex() + " not found.");
+            return -1;
+        }
+
+        try {
+
+            final PlayController controller;
+
+            if (item instanceof DiscItemSTRVideo) {
+                Outputter.printlnNorm("Creating player for");
+                Outputter.printlnNorm(item.toString());
+
+                DiscItemSTRVideo video = (DiscItemSTRVideo) item;
+                if (video.hasAudio()) {
+                    IDiscItemAudioStream audio = video.getParallelAudioStreams()[0];
+                    int iStartSector = Math.min(video.getStartSector(), audio.getStartSector());
+                    int iEndSector = Math.min(video.getEndSector(), audio.getEndSector());
+                    controller = new PlayController(
+                            new MediaPlayer.StrReader(video, iStartSector, iEndSector),
+                            new MediaPlayer.XAAudioDecoder(audio),
+                            new MediaPlayer.StrVideoDecoder(video));
+                } else {
+                    controller = new PlayController(
+                            new MediaPlayer.StrReader(video),
+                            null,
+                            new MediaPlayer.StrVideoDecoder(video));
+                }
+            } else if (item instanceof IDiscItemAudioStream) {
+                Outputter.printlnNorm("Creating player for");
+                Outputter.printlnNorm(item.toString());
+
+                IDiscItemAudioStream audio = (IDiscItemAudioStream) item;
+
+                controller = new PlayController(
+                        new MediaPlayer.StrReader(audio),
+                        new MediaPlayer.XAAudioDecoder(audio),
+                        null);
+            } else {
+                Outputter.printlnErr(item.toString());
+                Outputter.printlnErr("is not audio or video. Cannot create player.");
+                return -1;
+            }
+
+            final JFrame window = new JFrame(Main.VerString + " - Player");
+
+            window.addWindowListener(new java.awt.event.WindowAdapter() {
+
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    synchronized( window ) {
+                        window.notifyAll();
+                    }
+                }
+
+                @Override
+                public void windowClosed( java.awt.event.WindowEvent e ) {
+                    synchronized( window ) {
+                        window.notifyAll();
+                    }
+                }
+            });
+
+            window.add(new JLabel(item.toString()), BorderLayout.NORTH);
+
+            final JButton startBtn = new JButton("Play");
+            startBtn.addActionListener(new java.awt.event.ActionListener() {
+                public void actionPerformed(java.awt.event.ActionEvent evt) {
+                    startBtn.setEnabled(false);
+                    controller.play();
+                }
+            });
+            window.add(startBtn, BorderLayout.SOUTH);
+
+            if (controller.hasVideo()) {
+                controller.setVideoZoom(2);
+                window.add(controller.getVideoScreen(), BorderLayout.CENTER);
+            }
+
+            window.pack();
+
+            window.setLocationRelativeTo(null); // center window
+
+            window.setVisible(true);
+
+            synchronized (window) {
+                window.wait();
+            }
+
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+            Outputter.printlnErr(ex.toString());
+            return -1;
+        }
+
+        return 0;
+    }
+
+    
 }

@@ -53,12 +53,13 @@ import jpsxdec.util.NotThisTypeException;
  */
 public class DiscItemSerialization {
     
-    private LinkedHashMap<String, String> _fields = new LinkedHashMap<String, String>();
     private static final String KEY_VALUE_DELIMITER = ":";
     private static final String FIELD_DELIMITER = "|";
     private static final String INDEX_KEY = "#";
     private static final String SECTORRANGE_KEY = "Sectors";
     private static final String TYPE_KEY = "Type";
+
+    private LinkedHashMap<String, String> _fields = new LinkedHashMap<String, String>();
     private String _sSerizedString = null;
     
     /** Creates a new serialization class to accept information. */

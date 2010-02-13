@@ -66,8 +66,8 @@ public interface IVideoSector extends IIdentifiedSector {
 
     void copyIdentifiedUserData(byte[] abOut, int iOutPos);
     
-    DiscItem createMedia(int iStartSector, int lngStartFrame, int iFrame1End);
+    DiscItem createMedia(int iStartSector, int lngStartFrame, int iFrame1LastSector);
     DiscItem createMedia(int iStartSector, int lngStartFrame,
-                         int iFrame1End,
+                         int iFrame1LastSector,
                          int iSectors, int iPerFrame);
 }

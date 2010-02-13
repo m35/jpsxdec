@@ -260,7 +260,7 @@ public class DemuxFrameUncompressor_STRv2 extends DemuxFrameUncompressor {
     protected long _lngMagic3800;
     protected int _iHalfVlcCountCeil32;
 
-    protected ArrayBitReader _bitReader;
+    protected ArrayBitReader _bitReader = new ArrayBitReader();
 
     protected MdecDebugger _debug;
 
@@ -275,9 +275,9 @@ public class DemuxFrameUncompressor_STRv2 extends DemuxFrameUncompressor {
         //_debug = new MdecDebugger();
     }
 
-    public DemuxFrameUncompressor_STRv2(byte[] abDemuxData) throws NotThisTypeException {
+    public DemuxFrameUncompressor_STRv2(byte[] abDemuxData, int iStart) throws NotThisTypeException {
         this();
-        reset(abDemuxData);
+        reset(abDemuxData, iStart);
     }
 
     /* ---------------------------------------------------------------------- */
@@ -308,9 +308,9 @@ public class DemuxFrameUncompressor_STRv2 extends DemuxFrameUncompressor {
 
     /* ---------------------------------------------------------------------- */
 
-    public void reset(byte[] abDemuxData) throws NotThisTypeException
+    public void reset(byte[] abDemuxData, int iStart) throws NotThisTypeException
     {
-        _bitReader = readHeader(abDemuxData);
+        readHeader(abDemuxData, iStart, _bitReader);
         _iCurrentMacroBlock = 0;
         _iCurrentBlock = 0;
         _blnStartOfBlock = true;
@@ -318,17 +318,19 @@ public class DemuxFrameUncompressor_STRv2 extends DemuxFrameUncompressor {
     }
 
 
-    protected ArrayBitReader readHeader(byte[] abFrameData) throws NotThisTypeException {
-        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
-        _lngMagic3800        = IO.readUInt16LE(abFrameData, 2);
-        _iQscale             = IO.readSInt16LE(abFrameData, 4);
-        int iVersion          = IO.readSInt16LE(abFrameData, 6);
+    protected void readHeader(byte[] abFrameData, int iStart, ArrayBitReader bitReader) throws NotThisTypeException {
+        if (iStart != 0)
+            throw new RuntimeException();
+        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, iStart+0);
+        _lngMagic3800        = IO.readUInt16LE(abFrameData, iStart+2);
+        _iQscale             = IO.readSInt16LE(abFrameData, iStart+4);
+        int iVersion          = IO.readSInt16LE(abFrameData, iStart+6);
 
         if (_lngMagic3800 != 0x3800 || _iQscale < 1 ||
             iVersion != 2  || _iHalfVlcCountCeil32 < 0)
             throw new NotThisTypeException();
 
-        return new ArrayBitReader(abFrameData, true, 8);
+        bitReader.reset(abFrameData, true, iStart+8);
     }
 
     public static boolean checkHeader(byte[] abFrameData) {

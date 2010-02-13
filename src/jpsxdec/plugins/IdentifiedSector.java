@@ -43,45 +43,49 @@ import jpsxdec.cdreaders.CDSector;
  *  special meaning. */
 public abstract class IdentifiedSector implements IIdentifiedSector {
 
-    private CDSector m_oSourceCDSector;
+    private CDSector _sourceCdSector;
 
     
     public IdentifiedSector(CDSector cdSector) {
-        m_oSourceCDSector = cdSector;
+        _sourceCdSector = cdSector;
         
     }
 
     /** Returns a string description of the sector type. */
     public String toString() {
-        return m_oSourceCDSector.toString();
+        return _sourceCdSector.toString();
     }
     
     /** The 'file' value in the raw CD header, or -1 if there was no header. */
     public long getFile() {
-        return m_oSourceCDSector.getFile();
+        return _sourceCdSector.getFile();
     }
     
     /** @return The 'channel' value in the raw CDXA header, 
      *          or -1 if there was no header, or if it is a 'NULL' sector
      *          (overridden by PSXSectorNull).*/
     public int getChannel() {
-        return m_oSourceCDSector.getChannel();
+        return _sourceCdSector.getChannel();
     }
 
     public boolean getEOFBit() {
-        if (m_oSourceCDSector.hasSectorHeader())
-            return m_oSourceCDSector.getSubMode().getEofMarker();
+        if (_sourceCdSector.hasSectorHeader())
+            return _sourceCdSector.getSubMode().getEofMarker();
         else
             return false;
     }
 
     /** @return The sector number from the start of the source file. */
     public int getSectorNumber() {
-        return m_oSourceCDSector.getSectorNumberFromStart();
+        return _sourceCdSector.getSectorNumberFromStart();
     }
     
     public CDSector getCDSector() {
-        return m_oSourceCDSector;
+        return _sourceCdSector;
+    }
+
+    protected String cdToString() {
+        return _sourceCdSector.toString();
     }
 
 }

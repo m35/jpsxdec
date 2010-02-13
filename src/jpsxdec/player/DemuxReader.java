@@ -40,7 +40,7 @@ package jpsxdec.player;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
-public class DemuxReader implements Runnable {
+class DemuxReader implements Runnable {
 
     public static boolean DEBUG = false;
 
@@ -87,13 +87,13 @@ public class DemuxReader implements Runnable {
                 case STATE_PLAYING:
                     // proces a sector
                     // crap, how do you stop when waiting for more to read?
-                    boolean blnContinue = true;
+                    int iProgress = -1;
                     try {
-                        blnContinue = _reader.readNext(_videoProcessor, _audioProcessor);
+                        iProgress = _reader.readNext(_videoProcessor, _audioProcessor);
                     } catch (Throwable ex) {
                         ex.printStackTrace();
                     }
-                    if (!blnContinue) {
+                    if (iProgress < 0) {
                         System.out.println("Reader says it is the end. Telling everyone to stop when empty.");
                         _oiState.set(STATE_STOPPED);
                         _controller.endOfPlay();

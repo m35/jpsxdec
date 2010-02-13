@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="jpsxdec" default="release" basedir=".">
+
+    <description>
+        Build jPSXdec for releasing.
+    </description>
+
+
+    <!-- set global properties for this build -->
+    <property name="src.dir" location="src"/>
+    <property name="src-lgpl.dir" location="src-lgpl"/>
+    <property name="build.dir" location="release-build"/>
+    <property name="dist.dir"  location="release-dist"/>
+    <property name="zip.dir"   location="release-zip"/>
+    
+    <property name="jar.file" value="jpsxdec.jar" />
+    <property name="jar-lgpl.file" value="jpsxdec-lgpl.jar" />
+
+    <property name="main.class" value="jpsxdec.Main" />
+
+    <property name="jar.include.glob" value="**/*.dat,**/*.properties" />
+    <fileset dir="." id="release.include.files">
+        <include name="CHANGES.txt" />
+        <include name="CREDITS.txt" />
+        <include name="EPLv1.html" />
+        <include name="lgpl-2.1.txt" />
+        <include name="LICENSE.txt" />
+    </fileset>
+
+    <target name="init">
+        <!-- Create the build directory structure used by compile -->
+        <mkdir dir="${build.dir}"/>
+    </target>
+
+    <target name="compile" depends="init" description="compile the source" >
+        <!-- Compile the java code from ${src} into ${build} -->
+        <javac srcdir="${src.dir}:${src-lgpl.dir}" destdir="${build.dir}" debug="true" encoding="UTF8"/>
+        <copy todir="${build.dir}" verbose="true">
+            <fileset dir="${src.dir}"      includes="${jar.include.glob}" excludes="*" />
+            <fileset dir="${src-lgpl.dir}" includes="${jar.include.glob}" excludes="*" />
+        </copy>
+    </target>
+
+    <target name="release" depends="compile" description="generate the distribution" >
+    
+        <!-- Identify what .clss files belong in the lgpl jar -->
+        <path id="lgpl.classes">
+            <fileset dir="${build.dir}" includes="**/*.class">
+                <present present="both" targetdir="${src-lgpl.dir}">
+                    <mapper>
+                        <globmapper from="*.class" to="*.java" />
+                    </mapper>
+                </present>
+            </fileset>
+        </path>
+
+        <!-- Helpful message -->
+        <echo message="Files to be included in lgpl jar" />
+        <pathconvert pathsep="${line.separator}    " refid="lgpl.classes" property="lgpl.classes.list" />
+        <echo message="    ${lgpl.classes.list}"></echo>
+
+        <!-- Create the distribution directory -->
+        <mkdir dir="${dist.dir}"/>
+
+        <!-- Create the lgpl jar -->
+        <jar destfile="${dist.dir}/${jar-lgpl.file}" compress="true">
+            <path refid="lgpl.classes" />
+        </jar>
+        <!-- Delete the lgpl .class files -->
+        <delete verbose="true">
+            <path refid="lgpl.classes" />
+        </delete>
+
+        <!-- Create the main jar -->
+        <jar jarfile="${dist.dir}/${jar.file}" basedir="${build.dir}" compress="true">
+            <manifest>
+                <attribute name="Class-Path" value="${jar-lgpl.file}"/>
+                <attribute name="Main-Class" value="${main.class}"/>
+            </manifest>
+        </jar>
+        
+        <!-- Copy over the distribution files -->
+        <copy todir="${dist.dir}" flatten="true" verbose="true">
+            <fileset refid="release.include.files" />
+        </copy>
+        
+    </target>
+
+    <target name="clean" description="clean up" >
+        <!-- Delete the ${build} and ${dist} directory trees -->
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+    </target>
+
+</project>

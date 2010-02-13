@@ -85,7 +85,7 @@ public class Lain_LAPKS {
             while ((oCell = lnpk.nextCell()) != null ){
                 MdecDecoder_double oDecoder = new MdecDecoder_double(
                         new StephensIDCT(), oCell.Width, oCell.Height);
-                uncompresor.reset(oCell.Data);
+                uncompresor.reset(oCell.Data, 0);
                 oDecoder.decode(uncompresor);
                 RgbIntImage oRgb = new RgbIntImage(oCell.Width, oCell.Height);
                 oDecoder.readDecodedRGB(oRgb);

@@ -93,6 +93,7 @@ public class MdecDecoder_double extends MdecDecoder {
     protected final double[] _LuminBuffer;
 
     protected final double[] _CurrentBlock = new double[64];
+    protected final MdecInputStream.MdecCode _code = new MdecInputStream.MdecCode();
 
     protected int _iMacBlockWidth;
     protected int _iMacBlockHeight;
@@ -120,8 +121,6 @@ public class MdecDecoder_double extends MdecDecoder {
         int iCurrentBlockNonZeroCount;
         int iCurrentBlockLastNonZeroPosition;
 
-        MdecInputStream.MdecCode code = new MdecInputStream.MdecCode();
-
         int iMacBlk = 0, iBlock = 0;
 
         try {
@@ -139,36 +138,36 @@ public class MdecDecoder_double extends MdecDecoder {
 
                     for (iBlock = 0; iBlock < 6; iBlock++) {
                         Arrays.fill(_CurrentBlock, 0);
-                        mdecInStream.readMdecCode(code);
+                        mdecInStream.readMdecCode(_code);
 
                         if (log().isLoggable(Level.FINEST))
-                            log().finest("Qscale & DC " + code);
+                            log().finest("Qscale & DC " + _code);
 
-                        if (code.Bottom10Bits != 0) {
+                        if (_code.Bottom10Bits != 0) {
                             _CurrentBlock[0] =
-                                    code.Bottom10Bits * PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX[0];
+                                    _code.Bottom10Bits * PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX[0];
                             iCurrentBlockNonZeroCount = 1;
                             iCurrentBlockLastNonZeroPosition = 0;
                         } else {
                             iCurrentBlockNonZeroCount = 0;
                             iCurrentBlockLastNonZeroPosition = -1;
                         }
-                        iCurrentBlockQscale = code.Top6Bits;
+                        iCurrentBlockQscale = _code.Top6Bits;
                         iCurrentBlockVectorPosition = 0;
 
-                        while (!mdecInStream.readMdecCode(code)) {
+                        while (!mdecInStream.readMdecCode(_code)) {
 
                             if (log().isLoggable(Level.FINEST))
-                                log().finest(code.toString());
+                                log().finest(_code.toString());
 
                             ////////////////////////////////////////////////////////
-                            iCurrentBlockVectorPosition += code.Top6Bits + 1;
+                            iCurrentBlockVectorPosition += _code.Top6Bits + 1;
 
                             try {
                                 // Reverse Zig-Zag and Dequantize all at the same time
                                 int iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_SCAN_MATRIX[iCurrentBlockVectorPosition];
                                 _CurrentBlock[iRevZigZagPos] =
-                                            (code.Bottom10Bits
+                                            (_code.Bottom10Bits
                                           * PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX[iRevZigZagPos]
                                           * iCurrentBlockQscale) / 8.0;
                                 iCurrentBlockNonZeroCount++;
@@ -183,7 +182,7 @@ public class MdecDecoder_double extends MdecDecoder {
                         }
 
                         if (log().isLoggable(Level.FINEST))
-                            log().finest(code.toString());
+                            log().finest(_code.toString());
 
                         writeEndOfBlock(iMacBlk, iBlock,
                                 iCurrentBlockNonZeroCount,
@@ -275,9 +274,9 @@ public class MdecDecoder_double extends MdecDecoder {
 
         if ((WIDTH % 16) != 0)
             throw new IllegalArgumentException("Image width must be multiple of 16.");
+        // TODO: add handling for widths not divisible by 16
         if ((HEIGHT % 2) != 0)
             throw new IllegalArgumentException("Image height must be multiple of 2.");
-        // TODO: add handling for heights not divisible by 16
 
         double Cr, Cb, ChromRed, ChromGreen, ChromBlue;
 
@@ -375,17 +374,17 @@ public class MdecDecoder_double extends MdecDecoder {
                                dblCr = _CrBuffer[iChromOfs],
                                dblY;
                         
-                        yuv.setCb( (iX+iCx)/2 , (iY+iCy)/2 , psxChrom_to_y4mCb(dblCb, dblCr));
-                        yuv.setCr( (iX+iCx)/2 , (iY+iCy)/2 , psxChrom_to_y4mCr(dblCb, dblCr));
+                        yuv.setCb( (iX+iCx)/2 , (iY+iCy)/2 , shiftClamp(psxChrom_to_y4mCb(dblCb, dblCr)));
+                        yuv.setCr( (iX+iCx)/2 , (iY+iCy)/2 , shiftClamp(psxChrom_to_y4mCr(dblCb, dblCr)));
 
                         dblY = _LuminBuffer[iLuminOfs + aiLuminIdxs.TL];
-                        yuv.setY( iX+iCx+0 , iY+iCy+0 , psxYuv_to_y4mLumin(dblY, dblCb, dblCr) );
+                        yuv.setY( iX+iCx+0 , iY+iCy+0 , shiftClamp(psxYuv_to_y4mLumin(dblY, dblCb, dblCr) ));
                         dblY = _LuminBuffer[iLuminOfs + aiLuminIdxs.TR];
-                        yuv.setY( iX+iCx+1 , iY+iCy+0 , psxYuv_to_y4mLumin(dblY, dblCb, dblCr) );
-                        dblY = _LuminBuffer[iLuminOfs + aiLuminIdxs.BR];
-                        yuv.setY( iX+iCx+0 , iY+iCy+1 , psxYuv_to_y4mLumin(dblY, dblCb, dblCr) );
+                        yuv.setY( iX+iCx+1 , iY+iCy+0 , shiftClamp(psxYuv_to_y4mLumin(dblY, dblCb, dblCr) ));
                         dblY = _LuminBuffer[iLuminOfs + aiLuminIdxs.BL];
-                        yuv.setY( iX+iCx+1 , iY+iCy+1 , psxYuv_to_y4mLumin(dblY, dblCb, dblCr) );
+                        yuv.setY( iX+iCx+0 , iY+iCy+1 , shiftClamp(psxYuv_to_y4mLumin(dblY, dblCb, dblCr) ));
+                        dblY = _LuminBuffer[iLuminOfs + aiLuminIdxs.BR];
+                        yuv.setY( iX+iCx+1 , iY+iCy+1 , shiftClamp(psxYuv_to_y4mLumin(dblY, dblCb, dblCr) ));
 
                         iChromOfs++;
                     }
@@ -394,6 +393,16 @@ public class MdecDecoder_double extends MdecDecoder {
                 iLuminOfs += 8*8*4;
             }
         }
+    }
+
+    private static byte shiftClamp(double dbl) {
+        long lng = Math.round(dbl + 128);
+        if (lng < 0)
+            return (byte)0;
+        else if (lng > 255)
+            return (byte)255;
+        else
+            return (byte)(lng);
     }
 
 

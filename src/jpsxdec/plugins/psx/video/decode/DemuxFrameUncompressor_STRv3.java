@@ -115,8 +115,8 @@ public class DemuxFrameUncompressor_STRv3 extends DemuxFrameUncompressor_STRv2 {
         super();
     }
     
-    public DemuxFrameUncompressor_STRv3(byte[] abDemuxData) throws NotThisTypeException {
-        super(abDemuxData);
+    public DemuxFrameUncompressor_STRv3(byte[] abDemuxData, int iStart) throws NotThisTypeException {
+        super(abDemuxData, iStart);
     }
 
     // Holds the previous DC values for ver 3 frames.
@@ -125,22 +125,22 @@ public class DemuxFrameUncompressor_STRv3 extends DemuxFrameUncompressor_STRv2 {
     private int _iPreviousY_DC;
 
     @Override
-    public void reset(byte[] abDemuxData) throws NotThisTypeException {
+    public void reset(byte[] abDemuxData, int iStart) throws NotThisTypeException {
         _iPreviousCr_DC = _iPreviousCb_DC = _iPreviousY_DC = 0;
-        super.reset(abDemuxData);
+        super.reset(abDemuxData, iStart);
     }
 
     @Override
-    protected ArrayBitReader readHeader(byte[] abFrameData) throws NotThisTypeException {
-        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
-        _lngMagic3800        = IO.readUInt16LE(abFrameData, 2);
-        _iQscale             = IO.readSInt16LE(abFrameData, 4);
-        int iVersion          = IO.readSInt16LE(abFrameData, 6);
+    protected void readHeader(byte[] abFrameData, int iStart, ArrayBitReader bitReader) throws NotThisTypeException {
+        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, iStart+0);
+        _lngMagic3800        = IO.readUInt16LE(abFrameData, iStart+2);
+        _iQscale             = IO.readSInt16LE(abFrameData, iStart+4);
+        int iVersion          = IO.readSInt16LE(abFrameData, iStart+6);
 
         if (_lngMagic3800 != 0x3800 || _iQscale < 1 || iVersion != 3)
             throw new NotThisTypeException();
 
-        return new ArrayBitReader(abFrameData, true, 8);
+        bitReader.reset(abFrameData, true, iStart+8);
     }
 
     public static boolean checkHeader(byte[] abFrameData) {

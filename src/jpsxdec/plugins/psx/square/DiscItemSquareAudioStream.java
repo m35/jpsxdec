@@ -41,20 +41,19 @@ import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
 import javax.swing.JPanel;
 import jpsxdec.cdreaders.CDSector;
-import jpsxdec.plugins.DiscItemStreaming;
 import jpsxdec.plugins.DiscItemSerialization;
 import jpsxdec.plugins.DiscItemSaver;
 import jpsxdec.plugins.IdentifiedSector;
 import jpsxdec.plugins.ProgressListener;
-import jpsxdec.plugins.xa.IDiscItemAudioStream;
-import jpsxdec.plugins.xa.IDiscItemAudioSectorDecoder;
-import jpsxdec.plugins.xa.PCM16bitAudioWriter;
-import jpsxdec.plugins.xa.PCM16bitAudioWriterBuilder;
-import jpsxdec.util.AudioOutputStream;
+import jpsxdec.plugins.xa.DiscItemAudioStream;
+import jpsxdec.plugins.xa.IAudioReceiver;
+import jpsxdec.plugins.xa.IAudioSectorDecoder;
+import jpsxdec.plugins.xa.SectorAudioWriter;
+import jpsxdec.plugins.xa.SectorAudioWriterBuilder;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
 
-public class DiscItemSquareAudioStream extends DiscItemStreaming implements IDiscItemAudioStream {
+public class DiscItemSquareAudioStream extends DiscItemAudioStream {
 
     public static final String TYPE_ID = "SquareAudio";
 
@@ -125,25 +124,35 @@ public class DiscItemSquareAudioStream extends DiscItemStreaming implements IDis
         return 2;
     }
 
+    @Override
+    public int getPresentationStartSector() {
+        return getStartSector() + 1;
+    }
+
     public AudioFormat getAudioFormat(boolean blnBigEndian) {
         return new AudioFormat(_iSamplesPerSecond, 16, 2, true, blnBigEndian);
     }
 
-    public IDiscItemAudioSectorDecoder makeDecoder(AudioOutputStream outStream, boolean blnBigEndian, double dblVolume) {
-        return new SquareConverter(new SquareADPCMDecoder(blnBigEndian, dblVolume), outStream);
+    public IAudioSectorDecoder makeDecoder(boolean blnBigEndian, double dblVolume) {
+        return new SquareConverter(new SquareADPCMDecoder(blnBigEndian, dblVolume));
     }
 
-    private class SquareConverter implements IDiscItemAudioSectorDecoder {
+    private class SquareConverter implements IAudioSectorDecoder {
 
         private final SquareADPCMDecoder __decoder;
-        private final AudioOutputStream __audioWriter;
+        private IAudioReceiver __audioWriter;
         private ISquareAudioSector __leftAudioSector, __rightAudioSector;
         private byte[] __abTempBuffer;
+        private AudioFormat __format;
 
-        public SquareConverter(SquareADPCMDecoder decoder, AudioOutputStream outStream) {
+        public SquareConverter(SquareADPCMDecoder decoder) {
             __decoder = decoder;
-            __audioWriter = outStream;
-            __abTempBuffer = new byte[100000]; // TODO: calculate this as needed
+            __abTempBuffer = new byte[2*2*4000]; // TODO: calculate this as needed
+        }
+
+        @Override
+        public void open(IAudioReceiver audioOut) {
+            __audioWriter = audioOut;
         }
 
         public void feedSector(IdentifiedSector sector) throws IOException {
@@ -163,8 +172,9 @@ public class DiscItemSquareAudioStream extends DiscItemStreaming implements IDis
                 int iSize = __decoder.decode(__leftAudioSector.getIdentifiedUserDataStream(),
                         __rightAudioSector.getIdentifiedUserDataStream(),
                         audSector.getAudioDataSize(), __abTempBuffer);
-                __audioWriter.write(__decoder.getOutputFormat(__rightAudioSector.getSamplesPerSecond()),
-                        __abTempBuffer, 0, iSize);
+                if (__format == null)
+                    __format = __decoder.getOutputFormat(__rightAudioSector.getSamplesPerSecond());
+                __audioWriter.write(__format, __abTempBuffer, 0, iSize, __rightAudioSector.getSectorNumber());
             } else {
                 throw new RuntimeException("Invalid audio channel " + audSector.getAudioChannel());
             }
@@ -179,7 +189,7 @@ public class DiscItemSquareAudioStream extends DiscItemStreaming implements IDis
         }
 
         public AudioFormat getOutputFormat() {
-            return __audioWriter.getFormat();
+            return __decoder.getOutputFormat(_iSamplesPerSecond);
         }
 
         public void reset() {
@@ -194,15 +204,11 @@ public class DiscItemSquareAudioStream extends DiscItemStreaming implements IDis
             return DiscItemSquareAudioStream.this.getStartSector();
         }
 
+        public int getPresentationStartSector() {
+            return DiscItemSquareAudioStream.this.getPresentationStartSector();
+        }
     }
 
-
-    @Override
-    public long calclateTime(int iSect) {
-        if (iSect < getStartSector() || iSect > getEndSector())
-            throw new IllegalArgumentException("Sector number is out of media item bounds.");
-        return ( iSect - getStartSector() ) * 2 * 75;
-    }
 
     @Override
     public DiscItemSaver getSaver() {
@@ -215,14 +221,12 @@ public class DiscItemSquareAudioStream extends DiscItemStreaming implements IDis
 
     private static class SquareAudioSaver extends DiscItemSaver {
 
-        private final PCM16bitAudioWriterBuilder _builder;
+        private final SectorAudioWriterBuilder _builder;
         private final DiscItemSquareAudioStream _audItem;
 
         public SquareAudioSaver(DiscItemSquareAudioStream audStream) {
             _audItem = audStream;
-            _builder = new PCM16bitAudioWriterBuilder(
-                    audStream.isStereo(), audStream.getSampleRate(),
-                    audStream.getSuggestedBaseName());
+            _builder = new SectorAudioWriterBuilder(audStream);
         }
 
         @Override
@@ -242,17 +246,15 @@ public class DiscItemSquareAudioStream extends DiscItemStreaming implements IDis
 
         @Override
         public void startSave(ProgressListener pl) throws IOException {
-            PCM16bitAudioWriter audioWriter = _builder.getAudioWriter();
+            SectorAudioWriter audioWriter = _builder.getAudioWriter();
             int iSector = _audItem.getStartSector();
-            IDiscItemAudioSectorDecoder decoder = _audItem.makeDecoder(audioWriter, audioWriter.getFormat().isBigEndian(), audioWriter.getVolume());
             try {
                 final double SECTOR_LENGTH = _audItem.getEndSector() - _audItem.getStartSector();
                 pl.progressStart("Writing " + audioWriter.getOutputFile());
-                audioWriter.open();
                 for (; iSector <= _audItem.getEndSector(); iSector++) {
                     CDSector cdSector = _audItem.getSourceCD().getSector(iSector);
                     IdentifiedSector identifiedSect = _audItem.identifySector(cdSector);
-                    decoder.feedSector(identifiedSect);
+                    audioWriter.feedSector(identifiedSect);
                     pl.progressUpdate((iSector - _audItem.getStartSector()) / SECTOR_LENGTH);
                 }
                 pl.progressEnd();

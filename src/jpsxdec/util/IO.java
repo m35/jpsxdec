@@ -78,6 +78,10 @@ public final class IO {
         return ab[i] & 0xFF;
     }
 
+    public static byte readSInt8(InputStream is) throws IOException {
+        return (byte)(readUInt8(is));
+    }
+
     //== 16-bit signed =========================================================
 
     public static short readSInt16LE(InputStream oIS) throws IOException {
@@ -268,6 +272,21 @@ public final class IO {
         int total = ((b4 << 24) + (b3 << 16) + (b2 << 8) + (b1 << 0));
         return total;
     }
+
+    //== 64-bit ================================================================
+
+    public static long readSInt64BE(InputStream is) throws IOException {
+        long lngRet = 0;
+        for (int i = 0; i < 8; i++) {
+            int iByte = is.read();
+            if (iByte < 0)
+                throw new EOFException("Unexpected end of file in readSInt64BE");
+            lngRet <<= 8;
+            lngRet |= iByte;
+        }
+        return lngRet;
+    }
+
 
     //== Other IO ==============================================================
 

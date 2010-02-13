@@ -59,7 +59,7 @@ import jpsxdec.plugins.DiscItemSaver;
 import jpsxdec.plugins.JPSXPlugin;
 import jpsxdec.plugins.psx.str.DiscItemSTRVideo;
 import jpsxdec.plugins.psx.str.IVideoSector;
-import jpsxdec.plugins.xa.IDiscItemAudioStream;
+import jpsxdec.plugins.xa.DiscItemAudioStream;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -71,7 +71,7 @@ public class Main {
 
     private static FeedbackStream Outputter;
 
-    public final static String Version = "0.90.0 (alpha)";
+    public final static String Version = "0.91.0 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     private static MainCommandLineParser _mainSettings;
 
@@ -203,18 +203,19 @@ public class Main {
 
     private static DiscIndex doTheIndex(CDSectorReader cdReader, boolean blnIndexOnly) {
         // index the STR file
-        DiscIndex discIndex = new DiscIndex(cdReader);
+        DiscIndex discIndex;
         boolean blnSaveIndexFile = false;
         String sIndexFile = _mainSettings.getIndexFile();
         if (sIndexFile  != null) {
             if (blnIndexOnly || !new File(_mainSettings.getIndexFile()).exists()) {
                 Outputter.printlnNorm("Building index");
-                discIndex.indexDisc(new ConsoleProgressListener(Outputter));
+                discIndex = new DiscIndex(cdReader, new ConsoleProgressListener(Outputter));
                 blnSaveIndexFile = true;
             } else {
                 Outputter.printlnNorm("Reading index file " + sIndexFile);
                 try {
-                    discIndex.deserializeIndex(sIndexFile);
+                    discIndex = new DiscIndex(sIndexFile, cdReader, Outputter);
+                    Outputter.printlnNorm(discIndex.size() + " items loaded.");
                 } catch (NotThisTypeException ex) {
                     log.log(Level.SEVERE, "Reading index error", ex);
                     Outputter.printlnErr("Invalid index file");
@@ -227,7 +228,8 @@ public class Main {
             }
         } else {
             Outputter.printlnNorm("Building index");
-            discIndex.indexDisc(new ConsoleProgressListener(Outputter));
+            discIndex = new DiscIndex(cdReader, new ConsoleProgressListener(Outputter));
+            Outputter.printlnNorm(discIndex.size() + " items found.");
         }
 
         // save index file if necessary
@@ -548,29 +550,20 @@ public class Main {
 
                 DiscItemSTRVideo video = (DiscItemSTRVideo) item;
                 if (video.hasAudio()) {
-                    IDiscItemAudioStream audio = video.getParallelAudioStreams()[0];
+                    DiscItemAudioStream audio = video.getParallelAudioStream(0);
                     int iStartSector = Math.min(video.getStartSector(), audio.getStartSector());
-                    int iEndSector = Math.min(video.getEndSector(), audio.getEndSector());
-                    controller = new PlayController(
-                            new MediaPlayer.StrReader(video, iStartSector, iEndSector),
-                            new MediaPlayer.XAAudioDecoder(audio),
-                            new MediaPlayer.StrVideoDecoder(video));
+                    int iEndSector = Math.max(video.getEndSector(), audio.getEndSector());
+                    controller = new PlayController(new MediaPlayer(video, audio.makeDecoder(true, 1.0), iStartSector, iEndSector));
                 } else {
-                    controller = new PlayController(
-                            new MediaPlayer.StrReader(video),
-                            null,
-                            new MediaPlayer.StrVideoDecoder(video));
+                    controller = new PlayController(new MediaPlayer(video));
                 }
-            } else if (item instanceof IDiscItemAudioStream) {
+            } else if (item instanceof DiscItemAudioStream) {
                 Outputter.printlnNorm("Creating player for");
                 Outputter.printlnNorm(item.toString());
 
-                IDiscItemAudioStream audio = (IDiscItemAudioStream) item;
+                DiscItemAudioStream audio = (DiscItemAudioStream) item;
 
-                controller = new PlayController(
-                        new MediaPlayer.StrReader(audio),
-                        new MediaPlayer.XAAudioDecoder(audio),
-                        null);
+                controller = new PlayController(new MediaPlayer(audio));
             } else {
                 Outputter.printlnErr(item.toString());
                 Outputter.printlnErr("is not audio or video. Cannot create player.");

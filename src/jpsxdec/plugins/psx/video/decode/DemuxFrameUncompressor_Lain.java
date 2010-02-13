@@ -181,18 +181,18 @@ public class DemuxFrameUncompressor_Lain extends DemuxFrameUncompressor_STRv2 {
         super();
         _aoVarLenCodes = AC_VARIABLE_LENGTH_CODES_LAIN;
     }
-    public DemuxFrameUncompressor_Lain(byte[] abDemuxData) throws NotThisTypeException {
-        super(abDemuxData);
+    public DemuxFrameUncompressor_Lain(byte[] abDemuxData, int iStart) throws NotThisTypeException {
+        super(abDemuxData, iStart);
         _aoVarLenCodes = AC_VARIABLE_LENGTH_CODES_LAIN;
     }
 
     @Override
-    protected ArrayBitReader readHeader(byte[] abFrameData) throws NotThisTypeException {
-        _iQscaleLumin            = abFrameData[0];
-        _iQscaleChrom            = abFrameData[1];
-        _lngMagic3800            = IO.readUInt16LE(abFrameData, 2);
-        _iVlcCount               = IO.readSInt16LE(abFrameData, 4);
-        int iVersion             = IO.readSInt16LE(abFrameData, 6);
+    protected void readHeader(byte[] abFrameData, int iStart, ArrayBitReader bitReader) throws NotThisTypeException {
+        _iQscaleLumin            = abFrameData[iStart+0];
+        _iQscaleChrom            = abFrameData[iStart+1];
+        _lngMagic3800            = IO.readUInt16LE(abFrameData, iStart+2);
+        _iVlcCount               = IO.readSInt16LE(abFrameData, iStart+4);
+        int iVersion             = IO.readSInt16LE(abFrameData, iStart+6);
 
         if (_iQscaleChrom < 1 || _iQscaleLumin < 1 ||
                  iVersion != 0 || _iVlcCount < 1)
@@ -202,7 +202,7 @@ public class DemuxFrameUncompressor_Lain extends DemuxFrameUncompressor_STRv2 {
         if (_lngMagic3800 != 0x3800 && (_lngMagic3800 < 0 || _lngMagic3800 > 4765))
             throw new NotThisTypeException();
 
-        return new ArrayBitReader(abFrameData, false, 8);
+        bitReader.reset(abFrameData, false, iStart+8);
     }
     
     public static boolean checkHeader(byte[] abFrameData) {

@@ -131,4 +131,12 @@ public class ConsoleProgressListener extends ProgressListener {
         _fbs.printlnWarn(sDescription);
     }
 
+    public void more(String s) {
+        if (_blnNewLine) {
+            _fbs.nl();
+            _blnNewLine = false;
+        }
+        _fbs.printlnMore(s);
+    }
+
 }

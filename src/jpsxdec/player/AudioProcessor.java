@@ -43,18 +43,18 @@ import javax.sound.sampled.SourceDataLine;
 
 public class AudioProcessor implements Runnable {
 
-    private static final int CAPACITY = 20;
+    private static final int CAPACITY = 50;
 
-    private MultiStateBlockingQueue<IDecodableAudioChunk> _audioProcessingQueue
-            = new MultiStateBlockingQueue<IDecodableAudioChunk>(CAPACITY);
-    private SourceDataLine _audPlayer;
-    private IAudioDecoder _decoder;
+    private final AudioChunkQueue _audioProcessingQueue;
+    private final SourceDataLine _audPlayer;
 
     private Thread _thread;
 
-    public AudioProcessor(IAudioDecoder decoder, SourceDataLine audioPlayer) {
-        _decoder = decoder;
+    AudioProcessor(SourceDataLine audioPlayer, VideoProcessor vidProc) {
         _audPlayer = audioPlayer;
+        _audioProcessingQueue = new AudioChunkQueue(CAPACITY, vidProc);
+        if (vidProc != null)
+            vidProc.overwriteWhenFull();
     }
 
     public final void addDecodableAudioChunk(IDecodableAudioChunk audioChunk) {
@@ -69,10 +69,8 @@ public class AudioProcessor implements Runnable {
         try {
             IDecodableAudioChunk audChunk;
             while ((audChunk = _audioProcessingQueue.take()) != null) {
-                _decoder.decodeAudio(audChunk, _audPlayer);
                 // decode audio chunk and feed it to the player
-                if (!_audPlayer.isRunning())
-                    _audPlayer.start();
+                audChunk.decodeAudio(_audPlayer);
             }
         } catch (IOException ex) {
         } catch (InterruptedException ex) {
@@ -80,33 +78,33 @@ public class AudioProcessor implements Runnable {
         }
     }
 
-    public final void startup() {
+    final void startup() {
         _thread = new Thread(this, "Audio Processor");
         _thread.start();
+        _audPlayer.start(); // audio will start playing once it has data in the buffer
     }
 
-    public final void play() {
+    final void play() {
         _audioProcessingQueue.play();
     }
 
-    public final void stop() {
+    final void stop() {
         _audioProcessingQueue.stop();
         _audPlayer.flush();
         _audPlayer.stop();
     }
 
-    public final void pause() {
+    final void pause() {
         _audioProcessingQueue.pause();
     }
 
-    public final void clearQueue() {
+    final void clearQueue() {
         _audioProcessingQueue.clear();
-        _decoder.reset();
         _audPlayer.flush();
         _audPlayer.stop();
     }
 
-    public void stopWhenEmpty() {
+    void stopWhenEmpty() {
         _audioProcessingQueue.stopWhenEmpty();
     }
 

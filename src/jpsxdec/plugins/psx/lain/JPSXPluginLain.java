@@ -45,6 +45,7 @@ import jpsxdec.plugins.IndexingDemuxerIS;
 import jpsxdec.plugins.JPSXPlugin;
 import jpsxdec.plugins.psx.video.decode.DemuxFrameUncompressor;
 import jpsxdec.plugins.psx.video.decode.DemuxFrameUncompressor_Lain;
+import jpsxdec.util.NotThisTypeException;
 
 
 public class JPSXPluginLain extends JPSXPlugin {
@@ -79,6 +80,8 @@ public class JPSXPluginLain extends JPSXPlugin {
 
     @Override
     public IdentifiedSector identifySector(CDSector cdSector) {
+        try { return new SectorLainVideo(cdSector); }
+        catch (NotThisTypeException e) {}
         return null;
     }
 

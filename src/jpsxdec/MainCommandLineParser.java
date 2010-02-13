@@ -59,7 +59,10 @@ public class MainCommandLineParser {
     private static String[] MAIN_HELP = loadMainHelp();
 
     private static String[] loadMainHelp() {
-        InputStream is = MainCommandLineParser.class.getResourceAsStream("maincmdlinehelp.txt");
+        InputStream is = MainCommandLineParser.class.getResourceAsStream("main_cmdline_help.dat");
+        if (is == null)
+            throw new RuntimeException("Unable to find help resource " +
+                    MainCommandLineParser.class.getResource("main_cmdline_help.dat"));
         InputStreamReader isr = new InputStreamReader(is);
         BufferedReader br = new BufferedReader(isr);
         ArrayList<String> lines = new ArrayList<String>();

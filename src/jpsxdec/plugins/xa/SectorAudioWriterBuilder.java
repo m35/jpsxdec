@@ -48,25 +48,22 @@ import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
 import javax.swing.JPanel;
 import jpsxdec.formats.JavaAudioFormat;
+import jpsxdec.plugins.IdentifiedSector;
 import jpsxdec.util.AudioOutputFileWriter;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.TabularFeedback;
 
-/** Manages possible options for creating a PCM16bitAudioWriter, and
+/** Manages possible options for creating a SectorAudioWriter, and
  *  produces independent instances using the current options. */
-public class PCM16bitAudioWriterBuilder {
+public class SectorAudioWriterBuilder {
 
-    private final boolean _blnIsStereo;
-    private final String _sSuggestedBaseName;
-    private final int _iSampleRate;
+    private final DiscItemAudioStream _audItem;
 
-    public PCM16bitAudioWriterBuilder(boolean blnIsStereo, int iSampleRate, String sSuggestedBaseName)
+    public SectorAudioWriterBuilder(DiscItemAudioStream audItem)
     {
-        _blnIsStereo = blnIsStereo;
-        _sSuggestedBaseName = sSuggestedBaseName;
-        _iSampleRate = iSampleRate;
+        _audItem = audItem;
         setPossibleFormats(JavaAudioFormat.getAudioFormats());
-        setFilename(sSuggestedBaseName);
+        setFilename(_audItem.getSuggestedBaseName());
     }
 
     private JavaAudioFormat[] _aoPossibleContainerFormats;
@@ -157,46 +154,48 @@ public class PCM16bitAudioWriterBuilder {
         tfb.write(fbs);
     }
 
+    private class JavaFormatWriter implements SectorAudioWriter, IAudioReceiver {
 
-    public PCM16bitAudioWriter getAudioWriter() {
-        return new PCM16bitAudioWriter() {
+        private final AudioFormat __audioFmt;
+        private final String __sOutputFile = _sFilename + "." + _containerFormat.getExtension();
+        private final AudioOutputFileWriter __audioWriter;
+        private IAudioSectorDecoder __decoder;
 
-            private AudioOutputFileWriter __audioWriter;
-            private AudioFormat __audioFmt = new AudioFormat(
-                        _iSampleRate,
-                        16, _blnIsStereo ? 2 : 1,
-                        true, true);
-            private String __sOutputFile = _sFilename + "." + _containerFormat.getExtension();
+        public JavaFormatWriter(double dblVolume) throws IOException {
 
-            public void close() throws IOException {
-                __audioWriter.close();
-            }
+            __audioFmt = new AudioFormat(
+                    _audItem.getSampleRate(),
+                    16, _audItem.isStereo() ? 2 : 1,
+                    true, true);
+            __audioWriter = new AudioOutputFileWriter(
+                    new File(__sOutputFile),
+                    __audioFmt, _containerFormat.getJavaType());
+            __decoder = _audItem.makeDecoder(__audioFmt.isBigEndian(), dblVolume);
+            __decoder.open(this);
+        }
 
-            public AudioFormat getFormat() {
-                return __audioFmt;
-            }
+        @Override
+        public void write(AudioFormat inFormat, byte[] abData, int iStart, int iLen, int iPresentationSector) throws IOException {
+            __audioWriter.write(inFormat, abData, iStart, iLen);
+        }
 
-            public void open() throws IOException {
-                __audioWriter = new AudioOutputFileWriter(
-                        new File(__sOutputFile),
-                        __audioFmt, _containerFormat.getJavaType());
-            }
+        public void close() throws IOException {
+            __audioWriter.close();
+        }
 
-            public void write(AudioFormat inFormat, byte[] abData, int iOffset, int iLength)
-                    throws IOException
-            {
-                __audioWriter.write(inFormat, abData, iOffset, iLength);
-            }
+        public String getOutputFile() {
+            return __sOutputFile;
+        }
 
-            public double getVolume() {
-                return 1.0;
-            }
+        @Override
+        public void feedSector(IdentifiedSector sector) throws IOException {
+            __decoder.feedSector(sector);
+        }
 
-            public String getOutputFile() {
-                return __sOutputFile;
-            }
+    };
 
-        };
+    public SectorAudioWriter getAudioWriter() throws IOException {
+        return new JavaFormatWriter(getVolume());
     }
 
 

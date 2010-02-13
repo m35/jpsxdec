@@ -37,5 +37,9 @@
 
 package jpsxdec.player;
 
+import java.io.IOException;
+import javax.sound.sampled.SourceDataLine;
+
 public interface IDecodableAudioChunk {
+    void decodeAudio(SourceDataLine dataLine) throws IOException;
 }

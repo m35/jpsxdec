@@ -74,37 +74,36 @@ public class SectorXA extends IdentifiedSector
             throw new NotThisTypeException();
 
         int iErrors = 0;
-        byte[] abSectorData = cdSector.getCdUserDataCopy();
         _iBitsPerSample = cdSector.getCodingInfo().getBitsPerSample();
         if (_iBitsPerSample == 4) {
             for (int iOfs = 0; 
-                 iOfs < abSectorData.length - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
+                 iOfs < cdSector.getCdUserDataSize() - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
                  iOfs+=XAADPCMDecoder.SIZE_OF_SOUND_GROUP)
             {
                 // the 8 sound parameters (one for each sound unit)
                 // are repeated twice, and are ordered like this:
                 // 0,1,2,3, 0,1,2,3, 4,5,6,7, 4,5,6,7
                 for (int i = 0; i < 4; i++) {
-                    if (abSectorData[iOfs + i] != abSectorData[iOfs + 4 + i])
+                    if (cdSector.readUserDataByte(iOfs + i) != cdSector.readUserDataByte(iOfs + 4 + i))
                         iErrors++;
-                    if (abSectorData[iOfs + 8 + i] != abSectorData[iOfs + 12 + i])
+                    if (cdSector.readUserDataByte(iOfs + 8 + i) != cdSector.readUserDataByte(iOfs + 12 + i))
                         iErrors++;
                 }
             }
         } else {
             for (int iOfs = 0;
-                 iOfs < abSectorData.length - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
+                 iOfs < cdSector.getCdUserDataSize() - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
                  iOfs+=XAADPCMDecoder.SIZE_OF_SOUND_GROUP)
             {
                 // the 4 sound parameters (one for each sound unit)
                 // are repeated four times and are ordered like this:
                 // 0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3
                 for (int i = 0; i < 4; i++) {
-                    if (abSectorData[iOfs + i] != abSectorData[iOfs + 4 + i])
+                    if (cdSector.readUserDataByte(iOfs + i) != cdSector.readUserDataByte(iOfs + 4 + i))
                         iErrors++;
-                    if (abSectorData[iOfs + i] != abSectorData[iOfs + 8 + i])
+                    if (cdSector.readUserDataByte(iOfs + i) != cdSector.readUserDataByte(iOfs + 8 + i))
                         iErrors++;
-                    if (abSectorData[iOfs + i] != abSectorData[iOfs + 12 + i])
+                    if (cdSector.readUserDataByte(iOfs + i) != cdSector.readUserDataByte(iOfs + 12 + i))
                         iErrors++;
                 }
             }

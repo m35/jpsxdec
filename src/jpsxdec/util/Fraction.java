@@ -66,6 +66,10 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
     return ((double)(getNumerator())) / ((double)(getDenominator()));
   }
 
+    public int asInt() {
+        return (int) (getNumerator() / getDenominator());
+    }
+
   /** 
    * Compute the nonnegative greatest common divisor of a and b.
    * (This is needed for normalizing Fractions, but can be
@@ -87,6 +91,14 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
       y = t;
     }
     return x;
+  }
+
+  public static Fraction divide(long a, Fraction b) {
+    long an = a;
+    long ad = 1;
+    long bn = b.getNumerator();
+    long bd = b.getDenominator();
+    return new Fraction(an*bd, ad*bn);
   }
 
   /** return a Fraction representing the negated value of this Fraction **/
@@ -157,6 +169,10 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
     long bn = n;
     long bd = 1;
     return new Fraction(an*bn, ad*bd);
+  }
+
+  public float multiply(float f) {
+    return getNumerator() * f / getDenominator();
   }
 
   /** return a Fraction representing this Fraction divided by b **/

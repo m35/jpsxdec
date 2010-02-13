@@ -38,6 +38,7 @@
 package jpsxdec.formats;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.PixelGrabber;
 import jpsxdec.util.Imaging;
 
 /** Simplest image format containing a buffer and dimensions. */
@@ -60,10 +61,29 @@ public class RgbIntImage {
 
 
     private final int _iWidth, _iHeight;
-    private final int[] _aiData;
+    private int[] _aiData;
 
     public RgbIntImage(BufferedImage bi) {
         this(bi.getWidth(), bi.getHeight());
+        // TODO: WARNING! This may not return accurate colors!
+    	PixelGrabber grabber = new PixelGrabber(bi, 0, 0, bi.getWidth(), bi.getHeight(), false);
+    	try
+    	{
+    	    if(grabber.grabPixels() != true) {
+                throw new RuntimeException("Grabber returned false: " + grabber.status());
+    		}
+    	}
+    	catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        Object pixels = grabber.getPixels();
+        if (pixels instanceof int[]) {
+            _aiData = (int[]) pixels;
+        } else {
+            throw new RuntimeException("Got byte pixels");
+        }
+
         bi.getRGB(0, 0, _iWidth, _iHeight, _aiData, 0, _iWidth);
     }
 

@@ -37,66 +37,60 @@
 
 package jpsxdec.plugins.psx.str;
 
-import jpsxdec.plugins.psx.video.DemuxImage;
-import java.util.AbstractList;
+import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.util.IWidthHeight;
 
 /** Demuxes a series of frame chunk sectors into a solid stream.
  *  Sectors need to be added ('pushed') in their proper order. */
-public class StrFramePushDemuxer implements IWidthHeight {
+public class FrameDemuxer implements IWidthHeight {
 
-    private static final Logger log = Logger.getLogger(StrFramePushDemuxer.class.getName());
+    private static final Logger log = Logger.getLogger(FrameDemuxer.class.getName());
 
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
     private IVideoSector[] _aoChunks;
-            
-    private int _iWidth = -1;
-    private int _iHeight = -1;
+    private int _iChunkCount = -1;
+
     private int _iFrame;
     
     private int _iDemuxFrameSize = 0;
+    private IDemuxReceiver _demuxReceiver;
+    private final int _iVideoStartSector, _iVideoEndSector;
+    private byte[] _abDemuxBuff;
 
     /* ---------------------------------------------------------------------- */
     /* Constructors---------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public StrFramePushDemuxer() {
+    public FrameDemuxer(IDemuxReceiver demuxFeeder, int iVideoStartSector, int iVideoEndSector) {
         _iFrame = -1;
+        _demuxReceiver = demuxFeeder;
+        _iVideoStartSector = iVideoStartSector;
+        _iVideoEndSector = iVideoEndSector;
     }
     
-    /** @param lngFrame  -1 for the frame of the first chunk received. */
-    public StrFramePushDemuxer(int iFrame) {
-        _iFrame = iFrame;
-    }
-
     /* ---------------------------------------------------------------------- */
     /* Properties ----------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
     /** [IWidthHeight] */
     public int getWidth() {
-        return _iWidth;
+        return _demuxReceiver.getWidth();
     }
 
     /** [IWidthHeight] */
     public int getHeight() {
-        return _iHeight;
-    }
-    
-    /** Returns the frame number being demuxer, or -1 if still unknown. */
-    public int getFrameNumber() {
-        return _iFrame;
+        return _demuxReceiver.getHeight();
     }
     
     public int getDemuxFrameSize() {
         return _iDemuxFrameSize;
     }
     
-    public boolean isFull() {
+    private boolean isFull() {
         if (_aoChunks == null)
             return false;
         
@@ -119,75 +113,111 @@ public class StrFramePushDemuxer implements IWidthHeight {
     public int getChunksInFrame() {
         return _aoChunks.length;
     }
-    
+
     /* ---------------------------------------------------------------------- */
     /* Public Functions ----------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    public void addChunk(IVideoSector chunk) {
-        if (_iFrame < 0)
-            _iFrame = chunk.getFrameNumber();
-        else if (_iFrame != chunk.getFrameNumber())
-            throw new IllegalArgumentException("Not all chunks have the same frame number");
+    public void feedSector(IVideoSector chunk) throws IOException {
 
-        if (_iWidth < 0)
-            _iWidth = chunk.getWidth();
-        else if (_iWidth != chunk.getWidth())
-            throw new IllegalArgumentException("Not all chunks of this frame have the same width");
+        if (chunk.getSectorNumber() < _iVideoStartSector ||
+            chunk.getSectorNumber() > _iVideoEndSector)
+            return;
 
-        if (_iHeight < 0)
-            _iHeight = chunk.getHeight();
-        else if (_iHeight != chunk.getHeight())
-            throw new IllegalArgumentException("Not all chunks of this frame have the same height");
+        if (chunk.getWidth() != _demuxReceiver.getWidth())
+            throw new IllegalArgumentException("Inconsistent width.");
 
-        // for easy reference
-        int iChkNum = chunk.getChunkNumber();
+        if (chunk.getHeight() != _demuxReceiver.getHeight())
+            throw new IllegalArgumentException("Inconsistent height.");
+
+
+        if (_iFrame < 0) {
+            newFrame(chunk);
+        } else if (_iFrame == chunk.getFrameNumber()) {
+            continueFrame(chunk);
+        } else {
+            endFrame();
+            newFrame(chunk);
+        }
         
-        // if this is the first chunk added
-        if (_aoChunks == null)
-            _aoChunks = new IVideoSector[chunk.getChunksInFrame()];
-        else if (chunk.getChunksInFrame() != _aoChunks.length) {
+        if (isFull()) {
+            endFrame();
+        }
+    }
+
+    public void flush() throws IOException {
+        endFrame();
+    }
+
+    private void continueFrame(IVideoSector chunk) {
+        // for easy reference
+        final int iChkNum = chunk.getChunkNumber();
+
+        _iFrame = chunk.getFrameNumber();
+
+        if (chunk.getChunksInFrame() != _iChunkCount) {
             // if the number of chunks in the frame suddenly changed
-            throw new IllegalArgumentException("Number of chunks in this frame changed from " + 
+            throw new IllegalArgumentException("Number of chunks in this frame changed from " +
                           _aoChunks.length + " to " + _aoChunks.length);
-        } else if (iChkNum >= _aoChunks.length) {
+        } else if (iChkNum >= _iChunkCount) {
             // if the chunk number is out of valid range
             throw new IllegalArgumentException("Frame chunk number " + iChkNum + " is outside the range of possible chunk numbers.");
         }
-        
+
         // now add the chunk where it belongs in the list
         // but make sure we don't alrady have the chunk
         if (_aoChunks[iChkNum] != null)
             throw new IllegalArgumentException("Chunk number " + iChkNum + " already received.");
-        
+
         _aoChunks[iChkNum] = chunk;
+        // add the sector's data size to the total
+        _iDemuxFrameSize += chunk.getPSXUserDataSize();
+
+    }
+
+    private void newFrame(IVideoSector chunk) {
+        _iFrame = chunk.getFrameNumber();
+
+        if (_aoChunks == null || _aoChunks.length < chunk.getChunksInFrame())
+            _aoChunks = new IVideoSector[chunk.getChunksInFrame()];
+        _iChunkCount = chunk.getChunksInFrame();
+        _iDemuxFrameSize = 0;
+
+        _aoChunks[chunk.getChunkNumber()] = chunk;
         // add the sector's data size to the total
         _iDemuxFrameSize += chunk.getPSXUserDataSize();
     }
     
-    public void addChunks(AbstractList<IVideoSector> oChks) {
-        for (IVideoSector oChk : oChks) {
-            addChunk(oChk);
-        }
-    }
-    
-    public DemuxImage getDemuxFrame() {
-        byte[] ab = new byte[_iDemuxFrameSize];
-        int iPos = 0;
-        if (_aoChunks == null) {
+    private void endFrame() throws IOException {
+        // need at least 1 chunk to continue
+        if (_aoChunks == null || _iDemuxFrameSize < 1 || _iChunkCount < 1) {
             log.warning("Frame " + _iFrame + " never received any frame chunks.");
-        } else {
-            for (int iChunk = 0; iChunk < _aoChunks.length; iChunk++) {
-                IVideoSector chunk = _aoChunks[iChunk];
-                if (chunk != null) {
-                    _aoChunks[iChunk].copyIdentifiedUserData(ab, iPos);
-                    iPos += _aoChunks[iChunk].getPSXUserDataSize();
-                } else {
-                    log.warning("Frame " + _iFrame + " chunk " + iChunk + " missing.");
-                }
+            return;
+        }
+
+        if (_abDemuxBuff == null || _abDemuxBuff.length < _iDemuxFrameSize)
+            _abDemuxBuff = new byte[_iDemuxFrameSize];
+
+        int iEndSector = -1;
+        int iPos = 0;
+        for (int iChunk = 0; iChunk < _iChunkCount; iChunk++) {
+            IVideoSector chunk = _aoChunks[iChunk];
+            if (chunk != null) {
+                chunk.copyIdentifiedUserData(_abDemuxBuff, iPos);
+                iPos += chunk.getPSXUserDataSize();
+                if (chunk.getSectorNumber() > iEndSector)
+                    iEndSector = chunk.getSectorNumber();
+                _aoChunks[iChunk] = null;
+            } else {
+                log.warning("Frame " + _iFrame + " chunk " + iChunk + " missing.");
             }
         }
-        return new DemuxImage(_iWidth, _iHeight, _iFrame, ab);
+
+        _demuxReceiver.receive(_abDemuxBuff, _iDemuxFrameSize, _iFrame, iEndSector);
+        
+        _iDemuxFrameSize = 0;
+        _iChunkCount = 0;
+        _iFrame = -1;
     }
 
 }

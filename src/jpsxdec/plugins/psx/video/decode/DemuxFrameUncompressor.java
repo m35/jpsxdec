@@ -44,6 +44,6 @@ import jpsxdec.util.NotThisTypeException;
 public abstract class DemuxFrameUncompressor extends MdecInputStream {
 
     /** Resets this instance as if a new object was created. */
-    public abstract void reset(byte[] abDemuxData) throws NotThisTypeException;
+    public abstract void reset(byte[] abDemuxData, int iStart) throws NotThisTypeException;
 
 }

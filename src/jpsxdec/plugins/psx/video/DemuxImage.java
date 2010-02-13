@@ -46,72 +46,70 @@ import jpsxdec.util.IO;
 
 public class DemuxImage {
 
-    private final int m_iWidth, m_iHeight, m_iSourceFrame;
-    private final byte[] m_abData;
+    private final int _iWidth, _iHeight, _iSourceFrame;
+    private final byte[] _abData;
 
     public DemuxImage(int iWidth, int iHeight, int iFrame, File oSource) throws IOException {
-        m_iWidth = iWidth;
-        m_iHeight= iHeight;
-        m_iSourceFrame = iFrame;
-        m_abData = IO.readFile(oSource);
+        _iWidth = iWidth;
+        _iHeight= iHeight;
+        _iSourceFrame = iFrame;
+        _abData = IO.readFile(oSource);
     }
     public DemuxImage(int iWidth, int iHeight, File oSource) throws IOException {
         this(iWidth, iHeight, -1, oSource);
     }
 
-    public DemuxImage(int iWidth, int iHeight, int iFrame, byte[] oSource) {
-        this(iWidth, iHeight, iFrame, oSource, 0, oSource.length);
+    public DemuxImage(int iWidth, int iHeight, int iFrame, byte[] abDemuxBuffer) {
+        _iWidth = iWidth;
+        _iHeight= iHeight;
+        _iSourceFrame = iFrame;
+
+        _abData = abDemuxBuffer;
     }
 
-    public DemuxImage(int iWidth, int iHeight, int iFrame, byte[] oSource, int iStart, int iLen) {
-        m_iWidth = iWidth;
-        m_iHeight= iHeight;
-        m_iSourceFrame = iFrame;
-        m_abData = Misc.copyOfRange(oSource, iStart, iLen);
-    }
 
     public DemuxImage(int iWidth, int iHeight, int iFrame, InputStream oIS, int iExpectedDataSize) throws IOException {
-        m_iWidth = iWidth;
-        m_iHeight= iHeight;
-        m_iSourceFrame = iFrame;
+        _iWidth = iWidth;
+        _iHeight= iHeight;
+        _iSourceFrame = iFrame;
 
         // copy as much from the stream as possible
-        m_abData = new byte[iExpectedDataSize];
-        int pos = oIS.read(m_abData);
+        _abData = new byte[iExpectedDataSize];
+        int pos = oIS.read(_abData);
         while (pos < iExpectedDataSize) {
-            int i = oIS.read(m_abData, pos, iExpectedDataSize - pos);
+            int i = oIS.read(_abData, pos, iExpectedDataSize - pos);
             if (i < 0) break;
             pos += i;
         }
     }
 
     public int getWidth() {
-        return m_iWidth;
+        return _iWidth;
     }
 
     public int getHeight() {
-        return m_iHeight;
+        return _iHeight;
     }
 
     public int getActualWidth() {
-        return (m_iWidth + 15) & (~15);
+        return (_iWidth + 15) & (~15);
     }
 
     public int getActualHeight() {
-        return (m_iHeight + 15) & (~15);
+        return (_iHeight + 15) & (~15);
     }
 
     /** Size of the underlying demux data (currently equal to the array size). */
     public int getBufferSize() {
-        return m_abData.length;
+        return _abData.length;
     }
 
     public int getFrameNumber() {
-        return m_iSourceFrame;
+        return _iSourceFrame;
     }
 
     public byte[] getData() {
-        return m_abData;
+        return _abData;
     }
 
 }

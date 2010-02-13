@@ -35,19 +35,30 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.player;
+package jpsxdec.plugins.psx.str;
 
-import java.awt.image.BufferedImage;
+import java.io.IOException;
+import jpsxdec.plugins.IdentifiedSector;
+import jpsxdec.plugins.ProgressListener;
 
+public interface SectorMovieWriter {
 
-public class VideoFrame {
-    public final BufferedImage Frame;
-    public final long PresentationTime;
-    public final long ContigusPlayUniqueId;
+    void close() throws IOException;
+    
+    void feedSectorForVideo(IVideoSector sector) throws IOException;
 
-    public VideoFrame(BufferedImage image, long lngPresentationTime, long lngContigusPlayUniqueId) {
-        Frame = image;
-        PresentationTime = lngPresentationTime;
-        ContigusPlayUniqueId = lngContigusPlayUniqueId;
-    }
+    void feedSectorForAudio(IdentifiedSector sector) throws IOException;
+
+    int getStartFrame();
+
+    int getEndFrame();
+
+    void setListener(ProgressListener pl);
+
+    String getOutputFile();
+
+    int getMovieStartSector();
+
+    int getMovieEndSector();
+
 }

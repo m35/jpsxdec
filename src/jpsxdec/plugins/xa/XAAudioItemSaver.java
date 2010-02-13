@@ -38,7 +38,6 @@
 package jpsxdec.plugins.xa;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.logging.Logger;
 import javax.swing.JPanel;
 import jpsxdec.cdreaders.CDSector;
@@ -51,11 +50,11 @@ public class XAAudioItemSaver extends DiscItemSaver {
 
     private static final Logger log = Logger.getLogger(XAAudioItemSaver.class.getName());
 
-    private PCM16bitAudioWriterBuilder _audWriterBuilder;
+    private SectorAudioWriterBuilder _audWriterBuilder;
     private DiscItemXAAudioStream _xaItem;
 
     public XAAudioItemSaver(DiscItemXAAudioStream xaItem) {
-        _audWriterBuilder = new PCM16bitAudioWriterBuilder(xaItem.isStereo(), xaItem.getSampleRate(), xaItem.getSuggestedBaseName());
+        _audWriterBuilder = new SectorAudioWriterBuilder(xaItem);
         _xaItem = xaItem;
     }
 
@@ -76,17 +75,15 @@ public class XAAudioItemSaver extends DiscItemSaver {
 
     @Override
     public void startSave(ProgressListener pl) throws IOException {
-        PCM16bitAudioWriter audioWriter = _audWriterBuilder.getAudioWriter();
+        SectorAudioWriter audioWriter = _audWriterBuilder.getAudioWriter();
         int iSector = _xaItem.getStartSector();
-        IDiscItemAudioSectorDecoder decoder = _xaItem.makeDecoder(audioWriter, audioWriter.getFormat().isBigEndian(), audioWriter.getVolume());
         try {
             final double SECTOR_LENGTH = _xaItem.getSectorLength();
             pl.progressStart("Writing " + audioWriter.getOutputFile());
-            audioWriter.open();
             for (; iSector <= _xaItem.getEndSector(); iSector++) {
                 CDSector cdSector = _xaItem.getSourceCD().getSector(iSector);
                 IdentifiedSector identifiedSect = _xaItem.identifySector(cdSector);
-                decoder.feedSector(identifiedSect);
+                audioWriter.feedSector(identifiedSect);
                 pl.progressUpdate((iSector - _xaItem.getStartSector()) / SECTOR_LENGTH);
             }
             pl.progressEnd();

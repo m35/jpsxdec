@@ -67,13 +67,6 @@ public abstract class DiscItemStreaming extends DiscItem {
     public void setDiscSpeed(int iSpeed) {}
     
     
-    /** Get the play time in milliseconds based on the sector number
-     * from the start of the media. */
-    public final long calclateTime(IdentifiedSector sector) {
-        return calclateTime(sector.getSectorNumber());
-    }
-    /** Get the play time in milliseconds based on the sector number
-     * from the start of the media. */
-    abstract public long calclateTime(int iSect);
+    abstract public int getPresentationStartSector();
     
 }

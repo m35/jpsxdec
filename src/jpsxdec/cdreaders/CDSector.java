@@ -189,7 +189,7 @@ public class CDSector implements IGetFilePointer {
                     case 1: data_audio_video = DATA_AUDIO_VIDEO.VIDEO; break;
                     case 0: data_audio_video = DATA_AUDIO_VIDEO.NULL; break;
                     default: throw new NotThisTypeException(
-                            "CD sector submode data,audio,video is corrupted: " + Misc.bitsToString(iBits, 3) + "b");
+                            "CD sector submode data|audio|video is corrupted: " + Misc.bitsToString(iBits, 3) + "b");
                 }
                 end_audio     = (b & 1) > 0;
             }
@@ -407,6 +407,10 @@ public class CDSector implements IGetFilePointer {
     /** Returns copy of the 'user data' portion of the sector. */
     public byte[] getCdUserDataCopy() {
         return jpsxdec.util.Misc.copyOfRange(_abSectorBytes, _iUserDataStart, _iUserDataStart+_iUserDataSize);
+    }
+
+    public byte readUserDataByte(int i) {
+        return _abSectorBytes[_iUserDataStart + 1];
     }
 
     public void getCdUserDataCopy(int iSourcePos, byte[] abOut, int iOutPos, int iLength) {

@@ -88,7 +88,6 @@ public class SectorChronoXVideoNull extends IdentifiedSector
     {
         _lngMagic = IO.readUInt32LE(inStream);
 
-        // TODO: This extra Chrono Cross hack is ugly, fix it
         if (_lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
             _lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
             throw new NotThisTypeException();
@@ -113,7 +112,7 @@ public class SectorChronoXVideoNull extends IdentifiedSector
     // .. Public functions .................................................
 
     public String getTypeName() {
-        return "CX Video";
+        return "CX Video Null";
     }
 
 
@@ -131,6 +130,11 @@ public class SectorChronoXVideoNull extends IdentifiedSector
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
         return null;
+    }
+
+    @Override
+    public String toString() {
+        return getTypeName() + " " + super.toString();
     }
 
 }

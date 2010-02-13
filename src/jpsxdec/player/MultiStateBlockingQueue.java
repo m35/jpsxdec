@@ -37,46 +37,37 @@
 
 package jpsxdec.player;
 
+import java.util.Arrays;
 
-/** Special threadsafe blocking queue that can be in one of several states:
- * Playing but empty - Taking will block until an element is added
- * Playing with one or more elements in queue - Taking returns immediately with an element
- * Paused - Taking will block until playing & not empty
- * Closed - Will not block at all. Ignores adds and returns null.
- * Full -
- * Stop when empty -
- *
- */
+/** Very powerful, thread-safe, blocking queue with the ability to specify exact 
+ * behavior when taking and adding.  */
 public class MultiStateBlockingQueue<T> {
 
-    public static boolean DEBUG = false;
+    private static final boolean DEBUG = false;
 
-    final private Object _eventSync = new Object();
+    private static enum ADD {
+        IGNORE,
+        BLOCK,
+        BLOCK_WHEN_FULL,
+        IGNORE_WHEN_FULL,
+        OVERWRITE_WHEN_FULL
+    }
 
-    private static final int RUNNING = 1;
-    private static final int STOPPED = 2;
-    private static final int PAUSED = 3;
-    private static final int STOPPING_WHEN_EMPTY = 4;
-    private static final int OVERWRITE_WHEN_FULL = 5;
-    private int _iState = PAUSED;
+    private static enum TAKE {
+        IGNORE,
+        BLOCK,
+        BLOCK_WHEN_EMPTY,
+        IGNORE_WHEN_EMPTY
+    }
 
-    private static final int ADD__IGNORE = 0;
-    private static final int ADD__BLOCK_WHEN_FULL = 1;
-    private static final int ADD__IGNORE_WHEN_FULL = 2;
-    private static final int ADD__OVERWRITE_WHEN_FULL = 3;
-    private int _iAddingResponse = ADD__BLOCK_WHEN_FULL;
+    private final Object _eventSync = new Object();
+    
+    private ADD _eAddingResponse = ADD.BLOCK_WHEN_FULL;
+    private TAKE _eTakingResponse = TAKE.BLOCK;
 
-    private static final int TAKE__IGNORE = 10;
-    private static final int TAKE__BLOCK = 11;
-    private static final int TAKE__BLOCK_WHEN_EMPTY = 12;
-    private static final int TAKE__IGNORE_WHEN_EMPTY = 13;
-    private int _iTakingResponse = TAKE__BLOCK;
-
-    private boolean _blnChangeToIgnoreWhenEmpty = false;
-
-    private T[] _aoQueue;
-    private int _iHeadPos;
-    private int _iTailPos;
+    protected T[] _aoQueue;
+    protected int _iHeadPos;
+    protected int _iTailPos;
     private int _iSize;
 
     public MultiStateBlockingQueue(int iCapacity) {
@@ -87,51 +78,53 @@ public class MultiStateBlockingQueue<T> {
     //////////////////////////////////
 
     public void play() {
-        synchronized (_eventSync) {
-            _iState = RUNNING;
-
-            _iAddingResponse = ADD__BLOCK_WHEN_FULL;
-            _iTakingResponse = TAKE__BLOCK_WHEN_EMPTY;
-
-            _eventSync.notifyAll();
-        }
+        setAddTakeResponse(ADD.BLOCK_WHEN_FULL, TAKE.BLOCK_WHEN_EMPTY);
     }
 
     public void stop() {
-        synchronized (_eventSync) {
-            _iState = STOPPED;
-
-            _iAddingResponse = ADD__IGNORE;
-            _iTakingResponse = TAKE__IGNORE;
-
-            _eventSync.notifyAll();
-        }
+        setAddTakeResponse(ADD.IGNORE, TAKE.IGNORE);
     }
 
     public void stopWhenEmpty() {
-        synchronized (_eventSync) {
-            _iState = STOPPING_WHEN_EMPTY;
+        setAddTakeResponse(ADD.BLOCK_WHEN_FULL, TAKE.IGNORE_WHEN_EMPTY);
+    }
 
-            _blnChangeToIgnoreWhenEmpty = true;
-            
+    public void overwriteWhenFull() {
+        setAddTakeResponse(ADD.OVERWRITE_WHEN_FULL, TAKE.BLOCK_WHEN_EMPTY);
+    }
+
+    public void pause() {
+        setAddTakeResponse(ADD.BLOCK_WHEN_FULL, TAKE.BLOCK);
+    }
+
+    /////////////////////////////////
+
+    private void setAddResponse(ADD iResponse) {
+        synchronized (_eventSync) {
+            _eAddingResponse = iResponse;
             _eventSync.notifyAll();
         }
     }
 
-    public void pause() {
+    private void setTakeResponse(TAKE iResponse) {
         synchronized (_eventSync) {
-            _iState = PAUSED;
+            _eTakingResponse = iResponse;
+            _eventSync.notifyAll();
+        }
+    }
 
-            _iAddingResponse = ADD__BLOCK_WHEN_FULL;
-            _iTakingResponse = TAKE__BLOCK;
-
+    private void setAddTakeResponse(ADD iAddResponse, TAKE iTakeResponse) {
+        synchronized (_eventSync) {
+            _eAddingResponse = iAddResponse;
+            _eTakingResponse = iTakeResponse;
             _eventSync.notifyAll();
         }
     }
 
     /////////////////////////////////
 
-
+    /** Returns true if object was added, or false if it wasn't.
+     * This method may block. The object must not be null. */
     public boolean add(T o) throws InterruptedException {
         if (o == null)
             throw new IllegalArgumentException();
@@ -140,21 +133,29 @@ public class MultiStateBlockingQueue<T> {
 
         synchronized (_eventSync) {
             while (true) {
-                if (_iState == STOPPED) {
+                if (_eAddingResponse == ADD.IGNORE) {
                     if (DEBUG) System.out.println(Thread.currentThread().getName() + " stopped: returning false");
                     return false;
-                } else if (isFull() && _iState != OVERWRITE_WHEN_FULL) {
-                    if (DEBUG) System.out.println(Thread.currentThread().getName() + " full: waiting");
+                } else if (_eAddingResponse == ADD.BLOCK) {
                     _eventSync.wait();
+                } else if (isFull()) {
+                    switch (_eAddingResponse) {
+                        case IGNORE_WHEN_FULL:
+                            return false;
+                        case BLOCK_WHEN_FULL:
+                            if (DEBUG) System.out.println(Thread.currentThread().getName() + " full: waiting");
+                            _eventSync.wait();
+                            break;
+                        case OVERWRITE_WHEN_FULL:
+                            enqueue(o);
+                            return true;
+                        default:
+                            throw new IllegalStateException();
+                    }
                 } else {
                     if (DEBUG) System.out.println(Thread.currentThread().getName() + " adding " + o.toString());
-                    _aoQueue[_iTailPos] = o;
-                    _iTailPos++;
-                    if (_iTailPos >= _aoQueue.length) {
-                        _iTailPos = 0;
-                    }
-                    if (_iState != OVERWRITE_WHEN_FULL)
-                        _iSize++;
+                    enqueue(o);
+                    _iSize++;
                     if (DEBUG) System.out.println(Thread.currentThread().getName() + " notifying other threads and returning");
                     _eventSync.notifyAll();
                     return true;
@@ -163,56 +164,72 @@ public class MultiStateBlockingQueue<T> {
         }
     }
 
+    protected void enqueue(T o) {
+        _aoQueue[_iTailPos] = o;
+        _iTailPos++;
+        if (_iTailPos >= _aoQueue.length) {
+            _iTailPos = 0;
+        }
+    }
+
+    /** Retrieves the head of the queue. May return null if no object is removed.
+     * This method may block. */
     public T take() throws InterruptedException {
         if (DEBUG) System.out.println(Thread.currentThread().getName() + " enter take()");
+        
         synchronized (_eventSync) {
             while (true) {
-                if (_iState == STOPPED) {
+                if (_eTakingResponse == TAKE.IGNORE) {
                     if (DEBUG) System.out.println(Thread.currentThread().getName() + " stopped: returning null");
                     return null;
-                } else if (_iState == PAUSED) {
-                        if (DEBUG) System.out.println(Thread.currentThread().getName() + " paused: waiting");
-                        _eventSync.wait();
+                } else if (_eTakingResponse == TAKE.BLOCK) {
+                    if (DEBUG) System.out.println(Thread.currentThread().getName() + " paused: waiting");
+                    _eventSync.wait();
                 } else if (isEmpty()) {
-                    if (_iState == STOPPING_WHEN_EMPTY) {
-                        _iState = STOPPED;
-                        return null;
-                    } else {
-                        if (DEBUG) System.out.println(Thread.currentThread().getName() + " empty: waiting");
-                        _eventSync.wait();
+                    switch (_eTakingResponse) {
+                        case IGNORE_WHEN_EMPTY:
+                            return null;
+                        case BLOCK_WHEN_EMPTY:
+                            if (DEBUG) System.out.println(Thread.currentThread().getName() + " empty: waiting");
+                            _eventSync.wait();
+                            break;
+                        default:
+                            throw new IllegalStateException();
                     }
                 } else {
-                    T o = _aoQueue[_iHeadPos];
-                    if (DEBUG) System.out.println(Thread.currentThread().getName() + " removing object: " + o.toString());
-                    _aoQueue[_iHeadPos] = null;
-                    _iHeadPos++;
-                    if (_iHeadPos >= _aoQueue.length)
-                        _iHeadPos = 0;
-                    _iSize--;
-                    _eventSync.notifyAll();
-                    return o;
+                    return dequeue();
                 }
             }
         }
     }
 
+    protected T dequeue() {
+        T o = _aoQueue[_iHeadPos];
+        if (DEBUG) System.out.println(Thread.currentThread().getName() + " removing object: " + o.toString());
+        _aoQueue[_iHeadPos] = null;
+        _iHeadPos++;
+        if (_iHeadPos >= _aoQueue.length)
+            _iHeadPos = 0;
+        _iSize--;
+        _eventSync.notifyAll();
+        return o;
+    }
+
     public boolean isFull() {
         synchronized (_eventSync) {
-            return _iSize == _aoQueue.length;
+            return _iSize >= _aoQueue.length;
         }
     }
 
     public boolean isEmpty() {
         synchronized (_eventSync) {
-            return _iSize == 0;
+            return _iSize <= 0;
         }
     }
 
     public void clear() {
         synchronized (_eventSync) {
-            for (int i = 0; i < _aoQueue.length; i++) {
-                _aoQueue[i] = null;
-            }
+            Arrays.fill(_aoQueue, null);
             _iSize = _iHeadPos = _iTailPos = 0;
             _eventSync.notifyAll();
         }

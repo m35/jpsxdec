@@ -63,32 +63,29 @@ public class PlayController {
     private final Object _oTimeSync = new Object();
 
 
-    public PlayController(IAudioVideoReader reader, IAudioDecoder audDecoder, IVideoDecoder vidDecoder) 
+    public PlayController(IAudioVideoReader reader)
             throws LineUnavailableException
     {
-        if (audDecoder == null && vidDecoder == null)
+        AudioFormat format = reader.getAudioFormat();
+        if (format == null && !reader.hasVideo())
             throw new IllegalArgumentException("No audio or video?");
 
-        if (audDecoder == null) {
+        if (reader.hasVideo()) {
+            _vidPlayer = new VideoPlayer(this, reader.getVideoWidth(), reader.getVideoHeight());
+            _vidProcessor = new VideoProcessor(this, _vidPlayer);
+            _vidProcessor.startup();
+            _vidPlayer.startup();
+        }
+        if (format == null) {
             _vidTimer = new VideoTimer();
         } else {
-            AudioFormat format = audDecoder.getAudioFormat();
-
             DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
 
             _audPlayer = (SourceDataLine) AudioSystem.getLine(info);
             _audPlayer.open(format);
 
-            audDecoder.initialize(_audPlayer);
-
-            _audProcessor = new AudioProcessor(audDecoder, _audPlayer);
+            _audProcessor = new AudioProcessor(_audPlayer, _vidProcessor);
             _audProcessor.startup();
-        }
-        if (vidDecoder != null) {
-            _vidPlayer = new VideoPlayer(this, vidDecoder.getWidth(), vidDecoder.getHeight());
-            _vidProcessor = new VideoProcessor(this, vidDecoder, _vidPlayer);
-            _vidProcessor.startup();
-            _vidPlayer.startup();
         }
 
         _demuxReader = new DemuxReader(reader, _audProcessor, _vidProcessor, this);
@@ -108,11 +105,8 @@ public class PlayController {
         synchronized (_oTimeSync) {
             long lngPos;
             if (_audPlayer != null) {
+                //lngPos = _audPlayer.getMicrosecondPosition();
                 lngPos = (long)(_audPlayer.getLongFramePosition() / _audPlayer.getFormat().getSampleRate() * 1000);
-                if (lngPos > 0)
-                    lngPos += 0;
-                else if (lngPos < 0)
-                    lngPos = 0;
             } else {
                 lngPos = _vidTimer.getPlayTimeAndStart();
             }

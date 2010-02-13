@@ -99,13 +99,13 @@ public class SectorChronoXAudio extends IdentifiedSector
                 throw new NotThisTypeException();
 
             _iAudioChunkNumber = IO.readSInt16LE(is);
-            if (_iAudioChunkNumber < 0)
+            if (_iAudioChunkNumber < 0 || _iAudioChunkNumber > 1)
                 throw new NotThisTypeException();
             _iAudioChunksInFrame = IO.readSInt16LE(is);
-            if (_iAudioChunksInFrame < 0)
+            if (_iAudioChunksInFrame != 2)
                 throw new NotThisTypeException();
             _iFrameNumber = IO.readSInt16LE(is);
-            if (_iFrameNumber < 0)
+            if (_iFrameNumber < 1)
                 throw new NotThisTypeException();
             
             IO.skip(is, 118);
@@ -176,7 +176,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     }
 
     public String getTypeName() {
-        return "ChronoCrossAudio";
+        return "CX Audio";
     }
 
     public boolean isStereo() {
@@ -209,9 +209,9 @@ public class SectorChronoXAudio extends IdentifiedSector
                 oPrevSect.getSectorNumber() + 1 != getSectorNumber())
                 return false;
         } else if (oPrevSect.getAudioChunkNumber() == 1) {
-            if (getAudioChunkNumber() != 0 ||
-                oPrevSect.getFrameNumber() + 1 != getFrameNumber() ||
-                oPrevSect.getSectorNumber() + 9 != getSectorNumber())
+            if (getAudioChunkNumber() != 0)
+                return false;
+            if (oPrevSect.getFrameNumber() > getFrameNumber())
                 return false;
         }
 

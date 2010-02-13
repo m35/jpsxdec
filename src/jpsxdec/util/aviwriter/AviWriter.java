@@ -37,29 +37,20 @@
 
 package jpsxdec.util.aviwriter;
 
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Iterator;
-import javax.imageio.IIOImage;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
-import javax.imageio.stream.MemoryCacheImageOutputStream;
+import java.util.Arrays;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import jpsxdec.util.ExposedBAOS;
 import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
 
 /**
- * AVI encoder to write uncompressed, RGB DIB video, or compressed MJPG video, 
- * along with uncompressed PCM audio. The resulting MJPG AVI seems playable on 
- * vanilla Windows XP systems, and of course VLC.
+ * Creates AVI files with audio and video without the need for JMF.
+ * Subclasses should take care of codec handling.
  * <p> 
  * This code is originally based on (but now hardly resembles) the ImageJ 
  * package at http://rsb.info.nih.gov/ij
@@ -77,9 +68,6 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * MIPAV program, available from http://mipav.cit.nih.gov/, which also
  * appears to be in the public domain.
  * <p>
- * I owe my MJPG understanding to the jpegtoavi program.
- * http://sourceforge.net/projects/jpegtoavi/
- * <p>
  * Random list of codecs
  * http://www.oltenia.ro/download/pub/windows/media/video/tools/GSpot/gspot22/GSpot22.dat
  * <p>
@@ -90,22 +78,8 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * <p>
  * Works with Java 1.5 or higher.
  */
-public class AviWriter {
+public abstract class AviWriter {
 
-    /** Hold's true if system can write "jpeg" images. */
-    private final static boolean CAN_ENCODE_JPEG;
-    static {
-        // check if the system can write "jpeg" images
-        boolean bln = false;
-        for (String s : ImageIO.getReaderFormatNames()) {
-            if (s.equals("jpeg")) {
-                bln = true;
-                break;
-            }
-        }
-        CAN_ENCODE_JPEG = bln;
-    }
-    
     // -------------------------------------------------------------------------
     // -- Fields ---------------------------------------------------------------
     // -------------------------------------------------------------------------
@@ -119,14 +93,9 @@ public class AviWriter {
     private final long _lngFrames;
     /** Denominator of the frames/second fraction. */
     private final long _lngPerSecond;
-    
-    /** Size of the frame data in bytes. Only applicable to DIB AVI.
-     *  Each DIB frame submitted is compared to this value to ensure
-     *  proper data. */
-    private int _iFrameByteSize = -1;
 
     /** Temporary buffer available to store data before writing. */
-    private byte[] _abWriteBuffer;
+    protected byte[] _abWriteBuffer;
 
     /** Number of frames written. */
     private long _lngFrameCount = 0;
@@ -134,14 +103,11 @@ public class AviWriter {
     private final AudioFormat _audioFormat;
 
     /** Number of audio samples written. */
-    private double _dblSampleCount = 0;
-    
-    /** The image writer used to convert the BufferedImages to BMP or JPEG. */
-    private final ImageWriter _imgWriter;
-    /** Only used for MJPG when not using default quality level. */
-    private final ImageWriteParam _writeParams;
-    /** True if writing avi with MJPG codec, false if writing DIB codec. */
-    private final boolean _blnMJPG;
+    private long _lngSampleCount = 0;
+
+    private final boolean _blnCompressedVideo;
+    private final String _sFourCCcodec;
+    private final int _iCompression;
 
     // -------------------------------------------------------------------------
     // -- Properties -----------------------------------------------------------
@@ -168,28 +134,38 @@ public class AviWriter {
     }
 
     public long getAudioSamplesWritten() {
-        return (long)_dblSampleCount;
+        return _lngSampleCount;
+    }
+
+    /** Returns approximately how many samples per frame (may be a fraction off) */
+    public int getAudioSamplesPerFrame() {
+        if (_audioFormat == null)
+            return 0;
+
+        //  samples/second / frames/second = samples/frame
+
+        return Math.round(_audioFormat.getSampleRate() * _lngPerSecond / _lngFrames);
     }
 
     // -------------------------------------------------------------------------
     // -- AVI Structure Fields -------------------------------------------------
     // -------------------------------------------------------------------------
     
-    private RandomAccessFile raFile;
+    private RandomAccessFile _aviFile;
     
-    private Chunk RIFF_chunk;
-    private     Chunk LIST_hdr1;
-    private         AVIMAINHEADER avih;
-    private         Chunk LIST_strl_vid;
-    private             Chunk strf_vid;
-    private                 AVISTREAMHEADER strh_vid;
-    private                 BITMAPINFOHEADER bif;
+    private Chunk _RIFF_chunk;
+    private     Chunk _LIST_hdr1;
+    private         AVIMAINHEADER _avih;
+    private         Chunk _LIST_strl_vid;
+    private             Chunk _strf_vid;
+    private                 AVISTREAMHEADER _strh_vid;
+    private                 BITMAPINFOHEADER _bif;
                         //strf_vid
                     //LIST_strl_vid
-    private         Chunk LIST_strl_aud;
-    private             Chunk strf_aud;
-    private                 AVISTREAMHEADER strh_aud;
-    private                 WAVEFORMATEX wavfmt;
+    private         Chunk _LIST_strl_aud;
+    private             Chunk _strf_aud;
+    private                 AVISTREAMHEADER _strh_aud;
+    private                 WAVEFORMATEX _wavfmt;
                         //strf_aud
                     //LIST_strl_aud
                 //LIST_hdr1
@@ -207,107 +183,20 @@ public class AviWriter {
     // -- Constructors ---------------------------------------------------------
     // -------------------------------------------------------------------------
     
-    public AviWriter(final File oOutputfile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond)
-            throws IOException
-    {
-        this(oOutputfile,
-             iWidth, iHeight,
-             lngFrames, lngPerSecond,
-             false, true, -0.1f, null);
-    }
-    public AviWriter(final File outFile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond,
-                     float fltQuality)
-             throws IOException
-    {
-        this(outFile,
-             iWidth, iHeight,
-             lngFrames, lngPerSecond,
-             true, false, fltQuality,
-             null);
-    }
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    public AviWriter(final File outFile,
+    protected AviWriter(final File oOutputfile,
                      final int iWidth, final int iHeight,
                      final long lngFrames, final long lngPerSecond,
-                     boolean blnDefaultLossyQuality,
-                     final AudioFormat audioFormat)
+                     final AudioFormat oAudioFormat,
+                     final boolean blnCompressedVideo,
+                     final String sFourCCcodec,
+                     final int iBytes)
             throws IOException
     {
-        this(outFile,
-             iWidth, iHeight,
-             lngFrames, lngPerSecond,
-             true, true, -0.1f, audioFormat);
-    }
-    /** Audio data must be signed 16-bit PCM in little-endian order. */
-    public AviWriter(final File outFile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond,
-                     final AudioFormat audioFormat)
-            throws IOException
-    {
-        this(outFile,
-             iWidth, iHeight,
-             lngFrames, lngPerSecond,
-             false, true, -0.1f, audioFormat);
-    }
 
-    /** Write MJPG encoded frames with specified quality.
-     * @param iAudChannels 0, 1 or 2 audio channels.
-     * @param fltMjpgQuality  quality from 0 (lowest) to 1 (highest). */
-    public AviWriter(final File oOutputfile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond,
-                     final float fltLossyQuality,
-                     final AudioFormat oAudioFormat)
-            throws IOException
-    {
-        this(oOutputfile,
-             iWidth, iHeight,
-             lngFrames, lngPerSecond,
-             true, false, fltLossyQuality,
-             oAudioFormat);
-    }
-    
-    /** Audio data must be signed 16-bit PCM in little-endian order. */
-    private AviWriter(final File oOutputfile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond,
-                     final boolean blnIsLossy,
-                     final boolean blnDefaultLossyQuality,
-                     final float fltLossyQuality,
-                     final AudioFormat oAudioFormat)
-            throws IOException
-    {
-        Iterator<ImageWriter> oIter;
-
-        if (blnIsLossy) {
-            if (!CAN_ENCODE_JPEG)
-                throw new UnsupportedOperationException("Unable to create 'jpeg' images on this platform.");
-
-            oIter = ImageIO.getImageWritersByFormatName("jpeg");
-            _imgWriter = oIter.next();
-            
-            if (blnDefaultLossyQuality) {
-                _writeParams = null;
-            } else {
-                // TODO: Make sure thumbnails are not being created in the jpegs
-                _writeParams = _imgWriter.getDefaultWriteParam();
-
-                _writeParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-                // 0 for lowest qulaity, 1 for highest
-                _writeParams.setCompressionQuality(fltLossyQuality);
-            }
-            _blnMJPG = true;
-        } else {
-            oIter = ImageIO.getImageWritersByFormatName("bmp");
-            _imgWriter = (ImageWriter)oIter.next();
-            _writeParams = null;
-            _blnMJPG = false;
-        }
+        _blnCompressedVideo = blnCompressedVideo;
+        _sFourCCcodec = sFourCCcodec;
+        _iCompression = iBytes;
 
         _iWidth = iWidth;
         _iHeight = iHeight;
@@ -333,57 +222,59 @@ public class AviWriter {
                 throw new IllegalArgumentException("Audio sample size cannot be NOT_SPECIFIED.");
             if (oAudioFormat.isBigEndian())
                 throw new IllegalArgumentException("Audio must be little-endian.");
+            if (oAudioFormat.getEncoding() != AudioFormat.Encoding.PCM_SIGNED)
+                throw new IllegalArgumentException("Audio encoding needs to be PCM_SIGNED.");
             // TODO: Are there any more checks to perform?
         }
         _audioFormat = oAudioFormat;
 
-        raFile = new RandomAccessFile(oOutputfile, "rw");
-        raFile.setLength(0); // trim the file to 0
+        _aviFile = new RandomAccessFile(oOutputfile, "rw");
+        _aviFile.setLength(0); // trim the file to 0
 
         //----------------------------------------------------------------------
         // Setup the header structure. 
         // Actual values will be filled in when avi is closed.
         
-        RIFF_chunk = new Chunk(raFile, "RIFF", "AVI ");
+        _RIFF_chunk = new Chunk(_aviFile, "RIFF", "AVI ");
         
-            LIST_hdr1 = new Chunk(raFile, "LIST", "hdrl"); 
+            _LIST_hdr1 = new Chunk(_aviFile, "LIST", "hdrl");
         
-                avih = new AVIMAINHEADER();
-                avih.makePlaceholder(raFile);
+                _avih = new AVIMAINHEADER();
+                _avih.makePlaceholder(_aviFile);
             
-                LIST_strl_vid = new Chunk(raFile, "LIST", "strl");
+                _LIST_strl_vid = new Chunk(_aviFile, "LIST", "strl");
 
-                    strh_vid = new AVISTREAMHEADER();
-                    strh_vid.makePlaceholder(raFile);
+                    _strh_vid = new AVISTREAMHEADER();
+                    _strh_vid.makePlaceholder(_aviFile);
 
-                    strf_vid = new Chunk(raFile, "strf");
+                    _strf_vid = new Chunk(_aviFile, "strf");
 
-                        bif = new BITMAPINFOHEADER();
-                        bif.makePlaceholder(raFile);                               
+                        _bif = new BITMAPINFOHEADER();
+                        _bif.makePlaceholder(_aviFile);
 
-                    strf_vid.endChunk(raFile);
+                    _strf_vid.endChunk(_aviFile);
                     
-                LIST_strl_vid.endChunk(raFile);
+                _LIST_strl_vid.endChunk(_aviFile);
                 
                 if (_audioFormat != null) { // if there is audio
-                LIST_strl_aud = new Chunk(raFile, "LIST", "strl");
+                _LIST_strl_aud = new Chunk(_aviFile, "LIST", "strl");
 
-                    strh_aud = new AVISTREAMHEADER();
-                    strh_aud.makePlaceholder(raFile);
+                    _strh_aud = new AVISTREAMHEADER();
+                    _strh_aud.makePlaceholder(_aviFile);
 
-                    strf_aud = new Chunk(raFile, "strf");
+                    _strf_aud = new Chunk(_aviFile, "strf");
 
-                        wavfmt = new WAVEFORMATEX();
-                        wavfmt.makePlaceholder(raFile);
+                        _wavfmt = new WAVEFORMATEX();
+                        _wavfmt.makePlaceholder(_aviFile);
 
-                    strf_aud.endChunk(raFile);
+                    _strf_aud.endChunk(_aviFile);
 
-                LIST_strl_aud.endChunk(raFile);
+                _LIST_strl_aud.endChunk(_aviFile);
                 }
 
-            LIST_hdr1.endChunk(raFile);
+            _LIST_hdr1.endChunk(_aviFile);
             
-            LIST_movi = new Chunk(raFile, "LIST", "movi");
+            LIST_movi = new Chunk(_aviFile, "LIST", "movi");
 
             // now we're ready to start accepting video/audio data
             
@@ -392,121 +283,72 @@ public class AviWriter {
     }
 
     // -------------------------------------------------------------------------
-    // -- Public functions -----------------------------------------------------
+    // -- Writing functions ----------------------------------------------------
     // -------------------------------------------------------------------------
-    
-    /** Assumes width/height is correct. 
-     * abData should either be DIB data 
-     * (BGR rows inverted and widths padded to 4 byte boundaries),
-     * or JPEG data. */
-    private void writeFrameFormatted(byte[] abData) throws IOException {
-        if (raFile == null) throw new IOException("Avi file is closed");
-        // only keep track of frame data size if it's DIB. They should all be the same
-        if (!_blnMJPG) {
-            if (_iFrameByteSize < 0)
-                _iFrameByteSize = abData.length;
-            else if (_iFrameByteSize != abData.length)
-                throw new IllegalArgumentException("Frame data size is not consistent");
-        }
-        
-        writeStreamDataChunk(abData, 0, abData.length, true);
-    }
 
-    /** @param abData  RGB image data stored at 24 bits/pixel (3 bytes/pixel) */
-    public void writeFrameRGB(byte[] abData, int iStart, int iLineStride) {
-        int iLinePadding = (_iWidth * 3) & 3;
-        if (iLinePadding != 0)
-            iLinePadding = 4 - iLinePadding;
-        int iNeededBuffSize = (_iWidth * 3 + iLinePadding) * _iHeight ;
-        if (_abWriteBuffer == null || _abWriteBuffer.length < iNeededBuffSize)
-            _abWriteBuffer = new byte[iNeededBuffSize];
-
-        int iSrcLine = iStart;
-        int iDestPos = 0;
-        for (int y = _iHeight-1; y >= 0; y--) {
-            int iSrcPos = iSrcLine;
-            for (int x = 0; x < _iWidth; x++) {
-                _abWriteBuffer[iDestPos] = abData[iSrcPos+2];
-                iDestPos++;
-                _abWriteBuffer[iDestPos] = abData[iSrcPos+1];
-                iDestPos++;
-                _abWriteBuffer[iDestPos] = abData[iSrcPos+0];
-                iDestPos++;
-                iSrcPos+=3;
-            }
-            iSrcLine += iLineStride;
-            for (int i = 0; i < iLinePadding; i++) {
-                _abWriteBuffer[iDestPos] = 0;
-                iDestPos++;
-            }
-        }
-    }
-
-    /** @param abData  RGB image data stored at RGB in the lower bytes of an int. */
-    public void writeFrameRGB(int[] aiData, int iStart, int iLineStride) {
-        int iLinePadding = (_iWidth * 3) & 3;
-        if (iLinePadding != 0)
-            iLinePadding = 4 - iLinePadding;
-        int iNeededBuffSize = (_iWidth * 3 + iLinePadding) * _iHeight ;
-        if (_abWriteBuffer == null || _abWriteBuffer.length < iNeededBuffSize)
-            _abWriteBuffer = new byte[iNeededBuffSize];
-
-        int iSrcLine = iStart;
-        int iDestPos = 0;
-        for (int y = _iHeight-1; y >= 0; y--) {
-            int iSrcPos = iSrcLine;
-            for (int x = 0; x < _iWidth; x++) {
-                int c = aiData[iSrcPos];
-                _abWriteBuffer[iDestPos] = (byte)(c >> 16);
-                iDestPos++;
-                _abWriteBuffer[iDestPos] = (byte)(c >>  8);
-                iDestPos++;
-                _abWriteBuffer[iDestPos] = (byte)(c      );
-                iDestPos++;
-                iSrcPos++;
-            }
-            iSrcLine += iLineStride;
-            for (int i = 0; i < iLinePadding; i++) {
-                _abWriteBuffer[iDestPos] = 0;
-                iDestPos++;
-            }
-        }
-    }
-
-    /** Converts a BufferedImage to proper avi format and writes it. */
-    public void writeFrame(BufferedImage bi) throws IOException {
-        if (raFile == null) throw new IOException("Avi file is closed");
-        if (_iWidth != bi.getWidth())
-            throw new IllegalArgumentException("AviWriter: Frame width doesn't match" +
-                    " (was " + _iWidth + ", now " + bi.getWidth() + ").");
-        
-        if (_iHeight != bi.getHeight())
-            throw new IllegalArgumentException("AviWriter: Frame height doesn't match" +
-                    " (was " + _iHeight + ", now " + bi.getHeight() + ").");
-        
-        if (_blnMJPG) {
-            writeFrameFormatted(image2MJPEG(bi).getBuffer());
-        } else {
-            writeFrameFormatted(image2DIB(bi, _iFrameByteSize));
-        }
-    }
+    //abstract public void writeFrame(BufferedImage bi) throws IOException;
 
     public void repeatPreviousFrame() {
         if (_lngFrameCount < 1)
             throw new IllegalStateException("Unable to repeat a previous frame that doesn't exist.");
 
         int iIndex = _indexList.size() - 1;
-        
+
+        // find the previous chunk that is a frame
         final int VID_CHUNK_ID = AVIstruct.string2int("00d_") & 0x00FFFFFF;
         while (true) {
             int iChunkId = _indexList.get(iIndex).dwChunkId;
+            // does it start with '00d'?
             if ((iChunkId & 0x00FFFFFF) == VID_CHUNK_ID)
                 break;
             else
                 iIndex--;
         }
+        // add the same reference in the list
         _indexList.add(_indexList.get(iIndex));
         _lngFrameCount++;
+    }
+
+    public void writeAudio(AudioInputStream audStream) throws IOException {
+        if (_aviFile == null) throw new IOException("Avi file is closed");
+        if (_audioFormat == null)
+            throw new IllegalStateException("Unable to write audio to video-only avi.");
+        
+        AudioFormat fmt = audStream.getFormat();
+        if (!fmt.matches(_audioFormat))
+            throw new IllegalArgumentException("Audio stream format does not match.");
+        
+        Chunk data_size;
+
+        AVIOLDINDEXENTRY idxentry = new AVIOLDINDEXENTRY();
+        idxentry.dwOffset = (int)(_aviFile.getFilePointer() - (LIST_movi.getStart() + 4));
+        
+        idxentry.dwChunkId = AVIstruct.string2int("01wb");
+        idxentry.dwFlags = 0;
+        
+        data_size = new Chunk(_aviFile, "01wb");
+
+            if (_abWriteBuffer == null || _abWriteBuffer.length < _audioFormat.getFrameSize() * 1024)
+                _abWriteBuffer = new byte[_audioFormat.getFrameSize() * 1024];
+
+            // write the data then pad the data to 4 byte boundary
+            int i, iTotal = 0;
+            while ((i = audStream.read(_abWriteBuffer)) > 0) {
+                iTotal += i;
+                _lngSampleCount += i / _audioFormat.getFrameSize();
+                _aviFile.write(_abWriteBuffer, 0, i);
+            }
+            if (iTotal % _audioFormat.getFrameSize() != 0)
+                throw new RuntimeException("Read and wrote partial sample.");
+
+            padTo4ByteBoundary((int)(_aviFile.getFilePointer() - (data_size.getStart()+4)));
+
+        // end the chunk
+        data_size.endChunk(_aviFile);
+        
+        // add this item to the index
+        idxentry.dwSize = (int)data_size.getSize();
+        _indexList.add(idxentry);
     }
 
     /** Audio data must be signed 16-bit PCM in little-endian order. */
@@ -514,114 +356,111 @@ public class AviWriter {
         writeAudio(abData, 0, abData.length);
     }
 
-    public void writeAudio(byte[] abData, int iOffset, int iLength) throws IOException {
-        if (raFile == null) throw new IOException("Avi file is closed");
-        if (_audioFormat == null)
-            throw new IllegalStateException("Unable to write audio to video-only avi.");
-        writeStreamDataChunk(abData, iOffset, iLength, false);
-    }
-
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    public void writeAudio(AudioInputStream oData) throws IOException {
-        if (raFile == null) throw new IOException("Avi file is closed");
+    public void writeAudio(byte[] abData, int iOfs, int iLen) throws IOException {
+        if (_aviFile == null) throw new IOException("Avi file is closed");
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
-        
-        AudioFormat fmt = oData.getFormat();
-        if (!fmt.matches(_audioFormat))
-            throw new IllegalArgumentException("Audio stream format does not match.");
-        
-        Chunk data_size;
+
+        // TODO: Maybe have better handling if half a sample is provided
+        if (iLen % _audioFormat.getFrameSize() != 0)
+            throw new IllegalArgumentException("Half an audio sample can't be processed.");
 
         AVIOLDINDEXENTRY idxentry = new AVIOLDINDEXENTRY();
-        idxentry.dwOffset = (int)(raFile.getFilePointer() - (LIST_movi.getStart() + 4));
-        
+        idxentry.dwOffset = (int)(_aviFile.getFilePointer() - (LIST_movi.getStart() + 4));
         idxentry.dwChunkId = AVIstruct.string2int("01wb");
         idxentry.dwFlags = 0;
-        
-        data_size = new Chunk(raFile, "01wb");
 
-            if (_abWriteBuffer == null || _abWriteBuffer.length < 1024)
-                _abWriteBuffer = new byte[1024];
+        Chunk data_size = new Chunk(_aviFile, "01wb");
 
-            // write the data, padded to 4 byte boundary
-            int i;
-            while ((i = oData.read(_abWriteBuffer, 0, 1024)) > 0) {
-                _dblSampleCount += i / (double)_audioFormat.getFrameSize();
-                raFile.write(_abWriteBuffer, 0, i);
-            }
-            
-            int remaint = (int)(4 - (  (raFile.getFilePointer() - (data_size.getStart()+4) )  % 4)) % 4;
-            while (remaint > 0) { raFile.write(0); remaint--; }
-            
+            // write the data, then pad to 4 byte boundary
+            _aviFile.write(abData, iOfs, iLen);
+            padTo4ByteBoundary(iLen);
+
         // end the chunk
-        data_size.endChunk(raFile);
-        
-        // add this item to the index
-        idxentry.dwSize = (int)data_size.getSize();
-        _indexList.add(idxentry);
-    }
-    
-    private void writeStreamDataChunk(byte[] abData, int iOfs, int iLen, boolean blnIsVideo) throws IOException {
+        data_size.endChunk(_aviFile);
 
-        Chunk data_size;
+        _lngSampleCount += iLen / _audioFormat.getFrameSize();
 
-        AVIOLDINDEXENTRY idxentry = new AVIOLDINDEXENTRY();
-        idxentry.dwOffset = (int)(raFile.getFilePointer() - (LIST_movi.getStart() + 4));
-
-        if (blnIsVideo) { // if video
-
-            String sChunkId;
-            if (_blnMJPG)
-                sChunkId = "00dc";  // dc for compressed frame
-            else
-                sChunkId = "00db";  // db for uncompressed frame
-            idxentry.dwChunkId = AVIstruct.string2int(sChunkId);
-            idxentry.dwFlags = AVIOLDINDEX.AVIIF_KEYFRAME; // Write the flags - select AVIIF_KEYFRAME
-                                                           // AVIIF_KEYFRAME 0x00000010L
-                                                           // The flag indicates key frames in the video sequence.
-            _lngFrameCount++;
-            
-            data_size = new Chunk(raFile, sChunkId);
-        } else { // if audio
-            // TODO: Maybe have better handling if half a sample is provided
-            if (iLen % _audioFormat.getFrameSize() != 0)
-                throw new IllegalArgumentException("Half an audio sample can't be processed.");
-                
-            idxentry.dwChunkId = AVIstruct.string2int("01wb");
-            idxentry.dwFlags = 0;
-
-
-            _dblSampleCount += iLen / (double)_audioFormat.getFrameSize();
-            
-            data_size = new Chunk(raFile, "01wb");
-        }
-
-        // write the data, padded to 4 byte boundary
-        int remaint = (4 - (iLen % 4)) % 4;
-        raFile.write(abData, iOfs, iLen);
-        while (remaint > 0) { raFile.write(0); remaint--; }
-        // end the chunk
-        data_size.endChunk(raFile);
-        
         // add the index to the list
         idxentry.dwSize = (int)data_size.getSize();
         _indexList.add(idxentry);
     }
-    
+
+    public void writeSilentSamples(long lngSampleCount) throws IOException {
+        writeAudio(new AudioInputStream(new InputStream() {
+            @Override
+            public int read() throws IOException {
+                return 0;
+            }
+
+            @Override
+            public int read(byte[] b, int off, int len) throws IOException {
+                Arrays.fill(b, off, len, (byte)0);
+                return len;
+            }
+
+            @Override
+            public long skip(long n) throws IOException {
+                return n;
+            }
+        }, _audioFormat, lngSampleCount));
+    }
+
+    protected void writeFrameChunk(byte[] abData, int iOfs, int iLen) throws IOException {
+        if (_aviFile == null) throw new IOException("Avi file is closed");
+
+        AVIOLDINDEXENTRY idxentry = new AVIOLDINDEXENTRY();
+        idxentry.dwOffset = (int)(_aviFile.getFilePointer() - (LIST_movi.getStart() + 4));
+        String sChunkId;
+        if (_blnCompressedVideo)
+            sChunkId = "00dc";  // dc for compressed frame
+        else
+            sChunkId = "00db";  // db for uncompressed frame
+        idxentry.dwChunkId = AVIstruct.string2int(sChunkId);
+        idxentry.dwFlags = AVIOLDINDEX.AVIIF_KEYFRAME; // Write the flags - select AVIIF_KEYFRAME
+                                                       // AVIIF_KEYFRAME 0x00000010L
+                                                       // The flag indicates key frames in the video sequence.
+        Chunk data_size = new Chunk(_aviFile, sChunkId);
+
+            // write the data, then pad to 4 byte boundary
+            _aviFile.write(abData, iOfs, iLen);
+            padTo4ByteBoundary(iLen);
+
+        // end the chunk
+        data_size.endChunk(_aviFile);
+        
+        _lngFrameCount++;
+
+        // add the index to the list
+        idxentry.dwSize = (int)data_size.getSize();
+        _indexList.add(idxentry);
+    }
+
+    abstract public void writeBlankFrame() throws IOException;
+
+    private void padTo4ByteBoundary(int iBytesWritten) throws IOException {
+        int remaint = (4 - (iBytesWritten % 4)) % 4;
+        while (remaint > 0) { _aviFile.write(0); remaint--; }
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Close ----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+
     /** I'm tempted to remove the IOException throw, but Java's
      *  RandomAccessFile can also throw an IOException on close(). */
     public void close() throws IOException {
-        if (raFile == null) throw new IOException("Avi file is closed");
+        if (_aviFile == null) throw new IOException("Avi file is closed");
         
-            LIST_movi.endChunk(raFile);
+            LIST_movi.endChunk(_aviFile);
             
             // write idx
             avioldidx = new AVIOLDINDEX(_indexList.toArray(new AVIOLDINDEXENTRY[_indexList.size()]));
-            avioldidx.write(raFile);
+            avioldidx.write(_aviFile);
             // /write idx
             
-        RIFF_chunk.endChunk(raFile);
+        _RIFF_chunk.endChunk(_aviFile);
         
         //######################################################################
         //## Fill the headers fields ###########################################
@@ -630,28 +469,28 @@ public class AviWriter {
         //avih.fcc                 = 'avih';  // the avih sub-CHUNK
         //avih.cb                  = 0x38;    // the length of the avih sub-CHUNK (38H) not including the
                                               // the first 8 bytes for avihSignature and the length            
-        avih.dwMicroSecPerFrame    = (int)((_lngPerSecond/(double)_lngFrames)*1.0e6);
-        avih.dwMaxBytesPerSec      = 0;       // (maximum data rate of the file in bytes per second)
-        avih.dwPaddingGranularity  = 0;
-        avih.dwFlags               = AVIMAINHEADER.AVIF_HASINDEX | 
+        _avih.dwMicroSecPerFrame    = (int)((_lngPerSecond/(double)_lngFrames)*1.0e6);
+        _avih.dwMaxBytesPerSec      = 0;       // (maximum data rate of the file in bytes per second)
+        _avih.dwPaddingGranularity  = 0;
+        _avih.dwFlags               = AVIMAINHEADER.AVIF_HASINDEX |
                                      AVIMAINHEADER.AVIF_ISINTERLEAVED;    
                                               // just set the bit for AVIF_HASINDEX
                                               // 10H AVIF_HASINDEX: The AVI file has an idx1 chunk containing
                                               // an index at the end of the file.  For good performance, all
                                               // AVI files should contain an index.                         
-        avih.dwTotalFrames         = _lngFrameCount;  // total frame number
-        avih.dwInitialFrames       = 0;       // Initial frame for interleaved files.
+        _avih.dwTotalFrames         = _lngFrameCount;  // total frame number
+        _avih.dwInitialFrames       = 0;       // Initial frame for interleaved files.
                                               // Noninterleaved files should specify 0.
         if (_audioFormat == null)
-            avih.dwStreams         = 1;       // number of streams in the file - here 1 video and zero audio.
+            _avih.dwStreams         = 1;       // number of streams in the file - here 1 video and zero audio.
         else
-            avih.dwStreams         = 2;       // number of streams in the file - here 1 video and zero audio.
-        avih.dwSuggestedBufferSize = 0;       // Suggested buffer size for reading the file.
+            _avih.dwStreams         = 2;       // number of streams in the file - here 1 video and zero audio.
+        _avih.dwSuggestedBufferSize = 0;       // Suggested buffer size for reading the file.
                                               // Generally, this size should be large enough to contain the largest
                                               // chunk in the file.
                                               // dwSuggestedBufferSize - Suggested buffer size for reading the file.
-        avih.dwWidth               = _iWidth;  // image width in pixels
-        avih.dwHeight              = _iHeight; // image height in pixels
+        _avih.dwWidth               = _iWidth;  // image width in pixels
+        _avih.dwHeight              = _iHeight; // image height in pixels
         //avih.dwReserved1         = 0;       //  Microsoft says to set the following 4 values to 0.
         //avih.dwReserved2         = 0;       //  
         //avih.dwReserved3         = 0;       //  
@@ -663,35 +502,32 @@ public class AviWriter {
         
         //strh_vid.fcc                  = 'strh';              // strh sub-CHUNK
         //strh_vid.cb                   = 56;                  // the length of the strh sub-CHUNK
-        strh_vid.fccType                = AVIstruct.string2int("vids"); // the type of data stream - here vids for video stream
+        _strh_vid.fccType                = AVIstruct.string2int("vids"); // the type of data stream - here vids for video stream
        // Write DIB for Microsoft Device Independent Bitmap.  Note: Unfortunately,
        // at least 3 other four character codes are sometimes used for uncompressed
        // AVI videos: 'RGB ', 'RAW ', 0x00000000
-        if (_blnMJPG)
-            strh_vid.fccHandler         = AVIstruct.string2int("MJPG");
-        else
-            strh_vid.fccHandler         = AVIstruct.string2int("DIB ");
-        strh_vid.dwFlags                = 0;
-        strh_vid.wPriority              = 0;
-        strh_vid.wLanguage              = 0;
-        strh_vid.dwInitialFrames        = 0;
-        strh_vid.dwScale                = _lngPerSecond;
-        strh_vid.dwRate                 = _lngFrames; // frame rate for video streams
-        strh_vid.dwStart                = 0;         // this field is usually set to zero
-        strh_vid.dwLength               = _lngFrameCount; // playing time of AVI file as defined by scale and rate
+        _strh_vid.fccHandler             = AVIstruct.string2int(_sFourCCcodec);
+        _strh_vid.dwFlags                = 0;
+        _strh_vid.wPriority              = 0;
+        _strh_vid.wLanguage              = 0;
+        _strh_vid.dwInitialFrames        = 0;
+        _strh_vid.dwScale                = _lngPerSecond;
+        _strh_vid.dwRate                 = _lngFrames; // frame rate for video streams
+        _strh_vid.dwStart                = 0;         // this field is usually set to zero
+        _strh_vid.dwLength               = _lngFrameCount; // playing time of AVI file as defined by scale and rate
                                                // Set equal to the number of frames
         // TODO: Add a sugested buffer size
-        strh_vid.dwSuggestedBufferSize  = 0;   // Suggested buffer size for reading the stream.
+        _strh_vid.dwSuggestedBufferSize  = 0;   // Suggested buffer size for reading the stream.
                                                // Typically, this contains a value corresponding to the largest chunk
                                                // in a stream.
-        strh_vid.dwQuality              = -1;  // encoding quality given by an integer between
+        _strh_vid.dwQuality              = -1;  // encoding quality given by an integer between
                                                // 0 and 10,000.  If set to -1, drivers use the default 
                                                // quality value.
-        strh_vid.dwSampleSize           = 0; 
-        strh_vid.left                   = 0;
-        strh_vid.top                    = 0;
-        strh_vid.right                  = (short)_iWidth; // virtualdub uses width
-        strh_vid.bottom                 = (short)_iHeight; // virtualdub uses height
+        _strh_vid.dwSampleSize           = 0;
+        _strh_vid.left                   = 0;
+        _strh_vid.top                    = 0;
+        _strh_vid.right                  = (short)_iWidth; // virtualdub uses width
+        _strh_vid.bottom                 = (short)_iHeight; // virtualdub uses height
 
         //######################################################################
         // BITMAPINFOHEADER
@@ -699,25 +535,26 @@ public class AviWriter {
         //bif.biSize        = 40;      // Write header size of BITMAPINFO header structure
                                        // Applications should use this size to determine which BITMAPINFO header structure is 
                                        // being used.  This size includes this biSize field.                                 
-        bif.biWidth         = _iWidth;  // BITMAP width in pixels
-        bif.biHeight        = _iHeight; // image height in pixels.  If height is positive,
+        _bif.biWidth         = _iWidth;  // BITMAP width in pixels
+        _bif.biHeight        = _iHeight; // image height in pixels.  If height is positive,
                                        // the bitmap is a bottom up DIB and its origin is in the lower left corner.  If 
                                        // height is negative, the bitmap is a top-down DIB and its origin is the upper
                                        // left corner.  This negative sign feature is supported by the Windows Media Player, but it is not
                                        // supported by PowerPoint.                                                                        
         //bif.biPlanes      = 1;       // biPlanes - number of color planes in which the data is stored
                                        // This must be set to 1.
-        bif.biBitCount      = 24;      // biBitCount - number of bits per pixel #
-        if (_blnMJPG)                 // 0L for BI_RGB, uncompressed data as bitmap
-            bif.biCompression   = AVIstruct.string2int("MJPG"); 
-        else // type of compression used
-            bif.biCompression   = BITMAPINFOHEADER.BI_RGB; 
-        bif.biSizeImage     = 0;
-        bif.biXPelsPerMeter = 0;       // horizontal resolution in pixels
-        bif.biYPelsPerMeter = 0;       // vertical resolution in pixels
+        _bif.biBitCount      = 24;      // biBitCount - number of bits per pixel #
+
+                                        // 0L for BI_RGB, uncompressed data as bitmap
+                                        // or type of compression used
+        _bif.biCompression   = _iCompression;
+
+        _bif.biSizeImage     = 0;
+        _bif.biXPelsPerMeter = 0;       // horizontal resolution in pixels
+        _bif.biYPelsPerMeter = 0;       // vertical resolution in pixels
                                        // per meter
-        bif.biClrUsed       = 0;       //
-        bif.biClrImportant  = 0;       // biClrImportant - specifies that the first x colors of the color table 
+        _bif.biClrUsed       = 0;       //
+        _bif.biClrImportant  = 0;       // biClrImportant - specifies that the first x colors of the color table
                                        // are important to the DIB.  If the rest of the colors are not available,
                                        // the image still retains its meaning in an acceptable manner.  When this
                                        // field is set to zero, all the colors are important, or, rather, their
@@ -729,40 +566,40 @@ public class AviWriter {
         if (_audioFormat != null) {
             //strh.fcc                  = 'strh';              // strh sub-CHUNK
             //strh.cb                   = 56;                  // length of the strh sub-CHUNK
-            strh_aud.fccType                = AVIstruct.string2int("auds"); // Write the type of data stream - here auds for audio stream
-            strh_aud.fccHandler             = 0; // no fccHandler for wav
-            strh_aud.dwFlags                = 0;
-            strh_aud.wPriority              = 0;
-            strh_aud.wLanguage              = 0;
-            strh_aud.dwInitialFrames        = 1; // virtualdub uses 1
-            strh_aud.dwScale                = 1;
-            strh_aud.dwRate                 = (int)_audioFormat.getSampleRate(); // sample rate for audio streams
-            strh_aud.dwStart                = 0;   // this field is usually set to zero
+            _strh_aud.fccType                = AVIstruct.string2int("auds"); // Write the type of data stream - here auds for audio stream
+            _strh_aud.fccHandler             = 0; // no fccHandler for wav
+            _strh_aud.dwFlags                = 0;
+            _strh_aud.wPriority              = 0;
+            _strh_aud.wLanguage              = 0;
+            _strh_aud.dwInitialFrames        = 1; // virtualdub uses 1
+            _strh_aud.dwScale                = 1;
+            _strh_aud.dwRate                 = (int)_audioFormat.getSampleRate(); // sample rate for audio streams
+            _strh_aud.dwStart                = 0;   // this field is usually set to zero
             // FIXME: for some reason virtualdub has a different dwLength value
-            strh_aud.dwLength               = (int)_dblSampleCount;   // playing time of AVI file as defined by scale and rate
+            _strh_aud.dwLength               = (int)_lngSampleCount;   // playing time of AVI file as defined by scale and rate
                                                    // Set equal to the number of audio samples in file?
             // TODO: Add suggested audio buffer size
-            strh_aud.dwSuggestedBufferSize  = 0;   // Suggested buffer size for reading the stream.
+            _strh_aud.dwSuggestedBufferSize  = 0;   // Suggested buffer size for reading the stream.
                                                    // Typically, this contains a value corresponding to the largest chunk
                                                    // in a stream.
-            strh_aud.dwQuality              = -1;  // encoding quality given by an integer between
+            _strh_aud.dwQuality              = -1;  // encoding quality given by an integer between
                                                    // 0 and 10,000.  If set to -1, drivers use the default 
                                                    // quality value.
-            strh_aud.dwSampleSize           = _audioFormat.getFrameSize();
-            strh_aud.left                   = 0;
-            strh_aud.top                    = 0;
-            strh_aud.right                  = 0;
-            strh_aud.bottom                 = 0;   
+            _strh_aud.dwSampleSize           = _audioFormat.getFrameSize();
+            _strh_aud.left                   = 0;
+            _strh_aud.top                    = 0;
+            _strh_aud.right                  = 0;
+            _strh_aud.bottom                 = 0;
 
             //######################################################################
             // WAVEFORMATEX
 
-            wavfmt.wFormatTag       = WAVEFORMATEX.WAVE_FORMAT_PCM;
-            wavfmt.nChannels        = (short)_audioFormat.getChannels();
-            wavfmt.nSamplesPerSec   = (int)_audioFormat.getFrameRate();
-            wavfmt.nAvgBytesPerSec  = _audioFormat.getFrameSize() * wavfmt.nSamplesPerSec;
-            wavfmt.nBlockAlign      = (short)_audioFormat.getFrameSize();
-            wavfmt.wBitsPerSample   = (short) _audioFormat.getSampleSizeInBits();
+            _wavfmt.wFormatTag       = WAVEFORMATEX.WAVE_FORMAT_PCM;
+            _wavfmt.nChannels        = (short)_audioFormat.getChannels();
+            _wavfmt.nSamplesPerSec   = (int)_audioFormat.getFrameRate();
+            _wavfmt.nAvgBytesPerSec  = _audioFormat.getFrameSize() * _wavfmt.nSamplesPerSec;
+            _wavfmt.nBlockAlign      = (short)_audioFormat.getFrameSize();
+            _wavfmt.wBitsPerSample   = (short) _audioFormat.getSampleSizeInBits();
             //wavfmt.cbSize           = 0; // not written                
 
         }
@@ -772,123 +609,38 @@ public class AviWriter {
         //######################################################################
         
         // go back and write the headers
-        avih.goBackAndWrite(raFile);
-        strh_vid.goBackAndWrite(raFile);
-        bif.goBackAndWrite(raFile);
+        _avih.goBackAndWrite(_aviFile);
+        _strh_vid.goBackAndWrite(_aviFile);
+        _bif.goBackAndWrite(_aviFile);
         
         if (_audioFormat != null) {
-            strh_aud.goBackAndWrite(raFile);
-            wavfmt.goBackAndWrite(raFile);
+            _strh_aud.goBackAndWrite(_aviFile);
+            _wavfmt.goBackAndWrite(_aviFile);
         }
         
         // and we're done
-        raFile.close();
-        raFile = null;
+        _aviFile.close();
+        _aviFile = null;
         
-        RIFF_chunk = null;
-            LIST_hdr1 = null;
-                avih = null;
-                LIST_strl_vid = null;
-                    strf_vid = null;
-                        strh_vid = null;
-                        bif = null;
-                LIST_strl_aud = null;
-                    strf_aud = null;
-                        strh_aud = null;
-                        wavfmt = null;
+        _RIFF_chunk = null;
+            _LIST_hdr1 = null;
+                _avih = null;
+                _LIST_strl_vid = null;
+                    _strf_vid = null;
+                        _strh_vid = null;
+                        _bif = null;
+                _LIST_strl_aud = null;
+                    _strf_aud = null;
+                        _strh_aud = null;
+                        _wavfmt = null;
             LIST_movi = null;
             avioldidx = null;
     }
-    
+
     // -------------------------------------------------------------------------
     // -- Private functions ----------------------------------------------------
     // -------------------------------------------------------------------------
     
-    private byte[] image2DIB(BufferedImage bmp, int iSize) throws IOException {
-        // first make sure this is a 24 bit RGB image
-        ColorModel cm = bmp.getColorModel();
-        if (bmp.getType() != BufferedImage.TYPE_3BYTE_BGR) {
-            // if not, convert it
-            BufferedImage buffer = new BufferedImage( bmp.getWidth(), bmp.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
-            Graphics2D g = buffer.createGraphics();
-            g.drawImage(bmp, 0, 0, null);
-            g.dispose();
-            bmp = buffer;
-        }
-        
-        ExposedBAOS oDIBstream;
-        if (iSize <= 32) 
-            oDIBstream = writeImageToBytes(bmp, new ExposedBAOS());
-        else
-            // use a ByteArrayOutputStream with the same
-            // initial size as the last frame (saves time and memory re-allocation)
-            oDIBstream = writeImageToBytes(bmp, new ExposedBAOS(iSize + 54));
-        // get the 'bfOffBits' value, which says where the 
-        // image data actually starts (should be 54)
-        int iDataStart = read32LE(oDIBstream.getBuffer(), 10);
-        // return the data from that byte onward
-        int iBufferSize = oDIBstream.size() - iDataStart;
-        if (_abWriteBuffer == null || _abWriteBuffer.length < iBufferSize)
-            _abWriteBuffer = new byte[iBufferSize];
-        System.arraycopy(oDIBstream.getBuffer(), iDataStart, _abWriteBuffer, 0, iBufferSize);
-        return _abWriteBuffer;
-    }
-    
-    /** Read a 32 little-endian value from a position in an array. */
-    private static int read32LE(byte[] ab, int iPos) {
-        return ( (ab[iPos+0] & 0xFF) ) |
-               ( (ab[iPos+1] & 0xFF) << 8 ) |
-               ( (ab[iPos+2] & 0xFF) << 16) |
-               ( (ab[iPos+3] & 0xFF) << 24);
-    } 
-    
-    /** Converts a BufferedImage into a frame to be written into a MJPG avi. */
-    private ExposedBAOS image2MJPEG(BufferedImage img) throws IOException {
-        ExposedBAOS oJpgStream = writeImageToBytes(img, new ExposedBAOS());
-        //IO.writeFile("test.bin", abJpg); // debug
-        JPEG2MJPEG(oJpgStream.getBuffer());
-        return oJpgStream;
-    }
-    
-    private ExposedBAOS writeImageToBytes(BufferedImage img, ExposedBAOS oOut) throws IOException {
-        // wrap the ByteArrayOutputStream with a MemoryCacheImageOutputStream
-        MemoryCacheImageOutputStream oMemOut = new MemoryCacheImageOutputStream(oOut);
-        // set our image writer's output stream
-        _imgWriter.setOutput(oMemOut);
-        
-        // wrap the BufferedImage with a IIOImage
-        IIOImage oImgIO = new IIOImage(img, null, null);
-        // finally write the buffered image to the output stream 
-        // using our parameters (if any)
-        _imgWriter.write(null, oImgIO, _writeParams);
-        // don't forget to flush
-        oMemOut.flush();
-        oMemOut.close();
-        
-        // clear image writer's output stream
-        _imgWriter.setOutput(null);
-        
-        // return the result
-        return oOut;
-    }
-    
-    
-    /** Converts JPEG file data to be used in an MJPG AVI. */
-    private static void JPEG2MJPEG(byte [] ab) throws IOException {
-        if (ab[6] != 'J' || ab[7] != 'F' || ab[8] != 'I' || ab[9] != 'F')
-            throw new IOException("JFIF header not found in jpeg data, unable to write frame to AVI.");
-        // http://cekirdek.pardus.org.tr/~ismail/ffmpeg-docs/mjpegdec_8c-source.html#l00869
-        // ffmpeg treats the JFIF and AVI1 header differently. It's probably
-        // safer to stick with standard JFIF header since that's what JPEG uses.
-        /*
-        ab[6] = 'A';
-        ab[7] = 'V';
-        ab[8] = 'I';
-        ab[9] = '1';
-        */
-    }
-
-
     /** Represents an AVI 'chunk'. When created, it saves the current
      *  position in the AVI RandomAccessFile. When endChunk() is called,
      *  it temporarily jumps back to the start of the chunk and records how 

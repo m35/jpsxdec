@@ -50,7 +50,6 @@ import jpsxdec.cdreaders.CDSector;
 import jpsxdec.cdreaders.CDSectorReader;
 import jpsxdec.plugins.psx.alice.JPSXPluginAlice;
 import jpsxdec.plugins.psx.lain.JPSXPluginLain;
-import jpsxdec.plugins.psx.video.DemuxImage;
 import jpsxdec.plugins.psx.tim.JPSXPluginTIM;
 import jpsxdec.plugins.psx.video.decode.DemuxFrameUncompressor;
 
@@ -83,10 +82,12 @@ public abstract class JPSXPlugin {
         return null;
     }
 
-    public static DemuxFrameUncompressor identifyUncompressor(DemuxImage demux) {
+    public static DemuxFrameUncompressor identifyUncompressor(byte[] abDemuxBuf, int iStart, int iFrame) {
         for (JPSXPlugin plugin : aoPlugins) {
+            if (iStart != 0)
+                throw new RuntimeException("oops");
             DemuxFrameUncompressor oUncompressor =
-                plugin.identifyVideoFrame(demux.getData(), demux.getFrameNumber());
+                plugin.identifyVideoFrame(abDemuxBuf, iFrame);
             if (oUncompressor != null)
                 return oUncompressor;
         }

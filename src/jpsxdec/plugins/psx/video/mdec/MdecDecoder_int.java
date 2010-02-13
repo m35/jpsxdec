@@ -64,6 +64,7 @@ public class MdecDecoder_int extends MdecDecoder {
     protected final int[] _LuminBuffer;
 
     protected final int[] _CurrentBlock = new int[64];
+    protected final MdecInputStream.MdecCode _code = new MdecInputStream.MdecCode();
 
     protected int _iMacBlockWidth;
     protected int _iMacBlockHeight;
@@ -91,8 +92,6 @@ public class MdecDecoder_int extends MdecDecoder {
         int iCurrentBlockNonZeroCount;
         int iCurrentBlockLastNonZeroPosition;
 
-        MdecInputStream.MdecCode code = new MdecInputStream.MdecCode();
-
         int iMacBlk = 0, iBlock = 0;
 
         try {
@@ -110,36 +109,36 @@ public class MdecDecoder_int extends MdecDecoder {
 
                     for (iBlock = 0; iBlock < 6; iBlock++) {
                         Arrays.fill(_CurrentBlock, 0);
-                        mdecInStream.readMdecCode(code);
+                        mdecInStream.readMdecCode(_code);
 
                         if (log().isLoggable(Level.FINEST))
-                            log().finest("Qscale & DC " + code);
+                            log().finest("Qscale & DC " + _code);
 
-                        if (code.Bottom10Bits != 0) {
+                        if (_code.Bottom10Bits != 0) {
                             _CurrentBlock[0] =
-                                    code.Bottom10Bits * PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX[0];
+                                    _code.Bottom10Bits * PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX[0];
                             iCurrentBlockNonZeroCount = 1;
                             iCurrentBlockLastNonZeroPosition = 0;
                         } else {
                             iCurrentBlockNonZeroCount = 0;
                             iCurrentBlockLastNonZeroPosition = -1;
                         }
-                        iCurrentBlockQscale = code.Top6Bits;
+                        iCurrentBlockQscale = _code.Top6Bits;
                         iCurrentBlockVectorPosition = 0;
 
-                        while (!mdecInStream.readMdecCode(code)) {
+                        while (!mdecInStream.readMdecCode(_code)) {
 
                             if (log().isLoggable(Level.FINEST))
-                                log().finest(code.toString());
+                                log().finest(_code.toString());
 
                             ////////////////////////////////////////////////////////
-                            iCurrentBlockVectorPosition += code.Top6Bits + 1;
+                            iCurrentBlockVectorPosition += _code.Top6Bits + 1;
 
                             try {
                                 // Reverse Zig-Zag and Dequantize all at the same time
                                 int iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_SCAN_MATRIX[iCurrentBlockVectorPosition];
                                 _CurrentBlock[iRevZigZagPos] =
-                                            (code.Bottom10Bits
+                                            (_code.Bottom10Bits
                                           * PSX_DEFAULT_INTRA_QUANTIZATION_MATRIX[iRevZigZagPos]
                                           * iCurrentBlockQscale + 4) >> 3;
                                 //  i      >> 3  ==  (int)Math.floor(i / 8.0)
@@ -156,7 +155,7 @@ public class MdecDecoder_int extends MdecDecoder {
                         }
 
                         if (log().isLoggable(Level.FINEST))
-                            log().finest(code.toString());
+                            log().finest(_code.toString());
 
                         writeEndOfBlock(iMacBlk, iBlock,
                                 iCurrentBlockNonZeroCount,

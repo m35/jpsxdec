@@ -38,16 +38,14 @@
 package jpsxdec.plugins.xa;
 
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.plugins.DiscItemStreaming;
 import java.io.IOException;
 import jpsxdec.plugins.DiscItemSerialization;
 import jpsxdec.plugins.DiscItemSaver;
 import jpsxdec.plugins.IdentifiedSector;
-import jpsxdec.util.AudioOutputStream;
 import jpsxdec.util.NotThisTypeException;
 
 /** Represents a series of XA ADPCM sectors that combine to make an audio stream */
-public class DiscItemXAAudioStream extends DiscItemStreaming implements IDiscItemAudioStream {
+public class DiscItemXAAudioStream extends DiscItemAudioStream {
     /** Type identifier for this disc item. */
     public static final String TYPE_ID = "XA";
 
@@ -209,23 +207,33 @@ public class DiscItemXAAudioStream extends DiscItemStreaming implements IDiscIte
         return _iBitsPerSample;
     }
 
+    @Override
+    public int getPresentationStartSector() {
+        return getStartSector();
+    }
+
     public AudioFormat getAudioFormat(boolean blnBigEndian) {
         return new AudioFormat(_iSamplesPerSecond, 16, _blnIsStereo ? 2 : 1, true, blnBigEndian);
     }
 
-    public IDiscItemAudioSectorDecoder makeDecoder(AudioOutputStream outStream, boolean blnBigEndian, double dblVolume) {
-        return new XAConverter(outStream, blnBigEndian, dblVolume);
+    public IAudioSectorDecoder makeDecoder(boolean blnBigEndian, double dblVolume) {
+        return new XAConverter(blnBigEndian, dblVolume);
     }
 
-    private class XAConverter implements IDiscItemAudioSectorDecoder {
+    private class XAConverter implements IAudioSectorDecoder {
 
-        private AudioOutputStream __outStream;
-        private XAADPCMDecoder __decoder;
-        private byte[] __abTempBuffer = new byte[XAADPCMDecoder.BYTES_GENERATED_FROM_XAADPCM_SECTOR];
+        private final XAADPCMDecoder __decoder;
+        private IAudioReceiver __outFeed;
+        private final byte[] __abTempBuffer = new byte[XAADPCMDecoder.BYTES_GENERATED_FROM_XAADPCM_SECTOR];
+        private AudioFormat __format;
 
-        public XAConverter(AudioOutputStream outStream, boolean blnBigEndian, double dblVolume) {
-            __outStream = outStream;
+        public XAConverter(boolean blnBigEndian, double dblVolume) {
             __decoder = XAADPCMDecoder.create(getADPCMBitsPerSample(), isStereo(), blnBigEndian, dblVolume);
+        }
+
+        @Override
+        public void open(IAudioReceiver audioFeed) {
+            __outFeed = audioFeed;
         }
 
         public void feedSector(IdentifiedSector sector) throws IOException {
@@ -248,8 +256,11 @@ public class DiscItemXAAudioStream extends DiscItemStreaming implements IDiscIte
             }
 
             __decoder.decode(xaSector.getIdentifiedUserDataStream(), __abTempBuffer);
-            __outStream.write(__decoder.getOutputFormat(xaSector.getSamplesPerSecond()),
-                    __abTempBuffer, 0, __abTempBuffer.length);
+
+            if (__format == null)
+                __format = __decoder.getOutputFormat(xaSector.getSamplesPerSecond());
+
+            __outFeed.write(__format, __abTempBuffer, 0, __abTempBuffer.length, xaSector.getSectorNumber());
         }
 
         public double getVolume() {
@@ -275,19 +286,16 @@ public class DiscItemXAAudioStream extends DiscItemStreaming implements IDiscIte
         public int getStartSector() {
             return DiscItemXAAudioStream.this.getStartSector();
         }
+
+        public int getPresentationStartSector() {
+            return DiscItemXAAudioStream.this.getPresentationStartSector();
+        }
     }
 
     public boolean isPartOfStream(SectorXA xaSector) {
         return xaSector.getBitsPerSample() == _iBitsPerSample &&
                xaSector.getChannel() == _iChannel &&
                xaSector.getBitsPerSample() == _iBitsPerSample;
-    }
-
-    @Override
-    public long calclateTime(int iSect) {
-        if (iSect < getStartSector() || iSect > getEndSector())
-            throw new IllegalArgumentException("Sector number is out of media item bounds.");
-        return ( iSect - getStartSector() ) * getDiscSpeed() * 75;
     }
 
     @Override

@@ -70,7 +70,6 @@ public class SectorChronoXVideo extends SectorSTR
     {
         _lngMagic = IO.readUInt32LE(inStream);
 
-        // TODO: This extra Chrono Cross hack is ugly, fix it
         if (_lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
             _lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
             throw new NotThisTypeException();
@@ -114,34 +113,6 @@ public class SectorChronoXVideo extends SectorSTR
     @Override
     public String getTypeName() {
         return "CX Video";
-    }
-
-    @Override
-    public boolean matchesPrevious(IVideoSector prevSector) {
-        if (!(prevSector instanceof SectorChronoXVideo))
-            return false;
-
-        SectorChronoXVideo xcrossVid = (SectorChronoXVideo) prevSector;
-
-        if (getWidth()  != xcrossVid.getWidth() ||
-            getHeight() != xcrossVid.getHeight())
-               return false;
-
-        long iNextChunk = xcrossVid.getChunkNumber() + 1;
-        long iNextFrame = xcrossVid.getFrameNumber();
-        if (iNextChunk >= xcrossVid.getChunksInFrame()) {
-            iNextChunk = 0;
-            iNextFrame++;
-        }
-
-        if (iNextChunk != getChunkNumber() || iNextFrame != getFrameNumber())
-            return false;
-
-        if (xcrossVid.getFrameNumber() == getFrameNumber() &&
-            xcrossVid.getChunksInFrame() != getChunksInFrame())
-            return false;
-
-        return true;
     }
 
     @Override

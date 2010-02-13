@@ -285,20 +285,18 @@ public abstract class SectorFF9 extends IdentifiedSector {
         }
         
         public DiscItem createMedia(int iStartSector, int iStartFrame,
-                                    int iFrame1End,
+                                    int iFrame1LastSector,
                                     int iSectors, int iPerFrame)
         {
             return new DiscItemSTRVideo(iStartSector, getSectorNumber(),
                                         iStartFrame, getFrameNumber(),
                                         getWidth(), getHeight(),
                                         iSectors, iPerFrame,
-                                        iFrame1End);
+                                        iFrame1LastSector);
         }
-        public DiscItem createMedia(int iStartSector, int iStartFrame, int iFrame1End)
+        public DiscItem createMedia(int iStartSector, int iStartFrame, int iFrame1LastSector)
         {
-            int iSectors = getSectorNumber() - iStartSector;
-            int iFrames = getFrameNumber() - iStartFrame;
-            return createMedia(iStartSector, iStartFrame, iFrame1End, iSectors, iFrames);
+            return createMedia(iStartSector, iStartFrame, iFrame1LastSector, 10, 1);
         }
     }
 

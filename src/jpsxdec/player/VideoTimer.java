@@ -38,7 +38,7 @@
 package jpsxdec.player;
 
 
-public class VideoTimer {
+class VideoTimer {
 
     private long _lngStartTime;
     private boolean _blnStarted = false;

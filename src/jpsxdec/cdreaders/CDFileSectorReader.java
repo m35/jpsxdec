@@ -235,8 +235,7 @@ public class CDFileSectorReader extends CDSectorReader {
     /* Private Functions ---------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    /** Searches through the entire file for a full XA audio sector.
-     * TODO: That probably isn't a very good idea.
+    /** Searches through the first 33 sectors for a full XA audio sector.
      *<p>
      *  Note: This assumes the input file has the data aligned at every 4 bytes!
      */
@@ -326,7 +325,7 @@ public class CDFileSectorReader extends CDSectorReader {
     }
 
     public String serialize() {
-        return String.format("SourceFile|%s|%d|%d|%d",
+        return String.format("Filename:%s|Sector size:%d|Sector count:%d|First sector offset:%d",
                 _sSourceFilePath,
                 _iRawSectorTypeSize,
                 _iSectorCount,

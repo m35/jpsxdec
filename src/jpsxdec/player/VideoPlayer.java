@@ -41,15 +41,18 @@ import java.awt.Canvas;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.awt.image.MemoryImageSource;
+import jpsxdec.formats.RgbIntImage;
 
 
-public class VideoPlayer implements Runnable {
+class VideoPlayer implements Runnable {
 
     public static boolean DEBUG = false;
 
-    private static final int CAPACITY = 20;
+    private static final int CAPACITY = 50;
 
     private MultiStateBlockingQueue<VideoFrame> _frameDisplayQueue =
             new MultiStateBlockingQueue<VideoFrame>(CAPACITY);
@@ -62,10 +65,13 @@ public class VideoPlayer implements Runnable {
     /** Only used for video only streams. */
     private Thread _thread;
 
+    private VideoScreen _screen;
+
     public VideoPlayer(PlayController controller, int iWidth, int iHeight) {
         _controller = controller;
         _iWidth = iWidth;
         _iHeight = iHeight;
+        _screen = new VideoScreen();
     }
 
     public void run() {
@@ -78,13 +84,13 @@ public class VideoPlayer implements Runnable {
                 {
                     // otherwise sleep until time to display
                     long lngDiff;
-                    while ((lngDiff = frame.PresentationTime - _controller.getCurrentPlayTime()) > 30) {
+                    while ((lngDiff = frame.PresentationTime - _controller.getCurrentPlayTime()) > 15) {
                         if (DEBUG) System.out.println("Player sleeping " + lngDiff);
                         Thread.sleep(lngDiff);
                     }
                     if (DEBUG) System.out.println("===Displaying frame===");
                     // update canvas with frame
-                    _screen.updateRepaint(frame.Frame);
+                    _screen.updateRepaint(frame);
                 } else {
                     if (DEBUG) System.out.println("Different contigouous id");
                 }
@@ -138,21 +144,29 @@ public class VideoPlayer implements Runnable {
             throw new IllegalArgumentException("Invalid zoom scale " + iZoom);
         }
         _iZoom = iZoom;
+        _screen.updateDims();
     }
 
-    private VideoScreen _screen;
     public Canvas getVideoCanvas() {
-        if (_screen == null)
-            _screen = new VideoScreen();
         return _screen;
+    }
+
+    public int getWidth() {
+        return _iWidth;
+    }
+    public int getHeight() {
+        return _iHeight;
     }
 
     private class VideoScreen extends Canvas {
 
         /* ************************************************************
-         * DEFINITELY WANT TO USE MemoryImageSource FOR THE IMAGE DATA
+         * Use MemoryImageSource? Or maybe it's not so helpful?
+         * 	MemoryImageSource ret = new MemoryImageSource(width, height, pixels, 0, width);
+            ret.setAnimated(true);
+            ret.setFullBufferUpdates(true);
          ************************************************************* */
-        private BufferedImage __lastImg;
+        private VideoFrame __lastFrame;
 
         private Dimension __dims = updateDims();
 
@@ -160,17 +174,25 @@ public class VideoPlayer implements Runnable {
             return __dims = new Dimension(_iWidth * _iZoom, _iHeight * _iZoom * 59 / 54);
         }
 
-        public void updateRepaint(BufferedImage bi) {
-            __lastImg = bi;
+        public void updateRepaint(VideoFrame frame) {
+            if (__lastFrame == null) {
+                __lastFrame = frame;
+            } else {
+                // XXX: race condition
+                VideoFrame lastFrame = __lastFrame;
+                __lastFrame = frame;
+                lastFrame.returnToPool();
+            }
             repaint();
+            Thread.yield();
         }
 
         @Override
         public void update(Graphics g) {
             if (g instanceof Graphics2D) {
-                ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
             }
-            g.drawImage(__lastImg, 0, 0, __dims.width, __dims.height, this);
+            g.drawImage(__lastFrame.Img, 0, 0, __dims.width, __dims.height, this);
         }
 
         @Override
@@ -189,5 +211,45 @@ public class VideoPlayer implements Runnable {
         }
 
     }
-    
+
+
+    public final VideoFramePool _videoFramePool = new VideoFramePool();
+    public class VideoFramePool extends ObjectPool<VideoFrame> {
+
+        @Override
+        protected VideoFrame createExpensiveObject() {
+            return new VideoFrame();
+        }
+    }
+
+
+    class VideoFrame {
+        public RgbIntImage Memory;
+        /** MemoryImageSource is tricky if you've never used it before.
+         * http://rsb.info.nih.gov/plasma/ */
+        public MemoryImageSource MemImgSrc;
+        private Image Img;
+
+        public long PresentationTime;
+        public long ContigusPlayUniqueId;
+
+        public void init(IDecodableFrame decodeFrame) {
+            if (Memory == null) {
+                Memory = new RgbIntImage(_iWidth, _iHeight);
+                MemImgSrc = new MemoryImageSource(_iWidth, _iHeight, Memory.getData(), 0, _iWidth);
+                MemImgSrc.setAnimated(true);
+                MemImgSrc.setFullBufferUpdates(true);
+                Img = _screen.createImage(MemImgSrc);
+                Img.setAccelerationPriority(1.0f);
+            }
+            PresentationTime = decodeFrame.getPresentationTime();
+            ContigusPlayUniqueId = decodeFrame.getContigiousId();
+        }
+
+        public void returnToPool() {
+            Img.flush();
+            _videoFramePool.giveBack(this);
+        }
+    }
+
 }

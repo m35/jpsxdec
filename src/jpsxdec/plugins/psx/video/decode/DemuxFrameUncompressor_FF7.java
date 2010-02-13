@@ -56,63 +56,31 @@ public class DemuxFrameUncompressor_FF7 extends DemuxFrameUncompressor_STRv2 {
     public DemuxFrameUncompressor_FF7() {
         super();
     }
-    public DemuxFrameUncompressor_FF7(byte[] abDemuxData) throws NotThisTypeException {
-        super(abDemuxData);
+    public DemuxFrameUncompressor_FF7(byte[] abDemuxData, int iStart) throws NotThisTypeException {
+        super(abDemuxData, iStart);
     }
-
-    private boolean _blnHasCameraData;
-
-    public byte[] getCameraData() {
-        if (_blnHasCameraData) {
-            return Misc.copyOfRange(_bitReader.getArray(), 0, 40);
-        } else {
-            return null;
-        }
-    }
-
-    public long getMagic3800() {
-        return _lngMagic3800;
-    }
-
-    public int getHalfVlcCountCeil32() {
-        return _iHalfVlcCountCeil32;
-    }
-
 
     @Override
-    protected ArrayBitReader readHeader(byte[] abFrameData) throws NotThisTypeException {
-        int iStartOffset = 0;
-        _lngMagic3800    = IO.readUInt16LE(abFrameData, 2);
+    protected void readHeader(byte[] abFrameData, int iStart, ArrayBitReader bitReader) throws NotThisTypeException {
 
-        _blnHasCameraData = _lngMagic3800 != 0x3800;
-        if (_blnHasCameraData) {
-            iStartOffset = 40;
-            _lngMagic3800 = IO.readUInt16LE(abFrameData, iStartOffset + 2);
-        }
-
-        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, iStartOffset + 0);
-        _iQscale             = IO.readSInt16LE(abFrameData, iStartOffset + 4);
-        int iVersion         = IO.readSInt16LE(abFrameData, iStartOffset + 6);
+        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, iStart+0);
+        _lngMagic3800        = IO.readUInt16LE(abFrameData, iStart+2);
+        _iQscale             = IO.readSInt16LE(abFrameData, iStart+4);
+        int iVersion         = IO.readSInt16LE(abFrameData, iStart+6);
 
         if (_lngMagic3800 != 0x3800 || _iQscale < 1 ||
             iVersion != 1 || _iHalfVlcCountCeil32 < 0)
             throw new NotThisTypeException();
 
-        return new ArrayBitReader(abFrameData, true, iStartOffset + 8);
+        bitReader.reset(abFrameData, true, iStart+8);
     }
 
     public static boolean checkHeader(byte[] abFrameData) {
-        int iStartOffset = 0;
+
+        int iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
         long lngMagic3800       = IO.readUInt16LE(abFrameData, 2);
-
-        if (lngMagic3800 != 0x3800) {
-            iStartOffset = 40;
-            lngMagic3800        = IO.readUInt16LE(abFrameData, iStartOffset + 2);
-        }
-
-        int iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, iStartOffset + 0);
-        int iQscale             = IO.readSInt16LE(abFrameData, iStartOffset + 4);
-        int iVersion            = IO.readSInt16LE(abFrameData, iStartOffset + 6);
+        int iQscale             = IO.readSInt16LE(abFrameData, 4);
+        int iVersion            = IO.readSInt16LE(abFrameData, 6);
 
         return !(lngMagic3800 != 0x3800 || iQscale < 1 ||
                  iVersion != 1 || iHalfVlcCountCeil32 < 0);
@@ -126,11 +94,7 @@ public class DemuxFrameUncompressor_FF7 extends DemuxFrameUncompressor_STRv2 {
 
     public static class Recompressor_FF7 extends DemuxFrameUncompressor_STRv2.FrameRecompressor_STRv2 {
 
-        public void compressToDemuxFF7(BitStreamWriter oBitStream, int iQscale, int iVlcCount) throws IOException {
-            compressToDemuxFF7(oBitStream, iQscale, iVlcCount, null);
-        }
-
-        public void compressToDemuxFF7(BitStreamWriter bitStream, int iQscale, int iVlcCount, byte[] abCameraData)
+        public void compressToDemuxFF7(BitStreamWriter bitStream, int iQscale, int iVlcCount)
                 throws IOException
         {
             if (iQscale < 1 || iVlcCount < 0) throw new IllegalArgumentException();
@@ -138,10 +102,6 @@ public class DemuxFrameUncompressor_FF7 extends DemuxFrameUncompressor_STRv2 {
             _iVlcCount = iVlcCount;
 
             _bitStream = bitStream;
-            if (abCameraData != null) {
-                _bitStream.setLittleEndian(false);
-                _bitStream.write(abCameraData);
-            }
             _bitStream.setLittleEndian(true);
             _bitStream.writeInt16LE( (((iVlcCount+1) / 2) + 31) & ~31 );
             _bitStream.writeInt16LE(0x3800);

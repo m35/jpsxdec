@@ -38,27 +38,44 @@
 package jpsxdec.plugins.xa;
 
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.util.AudioOutputStream;
+import jpsxdec.plugins.DiscItemSerialization;
+import jpsxdec.plugins.DiscItemStreaming;
+import jpsxdec.util.NotThisTypeException;
 
 /** Interface for all DiscItems that represent an audio stream.
  * This is necessary for the video plugin to utilize any audio stream that
  * runs parallel to the video. */
-public interface IDiscItemAudioStream  {
+public abstract class DiscItemAudioStream extends DiscItemStreaming {
 
-    int getSampleRate();
+    public DiscItemAudioStream(DiscItemSerialization fields) throws NotThisTypeException {
+        super(fields);
+    }
 
-    boolean isStereo();
+    public DiscItemAudioStream(int iStartSector, int iEndSector) {
+        super(iStartSector, iEndSector);
+    }
 
-    int getStartSector();
-    int getEndSector();
+    public boolean overlaps(DiscItemAudioStream other) {
+        //  [ this ]  < [ other ]
+        if (getEndSector() + getSectorsPastEnd() < other.getStartSector())
+            return false;
+        //  [ other ] < [ this ]
+        if (other.getEndSector() + other.getSectorsPastEnd() < getStartSector())
+            return false;
+        return true;
+    }
+
+    abstract public int getSampleRate();
+
+    abstract public boolean isStereo();
 
     /** Creates a decoder capable of converting IdentifiedSectors into audio
-     *  data that is then fed into the AudioOutputStream. */
-    IDiscItemAudioSectorDecoder makeDecoder(AudioOutputStream outStream,
-            boolean blnBigEndian, double dblVolume);
+     *  data which will then be fed into an AudioOutputStream.
+     * @see IAudioSectorDecoder#open(jpsxdec.util.AudioOutputStream) */
+    abstract public IAudioSectorDecoder makeDecoder(boolean blnBigEndian, double dblVolume);
 
-    AudioFormat getAudioFormat(boolean blnBigEndian);
+    abstract public AudioFormat getAudioFormat(boolean blnBigEndian);
 
-    int getIndex();
+    abstract public int getSectorsPastEnd();
 
 }

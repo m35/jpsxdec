@@ -120,13 +120,13 @@ public class Yuv4mpeg2 {
 
     /** Holds luminance values.
      * Package private so Yuv4mpeg2Writer can access it. */
-    double[] _adblY;
+    public byte[] _abY;
     /** Holds chrominance blue values, subsampled like jpeg or mpeg1.
      * Package private so Yuv4mpeg2Writer can access it. */
-    double[] _adblCb;
+    public byte[] _abCb;
     /** Holds chorminance red values, subsampled like jpeg or mpeg1.
      * Package private so Yuv4mpeg2Writer can access it. */
-    double[] _adblCr;
+    public byte[] _abCr;
     
     /** Creates a new instance of Yuv4mpeg2 
      * @param iSrcWidth - Width of image (in Luminance values)
@@ -141,17 +141,52 @@ public class Yuv4mpeg2 {
         _iLuminHeight = iHeight;
         _iChromWidth = iWidth / 2;
         _iChromHeight = iHeight / 2;
-        _adblY  = new double[_iLuminWidth * _iLuminHeight];
-        _adblCb = new double[_iChromWidth * _iChromHeight];
-        _adblCr = new double[_adblCb.length];
+        _abY  = new byte[_iLuminWidth * _iLuminHeight];
+        _abCb = new byte[_iChromWidth * _iChromHeight];
+        _abCr = new byte[_abCb.length];
     }
-    
+
+    /** Very slow, wasteful, and impercise conversion. */
+    public Yuv4mpeg2(BufferedImage rgb) {
+        this(rgb.getWidth(), rgb.getHeight());
+        
+        double[] adblCb = new double[_iChromWidth * _iChromHeight];
+        double[] adblCr = new double[adblCb.length];
+
+        for (int x = 0; x < _iLuminWidth; x++) {
+            for (int y = 0; y < _iLuminHeight; y++) {
+                int iRgb = rgb.getRGB(x, y);
+                CCIR601YCbCr ycc = new CCIR601YCbCr(new RGB((iRgb >> 16) & 0xFF,
+                                                            (iRgb >>  8) & 0xFF,
+                                                            (iRgb      ) & 0xFF));
+                _abY[ x + y * _iLuminWidth ] = (byte)ycc.y;
+                adblCb[x/2 + (y/2) * _iChromWidth] += ycc.cb + 128.0;
+                adblCr[x/2 + (y/2) * _iChromWidth] += ycc.cr + 128.0;
+            }
+        }
+
+        for (int i = 0; i < _abCb.length; i++) {
+            _abCb[i] = (byte) (_abCb[i] / 4.0);
+            _abCr[i] = (byte) (_abCr[i] / 4.0);
+        }
+    }
+
     public int getWidth() {
         return _iLuminWidth;
     }
 
     public int getHeight() {
         return _iLuminHeight;
+    }
+
+    public byte[] getY() {
+        return _abY;
+    }
+    public byte[] getCb() {
+        return _abCb;
+    }
+    public byte[] getCr() {
+        return _abCr;
     }
 
     /** Converts yuv image to a BufferedImage, converting, rounding, and 
@@ -170,9 +205,9 @@ public class Yuv4mpeg2 {
         for (int iLinePos = 0, iY = 0; iY < _iLuminHeight; iLinePos += _iLuminWidth, iY++) {
             for (int iX = 0; iX < _iLuminWidth; iX++) {
 
-                double y = _adblY[iLinePos + iX] + 128;
-                double cb = _adblCb[iLinePos + iX / 2];
-                double cr = _adblCr[iLinePos + iX / 2];
+                int y =  _abY[iLinePos + iX] & 0xff;
+                int cb = (_abCb[iLinePos + iX / 2] & 0xff) - 128;
+                int cr = (_abCr[iLinePos + iX / 2] & 0xff) - 128;
                 
                 int r = (int)jpsxdec.util.Maths.round(y +                1.402  * cr);
                 int g = (int)jpsxdec.util.Maths.round(y - 0.3437  * cb - 0.7143 * cr);
@@ -198,26 +233,26 @@ public class Yuv4mpeg2 {
     /** Sets a luminance value.
      * @param iLuminX  X lumin pixel to set.
      * @param iLuminY  Y lumin pixel to set.
-     * @param dblY     New value.
+     * @param bY     New value.
      */
-    public void setY(int iLuminX, int iLuminY, double dblY) {
-        _adblY[iLuminX + iLuminY * _iLuminWidth] = dblY;
+    public void setY(int iLuminX, int iLuminY, byte bY) {
+        _abY[iLuminX + iLuminY * _iLuminWidth] = bY;
     }
     /** Sets chrominance blue value.
      * @param iChromX  X chrom pixel (1/2 lumin width)
      * @param iChromY  Y chrom pixel (1/2 lumin width)
-     * @param dblCb    New value.
+     * @param bCb    New value.
      */
-    public void setCb(int iChromX, int iChromY, double dblCb) {
-        _adblCb[iChromX + iChromY * _iChromWidth] = dblCb;
+    public void setCb(int iChromX, int iChromY, byte bCb) {
+        _abCb[iChromX + iChromY * _iChromWidth] = bCb;
     }
     /** Sets chrominance red value.
      * @param iChromX  X chrom pixel (1/2 lumin width)
      * @param iChromY  Y chrom pixel (1/2 lumin width)
-     * @param dblCr    New value.
+     * @param bCr    New value.
      */
-    public void setCr(int iChromX, int iChromY, double dblCr) {
-        _adblCr[iChromX + iChromY * _iChromWidth] = dblCr;
+    public void setCr(int iChromX, int iChromY, byte bCr) {
+        _abCr[iChromX + iChromY * _iChromWidth] = bCr;
     }
 
     /** Set a block of luminance values 
@@ -225,46 +260,46 @@ public class Yuv4mpeg2 {
      * @param iDestY  Top left corner where block starts (in Luminance pixels)
      * @param iSrcWidth   Width of block (in Luminance pixels)
      * @param iSrcHeight  Height of block (in Luminance pixels)
-     * @param adblCb  Array of block values with the color space -128 to +127.*/
+     * @param abY  Array of block values with the color space -128 to +127.*/
     public void setY(int iDestX, int iDestY,
                      int iSrcOfs, int iSrcWidth,
                      int iCopyWidth, int iCopyHeight,
-                     double[] adblY)
+                     byte[] abY)
     {
-        set(_adblY, iDestX + iDestY * _iLuminWidth, _iLuminHeight,
-            adblY, iSrcOfs, iSrcWidth,
+        set(_abY, iDestX + iDestY * _iLuminWidth, _iLuminHeight,
+            abY, iSrcOfs, iSrcWidth,
             iCopyWidth, iCopyHeight);
     }
 
     public void setCb(int iDestX, int iDestY,
                      int iSrcOfs, int iSrcWidth,
                      int iCopyWidth, int iCopyHeight,
-                     double[] adblCb)
+                     byte[] abCb)
     {
-        set(_adblCb, iDestX + iDestY * _iChromWidth, _iChromWidth,
-            adblCb, iSrcOfs, iSrcWidth,
+        set(_abCb, iDestX + iDestY * _iChromWidth, _iChromWidth,
+            abCb, iSrcOfs, iSrcWidth,
             iCopyWidth, iCopyHeight);
     }
 
     public void setCr(int iDestX, int iDestY,
                      int iSrcOfs, int iSrcWidth, 
                      int iCopyWidth, int iCopyHeight,
-                     double[] adblCr)
+                     byte[] abCr)
     {
-        set(_adblCr, iDestX + iDestY * _iChromWidth, _iChromWidth,
-            adblCr, iSrcOfs, iSrcWidth,
+        set(_abCr, iDestX + iDestY * _iChromWidth, _iChromWidth,
+            abCr, iSrcOfs, iSrcWidth,
             iCopyWidth, iCopyHeight);
     }
 
 
-    private void set(double[] adblDest, int iDestOfs, int iDestWidth,
-                     double[] adblSrc, int iSrcOfs, int iSrcWidth, 
+    private void set(byte[] abDest, int iDestOfs, int iDestWidth,
+                     byte[] abSrc, int iSrcOfs, int iSrcWidth,
                      int iCopyWidth, int iCopyHeight)
     {
         for (int iLine = 0; iLine < iCopyHeight;
              iLine++, iDestOfs += iDestWidth, iSrcOfs += iSrcWidth)
         {
-            System.arraycopy(adblSrc, iSrcOfs, adblDest, iDestOfs, iCopyWidth);
+            System.arraycopy(abSrc, iSrcOfs, abDest, iDestOfs, iCopyWidth);
         }
     }
     

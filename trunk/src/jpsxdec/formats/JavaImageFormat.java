@@ -124,7 +124,7 @@ public enum JavaImageFormat {
     /* ###################################################################### */
 
     public static enum JpgQualities {
-        LOW_QUALITY("small", "Low quality (small)", 0.25f),
+        LOW_QUALITY("low", "Low quality (small)", 0.25f),
         MEDIUM_QUALITY("medium","Medium quality", 0.5f),
         GOOD_QUALITY("good","Good quality (default)", 0.75f),
         HIGH_QUALITY("high","High quality", 0.95f);

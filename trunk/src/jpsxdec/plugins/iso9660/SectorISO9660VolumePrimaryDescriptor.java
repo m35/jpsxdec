@@ -78,7 +78,7 @@ public class SectorISO9660VolumePrimaryDescriptor extends UnidentifiedSectorUnkn
     @Override
     public String toString() {
         return String.format("ISO PriDesc %s %s",
-                super.toString(), _primaryDescriptor.toString());
+                super.cdToString(), _primaryDescriptor.toString());
     }
 
 }

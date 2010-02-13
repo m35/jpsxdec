@@ -58,8 +58,7 @@ public class STRFrameReplacer {
 
     public STRFrameReplacer(String sDemuxFilesFolder, String sOutputCD) throws Throwable {
         CD = new CDFileSectorReader(sOutputCD, true);
-        DiscIndex index = new DiscIndex(CD);
-        index.indexDisc(new ConsoleProgressListener(new FeedbackStream(System.out, FeedbackStream.NORM)));
+        DiscIndex index = new DiscIndex(CD, new ConsoleProgressListener(new FeedbackStream(System.out, FeedbackStream.NORM)));
 
         DiscItem item = index.getByIndex(0);
         DiscItemSTRVideo oVidItem = (DiscItemSTRVideo) item;

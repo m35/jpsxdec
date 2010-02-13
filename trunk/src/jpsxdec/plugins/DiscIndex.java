@@ -38,39 +38,38 @@
 package jpsxdec.plugins;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.AbstractListModel;
 import jpsxdec.Main;
 import jpsxdec.cdreaders.CDSector;
 import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
 
-/** Searches for, and manages the collection of DiscItem items in a file.
- *  Playstation files (discs, STR, XA, etc.) can contain many media items.
+/** Searches for, and manages the collection of DiscItems in a file.
+ *  PlayStation files (discs, STR, XA, etc.) can contain multiple media items.
  *  This will search for them, and hold the resulting list. It will also
- *  serialize to and deserialize from a stream.
- * 
- *  Note that this doesn't try to match parallel media items. See the
- *  ParallelMediaList for that.
- */
-public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
+ *  serialize/deserialize to/from a file.  */
+public class DiscIndex implements Iterable<DiscItem> {
 
     private static final Logger log = Logger.getLogger(DiscIndex.class.getName());
 
     private static final String INDEX_HEADER = "[" + Main.VerString + "]";
+
+    private static final String COMMENT_LINE_START = ";";
+    private static final String SOURCE_FILE_START = "Source File ";
     
-    private final Hashtable<Object, DiscItem> _mediaHash = new Hashtable<Object, DiscItem>();
-    private final ArrayList<DiscItem> _mediaList = new ArrayList<DiscItem>();
-    private final CDSectorReader _sourceCD;
+    private final LinkedHashMap<Integer, DiscItem> _mediaHash = new LinkedHashMap<Integer, DiscItem>();
+    private CDSectorReader _sourceCD;
     private String _sDiscName = null;
 
     /** Count how many disc items report single speed playback. */
@@ -78,37 +77,19 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
     /** Count how many disc items report double speed playback. */
     private int _iDoubleSpeedItemCount = 0;
     
-    public DiscIndex(CDSectorReader cdReader) {
+    /** Finds all the media on the CD.  */
+    public DiscIndex(CDSectorReader cdReader, ProgressListener pl) {
         _sourceCD = cdReader;
-    }
-    
-    /*
-     * This appears to focus on just reading static data, but behind the scenes
-     * it is also reading streams.
-     *
-     * After all the stream vectors have been identified
-     * Then we need to find
-     * -audio stream vectors that don't overlap video stream vectors
-     * -video stream vectors that don't overlap audio stream vectors
-     * -and overlapping audio/video stream vectors
-     * -compare the ISO9660 file list to the sector ranges of the media
-     * 
-     */
-    
-    /** Finds all the media on the CD.
-     * @param oListener  Optional progress listener.  */
-    public void indexDisc(ProgressListener pl) {
         
         // ready to start indexing, so clear the existing lists
         _mediaHash.clear();
-        _mediaList.clear();
 
         JPSXPlugin[] aoPlugins = JPSXPlugin.getPlugins();
 
-        ArrayList<DiscItem> oCompletedItems = new ArrayList<DiscItem>();
+        ArrayList<DiscItem> completedItems = new ArrayList<DiscItem>();
 
-        for (JPSXPlugin oIndexer : aoPlugins) {
-            oIndexer.putYourCompletedMediaItemsHere(oCompletedItems);
+        for (JPSXPlugin plugin : aoPlugins) {
+            plugin.putYourCompletedMediaItemsHere(completedItems);
         }
 
         pl.progressStart();
@@ -131,7 +112,7 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
                         log.finer(cdSector.toString());
                 }
 
-                pl.event("Sector " + iSector + " / " + _sourceCD.size());
+                pl.event(String.format("Sector %d / %d  %d items found", iSector, _sourceCD.size(), completedItems.size()));
                 pl.progressUpdate(iSector / (double)_sourceCD.size());
 
             } catch (IOException ex) {
@@ -149,7 +130,7 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
         }
 
         // sort the list according to the start sector
-        Collections.sort(oCompletedItems, new Comparator<DiscItem>() {
+        Collections.sort(completedItems, new Comparator<DiscItem>() {
             public int compare(DiscItem o1, DiscItem o2) {
                 if (o1.getStartSector() < o2.getStartSector())
                     return -1;
@@ -165,7 +146,7 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
         });
 
         // copy the items to this class
-        for (DiscItem item : oCompletedItems) {
+        for (DiscItem item : completedItems) {
             addMediaItemInc(item);
         }
         // notify the plugins that the list has been generated
@@ -178,24 +159,27 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
         }
 
     }
-    
-    /** Deserializes the CD index file, and creates a
-     *  list of media items on the CD */
-    public void deserializeIndex(String sSerialFile) 
+
+    /** Deserializes the CD index file, and tries to open the CD listed in the index. */
+    public DiscIndex(String sSerialFile, FeedbackStream fbs)
             throws IOException, NotThisTypeException
     {
-        //TODO: Want to read as much as we can from the file before an exception
-        //      and return what we can get, but we also want to return that
-        //      there was an error.
+        this(sSerialFile, null, fbs);
+    }
+    
+    /** Deserializes the CD index file, and creates a list of media items on the CD */
+    public DiscIndex(String sIndexFile, CDSectorReader cdReader, FeedbackStream fbs)
+            throws IOException, NotThisTypeException
+    {
+        _sourceCD = cdReader;
 
-        // TODO: Check that the disc matches what the serial file says
+        File indexFile = new File(sIndexFile);
 
-        BufferedReader reader = new BufferedReader(new FileReader(sSerialFile));
+        BufferedReader reader = new BufferedReader(new FileReader(indexFile));
         String sLine;
         
         // ready to deserialize, so clear the existing lists
         _mediaHash.clear();
-        _mediaList.clear();
 
         ArrayList<DiscItem> itemList = new ArrayList<DiscItem>();
 
@@ -214,14 +198,21 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
         while ((sLine = reader.readLine()) != null) {
             
             // comments
-            if (sLine.startsWith(";"))
+            if (sLine.startsWith(COMMENT_LINE_START))
               continue;
 
             // source file
-            if (sLine.startsWith("SourceFile|")) {
-                String[] asParts = sLine.split("|");
-                if (asParts.length != 5) continue;
-                //TODO: Check if cd length matches serialized length
+            if (sLine.startsWith(SOURCE_FILE_START)) {
+                String sCdSerial = sLine.substring(SOURCE_FILE_START.length());
+                if (cdReader != null) {
+                    if (!sCdSerial.equals(cdReader.toString())) {
+                        // TODO: finish adding proper disc serialization to index file
+                        //fbs.printlnWarn("Warning: Disc format does not match what index says.");
+                    }
+                } else {
+                    throw new RuntimeException("Case not finished yet.");
+                    //_sourceCD = CDSectorReader.deserialize(sCdSerial, indexFile);
+                }
                 continue;
             }
             
@@ -232,7 +223,7 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
                     plugin.deserialize_lineRead(oDeserializedLine);
                 }
             } catch (NotThisTypeException e) {
-                System.err.println("Failed to parse line: " + sLine);
+                if (fbs != null) fbs.printlnWarn("Failed to parse line: " + sLine);
             }
         }
         reader.close();
@@ -253,12 +244,27 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
         
     }
 
+    /** Serializes the list of media items to a file. */
+    public void serializeIndex(PrintStream ps)
+            throws IOException
+    {
+        // TODO: Serialize the CD file location relative to where this index file is being saved
+        ps.println(INDEX_HEADER);
+        ps.println(COMMENT_LINE_START + " Lines that begin with "+COMMENT_LINE_START+" are ignored");
+        ps.println(SOURCE_FILE_START + _sourceCD.serialize());
+        for (DiscItem item : this) {
+            ps.println(item.serialize().serialize());
+        }
+        ps.close();
+    }
+
     public void setDiscName(String sName) {
         _sDiscName = sName;
     }
 
     /** Based on how many disc items report single or double speed playback,
-     *  returns the best guess of disc speed for unknown disc items. */
+     *  returns the best guess of disc speed (used for streaming disc items
+     *  with unknown disc speed). */
     public int getDefaultDiscSpeed() {
         if (_iSingleSpeedItemCount > _iDoubleSpeedItemCount)
             return 1;
@@ -268,43 +274,24 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
     
     /** Adds a media item to the internal hash and array. */
     private void addMediaItemInc(DiscItem item) {
-        int iIndex = _mediaList.size();
+        int iIndex = _mediaHash.size();
         item.setIndex(iIndex);
         item.setSourceCD(_sourceCD);
-        _mediaHash.put(new Integer(iIndex), item);
-        _mediaList.add(item);
+        _mediaHash.put(Integer.valueOf(iIndex), item);
     }
     
     /** Adds a media item to the internal hash and array. */
     private void addMediaItem(DiscItem item) {
         item.setSourceCD(_sourceCD);
-        _mediaHash.put(new Integer(item.getIndex()), item);
-        _mediaList.add(item);
-    }
-
-    /** Serializes the list of media items to a file. */
-    public void serializeIndex(PrintStream ps)
-            throws IOException 
-    {
-        ps.println(INDEX_HEADER);
-        ps.println("; Lines that begin with ; are ignored");
-        ps.println(_sourceCD.serialize());
-        for (DiscItem oMedia : this) {
-            ps.println(oMedia.serialize().serialize());
-        }
-        ps.close();
+        _mediaHash.put(Integer.valueOf(item.getIndex()), item);
     }
 
     public DiscItem getByIndex(int iIndex) {
-        return _mediaHash.get(new Integer(iIndex));
+        return _mediaHash.get(Integer.valueOf(iIndex));
     }
     
-    public DiscItem getByString(String sId) {
-        return _mediaHash.get(sId);
-    }
-
     public boolean hasIndex(int iIndex) {
-        return _mediaHash.containsKey(new Integer(iIndex));
+        return _mediaHash.containsKey(Integer.valueOf(iIndex));
     }
 
     public CDSectorReader getSourceCD() {
@@ -312,27 +299,17 @@ public class DiscIndex extends AbstractListModel implements Iterable<DiscItem> {
     }
     
     public int size() {
-        return _mediaList.size();
+        return _mediaHash.size();
     }
     
     /* [implements Iterable] */
     public Iterator<DiscItem> iterator() {
-        return _mediaList.iterator();
-    }
-
-    // AbstractListModel stuff /////////////////////////////////////////////////
-    public int getSize() {
-        return _mediaList.size();
-    }
-
-    public DiscItem getElementAt(int iIndex) {
-        return _mediaList.get(iIndex);
+        return _mediaHash.values().iterator();
     }
 
     @Override
     public String toString() {
-        return String.format("%s (%s) %d items", _sourceCD.getSourceFile(), _sDiscName, _mediaList.size());
+        return String.format("%s (%s) %d items", _sourceCD.getSourceFile(), _sDiscName, _mediaHash.size());
     }
-
 
 }

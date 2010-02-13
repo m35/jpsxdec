@@ -59,12 +59,12 @@ public class SectorAliceFrameChunkNull extends IdentifiedSector
 
     // .. Instance fields ..................................................
 
-    // Magic                             //  0    [4 bytes]
-    private int  _iChunkNumber;          //  4    [2 bytes]
-    private int  _iChunksInThisFrame;    //  6    [2 bytes]
-    protected int  _iFrameNumber;          //  8    [4 bytes]
-    private long _lngUsedDemuxSize;      //  12   [4 bytes]
-    // 16 bytes -- all zeros             //  16   [16 bytes]
+    // Magic                                   //  0    [4 bytes]
+    private final int  _iChunkNumber;          //  4    [2 bytes]
+    private final int  _iChunksInThisFrame;    //  6    [2 bytes]
+    protected final int  _iFrameNumber;        //  8    [4 bytes]
+    private final long _lngUsedDemuxSize;      //  12   [4 bytes]
+    // 16 bytes -- all zeros                   //  16   [16 bytes]
     //   32 TOTAL
     
     // .. Constructor .....................................................
@@ -82,37 +82,33 @@ public class SectorAliceFrameChunkNull extends IdentifiedSector
             }
         }
         try {
-            readHeader(cdSector.getCDUserDataStream());
+            ByteArrayFPIS bais = cdSector.getCDUserDataStream();
+            if (IO.readUInt32LE(bais) != VIDEO_CHUNK_MAGIC)
+                throw new NotThisTypeException();
+
+            _iChunkNumber = IO.readSInt16LE(bais);
+            if (_iChunkNumber < 0)
+                throw new NotThisTypeException();
+            _iChunksInThisFrame = IO.readSInt16LE(bais);
+            if (_iChunksInThisFrame < 3)
+                throw new NotThisTypeException();
+            _iFrameNumber = IO.readSInt32LE(bais);
+
+            // null frames between movies have a frame number of 0xFFFF
+            // the high bit signifies the end of a video
+            if (_iFrameNumber < 0)
+                throw new NotThisTypeException();
+
+            _lngUsedDemuxSize = IO.readUInt32LE(bais);
+
+            // make sure all 16 bytes are zero
+            for (int i = 0; i < 16; i++)
+                if (bais.read() != 0)
+                    throw new NotThisTypeException();
+
         } catch (IOException ex) {
             throw new NotThisTypeException();
         }
-    }
-
-    protected void readHeader(ByteArrayInputStream bais)
-            throws NotThisTypeException, IOException 
-    {
-        if (IO.readUInt32LE(bais) != VIDEO_CHUNK_MAGIC)
-            throw new NotThisTypeException();
-
-        _iChunkNumber = IO.readSInt16LE(bais);
-        if (_iChunkNumber < 0)
-            throw new NotThisTypeException();
-        _iChunksInThisFrame = IO.readSInt16LE(bais);
-        if (_iChunksInThisFrame < 3)
-            throw new NotThisTypeException();
-        _iFrameNumber = IO.readSInt32LE(bais);
-
-        // null frames between movies have a frame number of 0xFFFF
-        // the high bit signifies the end of a video
-        if (_iFrameNumber < 0)
-            throw new NotThisTypeException();
-        
-        _lngUsedDemuxSize = IO.readUInt32LE(bais);
-        
-        // make sure all 16 bytes are zero
-        for (int i = 0; i < 16; i++)
-            if (bais.read() != 0)
-                throw new NotThisTypeException();
     }
 
     // .. Public functions .................................................

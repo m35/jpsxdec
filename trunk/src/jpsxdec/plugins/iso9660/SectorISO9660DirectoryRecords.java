@@ -96,6 +96,6 @@ public class SectorISO9660DirectoryRecords
     @Override
     public String toString() {
         return String.format("ISO DirRec %s %s",
-                super.toString(), _dirRecords.toString());
+                super.cdToString(), _dirRecords.toString());
     }
 }

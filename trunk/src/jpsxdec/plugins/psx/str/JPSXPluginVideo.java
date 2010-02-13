@@ -78,7 +78,7 @@ public class JPSXPluginVideo extends JPSXPlugin {
     private IVideoSector _prevSector;
     private int _iStartSector;
     private int _iStartFrame;
-    private int _iFirstSectorAfterFrame1 = -1;
+    private int _iFrame1LastSector = -1;
     private STRFrameRateCalc _fpsCalc;
 
     private JPSXPluginVideo() {}
@@ -128,8 +128,8 @@ public class JPSXPluginVideo extends JPSXPlugin {
                                 _prevSector.getChunksInFrame());
         }
         if (vidSect.matchesPrevious(_prevSector)) {
-            if (_iFirstSectorAfterFrame1 < 0 && vidSect.getFrameNumber() > 1)
-                _iFirstSectorAfterFrame1 = _prevSector.getSectorNumber() + 1 - _iStartSector;
+            if (_iFrame1LastSector < 0 && vidSect.getFrameNumber() > _iStartFrame)
+                _iFrame1LastSector = _prevSector.getSectorNumber() - _iStartSector;
         } else {
             endOfMovie();
             _iStartFrame = vidSect.getFrameNumber();
@@ -149,15 +149,15 @@ public class JPSXPluginVideo extends JPSXPlugin {
                 log.warning("Video stream first frame is not 0 or 1: " + _iStartFrame);
             }
             super.addDiscItem(_prevSector.createMedia(_iStartSector, _iStartFrame,
-                                                       _iFirstSectorAfterFrame1,
+                                                       _iFrame1LastSector,
                                                        (int)oSectorsPerFrame.getNumerator(),
                                                        (int)oSectorsPerFrame.getDenominator()));
         } else {
-            super.addDiscItem(_prevSector.createMedia(_iStartSector, _iStartFrame, _iFirstSectorAfterFrame1));
+            super.addDiscItem(_prevSector.createMedia(_iStartSector, _iStartFrame, _iFrame1LastSector));
         }
         _fpsCalc = null;
         _prevSector = null;
-        _iFirstSectorAfterFrame1 = -1;
+        _iFrame1LastSector = -1;
     }
 
     @Override

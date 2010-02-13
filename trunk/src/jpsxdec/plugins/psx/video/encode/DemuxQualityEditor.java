@@ -71,7 +71,6 @@ public class DemuxQualityEditor extends javax.swing.JFrame {
     private int m_iWidth;
     private int m_iHeight;
     private MdecDecoder_double m_oMacBlockDecoder = new MdecDecoder_double(new StephensIDCT(), 16, 16);
-    private byte[] m_abCameraData;
     private int m_iOriginalDemuxSize;
     private int m_iOriginalMdecCount;
 
@@ -351,15 +350,13 @@ public class DemuxQualityEditor extends javax.swing.JFrame {
                 m_oUncompressedImage = new ParsedMdecImage(m_iWidth, m_iHeight);
 
                 if (FRAME_TYPE == FF7_FRAME) {
-                    DemuxFrameUncompressor_FF7 oUncompressor = new DemuxFrameUncompressor_FF7(oDemux.getData());
+                    DemuxFrameUncompressor_FF7 oUncompressor = new DemuxFrameUncompressor_FF7(oDemux.getData(), 0);
                     m_oUncompressedImage.readFrom(oUncompressor);
 
                     int iQscale = m_oUncompressedImage.getMacroBlock(0, 0).Y1.getQscale();
                     m_guiQscaleSpin.setValue(iQscale);
-
-                    m_abCameraData = oUncompressor.getCameraData();
                 } else if (FRAME_TYPE == STRV2_FRAME) {
-                    DemuxFrameUncompressor_STRv2 oUncompressor = new DemuxFrameUncompressor_STRv2(oDemux.getData());
+                    DemuxFrameUncompressor_STRv2 oUncompressor = new DemuxFrameUncompressor_STRv2(oDemux.getData(), 0);
                     m_oUncompressedImage.readFrom(oUncompressor);
 
                     int iQscale = m_oUncompressedImage.getMacroBlock(0, 0).Y1.getQscale();
@@ -410,7 +407,7 @@ public class DemuxQualityEditor extends javax.swing.JFrame {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BitStreamWriter oBitWriter = new BitStreamWriter(baos);
-        oRecompressor.compressToDemuxFF7(oBitWriter, iQscale, m_oUncompressedImage.getRunLengthCodeCount(), m_abCameraData);
+        oRecompressor.compressToDemuxFF7(oBitWriter, iQscale, m_oUncompressedImage.getRunLengthCodeCount());
         oRecompressor.write(m_oUncompressedImage.getStream());
         oBitWriter.close();
         return baos.size();
@@ -419,7 +416,7 @@ public class DemuxQualityEditor extends javax.swing.JFrame {
     private void updateBlocks() {
         if (m_guiImage.getHighlightX() < 0) return;
         MdecInputStream oMBlk = m_oUncompressedImage.getStream(m_guiImage.getHighlightX(),
-                                                          m_guiImage.getHighlightY());
+                                                               m_guiImage.getHighlightY());
         try {
             m_oMacBlockDecoder.decode(oMBlk);
         } catch (UncompressionException ex) {

@@ -40,9 +40,11 @@ package jpsxdec.plugins.psx.str;
 import jpsxdec.plugins.DiscItemStreaming;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.sound.sampled.AudioFormat;
 import jpsxdec.cdreaders.CDSector;
 import jpsxdec.plugins.DiscItemSaver;
 import jpsxdec.plugins.DiscItemSerialization;
@@ -50,7 +52,7 @@ import jpsxdec.plugins.DiscItem;
 import jpsxdec.plugins.DiscIndex;
 import jpsxdec.plugins.JPSXPlugin;
 import jpsxdec.plugins.IdentifiedSector;
-import jpsxdec.plugins.xa.IDiscItemAudioStream;
+import jpsxdec.plugins.xa.DiscItemAudioStream;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.NotThisTypeException;
 
@@ -65,7 +67,7 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
     private static final String DIMENSIONS_KEY = "Dimentions";
     private static final String DISC_SPEED_KEY = "Disc Speed";
     private static final String SECTORSPERFRAME_KEY = "Sectors/Frame";
-    private static final String SECTORS_TO_FRAME1_END_KEY = "Frame 1 end sector";
+    private static final String FRAME1_LAST_SECTOR_KEY = "Frame 1 last sector";
 
     
     /** Width of video in pixels. */
@@ -81,7 +83,7 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
     private final long _lngSectors;
     private final long _lngPerFrame;
 
-    private final int _iSectorsToFrame1End;
+    private final int _iFrame1LastSector;
 
     private int _iDiscSpeed;
 
@@ -89,7 +91,7 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
                             int lngStartFrame, int lngEndFrame,
                             int lngWidth, int lngHeight,
                             int iSectors, int iPerFrame,
-                            int iSectorsToFrame1End)
+                            int iFrame1LastSector)
     {
         super(iStartSector, iEndSector);
 
@@ -99,7 +101,7 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
         _iHeight = lngHeight;
         _lngSectors = iSectors;
         _lngPerFrame = iPerFrame;
-        _iSectorsToFrame1End = iSectorsToFrame1End;
+        _iFrame1LastSector = iFrame1LastSector;
         _iDiscSpeed = -1;
     }
 
@@ -118,7 +120,7 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
         _lngSectors = alng[0];
         _lngPerFrame = alng[1];
 
-        _iSectorsToFrame1End = fields.getInt(SECTORS_TO_FRAME1_END_KEY);
+        _iFrame1LastSector = fields.getInt(FRAME1_LAST_SECTOR_KEY);
 
         _iDiscSpeed = fields.getInt(DISC_SPEED_KEY, -1);
     }
@@ -128,7 +130,7 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
         oSerial.addRange(FRAMES_KEY, _iStartFrame, _iEndFrame);
         oSerial.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
         oSerial.addFraction(SECTORSPERFRAME_KEY, _lngSectors, _lngPerFrame);
-        oSerial.addNumber(SECTORS_TO_FRAME1_END_KEY, _iSectorsToFrame1End);
+        oSerial.addNumber(FRAME1_LAST_SECTOR_KEY, _iFrame1LastSector);
         if (_iDiscSpeed > 0)
             oSerial.addNumber(DISC_SPEED_KEY, _iDiscSpeed);
         return oSerial;
@@ -179,13 +181,9 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
         return new Fraction(_lngSectors, _lngPerFrame);
     }
 
-    public IDiscItemAudioStream[] getParallelAudioStreams() {
-        return _aoAudioStreams;
-    }
-
     @Override
-    public long calclateTime(int iSect) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public int getPresentationStartSector() {
+        return getStartSector() + _iFrame1LastSector;
     }
 
     /** @return Sector number where the frame begins. */
@@ -240,15 +238,15 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
 
 
 
-    private IDiscItemAudioStream[] _aoAudioStreams;
+    private DiscItemAudioStream[] _aoAudioStreams;
 
     /** Called by plugin after index has been created. */
     /*package private*/void collectParallelAudio(DiscIndex index) {
-        ArrayList<IDiscItemAudioStream> parallelAudio = new ArrayList<IDiscItemAudioStream>();
+        ArrayList<DiscItemAudioStream> parallelAudio = new ArrayList<DiscItemAudioStream>();
         for (DiscItem audioItem : index) {
-            if (audioItem instanceof IDiscItemAudioStream) {
+            if (audioItem instanceof DiscItemAudioStream) {
                 if (isAudioVideoAligned(audioItem)) {
-                    parallelAudio.add((IDiscItemAudioStream)audioItem);
+                    parallelAudio.add((DiscItemAudioStream)audioItem);
                     if (log.isLoggable(Level.INFO))
                         log.info("Parallel audio: " + audioItem.toString());
                 }
@@ -257,7 +255,21 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
         if (parallelAudio.size() > 0) {
             if (log.isLoggable(Level.INFO))
                 log.info("Added to this media item " + this.toString());
-            _aoAudioStreams = parallelAudio.toArray(new IDiscItemAudioStream[parallelAudio.size()]);
+            _aoAudioStreams = parallelAudio.toArray(new DiscItemAudioStream[parallelAudio.size()]);
+
+            // sort the parallel audio streams by size, in descending order
+            Arrays.sort(_aoAudioStreams, new Comparator<DiscItemAudioStream>() {
+                public int compare(DiscItemAudioStream o1, DiscItemAudioStream o2) {
+                    int i1Overlap = overlap((DiscItem)o1);
+                    int i2Overlap = overlap((DiscItem)o2);
+                    if (i1Overlap > i2Overlap)
+                        return -1;
+                    else if (i1Overlap < i2Overlap)
+                        return 1;
+                    else return 0;
+                }
+            });
+
         }
     }
 
@@ -303,24 +315,29 @@ public class DiscItemSTRVideo extends DiscItemStreaming {
         return _aoAudioStreams != null && _aoAudioStreams.length > 0;
     }
 
-    /** Returns the offset between the start of video playing vs. the
-     *  start of audio playing, in sectors.
-     *<p>
-     * If the value is positive, then video starts before the audio.
-     * If the value is negative, then audio starts before the video. 
-     */
-    public int calculateAVoffset() {
-        if (_aoAudioStreams == null || _aoAudioStreams.length == 0) {
-            return 0;
-        }
-        // find the first parallel audio
-        int iEarliest = _aoAudioStreams[0].getStartSector();
-        for (int i = 1; i < _aoAudioStreams.length; i++) {
-            if (_aoAudioStreams[i].getStartSector() < iEarliest) {
-                iEarliest = _aoAudioStreams[i].getStartSector();
+    public int getParallelAudioStreamCount() {
+        return _aoAudioStreams == null ? 0 : _aoAudioStreams.length;
+    }
+
+    public DiscItemAudioStream getParallelAudioStream(int i) {
+        if (i < 0 || i >= getParallelAudioStreamCount())
+            throw new IllegalArgumentException("Video doens't have parllel audio stream " + i);
+
+        return _aoAudioStreams[i];
+    }
+
+    public List<DiscItemAudioStream> getParallelAudio(boolean[] ablnFlags) {
+        if (ablnFlags.length < getParallelAudioStreamCount())
+            throw new IllegalArgumentException();
+        
+        ArrayList<DiscItemAudioStream> selected = new ArrayList<DiscItemAudioStream>(_aoAudioStreams.length);
+        for (int i = 0; i < getParallelAudioStreamCount(); i++) {
+            if (ablnFlags[i]) {
+                selected.add(_aoAudioStreams[i]);
             }
         }
-
-        return _iSectorsToFrame1End - iEarliest;
+        selected.trimToSize();
+        return selected;
     }
+
 }

@@ -117,9 +117,8 @@ public class STRRecompressor {
         ParsedMdecImage oSrcUncompress = new ParsedMdecImage(WIDTH, HEIGHT);
         ParsedMdecImage oModUncompress = new ParsedMdecImage(WIDTH, HEIGHT);
 
-        UNCOMPRESSOR_FF7.reset(oSrcDemux.getData());
+        UNCOMPRESSOR_FF7.reset(oSrcDemux.getData(), 0);
         oSrcUncompress.readFrom(UNCOMPRESSOR_FF7);
-        byte[] abCameraData = UNCOMPRESSOR_FF7.getCameraData();
         int iSrcDemuxSize = UNCOMPRESSOR_FF7.getPosition();
 
         System.out.println("  Original file MAX demux size: " + oSrcDemux.getBufferSize());
@@ -142,7 +141,7 @@ public class STRRecompressor {
                 copyMacroBlock(oSrcMacBlk, oModMacBlk);
             }
 
-            int iMergedDemuxSize = writeMerged(oSrcUncompress, iFile, abCameraData);
+            int iMergedDemuxSize = writeMerged(oSrcUncompress, iFile);
             if (iMergedDemuxSize <= oSrcDemux.getBufferSize()) {
                 System.out.format("    Merged file %d demux size %d <= max source %d ", iFile, iMergedDemuxSize, oSrcDemux.getBufferSize());
                 System.out.println();
@@ -170,7 +169,7 @@ public class STRRecompressor {
         }
     }
 
-    private int writeMerged(ParsedMdecImage oMerged, int iFile, byte[] abCameraData) throws Throwable {
+    private int writeMerged(ParsedMdecImage oMerged, int iFile) throws Throwable {
         System.out.println("  Merged frame MDEC count: " + oMerged.getRunLengthCodeCount());
         String sFile = String.format("merged%04d.demux", iFile);
         System.out.println("  Writing merged file " + sFile);
@@ -182,7 +181,7 @@ public class STRRecompressor {
         int iQscale = oMerged.getMacroBlock(0, 0).getBlock(0).getQscale();
 
         DemuxFrameUncompressor_FF7.Recompressor_FF7  oRecompressor = new DemuxFrameUncompressor_FF7.Recompressor_FF7();
-        oRecompressor.compressToDemuxFF7(bsw, iQscale, oMerged.getRunLengthCodeCount(), abCameraData);
+        oRecompressor.compressToDemuxFF7(bsw, iQscale, oMerged.getRunLengthCodeCount());
         oRecompressor.write(oMerged.getStream());
         bsw.close();
         return (int)oOutputFile.length();

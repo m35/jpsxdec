@@ -1,3 +1,35 @@
+v0.91.0 rev1155 (13 Feb 2010)
+    - Fixed yuv (Yuv4mpeg2) saving (pixel order was wrong)
+    - Added saving as AVI in YUV format (specifically YV12 codec)
+      for the highest quality output
+    - Added -preciseav option
+    - Fixed player from ending movies too quickly
+    - Improved handling of multiple parallel video + audio streams
+    - Properly syncs audio and video
+    - Now handles Chrono Cross ending movie
+    - Index files slightly updated, so likely incompatable with 0.90.0 versions
+    - Fixed audio -vol option
+    - Fixed video -jpg option
+    - Fixed video -frames option
+    Internals:
+    - Began adding api for letting index file specify disc file
+    - Added ant build script
+    - Moves lgpl code into separate source folder
+    - Added ArgParser source to the repo (for simplicity)
+    - Softened movie detection logic
+    - Several optimizations, including
+        - Added object pool to player design
+    - Cleaning and simplification where possible
+        - Audio and video saving pipeline almost completely rewritten
+        - Simplified the player design
+        - Modularized AVI writer design
+    - Fixed various bugs (frame rate calculation in some cases, NPEs, etc.)
+    Known Problems:
+    - Frame rate detection is still pretty bad
+    - Audio + Video player on Linux might be choppy
+    - Gives way too many errors when encountering CD audio track
+    - Not all command-line options are working, and many haven't been well tested
+    - 'psx' video decoder quality is not verified
 v0.90.0 (18 Jan 2010)
     - LICENSE CHANGED TO NON-COMMERCIAL USE ONLY
     - Added a very basic real-time player

@@ -69,6 +69,6 @@ public class SectorISO9660PathTable extends UnidentifiedSectorUnknownData  {
     @Override
     public String toString() {
         return String.format("ISO PathTable %s %s",
-                super.toString(), _pathTable.toString());
+                super.cdToString(), _pathTable.toString());
     }
 }

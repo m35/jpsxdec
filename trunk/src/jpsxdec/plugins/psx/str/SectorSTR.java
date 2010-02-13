@@ -96,6 +96,7 @@ public class SectorSTR extends IdentifiedSector implements IVideoSector {
         }
     }
 
+    /** Child classes override this method so most of this class can be reused. */
     protected void readHeader(ByteArrayInputStream inStream)
             throws NotThisTypeException, IOException 
     {
@@ -135,6 +136,8 @@ public class SectorSTR extends IdentifiedSector implements IVideoSector {
         if (_iQuantizationScale < 1)
             throw new NotThisTypeException();
         _lngVersion = IO.readUInt16LE(inStream);
+        if (_lngVersion != 2 && _lngVersion != 3)
+            throw new NotThisTypeException();
         _lngFourZeros = IO.readUInt32LE(inStream);
     }
 
@@ -142,9 +145,9 @@ public class SectorSTR extends IdentifiedSector implements IVideoSector {
 
     public String toString() {
         return String.format("%s %s frame:%d chunk:%d/%d %dx%d ver:%d " +
-            "{demux frame size?=%d rlc=%d 3800=%04x qscale=%d 4*00=%08x}",
+            "{demux frame size=%d rlc=%d 3800=%04x qscale=%d 4*00=%08x}",
             getTypeName(),
-            super.toString(),
+            super.cdToString(),
             _iFrameNumber,
             _iChunkNumber,
             _iChunksInThisFrame,
@@ -203,50 +206,56 @@ public class SectorSTR extends IdentifiedSector implements IVideoSector {
     }
 
     public boolean matchesPrevious(IVideoSector prevSector) {
-        if (!(prevSector instanceof SectorSTR))
+        if (!(prevSector.getClass().equals(prevSector.getClass())))
             return false;
 
-        SectorSTR strSector = (SectorSTR)prevSector;
+        if (prevSector.getFrameNumber() == getFrameNumber() &&
+            prevSector.getChunksInFrame() != getChunksInFrame())
+            return false;
 
-        if (getWidth()  != strSector.getWidth() ||
-            getHeight() != strSector.getHeight())
+        if (getWidth()  != prevSector.getWidth() ||
+            getHeight() != prevSector.getHeight())
                return false;
 
-        long iNextChunk = strSector.getChunkNumber() + 1;
-        long iNextFrame = strSector.getFrameNumber();
-        if (iNextChunk >= strSector.getChunksInFrame()) {
+        /*  This logic is accurate, but not forgiving at all
+        long iNextChunk = prevSector.getChunkNumber() + 1;
+        long iNextFrame = prevSector.getFrameNumber();
+        if (iNextChunk >= prevSector.getChunksInFrame()) {
             iNextChunk = 0;
             iNextFrame++;
         }
 
         if (iNextChunk != getChunkNumber() || iNextFrame != getFrameNumber())
             return false;
+        */
 
-        if (strSector.getFrameNumber() == getFrameNumber() &&
-            strSector.getChunksInFrame() != getChunksInFrame())
+        // softer logic
+        if (prevSector.getFrameNumber() == getFrameNumber())
+            return true;
+        else if (prevSector.getFrameNumber() == getFrameNumber() - 1)
+            return true;
+        else
             return false;
-
-        return true;
     }
 
-    public DiscItem createMedia(int iStartSector, int iStartFrame, int iFrame1End)
+    public DiscItem createMedia(int iStartSector, int iStartFrame, int iFrame1LastSector)
     {
-        int iSectors = getSectorNumber() - iStartSector;
-        int iFrames = getFrameNumber() - iStartFrame;
+        int iSectors = getSectorNumber() - iStartSector + 1;
+        int iFrames = getFrameNumber() - iStartFrame + 1;
         return createMedia(iStartSector, iStartFrame, 
-                           iFrame1End,
+                           iFrame1LastSector,
                            iSectors, iFrames);
     }
 
     public DiscItem createMedia(int iStartSector, int iStartFrame,
-                                int iFrame1End,
+                                int iFrame1LastSector,
                                 int iSectors, int iPerFrame)
     {
         return new DiscItemSTRVideo(iStartSector, getSectorNumber(),
                                     iStartFrame, getFrameNumber(),
                                     getWidth(), getHeight(),
                                     iSectors, iPerFrame,
-                                    iFrame1End);
+                                    iFrame1LastSector);
     }
 
     public JPSXPlugin getSourcePlugin() {

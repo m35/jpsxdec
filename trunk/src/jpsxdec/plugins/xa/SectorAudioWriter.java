@@ -37,21 +37,15 @@
 
 package jpsxdec.plugins.xa;
 
-import jpsxdec.util.AudioOutputStream;
 import java.io.IOException;
-import javax.sound.sampled.AudioFormat;
+import jpsxdec.plugins.IdentifiedSector;
 
 
-public interface PCM16bitAudioWriter extends AudioOutputStream {
+public interface SectorAudioWriter {
+
+    void feedSector(IdentifiedSector sector) throws IOException;
 
     void close() throws IOException;
 
-    AudioFormat getFormat();
-
-    void open() throws IOException;
-
-    double getVolume();
-
     String getOutputFile();
-
 }

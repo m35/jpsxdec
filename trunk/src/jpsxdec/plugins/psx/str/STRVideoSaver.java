@@ -37,8 +37,6 @@
 
 package jpsxdec.plugins.psx.str;
 
-import jpsxdec.plugins.psx.video.DemuxImage;
-import jpsxdec.plugins.xa.IDiscItemAudioSectorDecoder;
 import java.awt.BorderLayout;
 import java.io.IOException;
 import java.util.logging.Level;
@@ -57,12 +55,12 @@ public class STRVideoSaver extends DiscItemSaver {
     private static final Logger log = Logger.getLogger(STRVideoSaver.class.getName());
 
     private DiscItemSTRVideo _vidItem;
-    private DemuxMovieWriterBuilder _demuxBuilder;
+    private SectorMovieWriterBuilder _demuxBuilder;
 
     public STRVideoSaver(DiscItemSTRVideo vidStream) {
         super();
         _vidItem = vidStream;
-        _demuxBuilder = new DemuxMovieWriterBuilder(_vidItem);
+        _demuxBuilder = new SectorMovieWriterBuilder(_vidItem);
     }
 
     public JPanel getOptionPane() {
@@ -92,53 +90,46 @@ public class STRVideoSaver extends DiscItemSaver {
             frame.setVisible(true);
 
         } else {
-            DemuxMovieWriter oMovieWriter = _demuxBuilder.createDemuxWriter();
+            SectorMovieWriter movieWriter = _demuxBuilder.openDemuxWriter();
 
-            oMovieWriter.setListener(pl);
+            movieWriter.setListener(pl);
 
-            oMovieWriter.open();
-
+            // TODO: change to be movieWriter.saveAudio()
             if (_demuxBuilder.getSaveAudio()) {
-                startVideoAndAudio(oMovieWriter, pl);
+                startVideoAndAudio(movieWriter, pl);
             } else {
-                startVideoOnly(oMovieWriter, pl);
+                startVideoOnly(movieWriter, pl);
             }
         }
     }
 
-    private void startVideoOnly(DemuxMovieWriter movieWriter, ProgressListener pl)
+    private void startVideoOnly(SectorMovieWriter movieWriter, ProgressListener pl)
             throws IOException
     {
-        final int iStartSector;
-        if (movieWriter.getStartFrame() != _vidItem.getStartFrame()) {
-            // find sector that starts the frame
-            iStartSector = _vidItem.seek(movieWriter.getStartFrame()).getSectorNumber();
-        } else {
-            iStartSector = _vidItem.getStartSector();
-        }
-        int iSector = iStartSector;
+        int iSector = movieWriter.getMovieStartSector();
 
-        int iFrame = movieWriter.getStartFrame();
-        StrFramePushDemuxer demuxer = null;
+        final double SECTOR_LENGTH = movieWriter.getMovieEndSector() - iSector + 1;
+
+        int iCurrentFrame = movieWriter.getStartFrame();
         try {
-            final double SECTOR_LENGTH = _vidItem.getEndSector() - iStartSector + 1;
             pl.progressStart("Writing " + movieWriter.getOutputFile());
-            for (; iSector <= _vidItem.getEndSector(); iSector++) {
-                pl.event("Frame " + iFrame);
+            for (; iSector <= movieWriter.getMovieEndSector(); iSector++) {
+
                 CDSector cdSector = _vidItem.getSourceCD().getSector(iSector);
                 IdentifiedSector identifiedSector = _vidItem.identifySector(cdSector);
                 if (identifiedSector instanceof IVideoSector) {
                     IVideoSector vidSector = (IVideoSector) identifiedSector;
-                    int iSectFrame = vidSector.getFrameNumber();
-                    if (iSectFrame != iFrame) {
-                        if (iSectFrame > movieWriter.getEndFrame()) {
-                            break;
-                        } else {
-                            pl.progressUpdate((iSector - _vidItem.getStartSector()) / SECTOR_LENGTH);
-                            iFrame = vidSector.getFrameNumber();
-                        }
-                    }
-                    demuxer = addToDemux(movieWriter, demuxer, vidSector, iSector - iStartSector);
+                    int iFrame = vidSector.getFrameNumber();
+                    if (iFrame < movieWriter.getStartFrame())
+                        continue;
+                    else if (iFrame > movieWriter.getEndFrame())
+                        break;
+                    pl.event("Frame " + iCurrentFrame);
+
+                    if (iFrame != iCurrentFrame)
+                        pl.progressUpdate((iSector - _vidItem.getStartSector()) / SECTOR_LENGTH);
+
+                    movieWriter.feedSectorForVideo(vidSector);
                 }
             }
             pl.progressEnd();
@@ -147,9 +138,6 @@ public class STRVideoSaver extends DiscItemSaver {
             pl.error(ex);
         } finally {
             try {
-                if (demuxer != null && !demuxer.isEmpty()) {
-                    movieWriter.writeFrame(demuxer.getDemuxFrame(), iSector - iStartSector);
-                }
                 movieWriter.close();
             } catch (Throwable ex) {
                 log.log(Level.SEVERE, "", ex);
@@ -158,59 +146,21 @@ public class STRVideoSaver extends DiscItemSaver {
         }
     }
 
-    /** Adds a video sector to a frame demuxer. It turns out to be more
-     * complicated than you'd think. */
-    private static StrFramePushDemuxer addToDemux(DemuxMovieWriter movieWriter,
-                                                  StrFramePushDemuxer demuxer,
-                                                  IVideoSector vidSector,
-                                                  int iSectorsFromStart)
+    private void startVideoAndAudio(SectorMovieWriter movieWriter, ProgressListener pl)
             throws IOException
     {
-        if (demuxer == null) {
-            // create the demuxer for the sector's frame
-            demuxer = new StrFramePushDemuxer(vidSector.getFrameNumber());
-        }
-        if (demuxer.getFrameNumber() == vidSector.getFrameNumber()) {
-            // add the sector if it is the same frame number
-            demuxer.addChunk(vidSector);
-        } else {
-            // if sector has a different frame number, close off the demuxer
-            DemuxImage demuxFrame = demuxer.getDemuxFrame();
-            // create a new one with this new sector
-            demuxer = new StrFramePushDemuxer();
-            demuxer.addChunk(vidSector);
-            // and send the finished frame thru the pipe
-            // (wanted to wait in case of an error)
-            movieWriter.writeFrame(demuxFrame, iSectorsFromStart);
-        }
-        if (demuxer.isFull()) {
-            // send the image thru the pipe if it is complete
-            DemuxImage demuxFrame = demuxer.getDemuxFrame();
-            demuxer = null;
-            movieWriter.writeFrame(demuxFrame, iSectorsFromStart);
-        }
-        return demuxer;
-    }
-
-    private void startVideoAndAudio(DemuxMovieWriter movieWriter, ProgressListener pl)
-            throws IOException
-    {
-        IDiscItemAudioSectorDecoder audWriter = movieWriter.getAudioSectorDecoder();
-
-        final int iStartSector = Math.min(_vidItem.getStartSector(), audWriter.getStartSector());
+        final int iStartSector = movieWriter.getMovieStartSector();
         int iSector = iStartSector;
-        int iEndSector = Math.max(_vidItem.getEndSector(), audWriter.getEndSector());
+        final int iEndSector = movieWriter.getMovieEndSector();
         double SECTOR_LENGTH = iEndSector - iStartSector;
         
-        StrFramePushDemuxer demuxer = null;
         try {
             pl.progressStart("Writing " + movieWriter.getOutputFile());
 
             int iFrame = movieWriter.getStartFrame();
-            demuxer = new StrFramePushDemuxer(iFrame);
             for (; iSector <= iEndSector; iSector++) {
                 pl.event("Frame " + iFrame);
-                // TODO: fix this logic like above
+
                 CDSector cdSector = _vidItem.getSourceCD().getSector(iSector);
                 IdentifiedSector identifiedSector = JPSXPlugin.identifyPluginSector(cdSector);
                 if (identifiedSector instanceof IVideoSector) {
@@ -219,11 +169,12 @@ public class STRVideoSaver extends DiscItemSaver {
                         iFrame <= movieWriter.getEndFrame())
                     {
                         IVideoSector vidSector = (IVideoSector) identifiedSector;
-                        demuxer = addToDemux(movieWriter, demuxer, vidSector, iSector - iStartSector);
+                        movieWriter.feedSectorForVideo(vidSector);
+
                         iFrame = vidSector.getFrameNumber();
                     }
                 } else if (identifiedSector != null) {
-                    audWriter.feedSector(identifiedSector);
+                    movieWriter.feedSectorForAudio(identifiedSector);
                 }
                 pl.progressUpdate((iSector - iStartSector) / SECTOR_LENGTH);
             }
@@ -234,9 +185,6 @@ public class STRVideoSaver extends DiscItemSaver {
             pl.error(ex);
         } finally {
             try {
-                if (demuxer != null && !demuxer.isEmpty()) {
-                    movieWriter.writeFrame(demuxer.getDemuxFrame(), iSector - iStartSector);
-                }
                 movieWriter.close();
             } catch (Throwable ex) {
                 log.log(Level.SEVERE, "", ex);

@@ -37,10 +37,17 @@
 
 package jpsxdec.player;
 
+import javax.sound.sampled.AudioFormat;
+
 public interface IAudioVideoReader {
     /** Return true if playing should continue. */
-    boolean readNext(VideoProcessor vidProc, AudioProcessor audProc);
+    int readNext(VideoProcessor vidProc, AudioProcessor audProc);
     void seekToTime(long lngTime);
     void seekToFrame(int iFrame);
+    /** Return null if no audio. */
+    AudioFormat getAudioFormat();
+    boolean hasVideo();
+    int getVideoWidth();
+    int getVideoHeight();
     void reset();
 }

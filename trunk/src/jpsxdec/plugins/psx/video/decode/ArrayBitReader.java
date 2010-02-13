@@ -60,7 +60,11 @@ public class ArrayBitReader {
         0x01FF, 0x03FF, 0x07FF, 0x0FFF,
         0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF
     };
-    
+
+    public ArrayBitReader() {
+        
+    }
+
     /** Start reading from the start of the array as little-endian. */
     public ArrayBitReader(byte[] abData) {
         this(abData, true, 0);

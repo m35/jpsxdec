@@ -21,8 +21,7 @@ Their STR decoding source code PSXMDECDecoder.cpp was invaluable
 Were Afraid to Ask." 
 Compiled / edited by Joshua Walker.
 Perhaps the most valuable reference for any kind of PSX hacking, 
-especially the PSX assembly instruction set (note that it has CrCb 
-reversal error mentioned in ch 2.2). 
+especially the PSX assembly instruction set. 
 
 smf, developer for MAME, for figuring out that everyone was getting the 
 order of CrCb wrong (http://smf.mameworld.info/?m=200603). 

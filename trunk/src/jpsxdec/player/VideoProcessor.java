@@ -37,54 +37,44 @@
 
 package jpsxdec.player;
 
-import java.awt.image.BufferedImage;
-
 
 public class VideoProcessor implements Runnable {
 
     public static boolean DEBUG = false;
 
-    private static class DecodableFrameWrapper {
-        IDecodableFrame decodableFrame;
-        long contiguousPlayUniqueId;
+    private static final int CAPACITY = 50;
 
-        public DecodableFrameWrapper(IDecodableFrame decodableFrame, long contigusPlayUniqueId) {
-            this.decodableFrame = decodableFrame;
-            this.contiguousPlayUniqueId = contigusPlayUniqueId;
-        }
-
-    }
-
-    private static final int CAPACITY = 20;
-
-    private MultiStateBlockingQueue<DecodableFrameWrapper> _framesProcessingQueue =
-            new MultiStateBlockingQueue<DecodableFrameWrapper>(CAPACITY);
-    private IVideoDecoder _vidDecoder;
+    private MultiStateBlockingQueue<IDecodableFrame> _framesProcessingQueue =
+            new MultiStateBlockingQueue<IDecodableFrame>(CAPACITY);
     private Thread _thread;
     
     private PlayController _controller;
     private VideoPlayer _vidPlayer;
 
-    public VideoProcessor(PlayController controller, IVideoDecoder decoder, VideoPlayer player) {
+    VideoProcessor(PlayController controller, VideoPlayer player) {
         _controller = controller;
-        _vidDecoder = decoder;
         _vidPlayer = player;
     }
 
     public void run() {
-        DecodableFrameWrapper wrapper;
+        IDecodableFrame decodeFrame;
         try {
-            while ((wrapper = _framesProcessingQueue.take()) != null) {
+            while ((decodeFrame = _framesProcessingQueue.take()) != null) {
                 // check if this frame is part of current play sequence
                 // and if we haven't passed presentation time
-                if (_controller.shouldBeProcessed(wrapper.decodableFrame.getPresentationTime(),
-                                                  wrapper.contiguousPlayUniqueId))
+                if (_controller.shouldBeProcessed(decodeFrame.getPresentationTime(),
+                                                  decodeFrame.getContigiousId()))
                 {
                     if (DEBUG) System.out.println("Processor processing frame :)");
+                    VideoPlayer.VideoFrame frame = _vidPlayer._videoFramePool.borrow();
+                    frame.init(decodeFrame);
                     // decode frame
-                    BufferedImage bi = _vidDecoder.decodeVideo(wrapper.decodableFrame, null);
+                    decodeFrame.decodeVideo(frame.Memory);
+                    frame.MemImgSrc.newPixels();
                     // submit to vid player
-                    _vidPlayer.addFrame(new VideoFrame(bi, wrapper.decodableFrame.getPresentationTime(), wrapper.contiguousPlayUniqueId));
+                    _vidPlayer.addFrame(frame);
+
+                    decodeFrame.returnToPool();
                 } else {
                     System.out.println("Processor not processing frame :(");
                 }
@@ -96,39 +86,42 @@ public class VideoProcessor implements Runnable {
 
     public void addFrame(IDecodableFrame frame) {
         try {
-            DecodableFrameWrapper wrapper = new DecodableFrameWrapper(
-                    frame,
-                    _controller.getContiguousPlayUniqueId());
-            _framesProcessingQueue.add(wrapper);
+            frame.setContiguiousId(_controller.getContiguousPlayUniqueId());
+            _framesProcessingQueue.add(frame);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
     }
     
-    public void clearQueue() {
+    void overwriteWhenFull() {
+        _framesProcessingQueue.overwriteWhenFull();
+    }
+
+    void clearQueue() {
         _framesProcessingQueue.clear();
     }
     
-    public void play() {
+    void play() {
         _framesProcessingQueue.play();
     }
     
-    public void pause() {
+    void pause() {
         _framesProcessingQueue.pause();
     }
 
-    public void stopWhenEmpty() {
+    void stopWhenEmpty() {
         _framesProcessingQueue.stopWhenEmpty();
     }
 
-    public void startup() {
+    void startup() {
         _thread = new Thread(this, "Video Processor");
         _framesProcessingQueue.play();
         _thread.start();
     }
 
-    public void shutdown() {
+    void shutdown() {
         _framesProcessingQueue.stop();
     }
+
 
 }

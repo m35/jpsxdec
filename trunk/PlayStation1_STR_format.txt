@@ -327,7 +327,7 @@ Offest   Size   Endian --------------------------------------------------------
                            Size of data (in bytes) following this header?
  22 . . . 2 . . little . Always 0x3800
  24 . . . 2 . . little . Frame's quantization scale
- 28 . . . 2 . . little . Version of the video frame
+ 26 . . . 2 . . little . Version of the video frame
                            (see next section for details)
  28 . . . 2 . . little . Always 0x00000000
  32 ---------------------------------------------------------------------------
@@ -993,7 +993,7 @@ IDCT_table = [ 0.354 -0.354 -0.354  0.354  0.354 -0.354 -0.354  0.354 ]
 
 IDCT_table * Deqantizized_Matrix * IDCT_table^transposed
 
-Like the de-quantization table, the IDCT matrix is programmable, but (nearly?) all games use the same table (game initializes it when starting):
+Like the quantization table, the IDCT matrix is programmable, but (nearly?) all games use the same table (game initializes it when starting):
 
              [ 23170  23170  23170  23170  23170  23170  23170  23170 ]
              [ 32138  27245  18204   6392  -6393 -18205 -27246 -32139 ]
@@ -1127,7 +1127,7 @@ Offest   Size   Endian --------------------------------------------------------
  20 . . . 2 . . little . Unknown
  22 . . . 2 . . little . Unknown
  24 . . . 2 . . little . Unknown
- 28 . . . 2 . . little . Unknown
+ 26 . . . 2 . . little . Unknown
  28 . . . 2 . . little . Always 0x00000000
  32 ---------------------------------------------------------------------------
 
@@ -1567,12 +1567,12 @@ Offest   Size   Endian --------------------------------------------------------
                            (including header)?
  16 . . . 2 . . little . Width of frame in pixels
  18 . . . 2 . . little . Height of frame in pixels
- 20 . . . 1 . .  n/a . . quantization scale for luminance blocks
- 21 . . . 1 . .  n/a . . quantization scale for chrominance blocks
- 22 . . . 2 . . little . All but the last movie: always 0x3800
-                         The last movie: frame number (again)
+ 20 . . . 1 . .  n/a . . quantization scale for luminance blocks (one movie has 0)
+ 21 . . . 1 . .  n/a . . quantization scale for chrominance blocks (one movie has 0)
+ 22 . . . 2 . . little . Almost always 0x3800. One movie has 0x0000,
+                         and the last movie has the frame number (again)
  24 . . . 2 . . little . Number of run length codes in the frame
- 28 . . . 2 . . little . Version of the video frame: always 0
+ 26 . . . 2 . . little . Version of the video frame: always 0
  28 . . . 4 . . little . Always 0x00000000
  32 ---------------------------------------------------------------------------
 

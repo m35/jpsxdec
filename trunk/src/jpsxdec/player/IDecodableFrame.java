@@ -37,11 +37,18 @@
 
 package jpsxdec.player;
 
+import jpsxdec.formats.RgbIntImage;
+
 public interface IDecodableFrame {
-    int getWidth();
-    int getHeight();
+
+    void decodeVideo(RgbIntImage drawHere);
 
     /** Returns the time the frame should be displayed, in milliseconds
      *  from the beginning of the movie. */
     long getPresentationTime();
+
+    void setContiguiousId(long lngId);
+    long getContigiousId();
+
+    void returnToPool();
 }

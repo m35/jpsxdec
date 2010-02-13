@@ -82,7 +82,15 @@ public class Yuv4mpeg2Writer {
         _txtWriter.write(" Ip");  // none/progressive
         _txtWriter.write('\n');
     }
-    
+
+    public int getWidth() {
+        return _iWidth;
+    }
+
+    public int getHeight() {
+        return _iHeight;
+    }
+
     /** Write a yuv4mpeg2 image file. */
     public void writeFrame(Yuv4mpeg2 yuv) throws IOException {
 
@@ -94,37 +102,9 @@ public class Yuv4mpeg2Writer {
         _txtWriter.flush();
 
         // write the data
-        // "The values 0 and 255 are used for sync encoding."
-        // According to MrVacBob, analog encoding is dead, so it's not really important
-        int i;
-        for (double d : yuv._adblY) {
-            i = (int)(d + 0.5);
-            if (i < -128)
-                _outStream.write(0);
-            else if (i > 127)
-                _outStream.write(255);
-            else
-                _outStream.write(i + 128);
-        }
-        for (double d : yuv._adblCb) {
-            i = (int)(d + 0.5);
-            if (i < -128)
-                _outStream.write(0);
-            else if (i > 127)
-                _outStream.write(255);
-            else
-                _outStream.write(i + 128);
-        }
-        for (double d : yuv._adblCr) {
-            i = (int)(d + 0.5);
-            if (i < -128)
-                _outStream.write(0);
-            else if (i > 127)
-                _outStream.write(255);
-            else
-                _outStream.write(i + 128);
-        }
-
+        _outStream.write(yuv._abY, 0, yuv._abY.length);
+        _outStream.write(yuv._abCb, 0, yuv._abCb.length);
+        _outStream.write(yuv._abCr, 0, yuv._abCr.length);
     }
 
     public void close() throws IOException {

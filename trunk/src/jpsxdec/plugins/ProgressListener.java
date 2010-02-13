@@ -54,6 +54,7 @@ public abstract class ProgressListener {
                 @Override public void warning(Throwable ex) {}
                 @Override public void warning(String sDescription) {}
                 @Override public void progressStart(String s) {}
+                @Override public void more(String s) {}
             };
         }
         return IGNORE;
@@ -69,11 +70,19 @@ public abstract class ProgressListener {
 
     public void event(String sDescription) {}
 
+    public void warning(String sMessage, Throwable cause) { 
+        warning(sMessage + " " + cause.getMessage());
+    }
     public void warning(Throwable ex) { warning(ex.getMessage()); }
     public void warning(String sDescription) {}
 
+    public void error(String sMessage, Throwable ex) {
+        error(sMessage + " " + ex.getMessage());
+    }
     public void error(Throwable ex) { error(ex.getMessage()); }
     public void error(String sDescription) {}
 
     public void info(String s) {}
+
+    abstract public void more(String s);
 }

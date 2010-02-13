@@ -80,7 +80,7 @@ public class SectorAliceFrameChunk extends SectorAliceFrameChunkNull
     }
 
     public boolean matchesPrevious(IVideoSector prevSector) {
-        if (!(prevSector instanceof SectorAliceFrameChunk))
+        if (!(prevSector.getClass().equals(prevSector.getClass())))
             return false;
 
         SectorAliceFrameChunk oAliceFrame = (SectorAliceFrameChunk) prevSector;
@@ -98,21 +98,21 @@ public class SectorAliceFrameChunk extends SectorAliceFrameChunkNull
                 lngNextFrameNum == getFrameNumber());
     }
 
+    public DiscItem createMedia(int iStartSector, int iStartFrame, int iFrame1LastSector)
+    {
+        int iSectors = getSectorNumber() - iStartSector + 1;
+        int iFrames = getFrameNumber() - iStartFrame + 1;
+        return createMedia(iStartSector, iStartFrame, iFrame1LastSector, iSectors, iFrames);
+    }
     public DiscItem createMedia(int iStartSector, int iStartFrame,
-                                int iFrame1End,
+                                int iFrame1LastSector,
                                 int iSectors, int iPerFrame)
     {
         return new DiscItemSTRVideo(iStartSector, getSectorNumber(),
                                     iStartFrame, getFrameNumber(),
                                     getWidth(), getHeight(),
                                     iSectors, iPerFrame,
-                                    iFrame1End);
-    }
-    public DiscItem createMedia(int iStartSector, int iStartFrame, int iFrame1End)
-    {
-        int iSectors = getSectorNumber() - iStartSector;
-        int iFrames = getFrameNumber() - iStartFrame;
-        return createMedia(iStartSector, iStartFrame, iFrame1End, iSectors, iFrames);
+                                    iFrame1LastSector);
     }
 
 }

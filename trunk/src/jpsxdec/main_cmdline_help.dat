@@ -1,0 +1,36 @@
+Usage:
+
+java -jar jpsxdec.jar { -? | -h | -help}
+  Displays this help
+
+java -jar jpsxdec.jar <in_file> <main_command_and_options>
+  Do something with <in_file> using one of these <main_command_and_options>:
+
+    -index/-idx/-i <index_file>
+      Create an index for in_file
+
+    -index/-idx/-i <index_file> -?/-h/-help #
+      Display help about the disc item #
+
+    [-index/-idx/-i <index_file>] -decode/-d # [processing_options]
+      Decode disc item #, using optional <index_file>
+      and optional [processing_options] (see item's help for options)
+
+    [-index/-idx/-i <index_file>] -a <type> [processing_options]
+      Decode all disc items of type <type> using optional <index_file>
+      and [processing_options]
+
+    [-index/-idx/-i <index_file>] -play #
+      Show real-time player for disc item #
+
+    -copysect { # | #-# } <out_file>
+      Copy sectors to <out_file>
+
+    -sectordump <out_file>
+      Write list of sector types to <out_file> (for debugging)
+
+  Additional option (optional):
+    -v/-verbose #
+    How much info to print: 0 for none, 1 for only errors,
+                            2 for normal, 3 for extra
+

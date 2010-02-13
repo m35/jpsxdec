@@ -280,7 +280,7 @@ public class MdecEncoder {
         bsw.close();
         IO.writeFile(String.format("newsteve%dx%d-v2.demux", oYuv.getLuminWidth(), oYuv.getLuminHeight()), baos.toByteArray());
 
-        DemuxFrameUncompressor uncompressor = new DemuxFrameUncompressor_STRv2(baos.toByteArray());
+        DemuxFrameUncompressor uncompressor = new DemuxFrameUncompressor_STRv2(baos.toByteArray(), 0);
         MdecDecoder_double decoder = new MdecDecoder_double(new StephensIDCT(), bi.getWidth(), bi.getHeight());
         decoder.decode(uncompressor);
         RgbIntImage oRgb = new RgbIntImage(bi.getWidth(), bi.getHeight());
@@ -291,7 +291,7 @@ public class MdecEncoder {
     private static PsxYuvImage convert() throws Throwable {
         DemuxImage oDemux = new DemuxImage(320, 160, new File("abc000[0]0300.demux"));
 
-        DemuxFrameUncompressor_STRv3 oUncompress = new DemuxFrameUncompressor_STRv3(oDemux.getData());
+        DemuxFrameUncompressor_STRv3 oUncompress = new DemuxFrameUncompressor_STRv3(oDemux.getData(), 0);
         MdecDecoder_double decoder = new MdecDecoder_double(new StephensIDCT(), oDemux.getWidth(), oDemux.getHeight());
         decoder.decode(oUncompress);
         RgbIntImage rgb = new RgbIntImage(oDemux.getWidth(), oDemux.getHeight());

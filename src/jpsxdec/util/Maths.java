@@ -41,16 +41,20 @@ package jpsxdec.util;
  * to differentiate from the normal java.lang.Math class. */
 public class Maths {
     
-    /** The profiler was saying the Math.round() function was one of the slower
-     *  functions, so I included these which are faster. */
+    /** A faster but LESS ACCURATE implementation of the Math.round() function.
+     * This introduces a bit more floating-point error by the +/- 0.5. */
     final public static long round(double dbl) {
-        return (long)(dbl + 0.5);
+        return dbl > 0 ? (long)(dbl + 0.5) : (long)(dbl - 0.5);
     }
+    /** A faster but LESS ACCURATE implementation of the Math.round() function.
+     * This introduces a bit more floating-point error by the +/- 0.5. */
     final public static int iround(double dbl) {
-        return (int)(dbl + 0.5);
+        return dbl > 0 ? (int)(dbl + 0.5) : (int)(dbl - 0.5);
     }
-    final public static long round(float flt) {
-        return (long)(flt + 0.5f);
+    /** A faster but LESS ACCURATE implementation of the Math.round() function.
+     * This introduces a bit more floating-point error by the +/- 0.5. */
+    final public static int round(float flt) {
+        return flt > 0 ? (int)(flt + 0.5) : (int)(flt - 0.5);
     }
 
 

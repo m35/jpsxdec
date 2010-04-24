@@ -44,7 +44,7 @@ import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
-
+/** Public interface to the player architecture. */
 public class PlayController {
 
     public static boolean DEBUG = false;

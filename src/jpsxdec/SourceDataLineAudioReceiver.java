@@ -37,11 +37,11 @@
 
 package jpsxdec;
 
-import jpsxdec.plugins.xa.AudioSync;
+import jpsxdec.modules.xa.AudioSync;
 import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.SourceDataLine;
-import jpsxdec.plugins.xa.IAudioReceiver;
+import jpsxdec.modules.xa.IAudioReceiver;
 
 /** Wraps SourceDataLine with my AudioOutputStream interface. */
 public class SourceDataLineAudioReceiver implements IAudioReceiver {
@@ -51,6 +51,8 @@ public class SourceDataLineAudioReceiver implements IAudioReceiver {
 
     private final int _iFrameSize;
     private byte[] _abZeroBuff;
+
+    private long _lngSamplesWritten = 0;
 
     public SourceDataLineAudioReceiver(SourceDataLine dataLine, int iSectorsPerSecond, int iMovieStartSector) {
         _dataLine = dataLine;
@@ -67,21 +69,28 @@ public class SourceDataLineAudioReceiver implements IAudioReceiver {
         return _dataLine.getFormat();
     }
 
-    public void write(AudioFormat inFormat, byte[] abData, int iOffset, int iLength, int iEndingSector) throws IOException {
+    public void write(AudioFormat inFormat, byte[] abData, int iOffset, int iLength, int iPresentationSector) throws IOException {
         if (!inFormat.matches(_dataLine.getFormat()))
             throw new IllegalArgumentException("Incompatable audio format.");
 
-        long lngSampleDiff = _audioSync.calculateNeededSilence(iEndingSector, iLength / _iFrameSize);
+        int iSampleLength = iLength / _iFrameSize;
+
+        long lngSampleDiff = _audioSync.calculateAudioToCatchUp(iPresentationSector, _lngSamplesWritten);
 
         if (lngSampleDiff > 0) {
             System.out.println("Audio out of sync " + lngSampleDiff + " samples, adding silence.");
+
             if (_abZeroBuff == null)
                 _abZeroBuff = new byte[_iFrameSize * 2048];
             long lngBytesToWrite = lngSampleDiff * _iFrameSize;
             while (lngBytesToWrite > 0) {
                 lngBytesToWrite -= _dataLine.write(_abZeroBuff, 0, (int)Math.min(lngBytesToWrite, _abZeroBuff.length));
             }
+
+            _lngSamplesWritten += lngSampleDiff;
         }
+
+        _lngSamplesWritten += iSampleLength;
 
         _dataLine.write(abData, iOffset, iLength);
     }

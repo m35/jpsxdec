@@ -62,6 +62,10 @@ public class FeedbackStream {
         _iLastLevel = _iVerboseLevel = iVerboseLevel;
     }
 
+    public FeedbackStream() {
+        this(System.out, NORM);
+    }
+
     public FeedbackStream printMore(String s) { return print(MORE, s); }
     public FeedbackStream printNorm(String s) { return print(NORM, s); }
     public FeedbackStream printWarn(String s) { return print(WARN, s); }
@@ -71,6 +75,13 @@ public class FeedbackStream {
     public FeedbackStream printlnNorm(String s) { return print(NORM, s).nl(NORM); }
     public FeedbackStream printlnWarn(String s) { return print(WARN, s).nl(WARN); }
     public FeedbackStream printlnErr(String s)  { return print(ERR,  s).nl(ERR); }
+    public FeedbackStream printlnErr(Throwable ex)  {
+        if (_iVerboseLevel > NORM) {
+            ex.printStackTrace(_out);
+            return this;
+        } else
+            return print(ERR, ex.getMessage()).nl(ERR);
+    }
 
     public FeedbackStream print(int iLevel, String s) {
         if (iLevel <= _iVerboseLevel) {
@@ -134,6 +145,10 @@ public class FeedbackStream {
         if (_iIndentLevel < 0)
             _iIndentLevel = 0;
         return this;
+    }
+
+    public boolean printMore() {
+        return _iVerboseLevel == MORE;
     }
 
 }

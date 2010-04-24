@@ -78,16 +78,16 @@ abstract class AVIstruct {
     public abstract void write(RandomAccessFile raf) throws IOException;
     public abstract int sizeof();
     
-    private long m_lngPlaceholder;
+    private long _lngPlaceholder;
     
     public void makePlaceholder(RandomAccessFile raf) throws IOException {
-        m_lngPlaceholder = raf.getFilePointer();
+        _lngPlaceholder = raf.getFilePointer();
         raf.write(new byte[this.sizeof()]);
     }
     
     public void goBackAndWrite(RandomAccessFile raf) throws IOException {
         long lngCurPos = raf.getFilePointer(); // save this pos
-        raf.seek(m_lngPlaceholder); // go back
+        raf.seek(_lngPlaceholder); // go back
         this.write(raf); // write the data
         raf.seek(lngCurPos); // return to current position
     }

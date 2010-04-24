@@ -39,25 +39,9 @@ package jpsxdec.formats;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.PixelGrabber;
-import jpsxdec.util.Imaging;
 
-/** Simplest image format containing a buffer and dimensions. */
+/** Simplest image format containing a buffer and dimentions. */
 public class RgbIntImage {
-
-    /** Basic class to hold RGB values. */
-    public static class RGB {
-        public double r, g, b;
-
-        public RGB(double iR, double iG, double iB) {
-            r = iR;
-            g = iG;
-            b = iB;
-        }
-
-        public String toString() {
-            return String.format("(%d, %d, %d)", Math.round(r), Math.round(g), Math.round(b));
-        }
-    }
 
 
     private final int _iWidth, _iHeight;
@@ -65,25 +49,8 @@ public class RgbIntImage {
 
     public RgbIntImage(BufferedImage bi) {
         this(bi.getWidth(), bi.getHeight());
-        // TODO: WARNING! This may not return accurate colors!
-    	PixelGrabber grabber = new PixelGrabber(bi, 0, 0, bi.getWidth(), bi.getHeight(), false);
-    	try
-    	{
-    	    if(grabber.grabPixels() != true) {
-                throw new RuntimeException("Grabber returned false: " + grabber.status());
-    		}
-    	}
-    	catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-        Object pixels = grabber.getPixels();
-        if (pixels instanceof int[]) {
-            _aiData = (int[]) pixels;
-        } else {
-            throw new RuntimeException("Got byte pixels");
-        }
-
+        _aiData = new int[_iWidth * _iHeight];
+        // TODO: I'm still uncertain about colormode/colormodel stuff
         bi.getRGB(0, 0, _iWidth, _iHeight, _aiData, 0, _iWidth);
     }
 
@@ -114,7 +81,10 @@ public class RgbIntImage {
     }
 
     public BufferedImage toBufferedImage() {
-        return Imaging.createLinearRgbInt(_aiData, _iWidth, _iHeight);
+        // TODO: I'm still uncertain about colormode/colormodel stuff
+        BufferedImage bi = new BufferedImage(_iWidth, _iHeight, BufferedImage.TYPE_INT_RGB);
+        bi.setRGB(0, 0, _iWidth, _iHeight, _aiData, 0, _iWidth);
+        return bi;
     }
 
 }

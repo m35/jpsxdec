@@ -40,8 +40,9 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-/** Represents the C AVIOLDINDEX structure.  
- * http://msdn2.microsoft.com/en-us/library/ms779634(VS.85).aspx */
+/** Represents the 
+ * <a href="http://msdn2.microsoft.com/en-us/library/ms779634(VS.85).aspx">AVIOLDINDEX</a>
+ * C structure. */
 class AVIOLDINDEX extends AVIstruct {
 
     public static int AVIIF_KEYFRAME = 0x10;

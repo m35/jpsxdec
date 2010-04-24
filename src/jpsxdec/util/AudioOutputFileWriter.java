@@ -50,7 +50,7 @@ import javax.sound.sampled.AudioSystem;
 
 /** Inverts the file writing process from pulling data from an AudioInputStream
  *  to pushing the data. */
-public class AudioOutputFileWriter implements AudioOutputStream, Runnable {
+public class AudioOutputFileWriter implements Runnable {
 
     private final PipedInputStream _threadStream;
     private final AudioInputStream _threadAudioStream;
@@ -104,12 +104,10 @@ public class AudioOutputFileWriter implements AudioOutputStream, Runnable {
 
     }
 
-    @Override
     public AudioFormat getFormat() {
         return _format;
     }
 
-    @Override
     public void write(AudioFormat inFormat, byte[] abData,
                       int iOffset, int iLength)
             throws IOException
@@ -156,7 +154,6 @@ public class AudioOutputFileWriter implements AudioOutputStream, Runnable {
         }
     }
 
-    @Override
     public void close() throws IOException {
 
         // flush out the rest of the data written before closing the stream

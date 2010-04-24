@@ -164,10 +164,10 @@ public class MainCommandLineParser {
     public String getIndexFile() { return _sIndexFile; }
 
 
-    /** For the -decode { # | all} command. */
-    private int _iDecodeIndex;
-    /** For the -decode { # | all} command. */
-    public int getDecodeIndex() { return _iDecodeIndex; }
+    /** For the -decode, -play, and -encode. */
+    private int _iDiscItemIndex;
+    /** For the -decode, -play, and -encode. */
+    public int getDiscItemIndex() { return _iDiscItemIndex; }
 
     /** For the -a command. */
     private String _sDecodeAllType;
@@ -178,11 +178,6 @@ public class MainCommandLineParser {
     private String _sStaticInType;
     /** For the -intype and -width # -height # commands. */
     public String getSpecialInType() { return _sStaticInType; }
-
-    /** For the -play command. */
-    private int _iPlayIndex = -1;
-    /** For the -play command. */
-    public int getPlayIndex() { return _iPlayIndex; }
 
     /** For the -v # command. */
     private int _iVerbose;
@@ -202,6 +197,7 @@ public class MainCommandLineParser {
     public final static int MAIN_CMD_FPS_DUMP         = 1 << 8;
     public final static int MAIN_CMD_ITEM_HELP        = 1 << 9;
     public final static int MAIN_CMD_PLAY             = 1 << 10;
+    public final static int MAIN_CMD_ENCODE           = 1 << 11;
     
     /** Parses command-line arguments. */
     public MainCommandLineParser(String[] asArgs) {
@@ -229,7 +225,7 @@ public class MainCommandLineParser {
             parser.matchAllArgs(asArgs, 0, 0);
             
             if (mainHelp.value) {
-                System.out.println(Main.VerString);
+                System.out.println(Main.VerStringNonCommercial);
                 System.out.println();
                 printMainHelp(System.out);
                 System.exit(0);
@@ -274,6 +270,9 @@ public class MainCommandLineParser {
         IntHolder play = new IntHolder(-10);
         parser.addOption("-play %i {[0,"+Integer.MAX_VALUE+"]}", play);
 
+        IntHolder encode = new IntHolder(-10);
+        parser.addOption("-strreplace %i {[0,"+Integer.MAX_VALUE+"]}", encode);
+
         IntHolder itemHelp = new IntHolder(-10);
         parser.addOption("-h,-help,-? %i", itemHelp);
         
@@ -301,6 +300,7 @@ public class MainCommandLineParser {
         if (fpsdump.value >= 0)          _iMainCmd |= MAIN_CMD_FPS_DUMP;
         if (itemHelp.value >= 0)         _iMainCmd |= MAIN_CMD_ITEM_HELP;
         if (play.value >= 0)             _iMainCmd |= MAIN_CMD_PLAY;
+        if (encode.value >= 0)           _iMainCmd |= MAIN_CMD_ENCODE;
 
         // if no other main commands were provided
         if (index.value != null) {
@@ -319,7 +319,7 @@ public class MainCommandLineParser {
                 break;
 
             case MAIN_CMD_DECODE:
-                _iDecodeIndex = decode.value;
+                _iDiscItemIndex = decode.value;
                 break;
 
             case MAIN_CMD_DECODE_ALL_TYPE:
@@ -344,11 +344,15 @@ public class MainCommandLineParser {
                 break;
 
             case MAIN_CMD_ITEM_HELP:
-                _iDecodeIndex = itemHelp.value;
+                _iDiscItemIndex = itemHelp.value;
                 break;
 
             case MAIN_CMD_PLAY:
-                _iPlayIndex = play.value;
+                _iDiscItemIndex = play.value;
+                break;
+
+            case MAIN_CMD_ENCODE:
+                _iDiscItemIndex = encode.value;
                 break;
 
             case 0:

@@ -39,6 +39,7 @@ package jpsxdec.util;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -66,23 +67,13 @@ public final class Misc {
 
     public static String[] regexAll(Pattern regex, String s) {
         Matcher m = regex.matcher(s);
-        String as[] = null;
+        ArrayList<String> matches = new ArrayList<String>();
         while (m.find()) {
-            int iStart;
-            if (as == null) {
-                as = new String[m.groupCount()+1];
-                iStart = 0;
-            } else {
-                iStart = as.length;
-                String[] newas = new String[m.groupCount()+1 + iStart];
-                System.arraycopy(as, 0, newas, 0, as.length);
-                as = newas;
-            }
-            for (int i = iStart; i < as.length; i++) {
-                as[i] = m.group(i-iStart);
+            for (int i = 0; i <= m.groupCount(); i++) {
+                matches.add(m.group(i));
             }
         }
-        return as;
+        return matches.toArray(new String[matches.size()]);
     }
     
     /** http://www.rgagnon.com/javadetails/java-0029.html */
@@ -284,7 +275,7 @@ public final class Misc {
         if (len < iCount)
             return ZERO_PAD[iCount - len] + sBin;
         else if (len > iCount)
-            return sBin.substring(0, iCount);
+            return sBin.substring(len - iCount);
         else
             return sBin;
     }

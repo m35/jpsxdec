@@ -40,9 +40,13 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
         
-/** Represents the C AVISTREAMHEADER structure. 
- * http://msdn2.microsoft.com/en-us/library/ms779638(VS.85).aspx
- * http://blog.jtimothyking.com/2006/12/15/does-bad-writing-reflect-poor-programming-skills
+/** Represents the 
+ * <a href="http://msdn2.microsoft.com/en-us/library/ms779638(VS.85).aspx">AVISTREAMHEADER</a>
+ * C structure.
+ * <p>
+ * See also
+ * <a href="http://blog.jtimothyking.com/2006/12/15/does-bad-writing-reflect-poor-programming-skills">additional details</a>
+ * on the {@link #dwInitialFrames} field.
  */
 class AVISTREAMHEADER extends AVIstruct {
      public final /*FOURCC*/ int   fcc                    = string2int("strh");

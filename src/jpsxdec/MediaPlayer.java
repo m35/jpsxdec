@@ -50,21 +50,20 @@ import jpsxdec.formats.RgbIntImage;
 import jpsxdec.player.AudioProcessor;
 import jpsxdec.player.IAudioVideoReader;
 import jpsxdec.player.IDecodableAudioChunk;
-import jpsxdec.player.IDecodableFrame;
+import jpsxdec.player.AbstractDecodableFrame;
 import jpsxdec.player.ObjectPool;
 import jpsxdec.player.VideoProcessor;
-import jpsxdec.plugins.IdentifiedSector;
-import jpsxdec.plugins.JPSXPlugin;
-import jpsxdec.plugins.psx.str.DiscItemSTRVideo;
-import jpsxdec.plugins.psx.str.IVideoSector;
-import jpsxdec.plugins.psx.str.FrameDemuxer;
-import jpsxdec.plugins.psx.str.IDemuxReceiver;
-import jpsxdec.plugins.psx.video.decode.DemuxFrameUncompressor;
-import jpsxdec.plugins.psx.video.decode.UncompressionException;
-import jpsxdec.plugins.psx.video.mdec.MdecDecoder_int;
-import jpsxdec.plugins.psx.video.mdec.idct.simple_idct;
-import jpsxdec.plugins.xa.IAudioSectorDecoder;
-import jpsxdec.plugins.xa.DiscItemAudioStream;
+import jpsxdec.modules.IdentifiedSector;
+import jpsxdec.modules.JPSXModule;
+import jpsxdec.modules.psx.str.DiscItemSTRVideo;
+import jpsxdec.modules.psx.str.IVideoSector;
+import jpsxdec.modules.psx.str.FrameDemuxer;
+import jpsxdec.modules.psx.video.bitstreams.BitStreamUncompressor;
+import jpsxdec.modules.psx.video.mdec.DecodingException;
+import jpsxdec.modules.psx.video.mdec.MdecDecoder_int;
+import jpsxdec.modules.psx.video.mdec.idct.simple_idct;
+import jpsxdec.modules.xa.IAudioSectorDecoder;
+import jpsxdec.modules.xa.DiscItemAudioStream;
 import jpsxdec.util.NotThisTypeException;
 
 /** Holds all the class implementations that the jpsxdec.player framework
@@ -84,7 +83,7 @@ public class MediaPlayer implements IAudioVideoReader {
     private final DiscItemSTRVideo _vid;
     private final int _iSectorsPerSecond = 150;
     private final int[] _aiFrameIndexes;
-    private DemuxFrameUncompressor _uncompressor;
+    private BitStreamUncompressor _uncompressor;
     private FrameDemuxer _demuxer;
 
     public MediaPlayer(DiscItemSTRVideo vid)
@@ -142,7 +141,7 @@ public class MediaPlayer implements IAudioVideoReader {
     }
 
 
-    public int readNext(VideoProcessor vidProc, AudioProcessor audProc) {
+    public int readNext(final VideoProcessor vidProc, AudioProcessor audProc) {
 
         try {
 
@@ -151,12 +150,19 @@ public class MediaPlayer implements IAudioVideoReader {
             }
 
             CDSector cdSector = _cdReader.getSector(_iSector);
-            IdentifiedSector identifiedSector = JPSXPlugin.identifyPluginSector(cdSector);
+            IdentifiedSector identifiedSector = JPSXModule.identifyModuleSector(cdSector);
             if (vidProc != null && identifiedSector instanceof IVideoSector) {
                 if (_demuxer == null) {
-                    _demuxer = new FrameDemuxer(
-                            new DemuxReceiver(vidProc),
-                            _iMovieStartSector, _iMovieEndSector);
+                    _demuxer = new FrameDemuxer(_vid.getWidth(), _vid.getHeight(),
+                                                _iMovieStartSector, _iMovieEndSector)
+                    {
+                        protected void frameComplete() throws IOException {
+                            StrFrame strFrame = _framePool.borrow();
+                            strFrame.init(getDemuxSize(), getFrame(), getPresentationSector() - _iMovieStartSector);
+                            copyDemuxData(strFrame.__abDemuxBuf);
+                            vidProc.addFrame(strFrame);
+                        }
+                    };
                 }
                 _demuxer.feedSector((IVideoSector) identifiedSector);
             } else if (audProc != null && identifiedSector != null) {
@@ -167,32 +173,6 @@ public class MediaPlayer implements IAudioVideoReader {
 
         } catch (IOException ex) {
             throw new RuntimeException(ex);
-        }
-    }
-
-    private class DemuxReceiver implements IDemuxReceiver {
-
-        private VideoProcessor _vidProc;
-
-        public DemuxReceiver(VideoProcessor vidProc) {
-            _vidProc = vidProc;
-        }
-
-        @Override
-        public int getWidth() {
-            return _vid.getWidth();
-        }
-
-        @Override
-        public int getHeight() {
-            return _vid.getHeight();
-        }
-
-        @Override
-        public void receive(byte[] abDemux, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException {
-            StrFrame strFrame = _framePool.borrow();
-            strFrame.init(abDemux, iSize, iFrameNumber, iFrameEndSector - _iMovieStartSector);
-            _vidProc.addFrame(strFrame);
         }
     }
 
@@ -246,7 +226,7 @@ public class MediaPlayer implements IAudioVideoReader {
     private class DecodableFramePool extends ObjectPool<StrFrame> {
 
         @Override
-        protected StrFrame createExpensiveObject() {
+        protected StrFrame createNewObject() {
             if (DEBUG) System.err.println("Creating new pool object.");
             return new StrFrame();
         }
@@ -286,16 +266,15 @@ public class MediaPlayer implements IAudioVideoReader {
     }
 
 
-    private class StrFrame implements IDecodableFrame {
+    private class StrFrame extends AbstractDecodableFrame {
 
-        private byte[] __abDemuxBuf;
+        public byte[] __abDemuxBuf;
         private int __iFrame;
         private int __iSectorFromStart;
         
-        public void init(byte[] abDemuxBuf, int iSize, int iFrame, int iSectorFromStart) {
+        public void init(int iSize, int iFrame, int iSectorFromStart) {
             if (__abDemuxBuf == null || __abDemuxBuf.length < iSize)
                 __abDemuxBuf = new byte[iSize];
-            System.arraycopy(abDemuxBuf, 0, __abDemuxBuf, 0, iSize);
             __iSectorFromStart = iSectorFromStart;
             __iFrame = iFrame;
         }
@@ -306,16 +285,16 @@ public class MediaPlayer implements IAudioVideoReader {
 
         public void decodeVideo(RgbIntImage drawHere) {
             if (_uncompressor == null) {
-                _uncompressor = JPSXPlugin.identifyUncompressor(__abDemuxBuf, 0, __iFrame);
+                _uncompressor = JPSXModule.identifyUncompressor(__abDemuxBuf, 0, __iFrame);
                 if (_uncompressor == null) {
                     System.err.println("Unable to identify frame type.");
                     return;
                 }
             }
             try {
-                _uncompressor.reset(__abDemuxBuf, 0);
+                _uncompressor.reset(__abDemuxBuf);
             } catch (NotThisTypeException ex) {
-                _uncompressor = JPSXPlugin.identifyUncompressor(__abDemuxBuf, 0, __iFrame);
+                _uncompressor = JPSXModule.identifyUncompressor(__abDemuxBuf, 0, __iFrame);
                 if (_uncompressor == null) {
                     System.err.println("Unable to identify frame type.");
                     return;
@@ -324,18 +303,12 @@ public class MediaPlayer implements IAudioVideoReader {
 
             try {
                 _decoder.decode(_uncompressor);
-            } catch (UncompressionException ex) {
+            } catch (DecodingException ex) {
                 ex.printStackTrace();
             }
 
             _decoder.readDecodedRGB(drawHere);
         }
-
-        private long _lngContiguousId;
-        @Override
-        public void setContiguiousId(long lngId) { _lngContiguousId = lngId; }
-        @Override
-        public long getContigiousId() { return _lngContiguousId; }
 
         @Override
         public void returnToPool() {

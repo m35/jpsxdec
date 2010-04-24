@@ -1,14 +1,15 @@
 ﻿
                       The PlayStation 1 Video (STR) Format
-                             v0.56, September 2009
+                               v0.58, March 2010
                        http://code.google.com/p/jpsxdec/
+                       http://kenai.com/projects/jpsxdec/
                          http://jpsxdec.blogspot.com/
 
 --------------------------------------------------------------------------------
-This document, copyright (c) 2008-2009 Michael Sabin, is licensed under the MIT License. Permission has been obtained
+This document, copyright (c) 2008-2010 Michael Sabin, is licensed under a MIT License. Permission has been obtained
 (http://sourceforge.net/mailarchive/message.php?msg_name=474C4DEB.5080304%40multimedia.cx)
 to also include some source code comments from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this license is at the end of this file.
-Note that the related jPSXdec program is NOT licensed under the MIT license, but is licensed under the GPL v2.
+Note that the related jPSXdec program is NOT licensed under the MIT license, but is under a non-commercial license.
 --------------------------------------------------------------------------------
 
 Change History
@@ -16,7 +17,8 @@ Change History
 v0.2 draft
     - Draft. Initial public release.
 v0.21 draft
-    - Corrected the PlayStation default quantization matrix, which in turn fixed the mysterious divide-by-four in the dequantization step.
+    - Corrected the PlayStation default quantization matrix, 
+      which in turn fixed the mysterious divide-by-four in the dequantization step.
 v0.22 draft
     - Finished documenting FF8 movie format
 v0.30 draft
@@ -59,9 +61,10 @@ v0.56
     - ch 3.2 (FF8): Changed use of "sound unit" and "sound group" conventions.
 v0.58
     - ch 2.2.2: The PlayStation decoder expects extra bits at the end of frames.
+    - ch 2.3.2: Fixed reverse zig-zag pseudocode.
     - ch 2.3.3, 2.3.4: The MDEC chip is partially programmable.
-    - ch 2.3.6: It's called a "level shift".
-    - Overall: A few tweaks and rewording.
+    - ch 2.3.6: It's called a "level shift". Fixed pseudocode equation.
+    - Overall: A few tweaks and rewording. Fixed some data offsets.
 
 Left to do:
 * Confirm FF Tactics format
@@ -109,8 +112,7 @@ Left to do:
 
 Sony PlayStation 1 videos, usually with the extension STR, MOV, or BIN, contain compressed video data similar to an MPEG1 movie. They also contain interleaved audio using a unique form of Adaptive Differential Pulse Code Modulation (ADPCM) compression.
 
-This document attempts to explain the decoding process of a single video frame. Audio is not covered in this document, but has already been documented by
-Jonathan Atkins (http://freshmeat.net/projects/cdxa/, also mirrored at http://code.google.com/p/jpsxdec/downloads/list).
+This document attempts to explain the decoding process of a single video frame. Audio is not covered in this document, but has already been documented by Jonathan Atkins (http://freshmeat.net/projects/cdxa/, also mirrored at http://code.google.com/p/jpsxdec/downloads/list).
 
 Like MPEG1 streams, the decoding process is long, and rather complicated. Specifically, Chapters 2.2 and 2.3 closely resemble two aspects of MPEG1 decoding: translation of variable length codes, and macro-block decoding.
 
@@ -302,7 +304,7 @@ Each frame 'chunk' sector begins with 32 bytes of information, followed by 2012 
 :: STR Frame Sector Header ::
 [originally from xine media player source code: demux_str.c]
 
-Offest   Size   Endian --------------------------------------------------------
+Offset   Size   Endian --------------------------------------------------------
   0 . . . 4 . . little . Unknown
                            Usually 0x80010160 for a video frame.
                            According to PSX hardware guide, this value is
@@ -316,15 +318,12 @@ Offest   Size   Endian --------------------------------------------------------
                            0 to (Number of multiplexed chunks) - 1
   6 . . . 2 . . little . Number of multiplexed chunks in this frame
   8 . . . 2 . . little . Frame number: Starts at 1
- 12 . . . 4 . . little . Unknown
-                           Seemingly random number. Frame duration?
-                           Bytes of data used in demuxed frame
-                           (including header)?
+ 12 . . . 4 . . little . Bytes of data used in demuxed frame, rounded up to a
+                           multiple of 4 (if not already a multiple of 4)
  16 . . . 2 . . little . Width of frame in pixels
  18 . . . 2 . . little . Height of frame in pixels
- 20 . . . 2 . . little . Unknown
-                           The number of run length codes in the frame?
-                           Size of data (in bytes) following this header?
+ 20 . . . 2 . . little . Number of MDEC codes divided by two, and rounded up to
+                           a multiple of 32 (if not already a multiple of 32)
  22 . . . 2 . . little . Always 0x3800
  24 . . . 2 . . little . Frame's quantization scale
  26 . . . 2 . . little . Version of the video frame
@@ -357,7 +356,7 @@ At the highest level, a demultiplexed frame consists of:
 
 :: Demultiplexed STR frame ::
 
-Offest   Size   Endian ---------------------------------------------------
+Offset   Size   Endian ---------------------------------------------------
   0 . . . 2 . . little . Unknown
                            Number of run length codes in the frame?
                            Size of data (in bytes) following this header?
@@ -394,7 +393,7 @@ Macro-block:
   - Bottom-Left Luminance (Y3) block
   - Bottom-Right Luminance (Y4) block
 
-Yes, as the MAME devleoper "smf" has clarified so well, Cr comes before Cb, contrary to what you may find in some other documentation and source code.
+Yes, as the MAME developer "smf" has clarified so well, Cr comes before Cb, contrary to what you may find in some other documentation and source code.
 
 Here is what each of those 6 blocks consist of:
 
@@ -645,9 +644,10 @@ Note that unlike MPEG1, blocks may consist of only an END_OF_BLOCK code.
 
 Finally, frames end with an extra 11 bit block.
 
-	01111111110               End of frame, extra block
+	01111111110               v2 end of frame, extra block
+	11111111110               v3 end of frame, extra block
 
-This is equivalent to 011 (1, -1) 111 (0, -1) 111 (0, -1) 10 (EOB), which turns into this pre-IDCT matrix.
+The v2 block is equivalent to 011 (1, -1) 111 (0, -1) 111 (0, -1) 10 (EOB), which turns into this pre-IDCT matrix.
 
   [  0  -1   0   0   0   0   0   0 ]
   [ -1   0   0   0   0   0   0   0 ]
@@ -658,7 +658,7 @@ This is equivalent to 011 (1, -1) 111 (0, -1) 111 (0, -1) 10 (EOB), which turns 
   [  0   0   0   0   0   0   0   0 ]
   [  0   0   0   0   0   0   0   0 ]
   
-While not necessary for custom decoding, games expect this block and will crash if not present. I suspect this extra block is added to make the game's bit-reader faster since it doesn't have to consider partially hitting the end of the buffer when reading bits.
+While not necessary for custom decoding, games expect the extra block and will crash if not present. I suspect the block is added to make the game's bit-reader faster since it doesn't have to consider partially hitting the end of the buffer when reading bits.
 
  -- Pseudocode to decode AC Coefficients in one block --------------------------
 
@@ -788,7 +788,7 @@ Here's some pseudocode that would print the full 64 values of the list.
         For 1 To (Run_Length_Code >> 10)
             Print "0"
             Length += 1
-        End Loop
+        Next
         Print (Run_Length_Code & 0x3FF)
         Length += 1
         Run_Length_Code = Next_16_Bits()
@@ -847,9 +847,19 @@ Each value in that matrix represents an index in the list.
  -- Pseudocode to un-zig-zag the list into a matrix ---------------------------
     Define Coefficient_Matrix[8, 8]
 
+    Define Index = 0
     For x = 0 to 7
         For y = 0 to 7
-            Coefficient_Matrix[x, y] = Coefficient_List[ ZIG_ZAG_MATRIX[x, y] ]
+            For i = 0 to 7
+                For j = 0 to 7
+                    If ZIG_ZAG_MATRIX[i, j] == Index Then
+                        Coefficient_Matrix[x, y] = Coefficient_List[ i + j * 8 ]
+                        Index = Index + 1
+                        Goto Continue:
+                    End If
+                Next
+            Next
+            Continue:
         Next
     Next
  ------------------------------------------------------------------------------
@@ -875,7 +885,9 @@ Now you have an 8x8 matrix with the DC Coefficient and AC Coefficients in the co
 
 To quantize basically means to divide a value by some number to make it smaller. De-quantization is just the opposite--we multiply the number back to its original value.
 
-The de-quantization matrix is actually programmable, but (nearly?) all games use the same table. It is identical to the MPEG-1 intra quantization matrix, except the first value is 2 instead of 8.
+The de-quantization matrix is actually programmable, but (nearly?) all games use the same table. It is identical to the MPEG-1 intra quantization matrix, except the first value is 2 instead of 8. 
+
+> Unrelated technical note: this table is actually uploaded to the MDEC chip in zig-zag order.
 
           PSX_QUANIZATION_TABLE[x,y]
        x=0   1   2   3   4   5   6   7
@@ -980,7 +992,7 @@ Here it is in pseudocode:
     Next
  ------------------------------------------------------------------------------
 
-Looking closely at this forumula, you may notice it is essentially two matrix multiplications using the following table of values (rounded to 3 decimal points for sake of space):
+Looking closely at this formula, you may notice it is essentially two matrix multiplications using the following table of values (rounded to 3 decimal points for sake of space):
 
              [ 0.354  0.354  0.354  0.354  0.354  0.354  0.354  0.354 ]
              [ 0.490  0.416  0.278  0.098 -0.098 -0.278 -0.416 -0.490 ]
@@ -991,9 +1003,9 @@ IDCT_table = [ 0.354 -0.354 -0.354  0.354  0.354 -0.354 -0.354  0.354 ]
              [ 0.191 -0.462  0.462 -0.191 -0.191  0.462 -0.462  0.191 ]
              [ 0.098 -0.278  0.416 -0.490  0.490 -0.416  0.278 -0.098 ]
 
-IDCT_table * Deqantizized_Matrix * IDCT_table^transposed
+IDCT_table^transposed * Deqantized_Matrix * IDCT_table
 
-Like the quantization table, the IDCT matrix is programmable, but (nearly?) all games use the same table (game initializes it when starting):
+Like the quantization table, the IDCT matrix is programmable, but (nearly?) all games use the same table:
 
              [ 23170  23170  23170  23170  23170  23170  23170  23170 ]
              [ 32138  27245  18204   6392  -6393 -18205 -27246 -32139 ]
@@ -1004,7 +1016,9 @@ Like the quantization table, the IDCT matrix is programmable, but (nearly?) all 
              [ 12539 -30274  30273 -12540 -12540  30273 -30274  12539 ]
              [  6392 -18205  27245 -32139  32138 -27246  18204  -6393 ]
 
-The MDEC chip optimizises the math by using fixed point integer arithmatic, so you can see all those integers are approimately equal to the floating point values multiplied by 65536.
+> Unrelated technical note: The matrix is stored as a series of little-endian 16-bit values on the disc. The game uploads the table to the MDEC chip as it is starting.
+
+The MDEC chip optimizes the math by using fixed point integer arithmetic. All those integers are approximately equal to the floating point values multiplied by 65536.
 
 ################################################################################
 ## 2.3.5. Combine the blocks into (Y, Cb, Cr) pixels
@@ -1045,7 +1059,7 @@ The four Luminance blocks (Y1, Y2, Y3, Y4) are arranged in a square: top-left, t
     Next
  ------------------------------------------------------------------------------
 
-The resulting YCbCr "color space" is:
+The resulting PlayStation YCbCr "color space" is:
     Y  (Luminance)      : -128 to +127
     Cr (Crominance Red) : -128 to +127
     Cb (Crominance Blue): -128 to +127
@@ -1059,7 +1073,7 @@ The equations the MDEC uses to convert YCbCr to RGB are:
     Green = Y - 0.3437 * Cb - 0.7143 * Cr
     Blue  = Y + 1.772 * Cb
 
-But these equations expect a "color space" of:
+But these equations expect a "color space" of (same as the JFIF color space):
     Y :    0 to  255
     Cr: -128 to +127
     Cb: -128 to +127
@@ -1086,8 +1100,8 @@ If Blue  > 255 Then Blue  = 255 Else If Blue  < 0 Then Blue  = 0
                     + 1.402 * Macroblock_YCbCr[x, y].Cr
 
             g = (Macroblock_YCbCr[x, y].Y + 128)
-                    - 0.34414 * Macroblock_YCbCr[x, y].Cb
-                    - 0.71414 * Macroblock_YCbCr[x, y].Cr
+                    - 0.3437 * Macroblock_YCbCr[x, y].Cb
+                    - 0.7143 * Macroblock_YCbCr[x, y].Cr
 
             b = (Macroblock_YCbCr[x, y].Y + 128)
                     + 1.772 * Macroblock_YCbCr[x, y].Cb
@@ -1114,14 +1128,14 @@ Note that this information should be mostly correct, but there are likely errors
 
 :: FF7 Frame Sector Header ::
 
-Offest   Size   Endian --------------------------------------------------------
+Offset   Size   Endian --------------------------------------------------------
   0 . . . 4 . . little . Always 0x80010160
   4 . . . 2 . . little . Multiplexed chunk number of this video frame
                            0 to (Number of multiplexed chunks) - 1
   6 . . . 2 . . little . Number of multiplexed chunks in this frame
   8 . . . 4 . . little . Frame number: Starts at 1
  12 . . . 4 . . little . Bytes of data actually used in the demuxed frame
-                           (including header)
+                           (including camera header)
  16 . . . 2 . . little . Width of frame in pixels
  18 . . . 2 . . little . Height of frame in pixels
  20 . . . 2 . . little . Unknown
@@ -1135,11 +1149,10 @@ At the start of *some* demultiplexed frames is an additional 40 bytes of camera 
 
 :: FF7 Demultiplexed frame for some movies ::
 
-Offest   Size   Endian --------------------------------------------------------
+Offset   Size   Endian --------------------------------------------------------
   0 . . . 40  .  n/a   . Camera data
- 40 . . . 2 . . little . Just over half the number of variable-length-codes
-                         in the frame (i.e. number of MDEC codes)? Always
-                         an even value.
+ 40 . . . 2 . . little . Number of MDEC codes divided by two, and rounded up to
+                           a multiple of 32 (if not already a multiple of 32)
  42 . . . 2 . . little . Always 0x3800
  44 . . . 2 . . little . Frame's quantization scale
  46 . . . 2 . . little . Version of the frame: Always 1
@@ -1302,7 +1315,7 @@ Offset
 
 :: FF8 Frame Data Header & Macro-blocks (pretty much the same as normal) ::
 
-Offest   Size   Endian -------------------------------------------------
+Offset   Size   Endian -------------------------------------------------
   0 . . . 2 . . little . Unknown
                            Number of run length codes in the frame?
                            Size of data (in bytes) following this header?
@@ -1460,8 +1473,8 @@ Offset
     8 +--             --+-----------------------------------------------------+
       |                 |  Frame number: starts at 1 (4 bytes, little-endian)
    12 +-----------------------------------------------------------------------+
-      |      Video      |  Unknown (4 bytes, little-endian)
-      |    Sub-header   |    seemingly random number. frame duration?
+      |      Video      |  Used demux data size / 4 (4 bytes, little-endian)
+      |    Sub-header   |    Bytes of data used in demuxed frame, divided by 4
    16 +--             --+-----------------------------------------------------+
       |                 |  Frame width in pixels (2 bytes, little-endian)
       |                 |    Always 320
@@ -1469,9 +1482,9 @@ Offset
       |                 |  Frame height in pixels (2 bytes, little-endian)
       |                 |    Always 224
    20 +--             --+-----------------------------------------------------+
-      |                 |  Unknown (2 bytes, little-endian)
-      |                 |    Number of run length codes in the frame?
-      |                 |    Size of data (in bytes) following this header?
+      |                 |  MDEC code count (2 bytes, little-endian)
+      |                 |    Number of MDEC codes divided by 2, and rounded up
+      |                 |    to a multiple of 32 (if not already a multiple of 32)
    22 +--             --+-----------------------------------------------------+
       |                 |  Always 0x3800 (2 bytes, little-endian)
    24 +--             --+-----------------------------------------------------+
@@ -1484,9 +1497,11 @@ Offset
       |                 |    Usually 0x00000000, but the 2nd sector in some
       |                 |    movie's frames have different values
    32 +-----------------+-----------------------------------------------------+
-      |    Multiplexed frame data (2292 bytes)
+      |    Multiplexed frame bitstream data (2292 bytes)
  2324 +-----------------------------------------------------------------------+
 
+
+A curious but minor note about FF9 variable length codes: the (0, 30) MDEC code uses the corresponding variable length code, but the (0, -30) MDEC code never uses the corresponding variable length code, and is instead compressed using the escape code.
 
 ################################################################################
 ## 3.4. Chrono Cross (and Legend of Mana?)
@@ -1555,16 +1570,14 @@ Serial Experiments Lain may be the only game that used its own unique set of com
 
 :: S.E. Lain Video Sector Header ::
 
-Offest   Size   Endian --------------------------------------------------------
+Offset   Size   Endian --------------------------------------------------------
   0 . . . 4 . . little . Always 0x80010160
   4 . . . 2 . . little . Multiplexed chunk number of this video frame
                            0 to (Number of multiplexed chunks) - 1
   6 . . . 2 . . little . Number of multiplexed chunks in this frame
   8 . . . 2 . . little . Frame number: Starts at 1
- 12 . . . 4 . . little . Unknown
-                           Seemingly random number. Frame duration?
-                           Bytes of data used in demuxed frame
-                           (including header)?
+ 12 . . . 4 . . little . All bytes of demuxed data, used or unused, in the
+                           frame chunks (so almost always 18144 or 20160)
  16 . . . 2 . . little . Width of frame in pixels
  18 . . . 2 . . little . Height of frame in pixels
  20 . . . 1 . .  n/a . . quantization scale for luminance blocks (one movie has 0)
@@ -1578,12 +1591,12 @@ Offest   Size   Endian --------------------------------------------------------
 
 :: S.E. Lain Frame Data Header ::
 
-Offest   Size   Endian ---------------------------------------------------
+Offset   Size   Endian ---------------------------------------------------
   0 . . . 1 . .  n/a . . quantization scale for luminance blocks
   1 . . . 1 . .  n/a . . quantization scale for chrominance blocks
   2 . . . 2 . . little . All but the last movie: always 0x3800
                          The last movie: frame number (again)
-  4 . . . 2 . . little . number of run length codes in the frame
+  4 . . . 2 . . little . Number of run length codes in the frame
   6 . . . 2 . . little . Version of the video frame: always 0
   8  . . . . . . . . . . Compressed macro blocks
                            Stream, in big-endian values
@@ -1747,7 +1760,7 @@ The escape code is handled in the MPEG1 fashion: 6 bits for the run, then either
 
 :: Alice Frame Sector Header ::
 
-Offest   Size   Endian --------------------------------------------------------
+Offset   Size   Endian --------------------------------------------------------
   0 . . . 4 . . little . Always 0x00000160
   4 . . . 2 . . little . Multiplexed chunk number of this video frame
                            0 to (Number of multiplexed chunks) - 1
@@ -1780,7 +1793,9 @@ The q-gears development team and forum memebers for thier source code and docume
 
 "Everything You Have Always Wanted to Know about the PlayStation But Were Afraid to Ask." compiled / edited by Joshua Walker. Perhaps the most valuable reference for any kind of PSX hacking, especially the PSX assembly instruction set (note that it has CrCb reversal error mentioned in ch 2.2).
 
-smf, developer for MAME, for figuring out that everyone was getting the order of CrCb wrong (http://smf.mameworld.info/?m=200603).
+smf, developer for MAME, for figuring out that everyone was getting the order of Cr/Cb wrong (http://smf.mameworld.info/?p=12).
+
+Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error, and pointing out that the quantization table is uploaded to the MDEC chip in zig-zag order.
 
 Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org:8080/cdxa/  http://jonatkins.org:8080/cdxa/).
 
@@ -1789,6 +1804,8 @@ The PCSX Team, creators of one of the two open source PlayStation emulators (htt
 The MAME emulator team for their efforts to document and accurately emulate hardware (http://mamedev.org/).
 
 Developers of the pSX emulator. While not open source, at least it is still under development and provides a very nice debugger for reverse engineering games (http://psxemulator.gazaxian.com/).
+
+cclh12 at romhacking.net for generously providing some actual PlayStation 1 hardware RAM dumps.
 
 "Fyiro", the Japanese fellow that wrote the source code for the PsxMC FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
 

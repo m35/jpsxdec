@@ -8,41 +8,53 @@
  /   = partially done
  /?/ = done?
 
-* Find new host
-	Requirements:
-		* free
-		? simple issue tracking (anon bug reports a plus)
-		* project name in url
-		* clean & simple homepage not focused on the code but on summary and downloads
-		* native SVN support (not bridges)
-		* 5 or more developers allowed on the project
-		* syntax highlighted repo browsing
-		* allows non OSI licences
-	http://www.svnhostingcomparison.com/
-	? assembla.com (# of users?, reasonably clean, wiki for a home page, add/remove tabs, bugs called 'tickets') e.g. http://www.assembla.com/spaces/burro
-	? javaforge.com (cluttered) e.g. http://javaforge.com/project/dock
-	? sharesource.org (# of users?, very simple, bug reporting without register, no code highlighting)
-	? activestate.com/firefly/plans (where are the downloads?, # of users?, url is firefly.activestate.com/username/projectname) e.g. http://firefly.activestate.com/ahamino/mindreader  http://firefly.activestate.com/dafi/morekomodo
-	? projectlocker.com (5 users, lots of q's to signup, unable to find a project page on site, has ads)
-	? myversioncontrol.com (3 users, unable to find a project page on site)
-	x bountysource.com (untrusted connection for all projeccts)
-	x Freepository (1 user, svn ok, license ok, no issue tracking)
-	x java.net (cluttered) e.g. https://jinput.dev.java.net/
-	x codespaces.com (2 users, unable to find a project page on site)
-	x xp-dev (project name not in url, no repo browsing)
-	x codeplex (best interface, but svn please)
-	x googlecode (incompatable license)
-	x github (svn please)
-	x bitbucket (svn please)
-	x launchpad (svn please)
-/* Restore feedback messages in new decoding pipeline
-! Figure out why yuv coloring isn't the same as rgb
-! Display physical arrangement of disc items in some graphical form
-! Add PAL and NTSC ratio selection to yuv4mpeg2 writing.
-! Change index and source file handling so only the index file is used most of the time
+// Rename "plugins" to "modules"
+// Rename decode package to bitstreams
+* Change FeedbackStream to extend PrintStream, and map the default println() to NORM
+  Also add a default constructor that just uses System.out
+* Change ProgressListener to then just accept a PrintStream
+  Add method to indicate if it's seeking an update
+* Move fps dump into DiscItemVideo
+// Rename UnidentiiedSector
+* Re-add option to specify output file name/location
+! Make things simplier/smaller...somehow
+    * Just output to stdout and forget about piping anything
+    // Remove extra IDCTs
+    ! Remove Yuv4mpeg2 writing
+    * FF8 get rid of ShortOutputBuffer like normal XA audio decoding
+    ? Remove abstraction for raw cd sector reading
+    * Eliminate hardly used CD sector iterators and AdvancedIOIterator
+    ? Don't restrict modules from interacting when it would make things simplier
+        - FF7 & Lain sector detection is best done in a certain order
+        - Putting conditionals in the uncompressors where it would be clearer than subclassing
+        - no longer need to remove findUncompessor() from plugins
+        - can include FF7 camera data conditionals in the endocing/decoding
+        - parallel disc items could better play with each other
+        - tricky indexing would be easier
+        - XA audio needs to know about video position for splitting
+        - Alice splits audio differently from normal
+        - The ISO->Video->Audio hierarhcy would be simplier
+    ! Change saving qualities/formats to simply these combinations:
+        - low quality, fast: integer -> avi:MJPG
+        - psx exact: psx integer + blending -> avi:rgb (not in GUI)
+        - bitstream and mdec img seq (not in gui)
+        - ?? -> png/bmp (not jpg) img seq?
+        - psx high quality, slow: psx double -> avi:yuv
+    ? Only provide all the saving options on the command-line. The GUI only gets 1 or 2
+// Add more frame rate detection logic
+    // Figure out why fps detects square-type movies having sectors/frame of 2
+    // In case there is more than 1 possible FPS, eliminate it down to those with unique factors
+      If there are multiple unique factors, only then is there an issue
+      e.g. if [2, 5, 10] are possible FPS, both 2 and 5 are factors of 10, so they can be ignored
+! Print unused/unrecognized command-line parameters
+/?/ Restore feedback messages in new decoding pipeline
+* Display physical arrangement of disc items in some graphical form
+x Add PAL and NTSC ratio selection to yuv4mpeg2 writing.
+* Change index and source file handling so only the index file is used most of the time
 	(index file points to source file, but can be manually specified if source file moved)
-! Add -precisefps
-*! Add/finish api for selecting which parallel audio stream to play
+* Add -precisefps
+! Add/finish api for selecting which parallel audio stream to decode/play
+    * When printing what video is saving, also print the parallel audio item(s)
     // Identify when parallel audio streams are mutually exclusive
     // Add handling for cases where there is a break between sequential parallel audio streams
     // Move the selection of parallel audio into DemuxMovieWriterBuilder
@@ -51,25 +63,22 @@
         // Just normalize mono/stereo and sample rate
 // change StrPushDemuxer to handle the rest of the demuxing logic found in StrSaver
 	// each sector added could produce up to 2 frames (maybe more in the future)
-	x make it more like IDiscItemAudioDecoder?
+	x make it more like IDiscItemAudioDecoder
+// Figure out why yuv coloring isn't the same as rgb
 // Inform user if corrupted data is found while reading sectors
-	- Don't show an error on every sector (try to group them)
+	! Don't show an error on every sector (try to group them)
 * Add XA format & channel consistency check
-* When printing what video is saving, also print the parallel audio item(s)
 * Change back to Java 5 if possible
 * Introduce option to ignore errors: specifically for CD sector reading and frame uncompression
-* Print unused/unrecognized command-line parameters
-* Clean up listener management in DemuxMovieWriter*
-* Add more/improve frame rate detection logic
-    - Figure out why fps detects square-type movies having sectors/frame of 2
-* Write video encoder
-    - Smart chrominance sub-sampling calculation
-    - Pre-anti-aliasing and Pre-blockiness reduction
-    - Temporal spreading of quantization error
-    - Use decoder comparison to create RGB conversion matricies
-      so images decoded with other programs can be re-encoded with consistent coloring
-* Remove DemuxImageUncompressor from plugin interface (somehow)
+? Remove BitstreamUncompressor from plugin interface (somehow)
 * When displaying progress, setup a timer to only update the display at most every second
+* write code documentation
+* develop a test set
+? Change package structure to <hosting site>.jspxdec.*
+? Finish function "identifySector()" in DiscItem
+  to more quickly figure out what type of sectors are read (since it won't
+  have to go through the whole list of like 10 types).
+// Clean up listener management in DemuxMovieWriter*
 // make build release ant task
 // move lgpl code into separate root source folder
 // put argparser source directly into repo
@@ -80,16 +89,42 @@
 // Add option to save copied files out with cdxa header
 // Change how FF7 frame camera data is treated:
 //  keep it as part of the first sector and not part of the frame
-/?/ Java sometimes makes .wav files that WMP can't play?
+// Java sometimes makes .wav files that WMP can't play?
 // find new SSL SMTP lib
 // Two types of listeners: Verbose feedback, and Progress
 // Yuv4mpeg2 writing
     // Implement PSX YUV -> Standard YUV
     // Change Yuv4mpeg2 and MdecDecoder_double.readYuv() to use 4:2:0 subsampling.
 // Display CD format details to the user
+? Create BigDecimal decoder
+? Consider making IdentifiedSector just a subclass of CDSector
+? add DiscItemVideo.decodeFrame(int) for quick thumbnailing
+// Figure out why ISO9660 doesn't work on CD-i -> because it doesn't use ISO9660 (http://www.smart-projects.net/help.php?help=230)
+// Figure out why CD-i stereo XA leaves one channel audio silent -> it's really how the data is on the disc
+x Allow writing stuff to stdout
+    x Only yuv4mpeg2 and plain pcm?
+x Raw direct CD reading from the disc drive (somehow)
+x CD-i video formats
+x CD track audio handling
 
+
+! Make video encoder
+    // replace existing movie frames
+        ! test sector and bitstream format handling
+        * add handling when partial replace detects the entire frame is different
+        * Split up the partial diff detection from the actual replacing. Helpful for
+          . Generating an xml with frames without changes removed
+          . GUI preview would be useful to expose this info
+    ? create movies from scratch
+    ? Smart chrominance sub-sampling calculation
+    ? Pre-anti-aliasing and Pre-blockiness reduction
+    ? Temporal spreading of quantization error
+    ? Shorter VLC adjustment searching
+    ? Include Cb/Cr un-swap correction option
+      so videos decoded with other programs can be re-encoded with consistent coloring
+    ? Alternatively create an mpeg1 parser and converter
 * Reimplement a GUI
-    - Figure out how netbeans uses a folder chooser so I can use it too
+    ? switch to SWT?
     - show media list as a tree list showing all the files on the disc
       and what media belongs to what file. if not a disc image, just show
       the file name and the media it contains
@@ -106,16 +141,17 @@
     // Cleanup
     // Sync player: end of first frame with start of audio
         - Move that logic into something more independent so writer can use it too
-    - Implement my own low latency audio position tracking
+    ! Fix it on Linux (Ubuntu) somehow
+        ! Figure out how to make Linux multithreading not suck
+        - Implement my own low-latency audio position tracking
 	- Skip audio in the rare case it is ahead of sector reading
     // Add new state to queue: BUMP_WHEN_FULL that will empty the oldest item
     //  when full and a new item is added. This state will be enabled by the audio
     //  queue when it is empty to prevent blocking.
 	- Change VideoPlayer into PlayerCanvas that also holds the progress bar and control buttons
-    - Add choosing of video interpolation option to api
-    - Add choosing of aspect ratio
+    - Add choosing of video scaling interpolation option to api
+    - Add choosing of aspect ratio to api
     - Add command-line options to pick zooming, interpolation, and aspect ratio
-    - Fix it on Linux (Ubuntu) somehow
     ? Register listeners with the SourceDataLine and let those events pause the
       other components indirectly
     - Reduce amount of object creation/destruction so GC delays aren't ever a problem
@@ -131,46 +167,32 @@
             //BufferedImage created from rgb
             AudioFormats created along the way?
 Indexing
+    ? Store the index as a hierarchy?
     * Visually populate a list as the disc/file is being indexed
 	* Make indexing faster (don't use constructors to identify sector types)
-	// Add some checking during index file load to stop a 600mb scan of death
-	* Static data handling
+	! Static data handling
 		- Searching for static demux and MDEC data
 		- Finding and uncompressing lhz data, often used in PSX games
 		- Re-add TIM search
+	// Add some checking during index file load to stop a 600mb scan of death
 	// When reading an existing index file, just print how many items were identified
 	// and also print when lines have errors
 	// Serialize should keep key-value pairs in the order they are added
     ! show error when deserialzing line has error
-    * Print in a comment what sector types were found during indexing (for debugging)
-	* Find a way to serialze the suggested base name so they're all unique and may be used to refer to item to decode
+    * Add in a comment what sector types were found during indexing (for debugging)
+    ? Use actual ISO filenames to identify disc items instead of just numbers
+	? Find a way to serialze the suggested base name so they're all unique and may be used to refer to item to decode
 	* STR indexing: add serialized value: Precise fps:Y/N. When there's no rate variance, then it can be used for -precisefps
     * ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
       When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
-x Allow writing stuff to stdout
-    x Only yuv4mpeg2 and plain pcm?
-x Raw direct CD reading from the disc drive (somehow)
-x CD-i video formats
-x CD track audio handling
-? Change package structure to <hosting site>.jspxdec.*
-? Add function "IdentifySector()" in PSXMediaStreaming
-  to more quickly figure out what type of sectors are read (since it won't
-  have to go through the whole list of like 10 types).
-? Create BigDecimal decoder
-? Consider making IdentifiedSector just a subclass of CDSector
-? add DiscItemVideo.decodeFrame(int) for quick thumbnailing
-* write code documentation
-* develop a test set
-// Figure out why ISO9660 isn't work on CD-i -> because it doesn't use ISO9660 (http://www.smart-projects.net/help.php?help=230)
-// Figure out why CD-i stereo XA leaves one channel audio silent -> it's really how the data is on the disc
 
 GAME SPECIFIC:
 * More game handling
 * Soul Reaver 009:TIM is extra wide and saved as jpg looks weird (transparency?)
 * FF Chronicles has a tim file being saved as blank
 * Legend of Mana has 000:TIM with 64 palettes! One being saved all transparent?
-/?/ Super Puzzle Figher 2: First movie, last frame is split because audio sector changes format
-x Japanese Tekken 3 has subtitles for the english movie? but where is the data for that?
+// Super Puzzle Figher 2: First movie, last frame is split because audio sector changes format
+x Tekken 3 sometimes has subtitles? but where is the data for that?
 // Chrono Chross final movie - need to add handling for it
 * Castlevania seems to have movies with lots of extra frames at the end?
 * Lain Disc 2 048:STR - End of movie has 2 audio sectors next to each other
@@ -179,6 +201,33 @@ x Japanese Tekken 3 has subtitles for the english movie? but where is the data f
 * Lain disc1 F024.STR audio is way off for some reason
 // Spyro indexing isn't doing XA right -> due to bad sectors
 
+? Find new host
+	Requirements:
+		* free
+		? simple issue tracking (anon bug reports a plus)
+		* project name in url
+		* clean & simple homepage not focused on the code but on summary and downloads
+		* native SVN support (not bridges)
+		* 5 or more developers allowed on the project
+		* syntax highlighted repo browsing
+		* allows non OSI licences
+	http://www.svnhostingcomparison.com/
+	? assembla.com (# of users?, reasonably clean, wiki for a home page, add/remove tabs, bugs called 'tickets') e.g. http://www.assembla.com/spaces/burro
+	? javaforge.com (cluttered) e.g. http://javaforge.com/project/dock
+	? sharesource.org (# of users?, very simple, bug reporting without register, no code highlighting)
+	? activestate.com/firefly/plans (where are the downloads?, # of users?, url is firefly.activestate.com/username/projectname) e.g. http://firefly.activestate.com/ahamino/mindreader  http://firefly.activestate.com/dafi/morekomodo
+	? projectlocker.com (5 users, lots of q's to signup, unable to find a project page on site, has ads)
+	? myversioncontrol.com (3 users, unable to find a project page on site)
+	? bountysource.com
+	x Freepository (1 user, svn ok, license ok, no issue tracking)
+	x java.net (cluttered) e.g. https://jinput.dev.java.net/
+	x codespaces.com (2 users, unable to find a project page on site)
+	x xp-dev (project name not in url, no repo browsing)
+	x codeplex (best interface, but svn please)
+	x googlecode (incompatable license)
+	x github (svn please)
+	x bitbucket (svn please)
+	x launchpad (svn please)
 
 New code style:
     fields only preceeded with underscore '_'

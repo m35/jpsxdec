@@ -1,6 +1,38 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007-2010  Michael Sabin
+ * All rights reserved.
+ *
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
+ *
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package jpsxdec.util.aviwriter;
@@ -13,7 +45,7 @@ import javax.sound.sampled.AudioFormat;
 
 public class AviWriterYV12 extends AviWriter {
 
-    private final int _iFrameSize, _iFrameYSize, _iFrameCSize;
+    private final int _iFrameByteSize, _iFrameYByteSize, _iFrameCByteSize;
 
     public AviWriterYV12(final File outFile,
                      final int iWidth, final int iHeight,
@@ -30,48 +62,49 @@ public class AviWriterYV12 extends AviWriter {
     public AviWriterYV12(final File outFile,
                      final int iWidth, final int iHeight,
                      final long lngFrames, final long lngPerSecond,
-                     final AudioFormat oAudioFormat)
+                     final AudioFormat audioFormat)
             throws IOException
     {
-        super(outFile, iWidth, iHeight, lngFrames, lngPerSecond, oAudioFormat, 
+        super(outFile, iWidth, iHeight, lngFrames, lngPerSecond, audioFormat,
                 false, "YV12", AVIstruct.string2int("YV12"));
 
         if (((iWidth | iHeight) & 1) != 0)
             throw new IllegalArgumentException("Dimensions must be divisible by 2");
 
-        _iFrameYSize = iWidth * iHeight;
-        _iFrameCSize = iWidth * iHeight / 4;
+        _iFrameYByteSize = iWidth * iHeight;
+        _iFrameCByteSize = iWidth * iHeight / 4;
 
-        _iFrameSize = _iFrameYSize + _iFrameCSize * 2;
+        _iFrameByteSize = _iFrameYByteSize + _iFrameCByteSize * 2;
     }
 
-    public void write(byte[] abY, byte[] abCr, byte[] abCb) throws IOException {
-        if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameSize)
-            _abWriteBuffer = new byte[_iFrameSize];
+    public void write(byte[] abY, byte[] abCb, byte[] abCr) throws IOException {
 
-        if (abY.length != _iFrameYSize)
+        if (abY.length != _iFrameYByteSize)
             throw new IllegalArgumentException("Y data wrong size.");
-        if (abCb.length != _iFrameCSize)
+        if (abCb.length != _iFrameCByteSize)
             throw new IllegalArgumentException("Cb data wrong size.");
-        if (abCr.length != _iFrameCSize)
+        if (abCr.length != _iFrameCByteSize)
             throw new IllegalArgumentException("Cr data wrong size.");
 
-        System.arraycopy(abY, 0, _abWriteBuffer, 0, _iFrameYSize);
-        System.arraycopy(abCr, 0, _abWriteBuffer, _iFrameYSize, _iFrameCSize);
-        System.arraycopy(abCb, 0, _abWriteBuffer, _iFrameYSize+_iFrameCSize, _iFrameCSize);
+        if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameByteSize)
+            _abWriteBuffer = new byte[_iFrameByteSize];
+        
+        System.arraycopy(abY, 0, _abWriteBuffer, 0, _iFrameYByteSize);
+        System.arraycopy(abCr, 0, _abWriteBuffer, _iFrameYByteSize, _iFrameCByteSize);
+        System.arraycopy(abCb, 0, _abWriteBuffer, _iFrameYByteSize+_iFrameCByteSize, _iFrameCByteSize);
 
-        writeFrameChunk(_abWriteBuffer, 0, _iFrameSize);
+        writeFrameChunk(_abWriteBuffer, 0, _iFrameByteSize);
     }
     
     @Override
     public void writeBlankFrame() throws IOException {
-        if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameSize)
-            _abWriteBuffer = new byte[_iFrameSize];
+        if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameByteSize)
+            _abWriteBuffer = new byte[_iFrameByteSize];
 
-        Arrays.fill(_abWriteBuffer, 0, _iFrameYSize, (byte)0);
-        Arrays.fill(_abWriteBuffer, _iFrameYSize, _iFrameYSize + _iFrameCSize*2, (byte)128);
+        Arrays.fill(_abWriteBuffer, 0, _iFrameYByteSize, (byte)0);
+        Arrays.fill(_abWriteBuffer, _iFrameYByteSize, _iFrameYByteSize + _iFrameCByteSize*2, (byte)128);
 
-        writeFrameChunk(_abWriteBuffer, 0, _iFrameSize);
+        writeFrameChunk(_abWriteBuffer, 0, _iFrameByteSize);
     }
 
 }

@@ -43,7 +43,14 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.IOException;
 
-/** Writes a series of Yuv4mpeg2 objects to a Yuv4mpeg file. */
+/** Writes a series of Yuv4mpeg2 images to a Yuv4mpeg2 file.
+ *<p>
+ *  "All image data is in the CCIR-601 Y'CbCr colorspace..."
+ *      -http://linux.die.net/man/5/yuv4mpeg
+ *<p>
+ * Also:
+ * http://wiki.multimedia.cx/index.php?title=YUV4MPEG2
+ */
 public class Yuv4mpeg2Writer {
     
     /** Width of the image in luminance samples. */

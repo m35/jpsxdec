@@ -217,7 +217,7 @@ class VideoPlayer implements Runnable {
     public class VideoFramePool extends ObjectPool<VideoFrame> {
 
         @Override
-        protected VideoFrame createExpensiveObject() {
+        protected VideoFrame createNewObject() {
             return new VideoFrame();
         }
     }
@@ -233,7 +233,7 @@ class VideoPlayer implements Runnable {
         public long PresentationTime;
         public long ContigusPlayUniqueId;
 
-        public void init(IDecodableFrame decodeFrame) {
+        public void init(AbstractDecodableFrame decodeFrame) {
             if (Memory == null) {
                 Memory = new RgbIntImage(_iWidth, _iHeight);
                 MemImgSrc = new MemoryImageSource(_iWidth, _iHeight, Memory.getData(), 0, _iWidth);

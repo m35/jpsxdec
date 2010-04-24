@@ -1,3 +1,18 @@
+v0.92.0 rev1335 (24 Apr 2010)
+    - Fixed AVI YV12 and Yuv4mpeg2 output colors.
+    - Fixed A/V sync calculation error that incorrectly added silence to FF9 videos
+    - Renamed video command-line option "-vf avi:bmp" to "-vf avi:rgb"
+    - Fixed frame rate detection
+    Internals:
+    - Renamed 'plugins' to 'modules'
+    - Renamed 'jpsxdec.modules.psx.video.decoding' to 'bitstreams'
+    - Removed unused IDCTs
+    - LOTS of cleaning, commenting, refactoring.
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
+    - Gives way too many errors when encountering CD audio track
+    - Not all command-line options are working, and many haven't been well tested
+    - 'psx' video decoder quality definitely does not match actual hardware output
 v0.91.0 rev1155 (13 Feb 2010)
     - Fixed yuv (Yuv4mpeg2) saving (pixel order was wrong)
     - Added saving as AVI in YUV format (specifically YV12 codec)
@@ -24,13 +39,13 @@ v0.91.0 rev1155 (13 Feb 2010)
         - Simplified the player design
         - Modularized AVI writer design
     - Fixed various bugs (frame rate calculation in some cases, NPEs, etc.)
-    Known Problems:
+     Known Problems:
     - Frame rate detection is still pretty bad
     - Audio + Video player on Linux might be choppy
     - Gives way too many errors when encountering CD audio track
     - Not all command-line options are working, and many haven't been well tested
     - 'psx' video decoder quality is not verified
-v0.90.0 (18 Jan 2010)
+v0.90.0 rev1038 (18 Jan 2010)
     - LICENSE CHANGED TO NON-COMMERCIAL USE ONLY
     - Added a very basic real-time player
     - Improved indexing and disc item detection, including CD-i audio
@@ -62,7 +77,7 @@ v0.90.0 (18 Jan 2010)
     - Changed variable naming convention
     - Cleaned up TIM class and XA decoding class
     - Changed most debugging logging to Java's logging framework
-v0.35 (5 May 2008)
+v0.35 rev463 (5 May 2008)
     - NEW SUPER FAST DECODING AVAILABLE!
     - AVI writing fixed some more.
     - Filler frames are produced for frames unable to be decoded at all

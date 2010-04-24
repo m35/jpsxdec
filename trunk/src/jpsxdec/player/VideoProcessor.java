@@ -44,8 +44,8 @@ public class VideoProcessor implements Runnable {
 
     private static final int CAPACITY = 50;
 
-    private MultiStateBlockingQueue<IDecodableFrame> _framesProcessingQueue =
-            new MultiStateBlockingQueue<IDecodableFrame>(CAPACITY);
+    private MultiStateBlockingQueue<AbstractDecodableFrame> _framesProcessingQueue =
+            new MultiStateBlockingQueue<AbstractDecodableFrame>(CAPACITY);
     private Thread _thread;
     
     private PlayController _controller;
@@ -57,7 +57,7 @@ public class VideoProcessor implements Runnable {
     }
 
     public void run() {
-        IDecodableFrame decodeFrame;
+        AbstractDecodableFrame decodeFrame;
         try {
             while ((decodeFrame = _framesProcessingQueue.take()) != null) {
                 // check if this frame is part of current play sequence
@@ -84,7 +84,7 @@ public class VideoProcessor implements Runnable {
         }
     }
 
-    public void addFrame(IDecodableFrame frame) {
+    public void addFrame(AbstractDecodableFrame frame) {
         try {
             frame.setContiguiousId(_controller.getContiguousPlayUniqueId());
             _framesProcessingQueue.add(frame);

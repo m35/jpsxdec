@@ -40,8 +40,9 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-/** Represents the C AVIMAINHEADER structure. 
- * http://msdn2.microsoft.com/en-us/library/ms779632(VS.85).aspx */
+/** Represents the 
+ * <a href="http://msdn2.microsoft.com/en-us/library/ms779632(VS.85).aspx">AVIMAINHEADER</a>
+ * C structure. */
 class AVIMAINHEADER extends AVIstruct {
     public final static int AVIF_HASINDEX      = 0x00000010;
     public final static int AVIF_ISINTERLEAVED = 0x00000100;

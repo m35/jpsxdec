@@ -52,8 +52,8 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * Creates AVI files with audio and video without the need for JMF.
  * Subclasses should take care of codec handling.
  * <p> 
- * This code is originally based on (but now hardly resembles) the ImageJ 
- * package at http://rsb.info.nih.gov/ij
+ * This code is originally based on (but now hardly resembles) the 
+ * <a href="http://rsb.info.nih.gov/ij">ImageJ</a> program.
  * <blockquote>
  *      ImageJ is being developed at the National Institutes of Health by an 
  *      employee of the Federal Government in the course of his official duties. 
@@ -65,16 +65,19 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * </blockquote>
  * The ImageJ AviWriter class was based on the FileAvi class written by
  * William Gandler. That FileAvi class is part of Matthew J. McAuliffe's 
- * MIPAV program, available from http://mipav.cit.nih.gov/, which also
+ * <a href="http://mipav.cit.nih.gov/">MIPAV</a> program, which also
  * appears to be in the public domain.
  * <p>
- * Random list of codecs
- * http://www.oltenia.ro/download/pub/windows/media/video/tools/GSpot/gspot22/GSpot22.dat
+ * Random
+ * <a href="http://www.oltenia.ro/download/pub/windows/media/video/tools/GSpot/gspot22/GSpot22.dat">
+ * list of codecs</a>
  * <p>
- * http://www.alexander-noe.com/video/documentation/avi.pdf
+ * An <a href="http://www.alexander-noe.com/video/documentation/avi.pdf">
+ * AVI pdf document</a>
  * <p>
- * According to the Multimedia Guru, AVI can support variable frame rates.
- * http://guru.multimedia.cx/the-avi-container-file-format/
+ * According to the Multimedia Guru,
+ * <a href="http://guru.multimedia.cx/the-avi-container-file-format/">
+ * AVI can support variable frame rates</a>.
  * <p>
  * Works with Java 1.5 or higher.
  */

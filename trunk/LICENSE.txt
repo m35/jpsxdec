@@ -40,8 +40,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ................................................................................
 
-Note that the related PlayStation1_STR_format.txt document is licensed
-under a MIT license.
+(note: the related PlayStation1_STR_format.txt document is under a MIT license)
 
 
 A few individual components are licensed under compatible licenses.
@@ -52,21 +51,7 @@ Originally from code written by Stephen Manley.
 http://www.nyx.net/~smanley/
 He generously offers his code free, without restriction.
 
-jpsxdec/plugins/psx/video/mdec/idct/J2meMpegIDCT.java
-Copyright (c) 2009 Sequence Point Software S.L.
-Originally part of Sequence Point Software's J2ME_MPEG.
-http://code.seqpoint.com/j2me_mpeg/
-Licensed under the Eclipse Public License v1.0
-The text of this license is contained in the file EPLv1.html
-
-jpsxdec/plugins/psx/video/mdec/idct/EclipseJpegIDCT.java
-Copyright (c) 2000, 2005 IBM Corporation and others.
-Originally part of the Eclipse Standard Widget Toolkit (SWT)
-http://www.eclipse.org/swt/
-Licensed under the Eclipse Public License v1.0
-The text of this license is contained in the file EPLv1.html
-
-argparser/*.*
+argparser/*
 From the argparser library.
 http://people.cs.ubc.ca/~lloyd/java/argparser.html
 * Copyright John E. Lloyd, 2004. All rights reserved. Permission to use,

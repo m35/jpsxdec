@@ -40,9 +40,9 @@ package jpsxdec.cdreaders;
 import java.io.*;
 import java.util.Arrays;
 import java.util.logging.Logger;
-import jpsxdec.plugins.xa.JPSXPluginXAAudio;
-import jpsxdec.plugins.xa.SectorXA;
-import jpsxdec.plugins.IdentifiedSector;
+import jpsxdec.modules.xa.JPSXModuleXAAudio;
+import jpsxdec.modules.xa.SectorXA;
+import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
@@ -113,6 +113,7 @@ public class CDFileSectorReader extends CDSectorReader {
 
         if (_lngFirstSectorOffset < 0) {
             // we couldn't figure out what it is, assuming ISO style
+            log.info("Unknown disc type, assuming ISO sector size: " + CDSector.SECTOR_MODE1_OR_MODE2_FORM1);
             _lngFirstSectorOffset = 0;
             _iRawSectorTypeSize = CDSector.SECTOR_MODE1_OR_MODE2_FORM1;
         } else if (_lngFirstSectorOffset > 0) {
@@ -257,7 +258,7 @@ public class CDFileSectorReader extends CDSectorReader {
                 _inputFile.seek(lngSectStart);
                 IO.readByteArray(_inputFile, abTestSectorData);
                 CDSector oCDSect = new CDSector(CDSector.SECTOR_MODE2, abTestSectorData, 0, -1);
-                IdentifiedSector oPSXSect = JPSXPluginXAAudio.getPlugin().identifySector(oCDSect);
+                IdentifiedSector oPSXSect = JPSXModuleXAAudio.getModule().identifySector(oCDSect);
                 if (oPSXSect instanceof SectorXA) {
                     // we've found an XA audio sector
                     // maybe try to find another just to be sure?
@@ -273,7 +274,7 @@ public class CDFileSectorReader extends CDSectorReader {
                     {
                         _inputFile.seek(lngSectStart + lngAdditionalOffset);
                         IO.readByteArray(_inputFile, abTestSectorData, 0, CDSector.SECTOR_MODE2);
-                        oPSXSect = JPSXPluginXAAudio.getPlugin().identifySector(oCDSect);
+                        oPSXSect = JPSXModuleXAAudio.getModule().identifySector(oCDSect);
                         if (oPSXSect instanceof SectorXA) {
                             _lngFirstSectorOffset = lngSectStart;
                             _iRawSectorTypeSize = CDSector.SECTOR_MODE2;
@@ -306,8 +307,9 @@ public class CDFileSectorReader extends CDSectorReader {
             if (Arrays.equals(abSyncHeader, CDSector.SECTOR_SYNC_HEADER)) {
                 // we think we found a sync header
                 // check for 10 more seek headers after this one to be sure
+                long lngSectorsToTry = Math.min(10, (_inputFile.length()-lngSectStart-abSyncHeader.length) / CDSector.SECTOR_RAW_AUDIO);
                 for (int i = 0, iOfs = CDSector.SECTOR_RAW_AUDIO;
-                     i < 10;
+                     i < lngSectorsToTry;
                      i++, iOfs+=CDSector.SECTOR_RAW_AUDIO)
                 {
                     _inputFile.seek(lngSectStart + iOfs);

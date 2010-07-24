@@ -37,7 +37,9 @@
 
 package jpsxdec.cdreaders;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.logging.Logger;
 import jpsxdec.modules.xa.JPSXModuleXAAudio;
@@ -47,85 +49,140 @@ import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 /** Reads a CD image (BIN/CUE, ISO), or a file containing some sectors of a CD 
- *  as a CD. This class does its best to guess what type of file it is. */
-public class CDFileSectorReader extends CDSectorReader {
+ *  as a CD. This class tries to guess what type of file it is. */
+/** Encapsulates the reading of a CD.
+ *  The term "CD" could mean an actual CD, a CD image
+ *  (BIN/CUE, ISO), or a file containing some (possibly raw) sectors of a CD.
+ *  The resulting data is mostly the same. */
+public class CDFileSectorReader {
 
     private static final Logger log = Logger.getLogger(CDFileSectorReader.class.getName());
-    
+
+    /** Normal sector data size: 2048. */
+    public final static int SECTOR_SIZE_2048_ISO         = 2048;
+    /** Raw sector without sync header: 2336. */
+    public final static int SECTOR_SIZE_2336_BIN_NOSYNC  = 2336;
+    /** Full raw sector: 2352. */
+    public final static int SECTOR_SIZE_2352_BIN         = 2352;
+    /** Normal sector data size: 2442. */
+    public final static int SECTOR_SIZE_2448_BIN_SUBCHANNEL  = 2448;
+
+
+    public final static int SECTOR_USER_DATA_SIZE_MODE1   = 2048;
+    /** XA Audio sector: 2324. */
+    public final static int SECTOR_USER_DATA_SIZE_MODE2   = 2324;
+
+    public final static int SECTOR_USER_DATA_SIZE_CD_AUDIO   = 2352;
+
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
+
+    private final RandomAccessFile _inputFile;
+    private final File _sourceFile;
+    private final SectorCreator _sectorCreator;
+    private final int _iSectorCount;
+
+    private int _iTolerance;
     
-    private RandomAccessFile _inputFile;
-    private String _sSourceFilePath;
-    private long _lngFirstSectorOffset = -1;
-    private int _iRawSectorTypeSize = -1;
-    private int _iSectorCount = -1;
-    
+    private int _iSectorsToBuffer;
+    private byte[] _abBulkReadCache;
+    private long _lngCacheFileOffset;
+    private int _iCacheSector;
+
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
-    
-    /** Opens a CD file for reading only. */
+
     public CDFileSectorReader(String sFile) throws IOException {
-        this(sFile, -1, false);
-    }
-
-    public CDFileSectorReader(String sFile, int iSectorSize) throws IOException {
-        this(sFile, iSectorSize, false);
-    }
-
-    public CDFileSectorReader(String sFile, boolean blnAllowWrites) throws IOException {
-        this(sFile, -1, blnAllowWrites);
+        this(new File(sFile), false, 1, 16);
     }
 
     /** Opens a CD file for reading, with the option of allowing writing. */
-    public CDFileSectorReader(String sFile, int iSectorSize, boolean blnAllowWrites)
-            throws IOException 
+    public CDFileSectorReader(File sourceFile, 
+            boolean blnAllowWrites,
+            int iTolerance, int iSectorsToBuffer)
+            throws IOException
     {
-        _sSourceFilePath = new File(sFile).getPath();
-        log.info(_sSourceFilePath);
+        log.info(sourceFile.getPath());
+
+        _iTolerance = iTolerance;
+        _sourceFile = sourceFile;
+        _iSectorsToBuffer = iSectorsToBuffer;
+
         if (blnAllowWrites)
-            _inputFile = new RandomAccessFile(sFile, "rw");
+            _inputFile = new RandomAccessFile(sourceFile, "rw");
         else
-            _inputFile = new RandomAccessFile(sFile, "r");
+            _inputFile = new RandomAccessFile(sourceFile, "r");
 
-        switch (iSectorSize) {
-            case CDSector.SECTOR_MODE1_OR_MODE2_FORM1:
-                _iRawSectorTypeSize = iSectorSize;
-                break;
-            case CDSector.SECTOR_MODE2:
-                test2336();
-                _iRawSectorTypeSize = iSectorSize;
-                break;
-            case CDSector.SECTOR_RAW_AUDIO:
-                test2352();
-                _iRawSectorTypeSize = iSectorSize;
-                break;
-            default:
-                // Step 1, search for FFFFFF sync header within the first SECTOR_RAW_AUDIO + a few bytes
-                // If found, jump though X sectors to make sure there are regular sync headers
-                // if not found, we can assume it's not SECTOR_RAW_AUDIO
-                // that will remove the chance of many false positives
-                if (test2352()) break;
-                if (test2336()) break;
+        SectorCreator creator;
+
+        try {
+            creator = new Cd2352or2448(_inputFile, true, true);
+            log.info("Disc type identified as " + creator.getTypeDescription());
+        } catch (NotThisTypeException ex) {
+            try {
+                creator = new Cd2336(_inputFile);
+                log.info("Disc type identified as " + creator.getTypeDescription());
+            } catch (NotThisTypeException ex1) {
+                // we couldn't figure out what it is, assuming ISO style
+                creator = new Cd2048();
+                log.info("Unknown disc type, assuming " + creator.getTypeDescription());
+            }
         }
+        
+        _sectorCreator = creator;
 
-        if (_lngFirstSectorOffset < 0) {
-            // we couldn't figure out what it is, assuming ISO style
-            log.info("Unknown disc type, assuming ISO sector size: " + CDSector.SECTOR_MODE1_OR_MODE2_FORM1);
-            _lngFirstSectorOffset = 0;
-            _iRawSectorTypeSize = CDSector.SECTOR_MODE1_OR_MODE2_FORM1;
-        } else if (_lngFirstSectorOffset > 0) {
-            log.info("Disc type identified, sector size: " + _iRawSectorTypeSize);
-            // Back up to the first sector in case we matched at the second sector
-            _lngFirstSectorOffset =
-                    _lngFirstSectorOffset % _iRawSectorTypeSize;
-        }
-
-        _iSectorCount = (int)((_inputFile.length() - _lngFirstSectorOffset)
-                                / _iRawSectorTypeSize);
+        _iSectorCount = (int)((_inputFile.length() - _sectorCreator.get1stSectorOffset())
+                                / _sectorCreator.getRawSectorSize());
     }
+
+    public CDFileSectorReader(String inputFile, boolean b) throws IOException {
+        this(new File(inputFile), -1, b, 0, 1);
+    }
+
+    public CDFileSectorReader(File sourceFile,
+            int iSectorSize, boolean blnAllowWrites,
+            int iTolerance, int iSectorsToBuffer)
+            throws IOException
+    {
+        log.info(sourceFile.getPath());
+
+        _iTolerance = iTolerance;
+        _sourceFile = sourceFile;
+        _iSectorsToBuffer = iSectorsToBuffer;
+
+        if (blnAllowWrites)
+            _inputFile = new RandomAccessFile(sourceFile, "rw");
+        else
+            _inputFile = new RandomAccessFile(sourceFile, "r");
+
+        try {
+            switch (iSectorSize) {
+                case SECTOR_SIZE_2048_ISO:
+                    _sectorCreator = new Cd2048();
+                    break;
+                case SECTOR_SIZE_2336_BIN_NOSYNC:
+                    _sectorCreator = new Cd2336(_inputFile);
+                    break;
+                case SECTOR_SIZE_2352_BIN:
+                    _sectorCreator = new Cd2352or2448(_inputFile, true, false);
+                    break;
+                case SECTOR_SIZE_2448_BIN_SUBCHANNEL:
+                    _sectorCreator = new Cd2352or2448(_inputFile, false, true);
+                    break;
+                default:
+                    throw new IllegalArgumentException();
+            }
+        } catch (NotThisTypeException ex) {
+            throw new IOException(ex);
+        }
+
+        _iSectorCount = (int)((_inputFile.length() - _sectorCreator.get1stSectorOffset())
+                                / _sectorCreator.getRawSectorSize());
+    }
+
+
 
     public void close() throws IOException {
         _inputFile.close();
@@ -135,13 +192,8 @@ public class CDFileSectorReader extends CDSectorReader {
     /* Properties ----------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    public String getSourceFile() {
-        return _sSourceFilePath;
-    }
-
-    @Override
-    public String getSourceFileBaseName() {
-        return new File(_sSourceFilePath).getName();
+    public File getSourceFile() {
+        return _sourceFile;
     }
 
     //..........................................................................
@@ -149,189 +201,38 @@ public class CDFileSectorReader extends CDSectorReader {
     /** Returns the actual offset in bytes from the start of the file/CD 
      *  to the start of iSector. */
     public long getFilePointer(int iSector) {
-        return iSector * _iRawSectorTypeSize + _lngFirstSectorOffset ;
+        return iSector * _sectorCreator.getRawSectorSize() + _sectorCreator.get1stSectorOffset();
     }
 
     /* ---------------------------------------------------------------------- */
     /* Public Functions ----------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public boolean hasSectorHeader() {
-        switch (_iRawSectorTypeSize) {
-            case CDSector.SECTOR_MODE1_OR_MODE2_FORM1: // 2048
-                return false;
-            case CDSector.SECTOR_MODE2:         // 2336
-                return true;
-            case CDSector.SECTOR_RAW_AUDIO:     // 2352
-                return true;
-            default: 
-                throw new RuntimeException("Should never happen: what kind of sector size is this?");
-        }
+    public int getSectorSize() {
+        return _sectorCreator.getRawSectorSize();
     }
     
-    //..........................................................................
-
     /** Returns the number of sectors in the file/CD */
     public int size() {
         return _iSectorCount;
     }
     
     //..........................................................................
-    
-    /** Returns the requested sector. */
-    public CDSector getSector(int iSector) 
-            throws IOException, IndexOutOfBoundsException 
-    {
-        if (iSector < 0 || iSector >= _iSectorCount)
-            throw new IndexOutOfBoundsException("Sector not in bounds of CD");
-        
-        byte abSectorBuff[] = new byte[_iRawSectorTypeSize];
-        int iBytesRead = 0;
-        
-        long lngFileOffset = _lngFirstSectorOffset
-                          + _iRawSectorTypeSize * iSector;
-        
-        // in the very unlikely case this class is ever used in a
-        // multi-threaded environment, this is the only part
-        // that needs to be syncronized.
-        synchronized(this) {
-            _inputFile.seek(lngFileOffset);
-            iBytesRead = _inputFile.read(abSectorBuff);
-        }
 
-        if (iBytesRead != abSectorBuff.length) {
-            // if we only got part of a sector
-        }
-        
-        try {
-            return new CDSector(_iRawSectorTypeSize, abSectorBuff, iSector, lngFileOffset);
-        } catch (NotThisTypeException ex) {
-            // unable to create a CDXA sector from the data.
-            // Some possible causes:
-            //  - It's a raw CD audio sector
-            //  - At the end of the CD and the last sector is incomplete?
-            //  - XA audio data is incorrect (corrupted)
-            throw new SectorReadErrorException("Sector " + iSector + " appears to be corrupted: " + ex.getMessage());
-        }
-    }
-    
+    /** Will fail if CD was not opened with write access. */
     public void writeSector(int iSector, byte[] abSrcUserData) 
             throws IOException 
     {
         
-        CDSector oSect = getSector(iSector);
+        CdSector oSect = getSector(iSector);
         
         if (oSect.getCdUserDataSize() != abSrcUserData.length)
-            throw new IOException("Data to write is not the right size");
+            throw new IllegalArgumentException("Data to write is not the right size.");
         
         long lngUserDataOfs = oSect.getFilePointer();
         
-        synchronized(this) {
-            _inputFile.seek(lngUserDataOfs);
-            _inputFile.write(abSrcUserData);
-        }
-    }
-    
-    /* ---------------------------------------------------------------------- */
-    /* Private Functions ---------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-    
-    /** Searches through the first 33 sectors for a full XA audio sector.
-     *<p>
-     *  Note: This assumes the input file has the data aligned at every 4 bytes!
-     */
-    private boolean test2336() throws IOException {
-
-        byte abTestSectorData[] = new byte[CDSector.SECTOR_MODE2];
-
-        // only search up to 33 sectors into the file
-        // because that's the maximum XA audio span
-        // (this misses audio that starts later in the file however)
-        int iMaxSearch = CDSector.SECTOR_MODE2 * 33;
-
-        // Only detect XA ADPCM audio sectors to determine if it's SECTOR_MODE2
-        for (long lngSectStart = 0;
-             lngSectStart < iMaxSearch - abTestSectorData.length;
-             lngSectStart+=4)
-        {
-            try {
-                _inputFile.seek(lngSectStart);
-                IO.readByteArray(_inputFile, abTestSectorData);
-                CDSector oCDSect = new CDSector(CDSector.SECTOR_MODE2, abTestSectorData, 0, -1);
-                IdentifiedSector oPSXSect = JPSXModuleXAAudio.getModule().identifySector(oCDSect);
-                if (oPSXSect instanceof SectorXA) {
-                    // we've found an XA audio sector
-                    // maybe try to find another just to be sure?
-
-                    // only check 146 sectors because, if the sector size was 2352,
-                    // then around 147, the offset difference adds up to another
-                    // whole 2352 sector
-                    for (long lngAdditionalOffset = 0, iTimes = 0;
-                         lngSectStart + lngAdditionalOffset < _inputFile.length() - abTestSectorData.length &&
-                         iTimes < 146;
-                         lngAdditionalOffset+=CDSector.SECTOR_MODE2,
-                         iTimes++)
-                    {
-                        _inputFile.seek(lngSectStart + lngAdditionalOffset);
-                        IO.readByteArray(_inputFile, abTestSectorData, 0, CDSector.SECTOR_MODE2);
-                        oPSXSect = JPSXModuleXAAudio.getModule().identifySector(oCDSect);
-                        if (oPSXSect instanceof SectorXA) {
-                            _lngFirstSectorOffset = lngSectStart;
-                            _iRawSectorTypeSize = CDSector.SECTOR_MODE2;
-                            return true;
-                        }
-                    }
-                }
-            } catch (NotThisTypeException ex) {
-
-            }
-        }
-        return false;
-    }
-
-    /** Searches through the first SECTOR_RAW_AUDIO*2 bytes
-     *  for a CD sync mark.
-     *<p>
-     *  Note: This assumes the input file has the data aligned at every 4 bytes!
-     */
-    private boolean test2352() throws IOException {
-        byte[] abSyncHeader = new byte[CDSector.SECTOR_SYNC_HEADER.length];
-
-        OuterSearch:
-        for (long lngSectStart = 0;
-             lngSectStart < CDSector.SECTOR_RAW_AUDIO * 2;
-             lngSectStart++)
-        {
-            _inputFile.seek(lngSectStart);
-            IO.readByteArray(_inputFile, abSyncHeader);
-            if (Arrays.equals(abSyncHeader, CDSector.SECTOR_SYNC_HEADER)) {
-                // we think we found a sync header
-                // check for 10 more seek headers after this one to be sure
-                long lngSectorsToTry = Math.min(10, (_inputFile.length()-lngSectStart-abSyncHeader.length) / CDSector.SECTOR_RAW_AUDIO);
-                for (int i = 0, iOfs = CDSector.SECTOR_RAW_AUDIO;
-                     i < lngSectorsToTry;
-                     i++, iOfs+=CDSector.SECTOR_RAW_AUDIO)
-                {
-                    _inputFile.seek(lngSectStart + iOfs);
-                    IO.readByteArray(_inputFile, abSyncHeader);
-                    if (!Arrays.equals(abSyncHeader, CDSector.SECTOR_SYNC_HEADER))
-                        continue OuterSearch; // aw, too bad, back to the drawing board
-                }
-                _lngFirstSectorOffset = lngSectStart;
-                _iRawSectorTypeSize = CDSector.SECTOR_RAW_AUDIO;
-                log.info("Found sync header at " + lngSectStart);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public String serialize() {
-        return String.format("Filename:%s|Sector size:%d|Sector count:%d|First sector offset:%d",
-                _sSourceFilePath,
-                _iRawSectorTypeSize,
-                _iSectorCount,
-                _lngFirstSectorOffset);
+        _inputFile.seek(lngUserDataOfs);
+        _inputFile.write(abSrcUserData);
     }
 
     @Override
@@ -339,20 +240,252 @@ public class CDFileSectorReader extends CDSectorReader {
         return serialize();
     }
 
-    @Override
+
+    
+    public String serialize() {
+        return String.format("Filename:%s|Sector size:%d|Sector count:%d|First sector offset:%d",
+                _sourceFile.getPath(),
+                _sectorCreator.getRawSectorSize(),
+                _iSectorCount,
+                _sectorCreator.get1stSectorOffset());
+    }
+
+
+
+    public String getSourceFileBaseName() {
+        return _sourceFile.getName();
+    }
+
+    public CdSector getSector(int iSector) throws IOException {
+        if (iSector < 0 || iSector >= _iSectorCount)
+            throw new IndexOutOfBoundsException("Sector not in bounds of CD");
+
+
+        if (iSector >= _iCacheSector + _iSectorsToBuffer || iSector < _iCacheSector || _abBulkReadCache == null) {
+            _abBulkReadCache = new byte[_sectorCreator.getRawSectorSize() * _iSectorsToBuffer];
+            _iCacheSector = iSector;
+            _lngCacheFileOffset = getFilePointer(iSector);
+
+            _inputFile.seek(_lngCacheFileOffset);
+            int iBytesRead = _inputFile.read(_abBulkReadCache);
+            if (iBytesRead < _sectorCreator.getRawSectorSize()) {
+                throw new IllegalStateException("Failed to read at least 1 entire sector.");
+            }
+        }
+
+        int iOffset = _sectorCreator.getRawSectorSize() * (iSector - _iCacheSector);
+
+        try {
+            return _sectorCreator.createSector(iSector, _abBulkReadCache, iOffset, _lngCacheFileOffset + iOffset, _iTolerance);
+        } catch (NotThisTypeException ex) {
+            throw new SectorReadErrorException("Error reading sector " + iSector + ": " + ex.getMessage());
+        }
+    }
+
+    public boolean hasSectorHeader() {
+        return _sectorCreator.hasSectorHeader();
+    }
+
     public String getTypeDescription() {
-        switch (_iRawSectorTypeSize) {
-            case CDSector.SECTOR_MODE1_OR_MODE2_FORM1: // 2048
-                return ".iso (2048 bytes/sector) format";
-            case CDSector.SECTOR_MODE2:         // 2336
-                return "partial header (2336 bytes/sector) format";
-            case CDSector.SECTOR_RAW_AUDIO:     // 2352
-                return "BIN/CUE (2352 bytes/sector) format";
-            default:
-                throw new RuntimeException("Should never happen: what kind of sector size is this?");
+        return _sectorCreator.getTypeDescription();
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Private Functions ---------------------------------------------------- */
+    /* ---------------------------------------------------------------------- */
+    
+    private interface SectorCreator {
+        CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) throws NotThisTypeException;
+        String getTypeDescription();
+        boolean hasSectorHeader();
+        long get1stSectorOffset();
+        int getRawSectorSize();
+    }
+
+    private static class Cd2048 implements SectorCreator {
+
+        public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) throws NotThisTypeException {
+            return new CdSector2048(abSectorBuff, iOffset, iSector, iTolerance);
+        }
+
+
+        public String getTypeDescription() {
+            return ".iso (2048 bytes/sector) format";
+        }
+
+        public boolean hasSectorHeader() {
+            return false;
+        }
+
+        public long get1stSectorOffset() {
+            return 0;
+        }
+
+        public int getRawSectorSize() {
+            return SECTOR_SIZE_2048_ISO;
         }
     }
     
-    
+    private static class Cd2336 implements SectorCreator {
+
+        private long _lng1stSectorOffset;
+
+        /** Searches through the first 33 sectors for a full XA audio sector.
+         *<p>
+         *  Note: This assumes the input file has the data aligned at every 4 bytes!
+         */
+        public Cd2336(RandomAccessFile cdFile) throws IOException, NotThisTypeException {
+            if (cdFile.length() < SECTOR_SIZE_2336_BIN_NOSYNC)
+                throw new NotThisTypeException();
+
+            // TODO: With the new api I can read the whole test block at once
+            byte[] abTestSectorData = new byte[SECTOR_SIZE_2336_BIN_NOSYNC];
+
+            // only search up to 33 sectors into the file
+            // because that's the maximum XA audio span
+            // (this misses audio that starts later in the file however)
+            int iMaxSearch = SECTOR_SIZE_2336_BIN_NOSYNC * 33;
+            if (iMaxSearch > cdFile.length())
+                iMaxSearch = (int) cdFile.length();
+
+            // Only detect XA ADPCM audio sectors to determine if it's SECTOR_MODE2
+            for (long lngSectStart = 0;
+                 lngSectStart < iMaxSearch - abTestSectorData.length;
+                 lngSectStart+=4)
+            {
+                try {
+                    cdFile.seek(lngSectStart);
+                    IO.readByteArray(cdFile, abTestSectorData);
+                    CdSector cdSector = new CdSector2336(abTestSectorData, 0, -1, -1, 0);
+                    SectorXA xaSector = new SectorXA(cdSector);
+                    // we've found an XA audio sector
+                    // maybe try to find another just to be sure?
+
+                    // only check up to 146 sectors because, if the sector size is actually 2352,
+                    // then around 147, the offset difference adds up to another
+                    // whole 2352 sector
+                    for (long lngAdditionalOffset = SECTOR_SIZE_2336_BIN_NOSYNC, iTimes = 1;
+                         lngSectStart + lngAdditionalOffset < cdFile.length() - abTestSectorData.length &&
+                         iTimes < 146;
+                         lngAdditionalOffset+=SECTOR_SIZE_2336_BIN_NOSYNC,
+                         iTimes++)
+                    {
+                        cdFile.seek(lngSectStart + lngAdditionalOffset);
+                        IO.readByteArray(cdFile, abTestSectorData, 0, SECTOR_SIZE_2336_BIN_NOSYNC);
+                        try {
+                            xaSector = new SectorXA(cdSector);
+
+                            // sweet, we found another one. we're done.
+                            // backup to the first sector
+                            _lng1stSectorOffset = lngSectStart % SECTOR_SIZE_2336_BIN_NOSYNC;
+                            return;
+                        } catch (NotThisTypeException ex) {
+                        }
+                    }
+                } catch (NotThisTypeException ex) {
+
+                }
+            }
+            throw new NotThisTypeException();
+        }
+
+
+        public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) throws NotThisTypeException {
+            return new CdSector2336(abSectorBuff, iOffset, iSector, lngFilePointer, iTolerance);
+        }
+
+        @Override
+        public String getTypeDescription() {
+            return "partial header (2336 bytes/sector) format";
+        }
+        @Override
+        public boolean hasSectorHeader() {
+            return true;
+        }
+
+        public long get1stSectorOffset() {
+            return _lng1stSectorOffset;
+        }
+
+        public int getRawSectorSize() {
+            return SECTOR_SIZE_2336_BIN_NOSYNC;
+        }
+    }
+
+    private static class Cd2352or2448 implements SectorCreator {
+
+        private final long _lng1stSectorOffset;
+        private final boolean _bln2352;
+
+        /** Searches through the first SECTOR_RAW_AUDIO*2 bytes
+         *  for a CD sync mark.
+         */
+        public Cd2352or2448(RandomAccessFile cdFile, boolean blnCheck2352, boolean blnCheck2448) throws IOException, NotThisTypeException {
+            byte[] abSyncHeader = new byte[CdxaHeader.SECTOR_SYNC_HEADER.length];
+            
+            for (long lngSectStart = 0;
+                 lngSectStart < SECTOR_SIZE_2352_BIN * 2;
+                 lngSectStart++)
+            {
+                cdFile.seek(lngSectStart);
+                IO.readByteArray(cdFile, abSyncHeader);
+                if (Arrays.equals(abSyncHeader, CdxaHeader.SECTOR_SYNC_HEADER)) {
+                    log.info("Possible sync header at " + lngSectStart);
+                    // we think we found a sync header
+                    if (blnCheck2352 && checkMore(SECTOR_SIZE_2352_BIN, cdFile, lngSectStart, abSyncHeader)) {
+                        _bln2352 = true;
+                        _lng1stSectorOffset = lngSectStart % SECTOR_SIZE_2352_BIN;
+                        return;
+                    } else if (blnCheck2448 && checkMore(SECTOR_SIZE_2448_BIN_SUBCHANNEL, cdFile, lngSectStart, abSyncHeader)) {
+                        _bln2352 = false;
+                        _lng1stSectorOffset = lngSectStart % SECTOR_SIZE_2448_BIN_SUBCHANNEL;
+                        return;
+                    }
+                }
+            }
+            throw new NotThisTypeException();
+        }
+
+        private static boolean checkMore(int iSectorSize, RandomAccessFile cdFile, long lngSectStart, byte[] abSyncHeader) throws IOException {
+            // check for 10 more seek headers after this one to be sure
+            long lngSectorsToTry = Math.min(10, (cdFile.length()-lngSectStart-CdxaHeader.SECTOR_SYNC_HEADER.length) / SECTOR_SIZE_2352_BIN);
+            for (int i = 0, iOfs = iSectorSize;
+                 i < lngSectorsToTry;
+                 i++, iOfs+=iSectorSize)
+            {
+                cdFile.seek(lngSectStart + iOfs);
+                IO.readByteArray(cdFile, abSyncHeader);
+                if (!Arrays.equals(abSyncHeader, CdxaHeader.SECTOR_SYNC_HEADER))
+                    return false; // aw, too bad, back to the drawing board
+            }
+            return true;
+        }
+
+        public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) throws NotThisTypeException {
+            return new CdSector2352(abSectorBuff, iOffset, iSector, lngFilePointer, iTolerance);
+        }
+
+        @Override
+        public String getTypeDescription() {
+            return _bln2352 ? 
+                "BIN/CUE (2352 bytes/sector) format" :
+                "BIN/CUE + Sub Channel (2448 bytes/sector) format";
+        }
+        @Override
+        public boolean hasSectorHeader() {
+            return true;
+        }
+
+        public long get1stSectorOffset() {
+            return _lng1stSectorOffset;
+        }
+
+        public int getRawSectorSize() {
+            return _bln2352 ?
+                    SECTOR_SIZE_2352_BIN :
+                    SECTOR_SIZE_2448_BIN_SUBCHANNEL;
+        }
+    }
+
 
 }

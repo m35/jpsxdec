@@ -37,13 +37,13 @@
 
 package jpsxdec.modules;
 
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
 
 
 /** If all else fails, we don't know what kind of data it is */
 public class UnidentifiedSector extends IdentifiedSector {
-    public UnidentifiedSector(CDSector cdSector) {
+    public UnidentifiedSector(CdSector cdSector) {
         super(cdSector);
     }
 
@@ -56,11 +56,11 @@ public class UnidentifiedSector extends IdentifiedSector {
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return super.getCDSector().getCDUserDataStream();
+        return super.getCDSector().getCdUserDataStream();
     }
     
     @Override
-    public CDSector getCDSector() {
+    public CdSector getCDSector() {
         return super.getCDSector();
     }
     

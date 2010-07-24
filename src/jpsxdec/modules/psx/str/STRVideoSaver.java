@@ -43,7 +43,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.JPSXModule;
@@ -115,7 +115,7 @@ public class STRVideoSaver extends DiscItemSaver {
             pl.progressStart("Writing " + movieWriter.getOutputFile());
             for (; iSector <= movieWriter.getMovieEndSector(); iSector++) {
 
-                CDSector cdSector = _vidItem.getSourceCD().getSector(iSector);
+                CdSector cdSector = _vidItem.getSourceCD().getSector(iSector);
                 IdentifiedSector identifiedSector = _vidItem.identifySector(cdSector);
                 if (identifiedSector instanceof IVideoSector) {
                     IVideoSector vidSector = (IVideoSector) identifiedSector;
@@ -163,7 +163,7 @@ public class STRVideoSaver extends DiscItemSaver {
             for (; iSector <= iEndSector; iSector++) {
                 pl.event("Frame " + iFrame);
 
-                CDSector cdSector = _vidItem.getSourceCD().getSector(iSector);
+                CdSector cdSector = _vidItem.getSourceCD().getSector(iSector);
                 IdentifiedSector identifiedSector = JPSXModule.identifyModuleSector(cdSector);
                 if (identifiedSector instanceof IVideoSector) {
                     if (_vidItem.getStartSector() <= iSector &&

@@ -39,7 +39,7 @@ package jpsxdec.modules.psx.tim;
 
 import java.io.IOException;
 import java.io.InputStream;
-import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.IdentifiedSectorRangeIterator;
 import jpsxdec.modules.UnidentifiedSector;
@@ -99,7 +99,7 @@ public class UnidentifiedDataPullDemuxerIS extends InputStream implements IGetFi
         }
     }
 
-    public CDSectorReader getSourceCD() {
+    public CDFileSectorReader getSourceCD() {
         return _identifiedSectIter.getSourceCD();
     }
 

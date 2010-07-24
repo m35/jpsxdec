@@ -43,7 +43,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IndexingDemuxerIS;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.DiscItem;
@@ -81,7 +81,7 @@ public class JPSXModuleISO9660 extends JPSXModule {
     }
 
     @Override
-    public IdentifiedSector identifySector(CDSector cdSector) {
+    public IdentifiedSector identifySector(CdSector cdSector) {
         try { return new SectorISO9660DirectoryRecords(cdSector); }
         catch (NotThisTypeException ex) {}
         try { return new SectorISO9660VolumePrimaryDescriptor(cdSector); }
@@ -129,7 +129,7 @@ public class JPSXModuleISO9660 extends JPSXModule {
             }
         } else if (_primaryDescriptors.size() == 1) {
             SectorISO9660VolumePrimaryDescriptor oPriDesc = _primaryDescriptors.get(0);
-            CDSector oCDSect = oPriDesc.getCDSector();
+            CdSector oCDSect = oPriDesc.getCDSector();
             _iSectorOffset = oCDSect.getHeaderSectorNumber() - oCDSect.getSectorNumberFromStart();
             
             getFileList(oPriDesc.getVPD().root_directory_record, new File(""));

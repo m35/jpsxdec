@@ -40,17 +40,17 @@ package jpsxdec.modules.iso9660;
 import jpsxdec.modules.UnidentifiedSector;
 import jpsxdec.modules.IdentifiedSector;
 import java.io.IOException;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.NotThisTypeException;
 
 
 public class SectorISO9660PathTable extends UnidentifiedSector  {
     private PathTableBE _pathTable;
 
-    public SectorISO9660PathTable(CDSector cdSector) throws NotThisTypeException {
+    public SectorISO9660PathTable(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
         try {
-            _pathTable = new PathTableBE(cdSector.getCDUserDataStream());
+            _pathTable = new PathTableBE(cdSector.getCdUserDataStream());
         } catch (IOException ex) {
             throw new NotThisTypeException();
         }

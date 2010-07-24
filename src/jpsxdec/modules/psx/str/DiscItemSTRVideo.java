@@ -44,7 +44,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.DiscItem;
@@ -195,7 +195,7 @@ public class DiscItemSTRVideo extends DiscItem {
         if (iSect < getStartSector()) iSect = getStartSector();
 
         // now seek ahead until we read the desired frame
-        CDSector cdSect = getSourceCD().getSector(iSect);
+        CdSector cdSect = getSourceCD().getSector(iSect);
         IdentifiedSector identifiedSect = JPSXModule.identifyModuleSector(cdSect);
         while ( (!(identifiedSect instanceof IVideoSector) ||
                 ((IVideoSector)identifiedSect).getFrameNumber() < iFrame)

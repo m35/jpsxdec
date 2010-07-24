@@ -38,8 +38,8 @@
 package jpsxdec.modules;
 
 import java.io.IOException;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -57,7 +57,7 @@ public abstract class DiscItem implements Comparable {
 
     private final int _iStartSector;
     private final int _iEndSector;
-    private CDSectorReader _cdReader;
+    private CDFileSectorReader _cdReader;
     
     /** Index number of the media item in the file. */
     private int _iIndex = -1;
@@ -102,7 +102,7 @@ public abstract class DiscItem implements Comparable {
     
     /** Returns the iIndex'th sector of this media item (beginning from
      *  the first sector of the media item). */
-    public CDSector getRelativeSector(int iIndex) throws IOException {
+    public CdSector getRelativeSector(int iIndex) throws IOException {
         if (iIndex > getSectorLength())
             throw new IllegalArgumentException("Sector index out of bounds of this media item");
         return _cdReader.getSector(getStartSector() + iIndex);
@@ -117,7 +117,7 @@ public abstract class DiscItem implements Comparable {
     /** Because the media items knows what sectors are used, 
      *  it can reduce the number of tests to identify a CD sector type. 
      *  @return Identified sector, or null if no match. */
-    final public IdentifiedSector identifySector(CDSector sector) {
+    final public IdentifiedSector identifySector(CdSector sector) {
         return JPSXModule.identifyModuleSector(sector);
         /* // this is nice in theory, but I don't think I'll mess with it
         for (Class<IdentifiedSector> oSectorType : m_aoSectorsUsed) {
@@ -160,11 +160,11 @@ public abstract class DiscItem implements Comparable {
         _iIndex = iMediaIndex;
     }
 
-    public void setSourceCD(CDSectorReader cd) {
+    public void setSourceCD(CDFileSectorReader cd) {
         _cdReader = cd;
     }
 
-    public CDSectorReader getSourceCD() {
+    public CDFileSectorReader getSourceCD() {
         return _cdReader;
     }
 

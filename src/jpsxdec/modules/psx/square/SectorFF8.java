@@ -42,8 +42,8 @@ import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.psx.str.IVideoSector;
 import java.io.IOException;
 import java.io.InputStream;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSector.CDXAHeader.SubMode.DATA_AUDIO_VIDEO;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.modules.JPSXModule;
 import jpsxdec.modules.psx.str.DiscItemSTRVideo;
@@ -62,11 +62,11 @@ public abstract class SectorFF8 extends IdentifiedSector {
     protected int        _iSectorsInAVFrame;       // [1 byte]
     protected int        _iFrameNumber;            // [2 bytes]
     
-    public SectorFF8(CDSector oCDSect) {
+    public SectorFF8(CdSector oCDSect) {
         super(oCDSect);
     }
 
-    protected InputStream ReadHeader(CDSector oCDSect)
+    protected InputStream ReadHeader(CdSector oCDSect)
             throws IOException, NotThisTypeException 
     {
         // both audio and video sectors are flagged as data
@@ -74,7 +74,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
             oCDSect.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.DATA)
             throw new NotThisTypeException();
         
-        InputStream oIS = oCDSect.getCDUserDataStream();
+        InputStream oIS = oCDSect.getCdUserDataStream();
         
         char c;
         c = (char)oIS.read();
@@ -132,7 +132,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
     {
 
 
-        public PSXSectorFF8Video(CDSector oCDSect)
+        public PSXSectorFF8Video(CdSector oCDSect)
                 throws NotThisTypeException 
         {
             super(oCDSect);
@@ -169,7 +169,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
-            return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+            return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                     SHARED_HEADER_SIZE, getIdentifiedUserDataSize());
         }
 
@@ -272,7 +272,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         protected SquareAKAOstruct _oAKAOstruct;
         // 76 bytes; unknown
         
-        public PSXSectorFF8Audio(CDSector oCDSect)
+        public PSXSectorFF8Audio(CdSector oCDSect)
                 throws NotThisTypeException 
         {
             super(oCDSect);
@@ -311,7 +311,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
-            return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+            return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                     SectorFF8.SHARED_HEADER_SIZE + AUDIO_ADDITIONAL_HEADER_SIZE,
                     getIdentifiedUserDataSize());
         }

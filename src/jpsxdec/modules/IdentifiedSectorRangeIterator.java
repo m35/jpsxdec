@@ -39,7 +39,7 @@ package jpsxdec.modules;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.cdreaders.SectorReadErrorException;
 import jpsxdec.util.AdvancedIOIterator;
 
@@ -53,25 +53,25 @@ public class IdentifiedSectorRangeIterator implements AdvancedIOIterator<Identif
         void ReadError(SectorReadErrorException ex);
     }
 
-    private CDSectorReader _cdReader;
+    private CDFileSectorReader _cdReader;
     private int _iSectorIndex;
     private int _iStartSector, _iEndSector;
     private IdentifiedSector _cachedSector;
     private boolean _blnCached = false;
     private ISectorChangeListener _listener;
     
-    public IdentifiedSectorRangeIterator(CDSectorReader cdReader) {
+    public IdentifiedSectorRangeIterator(CDFileSectorReader cdReader) {
         this(cdReader, 0, cdReader.size()-1);
     }
     
-    public IdentifiedSectorRangeIterator(CDSectorReader cdReader, int iStartSector, int iEndSector) {
+    public IdentifiedSectorRangeIterator(CDFileSectorReader cdReader, int iStartSector, int iEndSector) {
         _cdReader = cdReader;
         _iStartSector = iStartSector;
         _iEndSector = iEndSector;
         _iSectorIndex = iStartSector;
     }
     
-    public CDSectorReader getSourceCD() {
+    public CDFileSectorReader getSourceCD() {
         return _cdReader;
     }
 

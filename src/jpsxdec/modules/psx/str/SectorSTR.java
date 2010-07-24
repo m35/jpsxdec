@@ -43,8 +43,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CDFileSectorReader;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSector.CDXAHeader.SubMode.DATA_AUDIO_VIDEO;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.modules.psx.video.encode.ParsedMdecImage;
 import jpsxdec.util.ByteArrayFPIS;
@@ -80,7 +80,7 @@ public class SectorSTR extends IdentifiedSector implements IVideoSector {
     //   32 TOTAL
     // .. Constructor .....................................................
 
-    public SectorSTR(CDSector cdSector) throws NotThisTypeException {
+    public SectorSTR(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
         // only if it has a sector header should we check if it reports DATA or VIDEO
         if (cdSector.hasSectorHeader()) {
@@ -92,7 +92,7 @@ public class SectorSTR extends IdentifiedSector implements IVideoSector {
             }
         }
         try {
-            readHeader(cdSector.getCDUserDataStream());
+            readHeader(cdSector.getCdUserDataStream());
         } catch (IOException ex) {
             throw new NotThisTypeException();
         }
@@ -190,7 +190,7 @@ public class SectorSTR extends IdentifiedSector implements IVideoSector {
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                 FRAME_SECTOR_HEADER_SIZE, getIdentifiedUserDataSize());
     }
 

@@ -40,7 +40,7 @@ package jpsxdec.modules.psx.square;
 import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
 import javax.swing.JPanel;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.IdentifiedSector;
@@ -246,7 +246,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
                 final double SECTOR_LENGTH = _audItem.getEndSector() - _audItem.getStartSector();
                 pl.progressStart("Writing " + audioWriter.getOutputFile());
                 for (; iSector <= _audItem.getEndSector(); iSector++) {
-                    CDSector cdSector = _audItem.getSourceCD().getSector(iSector);
+                    CdSector cdSector = _audItem.getSourceCD().getSector(iSector);
                     IdentifiedSector identifiedSect = _audItem.identifySector(cdSector);
                     audioWriter.feedSector(identifiedSect);
                     pl.progressUpdate((iSector - _audItem.getStartSector()) / SECTOR_LENGTH);

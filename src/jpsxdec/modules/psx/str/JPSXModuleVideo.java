@@ -42,7 +42,7 @@ import jpsxdec.modules.JPSXModule;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IndexingDemuxerIS;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.DiscItem;
@@ -84,7 +84,7 @@ public class JPSXModuleVideo extends JPSXModule {
     private JPSXModuleVideo() {}
 
     @Override
-    public IdentifiedSector identifySector(CDSector oSect) {
+    public IdentifiedSector identifySector(CdSector oSect) {
         try {
             return new SectorSTR(oSect);
         } catch (NotThisTypeException ex) {}

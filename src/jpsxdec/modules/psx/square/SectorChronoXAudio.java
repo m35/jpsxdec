@@ -40,8 +40,8 @@ package jpsxdec.modules.psx.square;
 import jpsxdec.modules.IdentifiedSector;
 import java.io.IOException;
 import java.io.InputStream;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSector.CDXAHeader.SubMode.DATA_AUDIO_VIDEO;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.modules.JPSXModule;
 import jpsxdec.util.ByteArrayFPIS;
@@ -76,7 +76,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     private SquareAKAOstruct _akaoStruct;    //  130  [80 bytes]
     //   208 TOTAL
 
-    public SectorChronoXAudio(CDSector oCDSect) throws NotThisTypeException {
+    public SectorChronoXAudio(CdSector oCDSect) throws NotThisTypeException {
         super(oCDSect);
 
         // since all Chrono Cross movie sectors are in Mode 2 Form 1, we can 
@@ -87,7 +87,7 @@ public class SectorChronoXAudio extends IdentifiedSector
             throw new NotThisTypeException();
 
         try {
-            InputStream is = oCDSect.getCDUserDataStream();
+            InputStream is = oCDSect.getCdUserDataStream();
 
             long lngMagic = IO.readUInt32LE(is);
             
@@ -166,7 +166,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                 FRAME_AUDIO_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
     }
 

@@ -39,7 +39,7 @@ package jpsxdec.modules.psx.square;
 
 import jpsxdec.modules.JPSXModule;
 import java.io.IOException;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IndexingDemuxerIS;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.IdentifiedSector;
@@ -75,7 +75,7 @@ public class JPSXModuleSquare extends JPSXModule {
     }
 
     @Override
-    public IdentifiedSector identifySector(CDSector sector) {
+    public IdentifiedSector identifySector(CdSector sector) {
         try { return new SectorFF7Video(sector); }
         catch (NotThisTypeException ex) {}
         try { return new SectorChronoXAudio(sector); }

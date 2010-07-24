@@ -41,8 +41,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IGetFilePointer;
 
@@ -56,7 +56,7 @@ public class IndexingDemuxerIS extends InputStream implements IGetFilePointer
 {
     private static final Logger log = Logger.getLogger(IndexingDemuxerIS.class.getName());
 
-    private CDSectorReader _sourceCd;
+    private CDFileSectorReader _sourceCd;
     
     private int _iCurSectNum;
     private final JPSXModule[] _aoModules;
@@ -78,7 +78,7 @@ public class IndexingDemuxerIS extends InputStream implements IGetFilePointer
     private ByteArrayFPIS _markSectStream;
     private int _iMarkState = -1;
 
-    public IndexingDemuxerIS(CDSectorReader cdReader, JPSXModule[] aoModules)
+    public IndexingDemuxerIS(CDFileSectorReader cdReader, JPSXModule[] aoModules)
             throws IOException 
     {
         _sourceCd = cdReader;
@@ -96,7 +96,7 @@ public class IndexingDemuxerIS extends InputStream implements IGetFilePointer
         }
     }
 
-    private IdentifiedSector identifySector(CDSector cdSector) {
+    private IdentifiedSector identifySector(CdSector cdSector) {
         IdentifiedSector oPSXSect;
         for (JPSXModule oIndexer : _aoModules) {
             oPSXSect = oIndexer.identifySector(cdSector);

@@ -42,7 +42,7 @@ import jpsxdec.modules.IdentifiedSector;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.NotThisTypeException;
 
@@ -54,12 +54,12 @@ public class SectorISO9660DirectoryRecords
 
     private ArrayList<DirectoryRecord> _dirRecords;
     
-    public SectorISO9660DirectoryRecords(CDSector cdSectotr)
+    public SectorISO9660DirectoryRecords(CdSector cdSectotr)
             throws NotThisTypeException
     {
         super(cdSectotr);
         DirectoryRecord oFirstRec;
-        ByteArrayFPIS oSectStream = cdSectotr.getCDUserDataStream();
+        ByteArrayFPIS oSectStream = cdSectotr.getCdUserDataStream();
         try {
             oFirstRec = new DirectoryRecord(oSectStream);
         } catch (IOException ex) {

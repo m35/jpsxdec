@@ -37,7 +37,7 @@
 
 package jpsxdec.modules;
 
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
 
 public interface IIdentifiedSector {
@@ -75,5 +75,5 @@ public interface IIdentifiedSector {
 
     public JPSXModule getSourceModule();
 
-    public CDSector getCDSector();
+    public CdSector getCDSector();
 }

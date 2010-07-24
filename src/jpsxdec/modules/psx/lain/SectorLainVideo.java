@@ -40,7 +40,7 @@ package jpsxdec.modules.psx.lain;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import jpsxdec.cdreaders.CDFileSectorReader;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.JPSXModule;
 import jpsxdec.modules.psx.str.SectorSTR;
 import jpsxdec.util.IO;
@@ -54,7 +54,7 @@ public class SectorLainVideo extends SectorSTR {
     private byte _bQuantizationScaleLumin;
     private byte _bQuantizationScaleChrom;
 
-    public SectorLainVideo(CDSector cdSector) throws NotThisTypeException {
+    public SectorLainVideo(CdSector cdSector) throws NotThisTypeException {
         super(cdSector); // will call overridden readHeader() method
     }
 

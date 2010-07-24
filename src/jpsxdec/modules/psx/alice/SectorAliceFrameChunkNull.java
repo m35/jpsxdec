@@ -39,10 +39,9 @@ package jpsxdec.modules.psx.alice;
 
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.JPSXModule;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSector.CDXAHeader.SubMode.DATA_AUDIO_VIDEO;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -69,7 +68,7 @@ public class SectorAliceFrameChunkNull extends IdentifiedSector
     
     // .. Constructor .....................................................
 
-    public SectorAliceFrameChunkNull(CDSector cdSector) throws NotThisTypeException
+    public SectorAliceFrameChunkNull(CdSector cdSector) throws NotThisTypeException
     {
         super(cdSector);
         if (cdSector.hasSectorHeader()) {
@@ -82,7 +81,7 @@ public class SectorAliceFrameChunkNull extends IdentifiedSector
             }
         }
         try {
-            ByteArrayFPIS bais = cdSector.getCDUserDataStream();
+            ByteArrayFPIS bais = cdSector.getCdUserDataStream();
             if (IO.readUInt32LE(bais) != VIDEO_CHUNK_MAGIC)
                 throw new NotThisTypeException();
 
@@ -159,7 +158,7 @@ public class SectorAliceFrameChunkNull extends IdentifiedSector
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                 FRAME_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
     }
 

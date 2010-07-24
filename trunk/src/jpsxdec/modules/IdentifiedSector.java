@@ -37,16 +37,16 @@
 
 package jpsxdec.modules;
 
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 
 /** Base class for all identified sector types. Encapsulates CD sectors with
  *  special meaning. */
 public abstract class IdentifiedSector implements IIdentifiedSector {
 
-    private CDSector _sourceCdSector;
+    private CdSector _sourceCdSector;
 
     
-    public IdentifiedSector(CDSector cdSector) {
+    public IdentifiedSector(CdSector cdSector) {
         _sourceCdSector = cdSector;
         
     }
@@ -73,7 +73,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         return _sourceCdSector.getSectorNumberFromStart();
     }
     
-    public CDSector getCDSector() {
+    public CdSector getCDSector() {
         return _sourceCdSector;
     }
 

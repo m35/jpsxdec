@@ -50,7 +50,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.ProgressListener;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.Misc;
@@ -176,9 +176,9 @@ public class DiscItemISO9660File extends DiscItem {
             FileOutputStream fos = new FileOutputStream(_path.getName());
             pl.progressStart();
             for (int iSector = iStartSect; iSector <= iEndSect; iSector++) {
-                CDSector cdSector = getSourceCD().getSector(iSector);
+                CdSector cdSector = getSourceCD().getSector(iSector);
                 if (getSaveRaw())
-                    fos.write(cdSector.getRawSectorData());
+                    fos.write(cdSector.getRawSectorDataCopy());
                 else
                     fos.write(cdSector.getCdUserDataCopy());
                 pl.progressUpdate((iSector - iStartSect) / iSectLen);

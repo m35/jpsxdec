@@ -43,8 +43,8 @@ import jpsxdec.modules.psx.str.IVideoSector;
 import java.io.IOException;
 import java.io.InputStream;
 import jpsxdec.cdreaders.CDFileSectorReader;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSector.CDXAHeader.SubMode.DATA_AUDIO_VIDEO;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.modules.psx.str.DiscItemSTRVideo;
 import jpsxdec.modules.psx.video.encode.ParsedMdecImage;
@@ -61,7 +61,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
     protected int  _iChunksInThisFrame;    //  6    [2 bytes]
     protected int  _iFrameNumber;          //  8    [4 bytes]
 
-    protected SectorFF9(CDSector oCDSect) throws NotThisTypeException {
+    protected SectorFF9(CdSector oCDSect) throws NotThisTypeException {
         super(oCDSect);
     }
 
@@ -74,11 +74,11 @@ public abstract class SectorFF9 extends IdentifiedSector {
      * @param iMagicNumber Magic number to check for.
      * @return             The input stream positioned just after the header.
      */
-    protected InputStream readSharedHeader(CDSector cdSector, int iForm, int iMagicNumber)
+    protected InputStream readSharedHeader(CdSector cdSector, int iForm, int iMagicNumber)
             throws IOException, NotThisTypeException 
     {
 
-        InputStream inStream = cdSector.getCDUserDataStream();
+        InputStream inStream = cdSector.getCdUserDataStream();
         
         // Without a sector header, we can't read video frames
         if (!cdSector.hasSectorHeader())
@@ -155,7 +155,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         protected final long _lngFourBytes;          //  28   [4 bytes] usually zero
         //   32 TOTAL
 
-        public PSXSectorFF9Video(CDSector cdSector) throws NotThisTypeException
+        public PSXSectorFF9Video(CdSector cdSector) throws NotThisTypeException
         {
             super(cdSector);
 
@@ -241,7 +241,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
-            return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+            return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                     FRAME_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
         }
 
@@ -361,7 +361,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
 
         //   208 TOTAL
 
-        public PSXSectorFF9Audio(CDSector cdSector) throws NotThisTypeException
+        public PSXSectorFF9Audio(CdSector cdSector) throws NotThisTypeException
         {
             super(cdSector);
             
@@ -419,7 +419,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
-            return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+            return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                     FRAME_AUDIO_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
         }
 

@@ -40,7 +40,7 @@ package jpsxdec.modules.psx.tim;
 import jpsxdec.modules.JPSXModule;
 import java.io.IOException;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IndexingDemuxerIS;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.DiscIndex;
@@ -66,7 +66,7 @@ public class JPSXModuleTIM extends JPSXModule {
     private JPSXModuleTIM() {}
 
     @Override
-    public IdentifiedSector identifySector(CDSector oSect) {
+    public IdentifiedSector identifySector(CdSector oSect) {
         return null;
     }
 

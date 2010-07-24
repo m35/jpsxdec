@@ -44,8 +44,8 @@ import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CDFileSectorReader;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.player.AudioProcessor;
 import jpsxdec.player.IAudioVideoReader;
@@ -75,7 +75,7 @@ public class MediaPlayer implements IAudioVideoReader {
     private final int _iMovieStartSector;
     private final int _iMovieEndSector;
     private int _iSector;
-    private final CDSectorReader _cdReader;
+    private final CDFileSectorReader _cdReader;
 
     //----------------------------------------------------------
 
@@ -149,7 +149,7 @@ public class MediaPlayer implements IAudioVideoReader {
                 return -1;
             }
 
-            CDSector cdSector = _cdReader.getSector(_iSector);
+            CdSector cdSector = _cdReader.getSector(_iSector);
             IdentifiedSector identifiedSector = JPSXModule.identifyModuleSector(cdSector);
             if (vidProc != null && identifiedSector instanceof IVideoSector) {
                 if (_demuxer == null) {

@@ -1,3 +1,6 @@
+v0.92.1 rev1490 (23 Jul 2010)
+    - Added support for disc images including subchannel data (2448 bytes/sector)
+    - Disc reading is now buffered, which should speed up everything
 v0.92.0 rev1335 (24 Apr 2010)
     - Fixed AVI YV12 and Yuv4mpeg2 output colors.
     - Fixed A/V sync calculation error that incorrectly added silence to FF9 videos

@@ -40,8 +40,8 @@ package jpsxdec.modules.psx.square;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSector.CDXAHeader.SubMode.DATA_AUDIO_VIDEO;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.JPSXModule;
 import jpsxdec.util.ByteArrayFPIS;
@@ -60,7 +60,7 @@ public class SectorChronoXVideoNull extends IdentifiedSector
     public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 = 0x81010160;
     public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC2 = 0x01030160;
 
-    public SectorChronoXVideoNull(CDSector cdSector) throws NotThisTypeException {
+    public SectorChronoXVideoNull(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
         // only if it has a sector header should we check if it reports DATA or VIDEO
         if (cdSector.hasSectorHeader()) {
@@ -72,7 +72,7 @@ public class SectorChronoXVideoNull extends IdentifiedSector
             }
         }
         try {
-            readHeader(cdSector.getCDUserDataStream());
+            readHeader(cdSector.getCdUserDataStream());
         } catch (IOException ex) {
             throw new NotThisTypeException();
         }

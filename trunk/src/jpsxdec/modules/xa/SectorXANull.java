@@ -38,9 +38,9 @@
 package jpsxdec.modules.xa;
 
 import jpsxdec.modules.IdentifiedSector;
-import jpsxdec.cdreaders.CDSector.CDXAHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.modules.JPSXModule;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.NotThisTypeException;
     
@@ -50,7 +50,7 @@ import jpsxdec.util.NotThisTypeException;
  * and are often full of zeros. */
 public class SectorXANull extends IdentifiedSector {
 
-    public SectorXANull(CDSector cdSector)
+    public SectorXANull(CdSector cdSector)
             throws NotThisTypeException 
     {
         super(cdSector);
@@ -87,7 +87,7 @@ public class SectorXANull extends IdentifiedSector {
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                 0, getIdentifiedUserDataSize());
     }
     

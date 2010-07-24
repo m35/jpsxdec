@@ -50,8 +50,8 @@ import java.util.LinkedHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.Main;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
 
@@ -69,11 +69,11 @@ public class DiscIndex implements Iterable<DiscItem> {
     private static final String SOURCE_FILE_START = "Source File ";
     
     private final LinkedHashMap<Integer, DiscItem> _mediaHash = new LinkedHashMap<Integer, DiscItem>();
-    private CDSectorReader _sourceCD;
+    private CDFileSectorReader _sourceCD;
     private String _sDiscName = null;
 
     /** Finds all the media on the CD.  */
-    public DiscIndex(CDSectorReader cdReader, ProgressListener pl) {
+    public DiscIndex(CDFileSectorReader cdReader, ProgressListener pl) {
         _sourceCD = cdReader;
         
         // ready to start indexing, so clear the existing lists
@@ -92,7 +92,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         for (int iSector = 0; iSector < _sourceCD.size(); iSector++) {
             try {
 
-                CDSector cdSector = _sourceCD.getSector(iSector);
+                CdSector cdSector = _sourceCD.getSector(iSector);
                 IdentifiedSector identSect = JPSXModule.identifyModuleSector(cdSector);
 
                 if (identSect != null) {
@@ -113,7 +113,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             } catch (IOException ex) {
                 if (pl != null)
                     pl.error(ex);
-                log.log(Level.WARNING, "Error reading sector "+iSector+" while indexing disc", ex);
+                log.log(Level.WARNING, "Error while indexing disc", ex);
             }
         }
 
@@ -163,7 +163,7 @@ public class DiscIndex implements Iterable<DiscItem> {
     }
     
     /** Deserializes the CD index file, and creates a list of media items on the CD */
-    public DiscIndex(String sIndexFile, CDSectorReader cdReader, FeedbackStream fbs)
+    public DiscIndex(String sIndexFile, CDFileSectorReader cdReader, FeedbackStream fbs)
             throws IOException, NotThisTypeException
     {
         _sourceCD = cdReader;
@@ -206,7 +206,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                     }
                 } else {
                     throw new RuntimeException("Case not finished yet.");
-                    //_sourceCD = CDSectorReader.deserialize(sCdSerial, indexFile);
+                    //_sourceCD = CDFileSectorReader.deserialize(sCdSerial, indexFile);
                 }
                 continue;
             }
@@ -279,7 +279,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         return _mediaHash.containsKey(Integer.valueOf(iIndex));
     }
 
-    public CDSectorReader getSourceCD() {
+    public CDFileSectorReader getSourceCD() {
         return _sourceCD;
     }
     

@@ -46,8 +46,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.modules.psx.alice.JPSXModuleAlice;
 import jpsxdec.modules.psx.lain.JPSXModuleLain;
 import jpsxdec.modules.psx.tim.JPSXModuleTIM;
@@ -73,7 +73,7 @@ public abstract class JPSXModule {
     }
 
     /** Identify the type of the supplied sector. */
-    public static IdentifiedSector identifyModuleSector(CDSector cdSector) {
+    public static IdentifiedSector identifyModuleSector(CdSector cdSector) {
         for (JPSXModule module : _aoModules) {
             IdentifiedSector oPSXSect = module.identifySector(cdSector);
             if (oPSXSect != null)
@@ -101,7 +101,7 @@ public abstract class JPSXModule {
     }
 
     private List<DiscItem> _mediaList;
-    private CDSectorReader _cd;
+    private CDFileSectorReader _cd;
 
     abstract public void indexing_sectorRead(IdentifiedSector sector);
 
@@ -115,7 +115,7 @@ public abstract class JPSXModule {
         _mediaList = items;
     }
 
-    public void thisIsTheSourceCD(CDSectorReader cdReader) {
+    public void thisIsTheSourceCD(CDFileSectorReader cdReader) {
         _cd = cdReader;
     }
 
@@ -130,9 +130,9 @@ public abstract class JPSXModule {
         _mediaList.add(discItem);
     }
 
-    protected CDSectorReader getSourceCD() { return _cd; }
+    protected CDFileSectorReader getSourceCD() { return _cd; }
 
-    abstract public IdentifiedSector identifySector(CDSector cdSector);
+    abstract public IdentifiedSector identifySector(CdSector cdSector);
 
     abstract public BitStreamUncompressor identifyVideoFrame(byte[] abHeaderBytes, long lngFrameNum);
 

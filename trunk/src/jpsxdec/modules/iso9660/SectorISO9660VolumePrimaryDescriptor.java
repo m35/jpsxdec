@@ -40,7 +40,7 @@ package jpsxdec.modules.iso9660;
 import jpsxdec.modules.UnidentifiedSector;
 import jpsxdec.modules.IdentifiedSector;
 import java.io.IOException;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.NotThisTypeException;
 
 public class SectorISO9660VolumePrimaryDescriptor extends UnidentifiedSector
@@ -48,14 +48,14 @@ public class SectorISO9660VolumePrimaryDescriptor extends UnidentifiedSector
     
     private final VolumePrimaryDescriptor _primaryDescriptor;
     
-    public SectorISO9660VolumePrimaryDescriptor(CDSector cdSector)
+    public SectorISO9660VolumePrimaryDescriptor(CdSector cdSector)
             throws NotThisTypeException
     {
         super(cdSector);
         int iSectNum = cdSector.getSectorNumberFromStart();
         if (iSectNum >= 0 && iSectNum != 16) throw new NotThisTypeException();
         try {
-            _primaryDescriptor = new VolumePrimaryDescriptor(cdSector.getCDUserDataStream());
+            _primaryDescriptor = new VolumePrimaryDescriptor(cdSector.getCdUserDataStream());
         } catch (IOException ex) {
             throw new NotThisTypeException();
         }

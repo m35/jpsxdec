@@ -38,11 +38,13 @@
 package jpsxdec;
 
 
+import argparser.ArgParser;
+import argparser.BooleanHolder;
 import java.awt.BorderLayout;
 import java.awt.event.WindowEvent;
 import jpsxdec.modules.IdentifiedSectorRangeIterator;
 import jpsxdec.modules.IdentifiedSector;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import java.io.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -50,8 +52,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import jpsxdec.cdreaders.CDFileSectorReader;
-import jpsxdec.cdreaders.CDSectorIterator;
-import jpsxdec.cdreaders.CDSectorReader;
+import jpsxdec.cdreaders.CdxaRiffHeader;
 import jpsxdec.player.PlayController;
 import jpsxdec.modules.ConsoleProgressListener;
 import jpsxdec.modules.DiscIndex;
@@ -73,7 +74,7 @@ public class Main {
 
     private static FeedbackStream Outputter;
 
-    public final static String Version = "0.92.0 (alpha)";
+    public final static String Version = "0.92.1 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial), v" + Version;
     private static MainCommandLineParser _mainSettings;
@@ -151,11 +152,11 @@ public class Main {
     //--------------------------------------------------------------------------
 
     private static int itemHelp() {
-        CDSectorReader cdReader;
+        CDFileSectorReader cdReader;
         try {
-            cdReader = CDSectorReader.open(_mainSettings.getInputFile());
+            cdReader = new CDFileSectorReader(_mainSettings.getInputFile());
         } catch (IOException ex) {
-            log.log(Level.SEVERE, "Error opening CDSectorReader", ex);
+            log.log(Level.SEVERE, "Error opening CDFileSectorReader", ex);
             Outputter.printlnErr(ex);
             return -1;
         }
@@ -184,18 +185,18 @@ public class Main {
 
     // =========================================================================
 
-    private static CDSectorReader openCD(boolean blnCheckHasHeaders) {
+    private static CDFileSectorReader openCD(boolean blnCheckHasHeaders) {
         return openCD(blnCheckHasHeaders, false);
     }
-    private static CDSectorReader openCD(boolean blnCheckHasHeaders, boolean blnWritable) {
+    private static CDFileSectorReader openCD(boolean blnCheckHasHeaders, boolean blnWritable) {
         //open input file
-        CDSectorReader cdReader;
+        CDFileSectorReader cdReader;
         try {
             Outputter.printlnNorm("Opening " + _mainSettings.getInputFile());
             if (blnWritable)
                 cdReader = new CDFileSectorReader(_mainSettings.getInputFile(), true);
             else
-                cdReader = CDSectorReader.open(_mainSettings.getInputFile());
+                cdReader = new CDFileSectorReader(_mainSettings.getInputFile());
         } catch (IOException ex) {
             log.log(Level.SEVERE, "Error opening input file", ex);
             Outputter.printlnErr(ex.getMessage());
@@ -214,7 +215,7 @@ public class Main {
         return cdReader;
     }
 
-    private static DiscIndex doTheIndex(CDSectorReader cdReader, boolean blnIndexOnly) {
+    private static DiscIndex doTheIndex(CDFileSectorReader cdReader, boolean blnIndexOnly) {
         // index the STR file
         DiscIndex discIndex;
         boolean blnSaveIndexFile = false;
@@ -281,35 +282,44 @@ public class Main {
 
     private static int copySectors() {
         //open input file
-        CDSectorReader oCD;
+        CDFileSectorReader cdReader;
         try {
-            oCD = CDSectorReader.open(_mainSettings.getInputFile());
+            cdReader = new CDFileSectorReader(_mainSettings.getInputFile());
 
             int[] aiSectors = _mainSettings.getSectorsToCopy();
-            
-            CDSectorIterator cdIter = new CDSectorIterator(oCD, aiSectors[0], aiSectors[1]);
-            
+
             Outputter.printlnErr("Copying sectors " + aiSectors[0] + " to " + aiSectors[1]);
-            
+
             FileOutputStream fos = new FileOutputStream(
                     _mainSettings.constructOutPath(_mainSettings.getInputFileBase()
                     + aiSectors[0] + "-" + aiSectors[1] + ".dat"));
-            
-            while (cdIter.hasNext()) {
-                CDSector sector = cdIter.next();
+
+            if (cdReader.getSectorSize() == CDFileSectorReader.SECTOR_SIZE_2352_BIN && _mainSettings.getRemainingArgs() != null) {
+                ArgParser parser = new ArgParser("", false);
+                BooleanHolder noCdxaHeader = new BooleanHolder(false);
+                parser.addOption("-nocdxa %v", noCdxaHeader);
+                parser.matchAllArgs(_mainSettings.getRemainingArgs(), 0, 0);
+                if (!noCdxaHeader.value) {
+                    long lngFileSize = (aiSectors[1] - aiSectors[0] + 1) * (long)2352;
+                    CdxaRiffHeader.write(fos, lngFileSize);
+                }
+            }
+
+            for (int i = aiSectors[0]; i <= aiSectors[1]; i++) {
+                CdSector sector = cdReader.getSector(i);
                 if (sector == null) {
-                    Outputter.printlnErr("Error reading sector!");
+                    Outputter.printlnErr("Error reading sector " + i);
                     return -1;
                     // TODO: err
                 } else {
-                    fos.write(sector.getRawSectorData());
+                    fos.write(sector.getRawSectorDataCopy());
                 }
             }
-            
+
             fos.close();
-            
+
             return 0;
-            
+
         } catch (IOException ex) {
             log.log(Level.SEVERE, "Error copying sectors.", ex);
             Outputter.printlnErr(ex);
@@ -321,7 +331,7 @@ public class Main {
     
     private static int indexOnly() {
         //open input file
-        CDSectorReader cdReader = openCD(false);
+        CDFileSectorReader cdReader = openCD(false);
         if (cdReader == null)
             return -1;
         
@@ -335,7 +345,7 @@ public class Main {
     
     private static int normalDecode() {
         //open input file
-        CDSectorReader cdReader = openCD(true);
+        CDFileSectorReader cdReader = openCD(true);
         if (cdReader == null)
             return -1;
         
@@ -370,7 +380,7 @@ public class Main {
 
     private static int decodeAllType() {
         //open input file
-        CDSectorReader cdReader = openCD(true);
+        CDFileSectorReader cdReader = openCD(true);
         if (cdReader == null)
             return -1;
 
@@ -446,7 +456,7 @@ public class Main {
     //--------------------------------------------------------------------------
    
     private static int sectorDump() {
-        CDSectorReader cdReader = openCD(false);
+        CDFileSectorReader cdReader = openCD(false);
         if (cdReader == null)
             return -1;
         
@@ -484,7 +494,7 @@ public class Main {
     //--------------------------------------------------------------------------
 
     private static int fpsDump() {
-        CDSectorReader cdReader = openCD(false);
+        CDFileSectorReader cdReader = openCD(false);
         if (cdReader == null)
             return -1;
 
@@ -511,7 +521,7 @@ public class Main {
                     DiscItemSTRVideo vid = (DiscItemSTRVideo)item;
                     final int LENGTH = vid.getSectorLength();
                     for (int iSector = 0; iSector < LENGTH; iSector++) {
-                        CDSector sector = vid.getRelativeSector(iSector);
+                        CdSector sector = vid.getRelativeSector(iSector);
                         IdentifiedSector isect = JPSXModule.identifyModuleSector(sector);
                         if (isect instanceof IVideoSector) {
                             IVideoSector vidSect = (IVideoSector) isect;
@@ -544,7 +554,7 @@ public class Main {
     //--------------------------------------------------------------------------
 
     private static int player() {
-        CDSectorReader cdReader = openCD(true);
+        CDFileSectorReader cdReader = openCD(true);
         if (cdReader == null)
             return -1;
 

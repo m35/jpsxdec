@@ -38,7 +38,7 @@
 package jpsxdec.modules.psx.alice;
 
 import java.io.IOException;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.IndexingDemuxerIS;
@@ -85,7 +85,7 @@ public class JPSXModuleAlice extends JPSXModule {
     }
 
     @Override
-    public IdentifiedSector identifySector(CDSector sector) {
+    public IdentifiedSector identifySector(CdSector sector) {
         try {
             SectorAliceFrameChunkNull nullAlice = new SectorAliceFrameChunkNull(sector);
             try {

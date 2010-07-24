@@ -41,7 +41,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CDFileSectorReader;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.JPSXModule;
 import jpsxdec.modules.psx.str.IVideoSector;
 import jpsxdec.modules.psx.str.SectorSTR;
@@ -63,7 +63,7 @@ public class SectorFF7Video extends SectorSTR
 
     // .. Constructor .....................................................
 
-    public SectorFF7Video(CDSector cdSector) throws NotThisTypeException {
+    public SectorFF7Video(CdSector cdSector) throws NotThisTypeException {
         super(cdSector); // will call overridden readHeader() method
     }
 
@@ -159,7 +159,7 @@ public class SectorFF7Video extends SectorSTR
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                 _iUserDataStart, getIdentifiedUserDataSize());
     }
 

@@ -38,7 +38,7 @@
 package jpsxdec.modules.psx.lain;
 
 import java.io.IOException;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.IndexingDemuxerIS;
@@ -79,7 +79,7 @@ public class JPSXModuleLain extends JPSXModule {
     }
 
     @Override
-    public IdentifiedSector identifySector(CDSector cdSector) {
+    public IdentifiedSector identifySector(CdSector cdSector) {
         try { return new SectorLainVideo(cdSector); }
         catch (NotThisTypeException e) {}
         return null;

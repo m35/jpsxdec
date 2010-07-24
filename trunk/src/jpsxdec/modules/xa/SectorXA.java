@@ -43,8 +43,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.JPSXModule;
-import jpsxdec.cdreaders.CDSector;
-import jpsxdec.cdreaders.CDSector.CDXAHeader.SubMode.DATA_AUDIO_VIDEO;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
@@ -59,7 +59,7 @@ public class SectorXA extends IdentifiedSector
     private final int _iBitsPerSample;
     private final boolean _blnStereo;
 
-    public SectorXA(CDSector cdSector) throws NotThisTypeException {
+    public SectorXA(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
 
         if (!cdSector.hasSectorHeader())
@@ -134,7 +134,7 @@ public class SectorXA extends IdentifiedSector
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCDUserDataStream(), 
+        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
                 0, getIdentifiedUserDataSize());
     }
 

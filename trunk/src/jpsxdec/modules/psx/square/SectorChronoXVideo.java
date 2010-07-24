@@ -40,7 +40,7 @@ package jpsxdec.modules.psx.square;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.JPSXModule;
 import jpsxdec.modules.psx.str.IVideoSector;
 import jpsxdec.modules.psx.str.SectorSTR;
@@ -60,7 +60,7 @@ public class SectorChronoXVideo extends SectorSTR
     public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 = 0x81010160;
     public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC2 = 0x01030160;
 
-    public SectorChronoXVideo(CDSector cdSector) throws NotThisTypeException {
+    public SectorChronoXVideo(CdSector cdSector) throws NotThisTypeException {
         super(cdSector); // will call overridden readHeader() method
     }
 

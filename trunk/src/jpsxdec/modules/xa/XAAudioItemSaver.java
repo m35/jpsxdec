@@ -40,7 +40,7 @@ package jpsxdec.modules.xa;
 import java.io.IOException;
 import java.util.logging.Logger;
 import javax.swing.JPanel;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.ProgressListener;
@@ -81,7 +81,7 @@ public class XAAudioItemSaver extends DiscItemSaver {
             final double SECTOR_LENGTH = _xaItem.getSectorLength();
             pl.progressStart("Writing " + audioWriter.getOutputFile());
             for (; iSector <= _xaItem.getEndSector(); iSector++) {
-                CDSector cdSector = _xaItem.getSourceCD().getSector(iSector);
+                CdSector cdSector = _xaItem.getSourceCD().getSector(iSector);
                 IdentifiedSector identifiedSect = _xaItem.identifySector(cdSector);
                 audioWriter.feedSector(identifiedSect);
                 pl.progressUpdate((iSector - _xaItem.getStartSector()) / SECTOR_LENGTH);

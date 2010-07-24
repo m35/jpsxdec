@@ -40,7 +40,7 @@ package jpsxdec.modules.psx.alice;
 import java.io.IOException;
 import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.modules.psx.str.IVideoSector;
-import jpsxdec.cdreaders.CDSector;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.modules.psx.str.DiscItemSTRVideo;
 import jpsxdec.util.IO;
@@ -54,7 +54,7 @@ public class SectorAliceFrameChunk extends SectorAliceFrameChunkNull
 
     // .. Constructor .....................................................
 
-    public SectorAliceFrameChunk(CDSector cdSector) throws NotThisTypeException
+    public SectorAliceFrameChunk(CdSector cdSector) throws NotThisTypeException
     {
         super(cdSector);
         // ingnore null frames between movies

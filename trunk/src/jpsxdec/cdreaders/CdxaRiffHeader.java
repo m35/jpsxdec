@@ -38,65 +38,33 @@
 package jpsxdec.cdreaders;
 
 import java.io.IOException;
-import java.util.NoSuchElementException;
-import jpsxdec.util.AdvancedIOIterator;
+import java.io.OutputStream;
+import jpsxdec.util.IO;
 
 
-/** An AdvancedIOIterator of CDSector sectors. */
-public class CDSectorIterator implements AdvancedIOIterator<CDSector> {
+public class CdxaRiffHeader {
 
-    private CDSectorReader _cdReader;
-    private int _iSectorIndex;
-    private int _iStartSector, _iEndSector;
-    private CDSector _cachedSector;
-    
-    public CDSectorIterator(CDSectorReader oCD, int iStartSector, int iEndSector) {
-        _cdReader = oCD;
-        _iStartSector = iStartSector;
-        _iEndSector = iEndSector;
-        _iSectorIndex = iStartSector;
-    }
-    
-    public CDSector peekNext() throws IOException {
-        if (!hasNext()) throw new NoSuchElementException();
-        if (_cachedSector ==  null)
-            _cachedSector = _cdReader.getSector(_iSectorIndex);
-        return _cachedSector;
-    }
-    
-    public boolean hasNext() {
-        return _iSectorIndex <= _iEndSector;
-    }
+    public static final int SIZEOF = 44;
 
-    public CDSector next() throws IOException {
-        if (!hasNext()) throw new NoSuchElementException();
-        CDSector oCDSect;
-        if (_cachedSector == null)
-            oCDSect = _cdReader.getSector(_iSectorIndex);
-        else {
-            oCDSect = _cachedSector;
-            _cachedSector = null;
-        }
-        _iSectorIndex++;
-        return oCDSect;
-    }
-    
-    public void skipNext() {
-        if (!hasNext()) throw new NoSuchElementException();
-        _cachedSector = null;
-        _iSectorIndex++;
-    }
-    
-    public int getIndex() {
-        return _iSectorIndex;
-    }
-    
-    public void gotoIndex(int i) {
-        if (!(_iStartSector >= i && i <= _iEndSector)) throw new NoSuchElementException();
-        _cachedSector = null;
-        _iSectorIndex = i;
+    private static final byte[] RIFF = {'R','I','F','F'};
+    private static final byte[] CDXA = {'C','D','X','A'};
+    private static final byte[] fmt_ = {'f','m','t', ' '};
+    private static final byte[] data = {'d','a','t', 'a'};
+    private static final byte[] EMPTY_fmt = new byte[16];
+
+    public static void write(OutputStream os, long lngFileSize) throws IOException {
+        if (lngFileSize % 2352 != 0)
+            throw new IllegalArgumentException(lngFileSize + "is not a multiple of 2352");
+        os.write(RIFF);
+        IO.writeInt32LE(os, lngFileSize + SIZEOF - 8);
+        os.write(CDXA);
+        os.write(fmt_);
+        IO.writeInt32LE(os, 16);
+        // it seems you're technically supposed to write the disc's iso9660 directory record here
+        // but I don't think leaving it blank will cause many problems in the wild
+        os.write(EMPTY_fmt);
+        os.write(data);
+        IO.writeInt32LE(os, lngFileSize);
     }
 
-    public void remove() {throw new UnsupportedOperationException();}
-    
 }

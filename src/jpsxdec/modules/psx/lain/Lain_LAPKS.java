@@ -93,7 +93,7 @@ public class Lain_LAPKS {
                 uncompresor.reset(oCell.Data);
                 oDecoder.decode(uncompresor);
                 RgbIntImage oRgb = new RgbIntImage(oCell.Width, oCell.Height);
-                oDecoder.readDecodedRGB(oRgb);
+                oDecoder.readDecodedRgb(oRgb);
                 
                 String s = String.format("%s%02d_f%02d",
                         sOutFileBase,

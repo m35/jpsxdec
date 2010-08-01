@@ -42,11 +42,13 @@ import java.io.IOException;
 import java.util.Arrays;
 import javax.sound.sampled.AudioFormat;
 
-
+/** AVI Writer for Rec.601 YCbCr with 4:2:0 chroma subsampling, i.e. 
+ * FOURCC 'YV12'. */
 public class AviWriterYV12 extends AviWriter {
 
     private final int _iFrameByteSize, _iFrameYByteSize, _iFrameCByteSize;
 
+    /** Dimensions must be a multiple of 2. */
     public AviWriterYV12(final File outFile,
                      final int iWidth, final int iHeight,
                      final long lngFrames, final long lngPerSecond)
@@ -58,7 +60,8 @@ public class AviWriterYV12 extends AviWriter {
              null);
     }
 
-    /** Audio data must be signed 16-bit PCM in little-endian order. */
+    /** Dimensions must be a multiple of 2.
+     * Audio data must be signed 16-bit PCM in little-endian order. */
     public AviWriterYV12(final File outFile,
                      final int iWidth, final int iHeight,
                      final long lngFrames, final long lngPerSecond,
@@ -79,11 +82,11 @@ public class AviWriterYV12 extends AviWriter {
 
     public void write(byte[] abY, byte[] abCb, byte[] abCr) throws IOException {
 
-        if (abY.length != _iFrameYByteSize)
+        if (abY.length < _iFrameYByteSize)
             throw new IllegalArgumentException("Y data wrong size.");
-        if (abCb.length != _iFrameCByteSize)
+        if (abCb.length < _iFrameCByteSize)
             throw new IllegalArgumentException("Cb data wrong size.");
-        if (abCr.length != _iFrameCByteSize)
+        if (abCr.length < _iFrameCByteSize)
             throw new IllegalArgumentException("Cr data wrong size.");
 
         if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameByteSize)

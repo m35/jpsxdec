@@ -193,7 +193,6 @@ public class MediaPlayer implements IAudioVideoReader {
     // #########################################################################
     // #########################################################################
 
-    @Override
     public AudioFormat getAudioFormat() {
         if (_audioDecoder == null)
             return null;
@@ -208,7 +207,6 @@ public class MediaPlayer implements IAudioVideoReader {
             __sector = sector;
         }
 
-        @Override
         public void decodeAudio(SourceDataLine dataLine) throws IOException {
             if (_audioOut == null) {
                 _audioOut = new SourceDataLineAudioReceiver(dataLine, _iSectorsPerSecond, _iMovieStartSector);
@@ -250,17 +248,14 @@ public class MediaPlayer implements IAudioVideoReader {
         // TODO? backup and get the audio for this frame?
     }
 
-    @Override
     public boolean hasVideo() {
         return _vid != null;
     }
 
-    @Override
     public int getVideoWidth() {
         return _vid.getWidth();
     }
 
-    @Override
     public int getVideoHeight() {
         return _vid.getHeight();
     }
@@ -304,10 +299,13 @@ public class MediaPlayer implements IAudioVideoReader {
             try {
                 _decoder.decode(_uncompressor);
             } catch (DecodingException ex) {
-                ex.printStackTrace();
+                System.err.print("Frame ");
+                System.err.print(__iFrame);
+                System.err.print(' ');
+                System.err.println(ex.getMessage());
             }
 
-            _decoder.readDecodedRGB(drawHere);
+            _decoder.readDecodedRgb(drawHere);
         }
 
         @Override

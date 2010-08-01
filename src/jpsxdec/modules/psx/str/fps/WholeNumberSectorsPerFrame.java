@@ -41,8 +41,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.TreeSet;
 
-/** Detects whole-number (integer) sectors/second rate of
- * STR movies. This can also handle variable sector rates.
+/** Detects whole-number (integer) sectors/frame rate of
+ * STR movies. This can also handle variable rates.
  *<p>
  * It uses this basic idea: find what sector/frame interval will
  * be sure to land on every point between frames. As each frame is examined,
@@ -51,7 +51,7 @@ import java.util.TreeSet;
  * initial guess can be made.
  *</p>
  * This isn't usable for movies with &lt; 3 frames,
- * and it's reliable for movies with very few frames. 
+ * but with that few of frames, the frame rate isn't a big deal.
  */
 public class WholeNumberSectorsPerFrame {
 
@@ -79,8 +79,8 @@ public class WholeNumberSectorsPerFrame {
     /** Should be called for every video sector.
      * 
      * @param iSector  Number of sectors since the start of the video (starts at 0).
-     * @param iFrame  Frame number at the sector.
-     * @return  If any sector/frame possibilities exist other than 1.
+     * @param iFrame   Frame number of the sector.
+     * @return         If any sector/frame possibilities exist other than 1.
      */
     public boolean matchesNextVideo(int iSector, int iFrame) {
         if (iSector <= _iPreviousVideoSect || iFrame < _iCurrentFrame)
@@ -263,7 +263,6 @@ public class WholeNumberSectorsPerFrame {
         }
         
         /** Sort based on starting sector. */
-        @Override
         public int compareTo(SectorsPerFrameFromStart o) {
             if (_iFrame2StartSector < o._iFrame2StartSector)
                 return -1;

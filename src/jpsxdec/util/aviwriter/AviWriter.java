@@ -93,16 +93,18 @@ public abstract class AviWriter {
     private final int _iHeight;
     
     /** Numerator of the frames/second fraction. */
-    private final long _lngFrames;
+    private final long _lngFpsNumerator;
     /** Denominator of the frames/second fraction. */
-    private final long _lngPerSecond;
+    private final long _lngFpsDenominator;
 
-    /** Temporary buffer available to store data before writing. */
+    /** Static buffer available for this class, or any subclass to store
+     * data before writing. Allocate more space if not big enough. */
     protected byte[] _abWriteBuffer;
 
     /** Number of frames written. */
     private long _lngFrameCount = 0;
 
+    /** Audio format of the audio stream, or null if there is no audio. */
     private final AudioFormat _audioFormat;
 
     /** Number of audio samples written. */
@@ -120,10 +122,10 @@ public abstract class AviWriter {
         return _audioFormat;
     }
     public long getFramesPerSecNum() {
-        return _lngFrames;
+        return _lngFpsNumerator;
     }
     public long getFramesperSecDenom() {
-        return _lngPerSecond;
+        return _lngFpsDenominator;
     }
     public int getWidth() {
         return _iWidth;
@@ -146,8 +148,7 @@ public abstract class AviWriter {
             return 0;
 
         //  samples/second / frames/second = samples/frame
-
-        return Math.round(_audioFormat.getSampleRate() * _lngPerSecond / _lngFrames);
+        return Math.round(_audioFormat.getSampleRate() * _lngFpsDenominator / _lngFpsNumerator);
     }
 
     // -------------------------------------------------------------------------
@@ -206,9 +207,9 @@ public abstract class AviWriter {
         if (_iWidth < 1 || _iHeight < 1)
             throw new IllegalArgumentException("Video dimensions must be greater than 0.");
 
-        _lngFrames = lngFrames;
-        _lngPerSecond = lngPerSecond;
-        if (_lngFrames < 1 || _lngPerSecond < 1)
+        _lngFpsNumerator = lngFrames;
+        _lngFpsDenominator = lngPerSecond;
+        if (_lngFpsNumerator < 1 || _lngFpsDenominator < 1)
             throw new IllegalArgumentException("Frames/Second must be greater than 0 " +
                                                "(and less than infinity).");
 
@@ -288,8 +289,6 @@ public abstract class AviWriter {
     // -------------------------------------------------------------------------
     // -- Writing functions ----------------------------------------------------
     // -------------------------------------------------------------------------
-
-    //abstract public void writeFrame(BufferedImage bi) throws IOException;
 
     public void repeatPreviousFrame() {
         if (_lngFrameCount < 1)
@@ -451,8 +450,9 @@ public abstract class AviWriter {
     // -- Close ----------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    /** I'm tempted to remove the IOException throw, but Java's
-     *  RandomAccessFile can also throw an IOException on close(). */
+    /** Finishes writing the AVI header and index and closes the file.
+     * This must be called and complete successfully for the AVI to be playable.
+     */
     public void close() throws IOException {
         if (_aviFile == null) throw new IOException("Avi file is closed");
         
@@ -469,63 +469,59 @@ public abstract class AviWriter {
         //## Fill the headers fields ###########################################
         //######################################################################
         
-        //avih.fcc                 = 'avih';  // the avih sub-CHUNK
-        //avih.cb                  = 0x38;    // the length of the avih sub-CHUNK (38H) not including the
-                                              // the first 8 bytes for avihSignature and the length            
-        _avih.dwMicroSecPerFrame    = (int)((_lngPerSecond/(double)_lngFrames)*1.0e6);
+        //_avih.fcc                 = 'avih';  // the avih sub-CHUNK
+        //_avih.cb                  = 0x38;    // the length of the avih sub-CHUNK (38H) not including the
+                                               // the first 8 bytes for avihSignature and the length
+        _avih.dwMicroSecPerFrame    = (int)((_lngFpsDenominator/(double)_lngFpsNumerator)*1.0e6);
         _avih.dwMaxBytesPerSec      = 0;       // (maximum data rate of the file in bytes per second)
         _avih.dwPaddingGranularity  = 0;
         _avih.dwFlags               = AVIMAINHEADER.AVIF_HASINDEX |
                                      AVIMAINHEADER.AVIF_ISINTERLEAVED;    
-                                              // just set the bit for AVIF_HASINDEX
                                               // 10H AVIF_HASINDEX: The AVI file has an idx1 chunk containing
                                               // an index at the end of the file.  For good performance, all
                                               // AVI files should contain an index.                         
         _avih.dwTotalFrames         = _lngFrameCount;  // total frame number
-        _avih.dwInitialFrames       = 0;       // Initial frame for interleaved files.
+        _avih.dwInitialFrames       = 0;      // Initial frame for interleaved files.
                                               // Noninterleaved files should specify 0.
         if (_audioFormat == null)
             _avih.dwStreams         = 1;       // number of streams in the file - here 1 video and zero audio.
         else
             _avih.dwStreams         = 2;       // number of streams in the file - here 1 video and zero audio.
         _avih.dwSuggestedBufferSize = 0;       // Suggested buffer size for reading the file.
-                                              // Generally, this size should be large enough to contain the largest
-                                              // chunk in the file.
-                                              // dwSuggestedBufferSize - Suggested buffer size for reading the file.
+                                               // Generally, this size should be large enough to contain the largest
+                                               // chunk in the file.
+                                               // dwSuggestedBufferSize - Suggested buffer size for reading the file.
         _avih.dwWidth               = _iWidth;  // image width in pixels
         _avih.dwHeight              = _iHeight; // image height in pixels
-        //avih.dwReserved1         = 0;       //  Microsoft says to set the following 4 values to 0.
-        //avih.dwReserved2         = 0;       //  
-        //avih.dwReserved3         = 0;       //  
-        //avih.dwReserved4         = 0;       //  
+        //_avih.dwReserved1         = 0;        //  Microsoft says to set the following 4 values to 0.
+        //_avih.dwReserved2         = 0;        //
+        //_avih.dwReserved3         = 0;        //
+        //_avih.dwReserved4         = 0;        //
         
         
         //######################################################################
         // AVISTREAMHEADER for video
         
-        //strh_vid.fcc                  = 'strh';              // strh sub-CHUNK
-        //strh_vid.cb                   = 56;                  // the length of the strh sub-CHUNK
+        //_strh_vid.fcc                  = 'strh';              // strh sub-CHUNK
+        //_strh_vid.cb                   = 56;                  // the length of the strh sub-CHUNK
         _strh_vid.fccType                = AVIstruct.string2int("vids"); // the type of data stream - here vids for video stream
-       // Write DIB for Microsoft Device Independent Bitmap.  Note: Unfortunately,
-       // at least 3 other four character codes are sometimes used for uncompressed
-       // AVI videos: 'RGB ', 'RAW ', 0x00000000
         _strh_vid.fccHandler             = AVIstruct.string2int(_sFourCCcodec);
         _strh_vid.dwFlags                = 0;
         _strh_vid.wPriority              = 0;
         _strh_vid.wLanguage              = 0;
         _strh_vid.dwInitialFrames        = 0;
-        _strh_vid.dwScale                = _lngPerSecond;
-        _strh_vid.dwRate                 = _lngFrames; // frame rate for video streams
+        _strh_vid.dwScale                = _lngFpsDenominator;
+        _strh_vid.dwRate                 = _lngFpsNumerator; // frame rate for video streams
         _strh_vid.dwStart                = 0;         // this field is usually set to zero
         _strh_vid.dwLength               = _lngFrameCount; // playing time of AVI file as defined by scale and rate
-                                               // Set equal to the number of frames
+                                                           // Set equal to the number of frames
         // TODO: Add a sugested buffer size
-        _strh_vid.dwSuggestedBufferSize  = 0;   // Suggested buffer size for reading the stream.
+        _strh_vid.dwSuggestedBufferSize  = 0;  // Suggested buffer size for reading the stream.
                                                // Typically, this contains a value corresponding to the largest chunk
                                                // in a stream.
         _strh_vid.dwQuality              = -1;  // encoding quality given by an integer between
-                                               // 0 and 10,000.  If set to -1, drivers use the default 
-                                               // quality value.
+                                                // 0 and 10,000.  If set to -1, drivers use the default
+                                                // quality value.
         _strh_vid.dwSampleSize           = 0;
         _strh_vid.left                   = 0;
         _strh_vid.top                    = 0;
@@ -535,7 +531,7 @@ public abstract class AviWriter {
         //######################################################################
         // BITMAPINFOHEADER
         
-        //bif.biSize        = 40;      // Write header size of BITMAPINFO header structure
+        //_bif.biSize        = 40;      // Write header size of BITMAPINFO header structure
                                        // Applications should use this size to determine which BITMAPINFO header structure is 
                                        // being used.  This size includes this biSize field.                                 
         _bif.biWidth         = _iWidth;  // BITMAP width in pixels
@@ -544,7 +540,7 @@ public abstract class AviWriter {
                                        // height is negative, the bitmap is a top-down DIB and its origin is the upper
                                        // left corner.  This negative sign feature is supported by the Windows Media Player, but it is not
                                        // supported by PowerPoint.                                                                        
-        //bif.biPlanes      = 1;       // biPlanes - number of color planes in which the data is stored
+        //_bif.biPlanes      = 1;       // biPlanes - number of color planes in which the data is stored
                                        // This must be set to 1.
         _bif.biBitCount      = 24;      // biBitCount - number of bits per pixel #
 
@@ -567,8 +563,8 @@ public abstract class AviWriter {
         // AVISTREAMHEADER for audio
 
         if (_audioFormat != null) {
-            //strh.fcc                  = 'strh';              // strh sub-CHUNK
-            //strh.cb                   = 56;                  // length of the strh sub-CHUNK
+            //_strh_aud.fcc                  = 'strh';              // strh sub-CHUNK
+            //_strh_aud.cb                   = 56;                  // length of the strh sub-CHUNK
             _strh_aud.fccType                = AVIstruct.string2int("auds"); // Write the type of data stream - here auds for audio stream
             _strh_aud.fccHandler             = 0; // no fccHandler for wav
             _strh_aud.dwFlags                = 0;
@@ -644,17 +640,17 @@ public abstract class AviWriter {
     // -- Private functions ----------------------------------------------------
     // -------------------------------------------------------------------------
     
-    /** Represents an AVI 'chunk'. When created, it saves the current
+    /** Represents an AVI RIFF 'chunk'. When created, it saves the current
      *  position in the AVI RandomAccessFile. When endChunk() is called,
      *  it temporarily jumps back to the start of the chunk and records how 
      *  many bytes have been written. */
     private static class Chunk {
-        final private long m_lngPos;
-        private long m_lngSize = -1;
+        final private long _lngPos;
+        private long _lngSize = -1;
         
         Chunk(RandomAccessFile raf, String sChunkName) throws IOException {
             AVIstruct.write32LE(raf, AVIstruct.string2int(sChunkName));
-            m_lngPos = raf.getFilePointer();
+            _lngPos = raf.getFilePointer();
             raf.writeInt(0);
         }
         
@@ -668,22 +664,22 @@ public abstract class AviWriter {
          *  returns to the current position again. */
         public void endChunk(RandomAccessFile raf) throws IOException {
             long lngCurPos = raf.getFilePointer(); // save this pos
-            raf.seek(m_lngPos); // go back to where the header is
-            m_lngSize = (lngCurPos - (m_lngPos + 4)); // save number of bytes since start of chunk
-            AVIstruct.write32LE(raf, (int)m_lngSize); // write the header size
+            raf.seek(_lngPos); // go back to where the header is
+            _lngSize = (lngCurPos - (_lngPos + 4)); // calculate number of bytes since start of chunk
+            AVIstruct.write32LE(raf, (int)_lngSize); // write the header size
             raf.seek(lngCurPos); // return to current position
         }
 
         /** After endChunk() has been called, returns the size that was
          *  written. */
         private long getSize() {
-            return m_lngSize;
+            return _lngSize;
         }
         
         /** Returns the position where the size will be written when
          *  endChunk() is called. */
         private long getStart() {
-            return m_lngPos;
+            return _lngPos;
         }
     }
     

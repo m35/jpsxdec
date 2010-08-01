@@ -96,7 +96,6 @@ public class AudioStreamsCombiner implements IAudioSectorDecoder {
         }
     }
 
-    @Override
     public void open(IAudioReceiver audioOut) {
 
         _feedOut = audioOut;
@@ -110,42 +109,35 @@ public class AudioStreamsCombiner implements IAudioSectorDecoder {
          }
     }
 
-    @Override
     public double getVolume() {
         // assume the volume is the same for all decoders
         return _aoDecoders[0].getVolume();
     }
 
-    @Override
     public void setVolume(double dblVolume) {
         for (IAudioSectorDecoder decoder : _aoDecoders) {
             decoder.setVolume(dblVolume);
         }
     }
 
-    @Override
     public AudioFormat getOutputFormat() {
         return _outFormat;
     }
 
-    @Override
     public void reset() {
         for (IAudioSectorDecoder decoder : _aoDecoders) {
             decoder.reset();
         }
     }
 
-    @Override
     public int getStartSector() {
         return _iStartSector;
     }
 
-    @Override
     public int getEndSector() {
         return _iEndSector;
     }
 
-    @Override
     public int getPresentationStartSector() {
         return _iPresStartSector;
     }
@@ -159,7 +151,6 @@ public class AudioStreamsCombiner implements IAudioSectorDecoder {
         return null;
     }
 
-    @Override
     public void feedSector(IdentifiedSector sector) throws IOException {
         IAudioSectorDecoder decoder = pickDecoder(sector.getSectorNumber());
         if (decoder == null)
@@ -178,12 +169,10 @@ public class AudioStreamsCombiner implements IAudioSectorDecoder {
 
     private class NormalizingOutputStream implements IAudioReceiver {
 
-        @Override
         public void close() throws IOException {
             throw new UnsupportedOperationException("I hope this never happens.");
         }
 
-        @Override
         public void write(AudioFormat inFormat, byte[] abIn, int iInOfs, int iInLen, int iPresentationSector) throws IOException {
 
             boolean blnInIsStereo = inFormat.getChannels() == 2 ? true : false;

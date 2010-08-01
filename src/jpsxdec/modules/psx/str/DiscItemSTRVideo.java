@@ -63,7 +63,7 @@ public class DiscItemSTRVideo extends DiscItem {
     public static final String TYPE_ID = "Video";
     
     private static final String FRAMES_KEY = "Frames";
-    private static final String DIMENSIONS_KEY = "Dimentions";
+    private static final String DIMENSIONS_KEY = "Dimensions";
     private static final String DISC_SPEED_KEY = "Disc Speed";
     private static final String SECTORSPERFRAME_KEY = "Sectors/Frame";
     private static final String FRAME1_LAST_SECTOR_KEY = "Frame 1 last sector";

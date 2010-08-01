@@ -123,14 +123,14 @@ public class SectorAudioWriterBuilder {
         String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
 
         if (vol.value >= 0 && vol.value <= 100) {
-            fbs.printlnNorm("Volume set to " + vol.value + "%");
+            fbs.println("Volume set to " + vol.value + "%");
             setVolume(vol.value / 100.0);
         }
 
         if (audfmt.value != null) {
             JavaAudioFormat fmt = JavaAudioFormat.fromCmdLine(audfmt.value);
             if (fmt != null) {
-                fbs.printlnNorm("Saving as " + fmt.getExtension());
+                fbs.println("Saving as " + fmt.getExtension());
                 setContainerForamt(fmt);
             } else {
                 fbs.printlnWarn("Ignoring invalid format " + audfmt.value);
@@ -174,7 +174,6 @@ public class SectorAudioWriterBuilder {
             __decoder.open(this);
         }
 
-        @Override
         public void write(AudioFormat inFormat, byte[] abData, int iStart, int iLen, int iPresentationSector) throws IOException {
             __audioWriter.write(inFormat, abData, iStart, iLen);
         }
@@ -187,7 +186,6 @@ public class SectorAudioWriterBuilder {
             return __sOutputFile;
         }
 
-        @Override
         public void feedSector(IdentifiedSector sector) throws IOException {
             __decoder.feedSector(sector);
         }

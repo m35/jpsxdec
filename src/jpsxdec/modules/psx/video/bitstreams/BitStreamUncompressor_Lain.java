@@ -372,6 +372,8 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor_STRv2 {
             String sTopBits = Misc.bitsToString(code.getTop6Bits(), 6);
             if (code.getBottom10Bits() == 0)
                 throw new IllegalArgumentException("Invalid MDEC code to escape " + code.toString());
+            if (code.getBottom10Bits() < -256 || code.getBottom10Bits() > 255)
+                throw new IllegalArgumentException("Unable to escape, AC code too large for Lain " + code.toString());
             if (code.getBottom10Bits() >= -127 && code.getBottom10Bits() <= 127) {
                 return AC_ESCAPE_CODE + sTopBits + Misc.bitsToString(code.getBottom10Bits(), 8);
             } else {

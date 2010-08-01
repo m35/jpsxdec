@@ -37,6 +37,7 @@
 
 package jpsxdec.modules;
 
+import jpsxdec.util.ProgressListener;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -113,7 +114,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             } catch (IOException ex) {
                 if (pl != null)
                     pl.error(ex);
-                log.log(Level.WARNING, "Error while indexing disc", ex);
+                log.log(Level.WARNING, "Error reading sector "+iSector+" while indexing disc", ex);
             }
         }
 
@@ -147,10 +148,6 @@ public class DiscIndex implements Iterable<DiscItem> {
         // notify the modules that the list has been generated
         for (JPSXModule module : aoModules) {
             module.mediaListGenerated(this);
-        }
-        // debug print the list contents
-        if (log.isLoggable(Level.INFO)) {
-            for (DiscItem item : this) log.info(item.toString());
         }
 
     }

@@ -38,8 +38,8 @@
 package jpsxdec.modules.psx.video.mdec;
 
 /** Error during uncompression of the frame. A portion was likely decoded
- *  before this error occured. */
-public class DecodingException extends Throwable {
+ *  before this error occurred. */
+public class DecodingException extends Exception {
 
     public DecodingException() {
         super();

@@ -167,6 +167,11 @@ public abstract class MdecInputStream {
             return new MdecCode(_iTop6Bits, _iBottom10Bits);
         }
 
+        public void copy(MdecCode o) {
+            o.setTop6Bits(_iTop6Bits);
+            o.setBottom10Bits(_iBottom10Bits);
+        }
+
         public boolean isEOD() {
             return (_iTop6Bits == MDEC_END_OF_DATA_TOP6 &&
                     _iBottom10Bits == MDEC_END_OF_DATA_BOTTOM10);

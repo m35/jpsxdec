@@ -77,6 +77,7 @@ public class CdSector2336 extends CdSector {
     }
     
     public byte readUserDataByte(int i) {
+        if (i < 0 || i >= _iUserDataSize) throw new IndexOutOfBoundsException();
         return _abSectorBytes[_iUserDataOffset + i];
     }
 
@@ -88,7 +89,7 @@ public class CdSector2336 extends CdSector {
     }
 
     public void getCdUserDataCopy(int iSourcePos, byte[] abOut, int iOutPos, int iLength) {
-        if (iLength > _iUserDataSize) throw new IndexOutOfBoundsException();
+        if (iSourcePos < 0 || iSourcePos + iLength > _iUserDataSize) throw new IndexOutOfBoundsException();
         System.arraycopy(_abSectorBytes, _iUserDataOffset + iSourcePos,
                 abOut, iOutPos,
                 iLength);

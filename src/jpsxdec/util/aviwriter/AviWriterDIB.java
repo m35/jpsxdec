@@ -78,6 +78,9 @@ public class AviWriterDIB extends AviWriter {
                      final AudioFormat oAudioFormat)
             throws IOException
     {
+       // Write 'DIB ' for Microsoft Device Independent Bitmap.  Note: Unfortunately,
+       // at least 3 other fourcc codes are sometimes used for uncompressed
+       // AVI videos: 'RGB ', 'RAW ', 0x00000000
         super(oOutputfile, iWidth, iHeight, lngFrames, lngPerSecond, oAudioFormat, true, "DIB ", BITMAPINFOHEADER.BI_RGB);
 
         int iLinePadding = (getWidth() * 3) & 3;

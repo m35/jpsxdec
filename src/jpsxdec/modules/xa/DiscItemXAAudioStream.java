@@ -224,7 +224,6 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
             __decoder = XAADPCMDecoder.create(getADPCMBitsPerSample(), isStereo(), blnBigEndian, dblVolume);
         }
 
-        @Override
         public void open(IAudioReceiver audioFeed) {
             __outFeed = audioFeed;
         }

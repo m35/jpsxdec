@@ -54,12 +54,14 @@ public class InconsistentFrameSequence {
 
     private static final Logger log = Logger.getLogger(InconsistentFrameSequence.class.getName());
 
+    /** List of sectors/frame data files. Update this list if the files change. */
     public static final String[] FPS_LISTS = new String[] {
         "20FPS_A16.dat",
         "NTSC15_A8-100,999.dat",
         "NTSC15_A8-101,1000.dat"
     };
 
+    /** Parses the header line in a sectors/frame data file.  */
     private static class HeaderParse {
             public final int iSectors   ,
                 iPerFrame  ,
@@ -114,7 +116,7 @@ public class InconsistentFrameSequence {
         return possibles;
     }
 
-    /** Seeks through an inconsistent sectors/frame resource to see if it
+    /** Seeks through an inconsistent sectors/frame data file to see if it
      * contains a matching frame, chunk, and chunk-count combination of values.
      * If so, returns the InconsistentFrameSequence starting at that line,
      * which can continued to be read and compared against sequential sectors.

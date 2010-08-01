@@ -56,23 +56,20 @@ import jpsxdec.util.IO;
  * be inaccurate, but it may be better than nothing.
  *
  *<hr>
- * This should be designed in one of 3 ways:
- *<p>
- * 1) THE DECODER SHOULD BE MINIMAL AND JUST RETURN AN ARRAY OF
- * SHORTS (still interleaved audio/stereo cuz that shouldn't change, but
+ * This should be designed in one of 4 ways:
+ *<ol>
+ *<li>THE DECODER SHOULD BE MINIMAL AND JUST RETURN AN ARRAY OF
+ * SHORTS (still interleaved stereo because that shouldn't change, but
  * the return of shorts eliminates the need to know about endian-ness)
  * That array of shorts could then be converted to an AudioInputStream
  * either by first copying to a byte[] array and wrapping with
- * AudioInputStream, or creating a ShortArrayInputStream (whose endian-nesss
- * can be set) and wrapping that with an AudioInputStream.
- *<p>
- * 2) DECODER DOES EVERYTHING AND RETURNS AN AUDIOINPUTSTREAM
- *<p>
- * 3) MAKE IT WORK LIKE THE REST OF THE JAVA AUDIO SYSTEM,
+ * AudioInputStream.
+ *<li>MINIMUL DECODER, BUT RETURNS AN ARRAY OF BYTES IN THE CHOSEN ENDIAN ORDER
+ *<li>DECODER DOES EVERYTHING AND RETURNS AN AUDIOINPUTSTREAM
+ *<li>MAKE IT WORK LIKE THE REST OF THE JAVA AUDIO SYSTEM,
  * AND HAVE THIS CLASS implement TargetDataLine
- *<p>
- * This has been implemented using the first method.
- *
+ *</ol>
+ * This has been implemented using the 2nd method.
  */
 public abstract class XAADPCMDecoder {
 
@@ -528,46 +525,6 @@ public abstract class XAADPCMDecoder {
             // let the context scale, round, and clamp
             // fianlly return the polished sample
             return oContext.saveScaleRoundClampPCMSample(dblResult);
-        }
-    }
-
-    /** Writes shorts to a buffer as big-endian or little-endian. */
-    protected abstract static class ShortEndianWriter {
-
-        protected int _iPos;
-
-        public void resetPos() {
-            _iPos = 0;
-        }
-        
-        abstract void write(short si, byte[] ab);
-        abstract boolean isBigEndian();
-
-        public static class BE extends ShortEndianWriter {
-            @Override
-            void write(short si, byte[] ab) {
-                ab[_iPos] = (byte)((si >> 8) & 0xff);
-                _iPos++;
-                ab[_iPos] = (byte)((si     ) & 0xff);
-                _iPos++;
-            }
-            @Override
-            boolean isBigEndian() {
-                return true;
-            }
-        }
-        public static class LE extends ShortEndianWriter {
-            @Override
-            void write(short si, byte[] ab) {
-                ab[_iPos] = (byte)((si     ) & 0xff);
-                _iPos++;
-                ab[_iPos] = (byte)((si >> 8) & 0xff);
-                _iPos++;
-            }
-            @Override
-            boolean isBigEndian() {
-                return false;
-            }
         }
     }
 

@@ -46,14 +46,14 @@ import java.io.OutputStream;
  */
 public class BitStreamWriter {
 
-    private OutputStream m_os;
-    private int m_iNextWrite = 0;
-    private int m_iIndex;
-    private boolean m_blnIsBigEndian = true;
+    private OutputStream _os;
+    private int _iNextWrite = 0;
+    protected int _iIndex;
+    private boolean _blnIsBigEndian = true;
 
     public BitStreamWriter(OutputStream os) {
         super();
-        m_os = os;
+        _os = os;
     }
 
     /** Write a string of bits. */
@@ -72,61 +72,61 @@ public class BitStreamWriter {
 
     /** Write one bit */
     public void write(boolean blnBit) throws IOException {
-        m_iNextWrite <<= 1;
+        _iNextWrite <<= 1;
         if (blnBit) {
-            m_iNextWrite |= 1;
+            _iNextWrite |= 1;
         }
-        m_iIndex++;
-        if (m_iIndex == 16) {
+        _iIndex++;
+        if (_iIndex == 16) {
             write();
         }
     }
 
     public void write(long lngValue, int iBits) throws IOException {
         if (iBits == 0) throw new IllegalArgumentException();
-        for (int iMask = 1 << (iBits-1); iMask > 0; iMask >>= 1) {
-            write((lngValue & iMask) > 0);
+        for (long lngMask = 1L << (iBits-1); lngMask != 0; lngMask >>= 1) {
+            write((lngValue & lngMask) != 0);
         }
     }
 
     /** Closes the underlying stream after flushing the remaining bits. */
     public void close() throws IOException {
         flush();
-        m_os.close();
+        _os.close();
     }
 
     /** If there are bits remaining to write, writes them, filling
      *  the remaining bits of the word with zeros. */
-    void flush() throws IOException {
-        if (m_iIndex != 0) {
-            m_iNextWrite <<= 16 - m_iIndex;
+    public void flush() throws IOException {
+        if (_iIndex != 0) {
+            _iNextWrite <<= 16 - _iIndex;
             write();
         }
     }
 
     /** Write the buffered 16 bits as big-endian or little-endian. */
     private void write() throws IOException {
-        if (m_blnIsBigEndian) {
-            m_os.write((m_iNextWrite >>> 8) & 255);
-            m_os.write(m_iNextWrite & 255);
+        if (_blnIsBigEndian) {
+            _os.write((_iNextWrite >>> 8) & 255);
+            _os.write(_iNextWrite & 255);
         } else {
-            m_os.write(m_iNextWrite & 255);
-            m_os.write((m_iNextWrite >>> 8) & 255);
+            _os.write(_iNextWrite & 255);
+            _os.write((_iNextWrite >>> 8) & 255);
         }
-        m_iIndex = 0;
-        m_iNextWrite = 0;
+        _iIndex = 0;
+        _iNextWrite = 0;
     }
 
     public void setBigEndian(boolean bln) {
-        m_blnIsBigEndian = bln;
+        _blnIsBigEndian = bln;
     }
 
     public void setLittleEndian(boolean bln) {
-        m_blnIsBigEndian = !bln;
+        _blnIsBigEndian = !bln;
     }
 
-    public void write(byte[] abCameraData) throws IOException {
-        for (byte b : abCameraData) {
+    public void write(byte[] ab) throws IOException {
+        for (byte b : ab) {
             write(b, 8);
         }
     }

@@ -1,6 +1,24 @@
+v0.92.2 rev1532 (31 Jul 2010)
+    - Can now be run with Java 5 again
+    - Improved detection of XA audio streams
+	- Now prints what audio stream is being saved with the video stream
+    - Fixed error in index files (breaks compatibility--indexes need to be recreated)
+    - Fixed -sectordump output
+	- Reverted -jpg option to accept a number again
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
+    - Gives way too many errors when encountering CD audio track
+    - Not all command-line options have been well tested
+    - 'psx' video decoder quality definitely does not match actual hardware output
 v0.92.1 rev1490 (23 Jul 2010)
     - Added support for disc images including subchannel data (2448 bytes/sector)
     - Disc reading is now buffered, which should speed up everything
+    - Fixed crash when reading from very small disc images
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
+    - Gives way too many errors when encountering CD audio track
+    - Not all command-line options are working, and many haven't been well tested
+    - 'psx' video decoder quality definitely does not match actual hardware output
 v0.92.0 rev1335 (24 Apr 2010)
     - Fixed AVI YV12 and Yuv4mpeg2 output colors.
     - Fixed A/V sync calculation error that incorrectly added silence to FF9 videos
@@ -192,4 +210,5 @@ v0.26 (development release)
     - Fixed video decoding (BufferedBitReader again)
 v0.25 and earlier
     - Fixed video decoding (BufferedBitReader)
+    - Fixed crash in CDSectorReader.java:getFilePointer() when header is not available.
     - Fixed crash in CDSectorReader.java:getFilePointer() when header is not available.

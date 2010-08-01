@@ -38,9 +38,8 @@
 package jpsxdec.formats;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.PixelGrabber;
 
-/** Simplest image format containing a buffer and dimentions. */
+/** Simplest image format containing a buffer and dimensions. */
 public class RgbIntImage {
 
 

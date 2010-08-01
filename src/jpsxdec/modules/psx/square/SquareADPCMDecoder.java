@@ -43,6 +43,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.modules.xa.ShortEndianWriter;
 import jpsxdec.util.ByteArrayFPIS;
 
 /** Decodes Square's unique ADPCM audio data. Confirmed used in FF8, FF9,
@@ -56,7 +57,7 @@ public final class SquareADPCMDecoder {
     private final SoundUnit _leftSoundUnit;
     private final SoundUnit _rightSoundUnit;
 
-    private final ShortOutputBuffer _decodeBuffer;
+    private final ShortEndianWriter _decodeBuffer;
     
     public SquareADPCMDecoder(boolean blnBigEndian, double dblVolume) {
         _leftSoundUnit = new SoundUnit(dblVolume);
@@ -65,9 +66,9 @@ public final class SquareADPCMDecoder {
         // create the output buffer depending on the how much
         // data will be decoded and the desired endian-ness
         if (blnBigEndian)
-            _decodeBuffer = new ShortOutputBuffer.BE();
+            _decodeBuffer = new ShortEndianWriter.BE();
         else
-            _decodeBuffer = new ShortOutputBuffer.LE();
+            _decodeBuffer = new ShortEndianWriter.LE();
     }
     
     /** Decodes a requested amount of audio data from the input stream. */
@@ -88,21 +89,17 @@ public final class SquareADPCMDecoder {
         if (abOutBuffer.length < iOutputSize)
             throw new IllegalArgumentException("Out buffer size not big enough.");
 
-        _decodeBuffer.reset(abOutBuffer);
+        _decodeBuffer.resetPos();
 
-        try {
-            for (int iSoundUnitIdx = 0; iSoundUnitIdx < iSoundUnitCount; iSoundUnitIdx++)
-            {
-                short[] asiLeftSamples = _leftSoundUnit.readSoundUnit(leftStream);
-                short[] asiRightSamples = _rightSoundUnit.readSoundUnit(rightStream);
+        for (int iSoundUnitIdx = 0; iSoundUnitIdx < iSoundUnitCount; iSoundUnitIdx++)
+        {
+            short[] asiLeftSamples = _leftSoundUnit.readSoundUnit(leftStream);
+            short[] asiRightSamples = _rightSoundUnit.readSoundUnit(rightStream);
 
-                for (int iSampleIdx = 0; iSampleIdx < SoundUnit.SAMPLES_PER_SOUND_UNIT; iSampleIdx++) {
-                    _decodeBuffer.write(asiLeftSamples[iSampleIdx]);
-                    _decodeBuffer.write(asiRightSamples[iSampleIdx]);
-                }
+            for (int iSampleIdx = 0; iSampleIdx < SoundUnit.SAMPLES_PER_SOUND_UNIT; iSampleIdx++) {
+                _decodeBuffer.write(asiLeftSamples[iSampleIdx], abOutBuffer);
+                _decodeBuffer.write(asiRightSamples[iSampleIdx], abOutBuffer);
             }
-        } finally {
-            _decodeBuffer.clearRemaining(iOutputSize);
         }
         return iOutputSize;
     }

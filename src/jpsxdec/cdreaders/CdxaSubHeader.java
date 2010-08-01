@@ -78,24 +78,31 @@ public class CdxaSubHeader {
         // Ace Combat 3 has several sectors with channel 255
         // They seem to be "null" sectors
         channel     = abSectorData[iStartOffset + 1] & 0xff;
+        // TODO: If there is an error, try the copy
         submode     = new SubMode(abSectorData[iStartOffset + 2]);
+        // TODO: If there is an error, try the copy
         coding_info = new CodingInfo(abSectorData[iStartOffset + 3]);
 
         int b;
+        // TODO: If there is a difference, and tolerance allows it, pick the one that is more likely
         b = abSectorData[iStartOffset + 4] & 0xff;
-        if (file_number != b)
-            throw new NotThisTypeException(String.format("XA audio sector file number copy is corrupted: %d != %d", file_number, b));
+        if (iTolerance < 1 && file_number != b)
+            throw new NotThisTypeException(String.format("CD sector file number copy is corrupted: %d != %d", file_number, b));
+
         b = abSectorData[iStartOffset + 5] & 0xff;
         if (iTolerance < 1 && channel != b) {
             // Alundra 2 has the first channel correct, but the copy sometimes == 1 (unless my image is just bad)
-            throw new NotThisTypeException(String.format("XA audio sector channel copy is corrupted: %d != %d", channel, b));
+            throw new NotThisTypeException(String.format("CD sector channel copy is corrupted: %d != %d", channel, b));
         }
+
         b = abSectorData[iStartOffset + 6] & 0xff;
-        if (submode.toByte() != b)
-            throw new NotThisTypeException(String.format("XA audio sector submode copy is corrupted: 0x%02x != 0x%02x", submode.toByte(), b));
+        if (iTolerance < 1 && submode.toByte() != b)
+            throw new NotThisTypeException(String.format("CD sector submode copy is corrupted: 0x%02x != 0x%02x", submode.toByte(), b));
+
+        // only verify coding info if mode 2
         b = abSectorData[iStartOffset + 7] & 0xff;
-        if (coding_info.toByte() != b)
-            throw new NotThisTypeException(String.format("XA audio sector coding_info copy is corrupted: 0x%02x != 0x%02x", coding_info.toByte(), b));
+        if (iTolerance < 1 && submode.getForm() == 2 && coding_info.toByte() != b)
+            throw new NotThisTypeException(String.format("CD sector coding_info copy is corrupted: 0x%02x != 0x%02x", coding_info.toByte(), b));
     }
 
 
@@ -234,7 +241,7 @@ public class CdxaSubHeader {
     }
 
     public String toString() {
-        return String.format("File.Channel:%d.%d Subcode:%s",
+        return String.format("File.Channel:%d.%d Subcode:%s", // TODO: Subcode->Submode
                     file_number, channel, submode.toString());
     }
 }

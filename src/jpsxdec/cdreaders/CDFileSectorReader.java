@@ -46,6 +46,7 @@ import jpsxdec.modules.xa.JPSXModuleXAAudio;
 import jpsxdec.modules.xa.SectorXA;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.util.IO;
+import jpsxdec.util.IOException6;
 import jpsxdec.util.NotThisTypeException;
 
 /** Reads a CD image (BIN/CUE, ISO), or a file containing some sectors of a CD 
@@ -118,7 +119,7 @@ public class CDFileSectorReader {
         SectorCreator creator;
 
         try {
-            creator = new Cd2352or2448(_inputFile, true, true);
+            creator = new Cd2352or2448(_inputFile, true /*2352*/, true /*2448*/);
             log.info("Disc type identified as " + creator.getTypeDescription());
         } catch (NotThisTypeException ex) {
             try {
@@ -166,16 +167,16 @@ public class CDFileSectorReader {
                     _sectorCreator = new Cd2336(_inputFile);
                     break;
                 case SECTOR_SIZE_2352_BIN:
-                    _sectorCreator = new Cd2352or2448(_inputFile, true, false);
+                    _sectorCreator = new Cd2352or2448(_inputFile, true /*2352*/, false /*2448*/);
                     break;
                 case SECTOR_SIZE_2448_BIN_SUBCHANNEL:
-                    _sectorCreator = new Cd2352or2448(_inputFile, false, true);
+                    _sectorCreator = new Cd2352or2448(_inputFile, false /*2352*/, true /*2448*/);
                     break;
                 default:
                     throw new IllegalArgumentException();
             }
         } catch (NotThisTypeException ex) {
-            throw new IOException(ex);
+            throw new IOException6(ex);
         }
 
         _iSectorCount = (int)((_inputFile.length() - _sectorCreator.get1stSectorOffset())
@@ -394,11 +395,9 @@ public class CDFileSectorReader {
             return new CdSector2336(abSectorBuff, iOffset, iSector, lngFilePointer, iTolerance);
         }
 
-        @Override
         public String getTypeDescription() {
             return "partial header (2336 bytes/sector) format";
         }
-        @Override
         public boolean hasSectorHeader() {
             return true;
         }
@@ -465,13 +464,11 @@ public class CDFileSectorReader {
             return new CdSector2352(abSectorBuff, iOffset, iSector, lngFilePointer, iTolerance);
         }
 
-        @Override
         public String getTypeDescription() {
             return _bln2352 ? 
                 "BIN/CUE (2352 bytes/sector) format" :
                 "BIN/CUE + Sub Channel (2448 bytes/sector) format";
         }
-        @Override
         public boolean hasSectorHeader() {
             return true;
         }

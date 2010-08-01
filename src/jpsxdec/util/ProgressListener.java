@@ -35,64 +35,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.psx.square;
+package jpsxdec.util;
 
-import java.util.Arrays;
+public abstract class ProgressListener {
 
-/** Very simple buffer that shorts can be written to. Two subclasses,
- *  BE and LE, saves the 16-bit short values as big-endian and little-endian,
- *  respectively. */
-public abstract class ShortOutputBuffer {
+    abstract public void progressStart(String s);
 
-    private byte[] _abBuf;
-    private int _iPos = 0;
+    public void progressStart() { progressStart(null); }
 
-    /** Resets the write index to the start of the buffer. */
-    public void reset(byte[] abBuf) {
-        _abBuf = abBuf;
-        _iPos = 0;
+    public void progressEnd() {}
+
+    public void progressUpdate(double dblPercentComplete) {}
+
+    public void event(String sDescription) {}
+
+    public void warning(String sMessage, Throwable cause) { 
+        warning(sMessage + " " + cause.getMessage());
     }
+    public void warning(Throwable ex) { warning(ex.getMessage()); }
+    public void warning(String sDescription) {}
 
-    public byte[] getBuffer() {
-        return _abBuf;
+    public void error(String sMessage, Throwable ex) {
+        error(sMessage + " " + ex.getMessage());
     }
+    public void error(Throwable ex) { error(ex.getMessage()); }
+    public void error(String sDescription) {}
 
-    protected void write(int iByte) {
-        _abBuf[_iPos] = (byte) iByte;
-        _iPos++;
-    }
+    public void info(String s) {}
 
-    public abstract void write(short si);
-    public abstract boolean isBigEndian();
-
-    /** Fills the remaining unused buffer with zeros. */
-    public void clearRemaining(int iEnd) {
-        Arrays.fill(_abBuf, _iPos, iEnd, (byte) 0);
-        _abBuf = null;
-    }
-
-    /** Shorts are written as Big Endian. */
-    public static class BE extends ShortOutputBuffer {
-        @Override
-        public void write(short si) {
-            super.write(si >> 8);
-            super.write(si & 0xFF);
-        }
-        public boolean isBigEndian() {
-            return true;
-        }
-    }
-
-    /** Shorts are written as Little Endian. */
-    public static class LE extends ShortOutputBuffer {
-        @Override
-        public void write(short si) {
-            super.write(si & 0xFF);
-            super.write(si >> 8);
-        }
-        public boolean isBigEndian() {
-            return false;
-        }
-    }
-
+    abstract public void more(String s);
 }

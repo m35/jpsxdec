@@ -203,7 +203,7 @@ public class ParsedMdecImage  {
             // update the block's Qscale
             DCCoefficient.setTop6Bits(iNewScale);
 
-            // we don't need to scale the DC too because it's not multiplied by the qscale...right?
+            // we don't need to scale the DC too because it's not multiplied by the qscale
             // DCCoefficient.Bottom10Bits = (int)
             //         Math.round(DCCoefficient.Bottom10Bits * iBlksCurScale / (double)iNewScale);
 
@@ -376,9 +376,9 @@ public class ParsedMdecImage  {
     public MdecInputStream getStream() {
         return new MdecReader(0);
     }
-    public MdecInputStream getStream(int x, int y) {
+    public MdecInputStream getStream(int iMacBlkX, int iMaxBlkY) {
         int iMacBlkHeight = (_iHeight + 15) / 16;
-        return new MdecReader(y + x * iMacBlkHeight);
+        return new MdecReader(iMaxBlkY + iMacBlkX * iMacBlkHeight);
     }
     
     public int getMdecCodeCount() {
@@ -403,7 +403,7 @@ public class ParsedMdecImage  {
         _iChromQscale = -1;
         _iLuminQscale = -1;
 
-        ArrayList<MdecCode> oACCoefficients = new ArrayList<MdecCode>();
+        ArrayList<MdecCode> acCoefficients = new ArrayList<MdecCode>();
 
         int iMacBlockWidth = (_iWidth + 15) / 16;
         int iMacBlockHeight = (_iHeight + 15) / 16;
@@ -415,38 +415,38 @@ public class ParsedMdecImage  {
             for (int iMacBlkY = 0; iMacBlkY < iMacBlockHeight; iMacBlkY ++)
             {
                 if (log.isLoggable(Level.FINE))
-                    log.fine("Decoding macroblock " + iMacroBlockIndex);
+                    log.fine("Reading macroblock " + iMacroBlockIndex);
 
-                MacroBlock oThisMacBlk;
-                _mdecList[iMacroBlockIndex] = oThisMacBlk = new MacroBlock();
+                MacroBlock thisMacBlk;
+                _mdecList[iMacroBlockIndex] = thisMacBlk = new MacroBlock();
                 
                 for (int iBlock = 0; iBlock < 6; iBlock++) {
-                    Block oThisBlk;
-                    oThisMacBlk.replaceBlock(oThisBlk = new Block(iBlock));
+                    Block thisBlk;
+                    thisMacBlk.replaceBlock(thisBlk = new Block(iBlock));
                     
-                    MdecCode oQscaleDC = new MdecCode();
-                    mdecIn.readMdecCode(oQscaleDC);
-                    oThisBlk.DCCoefficient = oQscaleDC;
-                    if (oThisBlk.isChrom()) {
+                    MdecCode qscaleDC = new MdecCode();
+                    mdecIn.readMdecCode(qscaleDC);
+                    thisBlk.DCCoefficient = qscaleDC;
+                    if (thisBlk.isChrom()) {
                         if (_iChromQscale < 0)
-                            _iChromQscale = oQscaleDC.getTop6Bits();
-                        else if (_iChromQscale != oQscaleDC.getTop6Bits())
+                            _iChromQscale = qscaleDC.getTop6Bits();
+                        else if (_iChromQscale != qscaleDC.getTop6Bits())
                             log.warning("Chrominance q-scale changed mid frame!");
                     } else {
                         if (_iLuminQscale < 0)
-                            _iLuminQscale = oQscaleDC.getTop6Bits();
-                        else if (_iLuminQscale != oQscaleDC.getTop6Bits())
+                            _iLuminQscale = qscaleDC.getTop6Bits();
+                        else if (_iLuminQscale != qscaleDC.getTop6Bits())
                             log.warning("Luminance q-scale changed mid frame!");
                     }
 
-                    oACCoefficients.clear();
+                    acCoefficients.clear();
                     MdecCode code;
                     while (!mdecIn.readMdecCode(code = new MdecCode())) {
-                        oACCoefficients.add(code);
+                        acCoefficients.add(code);
                     }
-                    oThisBlk.ACCoefficients = oACCoefficients.toArray(new MdecCode[oACCoefficients.size()]);
+                    thisBlk.ACCoefficients = acCoefficients.toArray(new MdecCode[acCoefficients.size()]);
 
-                    oThisBlk.EndOfBlock = code;
+                    thisBlk.EndOfBlock = code;
 
                     log.finest("EOB");
                 }

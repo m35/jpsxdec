@@ -53,7 +53,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import jpsxdec.cdreaders.CDFileSectorReader;
-import jpsxdec.modules.ConsoleProgressListener;
+import jpsxdec.util.ConsoleProgressListener;
 import jpsxdec.modules.DiscIndex;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.IdentifiedSector;
@@ -64,6 +64,7 @@ import jpsxdec.modules.psx.str.IVideoSector;
 import jpsxdec.modules.psx.video.bitstreams.BitStreamUncompressor;
 import jpsxdec.modules.psx.video.mdec.DecodingException;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IOException6;
 import jpsxdec.util.NotThisTypeException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -99,13 +100,13 @@ public class ReplaceFrames {
         try {
             db = dbf.newDocumentBuilder();
         } catch (ParserConfigurationException ex) {
-            throw new IOException(ex);
+            throw new IOException6(ex);
         }
         Document doc;
         try {
             doc = db.parse(file);
         } catch (SAXException ex) {
-            throw new IOException(ex);
+            throw new IOException6(ex);
         }
 
         Element root = doc.getDocumentElement();
@@ -154,9 +155,9 @@ public class ReplaceFrames {
             StreamResult result = new StreamResult(new File(sFile));
             transformer.transform(source, result);
         } catch (TransformerException ex) {
-            throw new IOException(ex);
+            throw new IOException6(ex);
         } catch (ParserConfigurationException ex) {
-            throw new IOException(ex);
+            throw new IOException6(ex);
         }
     }
 
@@ -181,11 +182,11 @@ public class ReplaceFrames {
 
                 ReplaceFrame replacer = getFrameToReplace(getFrame());
                 if (replacer != null) {
-                    fbs.printlnNorm("Frame " + getFrame() + ":");
+                    fbs.println("Frame " + getFrame() + ":");
                     if (fbs.printMore())
                         printExistingFrameStats(this, fbs);
                     fbs.indent();
-                    fbs.printlnNorm("Replacing with " + replacer.getImageFile());
+                    fbs.println("Replacing with " + replacer.getImageFile());
                     try {
                         replacer.replace(this, cd, fbs);
                     } catch (DecodingException ex) {

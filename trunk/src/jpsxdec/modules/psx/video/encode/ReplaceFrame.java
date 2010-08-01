@@ -185,7 +185,7 @@ public class ReplaceFrame {
         
         if (bi.getWidth() !=  ((demuxer.getWidth() +15)& ~15) ||
             bi.getHeight() != ((demuxer.getHeight()+15)& ~15))
-            throw new IllegalArgumentException("Replacement frame has the wrong dimentions.");
+            throw new IllegalArgumentException("Replacement frame has the wrong dimensions.");
         
         PsxYCbCrImage psxImage = new PsxYCbCrImage(bi);
 
@@ -194,7 +194,7 @@ public class ReplaceFrame {
         int iLuminQscale = 1;
         int iChromQscale = 1;
         while (true) {
-            fbs.printlnNorm("Trying qscale lumin: " + iLuminQscale + " chrom: " + iChromQscale);
+            fbs.println("Trying qscale lumin: " + iLuminQscale + " chrom: " + iChromQscale);
             MdecEncoder encoded = new MdecEncoder(psxImage, iLuminQscale, iChromQscale);
 
             parsedNew = new ParsedMdecImage(demuxer.getWidth(), demuxer.getHeight());
@@ -203,11 +203,11 @@ public class ReplaceFrame {
             abNewDemux = compressor.compress(parsedNew.getStream(), iLuminQscale, iChromQscale, parsedNew.getMdecCodeCount());
             int iNewDemuxSize = abNewDemux.length;
             if (iNewDemuxSize <= demuxer.getDemuxSize()) {
-                fbs.printlnNorm(String.format("  New frame %d demux size %d <= max source %d ",
+                fbs.println(String.format("  New frame %d demux size %d <= max source %d ",
                                 demuxer.getFrame(), iNewDemuxSize, demuxer.getDemuxSize()));
                 break;
             } else {
-                fbs.printlnNorm(String.format("  >>> New frame %d demux size %d > max source %d <<<",
+                fbs.println(String.format("  >>> New frame %d demux size %d > max source %d <<<",
                                 demuxer.getFrame(), iNewDemuxSize, demuxer.getDemuxSize()));
             }
 

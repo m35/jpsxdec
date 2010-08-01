@@ -53,6 +53,10 @@ public class Rec601YCbCr {
     }
 
     public Rec601YCbCr(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
+        fromRgb(rgb1, rgb2, rgb3, rgb4);
+    }
+
+    public void fromRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
         cb = cr = 0;
         y1 = oneRgb(rgb1);
         y2 = oneRgb(rgb2);
@@ -62,7 +66,7 @@ public class Rec601YCbCr {
         cr /= 4;
     }
     private double oneRgb(RGB rgb) {
-        int r = rgb.getR(), g = rgb.getG(), b = rgb.getG();
+        int r = rgb.getR(), g = rgb.getG(), b = rgb.getB();
         double y = ( 0.257 * r) + ( 0.504 * g) + ( 0.098 * b)  + 16;
         cb      += (-0.148 * r) + (-0.291 * g) + ( 0.439 * b)  + 128;
         cr      += ( 0.439 * r) + (-0.368 * g) + (-0.071 * b)  + 128;

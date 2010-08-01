@@ -51,7 +51,7 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.modules.ProgressListener;
+import jpsxdec.util.ProgressListener;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
@@ -162,9 +162,9 @@ public class DiscItemISO9660File extends DiscItem {
         public void printHelp(FeedbackStream fbs) {
             fbs.indent();
             if (getSourceCD().hasSectorHeader())
-                fbs.printlnNorm("-iso   save as 2048 sectors (default raw 2352 sectors)");
+                fbs.println("-iso   save as 2048 sectors (default raw 2352 sectors)");
             else
-                fbs.printlnNorm("[no options available]");
+                fbs.println("[no options available]");
             fbs.outdent();
         }
 

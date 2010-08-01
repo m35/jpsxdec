@@ -37,6 +37,7 @@
 
 package jpsxdec.modules;
 
+import jpsxdec.util.ProgressListener;
 import java.io.IOException;
 import javax.swing.JPanel;
 import jpsxdec.util.FeedbackStream;

@@ -138,7 +138,6 @@ public class AudioOutputFileWriter implements Runnable {
         }
     }
 
-    @Override
     public void run() {
         try {
             // start writing the audio file

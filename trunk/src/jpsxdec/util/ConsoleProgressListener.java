@@ -35,9 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules;
-
-import jpsxdec.util.FeedbackStream;
+package jpsxdec.util;
 
 public class ConsoleProgressListener extends ProgressListener {
 
@@ -48,6 +46,9 @@ public class ConsoleProgressListener extends ProgressListener {
     private double _dblNextProgressMark = 0;
     private FeedbackStream _fbs;
 
+    public ConsoleProgressListener() {
+        this(new FeedbackStream());
+    }
     public ConsoleProgressListener(FeedbackStream fbs) {
         _fbs = fbs;
     }
@@ -55,7 +56,7 @@ public class ConsoleProgressListener extends ProgressListener {
     @Override
     public void error(String sDescription) {
         if (_blnNewLine) {
-            _fbs.nl();
+            _fbs.println();
             _blnNewLine = false;
         }
         _fbs.printlnErr(sDescription);
@@ -68,20 +69,20 @@ public class ConsoleProgressListener extends ProgressListener {
 
     @Override
     public void info(String s) {
-        _fbs.printlnNorm(s);
+        _fbs.println(s);
     }
 
 
     @Override
     public void progressEnd() {
-        _fbs.printlnNorm(buildProgress(1));
+        _fbs.println(buildProgress(1));
         _dblNextProgressMark = 0;
     }
 
     @Override
     public void progressStart(String s) {
         if (s != null)
-            _fbs.printlnNorm(s);
+            _fbs.println(s);
         _dblNextProgressMark = 0;
     }
 
@@ -101,7 +102,7 @@ public class ConsoleProgressListener extends ProgressListener {
         // a carriage return after the string \r
         // resets the cursor position back to the beginning of the line
         // but for now just do normal new line
-        _fbs.printlnNorm(sLine);
+        _fbs.println(sLine);
         _blnNewLine = true;
         
         _dblNextProgressMark = Math.round((dblPercentComplete + 0.05) * 10.0) / 10.0;
@@ -125,7 +126,7 @@ public class ConsoleProgressListener extends ProgressListener {
     @Override
     public void warning(String sDescription) {
         if (_blnNewLine) {
-            _fbs.nl();
+            _fbs.println();
             _blnNewLine = false;
         }
         _fbs.printlnWarn(sDescription);
@@ -133,7 +134,7 @@ public class ConsoleProgressListener extends ProgressListener {
 
     public void more(String s) {
         if (_blnNewLine) {
-            _fbs.nl();
+            _fbs.println();
             _blnNewLine = false;
         }
         _fbs.printlnMore(s);

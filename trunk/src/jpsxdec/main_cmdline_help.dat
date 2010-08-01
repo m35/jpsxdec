@@ -23,9 +23,6 @@ java -jar jpsxdec.jar <in_file> <main_command_and_options>
     [-index/-idx/-i <index_file>] -play #
       Show real-time player for disc item #
 
-    [-index/-idx/-i <index_file>] -strreplace # <str_replace_xml>
-      Replaces frames of a video item according to the options in the xml file
-
     -copysect { # | #-# } <out_file>
       Copy sectors to <out_file>
 

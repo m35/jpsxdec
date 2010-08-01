@@ -54,7 +54,7 @@ import javax.swing.JLabel;
 import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.cdreaders.CdxaRiffHeader;
 import jpsxdec.player.PlayController;
-import jpsxdec.modules.ConsoleProgressListener;
+import jpsxdec.util.ConsoleProgressListener;
 import jpsxdec.modules.DiscIndex;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.modules.DiscItemSaver;
@@ -72,9 +72,9 @@ public class Main {
 
     private static final Logger log = Logger.getLogger(Main.class.getName());
 
-    private static FeedbackStream Outputter;
+    private static FeedbackStream Feedback;
 
-    public final static String Version = "0.92.1 (alpha)";
+    public final static String Version = "0.92.2 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial), v" + Version;
     private static MainCommandLineParser _mainSettings;
@@ -103,9 +103,9 @@ public class Main {
             return;
         }
         
-        Outputter = new FeedbackStream(System.err, _mainSettings.getVerbose());
+        Feedback = new FeedbackStream(System.err, _mainSettings.getVerbose());
                 
-        Outputter.printlnNorm(VerStringNonCommercial);
+        Feedback.println(VerStringNonCommercial);
 
         int iExitCode = 0;
 
@@ -157,7 +157,7 @@ public class Main {
             cdReader = new CDFileSectorReader(_mainSettings.getInputFile());
         } catch (IOException ex) {
             log.log(Level.SEVERE, "Error opening CDFileSectorReader", ex);
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
             return -1;
         }
 
@@ -166,19 +166,19 @@ public class Main {
             return -1;
 
         if (!discIndex.hasIndex(_mainSettings.getDiscItemIndex())) {
-            Outputter.printlnErr("Can't find index " + _mainSettings.getDiscItemIndex());
+            Feedback.printlnErr("Can't find index " + _mainSettings.getDiscItemIndex());
             return -1;
         }
 
         DiscItem item = discIndex.getByIndex(_mainSettings.getDiscItemIndex());
 
-        Outputter.nl();
+        Feedback.println();
 
-        Outputter.printlnNorm("Help for");
-        Outputter.printlnNorm(item.toString());
+        Feedback.println("Help for");
+        Feedback.println(item.toString());
 
         DiscItemSaver saver = item.getSaver();
-        saver.printHelp(Outputter);
+        saver.printHelp(Feedback);
 
         return 0;
     }
@@ -192,23 +192,23 @@ public class Main {
         //open input file
         CDFileSectorReader cdReader;
         try {
-            Outputter.printlnNorm("Opening " + _mainSettings.getInputFile());
+            Feedback.println("Opening " + _mainSettings.getInputFile());
             if (blnWritable)
                 cdReader = new CDFileSectorReader(_mainSettings.getInputFile(), true);
             else
                 cdReader = new CDFileSectorReader(_mainSettings.getInputFile());
         } catch (IOException ex) {
             log.log(Level.SEVERE, "Error opening input file", ex);
-            Outputter.printlnErr(ex.getMessage());
+            Feedback.printlnErr(ex);
             return null;
         }
 
-        Outputter.printlnNorm("Identified as " + cdReader.getTypeDescription());
+        Feedback.println("Identified as " + cdReader.getTypeDescription());
 
         if (blnCheckHasHeaders) {
             if (!cdReader.hasSectorHeader()) {
-                Outputter.printlnWarn("Warning: Input file does not contain entire raw CD sectors.");
-                Outputter.printlnWarn("         Audio cannot be decoded.");
+                Feedback.printlnWarn("Warning: Input file does not contain entire raw CD sectors.");
+                Feedback.printlnWarn("         Audio cannot be decoded.");
             }
         }
 
@@ -222,29 +222,29 @@ public class Main {
         String sIndexFile = _mainSettings.getIndexFile();
         if (sIndexFile  != null) {
             if (blnIndexOnly || !new File(_mainSettings.getIndexFile()).exists()) {
-                Outputter.printlnNorm("Building index");
-                discIndex = new DiscIndex(cdReader, new ConsoleProgressListener(Outputter));
-                Outputter.printlnNorm(discIndex.size() + " items found.");
+                Feedback.println("Building index");
+                discIndex = new DiscIndex(cdReader, new ConsoleProgressListener(Feedback));
+                Feedback.println(discIndex.size() + " items found.");
                 blnSaveIndexFile = true;
             } else {
-                Outputter.printlnNorm("Reading index file " + sIndexFile);
+                Feedback.println("Reading index file " + sIndexFile);
                 try {
-                    discIndex = new DiscIndex(sIndexFile, cdReader, Outputter);
-                    Outputter.printlnNorm(discIndex.size() + " items loaded.");
+                    discIndex = new DiscIndex(sIndexFile, cdReader, Feedback);
+                    Feedback.println(discIndex.size() + " items loaded.");
                 } catch (NotThisTypeException ex) {
                     log.log(Level.SEVERE, "Reading index error", ex);
-                    Outputter.printlnErr("Invalid index file");
+                    Feedback.printlnErr("Invalid index file");
                     return null;
                 } catch (IOException ex) {
                     log.log(Level.SEVERE, "IO error", ex);
-                    Outputter.printlnErr(ex.getMessage());
+                    Feedback.printlnErr(ex);
                     return null;
                 }
             }
         } else {
-            Outputter.printlnNorm("Building index");
-            discIndex = new DiscIndex(cdReader, new ConsoleProgressListener(Outputter));
-            Outputter.printlnNorm(discIndex.size() + " items found.");
+            Feedback.println("Building index");
+            discIndex = new DiscIndex(cdReader, new ConsoleProgressListener(Feedback));
+            Feedback.println(discIndex.size() + " items found.");
         }
 
         // save index file if necessary
@@ -254,15 +254,15 @@ public class Main {
             try {
                 if (_mainSettings.getIndexFile().equals("-")) {
                     printer = System.out;
-                    Outputter.printlnNorm("Writing index to stdout.");
+                    Feedback.println("Writing index to stdout.");
                 } else {
-                    Outputter.printlnNorm("Saving index as " + _mainSettings.getIndexFile());
+                    Feedback.println("Saving index as " + _mainSettings.getIndexFile());
                     printer = new PrintStream(_mainSettings.getIndexFile());
                 }
                 discIndex.serializeIndex(printer);
             } catch (IOException ex) {
                 log.log(Level.SEVERE, "Error writing index file", ex);
-                Outputter.printlnErr(ex.getMessage());
+                Feedback.printlnErr(ex);
                 return null;
             } finally {
                 if (printer != null && printer != System.out)
@@ -272,7 +272,7 @@ public class Main {
 
         // print the index
         for (DiscItem item : discIndex) {
-            Outputter.printlnMore(item.toString());
+            Feedback.printlnMore(item.toString());
         }
 
         return discIndex;
@@ -288,7 +288,7 @@ public class Main {
 
             int[] aiSectors = _mainSettings.getSectorsToCopy();
 
-            Outputter.printlnErr("Copying sectors " + aiSectors[0] + " to " + aiSectors[1]);
+            Feedback.printlnErr("Copying sectors " + aiSectors[0] + " to " + aiSectors[1]);
 
             FileOutputStream fos = new FileOutputStream(
                     _mainSettings.constructOutPath(_mainSettings.getInputFileBase()
@@ -308,7 +308,7 @@ public class Main {
             for (int i = aiSectors[0]; i <= aiSectors[1]; i++) {
                 CdSector sector = cdReader.getSector(i);
                 if (sector == null) {
-                    Outputter.printlnErr("Error reading sector " + i);
+                    Feedback.printlnErr("Error reading sector " + i);
                     return -1;
                     // TODO: err
                 } else {
@@ -322,7 +322,7 @@ public class Main {
 
         } catch (IOException ex) {
             log.log(Level.SEVERE, "Error copying sectors.", ex);
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
             return -1;
         }
     }
@@ -353,7 +353,7 @@ public class Main {
         if (discIndex == null)
             return -1;
 
-        Outputter.nl();
+        Feedback.println();
         
         // decode/extract the desired disc item
         try {
@@ -362,14 +362,14 @@ public class Main {
             if (discIndex.hasIndex(iIndex)) {
                 DiscItem item = discIndex.getByIndex(iIndex);
                 decodeDiscItem(item);
-                Outputter.printlnNorm("Disc decoding/extracting complete.");
+                Feedback.println("Disc decoding/extracting complete.");
             } else {
-                Outputter.printlnWarn("Sorry, couldn't find disc item " + iIndex);
+                Feedback.printlnWarn("Sorry, couldn't find disc item " + iIndex);
             }
 
         } catch (IOException ex) {
             log.log(Level.SEVERE, "IO error", ex);
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
             return -1;
         }
             
@@ -397,20 +397,20 @@ public class Main {
                 if (item.getTypeId().equalsIgnoreCase(_mainSettings.getDecodeAllType())) {
                     blnFound = true;
                     decodeDiscItem(item);
-                    Outputter.printlnNorm("Item complete.");
-                    Outputter.nl();
+                    Feedback.println("Item complete.");
+                    Feedback.println();
                 }
             }
 
             if (!blnFound) {
-                Outputter.printlnNorm("Sorry, couldn't find any disc items of type " +
+                Feedback.println("Sorry, couldn't find any disc items of type " +
                         _mainSettings.getDecodeAllType());
             }
 
-            Outputter.printlnNorm("Disc decoding/extracting complete.");
+            Feedback.println("Disc decoding/extracting complete.");
         } catch (IOException ex) {
             log.log(Level.SEVERE, "IO error", ex);
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
             return -1;
         }
 
@@ -422,11 +422,11 @@ public class Main {
 
         DiscItemSaver saver = item.getSaver();
 
-        Outputter.printlnNorm("Saving " + item.toString());
+        Feedback.println("Saving " + item.toString());
 
-        saver.commandLineOptions(_mainSettings.getRemainingArgs(), Outputter);
+        saver.commandLineOptions(_mainSettings.getRemainingArgs(), Feedback);
         
-        saver.startSave(new ConsoleProgressListener(Outputter));
+        saver.startSave(new ConsoleProgressListener(Feedback));
     }
     
     //--------------------------------------------------------------------------
@@ -435,7 +435,7 @@ public class Main {
         
         try {
             
-            Outputter.printlnNorm("Reading static file");
+            Feedback.println("Reading static file");
             
             final FileInputStream is;
             is = new FileInputStream(_mainSettings.getInputFile());
@@ -446,7 +446,7 @@ public class Main {
 
         } catch (IOException ex) {
             log.log(Level.SEVERE, "IO error", ex);
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
             return -1;
         }
         
@@ -460,7 +460,7 @@ public class Main {
         if (cdReader == null)
             return -1;
         
-        Outputter.printlnNorm("Generating sector list");
+        Feedback.println("Generating sector list");
         
         PrintStream ps;
         try {
@@ -486,7 +486,7 @@ public class Main {
             
         } catch (IOException ex) {
             log.log(Level.SEVERE, "IO error", ex);
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
             return -1;
         }
     }
@@ -503,18 +503,18 @@ public class Main {
             return -1;
 
         try {
-            Outputter.printlnNorm("Generating fps dump.");
+            Feedback.println("Generating fps dump.");
 
             int iIndex = _mainSettings.getFpsDumpItem();
             if (!discIndex.hasIndex(iIndex)) {
-                Outputter.printlnWarn("Sorry, couldn't find disc item " + iIndex);
+                Feedback.printlnWarn("Sorry, couldn't find disc item " + iIndex);
                 return -1;
             } else {
                 
                 DiscItem item = discIndex.getByIndex(iIndex);
 
                 if (!(item instanceof DiscItemSTRVideo)) {
-                    Outputter.printlnErr("Disc item isn't a video.");
+                    Feedback.printlnErr("Disc item isn't a video.");
                 } else {
                     PrintStream ps = new PrintStream("fps.txt");
 
@@ -544,7 +544,7 @@ public class Main {
             }
 
         } catch (IOException ex) {
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
             return -1;
         }
 
@@ -564,7 +564,7 @@ public class Main {
 
         DiscItem item = discIndex.getByIndex(_mainSettings.getDiscItemIndex());
         if (item == null) {
-            Outputter.printlnErr("Item " + _mainSettings.getDiscItemIndex() + " not found.");
+            Feedback.printlnErr("Item " + _mainSettings.getDiscItemIndex() + " not found.");
             return -1;
         }
 
@@ -573,8 +573,8 @@ public class Main {
             final PlayController controller;
 
             if (item instanceof DiscItemSTRVideo) {
-                Outputter.printlnNorm("Creating player for");
-                Outputter.printlnNorm(item.toString());
+                Feedback.println("Creating player for");
+                Feedback.println(item.toString());
 
                 DiscItemSTRVideo video = (DiscItemSTRVideo) item;
                 if (video.hasAudio()) {
@@ -586,15 +586,15 @@ public class Main {
                     controller = new PlayController(new MediaPlayer(video));
                 }
             } else if (item instanceof DiscItemAudioStream) {
-                Outputter.printlnNorm("Creating player for");
-                Outputter.printlnNorm(item.toString());
+                Feedback.println("Creating player for");
+                Feedback.println(item.toString());
 
                 DiscItemAudioStream audio = (DiscItemAudioStream) item;
 
                 controller = new PlayController(new MediaPlayer(audio));
             } else {
-                Outputter.printlnErr(item.toString());
-                Outputter.printlnErr("is not audio or video. Cannot create player.");
+                Feedback.printlnErr(item.toString());
+                Feedback.printlnErr("is not audio or video. Cannot create player.");
                 return -1;
             }
 
@@ -644,7 +644,7 @@ public class Main {
             }
 
         } catch (Throwable ex) {
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
             return -1;
         }
 
@@ -664,25 +664,25 @@ public class Main {
 
         DiscItem item = discIndex.getByIndex(_mainSettings.getDiscItemIndex());
         if (item == null) {
-            Outputter.printlnErr("Item " + _mainSettings.getDiscItemIndex() + " not found.");
+            Feedback.printlnErr("Item " + _mainSettings.getDiscItemIndex() + " not found.");
             return -1;
         } else if (!(item instanceof DiscItemSTRVideo)) {
-            Outputter.printlnErr("Item " + _mainSettings.getDiscItemIndex() + " is not video.");
+            Feedback.printlnErr("Item " + _mainSettings.getDiscItemIndex() + " is not video.");
             return -1;
         }
 
         String[] asArgs = _mainSettings.getRemainingArgs();
         if (asArgs == null) {
-            Outputter.printlnErr("Need to specify frame replacer xml.");
+            Feedback.printlnErr("Need to specify frame replacer xml.");
             return -1;
         }
 
         try {
             ReplaceFrames replacers = new ReplaceFrames(asArgs[0]);
-            replacers.replaceFrames((DiscItemSTRVideo) item, cdReader, Outputter);
+            replacers.replaceFrames((DiscItemSTRVideo) item, cdReader, Feedback);
             cdReader.close();
         } catch (Throwable ex) {
-            Outputter.printlnErr(ex);
+            Feedback.printlnErr(ex);
         }
 
         return 0;

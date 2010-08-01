@@ -51,20 +51,21 @@ public abstract class FrameDemuxer implements IWidthHeight {
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    /** Sectors outside of this range are rejected. */
+    /** Sectors outside of this range are ignored. */
     private final int _iVideoStartSector, _iVideoEndSector;
-    /** Expected dimentions of the frame. */
+    /** Expected dimensions of the frame. */
     private final int _iWidth, _iHeight;
 
-    /** Current frame number. */
+    /** Current frame number, or -1 if no current frame. */
     private int _iFrame = -1;
 
     private IVideoSector[] _aoChunks;
+    /** Number of chunks in the current frame, or -1 if no current frame. */
     private int _iChunkCount = -1;
-    /** Size in bytes of the data contained in all  the demux sectors. */
+    /** Size in bytes of the data contained in all the demux sectors. */
     private int _iDemuxFrameSize = -1;
 
-    /** Basically the last sector of the frame, which is assumed to be when
+    /** Basically the last sector of the frame, which we assume is when
      * the frame will be displayed. */
     private int _iPresentationSector = -1;
 
@@ -76,7 +77,7 @@ public abstract class FrameDemuxer implements IWidthHeight {
                         int iVideoStartSector, int iVideoEndSector)
     {
         if (iWidth < 1 || iHeight < 1)
-            throw new IllegalArgumentException("Invalid dimentions " + iWidth + "x" + iHeight);
+            throw new IllegalArgumentException("Invalid dimensions " + iWidth + "x" + iHeight);
         if (iVideoStartSector < 0 || iVideoEndSector < iVideoStartSector)
             throw new IllegalArgumentException("Invalid video sector range " + iVideoStartSector + "-" + iVideoEndSector);
         _iWidth = iWidth;
@@ -125,7 +126,7 @@ public abstract class FrameDemuxer implements IWidthHeight {
     }
 
     public boolean isEmpty() {
-        if (_iChunkCount >= 1)
+        if (_iChunkCount < 1)
             return true;
 
         for (int i = 0; i < _iChunkCount; i++) {
@@ -138,8 +139,9 @@ public abstract class FrameDemuxer implements IWidthHeight {
         return _iChunkCount;
     }
 
-    /** @throws ArrayIndexOutOfBoundsException if index is less-than 0 or
-     *                                         greater-than {@link #getChunksInFrame()}. */
+    /** @return the video sector, or null if no sector has been set.
+     * @throws ArrayIndexOutOfBoundsException if index is less-than 0 or
+     *                                        greater-than {@link #getChunksInFrame()}. */
     public IVideoSector getChunk(int i) {
         if (_aoChunks == null)
             return null;

@@ -43,6 +43,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import jpsxdec.util.IO;
 
 /** Wraps an InputStream (or creates a FileInputStream) to read MDEC values from. */
@@ -71,6 +72,27 @@ public class MdecInputStreamReader extends MdecInputStream {
             throw ex;
         } catch (IOException ex) {
             throw new DecodingException(ex);
+        }
+    }
+
+    public static void writeMdecDims(MdecInputStream mdecIn, OutputStream streamOut,
+            int iWidth, int iHeight)
+            throws DecodingException, IOException
+    {
+        int iBlockCount = ((iWidth + 15) / 16) * ((iHeight + 15) / 16) * 6;
+        writeMdecBlocks(mdecIn, streamOut, iBlockCount);
+    }
+    public static void writeMdecBlocks(MdecInputStream mdecIn, OutputStream streamOut,
+            int iBlockCount)
+            throws DecodingException, IOException
+    {
+        MdecCode code = new MdecCode();
+        int iBlock = 0;
+        while (iBlock < iBlockCount) {
+            if (mdecIn.readMdecCode(code)) {
+                iBlock++;
+            }
+            IO.writeInt16LE(streamOut, code.toMdecWord());
         }
     }
 

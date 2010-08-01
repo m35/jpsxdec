@@ -44,7 +44,7 @@ import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.IdentifiedSector;
-import jpsxdec.modules.ProgressListener;
+import jpsxdec.util.ProgressListener;
 import jpsxdec.modules.xa.DiscItemAudioStream;
 import jpsxdec.modules.xa.IAudioReceiver;
 import jpsxdec.modules.xa.IAudioSectorDecoder;
@@ -144,7 +144,6 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             __abTempBuffer = new byte[2*2*4000]; // TODO: calculate this as needed
         }
 
-        @Override
         public void open(IAudioReceiver audioOut) {
             __audioWriter = audioOut;
         }

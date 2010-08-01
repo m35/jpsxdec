@@ -168,7 +168,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
                                                             WIDTH, HEIGHT);
         decoder.decode(parsedOrig.getStream());
         RgbIntImage rgb = new RgbIntImage(WIDTH, HEIGHT);
-        decoder.readDecodedRGB(rgb);
+        decoder.readDecodedRgb(rgb);
         BufferedImage origImg = rgb.toBufferedImage();
         BufferedImage newImg = ImageIO.read(getImageFile());
 
@@ -178,17 +178,17 @@ public class ReplaceFramePartial extends ReplaceFrame {
         ArrayList<Point> diffMacblks = findDiffMacroblocks(origImg, newImg);
 
         if (diffMacblks.size() == 0) {
-            fbs.printlnNorm("No differences found, skipping.");
+            fbs.println("No differences found, skipping.");
             return;
         } else if (diffMacblks.size() == ParsedMdecImage.calculateMacroBlocks(WIDTH, HEIGHT)) {
             fbs.printlnWarn("Warning: Entire frame has is different.");
         }
 
-        fbs.printlnNorm("Found " + diffMacblks.size() + " different macroblocks (16x16):");
+        fbs.println("Found " + diffMacblks.size() + " different macroblocks (16x16):");
         for (Point macblk : diffMacblks) {
-            fbs.printNorm(String.format("(%d, %d) ", macblk.x, macblk.y));
+            fbs.println(String.format("(%d, %d) ", macblk.x, macblk.y));
         }
-        fbs.nl();
+        fbs.println();
 
         PsxYCbCrImage newPsxImg = new PsxYCbCrImage(newImg);
         BitStreamCompressor compressor = uncompressor.makeCompressor();
@@ -198,7 +198,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
         int iLuminQscale = parsedOrig.getLuminQscale();
         int iChromQscale = parsedOrig.getChromQscale();
         while (true) {
-            fbs.printlnNorm("Trying qscale lumin: " + iLuminQscale + " chrom: " + iChromQscale);
+            fbs.println("Trying qscale lumin: " + iLuminQscale + " chrom: " + iChromQscale);
 
             // 4. Encode replacement image with original frame qscale
             MdecEncoder encoder = new MdecEncoder(newPsxImg, iLuminQscale, iChromQscale);

@@ -45,9 +45,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.WeakHashMap;
 import java.util.logging.Logger;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import jpsxdec.formats.JavaImageFormat;
-import jpsxdec.formats.JavaImageFormat.JpgQualities;
 import jpsxdec.modules.psx.str.SectorMovieWriters.*;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder_double;
@@ -59,6 +61,7 @@ import jpsxdec.modules.xa.AudioStreamsCombiner;
 import jpsxdec.modules.xa.IAudioSectorDecoder;
 import jpsxdec.modules.xa.DiscItemAudioStream;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.Misc;
 import jpsxdec.util.TabularFeedback;
 
@@ -71,15 +74,66 @@ public class SectorMovieWriterBuilder  {
 
     public SectorMovieWriterBuilder(DiscItemSTRVideo vidItem) {
         _sourceVidItem = vidItem;
+        resetToDefaults();
+    }
+
+    public void resetToDefaults() {
         setVideoFormat(VideoFormat.AVI_MJPG);
         _blnSaveAudio = _sourceVidItem.hasAudio();
         setSaveStartFrame(_sourceVidItem.getStartFrame());
         setSaveEndFrame(_sourceVidItem.getEndFrame());
         setParallelAudioBySizeOrder(0);
+        // TODO: finish
     }
 
+    // .........................................................................
 
-    public static final String PROP_1X_DISC_SPEED = "singleSpeed";
+    private WeakHashMap<ChangeListener, Boolean> _changeListeners;
+    private ChangeEvent _event;
+
+    public void addChangeListener(ChangeListener listener) {
+        if (_changeListeners == null)
+            _changeListeners = new WeakHashMap<ChangeListener, Boolean>();
+        _changeListeners.put(listener, Boolean.TRUE);
+    }
+
+    public void removeChangeListener(ChangeListener listener) {
+        if (_changeListeners == null)
+            return;
+        _changeListeners.remove(listener);
+    }
+
+    private void firePossibleChange() {
+        if (_changeListeners == null || _changeListeners.size() == 0)
+            return;
+        if (_event == null)
+            _event = new ChangeEvent(this);
+        for (ChangeListener listener : _changeListeners.keySet()) {
+            listener.stateChanged(_event);
+        }
+    }
+
+    // .........................................................................
+
+    private String _sOutputBaseName;
+    public String getOutputBaseName() {
+        if (_sOutputBaseName == null)
+            return _sourceVidItem.getSuggestedBaseName();
+        else
+            return _sOutputBaseName;
+    }
+
+    public void setOutputBaseName(String sName) {
+        _sOutputBaseName = sName;
+        firePossibleChange();
+    }
+
+    public String getOutputPostfixName() {
+        return String.format(getVideoFormat().ext(_sourceVidItem), getSaveStartFrame());
+    }
+
+    // .........................................................................
+
     private boolean _blnSingleSpeed;
     public boolean getSingleSpeed() {
         switch (_sourceVidItem.getDiscSpeed()) {
@@ -92,46 +146,87 @@ public class SectorMovieWriterBuilder  {
         }
     }
     public void setSingleSpeed(boolean val) {
-        boolean old = getSingleSpeed();
         _blnSingleSpeed = val;
+        firePossibleChange();
+    }
+    public boolean getSingleSpeed_enabled() {
+        return _sourceVidItem.getDiscSpeed() < 1 && getVideoFormat().getContainer() == Container.AVI;
+    }
+    public Fraction getFps() {
+        return Fraction.divide( 
+                getSingleSpeed() ? 75 : 150,
+                _sourceVidItem.getSectorsPerFrame());
     }
 
-    public static final String PROP_SAVE_AUDIO = "saveAudio";
+    // .........................................................................
+
     private boolean _blnSaveAudio;
     public boolean getSaveAudio() {
-        // can only decode audio if we're saving avi and
-        // we're starting from the first frame (otherwise the ADPCM contex is unreliable)
-        if (getVideoFormat().getContainer() != Container.AVI ||
-            getSaveStartFrame() != _sourceVidItem.getStartFrame() ||
-            !_sourceVidItem.hasAudio())
-            return false;
-        else
+        if (getSaveAudio_enabled())
             return _blnSaveAudio;
+        else
+            return false;
     }
     public void setSaveAudio(boolean val) {
         _blnSaveAudio = val;
+        firePossibleChange();
     }
+    public boolean getSaveAudio_enabled() {
+        if (!_sourceVidItem.hasAudio()) return false;
+        if (getSaveStartFrame() != _sourceVidItem.getStartFrame()) return false;
+        if (!getVideoFormat().canSaveAudio()) return false;
+        return true;
+    }
+
+    // .........................................................................
+
+    private double _dblAudioVolume = 1.0;
+    public double getAudioVolume() {
+        return _dblAudioVolume;
+    }
+    public void setAudioVolume(double val) {
+        _dblAudioVolume = Math.min(Math.max(0.0, val), 1.0);
+        firePossibleChange();
+    }
+    public boolean getAudioVolume_enabled() {
+        return getSaveAudio();
+    }
+
+    // .........................................................................
 
     public static enum Container {
         AVI,
-        IMGSEQ,
-        YUV4MPEG2
+        IMGSEQ
     }
 
     public static enum VideoFormat {
-        AVI_MJPG        ("AVI: Compressed (MJPG)"  , "avi:mjpg", Container.AVI, JavaImageFormat.JPG),
-        AVI_BMP         ("AVI: Uncompressed RGB"   , "avi:rgb", Container.AVI),
-        AVI_YUV         ("AVI: YUV"                , "avi:yuv", Container.AVI),
-        IMGSEQ_PNG      ("Image sequence: png"     , "png", Container.IMGSEQ, JavaImageFormat.PNG),
-        IMGSEQ_JPG      ("Image sequence: jpg"     , "jpg", Container.IMGSEQ, JavaImageFormat.JPG),
-        IMGSEQ_BMP      ("Image sequence: bmp"     , "bmp", Container.IMGSEQ, JavaImageFormat.BMP),
+        AVI_MJPG        ("AVI: Compressed (MJPG)"  , "avi:mjpg", Container.AVI, JavaImageFormat.JPG) {
+            public String ext(DiscItemSTRVideo vid) { return ".avi"; }
+        },
+        AVI_BMP         ("AVI: Uncompressed RGB"   , "avi:rgb", Container.AVI) {
+            public String ext(DiscItemSTRVideo vid) { return ".avi"; }
+        },
+        AVI_YUV         ("AVI: YUV"                , "avi:yuv", Container.AVI) {
+            public String ext(DiscItemSTRVideo vid) { return ".avi"; }
+        },
+        IMGSEQ_PNG      ("Image sequence: png"     , "png", Container.IMGSEQ, JavaImageFormat.PNG) {
+            public String ext(DiscItemSTRVideo vid) { return digitBlk(vid) + ".png"; }
+        },
+        IMGSEQ_JPG      ("Image sequence: jpg"     , "jpg", Container.IMGSEQ, JavaImageFormat.JPG) {
+            public String ext(DiscItemSTRVideo vid) { return digitBlk(vid) + ".jpg"; }
+        },
+        IMGSEQ_BMP      ("Image sequence: bmp"     , "bmp", Container.IMGSEQ, JavaImageFormat.BMP) {
+            public String ext(DiscItemSTRVideo vid) { return digitBlk(vid) + ".bmp"; }
+        },
         //IMGSEQ_RAW      ("Image sequence: raw"     , "raw", Container.IMGSEQ),
         //IMGSEQ_YUV      ("Image sequence: yuv"     , "yuv", Container.IMGSEQ),
-        //IMGSEQ_PSXYUV   ("Image sequence: PSX yuv", "psxyuv", Container.IMGSEQ),
-        IMGSEQ_DEMUX    ("Image sequence: demux"   , "demux", Container.IMGSEQ),
-        IMGSEQ_MDEC     ("Image sequence: mdec"    , "mdec", Container.IMGSEQ),
-        YUV4MPEG2_YUV   ("yuv4mpeg2"          , "y4m", Container.YUV4MPEG2),
-        //YUV4MPEG2_PSXYUV("yuv4mpeg2 w/ PSX yuv"      , "y4m:psx", Container.YUV4MPEG2),
+        //IMGSEQ_PSXYUV   ("Image sequence: Raw PSX yuv", "psxyuv", Container.IMGSEQ),
+        IMGSEQ_DEMUX    ("Image sequence: demux"   , "demux", Container.IMGSEQ) {
+            public String ext(DiscItemSTRVideo vid) { return "_" + vid.getWidth() + "x" + vid.getHeight() + digitBlk(vid) + ".demux"; }
+        },
+        IMGSEQ_MDEC     ("Image sequence: mdec"    , "mdec", Container.IMGSEQ) {
+            public String ext(DiscItemSTRVideo vid) { return "_" + vid.getWidth() + "x" + vid.getHeight() + digitBlk(vid) + ".mdec"; }
+        },
         ;
 
         private final String _sGui;
@@ -159,20 +254,22 @@ public class SectorMovieWriterBuilder  {
 
         public boolean canSaveAudio() { return _eContainer == Container.AVI; }
 
-        public JpgQualities getDefaultCompression() {
-            return _eImgFmt == null ? null : _eImgFmt.getDefaultCompression();
-        }
-        public List<JpgQualities> getCompressionOptions() {
-            return _eImgFmt == null ? null : _eImgFmt.getCompressionQualityDescriptions();
-        }
         public JavaImageFormat getImgFmt() { return _eImgFmt; }
 
         public boolean isCropable() {
             return this != IMGSEQ_DEMUX && this != IMGSEQ_MDEC;
         }
-        public boolean hasDecodableQuality() { return isCropable(); }
+        public boolean hasCompression() {
+            return _eImgFmt == null ? false : _eImgFmt.hasCompression();
+        }
+
+        abstract public String ext(DiscItemSTRVideo vid);
 
         /////////////////////////////////////////////////////////
+
+        private static String digitBlk(DiscItemSTRVideo vid) {
+            return "[%0" + String.valueOf(String.valueOf(vid.getEndFrame()).length()) + "d]";
+        }
 
         public static VideoFormat fromCmdLine(String sCmdLine) {
             for (VideoFormat fmt : values()) {
@@ -202,91 +299,124 @@ public class SectorMovieWriterBuilder  {
             }
             return avalable;
         }
-
     }
 
-    public static final String PROP_VIDEO_FORMAT_LIST = "videoFormatList";
     private final List<VideoFormat> _imgFmtList = VideoFormat.getAvailable();
-    public List<VideoFormat> getVideoFormatList() {
-        return _imgFmtList;
+    public VideoFormat getVideoFormat_listItem(int i) {
+        return _imgFmtList.get(i);
+    }
+    public int getVideoFormat_listSize() {
+        return _imgFmtList.size();
     }
 
-    public static final String PROP_VIDEO_FORMAT = "imageFormat";
     private VideoFormat _videoFormat;
     public VideoFormat getVideoFormat() {
         return _videoFormat;
     }
     public void setVideoFormat(VideoFormat val) {
         _videoFormat = val;
+        firePossibleChange();
     }
 
-    public static final String PROP_JPG_COMPRESSION_LIST = "jpgCompressionList";
-    private List<JpgQualities> _jpgList = JpgQualities.getList();
-    public List<JpgQualities> getJpgCompressionList() {
-        return _jpgList;
-    }
+    // .........................................................................
 
-    public static final String PROP_JPG_COMPRESSION_OPTION = "jpgCompressionOption";
-    private JpgQualities _jpgCompressionOption = JpgQualities.GOOD_QUALITY;
-    public JpgQualities getJpgCompressionOption() {
+    private float _jpgCompressionOption = 0.75f;
+    public float getJpgCompression() {
         return _jpgCompressionOption;
     }
-    public void setJpgCompressionOption(JpgQualities val) {
-        if (_jpgList != null && _jpgList.contains(val)) {
-            _jpgCompressionOption = val;
-        }
+    public void setJpgCompression(float val) {
+        _jpgCompressionOption = Math.max(Math.min(val, 1.f), 0.f);
+        firePossibleChange();
     }
 
-    public static final String PROP_CROP = "noCrop";
+    public boolean getJpgCompression_enabled() {
+        return getVideoFormat().hasCompression();
+    }
+
+    // .........................................................................
+
     private boolean _blnCrop = true;
     public boolean getCrop() {
-        return _blnCrop;
+        if (getCrop_enabled())
+            return _blnCrop;
+        else
+            return false;
     }
     public void setCrop(boolean val) {
         _blnCrop = val;
+        firePossibleChange();
+    }
+    public boolean getCrop_enabled() {
+        return _sourceVidItem.shouldBeCropped() && 
+               getVideoFormat() != VideoFormat.IMGSEQ_DEMUX && 
+               getVideoFormat() != VideoFormat.IMGSEQ_MDEC;
     }
 
-    public int getParallelAudioCount() {
+    public int getWidth() {
+        if (!getCrop_enabled() || getCrop())
+            return _sourceVidItem.getWidth();
+        else
+            return (_sourceVidItem.getWidth() + 15) & ~15;
+    }
+
+    public int getHeight() {
+        if (!getCrop_enabled() || getCrop())
+            return _sourceVidItem.getHeight();
+        else
+            return (_sourceVidItem.getHeight() + 15) & ~15;
+    }
+
+    // .........................................................................
+
+    public int getParallelAudio_listSize() {
         return _sourceVidItem.getParallelAudioStreamCount();
+    }
+    public DiscItemAudioStream getParallelAudio_listItem(int i) {
+        return _sourceVidItem.getParallelAudioStream(i);
     }
 
     private DiscItemAudioStream _parallelAudio = null;
-
     public DiscItemAudioStream getParallelAudio() {
+        if (!_sourceVidItem.hasAudio()) return null;
+        if (_parallelAudio == null) return _sourceVidItem.getParallelAudioStream(0);
         return _parallelAudio;
     }
 
-    public boolean setParallelAudio(DiscItemAudioStream parallelAudio) {
+    public void setParallelAudio(DiscItemAudioStream parallelAudio) {
         if (_sourceVidItem.isAudioVideoAligned(_sourceVidItem)) {
             _parallelAudio = parallelAudio;
-            return true;
-        } else {
-            return false;
+            firePossibleChange();
         }
     }
 
-    /** Returns the new setting, if valid, otherwise null. */
-    public DiscItemAudioStream setParallelAudioBySizeOrder(int iSizeIndex) {
-        if (_sourceVidItem.hasAudio())
-            return _parallelAudio = _sourceVidItem.getParallelAudioStream(iSizeIndex);
-        else
-            return null;
+    public void setParallelAudioBySizeOrder(int iSizeIndex) {
+        if (_sourceVidItem.hasAudio()) {
+            _parallelAudio = _sourceVidItem.getParallelAudioStream(iSizeIndex);
+            firePossibleChange();
+        }
     }
 
-    /** Returns the new setting, if valid, otherwise null. */
-    public DiscItemAudioStream setParallelAudioByIndexNumber(int iIndex) {
+    public void setParallelAudioByIndexNumber(int iIndex) {
         for (int i = 0; i < _sourceVidItem.getParallelAudioStreamCount(); i++) {
             DiscItemAudioStream audStream = _sourceVidItem.getParallelAudioStream(i);
-            if (audStream.getIndex() == iIndex)
-                return _parallelAudio = audStream;
+            if (audStream.getIndex() == iIndex) {
+                _parallelAudio = audStream;
+                firePossibleChange();
+                break;
+            }
         }
-        return null;
     }
+
+    public boolean getParallelAudio_enabled() {
+        return getSaveAudio_enabled();
+    }
+
+    // .........................................................................
 
     public static enum DecodeQualities {
         LOW("Fast (lower quality)", "low"),
         HIGH("High quality (slower)", "high"),
-        PSX("Exact PSX quality", "psx");
+        PSX("(not really) Exact PSX quality", "psx");
 
         public static String getCmdLineList() {
             StringBuilder sb = new StringBuilder();
@@ -316,58 +446,98 @@ public class SectorMovieWriterBuilder  {
 
         public String getCmdLine() { return _sCmdLine; }
         public String toString() { return _sGui; }
-
-        public static List<DecodeQualities> getList() {
-            return Arrays.asList(DecodeQualities.values());
-        }
-    }
-    public List<DecodeQualities> getDecodeQualities() {
-        return DecodeQualities.getList();
     }
 
-    public static final String PROP_DECODE_QUALITY = "decodeQuality";
+    public int getDecodeQuality_listSize() {
+        if (getVideoFormat() == VideoFormat.AVI_YUV)
+            return 1;
+        return DecodeQualities.values().length;
+    }
+    public DecodeQualities getDecodeQuality_listItem(int i) {
+        if (getVideoFormat() == VideoFormat.AVI_YUV)
+            return DecodeQualities.HIGH;
+        return DecodeQualities.values()[i];
+    }
+
     private DecodeQualities _decodeQuality = DecodeQualities.LOW;
     public DecodeQualities getDecodeQuality() {
+        if (getVideoFormat() == VideoFormat.AVI_YUV)
+            return DecodeQualities.HIGH;
         return _decodeQuality;
     }
     public void setDecodeQuality(DecodeQualities val) {
         _decodeQuality = val;
+        firePossibleChange();
     }
 
-    public static final String PROP_PRECISE_FRAME_TIMING = "preciseFrameTiming";
+    public boolean getDecodeQuality_enabled() {
+        return getVideoFormat() != VideoFormat.IMGSEQ_DEMUX &&
+               getVideoFormat() != VideoFormat.IMGSEQ_MDEC;
+    }
+
+    // .........................................................................
+
     private boolean _blnPreciseFrameTiming = false;
     public boolean getPreciseFrameTiming() {
         return _blnPreciseFrameTiming;
     }
     public void setPreciseFrameTiming(boolean val) {
         _blnPreciseFrameTiming = val;
+        firePossibleChange();
+    }
+    public boolean getPreciseFrameTiming_enabled() {
+        // this may be variable in the future
+        // but for now this feature isn't implemented
+        return false;
     }
 
-    public static final String PROP_PRECISE_AUDIOVIDEO_SYNC = "preciseAVSync";
+    // .........................................................................
+    
     private boolean _blnPreciseAVSync = false;
     public boolean getPreciseAVSync() {
-        return _blnPreciseAVSync;
+        if (getPreciseAVSync_enabled())
+            return _blnPreciseAVSync;
+        return false;
     }
     public void setPreciseAVSync(boolean val) {
         _blnPreciseAVSync = val;
+        firePossibleChange();
     }
 
-    public static final String PROP_SAVE_START_FRAME = "saveStartFrame";
+    public boolean getPreciseAVSync_enabled() {
+        return getSaveAudio();
+    }
+
+    // .........................................................................
+    
     private int _iSaveStartFrame;
     public int getSaveStartFrame() {
         return _iSaveStartFrame;
     }
     public void setSaveStartFrame(int val) {
-        _iSaveStartFrame = val;
+        _iSaveStartFrame = Math.max(val, _sourceVidItem.getStartFrame());
+        _iSaveEndFrame = Math.max(_iSaveEndFrame, _iSaveStartFrame);
+        firePossibleChange();
     }
 
-    public static final String PROP_SAVE_END_FRAME = "saveEndFrame";
+    public int getStartFrame() {
+        return _sourceVidItem.getStartFrame();
+    }
+
+    // .........................................................................
+    
     private int _iSaveEndFrame;
     public int getSaveEndFrame() {
         return _iSaveEndFrame;
     }
     public void setSaveEndFrame(int val) {
-        _iSaveEndFrame = val;
+        _iSaveEndFrame = Math.min(val, _sourceVidItem.getEndFrame());
+        _iSaveStartFrame = Math.min(_iSaveEndFrame, _iSaveStartFrame);
+        firePossibleChange();
+    }
+
+    public int getEndFrame() {
+        return _sourceVidItem.getEndFrame();
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -383,12 +553,10 @@ public class SectorMovieWriterBuilder  {
         StringHolder vidfmt = new StringHolder();
         parser.addOption("-vidfmt,-vf %s", vidfmt);
 
-        StringHolder jpg = null;
-        JavaImageFormat JPG = JavaImageFormat.JPG;
+        IntHolder jpg = null;
         if (JavaImageFormat.JPG.isAvailable()) {
-            jpg = new StringHolder();
-            String sParam = "-jpg %s";
-            parser.addOption(sParam, jpg);
+            jpg = new IntHolder(-999);
+            parser.addOption("-jpg %i", jpg);
         }
 
         StringHolder frames = new StringHolder();
@@ -419,15 +587,11 @@ public class SectorMovieWriterBuilder  {
                 int iFrame = Integer.parseInt(frames.value);
                 setSaveStartFrame(iFrame);
                 setSaveEndFrame(iFrame);
-                fbs.printlnNorm(String.format("Frames %d-%d",
-                        getSaveStartFrame(), getSaveEndFrame()));
             } catch (NumberFormatException ex) {
                 int[] aiRange = Misc.splitInt(frames.value, "-");
                 if (aiRange != null && aiRange.length == 2) {
                     setSaveStartFrame(aiRange[0]);
                     setSaveEndFrame(aiRange[1]);
-                    fbs.printlnNorm(String.format("Frames %d-%d",
-                            getSaveStartFrame(), getSaveEndFrame()));
                 } else {
                     fbs.printlnWarn("Invalid frame(s) " + frames.value);
                 }
@@ -438,7 +602,6 @@ public class SectorMovieWriterBuilder  {
             VideoFormat vf = VideoFormat.fromCmdLine(vidfmt.value);
             if (vf != null) {
                 setVideoFormat(vf);
-                fbs.printlnNorm("Format " + getVideoFormat());
             } else {
                 fbs.printlnWarn("Invalid video format " + vidfmt.value);
             }
@@ -448,45 +611,52 @@ public class SectorMovieWriterBuilder  {
             DecodeQualities dq = DecodeQualities.fromCmdLine(quality.value);
             if (dq != null) {
                 setDecodeQuality(dq);
-                fbs.printlnNorm("Using decode quality " + getDecodeQuality());
             } else {
                 fbs.printlnWarn("Invalid decode quality " + quality.value);
             }
         }
 
         // make sure to process this after the video format is set
-        if (jpg != null && jpg.value != null) {
-            JpgQualities q = JpgQualities.fromCmdLine(jpg.value);
-            if (q != null) {
-                setJpgCompressionOption(q);
-                fbs.printlnNorm("Jpg compression " + getJpgCompressionOption());
+        if (jpg != null && jpg.value != -999) {
+            if (jpg.value >= 0 && jpg.value <= 100) {
+                setJpgCompression(jpg.value / 100.f);
             } else {
                 fbs.printlnWarn("Invalid jpg compression " + jpg.value);
             }
         }
 
-        if (!nocrop.value != getCrop()) {
-            fbs.printlnNorm("Not cropping");
-        }
         setCrop(!nocrop.value);
 
-        if (preciseav.value != getPreciseAVSync()) {
-            fbs.printlnNorm("Precise Audio/Video sync");
-        }
         setPreciseAVSync(preciseav.value);
         
-        if (!noaud.value != getSaveAudio()) {
-            fbs.printlnNorm("Not saving audio");
-        }
         setSaveAudio(!noaud.value);
-        
+
         if (discSpeed.value == 1) {
             setSingleSpeed(true);
-            fbs.printlnNorm("Forcing single disc speed");
         } else if (discSpeed.value == 2) {
-            setSingleSpeed(true);
-            fbs.printlnNorm("Forcing double disc speed");
+            setSingleSpeed(false);
         }
+
+        fbs.println("Disc speed: " + (getSingleSpeed() ? "1x" : "2x"));
+        fbs.println("Video format: " + getVideoFormat());
+        fbs.println("Frames: " + getSaveStartFrame() + "-" + getSaveEndFrame());
+        if (getCrop_enabled())
+            fbs.println("Cropping: " + (getCrop() ? "Yes" : "No"));
+        if (getPreciseFrameTiming_enabled())
+            fbs.println("Precise FPS: " + (getPreciseFrameTiming() ? "Yes" : "No"));
+        if (getDecodeQuality_enabled())
+            fbs.println("Decode quality: " + getDecodeQuality());
+        if (getJpgCompression_enabled())
+            fbs.println("JPG compression: " + getJpgCompression());
+
+        if (getSaveAudio_enabled())
+            fbs.println("Saving audio: " + (getSaveAudio() ? "Yes" : "No"));
+        if (getParallelAudio_enabled()) {
+            fbs.println("Audio item:");
+            fbs.println(getParallelAudio());
+        }
+        if (getPreciseAVSync_enabled())
+            fbs.println("Precise audio/video sync: " + (getPreciseAVSync() ? "Yes" : "No"));
 
         return asRemain;
     }
@@ -516,9 +686,8 @@ public class SectorMovieWriterBuilder  {
 
         JavaImageFormat JPG = JavaImageFormat.JPG;
         if (JPG.isAvailable()) {
-            tfb.print("-"+JPG.getId()+" <quality>").tab()
-                    .println("Quality when saving as jpg or avi:mjpg (default good). Options:")
-                    .indent().print(JpgQualities.getCmdLineList());
+            tfb.print("-jpg <quality between 1 and 100>").tab()
+                    .println("Quality when saving as jpg or avi:mjpg (default is 75).");
             tfb.newRow();
         }
 
@@ -560,10 +729,10 @@ public class SectorMovieWriterBuilder  {
         // TODO: add api for selecting parallel audio
         IAudioSectorDecoder audDecoder = null;
         if (getSaveAudio()) {
-            boolean[] ablnSelectedAudio = new boolean[getParallelAudioCount()];
+            boolean[] ablnSelectedAudio = new boolean[getParallelAudio_listSize()];
             Arrays.fill(ablnSelectedAudio, true);
             List<DiscItemAudioStream> parallelAud = _sourceVidItem.getParallelAudio(ablnSelectedAudio);
-            audDecoder = new AudioStreamsCombiner(parallelAud, false, 1.0);
+            audDecoder = new AudioStreamsCombiner(parallelAud, false, getAudioVolume());
         }
 
         switch (getVideoFormat()) {
@@ -582,7 +751,7 @@ public class SectorMovieWriterBuilder  {
                         getSingleSpeed(),
                         vidDecoder,
                         getCrop(),
-                        getJpgCompressionOption().getQuality(),
+                        getJpgCompression(),
                         getPreciseAVSync(),
                         audDecoder);
             case AVI_BMP:
@@ -609,13 +778,6 @@ public class SectorMovieWriterBuilder  {
                         vidDecoder, getCrop(),
                         getVideoFormat().getImgFmt());
 
-            case YUV4MPEG2_YUV:
-                return new DecodedYuv4mpeg2Writer(
-                        _sourceVidItem, sBaseName,
-                        getSaveStartFrame(), getSaveEndFrame(),
-                        getSingleSpeed(), _blnCrop);
-
-                
         } // end case
         throw new UnsupportedOperationException(getVideoFormat() + " not implemented yet.");
     }

@@ -41,11 +41,10 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.cdreaders.SectorReadErrorException;
-import jpsxdec.util.AdvancedIOIterator;
 
 /** Class to walk a range of sectors of a CD and automatically convert them
  *  to PSXSectors before returning them. */
-public class IdentifiedSectorRangeIterator implements AdvancedIOIterator<IdentifiedSector> {
+public class IdentifiedSectorRangeIterator {
 
     /** Interface for listener classes. */
     public static interface ISectorChangeListener {

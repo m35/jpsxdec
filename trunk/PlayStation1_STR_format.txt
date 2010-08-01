@@ -118,9 +118,9 @@ Like MPEG1 streams, the decoding process is long, and rather complicated. Specif
 
 I have tried to keep the descriptions as clear and straight-forward as possible, and explain some of the details and terminology of MPEG1 decoding. However, this document doesn't contain everything, and I've been immersed in this stuff for so long that I no longer can see where my explanations fall short. Therefore, you may need other sources of information to fully grasp these steps.
 
-The most helpful source would be the MPEG1 specification (ISO/IEC 11172). It is available to purchase from the ISO web site for a small fortune. Alternatively, if you prefer to spend much less money, there are many good books that cover the MPEG1 format.
+The most helpful source would be the MPEG-1 specification (ISO/IEC 11172, specifically part 2: video). It is available to purchase from the ISO web site for a small fortune. Alternatively, if you prefer to spend much less money, there are some books that cover the MPEG-1 video format.
 
-There are some free alternatives that will help, but don't apply as well as the MPEG1 spec. H.261, the first specification using MPEG-like encoding, is available for free from ITU-T. Also available from ITU-T is H.262, which (according to Wikipedia) is "completely identical in all aspects" to the MPEG2 specification. Finally, you could also search for information about JPEG encoding, which can be found in many places on the web.
+There are some free alternatives that will help, but don't apply as well as the MPEG-1 spec. H.261, the first specification using MPEG-like encoding, is available for free from ITU-T. Also available from ITU-T is H.262, which (according to Wikipedia) is free and "completely identical in all aspects" to the MPEG-2 specification. Finally, you could also search for information about JPEG encoding, which can be found in many places on the web.
 
 ################################################################################
 ## Conventions used
@@ -129,6 +129,13 @@ There are some free alternatives that will help, but don't apply as well as the 
 Octets are referred to as 'bytes'. 
 Hex values are preceeded with '0x'.
 All other numeric values are decimal unless there is a note about it being binary.
+
+
+################################################################################
+## Overview for the 
+################################################################################
+
+The PlayStation STR format can actually store quality equivelent to MPEG-2 format, due to all DCT coefficients having up to 10-bits of resolution. However the compression is far simpiler and doesn't take advantage of temporal redundancy (i.e. it is like MJPG with only intra "I frames", and no P and B frames). So even though it could store high quality, the size becomes the primary bottleneck.
 
 ################################################################################
 ## 1. The disc
@@ -417,13 +424,13 @@ For version 2 frames, the DC Coefficient of all 6 blocks are encoded the same:
 
 	10-bits, signed.
 	
-Very simple.
+Very simple. This is better quality than MPEG-1 because it provides 10-bits of DC precision.
 
 For version 3 frames, each Chrominance Red (Cr) DC Coefficient is relative to the previous Cr DC Coefficient, and each Chrominance Blue (Cb) DC Coefficient is relative to the previous Cb DC Coefficient. They are also encoded using a tricky arrangement of binary "variable length codes" (also known as "Huffman codes").
 
      Binary          Number of bits
-    Variable         used to store           Negative          Positive
-   Length Code       DC Coefficient        Differential      Differential
+    Variable         used to store          Negative          Positive
+   Length Code       DC Coefficient       Differential      Differential
     11111110               8              -255 to -128       128 to 255
     1111110                7              -127 to -64         64 to 127
     111110                 6               -63 to -32         32 to 63
@@ -434,7 +441,7 @@ For version 3 frames, each Chrominance Red (Cr) DC Coefficient is relative to th
     01                     1                   -1                1
     00                     0                    0                0
 
-After the variable length code, there is the corresponding number of bits for the DC Coefficient. The first of these bits is the sign bit. If it's 0, then use the 'Negative Differential' on the remaining bits. If it's 1, use the 'Positive Differential' on the remaining bits. Once that value is determined, it is then multiplied by 4 (for some reason).
+After the variable length code, there is the corresponding number of bits for the DC Coefficient. The first of these bits is the sign bit. If it's 0, then use the 'Negative Differential' on the remaining bits. If it's 1, use the 'Positive Differential' on the remaining bits. Once that value is determined, it is then multiplied by 4. This multiplication is necessary because v3 frames only have 8-bits of DC precision, which is the same precision as MPEG-1 video.
 
  -- Pseudocode to decode version 3 DC Coefficient for Cr or Cb -----------------
 
@@ -478,7 +485,7 @@ After the variable length code, there is the corresponding number of bits for th
         DC_Coefficient = 0
     End If
 
-    DC_Coefficient *= 4  /* for some reason we multiply by 4 */
+    DC_Coefficient *= 4  /* Shift the precision up to 10-bits */
 
     /* If Cr, use previous Cr. If Cb, use previous Cb */
     DC_Coefficient += Previous_DC_Coefficient
@@ -638,16 +645,14 @@ Every block is terminated by an END_OF_BLOCK code.
 
    10                         END_OF_BLOCK
 
-Note that unlike MPEG1, blocks may consist of only an END_OF_BLOCK code.
-
 // TODO: Confirm the following...
 
 Finally, frames end with an extra 11 bit block.
 
-	01111111110               v2 end of frame, extra block
-	11111111110               v3 end of frame, extra block
+	01111111110               v2 end of frame
+	11111111110               v3 end of frame
 
-The v2 block is equivalent to 011 (1, -1) 111 (0, -1) 111 (0, -1) 10 (EOB), which turns into this pre-IDCT matrix.
+The v2 bits are equivalent to 011 (1, -1) 111 (0, -1) 111 (0, -1) 10 (EOB), which turns into this pre-IDCT matrix.
 
   [  0  -1   0   0   0   0   0   0 ]
   [ -1   0   0   0   0   0   0   0 ]
@@ -847,19 +852,10 @@ Each value in that matrix represents an index in the list.
  -- Pseudocode to un-zig-zag the list into a matrix ---------------------------
     Define Coefficient_Matrix[8, 8]
 
-    Define Index = 0
     For x = 0 to 7
         For y = 0 to 7
-            For i = 0 to 7
-                For j = 0 to 7
-                    If ZIG_ZAG_MATRIX[i, j] == Index Then
-                        Coefficient_Matrix[x, y] = Coefficient_List[ i + j * 8 ]
-                        Index = Index + 1
-                        Goto Continue:
-                    End If
-                Next
-            Next
-            Continue:
+			i = ZIG_ZAG_MATRIX[x, y]
+			Coefficient_Matrix[i >> 3, i & 7] = Coefficient_List[ x + y * 8 ]
         Next
     Next
  ------------------------------------------------------------------------------
@@ -992,7 +988,7 @@ Here it is in pseudocode:
     Next
  ------------------------------------------------------------------------------
 
-Looking closely at this formula, you may notice it is essentially two matrix multiplications using the following table of values (rounded to 3 decimal points for sake of space):
+Looking closely at the formula, you may notice it is essentially two matrix multiplications using the following table of values (rounded to 3 decimal points for sake of space):
 
              [ 0.354  0.354  0.354  0.354  0.354  0.354  0.354  0.354 ]
              [ 0.490  0.416  0.278  0.098 -0.098 -0.278 -0.416 -0.490 ]
@@ -1068,7 +1064,7 @@ The resulting PlayStation YCbCr "color space" is:
 ## 2.3.6. Convert the (Y, Cb, Cr) pixels into RGB pixels
 ################################################################################
 
-The equations the MDEC uses to convert YCbCr to RGB are:
+The equations the MDEC uses to convert YCbCr to RGB are similar to JFIF, but slightly different:
     Red   = Y + 1.402 * Cr
     Green = Y - 0.3437 * Cb - 0.7143 * Cr
     Blue  = Y + 1.772 * Cb
@@ -1083,9 +1079,9 @@ Red   = (Y + 128) + 1.402  * Cr
 Green = (Y + 128) - 0.3437 * Cb - 0.7143 * Cr
 Blue  = (Y + 128) + 1.772  * Cb
 
-This adjustment of 128 is called "level shift" in the JPEG standard.
+The adjustment of 128 is called "level shift" in the JPEG standard.
 
-Because this can result in RGB values below 0, and above 255, you also should "clamp" the Red, Green, and Blue within a range of 0 to 255.
+Because the equation can result in RGB values below 0, and above 255, you also should "clamp" the Red, Green, and Blue within a range of 0 to 255.
 
 If Red   > 255 Then Red   = 255 Else If Red   < 0 Then Red   = 0
 If Green > 255 Then Green = 255 Else If Green < 0 Then Green = 0

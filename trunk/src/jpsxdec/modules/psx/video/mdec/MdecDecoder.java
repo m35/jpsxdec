@@ -120,5 +120,5 @@ L(240, 241, 248, 249), L(242, 243, 250, 251), L(244, 245, 252, 253), L(246, 247,
             throws DecodingException;
     
     /** Retrieve the contents of the internal PSX YCbCr buffer converted to RGB. */
-    abstract public void readDecodedRGB(RgbIntImage oRgb);
+    abstract public void readDecodedRgb(RgbIntImage oRgb);
 }

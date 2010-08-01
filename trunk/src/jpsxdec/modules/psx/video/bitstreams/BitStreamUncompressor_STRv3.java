@@ -242,9 +242,11 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             if ((iDC_Differential & dcVlc.DC_TopBitMask) == 0)
                 iDC_Differential += dcVlc.DC_NegativeDifferential;
 
-            iPreviousDC += iDC_Differential
-                    // !!! ???We must multiply it by 4 for no reason??? !!!
-                            * 4;
+            // because v3 encoding only uses 8 bits of precision for DC,
+            // it needs to be shifted up by 2 bits to be ready for
+            // the Qtable[0] multiplication of 2 which will up it to the full
+            // 11 bits that DC is supposed to have
+            iPreviousDC += iDC_Differential << 2;
         }
 
         // return the new DC Coefficient
@@ -351,6 +353,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
                     break;
             }
 
+            // TODO: Maybe try to expose this quality loss somehow
             iDCdiff = (int) Math.round(iDCdiff / 4.0);
             for (DCVariableLengthCode dcCodeBits : lookupTable) {
                 String sEncodedBits = dcCodeBits.encode(iDCdiff);

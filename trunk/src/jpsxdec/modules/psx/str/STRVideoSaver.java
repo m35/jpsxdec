@@ -47,20 +47,20 @@ import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.JPSXModule;
-import jpsxdec.modules.ProgressListener;
+import jpsxdec.util.ProgressListener;
 import jpsxdec.util.FeedbackStream;
 
 public class STRVideoSaver extends DiscItemSaver {
 
     private static final Logger log = Logger.getLogger(STRVideoSaver.class.getName());
 
-    private DiscItemSTRVideo _vidItem;
-    private SectorMovieWriterBuilder _demuxBuilder;
+    private final DiscItemSTRVideo _vidItem;
+    private final SectorMovieWriterBuilder _movieWriterBuilder;
 
     public STRVideoSaver(DiscItemSTRVideo vidStream) {
         super();
         _vidItem = vidStream;
-        _demuxBuilder = new SectorMovieWriterBuilder(_vidItem);
+        _movieWriterBuilder = new SectorMovieWriterBuilder(_vidItem);
     }
 
     public JPanel getOptionPane() {
@@ -70,12 +70,12 @@ public class STRVideoSaver extends DiscItemSaver {
     //-----------------------------------
 
     public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
-        return _demuxBuilder.commandLineOptions(asArgs, fbs);
+        return _movieWriterBuilder.commandLineOptions(asArgs, fbs);
     }
 
     @Override
     public void printHelp(FeedbackStream fbs) {
-        _demuxBuilder.printHelp(fbs);
+        _movieWriterBuilder.printHelp(fbs);
     }
 
     @Override
@@ -90,12 +90,14 @@ public class STRVideoSaver extends DiscItemSaver {
             frame.setVisible(true);
 
         } else {
-            SectorMovieWriter movieWriter = _demuxBuilder.openMovieWriter();
+            SectorMovieWriter movieWriter = _movieWriterBuilder.openMovieWriter();
 
             movieWriter.setListener(pl);
 
             // TODO: change to be movieWriter.saveAudio()
-            if (_demuxBuilder.getSaveAudio()) {
+            if (_movieWriterBuilder.getSaveAudio()) {
+                pl.info("With audio stream");
+                pl.info(_movieWriterBuilder.getParallelAudio().toString());
                 startVideoAndAudio(movieWriter, pl);
             } else {
                 startVideoOnly(movieWriter, pl);

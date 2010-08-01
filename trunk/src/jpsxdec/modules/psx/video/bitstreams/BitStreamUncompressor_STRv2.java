@@ -546,7 +546,6 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
             boolean newBlk = true;
             int iBlock = 0;
-            // TODO: make sure the encoding doesn't end at some incorrect state
             for (int i = 0; i < iMdecCodeCount; i++) {
                 String sBitsToWrite;
                 if (inStream.readMdecCode(oCode)) {
@@ -644,7 +643,6 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             bitStream.write( getHeaderVersion(), 16);
         }
 
-        @Override
         public boolean separateQscales() {
             return false;
         }

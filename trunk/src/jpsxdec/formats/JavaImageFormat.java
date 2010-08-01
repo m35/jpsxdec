@@ -38,7 +38,6 @@
 package jpsxdec.formats;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import javax.imageio.ImageIO;
 
@@ -47,12 +46,8 @@ public enum JavaImageFormat {
 
     JPG("jpg", true, false) {
         @Override
-        public JpgQualities getDefaultCompression() {
-            return JpgQualities.GOOD_QUALITY;
-        }
-        @Override
-        public List<JpgQualities> getCompressionQualityDescriptions() {
-            return JpgQualities.getList();
+        public boolean hasCompression() {
+            return true;
         }
     },
     PNG("png", true, true),
@@ -99,11 +94,8 @@ public enum JavaImageFormat {
         return _blnPaletted;
     }
 
-    public JpgQualities getDefaultCompression() {
-        return null;
-    }
-    public List<JpgQualities> getCompressionQualityDescriptions() {
-        return null;
+    public boolean hasCompression() {
+        return false;
     }
 
     @Override
@@ -119,63 +111,6 @@ public enum JavaImageFormat {
                 available.add(fmt);
         }
         return available;
-    }
-
-    /* ###################################################################### */
-
-    public static enum JpgQualities {
-        LOW_QUALITY("low", "Low quality (small)", 0.25f),
-        MEDIUM_QUALITY("medium","Medium quality", 0.5f),
-        GOOD_QUALITY("good","Good quality (default)", 0.75f),
-        HIGH_QUALITY("high","High quality", 0.95f);
-
-        private final String _sCmdLine, _sGui;
-        private final float _fltValue;
-
-        private JpgQualities(String sCmdLine, String sDescription, float fltValue) {
-            this._sCmdLine = sCmdLine;
-            this._sGui = sDescription;
-            this._fltValue = fltValue;
-        }
-
-        public String toString() {
-            return _sGui;
-        }
-
-        public String getCmdLine() {
-            return _sCmdLine;
-        }
-
-        public String getGuiOption() {
-            return _sGui;
-        }
-
-        public float getQuality() {
-            return _fltValue;
-        }
-
-        public static List<JpgQualities> getList() {
-            return Arrays.asList(values());
-        }
-
-        public static String getCmdLineList() {
-            StringBuilder sb = new StringBuilder();
-            for (JpgQualities quality : values()) {
-                if (sb.length() > 0)
-                    sb.append(", ");
-                sb.append(quality.getCmdLine());
-            }
-            return sb.toString();
-        }
-
-        public static JpgQualities fromCmdLine(String sCmdLine) {
-            for (JpgQualities quality : values()) {
-                if (quality.getCmdLine().equalsIgnoreCase(sCmdLine))
-                    return quality;
-            }
-            return null;
-        }
-
     }
 
 }

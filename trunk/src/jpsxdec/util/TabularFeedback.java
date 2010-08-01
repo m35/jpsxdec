@@ -163,16 +163,16 @@ public class TabularFeedback {
                     ArrayList<StringBuilder> cell = row.get(j);
                     if (iLine < cell.size()) {
                         String sLine = cell.get(iLine).toString();
-                        fbs.printNorm(sLine);
-                        fbs.printNorm(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
+                        fbs.println(sLine);
+                        fbs.println(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
                     } else {
-                        fbs.printNorm(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
+                        fbs.println(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
                     }
                 }
-                fbs.nl();
+                fbs.println();
             }
             for (int j = 0; j < _iRowSpacing; j++)
-                fbs.nl();
+                fbs.println();
         }
     }
 

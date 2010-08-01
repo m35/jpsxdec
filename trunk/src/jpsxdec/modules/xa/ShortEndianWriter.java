@@ -35,54 +35,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules;
+package jpsxdec.modules.xa;
 
-public abstract class ProgressListener {
+import jpsxdec.util.IO;
 
-    private static ProgressListener IGNORE;
-    
-    public static ProgressListener ignore() {
-        if (IGNORE == null) {
-            IGNORE = new ProgressListener() {
-                @Override public void error(Throwable ex) {}
-                @Override public void error(String sDescription) {}
-                @Override public void event(String sDescription) {}
-                @Override public void info(String s) {}
-                @Override public void progressEnd() {}
-                @Override public void progressStart() {}
-                @Override public void progressUpdate(double dblPercentComplete) {}
-                @Override public void warning(Throwable ex) {}
-                @Override public void warning(String sDescription) {}
-                @Override public void progressStart(String s) {}
-                @Override public void more(String s) {}
-            };
+/** Writes shorts to a buffer as big-endian or little-endian. 
+ * Doesn't maintain a reference to the output buffer, but does maintain
+ * the current write position. */
+public abstract class ShortEndianWriter {
+
+    protected int _iPos;
+
+    public void resetPos() {
+        _iPos = 0;
+    }
+
+    abstract public void write(short si, byte[] ab);
+    abstract public boolean isBigEndian();
+
+    public static class BE extends ShortEndianWriter {
+        @Override
+        public void write(short si, byte[] ab) {
+            IO.writeInt16BE(ab, _iPos, si);
+            _iPos+=2;
         }
-        return IGNORE;
+        @Override
+        public boolean isBigEndian() {
+            return true;
+        }
     }
-
-    abstract public void progressStart(String s);
-
-    public void progressStart() { progressStart(null); }
-
-    public void progressEnd() {}
-
-    public void progressUpdate(double dblPercentComplete) {}
-
-    public void event(String sDescription) {}
-
-    public void warning(String sMessage, Throwable cause) { 
-        warning(sMessage + " " + cause.getMessage());
+    public static class LE extends ShortEndianWriter {
+        @Override
+        public void write(short si, byte[] ab) {
+            IO.writeInt16LE(ab, _iPos, si);
+            _iPos+=2;
+        }
+        @Override
+        public boolean isBigEndian() {
+            return false;
+        }
     }
-    public void warning(Throwable ex) { warning(ex.getMessage()); }
-    public void warning(String sDescription) {}
-
-    public void error(String sMessage, Throwable ex) {
-        error(sMessage + " " + ex.getMessage());
-    }
-    public void error(Throwable ex) { error(ex.getMessage()); }
-    public void error(String sDescription) {}
-
-    public void info(String s) {}
-
-    abstract public void more(String s);
 }

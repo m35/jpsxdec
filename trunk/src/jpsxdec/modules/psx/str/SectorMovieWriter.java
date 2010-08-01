@@ -39,7 +39,7 @@ package jpsxdec.modules.psx.str;
 
 import java.io.IOException;
 import jpsxdec.modules.IdentifiedSector;
-import jpsxdec.modules.ProgressListener;
+import jpsxdec.util.ProgressListener;
 
 public interface SectorMovieWriter {
 

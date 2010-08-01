@@ -106,7 +106,6 @@ public class CdxaHeader {
     }
 
     public String toString() {
-        return String.format("(%d) %s",
-                calculateSectorNumber(), super.toString());
+        return "Header sector:" + calculateSectorNumber();
     }
 }

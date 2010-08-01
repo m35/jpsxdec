@@ -54,7 +54,7 @@ import jpsxdec.util.ExposedBAOS;
  * into each frame. The output seems playable on vanilla Windows XP systems,
  * and of course VLC.
  * <p>
- * However, according to <a href="http://en.wikipedia.org/wiki/MJPEG">Wikipedia</a>:
+ * According to <a href="http://en.wikipedia.org/wiki/MJPEG">Wikipedia</a>:
  * <blockquote>
  * "there is no document that defines a single exact format that is
  * universally recognized as a complete specification of “Motion JPEG” for
@@ -68,9 +68,6 @@ import jpsxdec.util.ExposedBAOS;
  * http://www.oltenia.ro/download/pub/windows/media/video/tools/GSpot/gspot22/GSpot22.dat
  * <p>
  * http://www.alexander-noe.com/video/documentation/avi.pdf
- * <p>
- * According to the Multimedia Guru, AVI can support variable frame rates.
- * http://guru.multimedia.cx/the-avi-container-file-format/
  */
 public class AviWriterMJPG extends AviWriter {
 

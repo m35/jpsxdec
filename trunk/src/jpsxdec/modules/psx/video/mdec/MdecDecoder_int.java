@@ -160,23 +160,25 @@ public class MdecDecoder_int extends MdecDecoder {
                             ////////////////////////////////////////////////////////
                             iCurrentBlockVectorPosition += _code.getTop6Bits() + 1;
 
+                            int iRevZigZagPos;
                             try {
-                                // Reverse Zig-Zag and Dequantize all at the same time
-                                int iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
-                                _CurrentBlock[iRevZigZagPos] =
-                                            (_code.getBottom10Bits()
-                                          * PSX_DEFAULT_QUANTIZATION_MATRIX[iRevZigZagPos]
-                                          * iCurrentBlockQscale + 4) >> 3;
-                                //  i      >> 3  ==  (int)Math.floor(i / 8.0)
-                                // (i + 4) >> 3  ==  (int)Math.round(i / 8.0)
-                                iCurrentBlockNonZeroCount++;
-                                iCurrentBlockLastNonZeroPosition = iRevZigZagPos;
+                                // Reverse Zig-Zag
+                                iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                             } catch (ArrayIndexOutOfBoundsException ex) {
                                 throw new DecodingException(String.format(
                                         "[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d",
                                         iCurrentBlockVectorPosition,
                                         iMacBlk, iMacBlkX, iMacBlkY, iBlock));
                             }
+                            // Dequantize
+                            _CurrentBlock[iRevZigZagPos] =
+                                        (_code.getBottom10Bits()
+                                      * PSX_DEFAULT_QUANTIZATION_MATRIX[iRevZigZagPos]
+                                      * iCurrentBlockQscale + 4) >> 3;
+                            //  i      >> 3  ==  (int)Math.floor(i / 8.0)
+                            // (i + 4) >> 3  ==  (int)Math.round(i / 8.0)
+                            iCurrentBlockNonZeroCount++;
+                            iCurrentBlockLastNonZeroPosition = iRevZigZagPos;
                             ////////////////////////////////////////////////////////
                         }
 
@@ -267,7 +269,7 @@ public class MdecDecoder_int extends MdecDecoder {
         }
     }
 
-    public void readDecodedRGB(RgbIntImage rgbImg) {
+    public void readDecodedRgb(RgbIntImage rgbImg) {
 
         final int WIDTH = rgbImg.getWidth(), HEIGHT = rgbImg.getHeight();
 

@@ -52,9 +52,9 @@ abstract class AVIstruct {
         raf.write((i >>> 24) & 0xFF);
     }
     
-    public static void write16LE(RandomAccessFile raf, short i) throws IOException {
-        raf.write(i& 0xFF);
-        raf.write((i >>> 8) & 0xFF);
+    public static void write16LE(RandomAccessFile raf, short si) throws IOException {
+        raf.write(si& 0xFF);
+        raf.write((si >>> 8) & 0xFF);
     }
     
     public static int string2int(String s) {

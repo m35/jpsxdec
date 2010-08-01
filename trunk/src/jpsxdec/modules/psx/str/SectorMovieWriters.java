@@ -54,7 +54,7 @@ import jpsxdec.formats.RgbIntImage;
 import jpsxdec.formats.Yuv4mpeg2;
 import jpsxdec.formats.Yuv4mpeg2Writer;
 import jpsxdec.modules.JPSXModule;
-import jpsxdec.modules.ProgressListener;
+import jpsxdec.util.ProgressListener;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.aviwriter.AviWriter;
 import jpsxdec.modules.psx.video.bitstreams.BitStreamUncompressor;
@@ -63,6 +63,7 @@ import jpsxdec.modules.psx.video.mdec.MdecDecoder;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder_double;
 import jpsxdec.modules.psx.video.mdec.MdecInputStream;
 import jpsxdec.modules.psx.video.mdec.MdecInputStream.MdecCode;
+import jpsxdec.modules.psx.video.mdec.MdecInputStreamReader;
 import jpsxdec.modules.psx.video.mdec.idct.StephensIDCT;
 import jpsxdec.modules.xa.IAudioSectorDecoder;
 import jpsxdec.modules.xa.IAudioReceiver;
@@ -139,7 +140,6 @@ class SectorMovieWriters  {
             return makeFileName(_iStartFrame) + " to " + makeFileName(_iEndFrame);
         }
 
-        @Override
         public void feedSectorForVideo(IVideoSector sector) throws IOException {
             _demuxer.feedSector(sector);
         }
@@ -222,7 +222,8 @@ class SectorMovieWriters  {
             try {
                 bos = new BufferedOutputStream(new FileOutputStream(f));
                 try {
-                    writeMdec(uncompressor, bos);
+                    final int TOTAL_BLOCKS = ((getHeight() + 15)) / 16 * ((getWidth() + 15) / 16) * 6;
+                    MdecInputStreamReader.writeMdecBlocks(uncompressor, bos, TOTAL_BLOCKS);
                 } catch (DecodingException ex) {
                     log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
                     getListener().warning("Error uncompressing frame " + iFrameNumber, ex);
@@ -245,20 +246,6 @@ class SectorMovieWriters  {
                                  _sBaseName,
                                  _vidItem.getWidth(), _vidItem.getHeight(),
                                  iFrame);
-        }
-
-        private void writeMdec(MdecInputStream mdecIn, OutputStream streamOut)
-                throws DecodingException, IOException
-        {
-            MdecCode code = new MdecCode();
-            final int TOTAL_BLOCKS = ((getHeight() + 15)) / 16 * ((getWidth() + 15) / 16) * 6;
-            int iBlock = 0;
-            while (iBlock < TOTAL_BLOCKS) {
-                if (mdecIn.readMdecCode(code)) {
-                    iBlock++;
-                }
-                IO.writeInt16LE(streamOut, code.toMdecWord());
-            }
         }
 
     }
@@ -331,7 +318,7 @@ class SectorMovieWriters  {
 
         @Override
         protected void receiveDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector) {
-            decoder.readDecodedRGB(_rgbBuff);
+            decoder.readDecodedRgb(_rgbBuff);
             BufferedImage bi = _rgbBuff.toBufferedImage();
             File f = new File(makeFileName(iFrame));
             try {
@@ -647,7 +634,7 @@ class SectorMovieWriters  {
 
         @Override
         protected void actuallyWrite(MdecDecoder decoder, int iFrame) throws IOException {
-            decoder.readDecodedRGB(_rgbBuff);
+            decoder.readDecodedRgb(_rgbBuff);
             _writerMjpg.writeFrame(_rgbBuff.toBufferedImage());
         }
 
@@ -694,7 +681,7 @@ class SectorMovieWriters  {
 
         @Override
         protected void actuallyWrite(MdecDecoder decoder, int iFrame) throws IOException {
-            decoder.readDecodedRGB(_rgbBuff);
+            decoder.readDecodedRgb(_rgbBuff);
             _writerDib.writeFrameRGB(_rgbBuff.getData(), 0, _rgbBuff.getWidth());
         }
 

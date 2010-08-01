@@ -53,7 +53,7 @@ import jpsxdec.modules.DiscItemSerialization;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.IdentifiedSectorRangeIterator;
-import jpsxdec.modules.ProgressListener;
+import jpsxdec.util.ProgressListener;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.TabularFeedback;

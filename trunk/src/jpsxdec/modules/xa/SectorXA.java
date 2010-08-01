@@ -52,8 +52,9 @@ import jpsxdec.util.NotThisTypeException;
 
 
 /** Standard audio sector for XA. */
-public class SectorXA extends IdentifiedSector
-{
+public class SectorXA extends IdentifiedSector {
+
+    private static final Logger log = Logger.getLogger(SectorXA.class.getName());
 
     private final int _iSamplesPerSecond;
     private final int _iBitsPerSample;
@@ -108,8 +109,12 @@ public class SectorXA extends IdentifiedSector
                 }
             }
         }
-        if (iErrors > 2)
-            throw new NotThisTypeException();
+        // My Spyro image has a lot of errors
+        if (iErrors > 0) {
+            log.log(Level.WARNING, "Found {0} errors in XA sound parameters for {1}", new Object[]{iErrors, cdSector.toString()});
+            if (iErrors > 11)
+                throw new NotThisTypeException();
+        }
 
         _blnStereo = cdSector.getCodingInfo().isStereo();
         _iSamplesPerSecond = cdSector.getCodingInfo().getSampleRate();
@@ -207,9 +212,9 @@ public class SectorXA extends IdentifiedSector
     }
 
     /**<pre>
-     * Disc Speed = ( Samples/sec * Mono/Stereo * Period ) / 4032
+     * Disc Speed = ( Samples/sec * Mono/Stereo * Stride ) / 4032
      *
-     * Samples/sec  Mono/Stereo  Bits/sample  Period  Disc Speed
+     * Samples/sec  Mono/Stereo  Bits/sample  Stride  Disc Speed
      *   18900           1           4          4      invalid
      *   18900           1           4          8      invalid
      *   18900           1           4          16       75    "Level C"

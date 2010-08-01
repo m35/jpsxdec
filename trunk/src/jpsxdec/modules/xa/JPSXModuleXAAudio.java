@@ -67,17 +67,27 @@ public class JPSXModuleXAAudio extends JPSXModule {
         return SINGLETON;
     }
 
+    /** Tracks the indexing of one audio stream in one channel. */
     private static class AudioStreamIndex {
 
+        /** First sector of the audio stream. */
         private final int _iStartSector;
 
+        /** Last sector before _currentXA that was a part of this stream. */
         private SectorXA _previousXA;
+        /** Last sector (or 'current' sector, if you will) that was a part of this stream.
+         Is never null. */
         private SectorXA _currentXA;
 
+        /** Get the last (or 'current') sector that was part of this stream.
+         May be null. */
         public SectorXA getCurrent() { return _currentXA; }
 
+        /** Count of how many sample are found in the stream. */
         private long _lngSampleCount = 0;
 
+        /** Number of sectors between XA sectors that are part of this stream.
+         * Should only ever be 4, 8, 16, or 32. */
         private int _iAudioStride = -1;
 
         public AudioStreamIndex(SectorXA first) {
@@ -89,15 +99,15 @@ public class JPSXModuleXAAudio extends JPSXModule {
          * @return true if the sector was accepted as part of this stream.
          */
         public boolean sectorRead(SectorXA newCurrent) {
+            // if the previous ('current') sector's EOF bit was set, this stream is closed
+            // this is important for Silent Hill and R4 Ridge Racer
+            if (_currentXA.getCDSector().getSubMode().getEofMarker())
+                return false;
+
             if (newCurrent.matchesPrevious(_currentXA) == null)
                 return false;
 
-            // if the previous sector's EOF bit was set, this stream is closed
-            // -- unfortuantely this is unreliable --
-            //if (_prevXA.getEOFBit())
-            //    return false;
-
-            // check the period
+            // check the stride
             int iStride = newCurrent.getSectorNumber() - _currentXA.getSectorNumber();
             if (_iAudioStride < 0)
                 _iAudioStride = iStride;
@@ -172,7 +182,9 @@ public class JPSXModuleXAAudio extends JPSXModule {
                 audStream = new AudioStreamIndex(audSect);
                 _aoChannels[audSect.getChannel()] = audStream;
             } else if (!audStream.sectorRead(audSect)) {
-                super.addDiscItem(audStream.createMediaItemFromCurrent());
+                DiscItem item = audStream.createMediaItemFromCurrent();
+                if (item != null)
+                    super.addDiscItem(item);
                 audStream = new AudioStreamIndex(audSect);
                 _aoChannels[audSect.getChannel()] = audStream;
             }
@@ -182,16 +194,14 @@ public class JPSXModuleXAAudio extends JPSXModule {
             for (int i = 0; i < _aoChannels.length; i++) {
                 AudioStreamIndex audStream = _aoChannels[i];
                 if (audStream != null && audStream.ended(sector.getSectorNumber())) {
-                    super.addDiscItem(audStream.createMediaItemFromCurrent());
+                    DiscItem item = audStream.createMediaItemFromCurrent();
+                    if (item != null)
+                        super.addDiscItem(item);
                     _aoChannels[i] = null;
                 }
             }
         }
 
-        // This this sector's EOF bit is set, close all streams
-        // -- unfortunately this isn't reliable
-        //if (sector.getEOFBit())
-            //indexing_endOfDisc();
     }
 
     @Override
@@ -199,7 +209,9 @@ public class JPSXModuleXAAudio extends JPSXModule {
         for (int i = 0; i < _aoChannels.length; i++) {
             AudioStreamIndex audStream = _aoChannels[i];
             if (audStream != null) {
-                super.addDiscItem(audStream.createMediaItemFromCurrent());
+                DiscItem item = audStream.createMediaItemFromCurrent();
+                if (item != null)
+                    super.addDiscItem(item);
                 _aoChannels[i] = null;
             }
         }

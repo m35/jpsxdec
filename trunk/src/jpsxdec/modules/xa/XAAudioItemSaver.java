@@ -43,7 +43,7 @@ import javax.swing.JPanel;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.IdentifiedSector;
-import jpsxdec.modules.ProgressListener;
+import jpsxdec.util.ProgressListener;
 import jpsxdec.util.FeedbackStream;
 
 public class XAAudioItemSaver extends DiscItemSaver {

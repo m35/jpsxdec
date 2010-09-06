@@ -100,6 +100,11 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         fields.addNumber(SECTORS_PAST_END_KEY, _iSectorsPastEnd);
         return fields;
     }
+
+    @Override
+    public int getHierarchyLevel() {
+        return 100;
+    }
     
     public boolean isStereo() {
         return true;

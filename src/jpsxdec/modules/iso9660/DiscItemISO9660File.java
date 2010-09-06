@@ -46,9 +46,6 @@ import jpsxdec.modules.DiscItemSerialization;
 import javax.swing.JPanel;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ProgressListener;
@@ -62,9 +59,9 @@ public class DiscItemISO9660File extends DiscItem {
     private static final Logger log = Logger.getLogger(DiscItemISO9660File.class.getName());
     public static final String TYPE_ID = "File";
 
-    private ArrayList<DiscItem> _aoChildren;
     private final File _path;
     private final long _lngSize;
+    private int _iContainedItemCount;
 
     public DiscItemISO9660File(int iStartSector, int iEndSector, File path, long lngSize) {
         super(iStartSector, iEndSector);
@@ -86,20 +83,23 @@ public class DiscItemISO9660File extends DiscItem {
     }
 
 
-    /** Adds a disc item to be considered part of this file. Changes the item's
-     *  suggested base name to the name of this file + index of the number of
-     *  items that are part of this file. */
-    public void addChild(DiscItem item) {
-        if (_aoChildren == null)
-            _aoChildren = new ArrayList<DiscItem>();
-
-        item.setSuggestedBaseName(String.format("%s[%d]",
-                Misc.getBaseName(_path.getName()), _aoChildren.size()));
-
-        if (log.isLoggable(Level.INFO)) log.info("Added " + item + " to " + this);
-        _aoChildren.add(item);
+    public String getBaseName() {
+        return Misc.getBaseName(_path.getName());
     }
-    
+
+    void incrementContainedItems() {
+        _iContainedItemCount++;
+    }
+
+    int getContainedItemCount() {
+        return _iContainedItemCount;
+    }
+
+    @Override
+    public int getHierarchyLevel() {
+        return 1;
+    }
+
     @Override
     public DiscItemSerialization serialize() {
         DiscItemSerialization fields = super.superSerial(TYPE_ID);

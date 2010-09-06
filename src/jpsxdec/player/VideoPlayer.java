@@ -167,6 +167,7 @@ class VideoPlayer implements Runnable {
             ret.setFullBufferUpdates(true);
          ************************************************************* */
         private VideoFrame __lastFrame;
+        final private Object __drawSync = new Object();
 
         private Dimension __dims = updateDims();
 
@@ -179,12 +180,15 @@ class VideoPlayer implements Runnable {
                 __lastFrame = frame;
             } else {
                 // XXX: race condition
-                VideoFrame lastFrame = __lastFrame;
-                __lastFrame = frame;
+                VideoFrame lastFrame;
+                synchronized (__drawSync) {
+                    lastFrame = __lastFrame;
+                    __lastFrame = frame;
+                }
                 lastFrame.returnToPool();
             }
-            repaint();
-            Thread.yield();
+            update(getGraphics());
+            //Thread.yield();
         }
 
         @Override
@@ -192,7 +196,10 @@ class VideoPlayer implements Runnable {
             if (g instanceof Graphics2D) {
                 ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
             }
-            g.drawImage(__lastFrame.Img, 0, 0, __dims.width, __dims.height, this);
+            // XXX: possible deadlock here
+            synchronized (__drawSync) {
+                g.drawImage(__lastFrame.Img, 0, 0, __dims.width, __dims.height, this);
+            }
         }
 
         @Override
@@ -224,7 +231,7 @@ class VideoPlayer implements Runnable {
 
 
     class VideoFrame {
-        public RgbIntImage Memory;
+        public int[] Memory;
         /** MemoryImageSource is tricky if you've never used it before.
          * http://rsb.info.nih.gov/plasma/ */
         public MemoryImageSource MemImgSrc;
@@ -235,8 +242,8 @@ class VideoPlayer implements Runnable {
 
         public void init(AbstractDecodableFrame decodeFrame) {
             if (Memory == null) {
-                Memory = new RgbIntImage(_iWidth, _iHeight);
-                MemImgSrc = new MemoryImageSource(_iWidth, _iHeight, Memory.getData(), 0, _iWidth);
+                Memory = new int[_iWidth * _iHeight];
+                MemImgSrc = new MemoryImageSource(_iWidth, _iHeight, Memory, 0, _iWidth);
                 MemImgSrc.setAnimated(true);
                 MemImgSrc.setFullBufferUpdates(true);
                 Img = _screen.createImage(MemImgSrc);
@@ -247,7 +254,7 @@ class VideoPlayer implements Runnable {
         }
 
         public void returnToPool() {
-            Img.flush();
+            Img.flush(); // XXX: possible deadlock here
             _videoFramePool.giveBack(this);
         }
     }

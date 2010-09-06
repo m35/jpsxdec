@@ -90,9 +90,9 @@ public class AviWriterMJPG extends AviWriter {
     // -------------------------------------------------------------------------
     
 
-    /** The image writer used to convert the BufferedImages to BMP or JPEG. */
+    /** The image writer used to convert the BufferedImages to JPEG. */
     private final ImageWriter _imgWriter;
-    /** Only used for MJPG when not using default quality level. */
+    /** Only used not using default quality level. */
     private final ImageWriteParam _writeParams;
 
     
@@ -167,15 +167,30 @@ public class AviWriterMJPG extends AviWriter {
             throw new IllegalArgumentException("AviWriter: Frame height doesn't match" +
                     " (was " + getHeight() + ", now " + bi.getHeight() + ").");
 
-        byte[] abData = image2MJPEG(bi).getBuffer();
+        ExposedBAOS out = image2MJPEG(bi);
 
-        writeFrameChunk(abData, 0, abData.length);
+        writeFrameChunk(out.getBuffer(), 0, out.size());
+    }
+
+
+    @Override
+    public void writeBlankFrame() throws IOException {
+        BufferedImage bi = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
+        writeFrame(bi);
     }
 
     // -------------------------------------------------------------------------
     // -- Private functions ----------------------------------------------------
     // -------------------------------------------------------------------------
     
+    /** Converts a BufferedImage into a frame to be written into a MJPG avi. */
+    private ExposedBAOS image2MJPEG(BufferedImage img) throws IOException {
+        ExposedBAOS jpgStream = writeImageToBytes(img, new ExposedBAOS());
+        //IO.writeFile("test.bin", abJpg); // debug
+        JPEG2MJPEG(jpgStream.getBuffer());
+        return jpgStream;
+    }
+
     private ExposedBAOS writeImageToBytes(BufferedImage img, ExposedBAOS out) throws IOException {
         // have to wrap the ByteArrayOutputStream with a MemoryCacheImageOutputStream
         MemoryCacheImageOutputStream imgOut = new MemoryCacheImageOutputStream(out);
@@ -198,14 +213,6 @@ public class AviWriterMJPG extends AviWriter {
         return out;
     }
     
-    /** Converts a BufferedImage into a frame to be written into a MJPG avi. */
-    private ExposedBAOS image2MJPEG(BufferedImage img) throws IOException {
-        ExposedBAOS oJpgStream = writeImageToBytes(img, new ExposedBAOS());
-        //IO.writeFile("test.bin", abJpg); // debug
-        JPEG2MJPEG(oJpgStream.getBuffer());
-        return oJpgStream;
-    }
-    
     /** Converts JPEG file data to be used in an MJPG AVI. */
     private static void JPEG2MJPEG(byte [] ab) throws IOException {
         if (ab[6] != 'J' || ab[7] != 'F' || ab[8] != 'I' || ab[9] != 'F')
@@ -221,9 +228,4 @@ public class AviWriterMJPG extends AviWriter {
         */
     }
 
-    @Override
-    public void writeBlankFrame() throws IOException {
-        BufferedImage bi = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
-        writeFrame(bi);
-    }
 }

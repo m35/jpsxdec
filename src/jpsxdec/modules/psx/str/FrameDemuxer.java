@@ -39,11 +39,10 @@ package jpsxdec.modules.psx.str;
 
 import java.io.IOException;
 import java.util.logging.Logger;
-import jpsxdec.util.IWidthHeight;
 
 /** Demuxes a series of frame chunk sectors into a solid stream.
  *  Sectors need to be added ('pushed') in their proper order. */
-public abstract class FrameDemuxer implements IWidthHeight {
+public abstract class FrameDemuxer {
 
     private static final Logger log = Logger.getLogger(FrameDemuxer.class.getName());
 

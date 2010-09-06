@@ -44,7 +44,6 @@ import javax.swing.JPanel;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Arrays;
 import javax.imageio.ImageIO;
 import jpsxdec.MainCommandLineParser;
@@ -104,6 +103,11 @@ public class DiscItemTIM extends DiscItem {
     @Override
     public String getTypeId() {
         return TYPE_ID;
+    }
+
+    @Override
+    public int getHierarchyLevel() {
+        return 50;
     }
 
     public Tim readTIM() throws IOException {

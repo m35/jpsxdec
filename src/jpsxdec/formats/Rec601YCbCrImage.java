@@ -41,8 +41,7 @@ import java.awt.image.BufferedImage;
 
 /** Basic YCbCr image format with 4:2:0 chroma subsampling.
  *<p>
- * This image data is intended to be used to write yuv4mpeg2 files,
- * and AVI files using the YV12 codec.
+ * This image data is intended to be used to AVI files using the YV12 codec.
  *<p>
  * The image data is internally treated as unsigned bytes
  * in the Rec BT 601 "color space", with the range of
@@ -52,10 +51,10 @@ import java.awt.image.BufferedImage;
  * Cr: 16 to 240
  *</pre>
  *<blockquote>
- *  "In each 8 bit luminance sample, the value 16 is used for black and 
- *  235 for white, to allow for overshoot and undershoot. The values 0 
- *  and 255 are used for sync encoding. The Cb and Cr samples use the 
- *  value 128 to encode a zero value, as used when encoding a white, 
+ *  "In each 8 bit luminance sample, the value 16 is used for black and
+ *  235 for white, to allow for overshoot and undershoot. The values 0
+ *  and 255 are used for sync encoding. The Cb and Cr samples use the
+ *  value 128 to encode a zero value, as used when encoding a white,
  *  grey or black area."
  *</blockquote>
  *      -http://en.wikipedia.org/wiki/CCIR_601
@@ -63,29 +62,24 @@ import java.awt.image.BufferedImage;
  * Any reading or writing to this class should follow this format.
  *<p>
  */
-public class Yuv4mpeg2 {
+public class Rec601YCbCrImage {
 
     private int _iLuminWidth;
     private int _iLuminHeight;
     private int _iChromWidth;
     private int _iChromHeight;
     
-    public final static String SUB_SAMPLING = "420jpeg";
-
-    /** Holds luminance values.
-     * Package private so Yuv4mpeg2Writer can access it. */
-    byte[] _abY;
-    /** Holds chrominance blue values with 4:2:0 subsampling.
-     * Package private so Yuv4mpeg2Writer can access it. */
-    byte[] _abCb;
-    /** Holds chorminance red values with 4:2:0 subsampling.
-     * Package private so Yuv4mpeg2Writer can access it. */
-    byte[] _abCr;
+    /** Holds luminance values. */
+    private byte[] _abY;
+    /** Holds chrominance blue values with 4:2:0 subsampling. */
+    private byte[] _abCb;
+    /** Holds chorminance red values with 4:2:0 subsampling. */
+    private byte[] _abCr;
     
-    /** Creates a new instance of Yuv4mpeg2 
+    /** Creates a new instance of Rec601YCbCrImage
      * @param iSrcWidth - Width of image (in Luminance values)
      * @param iSrcHeight - Height of image (in Luminance values) */
-    public Yuv4mpeg2(int iWidth, int iHeight) {
+    public Rec601YCbCrImage(int iWidth, int iHeight) {
         if (iWidth < 2 || iHeight < 2 ||
                (iWidth % 2) != 0 ||
                (iHeight % 2) != 0) {
@@ -101,7 +95,7 @@ public class Yuv4mpeg2 {
     }
 
     /** Very slow and wasteful conversion. */
-    public Yuv4mpeg2(BufferedImage rgb) {
+    public Rec601YCbCrImage(BufferedImage rgb) {
         this(rgb.getWidth(), rgb.getHeight());
         
         for (int x = 0; x < _iLuminWidth; x+=2) {

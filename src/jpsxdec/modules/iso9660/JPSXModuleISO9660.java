@@ -51,6 +51,7 @@ import jpsxdec.modules.DiscIndex;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.modules.psx.video.bitstreams.BitStreamUncompressor;
+import jpsxdec.util.Misc;
 
 /**
  * Collects all ISO9660 type sectors it runs across.
@@ -218,7 +219,13 @@ public class JPSXModuleISO9660 extends JPSXModule {
             }
 
             if (mostOverlap != null) {
-                mostOverlap.addChild(nonFile);
+                if (log.isLoggable(Level.INFO)) log.info(nonFile + " is part of " + mostOverlap);
+
+                nonFile.setSuggestedBaseName(String.format("%s[%d]",
+                mostOverlap.getBaseName(), mostOverlap.getContainedItemCount()));
+
+                nonFile.setParent(mostOverlap);
+                mostOverlap.incrementContainedItems();
             }
         }
     }

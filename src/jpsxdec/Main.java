@@ -41,11 +41,14 @@ package jpsxdec;
 import argparser.ArgParser;
 import argparser.BooleanHolder;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.event.WindowEvent;
 import jpsxdec.modules.IdentifiedSectorRangeIterator;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.cdreaders.CdSector;
 import java.io.*;
+import java.util.HashMap;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JButton;
@@ -59,6 +62,7 @@ import jpsxdec.modules.DiscIndex;
 import jpsxdec.modules.DiscItem;
 import jpsxdec.modules.DiscItemSaver;
 import jpsxdec.modules.JPSXModule;
+import jpsxdec.modules.UnidentifiedSector;
 import jpsxdec.modules.psx.str.DiscItemSTRVideo;
 import jpsxdec.modules.psx.str.IVideoSector;
 import jpsxdec.modules.psx.video.encode.ReplaceFrames;
@@ -74,7 +78,7 @@ public class Main {
 
     private static FeedbackStream Feedback;
 
-    public final static String Version = "0.92.2 (alpha)";
+    public final static String Version = "0.93.0 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial), v" + Version;
     private static MainCommandLineParser _mainSettings;
@@ -103,7 +107,7 @@ public class Main {
             return;
         }
         
-        Feedback = new FeedbackStream(System.err, _mainSettings.getVerbose());
+        Feedback = new FeedbackStream(System.out, _mainSettings.getVerbose());
                 
         Feedback.println(VerStringNonCommercial);
 
@@ -140,6 +144,8 @@ public class Main {
             case MainCommandLineParser.MAIN_CMD_ENCODE:
                 iExitCode = frameReplacer();
                 break;
+            case MainCommandLineParser.MAIN_CMD_VISUALIZE:
+                iExitCode = visualize();
         }
 
         // display details of logging configuration right before program exits
@@ -271,11 +277,21 @@ public class Main {
         }
 
         // print the index
-        for (DiscItem item : discIndex) {
-            Feedback.printlnMore(item.toString());
+        if (false) {
+            for (int i=0; i < discIndex.getTopLevelItemCount(); i++) {
+                printItem("", discIndex.getTopLevelItem(i));
+            }
         }
 
         return discIndex;
+    }
+
+    private static void printItem(String sSpaces, DiscItem item) {
+        Feedback.println(sSpaces + item);
+        Feedback.println(sSpaces + item.getSuggestedBaseName());
+        for (int i = 0; i < item.getChildCount(); i++) {
+            printItem(sSpaces + "  ", item.getChild(i));
+        }
     }
 
     // =========================================================================
@@ -426,7 +442,12 @@ public class Main {
 
         saver.commandLineOptions(_mainSettings.getRemainingArgs(), Feedback);
         
+        long lngStart, lngEnd;
+        lngStart = System.currentTimeMillis();
         saver.startSave(new ConsoleProgressListener(Feedback));
+        lngEnd = System.currentTimeMillis();
+        Feedback.format("Time: %1.2f sec", (lngEnd - lngStart) / 1000.0);
+        Feedback.println();
     }
     
     //--------------------------------------------------------------------------
@@ -464,10 +485,10 @@ public class Main {
         
         PrintStream ps;
         try {
-            if (_mainSettings.getSectorDumpFile().equals("-"))
+            if (_mainSettings.getOutFile().equals("-"))
                 ps = System.out;
             else
-                ps = new PrintStream(_mainSettings.getSectorDumpFile());
+                ps = new PrintStream(_mainSettings.getOutFile());
             
             IdentifiedSectorRangeIterator oIter = new IdentifiedSectorRangeIterator(cdReader);
             while (oIter.hasNext()) {
@@ -654,7 +675,7 @@ public class Main {
     //--------------------------------------------------------------------------
 
     private static int frameReplacer() {
-        CDFileSectorReader cdReader = (CDFileSectorReader) openCD(true, true);
+        CDFileSectorReader cdReader = openCD(true, true);
         if (cdReader == null)
             return -1;
 
@@ -687,5 +708,205 @@ public class Main {
 
         return 0;
     }
-    
+
+
+    private static int visualize() { try {
+
+        CDFileSectorReader cd = openCD(true);
+        if (cd == null)
+            return -1;
+
+        DiscIndex index = doTheIndex(cd, false);
+        if (index == null)
+            return -1;
+
+        final int SECTOR_SECTION_SIZE = 32;
+        final int TEXT_LINE_HEIGHT = 16;
+        final int BOX_AREA_HEIGHT = 16;
+        final int BOX_MARGIN_TOP = 2;
+        final int BOX_MARGIN_BOTTOM = 2;
+        final int BOX_HEIGHT = BOX_AREA_HEIGHT - (BOX_MARGIN_BOTTOM + BOX_MARGIN_TOP);
+        final double SCALE = (200.0*72.0 - 18.0) / cd.size();
+
+        /* priority:
+         * ISO file
+         * video
+         * audio
+         * tim
+         *
+         * summarize to just the important data-points
+         */
+
+        Feedback.println("Generating visualization.");
+
+        int[] aiDataPoints = extractDataPoints(index);
+
+        // pre-determine the tree-area width based on max point of overalpping items
+        int iMaxOverlap = findMaxOverlap(aiDataPoints, index);
+
+        //########################################################
+
+        int iWidth = cd.size();
+        int iHeight = SECTOR_SECTION_SIZE
+                + iMaxOverlap * TEXT_LINE_HEIGHT
+                + iMaxOverlap * BOX_AREA_HEIGHT;
+
+
+        FileOutputStream pdfStream = new FileOutputStream(_mainSettings.getOutFile());
+
+        /*
+        com.pdfjet.PDF pdf = new com.pdfjet.PDF(pdfStream);
+        com.pdfjet.Font pdfFont = new com.pdfjet.Font(pdf, "Helvetica");
+        pdfFont.setSize(6*SCALE);
+
+        com.pdfjet.Page pdfPage = new com.pdfjet.Page(pdf,
+            new double[] {
+                iWidth * SCALE,
+                iHeight * SCALE
+            }
+        );
+
+        for (int iSector = 0; iSector < cd.size(); iSector++) {
+            try {
+                IdentifiedSector sector = JPSXModule.identifyModuleSector(cd.getSector(iSector));
+                
+                Color c;
+                if (sector == null) {
+                    c = classToColor(UnidentifiedSector.class);
+                } else {
+                    c = classToColor(sector.getClass());
+                }
+                com.pdfjet.Box pdfBox = new com.pdfjet.Box(iSector*SCALE, 0*SCALE, 1*SCALE, SECTOR_SECTION_SIZE*SCALE);
+                int[] aiRgb = { c.getRed(), c.getGreen(), c.getBlue() };
+                pdfBox.setFillShape(true);
+                pdfBox.setLineWidth(0);
+                pdfBox.setColor(aiRgb);
+                pdfBox.drawOn(pdfPage);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
+        */
+
+        DiscItem[] aoRunningItems = new DiscItem[iMaxOverlap];
+
+        /*
+         * at each datapoint, there are basically 3 different things that can happen
+         * 1) 1 item begins
+         * 2) 2 or more items begin
+         * and
+         * 3) one or more items end
+         *
+         * Also, disc items can begin and end at the same sector
+         *
+         */
+        /*
+        for (int iDataPoint : aiDataPoints) {
+
+            // open
+            for (DiscItem item : index) {
+                if (item.getStartSector() == iDataPoint) {
+                    int i = findFree(aoRunningItems);
+                    aoRunningItems[i] = item;
+
+                    double x = item.getStartSector()*SCALE,
+                           y = (SECTOR_SECTION_SIZE + i * BOX_AREA_HEIGHT + BOX_MARGIN_TOP)*SCALE,
+                           w = item.getSectorLength()*SCALE,
+                           h = BOX_HEIGHT*SCALE;
+
+                    // draw box
+                    com.pdfjet.Box pdfBox = new com.pdfjet.Box(x, y, w, h);
+                    Color c = classToColor(item.getClass());
+                    int[] aiRgb = { c.getRed(), c.getGreen(), c.getBlue() };
+
+                    pdfBox.setColor(aiRgb);
+                    pdfBox.setFillShape(true);
+                    pdfBox.setLineWidth(0);
+                    pdfBox.drawOn(pdfPage);
+
+                    pdfBox.setFillShape(false);
+                    pdfBox.setColor(com.pdfjet.RGB.WHITE);
+                    pdfBox.setLineWidth(0.3*SCALE);
+                    pdfBox.drawOn(pdfPage);
+
+                    com.pdfjet.TextLine pdfText = new com.pdfjet.TextLine(pdfFont, item.toString());
+                    pdfText.setPosition(x, y + (BOX_HEIGHT * 0.6) * SCALE);
+                    pdfText.setColor(com.pdfjet.RGB.DARK_GRAY);
+                    pdfText.drawOn(pdfPage);
+                }
+            }
+
+            for (int i = 0; i < aoRunningItems.length; i++) {
+                if (aoRunningItems[i] != null) {
+                    if (iDataPoint >= aoRunningItems[i].getEndSector())
+                        aoRunningItems[i] = null;
+                }
+            }
+
+        }
+
+
+        pdf.flush();
+        pdfStream.close();
+
+         *
+         */
+        return 0;
+        
+        } catch (Exception ex) {
+            Feedback.printlnErr(ex);
+            return -1;
+        }
+    }
+
+    private static final HashMap<Class, Color> colorLookup = new HashMap<Class, Color>();
+
+    private static Color classToColor(Class c) {
+        Color color = colorLookup.get(c.getClass());
+        if (color == null) {
+            int iClr = c.getName().hashCode();
+            color = new Color(iClr);
+            colorLookup.put(c, color);
+        }
+        return color;
+    }
+
+    private static int findFree(Object[] ao) {
+        for (int i = 0; i < ao.length; i++) {
+            if (ao[i] == null)
+                return i;
+        }
+        return -1;
+    }
+
+    private static int[] extractDataPoints(DiscIndex index) {
+        TreeSet<Integer> dataPoints = new TreeSet<Integer>();
+        for (DiscItem item : index) {
+            dataPoints.add(item.getStartSector());
+            dataPoints.add(item.getEndSector());
+        }
+
+        int[] aiDataPoints = new int[dataPoints.size()];
+        int i = 0;
+        for (Integer point : dataPoints) {
+            aiDataPoints[i] = point.intValue();
+            i++;
+        }
+        return aiDataPoints;
+    }
+
+    private static int findMaxOverlap(int[] aiDataPoints, DiscIndex index) {
+        // TODO: optimize this
+        int iMaxOverlap = 0;
+        for (int iSector : aiDataPoints) {
+            int iSectorOverlap = 0;
+            for (DiscItem item : index) {
+                if (iSector >= item.getStartSector() && iSector <= item.getEndSector())
+                    iSectorOverlap++;
+            }
+            if (iSectorOverlap > iMaxOverlap)
+                iMaxOverlap = iSectorOverlap;
+        }
+        return iMaxOverlap;
+    }
 }

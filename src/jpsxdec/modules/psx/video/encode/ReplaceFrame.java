@@ -185,7 +185,7 @@ public class ReplaceFrame {
         
         if (bi.getWidth() !=  ((demuxer.getWidth() +15)& ~15) ||
             bi.getHeight() != ((demuxer.getHeight()+15)& ~15))
-            throw new IllegalArgumentException("Replacement frame has the wrong dimensions.");
+            throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace.");
         
         PsxYCbCrImage psxImage = new PsxYCbCrImage(bi);
 

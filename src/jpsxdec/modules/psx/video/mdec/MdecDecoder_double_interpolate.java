@@ -1,0 +1,171 @@
+/*
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007-2010  Michael Sabin
+ * All rights reserved.
+ *
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
+ *
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package jpsxdec.modules.psx.video.mdec;
+
+import jpsxdec.formats.RGB;
+import jpsxdec.formats.RgbIntImage;
+import jpsxdec.modules.psx.video.PsxYCbCr;
+import jpsxdec.modules.psx.video.mdec.idct.IDCT_double;
+
+public class MdecDecoder_double_interpolate extends MdecDecoder_double {
+
+
+    private final double[] _adblUpCr;
+    private final double[] _adblUpCb;
+
+    public MdecDecoder_double_interpolate(IDCT_double idct, int iWidth, int iHeight) {
+        super(idct, iWidth, iHeight);
+
+        _adblUpCb = new double[W * H];
+        _adblUpCr = new double[W * H];
+    }
+
+    @Override
+    public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,
+                               int iOutStart, int iOutStride)
+    {
+
+        bilinearUpsample(_CrBuffer, _adblUpCr);
+        bilinearUpsample(_CbBuffer, _adblUpCb);
+
+        RGB rgb = new RGB();
+        double y, cb, cr;
+
+        for (int iY = 0, iSrcLineOfsStart=0, iDestLineOfsStart=iOutStart;
+             iY < iDestHeight;
+             iY++, iSrcLineOfsStart+=W, iDestLineOfsStart+=iOutStride)
+        {
+            for (int iX=0, iSrcOfs=iSrcLineOfsStart, iDestOfs=iDestLineOfsStart;
+                 iX < iDestWidth;
+                 iX++, iSrcOfs++, iDestOfs++)
+            {
+                y = _LumaBuffer[iSrcOfs];
+                cb = _adblUpCb[iSrcOfs];
+                cr = _adblUpCr[iSrcOfs];
+                PsxYCbCr.toRgb(y, cb, cr, rgb);
+                aiDest[iDestOfs] = rgb.toInt();
+            }
+        }
+    }
+
+    private void nearestNeighborUpsample(double[] in, double[] out) {
+        int outOfs = 0;
+        int inOfs = 0;
+        for (int inY=0; inY < CH; inY++) {
+            // copy a line, scaling horizontall
+            for (int inX=0; inX < CW; inX++) {
+                out[outOfs++] = in[inOfs];
+                out[outOfs++] = in[inOfs];
+                inOfs++;
+            }
+            // duplicate that horizontally scaled line, thus scaling it vertically
+            System.arraycopy(out, outOfs-W, out, outOfs, W);
+            outOfs += W;
+        }
+    }
+
+    private void bilinearUpsample(double[] in, double[] out) {
+        // corners
+        out[0   +  0   *W] = in[0    +  0    *CW];
+        out[W-1 +  0   *W] = in[CW-1 +  0    *CW];
+        out[0   + (H-1)*W] = in[0    + (CH-1)*CW];
+        out[W-1 + (H-1)*W] = in[CW-1 + (CH-1)*CW];
+
+        // vertical edges
+        for (boolean blnTwice = true; blnTwice; blnTwice = false) {
+            int inX, outX;
+            if (blnTwice) {
+                outX = 0;
+                inX = 0;
+            } else {
+                outX = W - 1;
+                inX = CW-1;
+            }
+            for (int inY = 0; inY < CH-1; inY++) {
+                double c1 = in[inX +  inY   *CW],
+                       c2 = in[inX + (inY+1)*CW];
+                int outY = 1 + inY*2;
+                out[outX +  outY   *W] = c1 * 0.75 + c2 * 0.25;
+                out[outX + (outY+1)*W] = c1 * 0.25 + c2 * 0.75;
+            }
+        }
+
+        // horizontal edges
+        for (boolean blnTwice = true; blnTwice; blnTwice = false) {
+            int inY, outY;
+            if (blnTwice) {
+                outY = 0;
+                inY = 0;
+            } else {
+                outY = H - 1;
+                inY = CH-1;
+            }
+            for (int inX = 0; inX < CW-1; inX++) {
+                double c1 = in[inX   + inY*CW],
+                       c2 = in[inX+1 + inY*CW];
+                int outX = 1+ inX*2;
+                out[outX   + outY*W] = c1 * 0.75 + c2 * 0.25;
+                out[outX+1 + outY*W] = c1 * 0.25 + c2 * 0.75;
+            }
+        }
+
+        // the meat in the middle
+        for (int inY=0; inY < CH-1; inY++) {
+            int inOfs = inY*CW;
+            int outOfs = ((inY*2)+1)*W + 1;
+            double c1, c2 = in[inOfs],
+                   c3, c4 = in[inOfs+CW];
+            inOfs++;
+            for (int inX=0; inX < CW-1; inX++, inOfs++) {
+                c1 = c2; c2 = in[inOfs];
+                c3 = c4; c4 = in[inOfs+CW];
+                double c1_c4_mul_3_16 = (c1 + c4) * (3. / 16.),
+                       c2_c3_mul_3_16 = (c2 + c3) * (3. / 16.);
+                out[outOfs  ]= c1 * (9. / 16.) + c2_c3_mul_3_16 + c4 * (1. / 16.);
+                out[outOfs+W]= c1_c4_mul_3_16 + c2 * (1. / 16.) + c3 * (9. / 16.);
+                outOfs++;
+                out[outOfs  ]= c1_c4_mul_3_16 + c2 * (9. / 16.) + c3 * (1. / 16.);
+                out[outOfs+W]= c1 * (1. / 16.) + c2_c3_mul_3_16 + c4 * (9. / 16.);
+                outOfs++;
+            }
+        }
+
+    }
+
+
+}

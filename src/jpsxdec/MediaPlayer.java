@@ -278,7 +278,7 @@ public class MediaPlayer implements IAudioVideoReader {
             return (long)(__iSectorFromStart * 1000 / _iSectorsPerSecond);
         }
 
-        public void decodeVideo(RgbIntImage drawHere) {
+        public void decodeVideo(int[] drawHere) {
             if (_uncompressor == null) {
                 _uncompressor = JPSXModule.identifyUncompressor(__abDemuxBuf, 0, __iFrame);
                 if (_uncompressor == null) {
@@ -305,7 +305,7 @@ public class MediaPlayer implements IAudioVideoReader {
                 System.err.println(ex.getMessage());
             }
 
-            _decoder.readDecodedRgb(drawHere);
+            _decoder.readDecodedRgb(getVideoWidth(), getVideoHeight(), drawHere, 0, getVideoWidth());
         }
 
         @Override

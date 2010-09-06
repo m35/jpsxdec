@@ -87,6 +87,7 @@ import jpsxdec.formats.Rec601YCbCr;
  * @see PsxYCbCr_int
  */
 public class PsxYCbCr {
+
     public double y1, y2, y3, y4, cb, cr;
 
     public PsxYCbCr() {
@@ -119,7 +120,14 @@ public class PsxYCbCr {
         }
     }
 
-    public void toRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
+    public static void toRgb(double y, double cb, double cr, RGB rgb) {
+        double dblYshift = y + 128;
+        rgb.setR(dblYshift +                  ( 1.402  * cr));
+        rgb.setG(dblYshift + (-0.3437 * cb) + (-0.7143 * cr));
+        rgb.setB(dblYshift + ( 1.772  * cb)                 );
+    }
+
+    final public void toRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
         double dblChromRed, dblChromGreen, dblChromBlue;
         if (INCORRECTLY_SWAP_CB_CR_LIKE_PSXMC) {
             // this math is wrong, wrong, WRONG

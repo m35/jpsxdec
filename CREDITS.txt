@@ -71,7 +71,11 @@ John E. Lloyd for the handy argparser library
 Joerg Anders for managing to write an mpeg1 decoder in pure Java 
 (http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html).
 
-cclh12 at romhacking.net for generously providing some actual PlayStation 1 hardware RAM dumps.
+cclh12 at romhacking.net for generously providing some actual PlayStation 1 
+hardware RAM dumps.
+
+Mezmorize at gshi.org for helping me get an old PlayStation and GameShark 
+working to make my own RAM dumps.
 
 Rodrigo Reyes for the JSmooth tool (http://jsmooth.sourceforge.net/). 
 

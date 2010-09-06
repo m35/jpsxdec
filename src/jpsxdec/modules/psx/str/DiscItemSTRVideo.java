@@ -53,6 +53,7 @@ import jpsxdec.modules.JPSXModule;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.xa.DiscItemAudioStream;
 import jpsxdec.util.Fraction;
+import jpsxdec.util.Maths;
 import jpsxdec.util.NotThisTypeException;
 
 
@@ -87,19 +88,21 @@ public class DiscItemSTRVideo extends DiscItem {
     private int _iDiscSpeed;
 
     public DiscItemSTRVideo(int iStartSector, int iEndSector,
-                            int lngStartFrame, int lngEndFrame,
+                            int iStartFrame, int iEndFrame,
                             int lngWidth, int lngHeight,
                             int iSectors, int iPerFrame,
                             int iFrame1LastSector)
     {
         super(iStartSector, iEndSector);
 
-        _iStartFrame = lngStartFrame;
-        _iEndFrame = lngEndFrame;
+        _iStartFrame = iStartFrame;
+        _iEndFrame = iEndFrame;
         _iWidth = lngWidth;
         _iHeight = lngHeight;
-        _lngSectors = iSectors;
-        _lngPerFrame = iPerFrame;
+        // simplify the sectors/frame fraction
+        int iGcd = Maths.gcd(iSectors, iPerFrame);
+        _lngSectors = iSectors / iGcd;
+        _lngPerFrame = iPerFrame / iGcd;
         _iFrame1LastSector = iFrame1LastSector;
         _iDiscSpeed = -1;
     }
@@ -134,7 +137,12 @@ public class DiscItemSTRVideo extends DiscItem {
             oSerial.addNumber(DISC_SPEED_KEY, _iDiscSpeed);
         return oSerial;
     }
-    
+
+    @Override
+    public int getHierarchyLevel() {
+        return 10;
+    }
+
     public int getStartFrame() {
         return _iStartFrame;
     }
@@ -261,6 +269,9 @@ public class DiscItemSTRVideo extends DiscItem {
                 }
             });
 
+            for (DiscItemAudioStream audioItem : _aoAudioStreams) {
+                audioItem.setParent(this);
+            }
         }
     }
 

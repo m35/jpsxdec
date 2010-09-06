@@ -123,8 +123,8 @@ public class JPSXModuleXAAudio extends JPSXModule {
 
         public DiscItem createMediaItemFromCurrent() {
             if (_previousXA == null && _currentXA.isAllQuiet()) {
-                if (log.isLoggable(Level.INFO))
-                    log.info("Ignoring silent XA audio stream only 1 sector long at " + _iStartSector + " channel " + _currentXA.getChannel());
+                if (log.isLoggable(Level.WARNING))
+                    log.warning("Ignoring silent XA audio stream only 1 sector long at " + _iStartSector + " channel " + _currentXA.getChannel());
                 return null;
             }
             _lngSampleCount += _currentXA.getSampleCount();

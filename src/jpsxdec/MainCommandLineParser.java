@@ -145,9 +145,9 @@ public class MainCommandLineParser {
     public int[] getSectorsToCopy() { return _aiSectorsToCopy; }
     
     /** For the -sectordump %s command. */
-    private String _sSectorDumpFile;
+    private String _sOutFile;
     /** For the -sectordump %s command. */
-    public String getSectorDumpFile() { return _sSectorDumpFile; }
+    public String getOutFile() { return _sOutFile; }
 
     /** For the -fps command. */
     private int _iFpsDumpItem;
@@ -198,6 +198,7 @@ public class MainCommandLineParser {
     public final static int MAIN_CMD_ITEM_HELP        = 1 << 9;
     public final static int MAIN_CMD_PLAY             = 1 << 10;
     public final static int MAIN_CMD_ENCODE           = 1 << 11;
+    public final static int MAIN_CMD_VISUALIZE        = 1 << 12;
     
     /** Parses command-line arguments. */
     public MainCommandLineParser(String[] asArgs) {
@@ -264,6 +265,9 @@ public class MainCommandLineParser {
         StringHolder sectordump = new StringHolder();
         parser.addOption("-sectordump %s", sectordump);
 
+        StringHolder visualize = new StringHolder();
+        parser.addOption("-visualize %s", visualize);
+
         IntHolder fpsdump = new IntHolder(-10);
         parser.addOption("-fpsdump %i {[0,"+Integer.MAX_VALUE+"]}", fpsdump);
 
@@ -295,6 +299,7 @@ public class MainCommandLineParser {
         if (decode.value >= 0)           _iMainCmd |= MAIN_CMD_DECODE;
         if (decodeAllType.value != null) _iMainCmd |= MAIN_CMD_DECODE_ALL_TYPE;
         if (sectordump.value != null)    _iMainCmd |= MAIN_CMD_SECTORLIST;
+        if (visualize.value != null)     _iMainCmd |= MAIN_CMD_VISUALIZE;
         if (staticType.value != null)    _iMainCmd |= MAIN_CMD_STATICFILE;
         if (copysect.value != null)      _iMainCmd |= MAIN_CMD_COPYSECT;
         if (fpsdump.value >= 0)          _iMainCmd |= MAIN_CMD_FPS_DUMP;
@@ -327,7 +332,7 @@ public class MainCommandLineParser {
                 break;
 
             case MAIN_CMD_SECTORLIST:
-                _sSectorDumpFile = sectordump.value;
+                _sOutFile = sectordump.value;
                 break;
 
             case MAIN_CMD_INDEX:
@@ -353,6 +358,10 @@ public class MainCommandLineParser {
 
             case MAIN_CMD_ENCODE:
                 _iDiscItemIndex = encode.value;
+                break;
+
+            case MAIN_CMD_VISUALIZE:
+                _sOutFile = visualize.value;
                 break;
 
             case 0:

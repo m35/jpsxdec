@@ -37,11 +37,9 @@
 
 package jpsxdec.player;
 
-import jpsxdec.formats.RgbIntImage;
-
 public abstract class AbstractDecodableFrame {
 
-    abstract public void decodeVideo(RgbIntImage drawHere);
+    abstract public void decodeVideo(int[] aiDrawHere);
 
     /** Returns the time the frame should be displayed, in milliseconds
      *  from the beginning of the movie. */

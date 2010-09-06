@@ -42,9 +42,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.logging.Logger;
-import jpsxdec.modules.xa.JPSXModuleXAAudio;
 import jpsxdec.modules.xa.SectorXA;
-import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.util.IO;
 import jpsxdec.util.IOException6;
 import jpsxdec.util.NotThisTypeException;
@@ -99,7 +97,11 @@ public class CDFileSectorReader {
         this(new File(sFile), false, 1, 16);
     }
 
-    /** Opens a CD file for reading, with the option of allowing writing. */
+    public CDFileSectorReader(String inputFile, boolean b) throws IOException {
+        this(new File(inputFile), b, 1, 16);
+    }
+
+    /** Opens a CD file for reading. Tries to guess the CD size. */
     public CDFileSectorReader(File sourceFile, 
             boolean blnAllowWrites,
             int iTolerance, int iSectorsToBuffer)
@@ -138,10 +140,9 @@ public class CDFileSectorReader {
                                 / _sectorCreator.getRawSectorSize());
     }
 
-    public CDFileSectorReader(String inputFile, boolean b) throws IOException {
-        this(new File(inputFile), -1, b, 0, 1);
-    }
-
+    /** Opens a CD file for reading using the provided sector size. 
+     * If the disc image doesn't match the sector size, IOException is thrown.
+     */
     public CDFileSectorReader(File sourceFile,
             int iSectorSize, boolean blnAllowWrites,
             int iTolerance, int iSectorsToBuffer)
@@ -173,7 +174,7 @@ public class CDFileSectorReader {
                     _sectorCreator = new Cd2352or2448(_inputFile, false /*2352*/, true /*2448*/);
                     break;
                 default:
-                    throw new IllegalArgumentException();
+                    throw new IllegalArgumentException("Invali sector size to open disc image as " + iSectorSize);
             }
         } catch (NotThisTypeException ex) {
             throw new IOException6(ex);
@@ -188,16 +189,24 @@ public class CDFileSectorReader {
     public void close() throws IOException {
         _inputFile.close();
     }
-    
-    /* ---------------------------------------------------------------------- */
-    /* Properties ----------------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-    
+
+    //..........................................................................
+
+    public int getSectorSize() {
+        return _sectorCreator.getRawSectorSize();
+    }
+
+    public boolean hasSectorHeader() {
+        return _sectorCreator.hasSectorHeader();
+    }
+
     public File getSourceFile() {
         return _sourceFile;
     }
 
-    //..........................................................................
+    public String getSourceFileBaseName() {
+        return _sourceFile.getName();
+    }
 
     /** Returns the actual offset in bytes from the start of the file/CD 
      *  to the start of iSector. */
@@ -205,57 +214,16 @@ public class CDFileSectorReader {
         return iSector * _sectorCreator.getRawSectorSize() + _sectorCreator.get1stSectorOffset();
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* Public Functions ----------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-
-    public int getSectorSize() {
-        return _sectorCreator.getRawSectorSize();
-    }
-    
     /** Returns the number of sectors in the file/CD */
-    public int size() {
+    public int size() { // TODO: rename to getLength()
         return _iSectorCount;
     }
-    
+
+    public String getTypeDescription() {
+        return _sectorCreator.getTypeDescription();
+    }
+
     //..........................................................................
-
-    /** Will fail if CD was not opened with write access. */
-    public void writeSector(int iSector, byte[] abSrcUserData) 
-            throws IOException 
-    {
-        
-        CdSector oSect = getSector(iSector);
-        
-        if (oSect.getCdUserDataSize() != abSrcUserData.length)
-            throw new IllegalArgumentException("Data to write is not the right size.");
-        
-        long lngUserDataOfs = oSect.getFilePointer();
-        
-        _inputFile.seek(lngUserDataOfs);
-        _inputFile.write(abSrcUserData);
-    }
-
-    @Override
-    public String toString() {
-        return serialize();
-    }
-
-
-    
-    public String serialize() {
-        return String.format("Filename:%s|Sector size:%d|Sector count:%d|First sector offset:%d",
-                _sourceFile.getPath(),
-                _sectorCreator.getRawSectorSize(),
-                _iSectorCount,
-                _sectorCreator.get1stSectorOffset());
-    }
-
-
-
-    public String getSourceFileBaseName() {
-        return _sourceFile.getName();
-    }
 
     public CdSector getSector(int iSector) throws IOException {
         if (iSector < 0 || iSector >= _iSectorCount)
@@ -283,16 +251,41 @@ public class CDFileSectorReader {
         }
     }
 
-    public boolean hasSectorHeader() {
-        return _sectorCreator.hasSectorHeader();
+    //..........................................................................
+
+    /** Will fail if CD was not opened with write access. */
+    public void writeSector(int iSector, byte[] abSrcUserData)
+            throws IOException
+    {
+
+        CdSector oSect = getSector(iSector);
+
+        if (oSect.getCdUserDataSize() != abSrcUserData.length)
+            throw new IllegalArgumentException("Data to write is not the right size.");
+
+        long lngUserDataOfs = oSect.getFilePointer();
+
+        _inputFile.seek(lngUserDataOfs);
+        _inputFile.write(abSrcUserData);
     }
 
-    public String getTypeDescription() {
-        return _sectorCreator.getTypeDescription();
+    //..........................................................................
+
+    @Override
+    public String toString() {
+        return serialize();
+    }
+
+    public String serialize() {
+        return String.format("Filename:%s|Sector size:%d|Sector count:%d|First sector offset:%d",
+                _sourceFile.getPath(),
+                _sectorCreator.getRawSectorSize(),
+                _iSectorCount,
+                _sectorCreator.get1stSectorOffset());
     }
 
     /* ---------------------------------------------------------------------- */
-    /* Private Functions ---------------------------------------------------- */
+    /* Sector Creator types ------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
     private interface SectorCreator {
@@ -305,7 +298,7 @@ public class CDFileSectorReader {
 
     private static class Cd2048 implements SectorCreator {
 
-        public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) throws NotThisTypeException {
+        public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) {
             return new CdSector2048(abSectorBuff, iOffset, iSector, iTolerance);
         }
 

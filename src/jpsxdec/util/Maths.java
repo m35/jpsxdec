@@ -77,4 +77,11 @@ public class Maths {
 
     }
 
+    public final static long shrRound(long val, int shr) {
+        if (shr == 0 || val == 0)
+            return val;
+        long i = (val >> (shr - 1)) & 1;
+        return (val >> shr) + i;
+    }
+
 }

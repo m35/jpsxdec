@@ -44,15 +44,13 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.formats.RgbIntImage;
-import jpsxdec.formats.Yuv4mpeg2;
-import jpsxdec.formats.Yuv4mpeg2Writer;
+import jpsxdec.formats.Rec601YCbCrImage;
 import jpsxdec.modules.JPSXModule;
 import jpsxdec.util.ProgressListener;
 import jpsxdec.util.NotThisTypeException;
@@ -61,14 +59,10 @@ import jpsxdec.modules.psx.video.bitstreams.BitStreamUncompressor;
 import jpsxdec.modules.psx.video.mdec.DecodingException;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder_double;
-import jpsxdec.modules.psx.video.mdec.MdecInputStream;
-import jpsxdec.modules.psx.video.mdec.MdecInputStream.MdecCode;
 import jpsxdec.modules.psx.video.mdec.MdecInputStreamReader;
-import jpsxdec.modules.psx.video.mdec.idct.StephensIDCT;
+import jpsxdec.modules.psx.video.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.modules.xa.IAudioSectorDecoder;
 import jpsxdec.modules.xa.IAudioReceiver;
-import jpsxdec.util.Fraction;
-import jpsxdec.util.IO;
 import jpsxdec.util.aviwriter.AviWriterDIB;
 import jpsxdec.util.aviwriter.AviWriterMJPG;
 import jpsxdec.util.aviwriter.AviWriterYV12;
@@ -183,7 +177,7 @@ class SectorMovieWriters  {
             if (uncompressor == null) {
                 throw new NotThisTypeException("Error with frame " + iFrame + ": Unable to determine frame type.");
             } else {
-                String s = "Using " + uncompressor.toString() + " uncompressor";
+                String s = "Video format identified as " + uncompressor.toString();
                 log.info(s);
                 getListener().info(s);
             }
@@ -318,7 +312,7 @@ class SectorMovieWriters  {
 
         @Override
         protected void receiveDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector) {
-            decoder.readDecodedRgb(_rgbBuff);
+            decoder.readDecodedRgb(_rgbBuff.getWidth(), _rgbBuff.getHeight(), _rgbBuff.getData(), 0, _rgbBuff.getWidth());
             BufferedImage bi = _rgbBuff.toBufferedImage();
             File f = new File(makeFileName(iFrame));
             try {
@@ -356,66 +350,7 @@ class SectorMovieWriters  {
 
     }
 
-
-
-    public static class DecodedYuv4mpeg2Writer extends AbstractDecodedWriter {
-
-        private final Yuv4mpeg2 _yuvImgBuff;
-        private Yuv4mpeg2Writer _writer;
-        private final MdecDecoder_double _decoderDbl;
-
-        public DecodedYuv4mpeg2Writer(DiscItemSTRVideo vidItem,
-                                    String sBaseName,
-                                    int iStartFrame, int iEndFrame,
-                                    boolean blnSingleSpeed,
-                                    boolean blnCrop)
-               throws IOException
-        {
-            super(vidItem, sBaseName, iStartFrame, iEndFrame, null, blnCrop);
-
-            final Fraction frameRate;
-            if (blnSingleSpeed) {
-                frameRate = new Fraction(75).divide(_vidItem.getSectorsPerFrame());
-            } else {
-                frameRate = new Fraction(150).divide(_vidItem.getSectorsPerFrame());
-            }
-
-            _decoder = _decoderDbl = new MdecDecoder_double(new StephensIDCT(), getCroppedWidth(), getCroppedHeight());
-            _yuvImgBuff = new Yuv4mpeg2(getCroppedWidth(), getCroppedHeight());
-
-            File f = new File(_sBaseName + ".y4m");
-
-            _writer = new Yuv4mpeg2Writer(f, getCroppedWidth(), getCroppedHeight(),
-                                          (int)frameRate.getNumerator(), (int)frameRate.getDenominator(),
-                                          Yuv4mpeg2.SUB_SAMPLING);
-        }
-
-        @Override
-        protected void receiveDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector) throws IOException {
-            _decoderDbl.readDecodedYuv4mpeg2(_yuvImgBuff);
-            _writer.writeFrame(_yuvImgBuff);
-        }
-
-        @Override
-        protected void receiveError(Throwable ex, int iFrame) throws IOException {
-            BufferedImage bi = makeErrorImage(ex, _writer.getWidth(), _writer.getHeight());
-            Yuv4mpeg2 yuv = new Yuv4mpeg2(bi);
-            _writer.writeFrame(yuv);
-        }
-
-
-        @Override
-        public String getOutputFile() {
-            return _sBaseName + ".y4m";
-        }
-
-        @Override
-        public void close() throws IOException {
-            _writer.close();
-        }
-
-    }
-
+    //..........................................................................
 
     protected static BufferedImage makeErrorImage(Throwable ex, int iWidth, int iHeight) {
         // draw the error onto a blank image
@@ -425,10 +360,8 @@ class SectorMovieWriters  {
         g.dispose();
         return bi;
     }
-
+    
     //..........................................................................
-
-
     
     public abstract static class AbstractDecodedAviWriter extends AbstractDecodedWriter {
 
@@ -634,7 +567,7 @@ class SectorMovieWriters  {
 
         @Override
         protected void actuallyWrite(MdecDecoder decoder, int iFrame) throws IOException {
-            decoder.readDecodedRgb(_rgbBuff);
+            decoder.readDecodedRgb(_rgbBuff.getWidth(), _rgbBuff.getHeight(), _rgbBuff.getData(), 0, _rgbBuff.getWidth());
             _writerMjpg.writeFrame(_rgbBuff.toBufferedImage());
         }
 
@@ -681,7 +614,7 @@ class SectorMovieWriters  {
 
         @Override
         protected void actuallyWrite(MdecDecoder decoder, int iFrame) throws IOException {
-            decoder.readDecodedRgb(_rgbBuff);
+            decoder.readDecodedRgb(_rgbBuff.getWidth(), _rgbBuff.getHeight(), _rgbBuff.getData(), 0, _rgbBuff.getWidth());
             _writerDib.writeFrameRGB(_rgbBuff.getData(), 0, _rgbBuff.getWidth());
         }
 
@@ -698,7 +631,7 @@ class SectorMovieWriters  {
 
     public static class DecodedAviWriter_YV12 extends AbstractDecodedAviWriter {
 
-        private final Yuv4mpeg2 _yuvImgBuff;
+        private final Rec601YCbCrImage _yuvImgBuff;
         private final AviWriterYV12 _writerYuv;
         private final MdecDecoder_double _decoderDbl;
 
@@ -717,9 +650,9 @@ class SectorMovieWriters  {
                   blnPreciseAV,
                   audioDecoder);
 
-            _decoder = _decoderDbl = new MdecDecoder_double(new StephensIDCT(), getCroppedWidth(), getCroppedHeight());
+            _decoder = _decoderDbl = new MdecDecoder_double(new PsxMdecIDCT_double(), getCroppedWidth(), getCroppedHeight());
 
-            _yuvImgBuff = new Yuv4mpeg2(getWidth(), getHeight());
+            _yuvImgBuff = new Rec601YCbCrImage(getWidth(), getHeight());
 
             _writerYuv = new AviWriterYV12(new File(getOutputFile()),
                                           _vidItem.getWidth(), _vidItem.getHeight(),
@@ -739,7 +672,7 @@ class SectorMovieWriters  {
         @Override
         protected void writeError(Throwable ex) throws IOException {
             BufferedImage bi = makeErrorImage(ex, _writerYuv.getWidth(), _writerYuv.getHeight());
-            Yuv4mpeg2 yuv = new Yuv4mpeg2(bi);
+            Rec601YCbCrImage yuv = new Rec601YCbCrImage(bi);
             _writerYuv.write(yuv.getY(), yuv.getCb(), yuv.getCr());
         }
 

@@ -47,7 +47,7 @@ import jpsxdec.formats.RgbIntImage;
 import jpsxdec.modules.psx.video.bitstreams.BitStreamUncompressor_Lain;
 import jpsxdec.modules.psx.video.mdec.DecodingException;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder_double;
-import jpsxdec.modules.psx.video.mdec.idct.StephensIDCT;
+import jpsxdec.modules.psx.video.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.util.Imaging;
 
 
@@ -89,11 +89,11 @@ public class Lain_LAPKS {
             Lain_LAPKS.LaPkCellIS oCell;
             while ((oCell = lnpk.nextCell()) != null ){
                 MdecDecoder_double oDecoder = new MdecDecoder_double(
-                        new StephensIDCT(), oCell.Width, oCell.Height);
+                        new PsxMdecIDCT_double(), oCell.Width, oCell.Height);
                 uncompresor.reset(oCell.Data);
                 oDecoder.decode(uncompresor);
                 RgbIntImage oRgb = new RgbIntImage(oCell.Width, oCell.Height);
-                oDecoder.readDecodedRgb(oRgb);
+                oDecoder.readDecodedRgb(oRgb.getWidth(), oRgb.getHeight(), oRgb.getData(), 0, oRgb.getWidth());
                 
                 String s = String.format("%s%02d_f%02d",
                         sOutFileBase,

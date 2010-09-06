@@ -37,6 +37,7 @@
 
 package jpsxdec.util;
 
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -130,7 +131,7 @@ public class TabularFeedback {
         return this;
     }
 
-    public void write(FeedbackStream fbs) {
+    public void write(PrintStream fbs) {
         int[] aiRowHeights = new int[_rows.size()];
         int iColCount = 0;
         for (int i = 0; i < _rows.size(); i++) {
@@ -163,10 +164,10 @@ public class TabularFeedback {
                     ArrayList<StringBuilder> cell = row.get(j);
                     if (iLine < cell.size()) {
                         String sLine = cell.get(iLine).toString();
-                        fbs.println(sLine);
-                        fbs.println(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
+                        fbs.print(sLine);
+                        fbs.print(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
                     } else {
-                        fbs.println(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
+                        fbs.print(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
                     }
                 }
                 fbs.println();

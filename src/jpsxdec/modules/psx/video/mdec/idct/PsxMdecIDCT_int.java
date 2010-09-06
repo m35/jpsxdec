@@ -37,6 +37,8 @@
 
 package jpsxdec.modules.psx.video.mdec.idct;
 
+import jpsxdec.util.Maths;
+
 /** An attempt to create an IDCT that produces the same output as the
  * PlayStation 1 MDEC chip.
  *<p>
@@ -46,7 +48,7 @@ package jpsxdec.modules.psx.video.mdec.idct;
  *<p>
  * Note that neither this code nor the MAME code produce what the
  * MDEC chip actually generates! */
-public class PsxMdecIDCT implements IDCT_int {
+public class PsxMdecIDCT_int implements IDCT_int {
 
     private static final int[] PSX_DEFAULT_COSINE_MATRIX = {
         23170,  23170,  23170,  23170,  23170,  23170,  23170,  23170,
@@ -59,69 +61,67 @@ public class PsxMdecIDCT implements IDCT_int {
          6392, -18205,  27245, -32139,  32138, -27246,  18204,  -6393,
     };
 
-    private final long[] _aiTemp = new long[64];
-    private static final int MDEC_COS_PRECALC_BITS = 21;
+    private final long[] _aTemp = new long[64];
 
     public void IDCT(int[] idctMatrix, int iOutputOffset, int[] output) {
-        long lngTempSum;
+        long tempSum;
         int x;
         int y;
         int i;
 
         for (x=0; x<8; x++) {
             for (y=0; y<8; y++) {
-                lngTempSum = 0;
+                tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    lngTempSum += (idctMatrix[x + i*8] * PSX_DEFAULT_COSINE_MATRIX[i*8 + y]);
+                    tempSum += (PSX_DEFAULT_COSINE_MATRIX[i*8 + y] * idctMatrix[x + i*8]);
                 }
                 
-                _aiTemp[x + y*8] = lngTempSum;
+                _aTemp[x + y*8] = tempSum;
             }
         }
 
         for (x=0; x<8; x++) {
             for (y=0; y<8; y++) {
-                lngTempSum = 0;
+                tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    lngTempSum += (PSX_DEFAULT_COSINE_MATRIX[x + i*8] *
-                                   _aiTemp[i + y*8]) >> (30 - MDEC_COS_PRECALC_BITS);
+                    tempSum += _aTemp[i + y*8] * PSX_DEFAULT_COSINE_MATRIX[x + i*8];
                 }
 
-                output[iOutputOffset + x + y*8] = (int)(lngTempSum >> (MDEC_COS_PRECALC_BITS + 2));
+                output[iOutputOffset + x + y*8] = (int)Maths.shrRound(tempSum, 32);
             }
         }
     }
 
 
     public void DCT(int[] idctMatrix, int iOutputOffset, int[] output) {
-        long lngTempSum;
+        long tempSum;
         int x;
         int y;
         int i;
 
         for (x=0; x<8; x++) {
             for (y=0; y<8; y++) {
-                lngTempSum = 0;
+                tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    lngTempSum += idctMatrix[x + i*8] * PSX_DEFAULT_COSINE_MATRIX[i + y*8];
+                    tempSum += idctMatrix[x + i*8] * PSX_DEFAULT_COSINE_MATRIX[i + y*8];
                 }
 
-                _aiTemp[x + y*8] = lngTempSum >> 16;
+                _aTemp[x + y*8] = tempSum >> 16;
             }
         }
 
         for (x=0; x<8; x++) {
             for (y=0; y<8; y++) {
-                lngTempSum = 0;
+                tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    lngTempSum += PSX_DEFAULT_COSINE_MATRIX[x + i*8] * _aiTemp[i*8 + y];
+                    tempSum += PSX_DEFAULT_COSINE_MATRIX[x + i*8] * _aTemp[i*8 + y];
                 }
 
-                output[iOutputOffset + x + y*8] = (int)(lngTempSum >> 16);
+                output[iOutputOffset + x + y*8] = (int)(tempSum >> 16);
             }
         }
     }
@@ -159,7 +159,7 @@ public class PsxMdecIDCT implements IDCT_int {
             0,   0,  0,   0,  0,   0,   0,   0
         };
 
-        PsxMdecIDCT idct = new PsxMdecIDCT();
+        PsxMdecIDCT_int idct = new PsxMdecIDCT_int();
 
         idct.IDCT(matrix, 0, matrix);
 

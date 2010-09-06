@@ -168,7 +168,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
                                                             WIDTH, HEIGHT);
         decoder.decode(parsedOrig.getStream());
         RgbIntImage rgb = new RgbIntImage(WIDTH, HEIGHT);
-        decoder.readDecodedRgb(rgb);
+        decoder.readDecodedRgb(rgb.getWidth(), rgb.getHeight(), rgb.getData(), 0, rgb.getWidth());
         BufferedImage origImg = rgb.toBufferedImage();
         BufferedImage newImg = ImageIO.read(getImageFile());
 

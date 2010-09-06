@@ -43,7 +43,8 @@ import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.util.IO;
 
-/** The ultimate PlayStation (and CD-i) XA ADPCM decoder.
+/** The ultimate PlayStation (and CD-i) XA ADPCM decoder. Based on the code
+ * and documentation by Jonathan Atkins (http://freshmeat.net/projects/cdxa/).
  *<p>
  * You cannot decode while reading the data because the data is interleaved.
  * You have to read and decode all of SoundUnit #1 before you can start
@@ -282,7 +283,7 @@ public abstract class XAADPCMDecoder {
     }
 
 
-    /** A sound group has 16 bytes of sound paramters, followed by 112 bytes
+    /** A sound group has 16 bytes of sound parameters, followed by 112 bytes
      *  of interleaved ADPCM audio data. */
     protected abstract static class ADPCMSoundGroupReader {
 
@@ -450,11 +451,11 @@ public abstract class XAADPCMDecoder {
 
     }
 
-    /** Sound unit found in a sound group. Maintains the ADPCM parameters
-     * for the group, and has a buffer to hold the deinterleaved ADPCM
-     * samples for this sound unit. Maintains an index as samples are
-     * written to the buffer. Uses the same index as samples are then
-     * decoded and read from the buffer.
+    /** Sound unit found in a sound group. Maintains its ADPCM parameter
+     * from the Sound Group parameters, and has a buffer to hold the
+     * deinterleaved ADPCM samples for this sound unit. Maintains an index as
+     * samples are written to the buffer. Uses the same index as samples are
+     * then decoded and read from the buffer.
      *<p>
      * Each Sound Unit generates 28 PCM samples. */
     protected static class ADPCMSoundUnit {
@@ -479,19 +480,19 @@ public abstract class XAADPCMDecoder {
         public static final int SAMPLES_PER_SOUND_UNIT = 28;
 
         /** Holds the non-interleaved ADPCM samples for this sound-unit.  */
-        private final short[] _asiSamples = new short[SAMPLES_PER_SOUND_UNIT];
+        private final short[] _asiAdpcmSamples = new short[SAMPLES_PER_SOUND_UNIT];
 
         /** The 'range' parameter. How many bits to
          * shift the ADPCM sample to the left. */
         private byte _bParameter_Range;
         /** The 'filter' index parameter. Which K0 and K1 table index to
-         *  multiply the previous two ADPCM sambles by. */
+         *  multiply the previous two ADPCM samples by. */
         private byte _bParameter_FilterIndex;
         /** Buffer index. */
         private int _iPos = 0;
 
-        /** @param iSoundParameter  An unsiged byte value holding the range and
-         *                          filter paramters for this sound unit. */
+        /** @param iSoundParameter  An unsigned byte value holding the range and
+         *                          filter parameters for this sound unit. */
         public void setSoundParamter(int iSoundParameter) {
             _bParameter_Range       = (byte)(iSoundParameter & 0xF);
             _bParameter_FilterIndex = (byte)((iSoundParameter >>> 4) & 0x3);
@@ -502,7 +503,7 @@ public abstract class XAADPCMDecoder {
         }
 
         public void writeADPCMSample(short siSample) {
-            _asiSamples[_iPos] = siSample;
+            _asiAdpcmSamples[_iPos] = siSample;
             _iPos++;
         }
 
@@ -510,8 +511,8 @@ public abstract class XAADPCMDecoder {
          *  unit, and the decoding context (for the previous 2 samples read),
          *  we can convert an entire sound unit.
          * Converts sound samples as they are read. */
-        public short readPCMSample(ADPCMContext oContext) {
-            short siADPCM_sample = _asiSamples[_iPos];
+        public short readPCMSample(ADPCMContext context) {
+            short siADPCM_sample = _asiAdpcmSamples[_iPos];
             _iPos++;
 
             // shift sound data according to the range, keeping the sign
@@ -519,12 +520,12 @@ public abstract class XAADPCMDecoder {
 
             // adjust according to the filter
             double dblResult = lngResult +
-                K0[_bParameter_FilterIndex] * oContext.getPreviousPCMSample1() +
-                K1[_bParameter_FilterIndex] * oContext.getPreviousPCMSample2();
+                K0[_bParameter_FilterIndex] * context.getPreviousPCMSample1() +
+                K1[_bParameter_FilterIndex] * context.getPreviousPCMSample2();
 
             // let the context scale, round, and clamp
             // fianlly return the polished sample
-            return oContext.saveScaleRoundClampPCMSample(dblResult);
+            return context.saveScaleRoundClampPCMSample(dblResult);
         }
     }
 

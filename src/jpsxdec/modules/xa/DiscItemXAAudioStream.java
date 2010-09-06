@@ -171,7 +171,12 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         }
         return fields;
     }
-    
+
+    @Override
+    public int getHierarchyLevel() {
+        return 100 + _iChannel;
+    }
+
     public int getChannel() {
         return _iChannel;
     }

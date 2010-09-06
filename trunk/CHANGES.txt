@@ -1,10 +1,28 @@
+v0.93.0 rev1616 (4 Sept 2010)
+    - Added 'high+' quality option which performs bilinear interpolated chroma
+      upsampling for greatly improved image quality
+    - Changed high quality IDCT to match PSX hardware more closely. This will
+      affect the output colors, but hopefully looks better
+    - More careful handling of disc image errors (includes more error printing)
+    - Unidentified frame rate fraction is now simplified in index
+    - Now detects more cases of 20fps
+    - Improved accuracy of 'psx' quality, but it's still not perfect
+    - Output is now printed to stdout instead of stderr
+    - Fixed individual item help printing format regression
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
+    - Prints way too many errors when encountering CD audio track and disc errors
+    - Not all command-line options have been well tested
+    - 'psx' video decoder quality definitely does not match actual hardware output
 v0.92.2 rev1532 (31 Jul 2010)
-    - Can now be run with Java 5 again
+    - Removed Java 6 dependencies, can now be run with Java 5 again
     - Improved detection of XA audio streams
-	- Now prints what audio stream is being saved with the video stream
+    - Now prints what audio stream is being saved with the video stream
     - Fixed error in index files (breaks compatibility--indexes need to be recreated)
-    - Fixed -sectordump output
-	- Reverted -jpg option to accept a number again
+    - Fixed -sectordump output regression
+    - Reverted -jpg option to accept a number again
+    - Removed Yuv4mpeg2 writing
+    - Sometimes prints the selected saving options before starting to save
     Known Problems:
     - Audio + Video player on Linux might be choppy
     - Gives way too many errors when encountering CD audio track

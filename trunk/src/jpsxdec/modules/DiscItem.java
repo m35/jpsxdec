@@ -38,6 +38,7 @@
 package jpsxdec.modules;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CDFileSectorReader;
 import jpsxdec.util.Misc;
@@ -45,15 +46,8 @@ import jpsxdec.util.NotThisTypeException;
 
 
 /** Abstract PSX media type. Constructors of sub-classes will attempt to
- *  deserialize a Playatation media item from CD sectors. */
+ *  deserialize a PlayaStation media item from CD sectors. */
 public abstract class DiscItem implements Comparable {
-
-    public static final int MEDIA_TYPE_VIDEO = 1;
-    public static final int MEDIA_TYPE_AUDIO = 2;
-    public static final int MEDIA_TYPE_STATIC = 4;
-    
-    /**************************************************************************/
-    /**************************************************************************/
 
     private final int _iStartSector;
     private final int _iEndSector;
@@ -62,6 +56,8 @@ public abstract class DiscItem implements Comparable {
     /** Index number of the media item in the file. */
     private int _iIndex = -1;
     private String _sSuggestedBaseName;
+    private DiscItem _parent;
+    private ArrayList<DiscItem> _children;
 
     public DiscItem(int iStartSector, int iEndSector) {
         _iStartSector = iStartSector;
@@ -69,10 +65,10 @@ public abstract class DiscItem implements Comparable {
     }
     
     /** Deserializes the start and end sectors. */
-    public DiscItem(DiscItemSerialization oFields) throws NotThisTypeException
+    public DiscItem(DiscItemSerialization fields) throws NotThisTypeException
     {
-        _iIndex = oFields.getIndex();
-        int[] aiRng = oFields.getSectorRange();
+        _iIndex = fields.getIndex();
+        int[] aiRng = fields.getSectorRange();
         _iStartSector = aiRng[0];
         _iEndSector   = aiRng[1];
     }
@@ -198,6 +194,8 @@ public abstract class DiscItem implements Comparable {
      * the user wants to save all items of a certain type. */
     abstract public String getTypeId();
 
+    abstract public int getHierarchyLevel();
+
     /** Returns how many sectors this item and the supplied disc item overlap. */
     public int getOverlap(DiscItem other) {
         // does not overlap this file at all
@@ -228,4 +226,30 @@ public abstract class DiscItem implements Comparable {
         return iOverlap;
     }
 
+    final public int getChildCount() {
+        return _children == null ? 0 : _children.size();
+    }
+
+    final public DiscItem getChild(int i) {
+        if (_children == null)
+            throw new IndexOutOfBoundsException();
+        return _children.get(i);
+    }
+
+    final public DiscItem getParent() {
+        return _parent;
+    }
+
+    public void setParent(DiscItem item) {
+        if (_parent != null && _parent.getHierarchyLevel() > item.getHierarchyLevel())
+            return;
+        _parent = item;
+    }
+
+    final void addChild(DiscItem item) {
+        if (_children == null)
+            _children = new ArrayList<DiscItem>();
+        _children.add(item);
+    }
+    
 }

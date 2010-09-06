@@ -69,6 +69,8 @@ public abstract class DiscItemAudioStream extends DiscItem {
 
     abstract public boolean isStereo();
 
+    abstract public int getDiscSpeed();
+
     /** Creates a decoder capable of converting IdentifiedSectors into audio
      *  data which will then be fed into an AudioOutputStream.
      * @see IAudioSectorDecoder#open(jpsxdec.util.AudioOutputStream) */

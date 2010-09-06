@@ -64,7 +64,8 @@ public class STRVideoSaver extends DiscItemSaver {
     }
 
     public JPanel getOptionPane() {
-        throw new UnsupportedOperationException("Removed until next version.");
+        throw new UnsupportedOperationException("Gui not implemented yet");
+        //return new SectorMovieWriterBuilderGui(_movieWriterBuilder);
     }
 
     //-----------------------------------

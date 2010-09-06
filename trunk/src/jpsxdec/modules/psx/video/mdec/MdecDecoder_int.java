@@ -48,36 +48,10 @@ import jpsxdec.modules.psx.video.mdec.idct.IDCT_int;
 /** A full Java, integer based implementation of the PlayStation 1 MDEC chip.
  * This may not be as precise as the double-based implementation, but on cursory
  * examination, you can't really tell. It's also significantly faster.
- * <p>
- * The data is decoded to internal buffers and stored sequentially in very
- * tall buffers, 8 pixels wide.
- * <pre>
- *   LuminBuffer   CbBuffer    CrBuffer
- *     +----+       +----+      +----+
- *     | Y1 |    #1 | Cb |   #1 | Cr |
- *     +----+   ----+----+  ----+----+
- *     | Y2 |    #2 | Cb |   #2 | Cr |
- *  #1 +----+   ----+----+  ----+----+
- *     | Y3 |       |    |      |    |
- *     +----+        ...         ...
- *     | Y4 |
- * ----+----+
- *     | Y1 |
- *     +----+
- *     | Y2 |
- *  #2 +----+
- *     | Y3 |
- *     +----+
- *     | Y4 |
- *     +----+
- *     |    |
- *      ...
- *</pre>
- * The data can then be read into various image formats.
  *<p>
  * WARNING: This class was not designed to be thread safe. Create a
  * separate instance of this class for each thread, or wrap its use with
- * syncronize. */
+ * synchronize. */
 public class MdecDecoder_int extends MdecDecoder {
 
     private static final Logger log = Logger.getLogger(MdecDecoder_int.class.getName());
@@ -87,26 +61,56 @@ public class MdecDecoder_int extends MdecDecoder {
 
     protected final int[] _CrBuffer;
     protected final int[] _CbBuffer;
-    protected final int[] _LuminBuffer;
+    protected final int[] _LumaBuffer;
 
     protected final int[] _CurrentBlock = new int[64];
     protected final MdecInputStream.MdecCode _code = new MdecInputStream.MdecCode();
 
-    protected int _iMacBlockWidth;
-    protected int _iMacBlockHeight;
+    protected final int _iMacBlockWidth;
+    protected final int _iMacBlockHeight;
+
+    /** Luma dimensions. */
+    protected final int W, H;
+    /** Chroma dimensions. */
+    protected final int CW, CH;
+
+    protected final int[] _aiLumaBlkOfsLookup;
+    protected final int[] _aiChromaMacBlkOfsLookup;
 
     protected final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
             MdecInputStream.getDefaultPsxQuantMatrixCopy();
 
     public MdecDecoder_int(IDCT_int idct, int iWidth, int iHeight) {
         _idct = idct;
-        _idct.norm(PSX_DEFAULT_QUANTIZATION_MATRIX); // necessary for MPEG_PlayIDCT.java
-
+        
         _iMacBlockWidth = (iWidth + 15) / 16;
         _iMacBlockHeight = (iHeight + 15) / 16;
-        _CrBuffer = new int[ _iMacBlockWidth * _iMacBlockHeight * 64];
+        W = _iMacBlockWidth * 16;
+        H = _iMacBlockHeight * 16;
+        CW = _iMacBlockWidth * 8;
+        CH = _iMacBlockHeight * 8;
+        _CrBuffer = new int[ CW*CH];
         _CbBuffer = new int[ _CrBuffer.length];
-        _LuminBuffer = new int[ _iMacBlockWidth * _iMacBlockHeight * 256];
+        _LumaBuffer = new int[ W*H];
+
+        _aiChromaMacBlkOfsLookup = new int[_iMacBlockWidth * _iMacBlockHeight];
+        _aiLumaBlkOfsLookup = new int[_iMacBlockWidth * _iMacBlockHeight * 4];
+
+        int iMbIdx = 0;
+        for (int iMbX=0; iMbX < _iMacBlockWidth; iMbX++) {
+            for (int iMbY=0; iMbY < _iMacBlockHeight; iMbY++) {
+                _aiChromaMacBlkOfsLookup[iMbIdx] = iMbX*8 + iMbY*8 * CW;
+                int iBlkIdx = 0;
+                for (int iBlkY=0; iBlkY < 2; iBlkY++) {
+                    for (int iBlkX=0; iBlkX < 2; iBlkX++) {
+                        _aiLumaBlkOfsLookup[iMbIdx*4+iBlkIdx] = iMbX*16 + iBlkX*8 +
+                                                                (iMbY*16 + iBlkY*8) * W;
+                        iBlkIdx++;
+                    }
+                }
+                iMbIdx++;
+            }
+        }
     }
 
     public void decode(MdecInputStream mdecInStream)
@@ -229,29 +233,36 @@ public class MdecDecoder_int extends MdecDecoder {
             }
         }
 
-
         int[] outputBuffer;
-        int iOffset;
+        int iOutOffset, iOutWidth;
         switch (iBlock) {
             case 0:
                 outputBuffer = _CrBuffer;
-                iOffset = iMacroBlock * 64;
+                iOutOffset = _aiChromaMacBlkOfsLookup[iMacroBlock];
+                iOutWidth = CW;
                 break;
             case 1:
                 outputBuffer = _CbBuffer;
-                iOffset = iMacroBlock * 64;
+                iOutOffset = _aiChromaMacBlkOfsLookup[iMacroBlock];
+                iOutWidth = CW;
                 break;
             default:
-                outputBuffer = _LuminBuffer;
-                iOffset = iMacroBlock * 256 + (iBlock - 2) * 64;
+                outputBuffer = _LumaBuffer;
+                iOutOffset = _aiLumaBlkOfsLookup[iMacroBlock*4 + iBlock-2];
+                iOutWidth = W;
         }
         if (iNonZeroCount == 0) {
-            Arrays.fill(outputBuffer, iOffset, iOffset + 64, 0);
-        } else if (iNonZeroCount == 1) {
-            _idct.IDCT_1NonZero(_CurrentBlock, iNonZeroPos,
-                                iOffset, outputBuffer);
+            for (int i=0; i < 8; i++, iOutOffset += iOutWidth)
+                Arrays.fill(outputBuffer, iOutOffset, iOutOffset + 8, 0);
         } else {
-            _idct.IDCT(_CurrentBlock, iOffset, outputBuffer);
+            if (iNonZeroCount == 1) {
+                _idct.IDCT_1NonZero(_CurrentBlock, iNonZeroPos, 0, _CurrentBlock);
+            } else {
+                _idct.IDCT(_CurrentBlock, 0, _CurrentBlock);
+            }
+            // TODO: have IDCT write to the destination location directly
+            for (int i=0, iSrcOfs=0; i < 8; i++, iSrcOfs+=8, iOutOffset += iOutWidth)
+                System.arraycopy(_CurrentBlock, iSrcOfs, outputBuffer, iOutOffset, 8);
         }
 
         if (log().isLoggable(Level.FINEST)) {
@@ -261,7 +272,10 @@ public class MdecDecoder_int extends MdecDecoder {
                 sb.setLength(0);
                 sb.append("[ ");
                 for (int j = 0; j < 8; j++) {
-                    sb.append(String.format( "%d, ", outputBuffer[iOffset+ j+i*8]));
+                    if (iNonZeroCount == 0)
+                        sb.append("0, ");
+                    else
+                        sb.append(String.format( "%d, ", _CurrentBlock[j+i*8]));
                 }
                 sb.append("]");
                 log().finest(sb.toString());
@@ -269,54 +283,49 @@ public class MdecDecoder_int extends MdecDecoder {
         }
     }
 
-    public void readDecodedRgb(RgbIntImage rgbImg) {
-
-        final int WIDTH = rgbImg.getWidth(), HEIGHT = rgbImg.getHeight();
-
-        if ((WIDTH % 16) != 0)
-            throw new IllegalArgumentException("Image width must be multiple of 16.");
-        // TODO: add handling for widths not divisible by 16
-        if ((HEIGHT % 2) != 0)
+    public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,
+                               int iOutStart, int iOutStride)
+    {
+        if ((iDestWidth % 2) != 0)
+            throw new IllegalArgumentException("Image width must be multiple of 2.");
+        if ((iDestHeight % 2) != 0)
             throw new IllegalArgumentException("Image height must be multiple of 2.");
 
         final PsxYCbCr_int psxycc = new PsxYCbCr_int();
         final RGB rgb1 = new RGB(), rgb2 = new RGB(), rgb3 = new RGB(), rgb4 = new RGB();
 
-        int iChromOfs, iLuminOfs, iBlockHeight;
-        for (int iX = 0, iXblk = 0; iX < WIDTH; iX+=16, iXblk += _iMacBlockHeight) {
-            iLuminOfs = (8*8*4) * iXblk;
-            iChromOfs = (8*8) * iXblk;
-            for (int iY = 0; iY < HEIGHT; iY+=16) {
+        final int W_x2 = W*2, iOutStride_x2 = iOutStride*2;
+        
+        int iLumaLineOfsStart = 0, iChromaLineOfsStart = 0,
+            iDestLineOfsStart = iOutStart;
+        for (int iY=0; iY < iDestHeight;
+             iY+=2,
+             iLumaLineOfsStart+=W_x2, iChromaLineOfsStart+=CW,
+             iDestLineOfsStart+=iOutStride_x2)
+        {
+            int iSrcLumaOfs1 = iLumaLineOfsStart,
+                iSrcLumaOfs2 = iLumaLineOfsStart + W,
+                iSrcChromaOfs = iChromaLineOfsStart,
+                iDestOfs1 = iDestLineOfsStart,
+                iDestOfs2 = iDestLineOfsStart + iOutStride;
+            for (int iX=0;
+                 iX < iDestWidth;
+                 iX+=2, iSrcChromaOfs++)
+            {
+                psxycc.cr = _CrBuffer[iSrcChromaOfs];
+                psxycc.cb = _CbBuffer[iSrcChromaOfs];
 
-                if (iY + 16 > HEIGHT)
-                    iBlockHeight = HEIGHT - iY;
-                else
-                    iBlockHeight = 16;
+                psxycc.y1 = _LumaBuffer[iSrcLumaOfs1++];
+                psxycc.y2 = _LumaBuffer[iSrcLumaOfs1++];
+                psxycc.y3 = _LumaBuffer[iSrcLumaOfs2++];
+                psxycc.y4 = _LumaBuffer[iSrcLumaOfs2++];
 
-                for (int iCy = 0; iCy < iBlockHeight; iCy+=2) {
-                    for (int iCx = 0; iCx < 16; iCx+=2) {
+                psxycc.toRgb(rgb1, rgb2, rgb3, rgb4);
 
-                        LuminSubSampleIndexes aiLuminIdxs = LUMIN_SUBSAMPLING_SEQUENCE[iChromOfs & 63];
-
-                        psxycc.y1 = _LuminBuffer[iLuminOfs + aiLuminIdxs.TL];
-                        psxycc.y2 = _LuminBuffer[iLuminOfs + aiLuminIdxs.TR];
-                        psxycc.y3 = _LuminBuffer[iLuminOfs + aiLuminIdxs.BL];
-                        psxycc.y4 = _LuminBuffer[iLuminOfs + aiLuminIdxs.BR];
-                        psxycc.cr = _CrBuffer[iChromOfs];
-                        psxycc.cb = _CbBuffer[iChromOfs];
-
-                        psxycc.toRgb(rgb1, rgb2, rgb3, rgb4);
-
-                        rgbImg.set( iX+iCx+0 , iY+iCy+0 , rgb1.toInt());
-                        rgbImg.set( iX+iCx+1 , iY+iCy+0 , rgb2.toInt());
-                        rgbImg.set( iX+iCx+0 , iY+iCy+1 , rgb3.toInt());
-                        rgbImg.set( iX+iCx+1 , iY+iCy+1 , rgb4.toInt());
-
-                        iChromOfs++;
-                    }
-                }
-
-                iLuminOfs += 8*8*4;
+                aiDest[iDestOfs1++] = rgb1.toInt();
+                aiDest[iDestOfs1++] = rgb2.toInt();
+                aiDest[iDestOfs2++] = rgb3.toInt();
+                aiDest[iDestOfs2++] = rgb4.toInt();
             }
         }
     }

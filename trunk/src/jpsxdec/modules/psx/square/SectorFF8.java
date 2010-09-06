@@ -126,13 +126,13 @@ public abstract class SectorFF8 extends IdentifiedSector {
     ////////////////////////////////////////////////////////////////////////////
 
     /** Final Fantasy 8 video chunk sector. */
-    public static class PSXSectorFF8Video
+    public static class SectorFF8Video
             extends SectorFF8
             implements IVideoSector 
     {
 
 
-        public PSXSectorFF8Video(CdSector oCDSect)
+        public SectorFF8Video(CdSector oCDSect)
                 throws NotThisTypeException 
         {
             super(oCDSect);
@@ -191,10 +191,10 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
         public boolean matchesPrevious(IVideoSector prevSect) {
-            if (!(prevSect instanceof PSXSectorFF8Video))
+            if (!(prevSect instanceof SectorFF8Video))
                 return false;
 
-            PSXSectorFF8Video prevFF8Vid = (PSXSectorFF8Video) prevSect;
+            SectorFF8Video prevFF8Vid = (SectorFF8Video) prevSect;
 
             long lngNextChunk = prevFF8Vid.getFF8ChunkNumber() + 1;
             long lngNextFrame = prevFF8Vid.getFrameNumber();
@@ -252,7 +252,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
     }
 
     /** Final Fantasy 8 audio sector. */
-    public static class PSXSectorFF8Audio 
+    public static class SectorFF8Audio
             extends SectorFF8
             implements ISquareAudioSector
     {
@@ -272,7 +272,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         protected SquareAKAOstruct _oAKAOstruct;
         // 76 bytes; unknown
         
-        public PSXSectorFF8Audio(CdSector oCDSect)
+        public SectorFF8Audio(CdSector oCDSect)
                 throws NotThisTypeException 
         {
             super(oCDSect);
@@ -295,6 +295,8 @@ public abstract class SectorFF8 extends IdentifiedSector {
                 IO.skip(is, 10);
                 
                 _oAKAOstruct = new SquareAKAOstruct(is);
+
+                // TODO: check Sound Parameters values that the index is valid
                 
             } catch (IOException ex) {
                 throw new NotThisTypeException();
@@ -366,7 +368,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
          public boolean matchesPrevious(ISquareAudioSector oPrevSect) {
-            if (!(oPrevSect instanceof PSXSectorFF8Audio))
+            if (!(oPrevSect instanceof SectorFF8Audio))
                 return false;
 
             if (oPrevSect.getAudioChunkNumber() == 0) {

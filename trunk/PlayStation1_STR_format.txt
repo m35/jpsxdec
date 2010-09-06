@@ -23,7 +23,7 @@ v0.22 draft
     - Finished documenting FF8 movie format
 v0.30 draft
     - Obtained permission to use xine source code. This entire document now under modified MIT License.
-    - ch 1.1: subcode.form is NOT unimportant
+    - ch 1.1: Submode.form is NOT unimportant
     - ch 2.2: Added what DC and AC stand for
 v0.40 draft
     - Changed license to just use the standard (unmodified) MIT License.
@@ -203,7 +203,7 @@ Sector Offset
     |            |   tracks (e.g. 5 different songs in the same 'file', on
     |            |   channels 0, 1, 2, 3 and 4)
  18 +--        --+------------------------------------------------------------+
-    |            | Subcode (1 byte)
+    |            | Submode (1 byte)
     |            |   bit 7: eof_marker -- set if this sector is the end
     |            |                        of the 'file'
     |            |   bit 6: real_time  -- always set in PSX STR streams
@@ -220,7 +220,7 @@ Sector Offset
     |            |   bits 1, 2 and 3 are mutually exclusive
  19 +--        --+------------------------------------------------------------+
     |            | Coding info (1 byte)
-    |            | If Subcode.AUDIO bit is set:
+    |            | If Submode.AUDIO bit is set:
     |            |   bit 7: reserved -- should always be 0
     |            |   bit 6: emphasis -- boost audio volume (ignored by us)
     |            |   bit 5: bitssamp -- must always be 0
@@ -234,7 +234,7 @@ Sector Offset
     |            |   bit 1: stereo   -- must always be 0
     |            |   bit 0: stereo   -- 0 for mono sound, 1 for stereo sound
     |            |
-    |            | If Subcode.AUDIO bit is NOT set, this byte can be ignored
+    |            | If Submode.AUDIO bit is NOT set, this byte can be ignored
  20 +--        --+------------------------------------------------------------+
     |               Sub-header duplicated
     |                   (4 bytes)

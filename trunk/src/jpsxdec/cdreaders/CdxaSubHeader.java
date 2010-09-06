@@ -49,6 +49,7 @@ public class CdxaSubHeader {
 
     private static final Logger log = Logger.getLogger(CdxaSubHeader.class.getName());
 
+    /** Side of the header in bytes. */
     public static final int SIZE = 8;
 
     public int getSize() {
@@ -58,7 +59,7 @@ public class CdxaSubHeader {
     private int file_number;            // [1 byte] used to identify sectors
                                         //          belonging to the same file
     public int getFileNumber() { return file_number; }
-    private int channel;                // [1 byte] 0-15 for ADPCM audio
+    private int channel;                // [1 byte] 0-31 for ADPCM audio
     public int getChannel() { return channel; }
     private SubMode submode;            // [1 byte]
     public SubMode getSubMode() { return submode; }
@@ -69,63 +70,127 @@ public class CdxaSubHeader {
     // or [2048 bytes] of user data (depending on the mode/form).
     // Following that are [4 bytes] Error Detection Code (EDC)
     // or just 0x0000.
-    // If the user data was 2048, then final [276 bytes] is error correction
+    // If the user data was 2048, then final [276 bytes] are error correction
 
-    public CdxaSubHeader(byte[] abSectorData, int iStartOffset, int iTolerance)
-            throws NotThisTypeException
-    {
-        file_number = abSectorData[iStartOffset + 0] & 0xff;
-        // Ace Combat 3 has several sectors with channel 255
-        // They seem to be "null" sectors
-        channel     = abSectorData[iStartOffset + 1] & 0xff;
-        // TODO: If there is an error, try the copy
-        submode     = new SubMode(abSectorData[iStartOffset + 2]);
-        // TODO: If there is an error, try the copy
-        coding_info = new CodingInfo(abSectorData[iStartOffset + 3]);
+    private abstract static class PickBest {
 
-        int b;
-        // TODO: If there is a difference, and tolerance allows it, pick the one that is more likely
-        b = abSectorData[iStartOffset + 4] & 0xff;
-        if (iTolerance < 1 && file_number != b)
-            throw new NotThisTypeException(String.format("CD sector file number copy is corrupted: %d != %d", file_number, b));
+        public int pick(int iSector, byte[] abSectorData, int iStartOffset) throws NotThisTypeException {
 
-        b = abSectorData[iStartOffset + 5] & 0xff;
-        if (iTolerance < 1 && channel != b) {
-            // Alundra 2 has the first channel correct, but the copy sometimes == 1 (unless my image is just bad)
-            throw new NotThisTypeException(String.format("CD sector channel copy is corrupted: %d != %d", channel, b));
+            int iValue1 = abSectorData[iStartOffset] & 0xff;
+            int iValue2 = abSectorData[iStartOffset+4] & 0xff;
+
+            int iValue;
+
+            // 1 bad, 2 good
+            // 1 good, 2 bad
+            // 1 and 2 bad but equal
+            // 1 and 2 bad and different
+
+            if (iValue1 == iValue2) {
+                if (!isOk(iValue1)) {
+                    String sErr = String.format("Sector %d %s values are corrupted %s == %s",
+                                  iSector, valueName(), toString(iValue1), toString(iValue2));
+                    log.warning(sErr);
+                    throw new NotThisTypeException(sErr);
+                }
+                iValue = iValue1;
+            } else {
+                
+                boolean blnValue1Valid, blnValue2Valid;
+                blnValue1Valid = isOk(iValue1);
+                blnValue2Valid = isOk(iValue2);
+
+                if (blnValue1Valid && !blnValue2Valid) {
+                    iValue = iValue1;
+                    log.log(Level.WARNING, "Sector {0} {1} value 2 is corrupted {2} != {3}",
+                        new Object[] {iSector, valueName(), toString(iValue1), toString(iValue2)});
+                } else if (!blnValue1Valid && blnValue2Valid) {
+                    iValue = iValue2;
+                    log.log(Level.WARNING, "Sector {0} {1} value 1 is corrupted {2} != {3}",
+                        new Object[] {iSector, valueName(), toString(iValue1), toString(iValue2)});
+                } else {
+                    String sErr = String.format("Sector %d %s values are valid but corrupted %s != %s",
+                                  iSector, valueName(), toString(iValue1), toString(iValue2));
+                    log.warning(sErr);
+                    throw new NotThisTypeException(sErr);
+                }
+            }
+            return iValue;
         }
 
-        b = abSectorData[iStartOffset + 6] & 0xff;
-        if (iTolerance < 1 && submode.toByte() != b)
-            throw new NotThisTypeException(String.format("CD sector submode copy is corrupted: 0x%02x != 0x%02x", submode.toByte(), b));
-
-        // only verify coding info if mode 2
-        b = abSectorData[iStartOffset + 7] & 0xff;
-        if (iTolerance < 1 && submode.getForm() == 2 && coding_info.toByte() != b)
-            throw new NotThisTypeException(String.format("CD sector coding_info copy is corrupted: 0x%02x != 0x%02x", coding_info.toByte(), b));
+        abstract public boolean isOk(int iByte);
+        abstract public String valueName();
+        abstract public String toString(int iValue);
     }
 
+    private static PickBest FILE_PICKER = new PickBest() {
+        public boolean isOk(int iFileNumber) {
+            return iFileNumber == 0 || iFileNumber == 1;
+        }
+        public String valueName() { return "file"; }
+        public String toString(int iValue) { return Integer.toString(iValue); }
+    };
+    private static PickBest CHANNEL_PICKER = new PickBest() {
+        public boolean isOk(int iChannelNumber) {
+            return iChannelNumber >= 0 && iChannelNumber < 32;
+        }
+        public String valueName() { return "channel"; }
+        public String toString(int iValue) { return Integer.toString(iValue); }
+    };
+    private static PickBest SUBMODE_PICKER = new PickBest() {
+        public boolean isOk(int iByte) {
+            iByte = (iByte >> 1) & 7;
+            int iCount = 0;
+            for (int i=8; i > 0; i >>= 1) {
+                if ((iByte & i) != 0)
+                    iCount++;
+            }
+            return iCount <= 1;
+        }
+        public String valueName() { return "sub mode"; }
+        public String toString(int iValue) { return Misc.bitsToString(iValue, 8); }
+    };
+    private static PickBest CODINGINFO_PICKER = new PickBest() {
+        public boolean isOk(int iByte) {
+            return (iByte & 0x2a) == 0;
+        }
+        public String valueName() { return "coding info"; }
+        public String toString(int iValue) { return Misc.bitsToString(iValue, 8); }
+    };
+
+
+    public CdxaSubHeader(int iSector, byte[] abSectorData, int iStartOffset, int iTolerance)
+            throws NotThisTypeException
+    {
+        file_number = FILE_PICKER.pick(iSector, abSectorData, iStartOffset+0);
+        channel = CHANNEL_PICKER.pick(iSector, abSectorData, iStartOffset+1);
+        submode = new SubMode(SUBMODE_PICKER.pick(iSector, abSectorData, iStartOffset+2));
+        coding_info = new CodingInfo(CODINGINFO_PICKER.pick(iSector, abSectorData, iStartOffset+3));
+    }
+
+    //**************************************************************************
 
     public static class SubMode {
+
         /** Sub-mode in its original bits. */
-        private final int submode;
+        private final int _iSubmode;
 
         /** bit 7:  0 for all sectors except last sector of a file. */
-        private final boolean eof_marker;
-        public boolean getEofMarker() { return eof_marker; }
+        private final boolean _blnEofMarker;
+        public boolean getEofMarker() { return _blnEofMarker; }
 
         /** bit 6:  1 for real time mode. */
-        private final boolean real_time;
-        public boolean getRealTime() { return real_time; }
+        private final boolean _blnRealTime;
+        public boolean getRealTime() { return _blnRealTime; }
 
         /** bit 5:  0 = form 1, 1 = form 2. */
-        private final int form;
+        private final int _iForm;
         /** Form 1 or Form 2. */
-        public int getForm() { return form; }
+        public int getForm() { return _iForm; }
 
         /** bit 4:  used for application. */
-        private final boolean trigger;
-        public boolean getTrigger() { return trigger; }
+        private final boolean _blnTrigger;
+        public boolean getTrigger() { return _blnTrigger; }
 
         public static enum DATA_AUDIO_VIDEO {
             /** Sector contains data (or video). */ DATA,
@@ -140,38 +205,40 @@ public class CdxaSubHeader {
          *          Mutually exclusive with bits 3 and 1.
          *  bit 1:  1 for video sector.
          *          Mutually exclusive with bits 3 and 2. */
-        private final DATA_AUDIO_VIDEO data_audio_video;
+        private final DATA_AUDIO_VIDEO _eDataAudioVideo;
         public DATA_AUDIO_VIDEO getDataAudioVideo() {
-            return data_audio_video;
+            return _eDataAudioVideo;
         }
 
         /** bit 0:  identifies end of audio frame */
-        private final boolean end_audio;
-        public boolean getEndAudio() { return end_audio; }
+        private final boolean _blnEndAudio;
+        public boolean getEndAudio() { return _blnEndAudio; }
 
-        SubMode(byte b) throws NotThisTypeException {
-            submode = b & 0xff;
+        SubMode(int i) throws NotThisTypeException {
+            _iSubmode = i;
 
-            eof_marker    = (b & 0x80) > 0;
-            real_time     = (b & 0x40) > 0;
-            form          = ((b >> 5) & 1) + 1;
-            trigger       = (b & 0x10) > 0;
-            int iBits = (b >> 1) & 7;
+            _blnEofMarker   =  (i & 0x80) != 0;
+            _blnRealTime    =  (i & 0x40) != 0;
+            _iForm          = ((i >> 5) & 1) + 1;
+            _blnTrigger     =  (i & 0x10) != 0;
+            int iBits = (i >> 1) & 7;
             switch (iBits) {
-                case 4: data_audio_video = DATA_AUDIO_VIDEO.DATA; break;
-                case 2: data_audio_video = DATA_AUDIO_VIDEO.AUDIO; break;
-                case 1: data_audio_video = DATA_AUDIO_VIDEO.VIDEO; break;
-                case 0: data_audio_video = DATA_AUDIO_VIDEO.NULL; break;
+                case 4: _eDataAudioVideo = DATA_AUDIO_VIDEO.DATA; break;
+                case 2: _eDataAudioVideo = DATA_AUDIO_VIDEO.AUDIO; break;
+                case 1: _eDataAudioVideo = DATA_AUDIO_VIDEO.VIDEO; break;
+                case 0: _eDataAudioVideo = DATA_AUDIO_VIDEO.NULL; break;
                 default: throw new NotThisTypeException(
                         "CD sector submode data|audio|video is corrupted: " + Misc.bitsToString(iBits, 3) + "b");
             }
-            end_audio     = (b & 1) > 0;
+            _blnEndAudio    = (i & 1) != 0;
         }
 
-        public int toByte() { return submode; }
+        public int toByte() { return _iSubmode; }
 
-        public String toString() { return Misc.bitsToString(submode, 8); }
+        public String toString() { return Misc.bitsToString(_iSubmode, 8); }
     }
+
+    //**************************************************************************
 
     public static class CodingInfo {
         /** Coding info in its original bits. */
@@ -200,26 +267,26 @@ public class CdxaSubHeader {
         private final boolean mono_stereo;
         public boolean isStereo() { return mono_stereo; }
 
-        CodingInfo(byte b) throws NotThisTypeException {
-            codinginfo = b & 0xff;
+        CodingInfo(int i) throws NotThisTypeException {
+            codinginfo = i;
 
-            reserved           = (b & 0x80) > 0;
-            emphasis           = (b & 0x40) > 0;
-            int iBits = (b >> 4) & 3;
+            reserved           = (i & 0x80) != 0;
+            emphasis           = (i & 0x40) != 0;
+            int iBits = (i >> 4) & 3;
             switch (iBits) {
                 case 0: bits_per_sample = 4; break;
                 case 1: bits_per_sample = 8; break;
                 default: throw new NotThisTypeException(
                         "CD sector coding info bits/sample is corrupted: " + iBits);
             }
-            iBits = (b >> 2) & 3;
+            iBits = (i >> 2) & 3;
             switch (iBits) {
                 case 0: sample_rate = 37800; break;
                 case 1: sample_rate = 18900; break;
                 default: throw new NotThisTypeException(
                         "CD sector coding info sample rate is corrupted: " + iBits);
             }
-            iBits = (b >> 0) & 3;
+            iBits = (i >> 0) & 3;
             switch (iBits) {
                 case 0: mono_stereo = false; break;
                 case 1: mono_stereo = true;  break;
@@ -241,7 +308,7 @@ public class CdxaSubHeader {
     }
 
     public String toString() {
-        return String.format("File.Channel:%d.%d Subcode:%s", // TODO: Subcode->Submode
+        return String.format("File.Channel:%d.%d Submode:%s",
                     file_number, channel, submode.toString());
     }
 }

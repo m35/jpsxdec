@@ -53,9 +53,10 @@ import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.modules.psx.str.SectorMovieWriters.*;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder_double;
+import jpsxdec.modules.psx.video.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.modules.psx.video.mdec.MdecDecoder_int;
-import jpsxdec.modules.psx.video.mdec.idct.PsxMdecIDCT;
-import jpsxdec.modules.psx.video.mdec.idct.StephensIDCT;
+import jpsxdec.modules.psx.video.mdec.idct.PsxMdecIDCT_int;
+import jpsxdec.modules.psx.video.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.modules.psx.video.mdec.idct.simple_idct;
 import jpsxdec.modules.xa.AudioStreamsCombiner;
 import jpsxdec.modules.xa.IAudioSectorDecoder;
@@ -142,15 +143,27 @@ public class SectorMovieWriterBuilder  {
             case 2:
                 return false;
             default:
-                return _blnSingleSpeed;
+                // if disc item doesn't know speed, try parallel audio item
+                if (getSaveAudio()) {
+                    switch (getParallelAudio().getDiscSpeed()) {
+                        case 1:
+                            return true;
+                        case 2:
+                            return false;
+                    }
+                }
         }
+        return _blnSingleSpeed;
     }
     public void setSingleSpeed(boolean val) {
         _blnSingleSpeed = val;
         firePossibleChange();
     }
     public boolean getSingleSpeed_enabled() {
-        return _sourceVidItem.getDiscSpeed() < 1 && getVideoFormat().getContainer() == Container.AVI;
+        return getVideoFormat().getContainer() == Container.AVI &&
+               (_sourceVidItem.getDiscSpeed() < 1 &&
+                getSaveAudio() &&
+                getParallelAudio().getDiscSpeed() < 2);
     }
     public Fraction getFps() {
         return Fraction.divide( 
@@ -408,7 +421,7 @@ public class SectorMovieWriterBuilder  {
     }
 
     public boolean getParallelAudio_enabled() {
-        return getSaveAudio_enabled();
+        return getSaveAudio();
     }
 
     // .........................................................................
@@ -416,6 +429,7 @@ public class SectorMovieWriterBuilder  {
     public static enum DecodeQualities {
         LOW("Fast (lower quality)", "low"),
         HIGH("High quality (slower)", "high"),
+        HIGH_PLUS("High quality + interplation (slowest)", "high+"),
         PSX("(not really) Exact PSX quality", "psx");
 
         public static String getCmdLineList() {
@@ -637,7 +651,14 @@ public class SectorMovieWriterBuilder  {
             setSingleSpeed(false);
         }
 
-        fbs.println("Disc speed: " + (getSingleSpeed() ? "1x" : "2x"));
+        printSelectedOptions(fbs);
+
+        return asRemain;
+    }
+
+    public void printSelectedOptions(FeedbackStream fbs) {
+        fbs.format("Disc speed: %s (%1.3f fps)", getSingleSpeed() ? "1x" : "2x", getFps().asDouble());
+        fbs.println();
         fbs.println("Video format: " + getVideoFormat());
         fbs.println("Frames: " + getSaveStartFrame() + "-" + getSaveEndFrame());
         if (getCrop_enabled())
@@ -651,6 +672,7 @@ public class SectorMovieWriterBuilder  {
 
         if (getSaveAudio_enabled())
             fbs.println("Saving audio: " + (getSaveAudio() ? "Yes" : "No"));
+
         if (getParallelAudio_enabled()) {
             fbs.println("Audio item:");
             fbs.println(getParallelAudio());
@@ -658,7 +680,6 @@ public class SectorMovieWriterBuilder  {
         if (getPreciseAVSync_enabled())
             fbs.println("Precise audio/video sync: " + (getPreciseAVSync() ? "Yes" : "No"));
 
-        return asRemain;
     }
 
     public void printHelp(FeedbackStream fbs) {
@@ -686,18 +707,21 @@ public class SectorMovieWriterBuilder  {
 
         JavaImageFormat JPG = JavaImageFormat.JPG;
         if (JPG.isAvailable()) {
-            tfb.print("-jpg <quality between 1 and 100>").tab()
-                    .println("Quality when saving as jpg or avi:mjpg (default is 75).");
+            tfb.print("-jpg <between 1 and 100>").tab()
+                    .println("Output quality when saving as jpg or avi:mjpg")
+                    .print("(default is 75).");
             tfb.newRow();
         }
 
         tfb.print("-frame,-frames <frames>").tab().print("One frame, or range of frames to save.");
         if (_sourceVidItem.hasAudio()) {
-            tfb.ln().indent().print("(audio isn't available when using this option)");
+            tfb.ln().indent().print("(audio is disabled when using this option)");
         }
-        tfb.newRow();
 
-        tfb.print("-x <disc speed>").tab().print("Force disc speed of 1 or 2.");
+        if (getSingleSpeed_enabled()) {
+            tfb.newRow();
+            tfb.print("-x <disc speed>").tab().print("Specify 1 or 2 if disc speed is undetermined.");
+        }
 
         if (_sourceVidItem.shouldBeCropped()) {
             tfb.newRow();
@@ -711,14 +735,17 @@ public class SectorMovieWriterBuilder  {
     public SectorMovieWriter openMovieWriter() throws IOException {
         final MdecDecoder vidDecoder;
         switch (getDecodeQuality()) {
+            case HIGH_PLUS:
+                vidDecoder = new MdecDecoder_double_interpolate(new PsxMdecIDCT_double(), _sourceVidItem.getWidth(), _sourceVidItem.getHeight());
+                break;
             case HIGH:
-                vidDecoder = new MdecDecoder_double(new StephensIDCT(), _sourceVidItem.getWidth(), _sourceVidItem.getHeight());
+                vidDecoder = new MdecDecoder_double(new PsxMdecIDCT_double(), _sourceVidItem.getWidth(), _sourceVidItem.getHeight());
                 break;
             case LOW:
                 vidDecoder = new MdecDecoder_int(new simple_idct(), _sourceVidItem.getWidth(), _sourceVidItem.getHeight());
                 break;
             case PSX:
-                vidDecoder = new MdecDecoder_int(new PsxMdecIDCT(), _sourceVidItem.getWidth(), _sourceVidItem.getHeight());
+                vidDecoder = new MdecDecoder_int(new PsxMdecIDCT_int(), _sourceVidItem.getWidth(), _sourceVidItem.getHeight());
                 break;
             default:
                 throw new RuntimeException("Oops");

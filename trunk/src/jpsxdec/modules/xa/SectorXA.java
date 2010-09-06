@@ -74,6 +74,8 @@ public class SectorXA extends IdentifiedSector {
         if (cdSector.getChannel() < 0 || cdSector.getChannel() >= 32)
             throw new NotThisTypeException();
 
+        // TODO: check Sound Parameters values that the index is valid
+
         int iErrors = 0;
         _iBitsPerSample = cdSector.getCodingInfo().getBitsPerSample();
         if (_iBitsPerSample == 4) {
@@ -160,11 +162,16 @@ public class SectorXA extends IdentifiedSector {
     }
 
     public String toString() {
-        return String.format("XA Audio %s %s %d bits/sample %d samples/sec",
+        String s = String.format("XA Audio %s %s %d bits/sample %d samples/sec",
                super.toString(),
                _blnStereo ? "Stereo" : "Mono",
                _iBitsPerSample,
                _iSamplesPerSecond);
+        if (isAllQuiet()) {
+            return s + " SILENT";
+        } else {
+            return s;
+        }
     }
 
     public SectorXA matchesPrevious(IdentifiedSector prevSect) {

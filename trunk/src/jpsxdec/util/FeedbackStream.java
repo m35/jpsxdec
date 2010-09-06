@@ -70,63 +70,63 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void print(boolean b) { 
         if (_iVerboseLevel >= _iPrintDefault)  {
-            printIndent();
+            printIndentIfAny();
             super.print(b);
         }
     }
     @Override
     public void print(char c) { 
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.print(c);
         }
     }
     @Override
     public void print(int i) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.print(i);
         }
     }
     @Override
     public void print(long l) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.print(l);
         }
     }
     @Override
     public void print(float f) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.print(f);
         }
     }
     @Override
     public void print(double d) {  
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.print(d);
         }
     }
     @Override
     public void print(char[] s) {  
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.print(s);
         }
     }
     @Override
     public void print(String s) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.print(s);
         }
     }
     @Override
     public void print(Object obj) {  
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.print(obj);
             _blnNewLine = true;
         }
@@ -134,7 +134,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println() {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println();
             _blnNewLine = true;
         }
@@ -142,7 +142,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(boolean x) {   
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -150,7 +150,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(char x) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -158,7 +158,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(int x) {   
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -166,7 +166,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(long x) {   
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -174,7 +174,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(float x) {   
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -182,7 +182,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(double x) {   
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -190,7 +190,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(char[] x) {   
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -198,7 +198,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(String x) {   
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -206,7 +206,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public void println(Object x) {   
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             super.println(x);
             _blnNewLine = true;
         }
@@ -231,7 +231,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public PrintStream printf(String format, Object... args) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             return super.printf(format, args);
         }
         return this;
@@ -239,7 +239,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public PrintStream printf(Locale l, String format, Object... args) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             return super.printf(l, format, args);
         }
         return this;
@@ -247,7 +247,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public PrintStream append(CharSequence csq) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             return super.append(csq);
         }
         return this;
@@ -255,7 +255,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public PrintStream append(CharSequence csq, int start, int end) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             return super.append(csq, start, end);
         }
         return this;
@@ -263,7 +263,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public PrintStream append(char c) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             return super.append(c);
         }
         return this;
@@ -271,7 +271,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public PrintStream format(String format, Object... args) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             return super.format(format, args);
         }
         return this;
@@ -279,7 +279,7 @@ public class FeedbackStream extends PrintStream {
     @Override
     public PrintStream format(Locale l, String format, Object... args) {
         if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
+            printIndentIfAny();
             return super.format(l, format, args);
         }
         return this;
@@ -290,26 +290,26 @@ public class FeedbackStream extends PrintStream {
 
     public void printMore(String s) {
         if (_iVerboseLevel >= MORE) {
-            printIndent();
+            printIndentIfAny();
             super.print(s);
         }
     }
     public void printlnMore(String s) {
         if (_iVerboseLevel >= MORE) {
-            printIndent();
+            printIndentIfAny();
             super.println(s);
             _blnNewLine = true;
         }
     }
     public void printWarn(String s) {
         if (_iVerboseLevel >= WARN) {
-            printIndent();
+            printIndentIfAny();
             super.print(s);
         }
     }
     public void printlnWarn(String s) {
         if (_iVerboseLevel >= WARN) {
-            printIndent();
+            printIndentIfAny();
             super.println(s);
             _blnNewLine = true;
         }
@@ -317,13 +317,13 @@ public class FeedbackStream extends PrintStream {
 
     public void printErr(String s)  {
         if (_iVerboseLevel >= ERR) {
-            printIndent();
+            printIndentIfAny();
             super.print(s);
         }
     }
     public void printlnErr(String s)  {
         if (_iVerboseLevel >= ERR) {
-            printIndent();
+            printIndentIfAny();
             super.println(s);
             _blnNewLine = true;
         }
@@ -333,13 +333,16 @@ public class FeedbackStream extends PrintStream {
             // if MORE verbosity is wanted, then print the entire stack trace
             ex.printStackTrace(this);
         } else if (_iVerboseLevel >= ERR) {
-            printIndent();
-            super.println(ex.getMessage());
+            printIndentIfAny();
+            String sMsg = ex.getMessage();
+            if (sMsg == null)
+                sMsg = ex.toString();
+            super.println(sMsg);
             _blnNewLine = true;
         }
     }
 
-    private void printIndent() {
+    private void printIndentIfAny() {
         if (_blnNewLine && _iIndentLevel > 0) {
             super.print(Misc.dup("  ", _iIndentLevel));
             _blnNewLine = false;

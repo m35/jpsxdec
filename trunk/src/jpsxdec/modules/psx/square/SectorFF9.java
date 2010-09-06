@@ -127,7 +127,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
     /**************************************************************************/
 
     /** Final Fantasy 9 video chunk sector. */
-    public static class PSXSectorFF9Video 
+    public static class SectorFF9Video
             extends SectorFF9
             implements IVideoSector 
     {
@@ -155,7 +155,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         protected final long _lngFourBytes;          //  28   [4 bytes] usually zero
         //   32 TOTAL
 
-        public PSXSectorFF9Video(CdSector cdSector) throws NotThisTypeException
+        public SectorFF9Video(CdSector cdSector) throws NotThisTypeException
         {
             super(cdSector);
 
@@ -259,10 +259,10 @@ public abstract class SectorFF9 extends IdentifiedSector {
         }
 
         public boolean matchesPrevious(IVideoSector prevSector) {
-            if (!(prevSector instanceof PSXSectorFF9Video))
+            if (!(prevSector instanceof SectorFF9Video))
                 return false;
 
-            PSXSectorFF9Video prevFF9Vid = (PSXSectorFF9Video) prevSector;
+            SectorFF9Video prevFF9Vid = (SectorFF9Video) prevSector;
 
             if (getWidth()  != prevFF9Vid.getWidth() ||
                 getHeight() != prevFF9Vid.getHeight())
@@ -337,7 +337,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
     /**************************************************************************/
     
     /** Final Fantasy 9 audio sector. */
-    public static class PSXSectorFF9Audio 
+    public static class SectorFF9Audio
             extends SectorFF9
             implements ISquareAudioSector
     {
@@ -361,7 +361,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
 
         //   208 TOTAL
 
-        public PSXSectorFF9Audio(CdSector cdSector) throws NotThisTypeException
+        public SectorFF9Audio(CdSector cdSector) throws NotThisTypeException
         {
             super(cdSector);
             
@@ -464,10 +464,10 @@ public abstract class SectorFF9 extends IdentifiedSector {
         }
 
         public boolean matchesPrevious(ISquareAudioSector oPrevSect) {
-            if (!(oPrevSect instanceof PSXSectorFF9Audio))
+            if (!(oPrevSect instanceof SectorFF9Audio))
                 return false;
 
-            PSXSectorFF9Audio oPrevFF9Aud = (PSXSectorFF9Audio) oPrevSect;
+            SectorFF9Audio oPrevFF9Aud = (SectorFF9Audio) oPrevSect;
 
             if (getSamplesPerSecond() != oPrevFF9Aud.getSamplesPerSecond())
                 return false;

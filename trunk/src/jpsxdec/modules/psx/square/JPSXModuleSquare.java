@@ -80,13 +80,13 @@ public class JPSXModuleSquare extends JPSXModule {
         catch (NotThisTypeException ex) {}
         try { return new SectorChronoXAudio(sector); }
         catch (NotThisTypeException ex) {}
-        try { return new SectorFF8.PSXSectorFF8Audio(sector); }
+        try { return new SectorFF8.SectorFF8Audio(sector); }
         catch (NotThisTypeException ex) {}
-        try { return new SectorFF8.PSXSectorFF8Video(sector); }
+        try { return new SectorFF8.SectorFF8Video(sector); }
         catch (NotThisTypeException ex) {}
-        try { return new SectorFF9.PSXSectorFF9Audio(sector); }
+        try { return new SectorFF9.SectorFF9Audio(sector); }
         catch (NotThisTypeException ex) {}
-        try { return new SectorFF9.PSXSectorFF9Video(sector); }
+        try { return new SectorFF9.SectorFF9Video(sector); }
         catch (NotThisTypeException ex) {}
         try { return new SectorChronoXVideo(sector); }
         catch (NotThisTypeException ex) {}

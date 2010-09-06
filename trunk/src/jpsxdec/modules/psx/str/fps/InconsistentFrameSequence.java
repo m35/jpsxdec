@@ -56,7 +56,9 @@ public class InconsistentFrameSequence {
 
     /** List of sectors/frame data files. Update this list if the files change. */
     public static final String[] FPS_LISTS = new String[] {
+        "20FPS_A8.dat",
         "20FPS_A16.dat",
+        "NTSC20_A8.dat",
         "NTSC15_A8-100,999.dat",
         "NTSC15_A8-101,1000.dat"
     };

@@ -60,17 +60,13 @@ public class CdSector2352 extends CdSector {
             throws NotThisTypeException
     {
         super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);
-        try {
-            _header = new CdxaHeader(abSectorBytes, iByteStartOffset, iTolerance);
-            _subHeader = new CdxaSubHeader(abSectorBytes, _iByteStartOffset + CdxaHeader.SIZE, iTolerance);
-            _iUserDataOffset = _iByteStartOffset + _header.getSize() + _subHeader.getSize();
-            if (_subHeader.getSubMode().getForm() == 1)
-                _iUserDataSize = CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
-            else
-                _iUserDataSize = CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE2;
-        } catch (NotThisTypeException ex) {
-            throw new NotThisTypeException("Sector " + iSectorIndex + " " + ex.getMessage());
-        }
+        _header = new CdxaHeader(abSectorBytes, iByteStartOffset, iTolerance);
+        _subHeader = new CdxaSubHeader(iSectorIndex, abSectorBytes, _iByteStartOffset + CdxaHeader.SIZE, iTolerance);
+        _iUserDataOffset = _iByteStartOffset + _header.getSize() + _subHeader.getSize();
+        if (_subHeader.getSubMode().getForm() == 1)
+            _iUserDataSize = CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
+        else
+            _iUserDataSize = CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE2;
     }
 
     /** Returns the size of the 'user data' portion of the sector. */

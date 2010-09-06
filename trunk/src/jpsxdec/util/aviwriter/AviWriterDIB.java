@@ -72,16 +72,16 @@ public class AviWriterDIB extends AviWriter {
     }
     
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    public AviWriterDIB(final File oOutputfile,
+    public AviWriterDIB(final File outputfile,
                      final int iWidth, final int iHeight,
                      final long lngFrames, final long lngPerSecond,
-                     final AudioFormat oAudioFormat)
+                     final AudioFormat audioFormat)
             throws IOException
     {
        // Write 'DIB ' for Microsoft Device Independent Bitmap.  Note: Unfortunately,
        // at least 3 other fourcc codes are sometimes used for uncompressed
        // AVI videos: 'RGB ', 'RAW ', 0x00000000
-        super(oOutputfile, iWidth, iHeight, lngFrames, lngPerSecond, oAudioFormat, true, "DIB ", BITMAPINFOHEADER.BI_RGB);
+        super(outputfile, iWidth, iHeight, lngFrames, lngPerSecond, audioFormat, true, "DIB ", BITMAPINFOHEADER.BI_RGB);
 
         int iLinePadding = (getWidth() * 3) & 3;
         if (iLinePadding != 0)

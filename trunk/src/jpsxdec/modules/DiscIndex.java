@@ -69,9 +69,11 @@ public class DiscIndex implements Iterable<DiscItem> {
     private static final String COMMENT_LINE_START = ";";
     private static final String SOURCE_FILE_START = "Source File ";
     
-    private final LinkedHashMap<Integer, DiscItem> _mediaHash = new LinkedHashMap<Integer, DiscItem>();
     private CDFileSectorReader _sourceCD;
     private String _sDiscName = null;
+
+    private final LinkedHashMap<Integer, DiscItem> _mediaHash = new LinkedHashMap<Integer, DiscItem>();
+    private final ArrayList<DiscItem> _topLevelItems = new ArrayList<DiscItem>();
 
     /** Finds all the media on the CD.  */
     public DiscIndex(CDFileSectorReader cdReader, ProgressListener pl) {
@@ -132,6 +134,10 @@ public class DiscIndex implements Iterable<DiscItem> {
                     return -1;
                 else if (o1.getStartSector() > o2.getStartSector())
                     return 1;
+                else if (o1.getHierarchyLevel() < o2.getHierarchyLevel())
+                    return -1;
+                else if (o1.getHierarchyLevel() > o2.getHierarchyLevel())
+                    return 1;
                 else if (o1.getEndSector() > o2.getEndSector())
                     return -1;
                 else if (o1.getEndSector() < o2.getEndSector())
@@ -150,6 +156,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             module.mediaListGenerated(this);
         }
 
+        buildTree();
     }
 
     /** Deserializes the CD index file, and tries to open the CD listed in the index. */
@@ -229,11 +236,23 @@ public class DiscIndex implements Iterable<DiscItem> {
         for (JPSXModule module : JPSXModule.getModules()) {
             module.mediaListGenerated(this);
         }
+
+        buildTree();
+
         // debug print the list contents
         if (log.isLoggable(Level.INFO)) {
             for (DiscItem oMedItm : this) log.info(oMedItm.toString());
         }
-        
+
+    }
+
+    private void buildTree() {
+        for (DiscItem item : this) {
+            if (item.getParent() == null)
+                _topLevelItems.add(item);
+            else
+                item.getParent().addChild(item);
+        }
     }
 
     /** Serializes the list of media items to a file. */
@@ -292,6 +311,14 @@ public class DiscIndex implements Iterable<DiscItem> {
     @Override
     public String toString() {
         return String.format("%s (%s) %d items", _sourceCD.getSourceFile(), _sDiscName, _mediaHash.size());
+    }
+
+    public int getTopLevelItemCount() {
+        return _topLevelItems.size();
+    }
+
+    public DiscItem getTopLevelItem(int i) {
+        return _topLevelItems.get(i);
     }
 
 }

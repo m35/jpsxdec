@@ -1,3 +1,5 @@
+v0.93.1 rev1617 (6 Sept 2010)
+    - Fixed 'high+' quality output
 v0.93.0 rev1616 (4 Sept 2010)
     - Added 'high+' quality option which performs bilinear interpolated chroma
       upsampling for greatly improved image quality

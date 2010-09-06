@@ -38,7 +38,6 @@
 package jpsxdec.modules.psx.video.mdec;
 
 import jpsxdec.formats.RGB;
-import jpsxdec.formats.RgbIntImage;
 import jpsxdec.modules.psx.video.PsxYCbCr;
 import jpsxdec.modules.psx.video.mdec.idct.IDCT_double;
 
@@ -107,14 +106,14 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
         out[W-1 + (H-1)*W] = in[CW-1 + (CH-1)*CW];
 
         // vertical edges
-        for (boolean blnTwice = true; blnTwice; blnTwice = false) {
+        for (int i = 0; i < 2; i++) {
             int inX, outX;
-            if (blnTwice) {
+            if (i == 0) {
                 outX = 0;
                 inX = 0;
             } else {
                 outX = W - 1;
-                inX = CW-1;
+                inX = CW - 1;
             }
             for (int inY = 0; inY < CH-1; inY++) {
                 double c1 = in[inX +  inY   *CW],
@@ -126,14 +125,14 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
         }
 
         // horizontal edges
-        for (boolean blnTwice = true; blnTwice; blnTwice = false) {
+        for (int i = 0; i < 2; i++) {
             int inY, outY;
-            if (blnTwice) {
+            if (i == 0) {
                 outY = 0;
                 inY = 0;
             } else {
                 outY = H - 1;
-                inY = CH-1;
+                inY = CH - 1;
             }
             for (int inX = 0; inX < CW-1; inX++) {
                 double c1 = in[inX   + inY*CW],

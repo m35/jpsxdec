@@ -42,7 +42,8 @@ import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.NotThisTypeException;
 
 
-/** Represents a single sector on a CD. */
+/** 2336 sectors only include the raw {@link CdxaSubHeader}, but not the
+ *  {@link CdxaHeader}. */
 public class CdSector2336 extends CdSector {
 
     private static final Logger log = Logger.getLogger(CdSector2336.class.getName());
@@ -63,9 +64,9 @@ public class CdSector2336 extends CdSector {
         _subHeader = new CdxaSubHeader(iSectorIndex, abSectorBytes, iByteStartOffset, iTolerance);
         _iUserDataOffset = _iByteStartOffset + _subHeader.getSize();
         if (_subHeader.getSubMode().getForm() == 1)
-            _iUserDataSize = CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
+            _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
         else
-            _iUserDataSize = CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE2;
+            _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE2;
     }
 
     /** Returns the size of the 'user data' portion of the sector. */
@@ -99,7 +100,7 @@ public class CdSector2336 extends CdSector {
 
     @Override
     public byte[] getRawSectorDataCopy() {
-        byte[] ab = new byte[CDFileSectorReader.SECTOR_SIZE_2336_BIN_NOSYNC];
+        byte[] ab = new byte[CdFileSectorReader.SECTOR_SIZE_2336_BIN_NOSYNC];
         System.arraycopy(_abSectorBytes, _iByteStartOffset, ab, 0, ab.length);
         return ab;
     }

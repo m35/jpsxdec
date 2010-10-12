@@ -41,7 +41,7 @@ import java.util.logging.Logger;
 import jpsxdec.util.ByteArrayFPIS;
 
 
-/** Represents a single sector on a CD. */
+/** 2048 sectors are standard .iso size that excludes any raw header info. */
 public class CdSector2048 extends CdSector {
 
     private static final Logger log = Logger.getLogger(CdSector2048.class.getName());
@@ -53,23 +53,23 @@ public class CdSector2048 extends CdSector {
 
     /** Returns the size of the 'user data' portion of the sector. */
     public int getCdUserDataSize() {
-        return CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
+        return CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
     }
     
     public byte readUserDataByte(int i) {
-        if (i < 0 || i >= CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1) throw new IndexOutOfBoundsException();
+        if (i < 0 || i >= CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1) throw new IndexOutOfBoundsException();
         return _abSectorBytes[_iByteStartOffset + i];
     }
 
     /** Returns copy of the 'user data' portion of the sector. */
     public byte[] getCdUserDataCopy() {
-        byte[] ab = new byte[CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1];
-        getCdUserDataCopy(0, ab, 0, CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1);
+        byte[] ab = new byte[CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1];
+        getCdUserDataCopy(0, ab, 0, CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1);
         return ab;
     }
 
     public void getCdUserDataCopy(int iSourcePos, byte[] abOut, int iOutPos, int iLength) {
-        if (iLength > CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1) throw new IndexOutOfBoundsException();
+        if (iLength > CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1) throw new IndexOutOfBoundsException();
         System.arraycopy(_abSectorBytes, _iByteStartOffset + iSourcePos, 
                 abOut, iOutPos,
                 iLength);
@@ -77,7 +77,7 @@ public class CdSector2048 extends CdSector {
     
     /** Returns an InputStream of the 'user data' portion of the sector. */
     public ByteArrayFPIS getCdUserDataStream() {
-        return new ByteArrayFPIS(_abSectorBytes, _iByteStartOffset, CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1, _lngFilePointer);
+        return new ByteArrayFPIS(_abSectorBytes, _iByteStartOffset, CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1, _lngFilePointer);
     }
 
     /** Returns direct reference to the underlying sector data, with raw

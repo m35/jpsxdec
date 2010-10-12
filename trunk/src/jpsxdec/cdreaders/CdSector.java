@@ -39,6 +39,7 @@ package jpsxdec.cdreaders;
 
 import jpsxdec.util.ByteArrayFPIS;
 
+/** Represents a single sector on a CD. */
 public abstract class  CdSector {
 
     protected final int _iSectorIndex;
@@ -127,6 +128,7 @@ public abstract class  CdSector {
     }
 
     /**
+     * Returns the File value in a raw sector sub-header.
      * @throws UnsupportedOperationException when the sector doesn't have a header.
      */
     public int getFile() {

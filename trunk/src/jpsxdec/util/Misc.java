@@ -65,6 +65,7 @@ public final class Misc {
         return as;
     }
 
+    /** Returns an array of all matches of all groups. */
     public static String[] regexAll(Pattern regex, String s) {
         Matcher m = regex.matcher(s);
         ArrayList<String> matches = new ArrayList<String>();

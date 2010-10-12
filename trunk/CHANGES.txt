@@ -1,3 +1,24 @@
+v0.94.0 rev1671 (12 Oct 2010) [dev release]
+    - Changed command-line arguments to be simpler for me to handle (see manual for details).
+    - Can now automatically use the source file listed in the index file,
+      so no need to explicitly specify the source file in the command-line
+      after index is generated.
+    - Added unique identifier to media items that better indicates how items relate to each other
+    - Added -vf avi:jyuv for full range [0-255] pc.601 yuv video writing
+    - Added -i # -frameinfodump command for detailed frame info (video items only)
+    - Audio and Video indexing logic may be slightly degraded in this version
+    - Reports when index file lines are unrecognized
+    Internals:
+    - MAJOR package rearrangement and cleaning made the code design much simpler
+    - Lots of comments added/cleaned/fixed
+    Known Problems:
+    - Manual is pretty sloppy
+    - Player doesn't release all resources properly until program exits
+    - Player will automatically play very short videos without waiting
+    - Audio + Video player on Linux might be choppy
+    - Prints way too many errors when encountering CD audio track and disc errors
+    - Not all command-line options have been well tested
+    - 'psx' video decoder quality does not quite match actual hardware output
 v0.93.1 rev1617 (6 Sept 2010)
     - Fixed 'high+' quality output
 v0.93.0 rev1616 (4 Sept 2010)

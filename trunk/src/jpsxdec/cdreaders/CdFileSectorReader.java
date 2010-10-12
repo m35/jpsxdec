@@ -42,20 +42,20 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.logging.Logger;
-import jpsxdec.modules.xa.SectorXA;
+import java.util.regex.Pattern;
+import jpsxdec.sectors.SectorXA;
 import jpsxdec.util.IO;
 import jpsxdec.util.IOException6;
+import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
-/** Reads a CD image (BIN/CUE, ISO), or a file containing some sectors of a CD 
- *  as a CD. This class tries to guess what type of file it is. */
-/** Encapsulates the reading of a CD.
- *  The term "CD" could mean an actual CD, a CD image
- *  (BIN/CUE, ISO), or a file containing some (possibly raw) sectors of a CD.
- *  The resulting data is mostly the same. */
-public class CDFileSectorReader {
+/** Encapsulates the reading of a CD image (BIN/CUE, ISO), 
+ * or a file containing some (possibly raw) sectors of a CD.
+ * The resulting data is mostly the same.
+ * This class tries to guess what type of file it is. */
+public class CdFileSectorReader {
 
-    private static final Logger log = Logger.getLogger(CDFileSectorReader.class.getName());
+    private static final Logger log = Logger.getLogger(CdFileSectorReader.class.getName());
 
     /** Normal sector data size: 2048. */
     public final static int SECTOR_SIZE_2048_ISO         = 2048;
@@ -79,7 +79,9 @@ public class CDFileSectorReader {
 
     private final RandomAccessFile _inputFile;
     private final File _sourceFile;
+    /** Creates sectors from the data based on the type of disc image it is. */
     private final SectorCreator _sectorCreator;
+    /** Number of full sectors in the disc image. */
     private final int _iSectorCount;
 
     private int _iTolerance;
@@ -93,16 +95,16 @@ public class CDFileSectorReader {
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public CDFileSectorReader(String sFile) throws IOException {
-        this(new File(sFile), false, 1, 16);
+    public CdFileSectorReader(File inputFile) throws IOException {
+        this(inputFile, false, 1, 16);
     }
 
-    public CDFileSectorReader(String inputFile, boolean b) throws IOException {
-        this(new File(inputFile), b, 1, 16);
+    public CdFileSectorReader(File inputFile, boolean b) throws IOException {
+        this(inputFile, b, 1, 16);
     }
 
     /** Opens a CD file for reading. Tries to guess the CD size. */
-    public CDFileSectorReader(File sourceFile, 
+    public CdFileSectorReader(File sourceFile,
             boolean blnAllowWrites,
             int iTolerance, int iSectorsToBuffer)
             throws IOException
@@ -113,10 +115,7 @@ public class CDFileSectorReader {
         _sourceFile = sourceFile;
         _iSectorsToBuffer = iSectorsToBuffer;
 
-        if (blnAllowWrites)
-            _inputFile = new RandomAccessFile(sourceFile, "rw");
-        else
-            _inputFile = new RandomAccessFile(sourceFile, "r");
+        _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
 
         SectorCreator creator;
 
@@ -136,14 +135,13 @@ public class CDFileSectorReader {
         
         _sectorCreator = creator;
 
-        _iSectorCount = (int)((_inputFile.length() - _sectorCreator.get1stSectorOffset())
-                                / _sectorCreator.getRawSectorSize());
+        _iSectorCount = calculateSectorCount();
     }
 
     /** Opens a CD file for reading using the provided sector size. 
      * If the disc image doesn't match the sector size, IOException is thrown.
      */
-    public CDFileSectorReader(File sourceFile,
+    public CdFileSectorReader(File sourceFile,
             int iSectorSize, boolean blnAllowWrites,
             int iTolerance, int iSectorsToBuffer)
             throws IOException
@@ -154,10 +152,7 @@ public class CDFileSectorReader {
         _sourceFile = sourceFile;
         _iSectorsToBuffer = iSectorsToBuffer;
 
-        if (blnAllowWrites)
-            _inputFile = new RandomAccessFile(sourceFile, "rw");
-        else
-            _inputFile = new RandomAccessFile(sourceFile, "r");
+        _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
 
         try {
             switch (iSectorSize) {
@@ -174,14 +169,84 @@ public class CDFileSectorReader {
                     _sectorCreator = new Cd2352or2448(_inputFile, false /*2352*/, true /*2448*/);
                     break;
                 default:
-                    throw new IllegalArgumentException("Invali sector size to open disc image as " + iSectorSize);
+                    throw new IllegalArgumentException("Invalid sector size to open disc image as " + iSectorSize);
             }
         } catch (NotThisTypeException ex) {
             throw new IOException6(ex);
         }
 
-        _iSectorCount = (int)((_inputFile.length() - _sectorCreator.get1stSectorOffset())
-                                / _sectorCreator.getRawSectorSize());
+        _iSectorCount = calculateSectorCount();
+    }
+
+    public CdFileSectorReader(String sSerialization, boolean blnAllowWrites)
+            throws IOException, NotThisTypeException
+    {
+        this(sSerialization, blnAllowWrites, 1, 16);
+    }
+
+    public CdFileSectorReader(String sSerialization, boolean blnAllowWrites,
+                              int iTolerance, int iSectorsToBuffer)
+                              throws IOException, NotThisTypeException
+    {
+        String[] asValues = Misc.regex(Pattern.compile("Filename:([^|]+)\\|Sector size:(\\d+)\\|Sector count:(\\d+)\\|First sector offset:(\\d+)"), sSerialization);
+        if (asValues == null || asValues.length != 5)
+            throw new NotThisTypeException("Failed to deserialize CD string: " + sSerialization);
+
+        try {
+            _iSectorCount = Integer.parseInt(asValues[3]);
+            long lngStartOffset = Long.parseLong(asValues[4]);
+            int iSectorSize = Integer.parseInt(asValues[2]);
+
+            switch (iSectorSize) {
+                case SECTOR_SIZE_2048_ISO:
+                    _sectorCreator = new Cd2048(lngStartOffset);
+                    break;
+                case SECTOR_SIZE_2336_BIN_NOSYNC:
+                    _sectorCreator = new Cd2336(lngStartOffset);
+                    break;
+                case SECTOR_SIZE_2352_BIN:
+                    _sectorCreator = new Cd2352or2448(true, lngStartOffset);
+                    break;
+                case SECTOR_SIZE_2448_BIN_SUBCHANNEL:
+                    _sectorCreator = new Cd2352or2448(false, lngStartOffset);
+                    break;
+                default:
+                    throw new NotThisTypeException();
+            }
+        } catch (NumberFormatException ex) {
+            throw new NotThisTypeException();
+        }
+
+        _sourceFile = new File(asValues[1]);
+
+        _inputFile = new RandomAccessFile(_sourceFile, blnAllowWrites ? "rw" : "r");
+
+        _iSectorsToBuffer = iSectorsToBuffer;
+        _iTolerance = iTolerance;
+
+        int iActualSectorCount = calculateSectorCount();
+        if (_iSectorCount != iActualSectorCount) {
+            _inputFile.close();
+            throw new NotThisTypeException(String.format(
+                    "Serialized sector count (%d) does not match actual (%d)",
+                    _iSectorCount, iActualSectorCount));
+        }
+
+    }
+
+    private int calculateSectorCount() throws IOException {
+        return (int)((_inputFile.length() - _sectorCreator.get1stSectorOffset())
+                      / _sectorCreator.getRawSectorSize());
+    }
+
+    public final static String SERIALIZATION_START = "Filename:";
+
+    public String serialize() {
+        return String.format(SERIALIZATION_START + "%s|Sector size:%d|Sector count:%d|First sector offset:%d",
+                _sourceFile.getPath(),
+                _sectorCreator.getRawSectorSize(),
+                _iSectorCount,
+                _sectorCreator.get1stSectorOffset());
     }
 
 
@@ -204,10 +269,6 @@ public class CDFileSectorReader {
         return _sourceFile;
     }
 
-    public String getSourceFileBaseName() {
-        return _sourceFile.getName();
-    }
-
     /** Returns the actual offset in bytes from the start of the file/CD 
      *  to the start of iSector. */
     public long getFilePointer(int iSector) {
@@ -215,7 +276,7 @@ public class CDFileSectorReader {
     }
 
     /** Returns the number of sectors in the file/CD */
-    public int size() { // TODO: rename to getLength()
+    public int getLength() {
         return _iSectorCount;
     }
 
@@ -276,14 +337,6 @@ public class CDFileSectorReader {
         return serialize();
     }
 
-    public String serialize() {
-        return String.format("Filename:%s|Sector size:%d|Sector count:%d|First sector offset:%d",
-                _sourceFile.getPath(),
-                _sectorCreator.getRawSectorSize(),
-                _iSectorCount,
-                _sectorCreator.get1stSectorOffset());
-    }
-
     /* ---------------------------------------------------------------------- */
     /* Sector Creator types ------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -297,6 +350,16 @@ public class CDFileSectorReader {
     }
 
     private static class Cd2048 implements SectorCreator {
+
+        final private long _lng1stSectorOffset;
+
+        public Cd2048() {
+            _lng1stSectorOffset = 0;
+        }
+
+        public Cd2048(long lngStartOffset) {
+            _lng1stSectorOffset = lngStartOffset;
+        }
 
         public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) {
             return new CdSector2048(abSectorBuff, iOffset, iSector, iTolerance);
@@ -312,7 +375,7 @@ public class CDFileSectorReader {
         }
 
         public long get1stSectorOffset() {
-            return 0;
+            return _lng1stSectorOffset;
         }
 
         public int getRawSectorSize() {
@@ -383,6 +446,9 @@ public class CDFileSectorReader {
             throw new NotThisTypeException();
         }
 
+        private Cd2336(long lngStartOffset) {
+            _lng1stSectorOffset = lngStartOffset;
+        }
 
         public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) throws NotThisTypeException {
             return new CdSector2336(abSectorBuff, iOffset, iSector, lngFilePointer, iTolerance);
@@ -451,6 +517,11 @@ public class CDFileSectorReader {
                     return false; // aw, too bad, back to the drawing board
             }
             return true;
+        }
+
+        private Cd2352or2448(boolean blnIs2352, long lngStartOffset) {
+            _bln2352 = blnIs2352;
+            _lng1stSectorOffset = lngStartOffset;
         }
 
         public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer, int iTolerance) throws NotThisTypeException {

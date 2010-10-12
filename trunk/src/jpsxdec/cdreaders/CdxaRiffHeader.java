@@ -41,7 +41,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import jpsxdec.util.IO;
 
-
+/** When a portion of raw BIN/CUE disc image data is stored as a file,
+ *  it is often found wrapped in a RIFF container. Use this to write such a
+ *  header prior to writing the raw BIN/CUE data. */
 public class CdxaRiffHeader {
 
     public static final int SIZEOF = 44;
@@ -52,9 +54,11 @@ public class CdxaRiffHeader {
     private static final byte[] data = {'d','a','t', 'a'};
     private static final byte[] EMPTY_fmt = new byte[16];
 
+    /** @param lngFileSize Size of the raw image data, excluding the RIFF header
+     *                     (must be a multiple of 2352). */
     public static void write(OutputStream os, long lngFileSize) throws IOException {
         if (lngFileSize % 2352 != 0)
-            throw new IllegalArgumentException(lngFileSize + "is not a multiple of 2352");
+            throw new IllegalArgumentException(lngFileSize + " is not a multiple of 2352");
         os.write(RIFF);
         IO.writeInt32LE(os, lngFileSize + SIZEOF - 8);
         os.write(CDXA);

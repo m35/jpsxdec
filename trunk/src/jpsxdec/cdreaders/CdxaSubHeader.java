@@ -69,7 +69,7 @@ public class CdxaSubHeader {
     // Following the header are either [2324 bytes]
     // or [2048 bytes] of user data (depending on the mode/form).
     // Following that are [4 bytes] Error Detection Code (EDC)
-    // or just 0x0000.
+    // or just 0x00000000.
     // If the user data was 2048, then final [276 bytes] are error correction
 
     private abstract static class PickBest {

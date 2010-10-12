@@ -77,8 +77,8 @@ public class Rec601YCbCrImage {
     private byte[] _abCr;
     
     /** Creates a new instance of Rec601YCbCrImage
-     * @param iSrcWidth - Width of image (in Luminance values)
-     * @param iSrcHeight - Height of image (in Luminance values) */
+     * @param iWidth - Width of image (in Luminance values)
+     * @param iHeight - Height of image (in Luminance values) */
     public Rec601YCbCrImage(int iWidth, int iHeight) {
         if (iWidth < 2 || iHeight < 2 ||
                (iWidth % 2) != 0 ||
@@ -159,19 +159,18 @@ public class Rec601YCbCrImage {
         _abCb[iChromX + iChromY * _iChromWidth] = bCb;
     }
     /** Sets chrominance red value.
-     * @param iChromX  X chrom pixel (1/2 lumin width)
-     * @param iChromY  Y chrom pixel (1/2 lumin width)
+     * @param iChromX  X chroma pixel (1/2 luma width)
+     * @param iChromY  Y chroma pixel (1/2 luma width)
      * @param bCr    New value.
      */
     public void setCr(int iChromX, int iChromY, byte bCr) {
         _abCr[iChromX + iChromY * _iChromWidth] = bCr;
     }
 
-    /** Set a block of luminance values 
-     * @param iDestX  Top left corner where block starts (in Luminance pixels)
-     * @param iDestY  Top left corner where block starts (in Luminance pixels)
-     * @param iSrcWidth   Width of block (in Luminance pixels)
-     * @param iSrcHeight  Height of block (in Luminance pixels)
+    /** Set a block of luma values
+     * @param iDestX  Top left corner where block starts (in Luma pixels)
+     * @param iDestY  Top left corner where block starts (in Luma pixels)
+     * @param iSrcWidth   Width of block (in Luma pixels)
      * @param abY  Array of block values with the color space -128 to +127.*/
     public void setY(int iDestX, int iDestY,
                      int iSrcOfs, int iSrcWidth,

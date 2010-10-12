@@ -1,30 +1,46 @@
 Usage:
 
 java -jar jpsxdec.jar { -? | -h | -help}
-  Displays this help
+  Display this help
 
-java -jar jpsxdec.jar <in_file> <main_command_and_options>
-  Do something with <in_file> using one of these <main_command_and_options>:
+java -jar jpsxdec.jar -f <in_file> -x <index_file>
+  Build an index of <in_file> and save it as <index_file>
 
-    -index/-idx/-i <index_file>
-      Create an index for in_file
+java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
+  Main commands that require an index file.
+  Use an existing <index_file> (optionally overriding the <in_file> listed in it)
+  or generate an index on the fly for <in_file> (optionally saving it as <index_file>)
+  and perform one of the following <main_command_and_options>
 
-    -index/-idx/-i <index_file> -?/-h/-help #
-      Display help about the disc item #
+    -i/-item # <item_command_and_options>
+    -a/-all <video, audio, file> <item_command_and_options>
+      Perform <item_command_and_options> on one index item,
+      or all index items of a type
 
-    [-index/-idx/-i <index_file>] -decode/-d # [processing_options]
-      Decode disc item #, using optional <index_file>
-      and optional [processing_options] (see item's help for options)
+        If no other command is specified:
+          Saves (after possibly converting) index item #
+          using optional processing options (see item's help for options)
 
-    [-index/-idx/-i <index_file>] -a <type> [processing_options]
-      Decode all disc items of type <type> using optional <index_file>
-      and [processing_options]
+        -?/-h/-help
+          Display help about the index item
 
-    [-index/-idx/-i <index_file>] -play #
-      Show real-time player for disc item #
+        (for audio/video)
+        -play
+          Show real-time player for index item
 
-    -copysect { # | #-# } <out_file>
-      Copy sectors to <out_file>
+        (see manual or item's help for full list of possible commands)
+
+    -visualize <pdf_out_file>
+      Display the layout of sectors and index items {disabled}
+
+java -jar -f <in_file> <main_command_and_options>
+  Main commands that only require only an input file
+
+    -static <type>
+      Process special static file types {disabled}
+
+    -copysect { # | #-# }
+      Copy sectors to a another file.
 
     -sectordump <out_file>
       Write list of sector types to <out_file> (for debugging)
@@ -33,4 +49,3 @@ java -jar jpsxdec.jar <in_file> <main_command_and_options>
     -v/-verbose #
     How much info to print: 0 for none, 1 for only errors,
                             2 for normal, 3 for extra
-

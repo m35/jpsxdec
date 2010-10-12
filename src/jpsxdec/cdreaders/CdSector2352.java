@@ -42,7 +42,8 @@ import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.NotThisTypeException;
 
 
-/** Represents a single sector on a CD. */
+/** 2352 sectors are the size found in BIN/CUE disc images and include the
+ *  full raw header with {@link CdxaHeader} and {@link CdxaSubHeader}. */
 public class CdSector2352 extends CdSector {
 
     private static final Logger log = Logger.getLogger(CdSector2352.class.getName());
@@ -64,9 +65,9 @@ public class CdSector2352 extends CdSector {
         _subHeader = new CdxaSubHeader(iSectorIndex, abSectorBytes, _iByteStartOffset + CdxaHeader.SIZE, iTolerance);
         _iUserDataOffset = _iByteStartOffset + _header.getSize() + _subHeader.getSize();
         if (_subHeader.getSubMode().getForm() == 1)
-            _iUserDataSize = CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
+            _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
         else
-            _iUserDataSize = CDFileSectorReader.SECTOR_USER_DATA_SIZE_MODE2;
+            _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE2;
     }
 
     /** Returns the size of the 'user data' portion of the sector. */
@@ -100,7 +101,7 @@ public class CdSector2352 extends CdSector {
 
     @Override
     public byte[] getRawSectorDataCopy() {
-        byte[] ab = new byte[CDFileSectorReader.SECTOR_SIZE_2352_BIN];
+        byte[] ab = new byte[CdFileSectorReader.SECTOR_SIZE_2352_BIN];
         System.arraycopy(_abSectorBytes, _iByteStartOffset, ab, 0, ab.length);
         return ab;
     }

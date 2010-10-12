@@ -132,12 +132,6 @@ All other numeric values are decimal unless there is a note about it being binar
 
 
 ################################################################################
-## Overview for the 
-################################################################################
-
-The PlayStation STR format can actually store quality equivelent to MPEG-2 format, due to all DCT coefficients having up to 10-bits of resolution. However the compression is far simpiler and doesn't take advantage of temporal redundancy (i.e. it is like MJPG with only intra "I frames", and no P and B frames). So even though it could store high quality, the size becomes the primary bottleneck.
-
-################################################################################
 ## 1. The disc
 ################################################################################
 
@@ -393,12 +387,12 @@ If the frame dimensions are not divisible by 16, you must round up the width and
 
 Each 'macro block' consists of 6 'blocks' (in this order!):
 Macro-block:
-  - Chrominance Red (Cr) block
-  - Chrominance Blue (Cb) block
-  - Top-Left Luminance (Y1) block
-  - Top-Right Luminance (Y2) block
-  - Bottom-Left Luminance (Y3) block
-  - Bottom-Right Luminance (Y4) block
+  - Chroma Red (Cr) block
+  - Chroma Blue (Cb) block
+  - Top-Left Luma (Y1) block
+  - Top-Right Luma (Y2) block
+  - Bottom-Left Luma (Y3) block
+  - Bottom-Right Luma (Y4) block
 
 Yes, as the MAME developer "smf" has clarified so well, Cr comes before Cb, contrary to what you may find in some other documentation and source code.
 
@@ -424,9 +418,9 @@ For version 2 frames, the DC Coefficient of all 6 blocks are encoded the same:
 
 	10-bits, signed.
 	
-Very simple. This is better quality than MPEG-1 because it provides 10-bits of DC precision.
+Very simple. This is better quality than MPEG-1 because it provides 10-bits of DC precision while MPEG-1 only can handle 8 bits.
 
-For version 3 frames, each Chrominance Red (Cr) DC Coefficient is relative to the previous Cr DC Coefficient, and each Chrominance Blue (Cb) DC Coefficient is relative to the previous Cb DC Coefficient. They are also encoded using a tricky arrangement of binary "variable length codes" (also known as "Huffman codes").
+For version 3 frames, each Chroma Red (Cr) DC Coefficient is relative to the previous Cr DC Coefficient, and each Chroma Blue (Cb) DC Coefficient is relative to the previous Cb DC Coefficient. They are also encoded using a tricky arrangement of binary "variable length codes" (also known as "Huffman codes").
 
      Binary          Number of bits
     Variable         used to store          Negative          Positive
@@ -493,7 +487,7 @@ After the variable length code, there is the corresponding number of bits for th
 
  ------------------------------------------------------------------------------
 
-The DC Coefficient for the Luminance blocks (Y1, Y2, Y3, Y4) are all stored relative to the previous Luminance block (e.g. Y2 value is stored relative to Y1, etc.). They use a similar arrangement of variable length codes.
+The DC Coefficient for the Luma blocks (Y1, Y2, Y3, Y4) are all stored relative to the previous Luma block (e.g. Y2 value is stored relative to Y1, etc.). They use a similar arrangement of variable length codes.
 
      Binary          Number of bits
     Variable         used to store          Negative          Positive
@@ -509,7 +503,7 @@ The DC Coefficient for the Luminance blocks (Y1, Y2, Y3, Y4) are all stored rela
     100                    0                    0                0
 
 
-The pseudocode for decoding will be similar to the Chrominance DC.
+The pseudocode for decoding will be similar to the Chroma DC.
 
 ################################################################################
 ## 2.2.2. Read all AC Coefficients
@@ -517,7 +511,7 @@ The pseudocode for decoding will be similar to the Chrominance DC.
 
 The AC Coefficients are stored the same for both version 2 and 3 frames. They are each encoded using the standard MPEG1 AC Coefficient variable length codes.
 
-Here are all 111 variable length codes and their equivalent run of zeros and AC Coefficient. These decoded values are often referred to as "zero run-length codes".
+Here are all 111 variable length codes and their equivalent run of zeros and AC Coefficient. These compressed values are often referred to as "zero run-length codes".
 
           Binary            # of zero-value            Non-zero
    Variable length code     AC Coefficients      AC Coefficient value
@@ -756,6 +750,10 @@ Finally, the binary '01' END_OF_BLOCK is converted to the MDEC END_OF_DATA code 
 Now you have a long list of 16 bit values ready to be sent to the MDEC.
 Note that since the MDEC reads data as little-endian, if these 16 bit values are stored as a stream, they should be done so as little-endian.
 
+[Side note about quality]
+
+The v2 bitstream can actually store quality equivelent to MPEG-2 format, due to all DCT coefficients having up to 10-bits of precision. Meanwhile, v3 bitstreams are just a little better quaity than MPEG-1 because the DC Coefficient only has 8-bits of precision. In both cases however the compression is far simpiler and doesn't take advantage of temporal redundancy (i.e. it is like MJPG with only intra "I frames", and no P and B frames). So even though it could store high quality, the size becomes the primary bottleneck.
+
 ################################################################################
 ## 2.3. MDEC emulation
 ################################################################################
@@ -766,7 +764,7 @@ It takes 6 steps to decode a macro-block to an RGB 16x16 pixel square.
 
 For each block (Cr, Cb, Y1, Y2, Y3, Y4):
    1) Expand the 16-bit MDEC codes into a 64 value list.
-   2) Wind the list into an 8x8 matrix of values using the normal MPEG/JPEG zig-zag order.
+   2) Wind the list into an 8x8 matrix of values using the normal MPEG1/JPEG zig-zag order.
    3) De-quantize the values using the PSX specific quantization table and the macro-block's quantization scale.
    4) Perform the complicated inverse discrete cosine transform on the 8x8 matrix
 5) Once that has been done for all 6 blocks, then merge the Cr and Cb values together with the Y1, Y2, Y3, Y4 values.
@@ -1023,7 +1021,7 @@ The MDEC chip optimizes the math by using fixed point integer arithmetic. All th
 Now you have 6 block matrices of 8x8 values:
  Cr_block, Cb_block, Y1_block, Y2_block, Y3_block, and Y4_block
 
-The four Luminance blocks (Y1, Y2, Y3, Y4) are arranged in a square: top-left, top-right, bottom-left, bottom-right. Then there is one Cb pixel and one Cr pixel for every 2x2 square of Luminance values (this is standard 4:2:0 sampling method used in JPEG and MPEG1).
+The four Luma blocks (Y1, Y2, Y3, Y4) are arranged in a square: top-left, top-right, bottom-left, bottom-right. Then there is one Cb pixel and one Cr pixel for every 2x2 square of Luma values (this is standard 4:2:0 sampling method used in JPEG and MPEG1).
 
      +----+----+
      | Y1 | Y2 |  +----+   +----+
@@ -1056,9 +1054,9 @@ The four Luminance blocks (Y1, Y2, Y3, Y4) are arranged in a square: top-left, t
  ------------------------------------------------------------------------------
 
 The resulting PlayStation YCbCr "color space" is:
-    Y  (Luminance)      : -128 to +127
-    Cr (Crominance Red) : -128 to +127
-    Cb (Crominance Blue): -128 to +127
+    Y  (Luma)      : -128 to +127
+    Cr (Chroma Red) : -128 to +127
+    Cb (Chroma Blue): -128 to +127
 
 ################################################################################
 ## 2.3.6. Convert the (Y, Cb, Cr) pixels into RGB pixels
@@ -1576,8 +1574,8 @@ Offset   Size   Endian --------------------------------------------------------
                            frame chunks (so almost always 18144 or 20160)
  16 . . . 2 . . little . Width of frame in pixels
  18 . . . 2 . . little . Height of frame in pixels
- 20 . . . 1 . .  n/a . . quantization scale for luminance blocks (one movie has 0)
- 21 . . . 1 . .  n/a . . quantization scale for chrominance blocks (one movie has 0)
+ 20 . . . 1 . .  n/a . . quantization scale for luma blocks (one movie has 0)
+ 21 . . . 1 . .  n/a . . quantization scale for chroma blocks (one movie has 0)
  22 . . . 2 . . little . Almost always 0x3800. One movie has 0x0000,
                          and the last movie has the frame number (again)
  24 . . . 2 . . little . Number of run length codes in the frame
@@ -1588,8 +1586,8 @@ Offset   Size   Endian --------------------------------------------------------
 :: S.E. Lain Frame Data Header ::
 
 Offset   Size   Endian ---------------------------------------------------
-  0 . . . 1 . .  n/a . . quantization scale for luminance blocks
-  1 . . . 1 . .  n/a . . quantization scale for chrominance blocks
+  0 . . . 1 . .  n/a . . quantization scale for luma blocks
+  1 . . . 1 . .  n/a . . quantization scale for chroma blocks
   2 . . . 2 . . little . All but the last movie: always 0x3800
                          The last movie: frame number (again)
   4 . . . 2 . . little . Number of run length codes in the frame

@@ -50,7 +50,8 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
 
 /**
  * Creates AVI files with audio and video without the need for JMF.
- * Subclasses should take care of codec handling.
+ * Subclasses should take care of codec handling. Note that this cannot
+ * create AVI files larger than 4GB.
  * <p> 
  * This code is originally based on (but now hardly resembles) the 
  * <a href="http://rsb.info.nih.gov/ij">ImageJ</a> program.
@@ -121,9 +122,12 @@ public abstract class AviWriter {
     public AudioFormat getAudioFormat() {
         return _audioFormat;
     }
+
+    /** Numerator of the frames/second fraction. */
     public long getFramesPerSecNum() {
         return _lngFpsNumerator;
     }
+    /** Denominator of the frames/second fraction. */
     public long getFramesperSecDenom() {
         return _lngFpsDenominator;
     }
@@ -134,15 +138,18 @@ public abstract class AviWriter {
         return _iHeight;
     }
 
+    /** Number of frames written. */
     public long getVideoFramesWritten() {
         return _lngFrameCount;
     }
 
+    /** Number of audio samples written. */
     public long getAudioSamplesWritten() {
         return _lngSampleCount;
     }
 
-    /** Returns approximately how many samples per frame (may be a fraction off) */
+    /** Returns approximately how many audio samples play during each frame
+     * (may be a fraction off). */
     public int getAudioSamplesPerFrame() {
         if (_audioFormat == null)
             return 0;
@@ -165,6 +172,7 @@ public abstract class AviWriter {
     private                 AVISTREAMHEADER _strh_vid;
     private                 BITMAPINFOHEADER _bif;
                         //strf_vid
+    private             Chunk _strn_vid;
                     //LIST_strl_vid
     private         Chunk _LIST_strl_aud;
     private             Chunk _strf_aud;
@@ -258,6 +266,10 @@ public abstract class AviWriter {
 
                     _strf_vid.endChunk(_aviFile);
                     
+                    _strn_vid = new Chunk(_aviFile, "strn");
+                    _aviFile.writeBytes("jPSXdec AVI    \0");
+                    _strn_vid.endChunk(_aviFile);
+                    
                 _LIST_strl_vid.endChunk(_aviFile);
                 
                 if (_audioFormat != null) { // if there is audio
@@ -290,6 +302,9 @@ public abstract class AviWriter {
     // -- Writing functions ----------------------------------------------------
     // -------------------------------------------------------------------------
 
+    /** Uses a special feature of AVI to duplicate a frame by referencing
+     * it twice. This adds almost no extra size to the file.
+     * @throws IllegalStateException If no frames have been written yet. */
     public void repeatPreviousFrame() {
         if (_lngFrameCount < 1)
             throw new IllegalStateException("Unable to repeat a previous frame that doesn't exist.");
@@ -311,6 +326,7 @@ public abstract class AviWriter {
         _lngFrameCount++;
     }
 
+    /** Audio format must be signed 16-bit PCM in little-endian order. */
     public void writeAudio(AudioInputStream audStream) throws IOException {
         if (_aviFile == null) throw new IOException("Avi file is closed");
         if (_audioFormat == null)
@@ -409,6 +425,7 @@ public abstract class AviWriter {
         }, _audioFormat, lngSampleCount));
     }
 
+    /** Subclasses will use this method to write each frame's data. */
     protected void writeFrameChunk(byte[] abData, int iOfs, int iLen) throws IOException {
         if (_aviFile == null) throw new IOException("Avi file is closed");
 
@@ -439,8 +456,10 @@ public abstract class AviWriter {
         _indexList.add(idxentry);
     }
 
+    /** Subclasses should implement writing of a simple blank frame. */
     abstract public void writeBlankFrame() throws IOException;
 
+    /** Helper function to pad zeros to ensure each chunk ends at 32-bit boundaries. */
     private void padTo4ByteBoundary(int iBytesWritten) throws IOException {
         int remaint = (4 - (iBytesWritten % 4)) % 4;
         while (remaint > 0) { _aviFile.write(0); remaint--; }
@@ -628,6 +647,7 @@ public abstract class AviWriter {
                     _strf_vid = null;
                         _strh_vid = null;
                         _bif = null;
+                    _strn_vid = null;
                 _LIST_strl_aud = null;
                     _strf_aud = null;
                         _strh_aud = null;

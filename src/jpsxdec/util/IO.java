@@ -300,6 +300,24 @@ public final class IO {
         }
         return ab;
     }
+
+    /** Because the read(byte[]) method won't always return the entire
+     *  array for various reasons I don't really care about. */
+    public static void readByteArray(InputStream is, byte[] ab) throws IOException {
+        readByteArray(is, ab, ab.length);
+    }
+
+    /** Because the read(byte[]) method won't always return the entire
+     *  array for various reasons I don't really care about. */
+    public static void readByteArray(InputStream is, byte[] ab, int iBytes) throws IOException {
+        int pos = is.read(ab);
+        if (pos < 0) throw new EOFException();
+        while (pos < iBytes) {
+            int i = is.read(ab, pos, iBytes - pos);
+            if (i < 0) throw new EOFException();
+            pos += i;
+        }
+    }
     
     /** Because the read(byte[]) method won't always return the entire
      *  array for various reasons I don't really care about. */

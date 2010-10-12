@@ -125,7 +125,7 @@ public class AviWriterDIB extends AviWriter {
         writeFrameChunk(_abWriteBuffer, 0, _iFrameByteSize);
     }
 
-    /** @param abData  RGB image data stored at RGB in the lower bytes of an int. */
+    /** @param aiData  RGB image data stored at RGB in the lower bytes of an int. */
     public void writeFrameRGB(int[] aiData, int iStart, int iLineStride) throws IOException {
         final int WIDTH = getWidth(), HEIGHT = getHeight();
 

@@ -131,7 +131,7 @@ public class TabularFeedback {
         return this;
     }
 
-    public void write(PrintStream fbs) {
+    public void write(PrintStream ps) {
         int[] aiRowHeights = new int[_rows.size()];
         int iColCount = 0;
         for (int i = 0; i < _rows.size(); i++) {
@@ -164,16 +164,16 @@ public class TabularFeedback {
                     ArrayList<StringBuilder> cell = row.get(j);
                     if (iLine < cell.size()) {
                         String sLine = cell.get(iLine).toString();
-                        fbs.print(sLine);
-                        fbs.print(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
+                        ps.print(sLine);
+                        ps.print(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
                     } else {
-                        fbs.print(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
+                        ps.print(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
                     }
                 }
-                fbs.println();
+                ps.println();
             }
             for (int j = 0; j < _iRowSpacing; j++)
-                fbs.println();
+                ps.println();
         }
     }
 

@@ -39,6 +39,7 @@ package jpsxdec.cdreaders;
 
 import java.io.IOException;
 
+/** Something bad happened when reading a sector. */
 public class SectorReadErrorException extends IOException {
 
     public SectorReadErrorException(String message) {

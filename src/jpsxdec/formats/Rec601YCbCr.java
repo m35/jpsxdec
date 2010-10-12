@@ -37,8 +37,8 @@
 
 package jpsxdec.formats;
 
-/** Holds a standard Rec.601 color space YCbCr color.
- * Four liminance samples, and one chrominance sub-sample are stored
+/** Holds a standard Rec.601 color space YCbCr color with 4:2:0 subsampling.
+ * Four luma samples, and one chroma sub-sample are stored
  * as doubles in the standard range of
  *<pre>
  * Y : 16 to 235

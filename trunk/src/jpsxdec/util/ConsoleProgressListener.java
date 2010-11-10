@@ -37,7 +37,7 @@
 
 package jpsxdec.util;
 
-public class ConsoleProgressListener extends ProgressListener {
+public class ConsoleProgressListener implements ProgressListener {
 
     private static final int BAR_WIDTH = 30;
 
@@ -53,7 +53,6 @@ public class ConsoleProgressListener extends ProgressListener {
         _fbs = fbs;
     }
 
-    @Override
     public void error(String sDescription) {
         if (_blnNewLine) {
             _fbs.println();
@@ -62,31 +61,26 @@ public class ConsoleProgressListener extends ProgressListener {
         _fbs.printlnErr(sDescription);
     }
 
-    @Override
     public void event(String sDescription) {
         _sLastEvent = sDescription;
     }
 
-    @Override
     public void info(String s) {
         _fbs.println(s);
     }
 
 
-    @Override
     public void progressEnd() {
         _fbs.println(buildProgress(1));
         _dblNextProgressMark = 0;
     }
 
-    @Override
     public void progressStart(String s) {
         if (s != null)
             _fbs.println(s);
         _dblNextProgressMark = 0;
     }
 
-    @Override
     public void progressUpdate(double dblPercentComplete) {
 
         if (dblPercentComplete < _dblNextProgressMark) {
@@ -123,7 +117,6 @@ public class ConsoleProgressListener extends ProgressListener {
         return strBuild.toString();
     }
 
-    @Override
     public void warning(String sDescription) {
         if (_blnNewLine) {
             _fbs.println();
@@ -139,5 +132,21 @@ public class ConsoleProgressListener extends ProgressListener {
         }
         _fbs.printlnMore(s);
     }
+
+
+    public void progressStart() { progressStart(null); }
+
+
+    public boolean seekingEvent() { return true; }
+
+    public void warning(String sMessage, Throwable cause) {
+        warning(sMessage + " " + cause.getMessage());
+    }
+    public void warning(Throwable ex) { warning(ex.getMessage()); }
+
+    public void error(String sMessage, Throwable ex) {
+        error(sMessage + " " + ex.getMessage());
+    }
+    public void error(Throwable ex) { error(ex.getMessage()); }
 
 }

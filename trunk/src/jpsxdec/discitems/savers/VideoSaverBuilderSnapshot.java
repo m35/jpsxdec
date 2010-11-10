@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems.savers;
 
+import java.io.File;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.ISectorAudioDecoder;
@@ -59,28 +60,28 @@ public class VideoSaverBuilderSnapshot {
     public final DiscItemAudioStream parallelAudio;
     public final boolean preciseAvSync;
     public final MdecDecoder videoDecoder;
-    public final String baseName;
+    public final File baseName;
     public final ISectorAudioDecoder audioDecoder;
 
-    VideoSaverBuilderSnapshot(DiscItemVideoStream vidItem, String suggestedBaseName, 
+    VideoSaverBuilderSnapshot(DiscItemVideoStream vidItem, File name,
                               MdecDecoder vidDecoder, ISectorAudioDecoder audDecoder,
-                              VideoSaverBuilder aThis)
+                              VideoSaverBuilder builder)
     {
         videoItem = vidItem;
-        baseName = suggestedBaseName;
+        baseName = name;
         audioDecoder = audDecoder;
         videoDecoder = vidDecoder;
-        singleSpeed = aThis.getSingleSpeed();
-        videoFormat = aThis.getVideoFormat();
-        saveStartFrame = aThis.getSaveStartFrame();
-        saveEndFrame = aThis.getSaveEndFrame();
-        crop = aThis.getCrop();
-        preciseFrameTiming = aThis.getPreciseFrameTiming();
-        decodeQuality = aThis.getDecodeQuality();
-        jpgCompression = aThis.getJpgCompression();
-        saveAudio = aThis.getSaveAudio();
-        parallelAudio = aThis.getParallelAudio();
-        preciseAvSync = aThis.getPreciseAVSync();
+        singleSpeed = builder.getSingleSpeed();
+        videoFormat = builder.getVideoFormat();
+        saveStartFrame = builder.getSaveStartFrame();
+        saveEndFrame = builder.getSaveEndFrame();
+        crop = builder.getCrop();
+        preciseFrameTiming = builder.getPreciseFrameTiming();
+        decodeQuality = builder.getDecodeQuality();
+        jpgCompression = builder.getJpgCompression();
+        saveAudio = builder.getSaveAudio();
+        parallelAudio = builder.getParallelAudio();
+        preciseAvSync = builder.getPreciseAVSync();
     }
 
 }

@@ -70,6 +70,8 @@ import jpsxdec.sectors.IdentifiedSectorRangeIterator;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.sectors.UnidentifiedSector;
+import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
 import jpsxdec.util.ConsoleProgressListener;
 import jpsxdec.util.FeedbackStream;
@@ -84,19 +86,11 @@ public class Main {
 
     private static FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
 
-    public final static String Version = "0.94.0 (alpha)";
+    public final static String Version = "0.95.0 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial), v" + Version;
 
-    public static void main(String[] asArgs) {
-
-        if (asArgs.length < 1) {
-            Feedback.println(VerStringNonCommercial);
-            System.out.println("Need at least one argument.");
-            System.out.println("Try -? for help.");
-            System.exit(1);
-        }
-
+    public static void loadDefaultLogger() {
         try { // load the logger configuration
             InputStream is = Main.class.getResourceAsStream("LogToFile.properties");
             if (is != null)
@@ -104,8 +98,22 @@ public class Main {
         } catch (IOException ex) {
             log.log(Level.WARNING, null, ex);
         }
+    }
 
-        asArgs = checkVerbocity(asArgs, Feedback);
+    public static void main(String[] asArgs) {
+
+        loadDefaultLogger();
+
+        if (asArgs.length < 1) {
+            java.awt.EventQueue.invokeLater(new Runnable() {
+                public void run() {
+                    new Gui().setVisible(true);
+                }
+            });
+            return;
+        }
+
+        asArgs = checkVerbosity(asArgs, Feedback);
 
         Feedback.println(VerStringNonCommercial);
 
@@ -113,6 +121,7 @@ public class Main {
             new Command_CopySect(),
             new Command_SectorDump(),
             new Command_Static(),
+            new Command_Visualize(),
             new Command_Item(),
             new Command_All(),
         };
@@ -240,7 +249,12 @@ public class Main {
 
     private static DiscIndex buildIndex(CdFileSectorReader cd) {
         Feedback.println("Building index");
-        DiscIndex index = new DiscIndex(cd, new ConsoleProgressListener(Feedback));
+        DiscIndex index = null;
+        try {
+            index = new DiscIndex(cd, new ConsoleProgressListener(Feedback));
+        } catch (TaskCanceledException ex) {
+            log.severe("SHOULD NEVER HAPPEN");
+        }
         Feedback.println(index.size() + " items found.");
         return index;
     }
@@ -321,7 +335,7 @@ public class Main {
         }
     }
 
-    private static String[] checkVerbocity(String[] asArgs, FeedbackStream fbs) {
+    private static String[] checkVerbosity(String[] asArgs, FeedbackStream fbs) {
         ArgParser ap = new ArgParser("", false);
 
         StringHolder verbose = new StringHolder();
@@ -332,11 +346,11 @@ public class Main {
             try {
                 int iValue = Integer.parseInt(verbose.value);
                 if (iValue < FeedbackStream.NONE || iValue > FeedbackStream.MORE) {
-                    // error
+                    // TODO: error
                 }
                 fbs.setLevel(iValue);
             } catch (NumberFormatException ex) {
-                // error
+                // TODO: error
             }
         }
 
@@ -610,13 +624,10 @@ public class Main {
                 else
                     return null;
             } catch (NumberFormatException ex) {
-                return "Invalid item number: " + s;
-                /*
                 if (s.contains(" "))
                     return "Invalid item identifier: " + s;
                 _sItemId = s;
                 return null;
-                */
             }
         }
         public int getWhatsNeeded() {
@@ -626,10 +637,14 @@ public class Main {
             DiscIndex discIndex = getIndex();
 
             DiscItem item;
-            if (discIndex.hasIndex(_iItemNum)) {
-                item = discIndex.getByIndex(_iItemNum);
+            if (_sItemId != null) {
+                item = discIndex.getById(_sItemId);
+                if (item == null)
+                    throw new IllegalArgumentException("Could not find disc item " + _sItemId);
             } else {
-                throw new IllegalArgumentException("Could not find disc item " + _iItemNum);
+                item = discIndex.getByIndex(_iItemNum);
+                if (item == null)
+                    throw new IllegalArgumentException("Could not find disc item " + _iItemNum);
             }
 
             return handleItem(item, asRemainingArgs);
@@ -663,7 +678,14 @@ public class Main {
         startBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 startBtn.setEnabled(false);
-                controller.play();
+                try {
+                    controller.play();
+                } catch (Throwable ex) {
+                    Feedback.printlnErr(ex);
+                    synchronized( window ) {
+                        window.notifyAll();
+                    }
+                }
             }
         });
         window.add(startBtn, BorderLayout.SOUTH);
@@ -682,6 +704,8 @@ public class Main {
         synchronized (window) {
             window.wait();
         }
+
+        controller.stop();
 
     }
 
@@ -705,7 +729,7 @@ public class Main {
             boolean blnFound = false;
 
             for (DiscItem item : discIndex) {
-                if (item.getTypeId().equalsIgnoreCase(_sType)) {
+                if (item.getSerializationTypeId().equalsIgnoreCase(_sType)) {
                     blnFound = true;
                     int iRet = handleItem(item, asRemainingArgs);
                     if (iRet != 0)
@@ -739,6 +763,8 @@ public class Main {
         ap.addOption("-frameinfodump %v", frameInfoArg);
         StringHolder replaceArg = new StringHolder();
         ap.addOption("-replaceframes %s", replaceArg);
+        StringHolder directory = new StringHolder();
+        ap.addOption("-dir %s", directory);
 
         if (asRemainingArgs !=  null)
             asRemainingArgs = ap.matchAllArgs(asRemainingArgs, 0, 0);
@@ -784,8 +810,13 @@ public class Main {
                     ((DiscItemVideoStream)item).replaceFrames(Feedback, replaceArg.value);
                 }
             } else {
+                File dir;
+                if (directory.value != null)
+                    dir = new File(directory.value);
+                else
+                    dir = new File(".");
                 // decode/extract the desired disc item
-                decodeDiscItem(item, asRemainingArgs);
+                decodeDiscItem(item, dir, asRemainingArgs);
                 Feedback.println("Disc decoding/extracting complete.");
             }
 
@@ -798,7 +829,7 @@ public class Main {
         return 0;
     }
 
-    private static void decodeDiscItem(DiscItem item, String[] asRemainingArgs) throws IOException {
+    private static void decodeDiscItem(DiscItem item, File dir, String[] asRemainingArgs) throws IOException {
 
         DiscItemSaverBuilder saver = item.makeSaverBuilder();
 
@@ -810,7 +841,11 @@ public class Main {
 
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();
-        saver.makeSaver().startSave(new ConsoleProgressListener(Feedback));
+        try {
+            saver.makeSaver().startSave(new ConsoleProgressListener(Feedback), dir);
+        } catch (TaskCanceledException ex) {
+            log.severe("SHOULD NEVER HAPPEN");
+        }
         lngEnd = System.currentTimeMillis();
         Feedback.format("Time: %1.2f sec", (lngEnd - lngStart) / 1000.0);
         Feedback.println();
@@ -823,9 +858,12 @@ public class Main {
         public Command_Visualize() {
             super("-visualize");
         }
+
         protected String validate(String s) {
+            _sOutfile = s;
             return null;
         }
+        
         public int getWhatsNeeded() {
             return NEEDS_INDEX;
         }
@@ -870,7 +908,6 @@ public class Main {
 
             FileOutputStream pdfStream = new FileOutputStream(_sOutfile);
 
-            /*
             com.pdfjet.PDF pdf = new com.pdfjet.PDF(pdfStream);
             com.pdfjet.Font pdfFont = new com.pdfjet.Font(pdf, "Helvetica");
             pdfFont.setSize(6*SCALE);
@@ -882,9 +919,9 @@ public class Main {
                 }
             );
 
-            for (int iSector = 0; iSector < cd.size(); iSector++) {
+            for (int iSector = 0; iSector < cd.getLength(); iSector++) {
                 try {
-                    IdentifiedSector sector = JPSXModule.identifyModuleSector(cd.getSector(iSector));
+                    IdentifiedSector sector = IdentifiedSector.identifySector(cd.getSector(iSector));
 
                     Color c;
                     if (sector == null) {
@@ -902,7 +939,6 @@ public class Main {
                     ex.printStackTrace();
                 }
             }
-            */
 
             DiscItem[] aoRunningItems = new DiscItem[iMaxOverlap];
 
@@ -916,7 +952,6 @@ public class Main {
              * Also, disc items can begin and end at the same sector
              *
              */
-            /*
             for (int iDataPoint : aiDataPoints) {
 
                 // open
@@ -965,8 +1000,6 @@ public class Main {
             pdf.flush();
             pdfStream.close();
 
-             *
-             */
             return 0;
 
             } catch (Exception ex) {
@@ -1015,7 +1048,6 @@ public class Main {
     }
 
     private static int findMaxOverlap(int[] aiDataPoints, DiscIndex index) {
-        // TODO: optimize this
         int iMaxOverlap = 0;
         for (int iSector : aiDataPoints) {
             int iSectorOverlap = 0;

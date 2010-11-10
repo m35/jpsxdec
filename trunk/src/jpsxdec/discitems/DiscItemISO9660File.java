@@ -39,17 +39,35 @@ package jpsxdec.discitems;
 
 import argparser.ArgParser;
 import argparser.BooleanHolder;
+import com.jhlabs.awt.ParagraphLayout;
+import com.l2fprod.common.swing.JDirectoryChooser;
+import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.io.PrintStream;
-import javax.swing.JPanel;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.net.URI;
+import java.text.DecimalFormat;
 import java.util.logging.Logger;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
+import javax.swing.JTextField;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
+import jpsxdec.BetterFileChooser;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ProgressListener;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.TaskCanceledException;
 
 /** Represents an ISO9660 file on the disc. */
 public class DiscItemISO9660File extends DiscItem {
@@ -103,8 +121,14 @@ public class DiscItemISO9660File extends DiscItem {
     public DiscItemSerialization serialize() {
         DiscItemSerialization fields = super.superSerial(TYPE_ID);
         fields.addNumber("Size", _lngSize);
-        fields.addString("Path", _path.toString());
+        fields.addString("Path", forwardSlashPath(_path));
         return fields;
+
+    }
+
+    private static final URI CURRENT_URI = new File(".").toURI();
+    private static final String forwardSlashPath(File f) {
+        return CURRENT_URI.relativize(f.toURI()).toString();
     }
 
     public DiscItemISO9660File(DiscItemSerialization fields) throws NotThisTypeException {
@@ -117,31 +141,63 @@ public class DiscItemISO9660File extends DiscItem {
         return new ISO9660SaverBuilder();
     }
 
-    public String getTypeId() {
+    public String getSerializationTypeId() {
         return TYPE_ID;
+    }
+
+    @Override
+    public String getInterestingDescription() {
+        return DecimalFormat.getInstance().format(_lngSize) + " bytes";
     }
 
     private class ISO9660SaverBuilder extends DiscItemSaverBuilder {
 
+        public ISO9660SaverBuilder() {
+            resetToDefaults();
+        }
+
+        public void resetToDefaults() {
+            setSaveRaw(true);
+        }
+
+        @Override
+        public boolean copySettings(DiscItemSaverBuilder other) {
+            if (other instanceof ISO9660SaverBuilder) {
+                ISO9660SaverBuilder o = (ISO9660SaverBuilder) other;
+                o.setSaveRaw(getSaveRaw());
+                return true;
+            }
+            return false;
+        }
+
+        // ............................................
+
+        public String getFileName() {
+            return _path.getPath();
+        }
+
+        // ............................................
+
         private boolean __blnSaveRaw = true;
         public boolean getSaveRaw() {
-            return __blnSaveRaw;
+            return getSaveRaw_enabled() && __blnSaveRaw;
         }
         public void setSaveRaw(boolean blnSaveRaw) {
             __blnSaveRaw = blnSaveRaw;
             firePossibleChange();
         }
+        public boolean getSaveRaw_enabled() {
+            return getSourceCD().hasSectorHeader();
+        }
 
-        public JPanel getOptionPane() {
-            throw new UnsupportedOperationException("Not supported yet.");
+        // ............................................
+        
+        public DiscItemSaverBuilderGui getOptionPane() {
+            return new ISO9660FileSaverBuilderGui(this);
         }
 
         public IDiscItemSaver makeSaver() {
             return new ISO9660FileSaver(__blnSaveRaw);
-        }
-
-        public void resetToDefaults() {
-            setSaveRaw(true);
         }
 
         public String[] commandLineOptions(String[] asArgs, FeedbackStream infoStream) {
@@ -170,12 +226,77 @@ public class DiscItemISO9660File extends DiscItem {
         }
 
         public void printSelectedOptions(PrintStream ps) {
-            if (getSourceCD().hasSectorHeader() && !getSaveRaw())
+            if (getSaveRaw())
                 ps.println("Saving with raw sectors");
             else
                 ps.println("Saving with iso sectors");
         }
 
+    }
+
+    private static class ISO9660FileSaverBuilderGui extends DiscItemSaverBuilderGui {
+        private ISO9660SaverBuilder _sourceBldr;
+        private final ChangeListener[] _aoControls;
+
+        /** Use just 1 change listener to notify all the controls so it's
+         * easier to swap out when the builder is changed. */
+        private ChangeListener _listenerWrapper = new ChangeListener() {
+            public void stateChanged(ChangeEvent e) {
+                for (ChangeListener control : _aoControls) {
+                    control.stateChanged(e);
+                }
+            }
+        };
+
+        public ISO9660FileSaverBuilderGui(ISO9660SaverBuilder sourceBldr) {
+            super(new ParagraphLayout());
+            _sourceBldr = sourceBldr;
+            _aoControls = new ChangeListener[] {
+                new FileName(),
+                new SaveRaw()
+            };
+
+            _sourceBldr.addChangeListener(_listenerWrapper);
+        }
+
+        @Override
+        public boolean useSaverBuilder(DiscItemSaverBuilder saverBuilder) {
+            if (saverBuilder instanceof ISO9660SaverBuilder) {
+                DiscItemSaverBuilder oldBuilder = _sourceBldr;
+                _sourceBldr =  (ISO9660SaverBuilder) saverBuilder;
+                oldBuilder.removeChangeListener(_listenerWrapper);
+                _sourceBldr.addChangeListener(_listenerWrapper);
+                _listenerWrapper.stateChanged(null);
+                revalidate();
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        private class FileName implements ChangeListener {
+            JLabel __label = new JLabel("Save as:");
+            JLabel __name;
+            public FileName() {
+                __name = new JLabel(_sourceBldr.getFileName());
+                add(__label, ParagraphLayout.NEW_PARAGRAPH);
+                add(__name);
+            }
+            public void stateChanged(ChangeEvent e) {
+                if (!__name.getText().equals(_sourceBldr.getFileName()))
+                    __name.setText(_sourceBldr.getFileName());
+            }
+        }
+
+        private class SaveRaw extends AbstractCheck {
+
+            public SaveRaw() { super("Save raw:"); }
+            public boolean isSelected() { return _sourceBldr.getSaveRaw(); }
+            public void setSelected(boolean b) { _sourceBldr.setSaveRaw(b); }
+            public boolean isEnabled() { return _sourceBldr.getSaveRaw_enabled(); }
+
+        }
+        
     }
 
     private class ISO9660FileSaver implements IDiscItemSaver {
@@ -185,11 +306,29 @@ public class DiscItemISO9660File extends DiscItem {
             _blnSaveRaw = blnSaveRaw;
         }
 
-        public void startSave(ProgressListener pl) throws IOException {
+        public String getInput() {
+            return getIndexId().toString();
+        }
+
+        public String getOutput() {
+            return getPath().getPath();
+        }
+
+        public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException {
+            File outputFile = new File(dir, _path.getPath());
+
+            if (outputFile.getParentFile() != null) {
+                if (!outputFile.getParentFile().exists() && !outputFile.getParentFile().mkdirs()) {
+                    throw new IOException("Unable to create directory " + outputFile.getParentFile());
+                } else if (!outputFile.getParentFile().isDirectory()) {
+                    throw new IOException("Cannot create directory over a file " + outputFile.getParentFile());
+                }
+            }
+
             final double iSectLen = getSectorLength();
             final int iStartSect = getStartSector();
             final int iEndSect = getEndSector();
-            FileOutputStream fos = new FileOutputStream(_path.getName());
+            FileOutputStream fos = new FileOutputStream(outputFile);
             pl.progressStart();
             for (int iSector = iStartSect; iSector <= iEndSect; iSector++) {
                 CdSector cdSector = getSourceCD().getSector(iSector);

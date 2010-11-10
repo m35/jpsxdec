@@ -37,31 +37,28 @@
 
 package jpsxdec.util;
 
-public abstract class ProgressListener {
+public interface ProgressListener {
 
-    abstract public void progressStart(String s);
+    public void progressStart(String s) throws TaskCanceledException;
 
-    public void progressStart() { progressStart(null); }
+    public void progressStart() throws TaskCanceledException;
 
-    public void progressEnd() {}
+    public void progressEnd() throws TaskCanceledException;
 
-    public void progressUpdate(double dblPercentComplete) {}
+    public void progressUpdate(double dblPercentComplete) throws TaskCanceledException;
 
-    public void event(String sDescription) {}
+    public void event(String sDescription);
+    public boolean seekingEvent();
 
-    public void warning(String sMessage, Throwable cause) { 
-        warning(sMessage + " " + cause.getMessage());
-    }
-    public void warning(Throwable ex) { warning(ex.getMessage()); }
-    public void warning(String sDescription) {}
+    public void warning(String sMessage, Throwable cause);
+    public void warning(Throwable ex);
+    public void warning(String sDescription);
 
-    public void error(String sMessage, Throwable ex) {
-        error(sMessage + " " + ex.getMessage());
-    }
-    public void error(Throwable ex) { error(ex.getMessage()); }
-    public void error(String sDescription) {}
+    public void error(String sMessage, Throwable ex);
+    public void error(Throwable ex);
+    public void error(String sDescription);
 
-    public void info(String s) {}
+    public void info(String s);
 
-    abstract public void more(String s);
+    public void more(String s);
 }

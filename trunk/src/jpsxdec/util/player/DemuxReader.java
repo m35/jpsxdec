@@ -37,16 +37,10 @@
 
 package jpsxdec.util.player;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 /** The reading thread. */
 class DemuxReader implements Runnable {
 
     public static boolean DEBUG = false;
-
-    private static final int STATE_STOPPED = 1;
-    private static final int STATE_PLAYING = 4;
-    private static final int STATE_PAUSED  = 6;
 
     IAudioVideoReader _reader;
 
@@ -56,9 +50,8 @@ class DemuxReader implements Runnable {
     
     private Thread _thread;
 
-    private final Object _oPaused = new Object();
 
-    private AtomicInteger _oiState = new AtomicInteger(STATE_PAUSED);
+    private final PlayingState _state = new PlayingState(PlayingState.State.STOPPED);
 
     public DemuxReader(IAudioVideoReader reader, AudioProcessor audProc, VideoProcessor vidProc, PlayController controller) {
         _reader = reader;
@@ -68,61 +61,74 @@ class DemuxReader implements Runnable {
     }
 
     public void run() {
-        while (true) {
-            switch (_oiState.get()) {
-                case STATE_PAUSED:
-                    try {
+        try {
+            while (true) {
+                synchronized (_state) {
+                    if (_state.get() == PlayingState.State.PAUSED) {
                         if (DEBUG) System.out.println("Pausing reader");
-                        synchronized (_oPaused) {
-                            _oPaused.wait();
-                        }
-                    } catch (InterruptedException ex) {
-                        ex.printStackTrace();
+                        _state.waitForChange();
+                    }
+                    if (_state.get() == PlayingState.State.STOPPED)
                         return;
-                    }
-                    break;
-                case STATE_STOPPED:
-                    if (DEBUG) System.out.println("Stopping reader");
-                    return;
-                case STATE_PLAYING:
-                    // proces a sector
-                    // crap, how do you stop when waiting for more to read?
-                    int iProgress = -1;
-                    try {
-                        iProgress = _reader.readNext(_videoProcessor, _audioProcessor);
-                    } catch (Throwable ex) {
-                        ex.printStackTrace();
-                    }
-                    if (iProgress < 0) {
-                        System.out.println("Reader says it is the end. Telling everyone to stop when empty.");
-                        _oiState.set(STATE_STOPPED);
-                        _controller.endOfPlay();
-                        return;
-                    }
+                }
+                // now playing
+                
+                // XXX: how can demuxer be told to stop when it's blocking for more to read?
+                int iProgress = _reader.readNext(_videoProcessor, _audioProcessor);
+                if (DEBUG) System.out.println("Progress " + iProgress);
+                if (iProgress < 0) {
+                    System.out.println("Reader says it is the end. Telling everyone to stop when empty.");
+                    _controller.endOfPlay();
+                    break; // break out of loop
+                }
             }
+        } catch (Throwable ex) {
+            ex.printStackTrace();
         }
-        
+
+        _state.set(PlayingState.State.STOPPED);
+
     }
 
-    public void startup() {
-        // start the thread
-        _oiState.set(STATE_PLAYING);
-        _thread = new Thread(this, "Demux Reader");
-        _thread.start();
+    public void play() {
+        synchronized (_state) {
+            switch (_state.get()) {
+                case PAUSED:
+                    _state.set(PlayingState.State.PLAYING);
+                    break;
+                case STOPPED:
+                    _thread = new Thread(this, getClass().getName());
+                    _thread.start();
+                    _state.set(PlayingState.State.PLAYING);
+                    break;
+            }
+        }
     }
 
     public void pause() {
-        _oiState.set(STATE_PAUSED);
-    }
-
-    public void stop() {
-        _oiState.set(STATE_STOPPED);
-    }
-    
-    public void play() {
-        _oiState.set(STATE_PLAYING);
-        synchronized (_oPaused) {
-            _oPaused.notify();
+        synchronized (_state) {
+            switch (_state.get()) {
+                case PLAYING:
+                    _state.set(PlayingState.State.PAUSED);
+                    break;
+                case STOPPED:
+                    _thread = new Thread(this, getClass().getName());
+                    _thread.start();
+                    _state.set(PlayingState.State.PAUSED);
+                    break;
+            }
         }
     }
+
+    public void stop() throws InterruptedException {
+        synchronized (_state) {
+            switch (_state.get()) {
+                case PLAYING:
+                case PAUSED:
+                    _state.set(PlayingState.State.STOPPED);
+                    break;
+            }
+        }
+    }
+    
 }

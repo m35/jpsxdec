@@ -68,14 +68,13 @@ public class DiscIndexerVideo extends DiscIndexer {
     private STRFrameRateCalc _fpsCalc;
 
     @Override
-    public boolean deserializeLineRead(DiscItemSerialization oSerial) {
+    public DiscItem deserializeLineRead(DiscItemSerialization oSerial) {
         try {
             if (DiscItemVideoStream.TYPE_ID.equals(oSerial.getType())) {
-                super.addDiscItem(new DiscItemVideoStream(oSerial));
-                return true;
+                return new DiscItemVideoStream(oSerial);
             }
         } catch (NotThisTypeException ex) {}
-        return false;
+        return null;
     }
 
     @Override

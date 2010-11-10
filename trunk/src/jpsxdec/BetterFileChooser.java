@@ -38,7 +38,9 @@
 package jpsxdec;
 
 import java.io.File;
+import java.text.MessageFormat;
 import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.filechooser.FileFilter;
@@ -101,11 +103,14 @@ public class BetterFileChooser extends JFileChooser {
 
     private void init() {
         // Set the look and feel for the platform
+        /*
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             SwingUtilities.updateComponentTreeUI(this);
         } catch (Exception ex) {
         }
+         *
+         */
         // and fix the stupid 'all' file filter for Linux by using my own
         super.removeChoosableFileFilter(super.getAcceptAllFileFilter());
         super.addChoosableFileFilter(ALL_FILE_FILTER);
@@ -116,7 +121,30 @@ public class BetterFileChooser extends JFileChooser {
         // Fix the possible 5 second delay that can occur on Windows
         // by disabling some feature.
         // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6372808
+        /*
         putClientProperty("FileChooser.useShellFolder", Boolean.FALSE);
+         * 
+         */
         super.updateUI();
+    }
+
+    @Override
+    public void approveSelection() {
+        // confirm overwrite
+
+        File f = getSelectedFile();
+
+        if (f.exists() && getDialogType() == SAVE_DIALOG) {
+            String sMsg = "The file \"{0}\" already exists!\nDo you want to replace it?";
+            sMsg = MessageFormat.format(sMsg, new Object[]{f.getName()});
+            String sTitle = getDialogTitle();
+            int iOption = JOptionPane.showConfirmDialog(this, sMsg, sTitle, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (iOption != JOptionPane.YES_OPTION) {
+                return;
+            }
+        } 
+
+        super.approveSelection();
+
     }
 }

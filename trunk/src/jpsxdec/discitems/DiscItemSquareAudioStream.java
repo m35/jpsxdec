@@ -39,6 +39,7 @@ package jpsxdec.discitems;
 
 import jpsxdec.audio.SquareADPCMDecoder;
 import java.io.IOException;
+import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.ISquareAudioSector;
@@ -47,6 +48,8 @@ import jpsxdec.util.NotThisTypeException;
 /** Represents a series of Square ADPCM sectors that combine to make an audio stream.
  * These kinds of streams are found in Final Fantasy 8, 9, and Chrono Cross.  */
 public class DiscItemSquareAudioStream extends DiscItemAudioStream {
+
+    private static final Logger log = Logger.getLogger(DiscItemSquareAudioStream.class.getName());
 
     public static final String TYPE_ID = "SquareAudio";
 
@@ -101,8 +104,19 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return _iSectorsPastEnd;
     }
 
-    public String getTypeId() {
+    public String getSerializationTypeId() {
         return TYPE_ID;
+    }
+
+    @Override
+    public String getInterestingDescription() {
+        // assuming left/right sample count is the same
+        if (_lngLeftSampleCount != _lngRightSampleCount)
+            log.warning("Left & right sample count does not match: " +
+                    _lngLeftSampleCount + " != " + _lngRightSampleCount);
+        return String.format("%s, %d Hz Stereo",
+                DiscItemVideoStream.formatTime(_lngLeftSampleCount / _iSamplesPerSecond),
+                _iSamplesPerSecond);
     }
 
     public int getDiscSpeed() {
@@ -136,7 +150,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             __abTempBuffer = new byte[SquareADPCMDecoder.calculateOutputBufferSize(1840)];
         }
 
-        public void open(ISectorTimedAudioWriter audioOut) {
+        public void setAudioListener(ISectorTimedAudioWriter audioOut) {
             __audioWriter = audioOut;
         }
 

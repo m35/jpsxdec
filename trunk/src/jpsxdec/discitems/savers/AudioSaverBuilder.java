@@ -42,11 +42,11 @@ import jpsxdec.discitems.IDiscItemSaver;
 import argparser.ArgParser;
 import argparser.IntHolder;
 import argparser.StringHolder;
-import java.io.IOException;
+import java.io.File;
 import java.io.PrintStream;
-import javax.swing.JPanel;
 import jpsxdec.formats.JavaAudioFormat;
 import jpsxdec.discitems.DiscItemAudioStream;
+import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.TabularFeedback;
 
@@ -57,14 +57,13 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
     private final DiscItemAudioStream _audItem;
     private final JavaAudioFormat[] _aoPossibleContainerFormats = JavaAudioFormat.getAudioFormats();
 
-    public AudioSaverBuilder(DiscItemAudioStream audItem)
-    {
+    public AudioSaverBuilder(DiscItemAudioStream audItem) {
         _audItem = audItem;
         resetToDefaults();
     }
 
-    public JPanel getOptionPane() {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public DiscItemSaverBuilderGui getOptionPane() {
+        return new AudioSaverBuilderGui(this);
     }
 
     public void resetToDefaults() {
@@ -73,8 +72,20 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         else
             setContainerForamt(null);
         setVolume(1);
-        setFilename(_audItem.getSuggestedBaseName() + "." + getContainerFormat().getExtension());
     }
+
+    @Override
+    public boolean copySettings(DiscItemSaverBuilder other) {
+        if (other instanceof AudioSaverBuilder) {
+            AudioSaverBuilder o = (AudioSaverBuilder) other;
+            o.setContainerForamt(getContainerFormat());
+            o.setVolume(getVolume());
+            return true;
+        }
+        return false;
+    }
+
+
 
     private JavaAudioFormat _containerFormat;
     public void setContainerForamt(JavaAudioFormat val) {
@@ -85,14 +96,24 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         return _containerFormat;
     }
 
-    private String _sFilename;
-    public void setFilename(String val) {
-        _sFilename = val;
-        firePossibleChange();
+    public int getContainerFormat_listSize() {
+        return JavaAudioFormat.getAudioFormats().length;
     }
-    public String getFilename() {
-        return _sFilename;
+    public JavaAudioFormat getContainerFormat_listItem(int i) {
+        return JavaAudioFormat.getAudioFormats()[i];
     }
+
+    public String getExtension() {
+        return getContainerFormat().getExtension();
+    }
+
+    // ....................................................
+
+    public String getFileBaseName() {
+        return _audItem.getSuggestedBaseName().getPath();
+    }
+
+    // ....................................................
 
     private double _dblVolume = 1.0;
     public void setVolume(double val) {
@@ -102,6 +123,8 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
     public double getVolume() {
         return _dblVolume;
     }
+
+    // ....................................................
 
     public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
         if (asArgs == null) return asArgs;
@@ -148,14 +171,16 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         tfb.write(fbs);
     }
 
-    public IDiscItemSaver makeSaver() throws IOException {
-        return new AudioSaver(_audItem, _sFilename, _containerFormat, _dblVolume);
+    public IDiscItemSaver makeSaver() {
+        return new AudioSaver(_audItem,
+                new File(_audItem.getSuggestedBaseName().getPath() + "." + getExtension()),
+                _containerFormat, _dblVolume);
     }
 
     public void printSelectedOptions(PrintStream ps) {
         ps.println("Format: " + getContainerFormat());
         ps.println("Volume: " + Math.round(getVolume() * 100) + "%");
-        ps.println("Filename: " + getFilename());
+        ps.println("Filename: " + getFileBaseName());
     }
 
 }

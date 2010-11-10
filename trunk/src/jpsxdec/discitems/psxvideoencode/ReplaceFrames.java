@@ -258,7 +258,7 @@ public class ReplaceFrames {
         DiscItemVideoStream vidItem = (DiscItemVideoStream) index.getByIndex(Integer.parseInt(args[1]));
         DiscItemSaverBuilder saver = vidItem.makeSaverBuilder();
         saver.commandLineOptions(new String[] {"-vf","mdec"}, fbs);
-        saver.makeSaver().startSave(new ConsoleProgressListener(fbs));
+        saver.makeSaver().startSave(new ConsoleProgressListener(fbs), new File("."));
 
         ReplaceFrames replacers = new ReplaceFrames();
 

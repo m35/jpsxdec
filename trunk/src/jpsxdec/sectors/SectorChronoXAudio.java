@@ -37,9 +37,9 @@
 
 package jpsxdec.sectors;
 
-import jpsxdec.audio.SquareAKAOstruct;
 import java.io.IOException;
 import java.io.InputStream;
+import jpsxdec.audio.SquareADPCMDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.util.ByteArrayFPIS;
@@ -184,7 +184,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     public long getLeftSampleCount() {
         // if it's the 1st (0) chunk, then it holds the left audio
         if (getAudioChunkNumber() == 0) 
-            return getAudioDataSize() / 2; // TODO: I know this is wrong
+            return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
         else
             return 0;
     }
@@ -192,7 +192,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     public long getRightSampleCount() {
         // if it's the 2nd (1) chunk, then it holds the right audio
         if (getAudioChunkNumber() == 1) 
-            return getAudioDataSize() / 2; // TODO: I know this is wrong
+            return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
         else
             return 0;
     }

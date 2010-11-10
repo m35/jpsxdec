@@ -37,30 +37,28 @@
 
 package jpsxdec.util.player;
 
-import java.awt.Canvas;
+import java.lang.reflect.InvocationTargetException;
+import java.util.WeakHashMap;
 import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
+import javax.swing.JComponent;
 
 /** Interface to controlling a player. */
 public class PlayController {
 
-    public static boolean DEBUG = false;
+    private static final boolean DEBUG = false;
 
     private DemuxReader _demuxReader;
 
     private AudioProcessor _audProcessor;
-    private SourceDataLine _audPlayer;
+    private AudioPlayer _audPlayer;
 
     private VideoProcessor _vidProcessor;
     private VideoPlayer _vidPlayer;
 
-    private VideoTimer _vidTimer;
+    private IVideoTimer _vidTimer;
     
-    private long _lngContiguousPlayUniqueId = 0;
-    private final Object _oTimeSync = new Object();
+    private final Object _playSync = new Object();
 
 
     public PlayController(IAudioVideoReader reader)
@@ -70,100 +68,94 @@ public class PlayController {
         if (format == null && !reader.hasVideo())
             throw new IllegalArgumentException("No audio or video?");
 
-        if (reader.hasVideo()) {
-            _vidPlayer = new VideoPlayer(this, reader.getVideoWidth(), reader.getVideoHeight());
-            _vidProcessor = new VideoProcessor(this, _vidPlayer);
-            _vidProcessor.startup();
-            _vidPlayer.startup();
-        }
-        if (format == null) {
-            _vidTimer = new VideoTimer();
-        } else {
-            DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-
-            _audPlayer = (SourceDataLine) AudioSystem.getLine(info);
-            _audPlayer.open(format);
+        if (format != null) {
+            _audPlayer = new AudioPlayer(format, this);
+            _vidTimer = _audPlayer;
 
             _audProcessor = new AudioProcessor(_audPlayer, _vidProcessor);
-            _audProcessor.startup();
+
+            _audProcessor.play();
+            _audPlayer.pause(); // audio will start playing once it has data in the buffer
+        }
+        if (reader.hasVideo()) {
+            if (_vidTimer == null) {
+                _vidTimer = _vidPlayer = new VideoPlayer(null, this, reader.getVideoWidth(), reader.getVideoHeight());
+            } else {
+                _vidPlayer = new VideoPlayer(_vidTimer, this, reader.getVideoWidth(), reader.getVideoHeight());
+            }
+            _vidProcessor = new VideoProcessor(_vidTimer, _vidPlayer);
+            _vidProcessor.play();
+            _vidPlayer.pause();
         }
 
         _demuxReader = new DemuxReader(reader, _audProcessor, _vidProcessor, this);
-        _demuxReader.startup();
+        _demuxReader.play(); // start buffering
 
-    }
-
-    public long getContiguousPlayUniqueId() {
-        synchronized (_oTimeSync) {
-            return _lngContiguousPlayUniqueId;
-        }
     }
 
     private static final boolean IS_WIN = System.getProperty("os.name").toLowerCase().indexOf("windows") > -1;
 
-    public long getCurrentPlayTime() {
-        synchronized (_oTimeSync) {
-            long lngPos;
-            if (_audPlayer != null) {
-                //lngPos = _audPlayer.getMicrosecondPosition();
-                lngPos = (long)(_audPlayer.getLongFramePosition() / _audPlayer.getFormat().getSampleRate() * 1000);
-            } else {
-                lngPos = _vidTimer.getPlayTimeAndStart();
-            }
-            if (DEBUG) System.out.println("Current play time " + lngPos);
-            return lngPos;
-        }
-    }
-
-    public boolean shouldBeProcessed(long lngPresentationTime, long lngContiguousPlayUniqueId) {
-        synchronized (_oTimeSync) {
-            if (lngContiguousPlayUniqueId != _lngContiguousPlayUniqueId)
-                return false;
-
-            long lngPos;
-            if (_audPlayer != null) {
-                lngPos = _audPlayer.getMicrosecondPosition() / 1000;
-            } else {
-                lngPos = _vidTimer.getPlayTime();
-            }
-            if (lngPos == 0) // if not started playing, then process all you like
-                return true;
-            if (DEBUG) System.out.println("Playtime = " + lngPos + " vs. PresTime = " + lngPresentationTime);
-            return lngPos < lngPresentationTime;
-        }
-    }
-
-    public void play() {
+    public void play() throws LineUnavailableException {
         _demuxReader.play();
         if (_audProcessor != null)
             _audProcessor.play();
         if (_audPlayer != null)
-            _audPlayer.start();
+            _audPlayer.play();
         if (_vidProcessor != null)
             _vidProcessor.play();
         if (_vidPlayer != null)
             _vidPlayer.play();
+        synchronized (_playSync) {
+            _playSync.notify();
+        }
     }
     
-    public void pause() {
-        if (_vidPlayer != null) {
-            _vidPlayer.pause();
-        }
-        if (_audPlayer != null) {
-            _audPlayer.stop();
+    public void pause() throws LineUnavailableException {
+        synchronized (_playSync) {
+            if (_vidPlayer != null) {
+                _vidPlayer.pause();
+            }
+            if (_audPlayer != null) {
+                _audPlayer.pause();
+            } else {
+                // TODO: stop vidTimer
+            }
         }
     }
 
+    public void stop() throws InterruptedException {
+        synchronized (_playSync) {
+            // stop feeding data for starters
+            _demuxReader.stop();
+
+            if (_audPlayer != null) {
+                // must stop the player first so processor won't block
+                _audPlayer.stop();
+            }
+            if (_audProcessor != null)
+                _audProcessor.stop();
+
+            if (_vidPlayer != null)
+                // must stop the player first so processor won't block
+                _vidPlayer.stop();
+            if (_vidProcessor != null)
+                _vidProcessor.stop();
+        }
+    }
+
+
     void endOfPlay() {
-        if (_audProcessor != null)
-            _audProcessor.stopWhenEmpty();
-        if (_vidProcessor != null)
-            _vidProcessor.stopWhenEmpty();
-        if (_vidPlayer != null)
-            _vidPlayer.stopWhenEmpty();
+        synchronized (_playSync) {
+            if (_audProcessor != null)
+                _audProcessor.stopWhenEmpty();
+            if (_vidProcessor != null)
+                _vidProcessor.stopWhenEmpty();
+            if (_vidPlayer != null)
+                _vidPlayer.stopWhenEmpty();
+        }
     }
     
-    public Canvas getVideoScreen() {
+    public JComponent getVideoScreen() {
         if (_vidPlayer != null)
             return _vidPlayer.getVideoCanvas();
         else
@@ -190,4 +182,63 @@ public class PlayController {
         _vidPlayer.setZoom(iZoom);
     }
 
+    private WeakHashMap<PlayerListener, Boolean> _listeners;
+
+    public void addLineListener(PlayerListener listener) {
+        if (_listeners == null)
+            _listeners = new WeakHashMap<PlayerListener, Boolean>();
+        _listeners.put(listener, Boolean.TRUE);
+    }
+    public void removeLineListener(PlayerListener listener) {
+        if (_listeners != null)
+            _listeners.remove(listener);
+    }
+
+    public static enum Event {
+        Start,
+        Stop,
+        Pause;
+    }
+    public static interface PlayerListener {
+        void update(Event eEvent);
+    }
+
+    private class NotifyLater implements Runnable {
+        private final Event _eEvent;
+        public NotifyLater(Event _eEvent) {
+            this._eEvent = _eEvent;
+        }
+        public void run() {
+            for (PlayerListener listener : _listeners.keySet()) {
+                listener.update(_eEvent);
+            }
+        }
+    }
+
+    void fireStarted() {
+        synchronized (_playSync) {
+            java.awt.EventQueue.invokeLater(new NotifyLater(Event.Start));
+        }
+    }
+
+    void fireStopped() {
+        synchronized (_playSync) {
+            try {
+                if (java.awt.EventQueue.isDispatchThread())
+                    new NotifyLater(Event.Stop).run();
+                else
+                    java.awt.EventQueue.invokeAndWait(new NotifyLater(Event.Stop));
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            } catch (InvocationTargetException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    void firePaused() {
+        synchronized (_playSync) {
+            java.awt.EventQueue.invokeLater(new NotifyLater(Event.Pause));
+        }
+    }
 }

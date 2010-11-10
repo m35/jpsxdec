@@ -8,11 +8,25 @@
  /   = partially done
  /?/ = done?
 
+* Bug: Tree music icon is hard to see on blue background
+* Add default folder handling
+* Bug: Player doesn't let you play movie with 1 frame
+* Bug: Ubuntu: only tree column is white, but text boxes have gray background
+? Add list box when indexing that will show the items as they are discovered
+
+
 ! XXX: YV12 seems to use MPEG2 chroma placement :(
+! Wield the power of Java: Multi-thread decoding. Essentially use the player model
+* Clean up creating directory tree for saving
 
 ! Restore or improve the indexing logic between audio/video(str|alice)
+* Restore combining of multiple parallel audio -- but only mono -> stereo
 * check what the EOF and Audio-end flags mean
-? Add -vol option to video saving
+x Add -vol option to video saving
+// Change saving name logic to disallow choosing the name, but only the
+//  directory. The disc's folder structure will be recreated as items are saved
+* Add toolbar buttons dropdown with recent disc and index files
+* Highlight tree items that are checked for saving
 
 // Add option to save AVI:YUV with full 'PC'/JFIF [0-255] component range
 // Restore suggested base name
@@ -46,18 +60,17 @@
     ? Maintain a list of sectors with errors in the CD reader to prevent repeated error reports
 
 
-/ Display physical arrangement of disc items in some graphical form
-* Visualization
-    * Figure out how to best display the massive amount of disc content
+// Display physical arrangement of disc items in some graphical form
+? Visualize disc items location in the gui
 
-/?/ Fix video player deadlock issue
-* Add ProgressListener method to indicate if it's seeking an update
+// Fix video player deadlock issue
+// Add ProgressListener method to indicate if it's seeking an update
 * When displaying progress, setup a timer to only update the display at most every second
 // Change index and source file handling so only the index file is used most of the time
 //    (index file points to source file, but can be manually specified if source file moved)
 * Add -precisefps
 * write code documentation
-* Start unit testing
+* Start code coverage testing
 ? Add XA format & channel consistency check
 ? Add CD audio detection/extraction
 ? Add ECE/ECC recalculation
@@ -67,7 +80,7 @@
   to more quickly figure out what type of sectors are read (since it won't
   have to go through the whole list of like 10 types).
 * Command-line improvements
-    ! Re-add option to specify output file name/location
+    ! Re-add option to specify output file location
     * Re-add decoding of bitstream and mdec files
     // Print unused/unrecognized command-line parameters
     // Restore feedback messages in new decoding pipeline
@@ -105,6 +118,9 @@
           . Generating an xml with frames without changes removed
           . GUI preview would be useful to expose this info
     ? create movies from scratch
+    ? Include Cb/Cr un-swap correction option
+      so videos decoded with other programs can be re-encoded with consistent coloring
+    ? Alternatively create an mpeg2 parser and converter
     x Fancy encoding algorithms
         x Smart chrominance sub-sampling calculation
         x Pre-anti-aliasing and Pre-blockiness reduction
@@ -112,46 +128,39 @@
         x Shorter VLC substitution searching
         x Trellis quantization
         x Context-adaptive variable-length coding (or is this h.264 only?)
-    ? Include Cb/Cr un-swap correction option
-      so videos decoded with other programs can be re-encoded with consistent coloring
-    ? Alternatively create an mpeg2 parser and converter
 * Reimplement a GUI
-    - show media list as a tree list showing all the files on the disc
+    // show media list as a tree list showing all the files on the disc
       and what media belongs to what file. if not a disc image, just show
       the file name and the media it contains
-    - Automatic error reporting
-    x Video saving: figure out how to graphically display parallel audio for selection
+    ? Automatic error reporting
+    ? Video saving: figure out how to graphically display parallel audio for selection
 * AVI Writing
     ? add optional logic to buffer a/v data to generate cleaner interleaved files
-    // AVI PNG codec
+    x AVI PNG codec
     // AVI YUV codec (specifically fourcc YV12)
 * Real-time media playback/preview
-    * Player automatically plays video-only content when it is very short
-    * Player doesn't release all resources when closed
-    * Change real-time player to pause video-only playback when reading is delayed
-    ! Fix it on Linux (Ubuntu) somehow
-        ! Figure out how to make Linux multithreading not suck
-        - Implement my own low-latency audio position tracking
-    - Skip audio in the rare case it is ahead of sector reading
-    - Make sure I'm not reusing the same buffer for all my audio streaming
-    - Change VideoPlayer into PlayerCanvas that also holds the progress bar and control buttons
-    - Add choosing of video scaling interpolation option to api
-    - Add choosing of aspect ratio to api
+    * Pause video-only playback when reading is delayed
+    * Bug: when audio doesn't start for a prolonged period, video frame queue fills and blocks
+    ? Fix it on Linux (Ubuntu) somehow
+        x Figure out how to make Linux multithreading not suck
+        x Implement my own low-latency audio position tracking
+    * Skip audio in the rare case it is ahead of sector reading
+    // Make sure I'm not reusing the same buffer for all my audio streaming
+    * Change VideoPlayer into PlayerCanvas that also holds the progress bar and control buttons
+    * Add choosing of video scaling interpolation option to api
+    * Add choosing of aspect ratio to api
     - [CL] Add command-line options to pick zooming, interpolation, and aspect ratio
     ? Register listeners with the SourceDataLine and let those events pause the
       other components indirectly
     - Reduce amount of object creation/destruction so GC delays aren't ever a problem
         Current process:
             byte[] for sector data
-            CDSector to wrap that +
-                CDXAHeader + CodingInfo + SubMode
+                CDSector to wrap that + CDXAHeader + CodingInfo + SubMode
                     IdentifiedSector to wrap that
                     All the NotThisTypeExceptions thrown during identification
-            //byte[] created by FrameDemuxer
-            //DemuxImage created to hold byte[]
-            //byte[] created by uncompressor
-            //BufferedImage created from rgb
             AudioFormats created along the way?
+    // Bug: Player automatically plays video-only content when it is very short
+    // Player doesn't release all resources when closed
     // Abstract out the media player
 	// Change thread syncing to use PipedIOStream approach
     // Cleanup
@@ -161,19 +170,19 @@
     //  when full and a new item is added. This state will be enabled by the audio
     //  queue when it is empty to prevent blocking.
 Indexing
-    * [CL] Use actual ISO filenames to identify disc items instead of just numbers
-    * [CL] Find a way to serialize the suggested base name so they're all unique and may be used to refer to item to decode
-    * Store the index as a hierarchy
+    // [CL] Use actual ISO filenames to identify disc items instead of just numbers
+    / [CL] Find a way to serialize the suggested base name so they're all unique and may be used to refer to item to decode
+    // Store the index as a hierarchy
     * Static data handling
         - Searching for static demux and MDEC data
         - Finding and uncompressing lhz data, often used in PSX games
         - Re-add TIM search
+    * STR indexing: add serialized value: Precise fps:Y/N. When there's no rate variance, then it can be used for -precisefps
+    ? ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
+      When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
     ? Visually populate a list as the disc/file is being indexed
 	x Make indexing faster (don't use constructors to identify sector types)
     ? Add in a comment what sector types were found during indexing (for debugging)
-    * STR indexing: add serialized value: Precise fps:Y/N. When there's no rate variance, then it can be used for -precisefps
-    * ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
-      When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
     // show error when deserialzing line has error
     // Add some checking during index file load to stop a 600mb scan of death
     // When reading an existing index file, just print how many items were identified

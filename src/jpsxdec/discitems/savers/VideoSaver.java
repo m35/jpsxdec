@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems.savers;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,6 +48,7 @@ import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.util.ProgressListener;
+import jpsxdec.util.TaskCanceledException;
 
 /** Superclass of all the {@link VideoSavers}.
  * Takes care of the sector reading and passing to the subclass handling. */
@@ -54,21 +56,37 @@ public abstract class VideoSaver implements IDiscItemSaver {
 
     private static final Logger log = Logger.getLogger(VideoSaver.class.getName());
 
-    private final DiscItemVideoStream _vidItem;
     private final DiscItemAudioStream _parallelAudio;
     private ProgressListener _progress;
+    protected File _directory;
+    protected final VideoSaverBuilderSnapshot _snap;
 
     public VideoSaver(VideoSaverBuilderSnapshot snap) {
         super();
-        _vidItem = snap.videoItem;
-        _parallelAudio = snap.parallelAudio;
+        _snap = snap;
+        _parallelAudio = snap.saveAudio ? snap.parallelAudio : null;
     }
 
-    //-----------------------------------
+    public String getInput() {
+        return _snap.videoItem.getIndexId().serialize();
+    }
 
-    public void startSave(ProgressListener pl) throws IOException {
+    public String getOutput() {
+        String sStart = _snap.videoFormat.formatPostfix(_snap.videoItem, _snap.saveStartFrame);
+        String sEnd = _snap.videoFormat.formatPostfix(_snap.videoItem, _snap.saveEndFrame);
+        if (sStart.equals(sEnd)) {
+            return _snap.baseName + sStart;
+        } else {
+            return _snap.baseName + sStart + " - " + _snap.baseName + sEnd;
+        }
+    }
+
+    public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException {
 
         _progress = pl;
+        _directory = dir;
+
+        initialize(); // tell the children to setup
 
         if (_parallelAudio != null) {
             startVideoAndAudio(pl);
@@ -78,7 +96,7 @@ public abstract class VideoSaver implements IDiscItemSaver {
     }
 
     private void startVideoOnly(ProgressListener pl)
-            throws IOException
+            throws IOException, TaskCanceledException
     {
         int iSector = getMovieStartSector();
 
@@ -88,20 +106,22 @@ public abstract class VideoSaver implements IDiscItemSaver {
         try {
             for (; iSector <= getMovieEndSector(); iSector++) {
 
-                CdSector cdSector = _vidItem.getSourceCD().getSector(iSector);
-                IdentifiedSector identifiedSector = _vidItem.identifySector(cdSector);
+                CdSector cdSector = _snap.videoItem.getSourceCD().getSector(iSector);
+                IdentifiedSector identifiedSector = _snap.videoItem.identifySector(cdSector);
                 if (identifiedSector instanceof IVideoSector) {
                     IVideoSector vidSector = (IVideoSector) identifiedSector;
-                    int iFrame = vidSector.getFrameNumber();
-                    if (iFrame < getStartFrame())
+                    int iSectorFrame = vidSector.getFrameNumber();
+                    if (iSectorFrame < getStartFrame())
                         continue;
-                    else if (iFrame > getEndFrame())
+                    else if (iSectorFrame > getEndFrame())
                         break;
-                    pl.event("Frame " + iCurrentFrame);
+                    
+                    if (pl.seekingEvent())
+                        pl.event("Frame " + iCurrentFrame);
 
-                    if (iFrame != iCurrentFrame) {
-                        pl.progressUpdate((iSector - _vidItem.getStartSector()) / SECTOR_LENGTH);
-                        iCurrentFrame = iFrame;
+                    if (iSectorFrame != iCurrentFrame) {
+                        pl.progressUpdate((iSector - _snap.videoItem.getStartSector()) / SECTOR_LENGTH);
+                        iCurrentFrame = iSectorFrame;
                     }
 
                     feedSectorForVideo(vidSector);
@@ -122,7 +142,7 @@ public abstract class VideoSaver implements IDiscItemSaver {
     }
 
     private void startVideoAndAudio(ProgressListener pl)
-            throws IOException
+            throws IOException, TaskCanceledException
     {
         final int iStartSector = getMovieStartSector();
         int iSector = iStartSector;
@@ -130,21 +150,23 @@ public abstract class VideoSaver implements IDiscItemSaver {
         double SECTOR_LENGTH = iEndSector - iStartSector;
 
         try {
-            int iFrame = getStartFrame();
+            int iCurrentFrame = getStartFrame();
             for (; iSector <= iEndSector; iSector++) {
-                pl.event("Frame " + iFrame);
+                
+                if (pl.seekingEvent())
+                    pl.event("Frame " + iCurrentFrame);
 
-                CdSector cdSector = _vidItem.getSourceCD().getSector(iSector);
+                CdSector cdSector = _snap.videoItem.getSourceCD().getSector(iSector);
                 IdentifiedSector identifiedSector = IdentifiedSector.identifySector(cdSector);
                 if (identifiedSector instanceof IVideoSector) {
-                    if (_vidItem.getStartSector() <= iSector &&
-                        iSector <= _vidItem.getEndSector()   &&
-                        iFrame <= getEndFrame())
+                    if (_snap.videoItem.getStartSector() <= iSector &&
+                        iSector <= _snap.videoItem.getEndSector()   &&
+                        iCurrentFrame <= getEndFrame())
                     {
                         IVideoSector vidSector = (IVideoSector) identifiedSector;
                         feedSectorForVideo(vidSector);
 
-                        iFrame = vidSector.getFrameNumber();
+                        iCurrentFrame = vidSector.getFrameNumber();
                     }
                 } else if (identifiedSector != null) {
                     feedSectorForAudio(identifiedSector);
@@ -170,6 +192,7 @@ public abstract class VideoSaver implements IDiscItemSaver {
         return _progress;
     }
 
+    abstract public void initialize() throws IOException;
 
     abstract public void close() throws IOException;
 

@@ -54,6 +54,7 @@ import jpsxdec.util.ProgressListener;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.TabularFeedback;
+import jpsxdec.util.TaskCanceledException;
 
 
 /** Represents a TIM file found in a PSX disc. Currently only searches at the
@@ -61,6 +62,7 @@ import jpsxdec.util.TabularFeedback;
  *  in a sector.
  *  TODO: Search everywhere */
 public class DiscItemTIM extends DiscItem {
+    
     public static final String TYPE_ID = "Tim";
 
     private static final String START_OFFSET_KEY = "Start Offset";
@@ -80,13 +82,11 @@ public class DiscItemTIM extends DiscItem {
         _iBitsPerPixel = iBitsPerPixel;
     }
     
-    public DiscItemTIM(DiscItemSerialization oFields)
-            throws NotThisTypeException
-    {
-        super(oFields);
-        _iStartOffset = oFields.getInt(START_OFFSET_KEY);
-        _iPaletteCount = oFields.getInt(PALETTE_COUNT_KEY);
-        _iBitsPerPixel = oFields.getInt(BITSPERPIXEL_KEY);
+    public DiscItemTIM(DiscItemSerialization fields) throws NotThisTypeException {
+        super(fields);
+        _iStartOffset = fields.getInt(START_OFFSET_KEY);
+        _iPaletteCount = fields.getInt(PALETTE_COUNT_KEY);
+        _iBitsPerPixel = fields.getInt(BITSPERPIXEL_KEY);
     }
     
     public DiscItemSerialization serialize() {
@@ -97,8 +97,13 @@ public class DiscItemTIM extends DiscItem {
         return oFields;
     }
     
-    public String getTypeId() {
+    public String getSerializationTypeId() {
         return TYPE_ID;
+    }
+
+    @Override
+    public String getInterestingDescription() {
+        return "Palettes: " + _iPaletteCount;
     }
 
     public Tim readTIM() throws IOException {
@@ -140,6 +145,14 @@ public class DiscItemTIM extends DiscItem {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        @Override
+        public boolean copySettings(DiscItemSaverBuilder other) {
+            if (other instanceof TimSaverBuilder) {
+                throw new UnsupportedOperationException("Not supported yet.");
+            }
+            return false;
+        }
+
         public static String getCmdLineList(boolean blnTrueColor) {
             StringBuilder sb = new StringBuilder();
             for (JavaImageFormat fmt : JavaImageFormat.getAvailable()) {
@@ -174,8 +187,8 @@ public class DiscItemTIM extends DiscItem {
                    _timItem.getBitsPerPixel() == 24;
         }
 
-        public JPanel getOptionPane() {
-            throw new UnsupportedOperationException("Not supported yet.");
+        public DiscItemSaverBuilderGui getOptionPane() {
+            return null;
         }
 
         public int getPaletteCount() {
@@ -289,13 +302,21 @@ public class DiscItemTIM extends DiscItem {
             _timItem = timItem;
         }
 
-        public void startSave(ProgressListener pl) {
+        public String getInput() {
+            return _timItem.getIndexId().serialize();
+        }
+
+        public String getOutput() {
+            return makeFileName(0) + " - " + makeFileName(_tim.getPaletteCount()-1);
+        }
+
+        public void startSave(ProgressListener pl, File dir) throws TaskCanceledException {
 
             try {
                 pl.progressStart();
                 for (int i = 0; i < _tim.getPaletteCount(); i++) {
                     String sFile = makeFileName(i);
-                    pl.error("Writing " + sFile);
+                    pl.event("Writing " + sFile);
                     BufferedImage bi = _tim.toBufferedImage(i);
                     File f = new File(sFile);
                     ImageIO.write(bi, _imageFormat.getId(), f);

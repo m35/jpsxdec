@@ -70,7 +70,7 @@ public class JavaAudioFormat {
 
     @Override
     public String toString() {
-        return _sDescription;
+        return "." + _sExtension;
     }
 
     public AudioFileFormat.Type getJavaType() {

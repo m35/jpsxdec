@@ -41,7 +41,6 @@ import jpsxdec.discitems.ISectorAudioDecoder;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
@@ -60,6 +59,7 @@ import jpsxdec.psxvideo.mdec.DecodingException;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.idct.simple_idct;
 import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.player.AudioPlayer;
 
 /** Holds all the class implementations that the jpsxdec.util.player framework
  *  needs to playback PlayStation audio and/or video. */
@@ -107,7 +107,7 @@ public class MediaPlayer implements IAudioVideoReader {
 
     private final static boolean AUDIO_BIGENDIAN = true;
     private ISectorAudioDecoder _audioDecoder;
-    private SrcDataLineSectorTimedAudioWriter _audioOut;
+    private AudPlayerSectorTimedAudioWriter _audioOut;
 
     public MediaPlayer(DiscItemAudioStream aud)
             throws FileNotFoundException, UnsupportedAudioFileException,
@@ -202,10 +202,10 @@ public class MediaPlayer implements IAudioVideoReader {
             __sector = sector;
         }
 
-        public void decodeAudio(SourceDataLine dataLine) throws IOException {
+        public void decodeAudio(AudioPlayer dataLine) throws IOException {
             if (_audioOut == null) {
-                _audioOut = new SrcDataLineSectorTimedAudioWriter(dataLine, _iSectorsPerSecond, _iMovieStartSector);
-                _audioDecoder.open(_audioOut);
+                _audioOut = new AudPlayerSectorTimedAudioWriter(dataLine, _iSectorsPerSecond, _iMovieStartSector);
+                _audioDecoder.setAudioListener(_audioOut);
             }
             _audioDecoder.feedSector(__sector);
         }
@@ -270,7 +270,7 @@ public class MediaPlayer implements IAudioVideoReader {
         }
 
         public long getPresentationTime() {
-            return (long)(__iSectorFromStart * 1000 / _iSectorsPerSecond);
+            return (__iSectorFromStart * 1000000000L / _iSectorsPerSecond);
         }
 
         public void decodeVideo(int[] drawHere) {

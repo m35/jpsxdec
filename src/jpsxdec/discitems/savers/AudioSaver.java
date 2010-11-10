@@ -48,6 +48,7 @@ import jpsxdec.formats.JavaAudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.AudioOutputFileWriter;
 import jpsxdec.util.ProgressListener;
+import jpsxdec.util.TaskCanceledException;
 
 /** Actually performs the saving process using the options selected in
  * {@link AudioSaverBuilder}. */
@@ -56,32 +57,52 @@ public class AudioSaver implements IDiscItemSaver  {
     private static final Logger log = Logger.getLogger(AudioSaver.class.getName());
 
     private final DiscItemAudioStream _audItem;
-    private final String _sOutputFile;
-    private final AudioOutputFileWriter _audioWriter;
     private final ISectorAudioDecoder _decoder;
+    private final File _fileSubPath;
+    private final JavaAudioFormat _containerFormat;
 
     private static final boolean WRITE_BIG_ENDIAN = true;
 
-    public AudioSaver(DiscItemAudioStream audItem, String sFilename,
+    public AudioSaver(DiscItemAudioStream audItem, File fileSubPath,
                        JavaAudioFormat containerFormat, double dblVolume)
-            throws IOException
     {
         _audItem = audItem;
-        _sOutputFile = sFilename;
-
-        AudioFormat audioFmt = audItem.getAudioFormat(WRITE_BIG_ENDIAN);
-        _audioWriter = new AudioOutputFileWriter(new File(_sOutputFile),
-                            audioFmt, containerFormat.getJavaType());
-        
+        _fileSubPath = fileSubPath;
         _decoder = audItem.makeDecoder(WRITE_BIG_ENDIAN, dblVolume);
-        _decoder.open(new ISectorAudioDecoder.ISectorTimedAudioWriter() {
+        _containerFormat = containerFormat;
+    }
+
+    public String getInput() {
+        return _audItem.getIndexId().toString();
+    }
+
+    public String getOutput() {
+        return _fileSubPath.getPath();
+    }
+
+    public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException {
+
+        File outputFile = new File(dir, _fileSubPath.getPath());
+
+        if (outputFile.getParentFile() != null) {
+            if (!outputFile.getParentFile().exists() && !outputFile.getParentFile().mkdirs()) {
+                throw new IOException("Unable to create directory " + outputFile.getParentFile());
+            } else if (!outputFile.getParentFile().isDirectory()) {
+                throw new IOException("Cannot create directory over a file " + outputFile.getParentFile());
+            }
+        }
+
+        AudioFormat audioFmt = _decoder.getOutputFormat();
+        final AudioOutputFileWriter _audioWriter;
+        _audioWriter = new AudioOutputFileWriter(outputFile,
+                            audioFmt, _containerFormat.getJavaType());
+
+        _decoder.setAudioListener(new ISectorAudioDecoder.ISectorTimedAudioWriter() {
             public void write(AudioFormat format, byte[] abData, int iStart, int iLen, int iPresentationSector) throws IOException {
                 _audioWriter.write(format, abData, iStart, iLen);
             }
         });
-    }
 
-    public void startSave(ProgressListener pl) throws IOException {
         try {
             final double SECTOR_LENGTH = _audItem.getSectorLength();
             for (int iSector = 0; iSector <= SECTOR_LENGTH; iSector++) {

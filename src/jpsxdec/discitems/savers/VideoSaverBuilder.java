@@ -43,14 +43,13 @@ import argparser.ArgParser;
 import argparser.BooleanHolder;
 import argparser.IntHolder;
 import argparser.StringHolder;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
-import javax.swing.JPanel;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.discitems.DiscItemAudioStream;
+import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.savers.VideoSavers.*;
@@ -80,35 +79,62 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     public void resetToDefaults() {
         setVideoFormat(VideoFormat.AVI_MJPG);
-        _blnSaveAudio = _sourceVidItem.hasAudio();
+        setParallelAudioBySizeOrder(0);
+        setAudioVolume(1.0);
+        setCrop(true);
+        setDecodeQuality(DecodeQualities.LOW);
+        setJpgCompression(0.75f);
+        setPreciseAVSync(false);
+        setPreciseFrameTiming(false);
+        setSaveAudio(true);
         setSaveStartFrame(_sourceVidItem.getStartFrame());
         setSaveEndFrame(_sourceVidItem.getEndFrame());
-        setParallelAudioBySizeOrder(0);
-        // TODO: finish
+        setSingleSpeed(false);
     }
 
-    public JPanel getOptionPane() {
-        throw new UnsupportedOperationException("Gui not implemented yet");
-        //return new SectorMovieWriterBuilderGui(_movieWriterBuilder);
+    public boolean copySettings(DiscItemSaverBuilder otherBuilder) {
+        if (otherBuilder instanceof VideoSaverBuilder) {
+            VideoSaverBuilder other = (VideoSaverBuilder) otherBuilder;
+            // only copy valid settings
+            other.setVideoFormat(getVideoFormat());
+            //other.setParallelAudio(getParallelAudio());
+            if (getAudioVolume_enabled())
+                other.setAudioVolume(getAudioVolume());
+            if (getCrop_enabled())
+                other.setCrop(getCrop());
+            if (getDecodeQuality_enabled())
+                other.setDecodeQuality(getDecodeQuality());
+            if (getJpgCompression_enabled())
+                other.setJpgCompression(getJpgCompression());
+            if (getPreciseAVSync_enabled())
+                other.setPreciseAVSync(getPreciseAVSync());
+            if (getPreciseFrameTiming_enabled())
+                other.setPreciseFrameTiming(getPreciseFrameTiming());
+            if (getSaveAudio_enabled())
+                other.setSaveAudio(getSaveAudio());
+            if (getSingleSpeed_enabled())
+                other.setSingleSpeed(getSingleSpeed());
+            return true;
+        }
+        return false;
+    }
+
+    public DiscItemSaverBuilderGui getOptionPane() {
+        return new VideoSaverBuilderGui(this);
     }
 
     // .........................................................................
 
-    private String _sOutputBaseName;
     public String getOutputBaseName() {
-        if (_sOutputBaseName == null)
-            return _sourceVidItem.getSuggestedBaseName();
-        else
-            return _sOutputBaseName;
+        return _sourceVidItem.getSuggestedBaseName().getPath();
     }
 
-    public void setOutputBaseName(String sName) {
-        _sOutputBaseName = sName;
-        firePossibleChange();
+    public String getOutputPostfixStart() {
+        return getVideoFormat().formatPostfix(_sourceVidItem, getStartFrame());
     }
 
-    public String getOutputPostfixName() {
-        return String.format(getVideoFormat().ext(_sourceVidItem), getSaveStartFrame());
+    public String getOutputPostfixEnd() {
+        return getVideoFormat().formatPostfix(_sourceVidItem, getEndFrame());
     }
 
     // .........................................................................
@@ -139,9 +165,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
     public boolean getSingleSpeed_enabled() {
         return getVideoFormat().getContainer() == Container.AVI &&
-               (_sourceVidItem.getDiscSpeed() < 1 &&
-                getSaveAudio() &&
-                getParallelAudio().getDiscSpeed() < 2);
+               (_sourceVidItem.getDiscSpeed() < 1);
     }
     public Fraction getFps() {
         return Fraction.divide( 
@@ -192,31 +216,49 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     public static enum VideoFormat {
         AVI_MJPG        ("AVI: Compressed (MJPG)"  , "avi:mjpg", Container.AVI, JavaImageFormat.JPG) {
-            public String ext(DiscItemVideoStream vid) { return ".avi"; }
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return ".avi";
+            }
         },
-        AVI_BMP         ("AVI: Uncompressed RGB"   , "avi:rgb", Container.AVI) {
-            public String ext(DiscItemVideoStream vid) { return ".avi"; }
+        AVI_RGB         ("AVI: Uncompressed RGB"   , "avi:rgb", Container.AVI) {
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return ".avi";
+            }
         },
         AVI_YUV         ("AVI: YUV"                , "avi:yuv", Container.AVI) {
-            public String ext(DiscItemVideoStream vid) { return ".avi"; }
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return ".avi";
+            }
         },
         AVI_JYUV         ("AVI: YUV with [0-255] range", "avi:jyuv", Container.AVI) {
-            public String ext(DiscItemVideoStream vid) { return ".avi"; }
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return ".avi";
+            }
         },
         IMGSEQ_PNG      ("Image sequence: png"     , "png", Container.IMGSEQ, JavaImageFormat.PNG) {
-            public String ext(DiscItemVideoStream vid) { return digitBlk(vid) + ".png"; }
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return digitBlk(vid, iFrame) + ".png";
+            }
         },
         IMGSEQ_JPG      ("Image sequence: jpg"     , "jpg", Container.IMGSEQ, JavaImageFormat.JPG) {
-            public String ext(DiscItemVideoStream vid) { return digitBlk(vid) + ".jpg"; }
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return digitBlk(vid, iFrame) + ".jpg";
+            }
         },
         IMGSEQ_BMP      ("Image sequence: bmp"     , "bmp", Container.IMGSEQ, JavaImageFormat.BMP) {
-            public String ext(DiscItemVideoStream vid) { return digitBlk(vid) + ".bmp"; }
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return digitBlk(vid, iFrame) + ".bmp";
+            }
         },
-        IMGSEQ_DEMUX    ("Image sequence: demux"   , "demux", Container.IMGSEQ) {
-            public String ext(DiscItemVideoStream vid) { return "_" + vid.getWidth() + "x" + vid.getHeight() + digitBlk(vid) + ".demux"; }
+        IMGSEQ_DEMUX    ("Image sequence: bitstream"   , "bs", Container.IMGSEQ) {
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return "_" + vid.getWidth() + "x" + vid.getHeight() + digitBlk(vid, iFrame) + ".bs";
+            }
         },
         IMGSEQ_MDEC     ("Image sequence: mdec"    , "mdec", Container.IMGSEQ) {
-            public String ext(DiscItemVideoStream vid) { return "_" + vid.getWidth() + "x" + vid.getHeight() + digitBlk(vid) + ".mdec"; }
+            public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+                return "_" + vid.getWidth() + "x" + vid.getHeight() + digitBlk(vid, iFrame) + ".mdec";
+            }
         },
         ;
 
@@ -254,12 +296,14 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
             return _eImgFmt == null ? false : _eImgFmt.hasCompression();
         }
 
-        abstract public String ext(DiscItemVideoStream vid);
-
+        abstract public String formatPostfix(DiscItemVideoStream vid, int iStartFrame);
+        
         /////////////////////////////////////////////////////////
 
-        private static String digitBlk(DiscItemVideoStream vid) {
-            return "[%0" + String.valueOf(String.valueOf(vid.getEndFrame()).length()) + "d]";
+        private static String digitBlk(DiscItemVideoStream vid, int iFrame) {
+            // http://stackoverflow.com/questions/554521/how-can-i-count-the-digits-in-an-integer-without-a-string-cast
+            int iDigitCount = (vid.getEndFrame() == 0) ? 1 : (int)Math.log10(vid.getEndFrame()) + 1;
+            return String.format("[%0" + String.valueOf(iDigitCount) + "d]", iFrame);
         }
 
         public static VideoFormat fromCmdLine(String sCmdLine) {
@@ -387,17 +431,6 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         }
     }
 
-    public void setParallelAudioByIndexNumber(int iIndex) {
-        for (int i = 0; i < _sourceVidItem.getParallelAudioStreamCount(); i++) {
-            DiscItemAudioStream audStream = _sourceVidItem.getParallelAudioStream(i);
-            if (audStream.getIndex() == iIndex) {
-                _parallelAudio = audStream;
-                firePossibleChange();
-                break;
-            }
-        }
-    }
-
     public boolean getParallelAudio_enabled() {
         return getSaveAudio();
     }
@@ -408,7 +441,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         LOW("Fast (lower quality)", "low"),
         HIGH("High quality (slower)", "high"),
         HIGH_PLUS("High quality + interpolation (slowest)", "high+"),
-        PSX("(not really) Exact PSX quality", "psx");
+        PSX("Nearly exact PSX quality", "psx");
 
         public static String getCmdLineList() {
             StringBuilder sb = new StringBuilder();
@@ -633,7 +666,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public void printSelectedOptions(PrintStream ps) {
-        ps.format("Disc speed: %s (%1.3f fps)", getSingleSpeed() ? "1x" : "2x", getFps().asDouble());
+        ps.format("Disc speed: %s (%s fps)", getSingleSpeed() ? "1x" : "2x", DiscItemVideoStream.formatFps(getFps()));
         ps.println();
         ps.println("Video format: " + getVideoFormat());
         if (getJpgCompression_enabled())
@@ -656,8 +689,13 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         if (getPreciseAVSync_enabled())
             ps.println("Precise audio/video sync: " + (getPreciseAVSync() ? "Yes" : "No"));
 
-        // TODO: finish this
-        ps.println("Saving as: " + getOutputBaseName() + getVideoFormat().ext(_sourceVidItem));
+        String sStartFile = getVideoFormat().formatPostfix(_sourceVidItem, getStartFrame());
+        String sEndFile = getVideoFormat().formatPostfix(_sourceVidItem, getEndFrame());
+        if (sStartFile.equals(sEndFile)) {
+            ps.println("Saving as: " + getOutputBaseName() + sStartFile);
+        } else {
+            ps.println("Saving as: " + getOutputBaseName() + sStartFile + " - " + getOutputBaseName() + sEndFile);
+        }
     }
 
     public void printHelp(FeedbackStream fbs) {
@@ -710,7 +748,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     
-    public IDiscItemSaver makeSaver() throws IOException {
+    public IDiscItemSaver makeSaver() {
 
         final MdecDecoder vidDecoder;
         switch (getDecodeQuality()) {
@@ -737,7 +775,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         }
 
         VideoSaverBuilderSnapshot snap = new VideoSaverBuilderSnapshot(_sourceVidItem,
-                _sourceVidItem.getSuggestedBaseName(),
+                 _sourceVidItem.getSuggestedBaseName(),
                 vidDecoder, audDecoder, this);
         
         VideoSaver writer;
@@ -748,10 +786,10 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
                 writer = new DecodedAviWriter_YV12(snap); break;
             case AVI_MJPG:
                 writer = new DecodedAviWriter_MJPG(snap); break;
-            case AVI_BMP:
+            case AVI_RGB:
                 writer = new DecodedAviWriter_DIB(snap); break;
             case IMGSEQ_DEMUX:
-                writer = new DemuxSequenceWriter(snap); break;
+                writer = new BitstreamSequenceWriter(snap); break;
             case IMGSEQ_MDEC:
                 writer = new MdecSequenceWriter(snap); break;
             case IMGSEQ_JPG:

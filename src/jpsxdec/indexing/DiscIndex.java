@@ -37,6 +37,7 @@
 
 package jpsxdec.indexing;
 
+import jpsxdec.discitems.IndexId;
 import jpsxdec.util.ProgressListener;
 import java.io.BufferedReader;
 import java.io.File;
@@ -48,7 +49,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.Main;
@@ -59,10 +60,10 @@ import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemISO9660File;
 import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.FileBasedId;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.TaskCanceledException;
 
 /** Searches for, and manages the collection of DiscItems in a file.
  *  PlayStation files (discs, STR, XA, etc.) can contain multiple media items.
@@ -78,21 +79,21 @@ public class DiscIndex implements Iterable<DiscItem> {
     
     private CdFileSectorReader _sourceCD;
     private String _sDiscName = null;
+    private ArrayList<IndexId> _root;
+    private final ArrayList<DiscItem> _iterate;
 
-    private final LinkedHashMap<Integer, DiscItem> _mediaHash = new LinkedHashMap<Integer, DiscItem>();
-
-    private final RootNode _rootTreeNode;
+    private final LinkedHashMap<Object, DiscItem> _lookup = new LinkedHashMap<Object, DiscItem>();
 
     /** Finds all the media on the CD.  */
-    public DiscIndex(CdFileSectorReader cdReader, ProgressListener pl) {
+    public DiscIndex(CdFileSectorReader cdReader, ProgressListener pl) throws TaskCanceledException {
         _sourceCD = cdReader;
         
         DiscIndexer[] aoIndexers = DiscIndexer.createIndexers();
 
-        ArrayList<DiscItem> completedItems = new ArrayList<DiscItem>();
+        _iterate = new ArrayList<DiscItem>();
 
         for (DiscIndexer indexer : aoIndexers) {
-            indexer.putYourCompletedMediaItemsHere(completedItems);
+            indexer.putYourCompletedMediaItemsHere(_iterate);
         }
 
         pl.progressStart();
@@ -115,17 +116,16 @@ public class DiscIndex implements Iterable<DiscItem> {
                         log.finer(cdSector.toString());
                 }
 
-                pl.event(String.format("Sector %d / %d  %d items found", iSector, _sourceCD.getLength(), completedItems.size()));
-                pl.progressUpdate(iSector / (double)_sourceCD.getLength());
+                if (pl.seekingEvent())
+                    pl.event(String.format("Sector %d / %d  %d items found", iSector, _sourceCD.getLength(), _iterate.size()));
 
             } catch (IOException ex) {
                 if (pl != null)
                     pl.error(ex);
                 log.log(Level.WARNING, "Error reading sector "+iSector+" while indexing disc", ex);
             }
+            pl.progressUpdate(iSector / (double)_sourceCD.getLength());
         }
-
-        pl.progressEnd();
 
         // notify indexers that the disc is finished
         for (DiscIndexer indexer : aoIndexers) {
@@ -133,19 +133,146 @@ public class DiscIndex implements Iterable<DiscItem> {
         }
 
         // sort the list according to the start sector & hierarchy level
-        Collections.sort(completedItems, new DiscItemCompare());
+        Collections.sort(_iterate, SORT_BY_SECTORHIERARHCY);
 
-        // copy the items to this class
-        for (DiscItem item : completedItems) {
-            addMediaItemInc(item);
+        _root = buildTree(_iterate);
+        
+        // copy the items to the hash
+        for (DiscItem item : _iterate) {
+            addLookupItem(item);
         }
+        
         // notify the indexerss that the list has been generated
         for (DiscIndexer indexer : aoIndexers) {
             indexer.mediaListGenerated(this);
         }
 
-        _rootTreeNode = buildTree();
+        if (pl.seekingEvent())
+            pl.event(String.format("Sector %d / %d  %d items found", _sourceCD.getLength(), _sourceCD.getLength(), _iterate.size()));
+
+        pl.progressEnd();
+
     }
+
+    private ArrayList<IndexId> buildTree(ArrayList<DiscItem> LIST) {
+
+        ArrayList<IndexId> root = new ArrayList<IndexId>();
+
+        ArrayList<IndexId> files = new ArrayList<IndexId>();
+        ArrayList<IndexId> videos = new ArrayList<IndexId>();
+        ArrayList<IndexId> nonFiles = new ArrayList<IndexId>();
+
+        // create ids for all the disc items, and take special interest in files and videos
+        int iIndex = 0;
+        for (DiscItem item : LIST) {
+            if (item instanceof DiscItemISO9660File) {
+                IndexId itemId = new IndexId(item, iIndex, ((DiscItemISO9660File)item).getPath());
+                // files never have parents, so add them to root now
+                root.add(itemId);
+                // also keep a special list of them for quicker reference
+                files.add(itemId);
+            } else {
+                IndexId itemId = new IndexId(item, iIndex);
+                // otherwise keep special list of videos for quick reference
+                if (item instanceof DiscItemVideoStream)
+                    videos.add(itemId);
+                // add them to the default pool
+                nonFiles.add(itemId);
+            }
+            iIndex++;
+        }
+
+        EachNonFile:
+        for (IndexId nonFile : nonFiles) {
+
+            // if it's audio, first check if it can be a child of a video
+            if (nonFile.getItem() instanceof DiscItemAudioStream) {
+                for (IndexId video : videos) {
+                    if (((DiscItemVideoStream)video.getItem()).isAudioVideoAligned(nonFile.getItem())) {
+                        video.add(nonFile);
+                        continue EachNonFile;
+                    }
+                }
+            }
+
+            // if not audio, or if audio doesn't have a video parent,
+            // check if it can be a child of a file
+
+            IndexId mostOverlap = null;
+            int iMostOverlap = 0;
+            for (IndexId file : files) {
+                int iOverlap = file.getItem().getOverlap(nonFile.getItem());
+                if (iOverlap > iMostOverlap) {
+                    mostOverlap = file;
+                    iMostOverlap = iOverlap;
+                }
+            }
+
+            if (mostOverlap != null) {
+                // it is part of a file
+                mostOverlap.add(nonFile);
+            } else {
+                // if not, add it to root
+                root.add(nonFile);
+            }
+        }
+
+        Comparator<IndexId> sortBySector = new Comparator<IndexId>() {
+            public int compare(IndexId o1, IndexId o2) {
+                if (o1.getItem().getStartSector() < o2.getItem().getStartSector())
+                    return -1;
+                else if (o1.getItem().getStartSector() > o2.getItem().getStartSector())
+                    return 1;
+                else if (o1.getItem().getEndSector() > o2.getItem().getEndSector())
+                    return -1;
+                else if (o1.getItem().getEndSector() < o2.getItem().getEndSector())
+                    return 1;
+                else
+                    return 0;
+            };
+        };
+
+        Collections.sort(root, sortBySector);
+
+        for (IndexId file : files) {
+            Collections.sort(file, sortBySector);
+        }
+
+        SortByOverlap overlapSort = new SortByOverlap();
+        for (IndexId video : videos) {
+            overlapSort.overlapper = video.getItem();
+            Collections.sort(video, overlapSort);
+        }
+
+
+        // finally walk through the tree and generate ids for the disc items
+        int iChildIndex = 0;
+        for (IndexId child : root) {
+            iChildIndex = child.recursiveSetTreeIndex(null, null, iChildIndex);
+        }
+
+        return root;
+    }
+
+    public List<IndexId> getRoot() {
+        return _root;
+    }
+
+    private static class SortByOverlap implements Comparator<IndexId> {
+        public DiscItem overlapper;
+        public int compare(IndexId o1, IndexId o2) {
+            int o1overlap = o1.getItem().getOverlap(overlapper);
+            int o2overlap = o2.getItem().getOverlap(overlapper);
+            if (o1overlap < o2overlap)
+                return -1;
+            else if (o1overlap > o2overlap)
+                return 1;
+            else
+                return 0;
+        };
+    }
+
+
 
     private static int typeHierarchyLevel(DiscItem item) {
         if (item instanceof DiscItemISO9660File)
@@ -158,7 +285,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             return 4;
     }
 
-    private static class DiscItemCompare implements Comparator<DiscItem> {
+    private static Comparator<DiscItem> SORT_BY_SECTORHIERARHCY = new Comparator<DiscItem>() {
         public int compare(DiscItem o1, DiscItem o2) {
             if (o1.getStartSector() < o2.getStartSector())
                 return -1;
@@ -175,7 +302,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             else
                 return 0;
         }
-    }
+    };
 
     /** Deserializes the CD index file, and tries to open the CD listed in the index. */
     public DiscIndex(String sSerialFile, FeedbackStream fbs)
@@ -207,11 +334,11 @@ public class DiscIndex implements Iterable<DiscItem> {
 
         BufferedReader reader = new BufferedReader(new FileReader(indexFile));
         
-        ArrayList<DiscItem> itemList = new ArrayList<DiscItem>();
+        _iterate = new ArrayList<DiscItem>();
 
         DiscIndexer[] aoIndexers = DiscIndexer.createIndexers();
         for (DiscIndexer indexer : aoIndexers) {
-            indexer.putYourCompletedMediaItemsHere(itemList);
+            indexer.putYourCompletedMediaItemsHere(_iterate);
         }
 
         // make sure the first line matches the current version
@@ -238,14 +365,23 @@ public class DiscIndex implements Iterable<DiscItem> {
                 }
                 continue;
             }
+
+            String[] asParts = sLine.split("\\|", 2);
+            String sIndexId = asParts[0];
+            String sItem = asParts[1];
             
             try {
-                DiscItemSerialization deserializedLine = new DiscItemSerialization(sLine);
+                DiscItemSerialization deserializedLine = new DiscItemSerialization(sItem);
 
                 boolean blnLineHandled = false;
                 for (DiscIndexer indexer : aoIndexers) {
-                    indexer.deserializeLineRead(deserializedLine);
-                    blnLineHandled = true;
+                    // first parse the indexid
+                    DiscItem item = indexer.deserializeLineRead(deserializedLine);
+                    if (item != null) {
+                        blnLineHandled = true;
+                        item.setIndexId(new IndexId(sIndexId, item));
+                        _iterate.add(item);
+                    }
                 }
                 if (!blnLineHandled)
                     fbs.printlnWarn("Failed to do anything with " + sLine);
@@ -255,17 +391,17 @@ public class DiscIndex implements Iterable<DiscItem> {
         }
         reader.close();
 
+        _root = recreateTree(_iterate);
 
         // copy the items to this class
-        for (DiscItem item : itemList) {
-            addMediaItem(item);
+        for (DiscItem item : _iterate) {
+            addLookupItem(item);
         }
         // notify the indexers that the list has been generated
         for (DiscIndexer indexer : aoIndexers) {
             indexer.mediaListGenerated(this);
         }
 
-        _rootTreeNode = buildTree();
 
         // debug print the list contents
         if (log.isLoggable(Level.INFO)) {
@@ -274,234 +410,40 @@ public class DiscIndex implements Iterable<DiscItem> {
 
     }
 
-    private abstract static class Node implements Comparable<Node> {
-        private ArrayList<Node> _children;
-
-        public int getChildCount() {
-            return _children == null ? 0 : _children.size();
+    private ArrayList<IndexId> recreateTree(ArrayList<DiscItem> LIST) {
+        // TODO: optimize this
+        for (DiscItem item : LIST) {
+            IndexId id = item.getIndexId();
+            id.findAndAddChildren(LIST);
         }
 
-        public int indexOf(Node child) {
-            return _children == null ? -1 : _children.indexOf(child);
-        }
-
-        public Node getChild(int i) {
-            return _children.get(i);
-        }
-
-        public void addChild(Node child) {
-            if (_children == null)
-                _children = new ArrayList<Node>();
-            _children.add(child);
-            Collections.sort(_children);
-        }
-
-        abstract public Object value();
-
-        public DirectoryNode getOrCreateDir(String sName) {
-            for (Node node : _children) {
-                if (node instanceof DirectoryNode) {
-                    DirectoryNode dirNode = (DirectoryNode) node;
-                    if ( dirNode.getName().equals(sName) ) {
-                        return dirNode;
-                    }
-                }
-            }
-            DirectoryNode dirNode = new DirectoryNode(sName);
-            _children.add(dirNode);
-            return dirNode;
-        }
-    }
-
-    private static class RootNode extends Node {
-
-        public int compareTo(Node o) {
-            return 1;
-        }
-
-        public String toString() {
-            return "Root (" + getChildCount() + ")";
-        }
-
-        @Override
-        public Object value() {
-            return "Root";
-        }
-    }
-
-    private static class PhysicalNode extends Node {
-
-        private DiscItem _discItem;
-
-        public PhysicalNode(DiscItem item) {
-            _discItem = item;
-        }
-
-        public DiscItem getDiscItem() {
-            return _discItem;
-        }
-
-        public int compareTo(Node o) {
-            if (o instanceof PhysicalNode)
-                return new DiscItemCompare().compare(_discItem, ((PhysicalNode)o)._discItem);
-            else
-                return -1;
-        }
-
-        public String toString() {
-            return _discItem.getUniqueId().serialize();
-        }
-
-        public Object value() {
-            return _discItem;
-        }
-    }
-
-    private static class DirectoryNode extends Node {
-        private String _sName;
-
-        public DirectoryNode(String sName) {
-            _sName = sName;
-        }
-
-        public String getName() {
-            return _sName;
-        }
-
-        public int compareTo(Node o) {
-            if (o instanceof DirectoryNode) {
-                return _sName.compareTo(((DirectoryNode)o)._sName);
-            } else {
-                return 1;
+        ArrayList<IndexId> root = new ArrayList<IndexId>();
+        for (DiscItem item : LIST) {
+            IndexId id = item.getIndexId();
+            if (id.isRoot()) {
+                root.add(id);
             }
         }
 
-        public String toString() {
-            return "/" + _sName + "/  (" + getChildCount() + ")";
-        }
+        //recursePrint(root, "");
+        return root;
+    }
 
-        @Override
-        public Object value() {
-            return "(dir)";
+    private static void recursePrint(List<IndexId> tree, String sIndent) {
+        for (IndexId id : tree) {
+            System.out.println(sIndent + id);
+            recursePrint(id, sIndent + "  ");
         }
     }
 
 
-    private String[] splitFileDirs(File file) {
-        ArrayList<String> dirs = new ArrayList<String>();
-        File parent;
-        while ((parent = file.getParentFile()) != null) {
-            dirs.add(parent.getName());
-            file = parent;
-        }
-        
-        return dirs.toArray(new String[dirs.size()]);
-    }
 
-    private RootNode buildTree() {
-
-        RootNode rootNode = new RootNode();
-
-        // create nodes for all the disc items
-        LinkedList<PhysicalNode> nodeItems = new LinkedList<PhysicalNode>();
-        for (DiscItem item : this) {
-            nodeItems.add(new PhysicalNode(item));
-        }
-
-        // identify just the file items
-        // begin to build the tree with them at the root
-        // remove those file nodes from the pool
-        ArrayList<PhysicalNode> fileNodes = new ArrayList<PhysicalNode>();
-        for (Iterator<PhysicalNode> it = nodeItems.iterator(); it.hasNext();) {
-            PhysicalNode node = it.next();
-            if (node.getDiscItem() instanceof DiscItemISO9660File) {
-                DiscItemISO9660File fileItem = (DiscItemISO9660File) node.getDiscItem();
-                String[] asDirs = splitFileDirs(fileItem.getPath());
-
-                Node tree = rootNode;
-                for (String sDir : asDirs) {
-                    tree = tree.getOrCreateDir(sDir);
-                }
-                tree.addChild(node);
-                fileNodes.add(node);
-                
-                it.remove();
-            }
-        }
-
-        // move all audio nodes to be children of video nodes where possible
-        for (Iterator<PhysicalNode> audIt = nodeItems.iterator(); audIt.hasNext();) {
-            PhysicalNode audioNode = audIt.next();
-            if (audioNode.getDiscItem() instanceof DiscItemAudioStream) {
-                for (Iterator<PhysicalNode> vidIt = nodeItems.iterator(); vidIt.hasNext();) {
-                    PhysicalNode videoNode = vidIt.next();
-                    if (videoNode.getDiscItem() instanceof DiscItemVideoStream) {
-                        DiscItemAudioStream audioItem = (DiscItemAudioStream) audioNode.getDiscItem();
-                        DiscItemVideoStream videoItem = (DiscItemVideoStream) videoNode.getDiscItem();
-                        if (videoItem.isAudioVideoAligned(audioItem)) {
-                            videoNode.addChild(audioNode);
-                            audIt.remove();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        // add nodes as children of files if possible,
-        // otherwise just add to the root
-        for (PhysicalNode nonFileNode : nodeItems) {
-            PhysicalNode mostOverlapFileNode = null;
-            int iMostOverlap = 0;
-            for (PhysicalNode fileNode : fileNodes) {
-                int iOverlap = fileNode.getDiscItem().getOverlap(nonFileNode.getDiscItem());
-                if (iOverlap > iMostOverlap) {
-                    mostOverlapFileNode = fileNode;
-                    iMostOverlap = iOverlap;
-                }
-            }
-            if (mostOverlapFileNode == null) {
-                rootNode.addChild(nonFileNode);
-            } else {
-                mostOverlapFileNode.addChild(nonFileNode);
-            }
-        }
-
-        // finally walk through the tree and generate ids for the disc items
-        FileBasedId id = null;
-        for (int i = 0; i < rootNode.getChildCount(); i++) {
-            id = updateIds(rootNode.getChild(i), null, id);
-        }
-
-        return rootNode;
-    }
-
-    private FileBasedId updateIds(Node node, FileBasedId parentId, FileBasedId siblingId) {
-
-        if (node instanceof PhysicalNode) {
-            DiscItem item = ((PhysicalNode)node).getDiscItem();
-            if (item instanceof DiscItemISO9660File) {
-                siblingId = new FileBasedId( ((DiscItemISO9660File)((PhysicalNode)node).getDiscItem()).getPath() );
-                item.setUniqueId(siblingId);
-            } else {
-                if (siblingId == null) {
-                    if (parentId == null)
-                        siblingId = new FileBasedId();
-                    else
-                        siblingId = parentId.newChild();
-                } else
-                    siblingId = siblingId.newIncrement();
-
-                item.setUniqueId(siblingId);
-
-            }
-        }
-
-        FileBasedId childId = null;
-        for (int i = 0; i < node.getChildCount(); i++) {
-            childId = updateIds(node.getChild(i), siblingId, childId);
-        }
-        return siblingId;
+    /** Adds a media item to the internal hash and array. */
+    private void addLookupItem(DiscItem item) {
+        IndexId id = (IndexId) item.getIndexId();
+        item.setSourceCD(_sourceCD);
+        _lookup.put(Integer.valueOf(id.getListIndex()), item);
+        _lookup.put(id.serialize(), item);
     }
 
 
@@ -514,7 +456,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         // TODO: Serialize the CD file location relative to where this index file is being saved
         ps.println(_sourceCD.serialize());
         for (DiscItem item : this) {
-            ps.println(item.serialize().serialize());
+            ps.println(item.getIndexId().serialize() + "|" + item.serialize().serialize());
         }
         ps.close();
     }
@@ -523,26 +465,16 @@ public class DiscIndex implements Iterable<DiscItem> {
         _sDiscName = sName;
     }
 
-    /** Adds a media item to the internal hash and array. */
-    private void addMediaItemInc(DiscItem item) {
-        int iIndex = _mediaHash.size();
-        item.setIndex(iIndex);
-        item.setSourceCD(_sourceCD);
-        _mediaHash.put(Integer.valueOf(iIndex), item);
-    }
-    
-    /** Adds a media item to the internal hash and array. */
-    private void addMediaItem(DiscItem item) {
-        item.setSourceCD(_sourceCD);
-        _mediaHash.put(Integer.valueOf(item.getIndex()), item);
+    public DiscItem getByIndex(int iIndex) {
+        return _lookup.get(Integer.valueOf(iIndex));
     }
 
-    public DiscItem getByIndex(int iIndex) {
-        return _mediaHash.get(Integer.valueOf(iIndex));
+    public DiscItem getById(String sId) {
+        return _lookup.get(sId);
     }
     
     public boolean hasIndex(int iIndex) {
-        return _mediaHash.containsKey(Integer.valueOf(iIndex));
+        return _lookup.containsKey(Integer.valueOf(iIndex));
     }
 
     public CdFileSectorReader getSourceCD() {
@@ -550,37 +482,16 @@ public class DiscIndex implements Iterable<DiscItem> {
     }
     
     public int size() {
-        return _mediaHash.size();
+        return _iterate.size();
     }
     
     /* [implements Iterable] */
     public Iterator<DiscItem> iterator() {
-        return _mediaHash.values().iterator();
+        return _iterate.iterator();
     }
 
     @Override
     public String toString() {
-        return String.format("%s (%s) %d items", _sourceCD.getSourceFile(), _sDiscName, _mediaHash.size());
+        return String.format("%s (%s) %d items", _sourceCD.getSourceFile(), _sDiscName, _iterate.size());
     }
-
-    public int getNodeChildCount(Object node) {
-        return ((Node)node).getChildCount();
-    }
-
-    public Object getNodeChild(Object node, int i) {
-        return ((Node)node).getChild(i);
-    }
-
-    public Object getRoot() {
-        return _rootTreeNode;
-    }
-
-    public int getIndexOfChild(Object parent, Object child) {
-        return ((Node)parent).indexOf((Node)child);
-    }
-
-    public Object getNodeValue(Object node) {
-        return ((Node)node).value();
-    }
-
 }

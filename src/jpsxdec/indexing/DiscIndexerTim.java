@@ -40,6 +40,7 @@ package jpsxdec.indexing;
 import jpsxdec.discitems.DiscItemTIM;
 import java.io.IOException;
 import java.util.logging.Logger;
+import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.tim.Tim;
@@ -53,14 +54,13 @@ public class DiscIndexerTim extends DiscIndexer {
     private static final Logger log = Logger.getLogger(DiscIndexerTim.class.getName());
 
     @Override
-    public boolean deserializeLineRead(DiscItemSerialization oSerial) {
+    public DiscItem deserializeLineRead(DiscItemSerialization oSerial) {
         try {
             if (DiscItemTIM.TYPE_ID.equals(oSerial.getType())) {
-                super.addDiscItem(new DiscItemTIM(oSerial));
-                return true;
+                return new DiscItemTIM(oSerial);
             }
         } catch (NotThisTypeException ex) {}
-        return false;
+        return null;
     }
 
     @Override

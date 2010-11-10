@@ -158,14 +158,13 @@ public class DiscIndexerXaAudio extends DiscIndexer {
     private final AudioStreamIndex[/*32*/] _aoChannels = new AudioStreamIndex[32];
 
     @Override
-    public boolean deserializeLineRead(DiscItemSerialization oSerial) {
+    public DiscItem deserializeLineRead(DiscItemSerialization oSerial) {
         try {
             if (DiscItemXAAudioStream.TYPE_ID.equals(oSerial.getType())) {
-                super.addDiscItem(new DiscItemXAAudioStream(oSerial));
-                return true;
+                return new DiscItemXAAudioStream(oSerial);
             }
         } catch (NotThisTypeException ex) {}
-        return false;
+        return null;
     }
 
     @Override

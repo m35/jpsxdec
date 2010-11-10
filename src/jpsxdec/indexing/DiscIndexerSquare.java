@@ -40,6 +40,7 @@ package jpsxdec.indexing;
 import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.discitems.DiscItemSquareAudioStream;
 import java.io.IOException;
+import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
@@ -58,14 +59,13 @@ public class DiscIndexerSquare extends DiscIndexer {
     private int _iLeftAudioPeriod = -1;
 
     @Override
-    public boolean deserializeLineRead(DiscItemSerialization fields) {
+    public DiscItem deserializeLineRead(DiscItemSerialization fields) {
         try {
             if (DiscItemSquareAudioStream.TYPE_ID.equals(fields.getType())) {
-                super.addDiscItem(new DiscItemSquareAudioStream(fields));
-                return true;
+                return new DiscItemSquareAudioStream(fields);
             }
         } catch (NotThisTypeException ex) {}
-        return false;
+        return null;
     }
 
     /**

@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
@@ -116,31 +117,35 @@ public class DiscIndexerISO9660 extends DiscIndexer {
 
             for (DirectoryRecord childDr : dirRecSect.getRecords()) {
 
-                if (!childDr.name.equals(".") && !childDr.name.equals("..")) {
-                    File drDir;
-                    if (parentDir == null)
-                        drDir = new File(childDr.name);
-                    else
-                        drDir = new File(parentDir, childDr.name);
+                if (childDr.name.equals(".") || childDr.name.equals(".."))
+                    continue;
+
+                // TODO: cleanup this mess
+                File drDir;
+                if (parentDir == null)
+                    drDir = new File(childDr.name);
+                else
+                    drDir = new File(parentDir, childDr.name);
+                if ((childDr.flags & DirectoryRecord.FLAG_IS_DIRECTORY) == 0)
+                {
                     int iSectLength = (int)((childDr.size+2047) / 2048); // round up to nearest sector
                     super.addDiscItem(new DiscItemISO9660File(
                             (int)childDr.extent, (int)(childDr.extent + iSectLength - 1),
                             drDir, childDr.size));
-                    getFileList(childDr, drDir);
                 }
+                getFileList(childDr, drDir);
             }
         }
     }
     
     @Override
-    public boolean deserializeLineRead(DiscItemSerialization fields) {
+    public DiscItem deserializeLineRead(DiscItemSerialization fields) {
         try {
             if (DiscItemISO9660File.TYPE_ID.equals(fields.getType())) {
-                super.addDiscItem(new DiscItemISO9660File(fields));
-                return true;
+                return new DiscItemISO9660File(fields);
             }
         } catch (NotThisTypeException ex) {}
-        return false;
+        return null;
     }
 
     @Override

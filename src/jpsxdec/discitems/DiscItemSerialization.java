@@ -55,8 +55,6 @@ public class DiscItemSerialization {
     
     private static final String KEY_VALUE_DELIMITER = ":";
     private static final String FIELD_DELIMITER = "|";
-    private static final String INDEX_KEY = "#";
-    private static final String UNIQUE_ID_KEY = "Id";
     private static final String SECTOR_RANGE_KEY = "Sectors";
     private static final String TYPE_KEY = "Type";
 
@@ -64,9 +62,7 @@ public class DiscItemSerialization {
     private String _sSerizedString = null;
     
     /** Creates a new serialization class to accept information. */
-    public DiscItemSerialization(int iIndex, String sUniqueId, String sType, int iStart, int iEnd) {
-        addNumber(INDEX_KEY, iIndex);
-        addString(UNIQUE_ID_KEY, sUniqueId);
+    public DiscItemSerialization(String sType, int iStart, int iEnd) {
         addString(TYPE_KEY, sType);
         addRange(SECTOR_RANGE_KEY, iStart, iEnd);
     }
@@ -100,18 +96,6 @@ public class DiscItemSerialization {
         StringBuilder sb = new StringBuilder();
 
         // want to handle the required fields first
-        sb.append(INDEX_KEY);
-        sb.append(KEY_VALUE_DELIMITER);
-        sb.append(_fields.remove(INDEX_KEY));
-
-        sb.append(FIELD_DELIMITER);
-
-        sb.append(UNIQUE_ID_KEY);
-        sb.append(KEY_VALUE_DELIMITER);
-        sb.append(_fields.remove(UNIQUE_ID_KEY));
-
-        sb.append(FIELD_DELIMITER);
-
         sb.append(SECTOR_RANGE_KEY);
         sb.append(KEY_VALUE_DELIMITER);
         sb.append(_fields.remove(SECTOR_RANGE_KEY));
@@ -245,18 +229,10 @@ public class DiscItemSerialization {
 
     // -- required fields --------------
     
-    public int getIndex() throws NotThisTypeException {
-        return getInt(INDEX_KEY);
-    }
-    
     public String getType() {
         return getString(TYPE_KEY);
     }
 
-    public String getUniqueId() {
-        return getString(UNIQUE_ID_KEY);
-    }
-    
     public int[] getSectorRange() throws NotThisTypeException {
         return getIntRange(SECTOR_RANGE_KEY);
     }

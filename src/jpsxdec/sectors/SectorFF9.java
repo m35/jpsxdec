@@ -37,9 +37,9 @@
 
 package jpsxdec.sectors;
 
-import jpsxdec.audio.SquareAKAOstruct;
 import java.io.IOException;
 import java.io.InputStream;
+import jpsxdec.audio.SquareADPCMDecoder;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
@@ -427,15 +427,15 @@ public abstract class SectorFF9 extends IdentifiedSector {
         public long getLeftSampleCount() {
             // if it's the 0th chunk, then it holds the left audio
             if (getAudioChunkNumber() == 0) 
-                return getAudioDataSize();
+                return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
             else
                 return 0;
         }
 
         public long getRightSampleCount() {
-            // if it's the 1th chunk, then it holds the right audio
+            // if it's the 1st chunk, then it holds the right audio
             if (getAudioChunkNumber() == 1) 
-                return getAudioDataSize();
+                return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
             else
                 return 0;
         }

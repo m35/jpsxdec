@@ -38,10 +38,9 @@
 package jpsxdec.util.player;
 
 import java.io.IOException;
-import javax.sound.sampled.SourceDataLine;
 
 /** A bit of audio data returned by the {@link IAudioVideoReader} that will
  * be told to decode itself within the {@link AudioProcessor} thread. */
 public interface IDecodableAudioChunk {
-    void decodeAudio(SourceDataLine dataLine) throws IOException;
+    void decodeAudio(AudioPlayer player) throws IOException;
 }

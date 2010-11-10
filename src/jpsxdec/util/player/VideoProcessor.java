@@ -41,20 +41,21 @@ package jpsxdec.util.player;
  * to a presentation image. */
 public class VideoProcessor implements Runnable {
 
-    public static boolean DEBUG = false;
+    private static final boolean DEBUG = false;
 
     private static final int CAPACITY = 50;
 
-    private MultiStateBlockingQueue<AbstractDecodableFrame> _framesProcessingQueue =
+    private final MultiStateBlockingQueue<AbstractDecodableFrame> _framesProcessingQueue =
             new MultiStateBlockingQueue<AbstractDecodableFrame>(CAPACITY);
     private Thread _thread;
     
-    private PlayController _controller;
+    private IVideoTimer _vidTimer;
     private VideoPlayer _vidPlayer;
 
-    VideoProcessor(PlayController controller, VideoPlayer player) {
-        _controller = controller;
+    VideoProcessor(IVideoTimer timer, VideoPlayer player) {
+        _vidTimer = timer;
         _vidPlayer = player;
+        _framesProcessingQueue.stop();
     }
 
     public void run() {
@@ -63,8 +64,7 @@ public class VideoProcessor implements Runnable {
             while ((decodeFrame = _framesProcessingQueue.take()) != null) {
                 // check if this frame is part of current play sequence
                 // and if we haven't passed presentation time
-                if (_controller.shouldBeProcessed(decodeFrame.getPresentationTime(),
-                                                  decodeFrame.getContigiousId()))
+                if (_vidTimer.shouldBeProcessed(decodeFrame.getContigiousId(), decodeFrame.getPresentationTime()))
                 {
                     if (DEBUG) System.out.println("Processor processing frame :)");
                     VideoPlayer.VideoFrame frame = _vidPlayer._videoFramePool.borrow();
@@ -73,56 +73,69 @@ public class VideoProcessor implements Runnable {
                     decodeFrame.decodeVideo(frame.Memory);
                     frame.MemImgSrc.newPixels();
                     // submit to vid player
+                    // will block if player is full
                     _vidPlayer.addFrame(frame);
-
-                    decodeFrame.returnToPool();
                 } else {
                     System.out.println("Processor not processing frame :(");
                 }
             }
-        } catch (InterruptedException ex) {
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+        } finally {
             _framesProcessingQueue.stop();
         }
     }
 
     public void addFrame(AbstractDecodableFrame frame) {
         try {
-            frame.setContiguiousId(_controller.getContiguousPlayUniqueId());
+            frame.setContiguiousId(_vidTimer.getContiguousPlayId());
             _framesProcessingQueue.add(frame);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
     }
     
+    final void play() {
+        synchronized (_framesProcessingQueue.getSyncObject()) {
+            if (_framesProcessingQueue.isPaused()) {
+                _framesProcessingQueue.play();
+            } else if (_framesProcessingQueue.isStopped()) {
+                _thread = new Thread(this, getClass().getName());
+                _thread.start();
+                _framesProcessingQueue.play();
+            }
+        }
+    }
+    
+    final void pause() {
+        synchronized (_framesProcessingQueue.getSyncObject()) {
+            if (_framesProcessingQueue.isPlaying()) {
+                _framesProcessingQueue.pause();
+            } else if (_framesProcessingQueue.isStopped()) {
+                _thread = new Thread(this, getClass().getName());
+                _thread.start();
+                _framesProcessingQueue.pause();
+            }
+        }
+    }
+
+    /** Make sure player is stopped before calling this method or it will deadlock. */
+    final void stop() throws InterruptedException {
+        synchronized (_framesProcessingQueue.getSyncObject()) {
+            if (_framesProcessingQueue.isPlaying() || _framesProcessingQueue.isPaused())
+                _framesProcessingQueue.stop();
+        }
+    }
+
     void overwriteWhenFull() {
         _framesProcessingQueue.overwriteWhenFull();
     }
-
-    void clearQueue() {
-        _framesProcessingQueue.clear();
-    }
-    
-    void play() {
-        _framesProcessingQueue.play();
-    }
-    
-    void pause() {
-        _framesProcessingQueue.pause();
+    void blockWhenFull() {
+        _framesProcessingQueue.blockWhenFull();
     }
 
     void stopWhenEmpty() {
         _framesProcessingQueue.stopWhenEmpty();
     }
-
-    void startup() {
-        _thread = new Thread(this, "Video Processor");
-        _framesProcessingQueue.play();
-        _thread.start();
-    }
-
-    void shutdown() {
-        _framesProcessingQueue.stop();
-    }
-
 
 }

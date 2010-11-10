@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems;
 
+import java.io.File;
 import jpsxdec.sectors.IdentifiedSector;
 import java.io.IOException;
 import jpsxdec.cdreaders.CdSector;
@@ -54,9 +55,7 @@ public abstract class DiscItem {
     private final int _iEndSector;
     private CdFileSectorReader _cdReader;
 
-    /** Index number of the media item in the file. */
-    private int _iIndex = -1;
-    private FileBasedId _uniqueId;
+    private IndexId _indexId;
 
     public DiscItem(int iStartSector, int iEndSector) {
         _iStartSector = iStartSector;
@@ -66,37 +65,16 @@ public abstract class DiscItem {
     /** Deserializes the start and end sectors. */
     public DiscItem(DiscItemSerialization fields) throws NotThisTypeException
     {
-        _iIndex = fields.getIndex();
-        _uniqueId = new FileBasedId(fields.getUniqueId());
         int[] aiRng = fields.getSectorRange();
         _iStartSector = aiRng[0];
         _iEndSector   = aiRng[1];
     }
 
     final protected DiscItemSerialization superSerial(String sType) {
-        return new DiscItemSerialization(_iIndex, 
-                _uniqueId == null ? null : _uniqueId.serialize(),
-                sType, _iStartSector, _iEndSector);
+        return new DiscItemSerialization(sType, _iStartSector, _iEndSector);
     }
 
-    public abstract DiscItemSerialization serialize();
-
-    /** For sorting. */
-    public int compareTo(Object o) {
-        if (o instanceof DiscItem) {
-            DiscItem odi = (DiscItem)o;
-            if (_iIndex < odi._iIndex)
-                return -1;
-            else if (_iIndex > odi._iIndex)
-                return 1;
-            else
-                return 0;
-        } else {
-            throw new IllegalArgumentException(DiscItem.class.getName()+
-                                               ".compareTo non-"+
-                                               DiscItem.class.getName());
-        }
-    }
+    abstract public DiscItemSerialization serialize();
 
     /** Returns the iIndex'th sector of this media item (beginning from
      *  the first sector of the media item). */
@@ -149,15 +127,6 @@ public abstract class DiscItem {
         return _iEndSector - _iStartSector + 1;
     }
 
-    /** Get the index number (usually sequential) of this disc item. */
-    public int getIndex() {
-        return _iIndex;
-    }
-
-    public void setIndex(int iMediaIndex) {
-        _iIndex = iMediaIndex;
-    }
-
     public void setSourceCD(CdFileSectorReader cd) {
         _cdReader = cd;
     }
@@ -170,31 +139,37 @@ public abstract class DiscItem {
         return new IdentifiedSectorRangeIterator(_cdReader, _iStartSector, _iEndSector);
     }
 
-    public String getSuggestedBaseName() {
-        String sBaseName;
-        if (_uniqueId.getBaseFile() == null) {
-            sBaseName = Misc.getBaseName(_cdReader.getSourceFile().getName());
+    public File getSuggestedBaseName() {
+        if (_indexId == null) {
+            // use the source CD filename as the base name
+            return new File(Misc.getBaseName(_cdReader.getSourceFile().getName()));
+        } else if (_indexId.getSuggestedBaseName() == null) {
+            return new File(Misc.getBaseName(_cdReader.getSourceFile().getName()) + _indexId.getTreeIndex());
         } else {
-            sBaseName = Misc.getBaseName(_uniqueId.getBaseFile().getName());
+            // use the index's base name which will be better
+            return _indexId.getSuggestedBaseName();
         }
-        String sIndex = _uniqueId.getBaseIndex();
-        return sBaseName + sIndex;
     }
 
-    public FileBasedId getUniqueId() {
-        return _uniqueId;
+    public IndexId getIndexId() {
+        return _indexId;
     }
-    public void setUniqueId(FileBasedId id) {
-        _uniqueId = id;
+    public void setIndexId(IndexId id) {
+        _indexId = id;
     }
 
     public String toString() {
-        return serialize().serialize();
+        if (_indexId == null)
+            return serialize().serialize();
+        else
+            return _indexId.serialize() + "|" + serialize().serialize();
     }
 
-    /** Returns a string representing the type of this disc item. Used in case
-     * the user wants to save all items of a certain type. */
-    abstract public String getTypeId();
+    /** String of the 'Type:' value in the serialization string. */
+    abstract public String getSerializationTypeId();
+
+    /** Description of various details about the disc item. */
+    abstract public String getInterestingDescription();
 
     /** Returns how many sectors this item and the supplied disc item overlap. */
     public int getOverlap(DiscItem other) {

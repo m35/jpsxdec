@@ -42,7 +42,7 @@ import javax.sound.sampled.AudioFormat;
 /** User created object to do the actual reading of audio or video chunks.
  * Also indicates the format of the chucks being read.  */
 public interface IAudioVideoReader {
-    /** Return true if playing should continue. */
+    /** Return number between 1-100 indicating player progress, or -1 if done. */
     int readNext(VideoProcessor vidProc, AudioProcessor audProc);
     void seekToTime(long lngTime);
     void seekToFrame(int iFrame);

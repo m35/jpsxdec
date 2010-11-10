@@ -51,6 +51,8 @@ import jpsxdec.util.NotThisTypeException;
  * runs parallel to the video. */
 public abstract class DiscItemAudioStream extends DiscItem {
 
+    private boolean _blnIsPartOfVideo = false;
+
     public DiscItemAudioStream(DiscItemSerialization fields) throws NotThisTypeException {
         super(fields);
     }
@@ -67,6 +69,13 @@ public abstract class DiscItemAudioStream extends DiscItem {
         if (other.getEndSector() + other.getSectorsPastEnd() < getStartSector())
             return false;
         return true;
+    }
+
+    public boolean isPartOfVideo() {
+        return _blnIsPartOfVideo;
+    }
+    public void setPartOfVideo(boolean bln) {
+        _blnIsPartOfVideo = bln;
     }
 
     abstract public int getSampleRate();

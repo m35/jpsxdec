@@ -124,27 +124,25 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         }
     }
 
-    public DiscItemXAAudioStream(DiscItemSerialization oFields)
-            throws NotThisTypeException
-    {
-        super(oFields);
+    public DiscItemXAAudioStream(DiscItemSerialization fields) throws NotThisTypeException {
+        super(fields);
         
-        String sStereo = oFields.getString(STEREO_KEY);
+        String sStereo = fields.getString(STEREO_KEY);
         if ("Yes".equals(sStereo))
             _blnIsStereo = true;
         else if ("No".equals(sStereo))
             _blnIsStereo = false;
         else throw new NotThisTypeException(STEREO_KEY + " field has invalid value: " + sStereo);
             
-        _iSamplesPerSecond = oFields.getInt(SAMPLES_PER_SEC_KEY);
-        _iChannel = oFields.getInt(CHANNEL_KEY);
+        _iSamplesPerSecond = fields.getInt(SAMPLES_PER_SEC_KEY);
+        _iChannel = fields.getInt(CHANNEL_KEY);
 
-        _lngSampleCount = oFields.getInt(SAMPLE_COUNT_KEY);
+        _lngSampleCount = fields.getInt(SAMPLE_COUNT_KEY);
         
-        _iBitsPerSample = oFields.getInt(BITSPERSAMPLE_KEY);
-        _iSectorStride = oFields.getInt(STRIDE_KEY);
+        _iBitsPerSample = fields.getInt(BITSPERSAMPLE_KEY);
+        _iSectorStride = fields.getInt(STRIDE_KEY);
 
-        String sDiscSpeed = oFields.getString(DISC_SPEED_KEY);
+        String sDiscSpeed = fields.getString(DISC_SPEED_KEY);
         if ("1x".equals(sDiscSpeed))
             _iDiscSpeed = 1;
         else if ("2x".equals(sDiscSpeed))
@@ -183,8 +181,19 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         return super.getEndSector() + _iSectorStride - 1;
     }
 
-    public String getTypeId() {
+    public String getSerializationTypeId() {
         return TYPE_ID;
+    }
+
+    @Override
+    public String getInterestingDescription() {
+        long lngSeconds = _lngSampleCount / _iSamplesPerSecond;
+        if (lngSeconds == 0 && _lngSampleCount > 0)
+            lngSeconds = 1;
+        return String.format("%s, %d Hz %s",
+                DiscItemVideoStream.formatTime(lngSeconds),
+                _iSamplesPerSecond,
+                _blnIsStereo ? "Stereo" : "Mono");
     }
 
     public int getDiscSpeed() {
@@ -222,7 +231,7 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
             __decoder = XAADPCMDecoder.create(getADPCMBitsPerSample(), isStereo(), blnBigEndian, dblVolume);
         }
 
-        public void open(ISectorTimedAudioWriter audioFeed) {
+        public void setAudioListener(ISectorTimedAudioWriter audioFeed) {
             __outFeed = audioFeed;
         }
 

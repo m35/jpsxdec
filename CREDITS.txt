@@ -26,8 +26,8 @@ especially the PSX assembly instruction set.
 smf, developer for MAME, for figuring out that everyone was getting the 
 order of CrCb wrong (http://smf.mameworld.info/?p=12).
 
-Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error
-and verifying that jPSXdec is doing things right, and for
+Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error,
+verifying that jPSXdec is doing things right, and for
 pointing out that the quantization table is uploaded to the MDEC 
 
 Andrew Z for pursuing high quality ADPCM decoding, and verifying jPSXdec
@@ -38,7 +38,7 @@ Jonathan Atkins for his open source cdxa code and documentation.
 http://jcatki.no-ip.org:8080/cdxa/ 
 http://jonatkins.org:8080/cdxa/)
 
-The PCSX Team, creators of one of the two open source Playstation 
+The PCSX Team, creators of one of the two open source PlayStation
 emulators (http://www.pcsx.net/).
 One version of its mdec.c file is particularly useful 
 (http://www.google.com/codesearch?q=%22blk_zig+value%22) 
@@ -56,10 +56,29 @@ FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
 T_chan for sharing a bit of his knowledge about the FF9 format 
 (http://www.network54.com/Forum/119865/thread/1196268797). 
 
-Stephen Manley for generously sharing his DCT.java class 
-(http://www.nyx.net/~smanley/).
+Jen (a.k.a. punistation) for her (formally) long standing PlayStation Serial
+Experiments Lain page (http://www.geocities.com/punistation10/).
+
+Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating anime.
+
+The most excellent folks at IRCNet #lain :D
+
+cclh12 at romhacking.net for generously providing some actual PlayStation 1
+hardware RAM dumps.
+
+Mezmorize at gshi.org for helping me get an old PlayStation and GameShark
+working to make my own RAM dumps.
+
+................................................................................
+Thanks to those who wrote code that I've used at some point during development:
 
 Alexander Strange for porting the ffmpeg simple_idct to Java.
+
+Stephen Manley for generously sharing his DCT.java class (http://www.nyx.net/~smanley/).
+
+Bernhard Huber for his very nice javadoc-templates
+(http://members.aon.at/bhuber14/
+http://plugins.netbeans.org/PluginPortal/faces/PluginDetailPage.jsp?pluginid=1168)
 
 Doug Lea for sharing his Fraction.java class.
 
@@ -74,25 +93,17 @@ John E. Lloyd for the handy argparser library
 Joerg Anders for managing to write an mpeg1 decoder in pure Java 
 (http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html).
 
-cclh12 at romhacking.net for generously providing some actual PlayStation 1 
-hardware RAM dumps.
-
-Mezmorize at gshi.org for helping me get an old PlayStation and GameShark 
-working to make my own RAM dumps.
-
 Rodrigo Reyes for the JSmooth tool (http://jsmooth.sourceforge.net/). 
 
-Jen (a.k.a. punistation) for her (formally) long standing Playstation Serial
-Experiments Lain page (http://www.geocities.com/punistation10/). 
+PDFJet for their PDF library.
 
-Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating 
-anime. 
+Jerry Huxtable for his awesome ParagraphLayout.
 
-The most excellent folks at IRCNet #lain :D 
+L2Fprod for the directory chooser.
 
-Bernhard Huber for his very nice javadoc-templates 
-(http://members.aon.at/bhuber14/ 
-http://plugins.netbeans.org/PluginPortal/faces/PluginDetailPage.jsp?pluginid=1168) 
+Sun for the Java platform, SwingWorker and SwingX libraries, and the Netbeans IDE.
+
+................................................................................
 
 Finally, a very special thanks to all the PlayStation hackers who
 thought it was a good idea to keep their decoders/emulators/hacking 

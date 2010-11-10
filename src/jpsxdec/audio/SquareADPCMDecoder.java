@@ -69,14 +69,18 @@ public final class SquareADPCMDecoder {
             _decodeBuffer = new ShortEndianWriter.LE();
     }
 
-    public static int calculateOutputBufferSize(int iInputBytes) {
+    public static int calculateSamplesGenerated(int iInputBytes) {
         if ((iInputBytes % SoundUnit.SIZE_IN_BYTES) > 0)
             throw new IllegalArgumentException("iInputBytes must be divisible by " + SoundUnit.SIZE_IN_BYTES);
 
         // each sound unit takes 16 bytes
         int iSoundUnitCount = iInputBytes / SoundUnit.SIZE_IN_BYTES;
 
-        return iSoundUnitCount * SoundUnit.SAMPLES_PER_SOUND_UNIT * 2 * 2;
+        return iSoundUnitCount * SoundUnit.SAMPLES_PER_SOUND_UNIT;
+    }
+
+    public static int calculateOutputBufferSize(int iInputBytes) {
+        return calculateSamplesGenerated(iInputBytes) * 2 * 2;
     }
     
     /** Decodes a requested amount of audio data from the input stream. 

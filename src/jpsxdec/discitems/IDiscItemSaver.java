@@ -37,13 +37,17 @@
 
 package jpsxdec.discitems;
 
+import java.io.File;
 import jpsxdec.util.ProgressListener;
 import java.io.IOException;
+import jpsxdec.util.TaskCanceledException;
 
 /** Holds a snapshot of {@link DiscItemSaverBuilder} options and will begin
  * the saving process when requested. */
 public interface IDiscItemSaver {
     
-    abstract public void startSave(ProgressListener pl) throws IOException;
+    public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException;
+    public String getInput();
+    public String getOutput();
 
 }

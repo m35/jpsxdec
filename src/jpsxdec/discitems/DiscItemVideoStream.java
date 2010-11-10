@@ -133,14 +133,14 @@ public class DiscItemVideoStream extends DiscItem {
     }
 
     public DiscItemSerialization serialize() {
-        DiscItemSerialization oSerial = super.superSerial(TYPE_ID);
-        oSerial.addRange(FRAMES_KEY, _iStartFrame, _iEndFrame);
-        oSerial.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
-        oSerial.addFraction(SECTORSPERFRAME_KEY, _lngSectors, _lngPerFrame);
-        oSerial.addNumber(FRAME1_LAST_SECTOR_KEY, _iFrame1LastSector);
+        DiscItemSerialization serial = super.superSerial(TYPE_ID);
+        serial.addRange(FRAMES_KEY, _iStartFrame, _iEndFrame);
+        serial.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
+        serial.addFraction(SECTORSPERFRAME_KEY, _lngSectors, _lngPerFrame);
+        serial.addNumber(FRAME1_LAST_SECTOR_KEY, _iFrame1LastSector);
         if (_iDiscSpeed > 0)
-            oSerial.addNumber(DISC_SPEED_KEY, _iDiscSpeed);
-        return oSerial;
+            serial.addNumber(DISC_SPEED_KEY, _iDiscSpeed);
+        return serial;
     }
 
     public int getStartFrame() {
@@ -164,9 +164,58 @@ public class DiscItemVideoStream extends DiscItem {
         return _iHeight;
     }
 
-    public String getTypeId() {
+    public String getSerializationTypeId() {
         return TYPE_ID;
     }
+
+    @Override
+    public String getInterestingDescription() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%dx%d, %d frames, ",
+                _iWidth, _iHeight, _iEndFrame - _iStartFrame + 1));
+        if (_iDiscSpeed > 0) {
+            formatFps(sb, _iDiscSpeed * 75);
+        } else {
+            formatFps(sb, 150);
+            sb.append(" (or ");
+            formatFps(sb, 75);
+            sb.append(')');
+        }
+        return sb.toString();
+    }
+
+    private void formatFps(StringBuilder sb, int iSectorsPerSecond) {
+        sb.append(formatFps(Fraction.divide(iSectorsPerSecond, getSectorsPerFrame())));
+        sb.append(" fps = ");
+        sb.append(formatTime(getSectorLength() / iSectorsPerSecond));
+    }
+
+    public static String formatFps(Fraction fps) {
+        if (fps.getNumerator() % fps.getDenominator() == 0)
+            return String.valueOf(fps.getNumerator() / fps.getDenominator());
+        else {
+            return String.format("%1.3f", fps.asDouble())
+                    .replaceFirst("0+$", ""); // trim trailing zeros
+        }
+    }
+
+    public static String formatTime(long lngSeconds) {
+        long lngMin = lngSeconds / 60;
+        StringBuilder sb = new StringBuilder();
+        if (lngMin > 0) {
+            sb.append(lngMin);
+            sb.append(" min");
+        }
+        lngSeconds = lngSeconds % 60;
+        if (lngSeconds > 0) {
+            if (sb.length() > 0)
+                sb.append(' ');
+            sb.append(lngSeconds);
+            sb.append(" sec");
+        }
+        return sb.toString();
+    }
+    
 
     public int getDiscSpeed() {
         return _iDiscSpeed;
@@ -237,12 +286,14 @@ public class DiscItemVideoStream extends DiscItem {
     /** Called by indexer after index has been created. */
     public void collectParallelAudio(DiscIndex index) {
         ArrayList<DiscItemAudioStream> parallelAudio = new ArrayList<DiscItemAudioStream>();
-        for (DiscItem audioItem : index) {
-            if (audioItem instanceof DiscItemAudioStream) {
-                if (isAudioVideoAligned(audioItem)) {
-                    parallelAudio.add((DiscItemAudioStream)audioItem);
+        for (DiscItem item : index) {
+            if (item instanceof DiscItemAudioStream) {
+                DiscItemAudioStream audItem = (DiscItemAudioStream) item;
+                if (isAudioVideoAligned(audItem)) {
+                    parallelAudio.add(audItem);
+                    audItem.setPartOfVideo(true);
                     if (log.isLoggable(Level.INFO))
-                        log.info("Parallel audio: " + audioItem.toString());
+                        log.info("Parallel audio: " + item.toString());
                 }
             }
         }
@@ -263,6 +314,14 @@ public class DiscItemVideoStream extends DiscItem {
                     else return 0;
                 }
             });
+
+            if (_iDiscSpeed < 1) {
+                _iDiscSpeed = _aoAudioStreams[0].getDiscSpeed();
+                for (DiscItemAudioStream audio : _aoAudioStreams) {
+                    if (audio.getDiscSpeed() != _iDiscSpeed)
+                        log.warning("Audio disc speeds vary!");
+                }
+            }
 
         }
     }
@@ -369,14 +428,13 @@ public class DiscItemVideoStream extends DiscItem {
 
     public PlayController makePlayController() throws LineUnavailableException, UnsupportedAudioFileException, IOException {
 
-        DiscItemVideoStream video = (DiscItemVideoStream) this;
-        if (video.hasAudio()) {
-            DiscItemAudioStream audio = video.getParallelAudioStream(0);
-            int iStartSector = Math.min(video.getStartSector(), audio.getStartSector());
-            int iEndSector = Math.max(video.getEndSector(), audio.getEndSector());
-            return new PlayController(new MediaPlayer(video, audio.makeDecoder(true, 1.0), iStartSector, iEndSector));
+        if (hasAudio()) {
+            DiscItemAudioStream audio = getParallelAudioStream(0);
+            int iStartSector = Math.min(getStartSector(), audio.getStartSector());
+            int iEndSector = Math.max(getEndSector(), audio.getEndSector());
+            return new PlayController(new MediaPlayer(this, audio.makeDecoder(true, 1.0), iStartSector, iEndSector));
         } else {
-            return new PlayController(new MediaPlayer(video));
+            return new PlayController(new MediaPlayer(this));
         }
     }
 }

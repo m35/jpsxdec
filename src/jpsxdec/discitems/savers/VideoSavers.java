@@ -75,19 +75,13 @@ class VideoSavers  {
     //## The Writers ###########################################################
     //##########################################################################
 
-    public static class DemuxSequenceWriter extends VideoSaver {
+    public static class BitstreamSequenceWriter extends VideoSaver {
 
-        protected VideoSaverBuilderSnapshot _snap;
         private final FrameDemuxer _demuxer;
 
-        protected final int _iDigitCount;
-
-        public DemuxSequenceWriter(VideoSaverBuilderSnapshot snap)
+        public BitstreamSequenceWriter(VideoSaverBuilderSnapshot snap)
         {
             super(snap);
-            _snap = snap;
-
-            _iDigitCount = String.valueOf(_snap.saveEndFrame).length();
 
             _demuxer = new FrameDemuxer(_snap.videoItem.getWidth(), _snap.videoItem.getHeight(),
                                         _snap.videoItem.getStartSector(), _snap.videoItem.getEndSector())
@@ -102,6 +96,11 @@ class VideoSavers  {
             };
         }
 
+        @Override
+        public void initialize() throws IOException {
+            makeDir();
+        }
+
         public void close() throws IOException {
             _demuxer.flush();
         }
@@ -112,9 +111,25 @@ class VideoSavers  {
         public int getWidth() { return _snap.videoItem.getWidth(); }
         public int getHeight() { return _snap.videoItem.getHeight(); }
 
+        private void makeDir() throws IOException {
+            String baseParent = _snap.baseName.getParent();
+            File dir;
+            if (baseParent == null)
+                dir = _directory;
+            else
+                dir = new File(_directory, baseParent);
+            if (!dir.exists() && !dir.mkdirs()) {
+                throw new IOException("Unable to create directory " + dir);
+            } else if (!dir.isDirectory()) {
+                throw new IOException("Cannot create directory over a file " + dir);
+            }
+        }
 
-        protected String makeFileName(int iFrame) {
-            return String.format(_snap.videoFormat.ext(_snap.videoItem), iFrame);
+        protected File makeFileName(int iFrame) {
+            return new File(_directory,
+                   _snap.baseName.getPath() + 
+                   _snap.videoFormat.formatPostfix(_snap.videoItem, iFrame)
+                   );
         }
 
         public void feedSectorForVideo(IVideoSector sector) throws IOException {
@@ -129,7 +144,7 @@ class VideoSavers  {
             if (iFrameNumber < _snap.saveStartFrame || iFrameNumber > _snap.saveEndFrame)
                 return;
             
-            File f = new File(makeFileName(iFrameNumber));
+            File f = makeFileName(iFrameNumber);
             FileOutputStream fos = new FileOutputStream(f);
             try {
                 fos.write(abDemux, 0, iSize);
@@ -142,7 +157,7 @@ class VideoSavers  {
 
     //..........................................................................
 
-    public static class MdecSequenceWriter extends DemuxSequenceWriter {
+    public static class MdecSequenceWriter extends BitstreamSequenceWriter {
 
         private BitStreamUncompressor _uncompressor;
 
@@ -191,7 +206,7 @@ class VideoSavers  {
         }
 
         protected void receiveUncompressor(BitStreamUncompressor uncompressor, int iFrameNumber, int iFrameEndSector) throws IOException {
-            File f = new File(makeFileName(iFrameNumber));
+            File f = makeFileName(iFrameNumber);
             BufferedOutputStream bos = null;
             try {
                 bos = new BufferedOutputStream(new FileOutputStream(f));
@@ -242,11 +257,11 @@ class VideoSavers  {
         final protected void receiveUncompressor(BitStreamUncompressor uncompressor, int iFrameNumber, int iFrameEndSector) throws IOException {
             try {
                 _decoder.decode(uncompressor);
-                receiveDecoded(_decoder, iFrameNumber, iFrameEndSector);
             } catch (DecodingException ex) {
                 log.log(Level.SEVERE, "Error uncompressing frame " + iFrameNumber, ex);
                 getListener().error("Error uncompressing frame " + iFrameNumber, ex);
             }
+            receiveDecoded(_decoder, iFrameNumber, iFrameEndSector);
         }
 
         protected int getCroppedHeight() {
@@ -279,7 +294,7 @@ class VideoSavers  {
         protected void receiveDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector) {
             decoder.readDecodedRgb(_rgbBuff.getWidth(), _rgbBuff.getHeight(), _rgbBuff.getData(), 0, _rgbBuff.getWidth());
             BufferedImage bi = _rgbBuff.toBufferedImage();
-            File f = new File(makeFileName(iFrame));
+            File f = makeFileName(iFrame);
             try {
                 if (!ImageIO.write(bi, _eFmt.getId(), f)) {
                     log.log(Level.WARNING, "Unable to write frame file " + f);
@@ -295,7 +310,7 @@ class VideoSavers  {
         protected void receiveError(Throwable thrown, int iFrame) {
             log.log(Level.WARNING, "Error with frame " + iFrame, thrown);
             BufferedImage bi = makeErrorImage(thrown, _rgbBuff.getWidth(), _rgbBuff.getHeight());
-            File f = new File(makeFileName(iFrame));
+            File f = makeFileName(iFrame);
             try {
                 if (!ImageIO.write(bi, _eFmt.getId(), f)) {
                     log.log(Level.WARNING, "Unable to write error frame file " + f);
@@ -333,7 +348,6 @@ class VideoSavers  {
         protected AviWriter _aviWriter;
 
         public AbstractDecodedAviWriter(VideoSaverBuilderSnapshot snap)
-                throws IOException
         {
             super(snap);
 
@@ -353,7 +367,7 @@ class VideoSavers  {
                         fmt.getSampleRate(),
                         _snap.preciseAvSync);
 
-                _snap.audioDecoder.open(new AviAudioWriter(avSync));
+                _snap.audioDecoder.setAudioListener(new AviAudioWriter(avSync));
 
                 _vidSync = avSync;
 
@@ -417,9 +431,14 @@ class VideoSavers  {
             return _iStartSector;
         }
 
-
-        public String getOutputFile() {
-            return _snap.baseName + ".avi";
+        public File getOutputFile() {
+            String baseParent = _snap.baseName.getParent();
+            File dir;
+            if (baseParent == null)
+                dir = _directory;
+            else
+                dir = new File(_directory, baseParent);
+            return new File(dir, _snap.baseName.getName() + ".avi");
         }
 
         @Override
@@ -427,7 +446,6 @@ class VideoSavers  {
             if (_aviWriter != null) {
                 _aviWriter.close();
                 _aviWriter = null;
-                _snap = null;
             }
         }
 
@@ -481,15 +499,19 @@ class VideoSavers  {
 
     public static class DecodedAviWriter_MJPG extends AbstractDecodedAviWriter {
 
-        private final AviWriterMJPG _writerMjpg;
         private final RgbIntImage _rgbBuff;
+        private AviWriterMJPG _writerMjpg;
 
-        public DecodedAviWriter_MJPG(VideoSaverBuilderSnapshot snap)
-                throws IOException
-        {
+        public DecodedAviWriter_MJPG(VideoSaverBuilderSnapshot snap) {
             super(snap);
 
-            _writerMjpg = new AviWriterMJPG(new File(getOutputFile()),
+            _rgbBuff = new RgbIntImage(getCroppedWidth(), getCroppedHeight());
+        }
+
+        @Override
+        public void initialize() throws IOException {
+            super.initialize();
+            _writerMjpg = new AviWriterMJPG(getOutputFile(),
                                          getCroppedWidth(), getCroppedHeight(),
                                          _vidSync.getFpsNum(),
                                          _vidSync.getFpsDenom(),
@@ -497,8 +519,6 @@ class VideoSavers  {
                                          _snap.audioDecoder == null ? null : _snap.audioDecoder.getOutputFormat());
 
             super._aviWriter = _writerMjpg;
-            _rgbBuff = new RgbIntImage(getCroppedWidth(), getCroppedHeight());
-
         }
 
         @Override
@@ -516,22 +536,25 @@ class VideoSavers  {
 
     public static class DecodedAviWriter_DIB extends AbstractDecodedAviWriter {
 
-        private final AviWriterDIB _writerDib;
         private final RgbIntImage _rgbBuff;
+        private AviWriterDIB _writerDib;
 
-        public DecodedAviWriter_DIB(VideoSaverBuilderSnapshot snap)
-                throws IOException
-        {
+        public DecodedAviWriter_DIB(VideoSaverBuilderSnapshot snap) {
             super(snap);
 
-            _writerDib = new AviWriterDIB(new File(getOutputFile()),
+            _rgbBuff = new RgbIntImage(getCroppedWidth(), getCroppedHeight());
+        }
+
+        @Override
+        public void initialize() throws IOException {
+            super.initialize();
+            _writerDib = new AviWriterDIB(getOutputFile(),
                                           getCroppedWidth(), getCroppedHeight(),
                                           _vidSync.getFpsNum(),
                                           _vidSync.getFpsDenom(),
                                           _snap.audioDecoder == null ? null : _snap.audioDecoder.getOutputFormat());
 
             super._aviWriter = _writerDib;
-            _rgbBuff = new RgbIntImage(getCroppedWidth(), getCroppedHeight());
         }
 
         @Override
@@ -554,20 +577,22 @@ class VideoSavers  {
     public static class DecodedAviWriter_YV12 extends AbstractDecodedAviWriter {
 
         protected final Rec601YCbCrImage _yuvImgBuff;
-        protected final AviWriterYV12 _writerYuv;
         protected final MdecDecoder_double _decoderDbl;
+        protected AviWriterYV12 _writerYuv;
 
-        public DecodedAviWriter_YV12(VideoSaverBuilderSnapshot snap)
-                   throws IOException
-        {
+        public DecodedAviWriter_YV12(VideoSaverBuilderSnapshot snap) {
             super(snap);
 
             _decoder = _decoderDbl = new MdecDecoder_double(new PsxMdecIDCT_double(), getCroppedWidth(), getCroppedHeight());
 
-            _yuvImgBuff = new Rec601YCbCrImage(getWidth(), getHeight());
+            _yuvImgBuff = new Rec601YCbCrImage(getCroppedWidth(), getCroppedHeight());
+        }
 
-            _writerYuv = new AviWriterYV12(new File(getOutputFile()),
-                                          _snap.videoItem.getWidth(), _snap.videoItem.getHeight(),
+        @Override
+        public void initialize() throws IOException {
+            super.initialize();
+            _writerYuv = new AviWriterYV12(getOutputFile(),
+                                          getCroppedWidth(), getCroppedHeight(),
                                           _vidSync.getFpsNum(),
                                           _vidSync.getFpsDenom(),
                                           _snap.audioDecoder == null ? null : _snap.audioDecoder.getOutputFormat());
@@ -592,7 +617,7 @@ class VideoSavers  {
 
     public static class DecodedAviWriter_JYV12 extends DecodedAviWriter_YV12 {
 
-        public DecodedAviWriter_JYV12(VideoSaverBuilderSnapshot snap) throws IOException {
+        public DecodedAviWriter_JYV12(VideoSaverBuilderSnapshot snap) {
             super(snap);
         }
 

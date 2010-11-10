@@ -1,3 +1,18 @@
+v0.95.0 rev1779 (9 Nov 2010)
+    - Reimplemented a new and improved GUI!
+    - Added 'Pause' ability to player, and made its logic more robust
+    - Added -visualize option to generate a pdf visualizing the index items
+    - New index format, with unique identifiers
+    - Can now use index item identifiers for -i option
+    - Added -dir option to specify output directory
+    - Index items are now saved with their full path (as shown in their identifier)
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
+    - Reports way too many errors when encountering CD audio track and disc errors
+    - Not all options have been well tested
+    - Audio and Video indexing logic may be slightly degraded
+    - 'psx' video decoder quality does not quite match actual hardware output
+    - Doesn't handle playing/saving multiple parallel audio clips with video very well
 v0.94.0 rev1671 (12 Oct 2010) [dev release]
     - Changed command-line arguments to be simpler for me to handle (see manual for details).
     - Can now automatically use the source file listed in the index file,
@@ -52,7 +67,7 @@ v0.92.2 rev1532 (31 Jul 2010)
     - Not all command-line options have been well tested
     - 'psx' video decoder quality definitely does not match actual hardware output
 v0.92.1 rev1490 (23 Jul 2010)
-    - Added support for disc images including subchannel data (2448 bytes/sector)
+    - Added support for disc images containing subchannel data (2448 bytes/sector)
     - Disc reading is now buffered, which should speed up everything
     - Fixed crash when reading from very small disc images
     Known Problems:

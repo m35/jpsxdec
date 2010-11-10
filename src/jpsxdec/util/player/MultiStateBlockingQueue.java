@@ -45,7 +45,7 @@ public class MultiStateBlockingQueue<T> {
 
     private static final boolean DEBUG = false;
 
-    private static enum ADD {
+    public static enum ADD {
         IGNORE,
         BLOCK,
         BLOCK_WHEN_FULL,
@@ -53,7 +53,7 @@ public class MultiStateBlockingQueue<T> {
         OVERWRITE_WHEN_FULL
     }
 
-    private static enum TAKE {
+    public static enum TAKE {
         IGNORE,
         BLOCK,
         BLOCK_WHEN_EMPTY,
@@ -62,8 +62,8 @@ public class MultiStateBlockingQueue<T> {
 
     private final Object _eventSync = new Object();
     
-    private ADD _eAddingResponse = ADD.BLOCK_WHEN_FULL;
-    private TAKE _eTakingResponse = TAKE.BLOCK;
+    private ADD _eAddingBehavior = ADD.BLOCK_WHEN_FULL;
+    private TAKE _eTakingBehavior = TAKE.BLOCK;
 
     protected T[] _aoQueue;
     protected int _iHeadPos;
@@ -78,45 +78,73 @@ public class MultiStateBlockingQueue<T> {
     //////////////////////////////////
 
     public void play() {
-        setAddTakeResponse(ADD.BLOCK_WHEN_FULL, TAKE.BLOCK_WHEN_EMPTY);
+        setAddTakeBehavior(ADD.BLOCK_WHEN_FULL, TAKE.BLOCK_WHEN_EMPTY);
     }
 
+    // ...............
+    public void overwriteWhenFull() {
+        setAddBehavior(ADD.OVERWRITE_WHEN_FULL);
+    }
+    public void blockWhenFull() {
+        setAddBehavior(ADD.BLOCK_WHEN_FULL);
+    }
+    // ...............
+
     public void stop() {
-        setAddTakeResponse(ADD.IGNORE, TAKE.IGNORE);
+        setAddTakeBehavior(ADD.IGNORE, TAKE.IGNORE);
     }
 
     public void stopWhenEmpty() {
-        setAddTakeResponse(ADD.BLOCK_WHEN_FULL, TAKE.IGNORE_WHEN_EMPTY);
-    }
-
-    public void overwriteWhenFull() {
-        setAddTakeResponse(ADD.OVERWRITE_WHEN_FULL, TAKE.BLOCK_WHEN_EMPTY);
+        setTakeBehavior(TAKE.IGNORE_WHEN_EMPTY);
     }
 
     public void pause() {
-        setAddTakeResponse(ADD.BLOCK_WHEN_FULL, TAKE.BLOCK);
+        setAddTakeBehavior(ADD.BLOCK_WHEN_FULL, TAKE.BLOCK);
+    }
+
+    public Object getSyncObject() {
+        return _eventSync;
+    }
+
+    public boolean isPlaying() {
+        synchronized (_eventSync) {
+            return _eTakingBehavior == TAKE.BLOCK_WHEN_EMPTY || _eTakingBehavior == TAKE.IGNORE_WHEN_EMPTY;
+        }
+    }
+
+    public boolean isStopped() {
+        synchronized (_eventSync) {
+            return _eTakingBehavior == TAKE.IGNORE ||
+                    (_eTakingBehavior == TAKE.IGNORE_WHEN_EMPTY && isEmpty());
+        }
+    }
+
+    public boolean isPaused() {
+        synchronized (_eventSync) {
+            return _eTakingBehavior == TAKE.BLOCK;
+        }
     }
 
     /////////////////////////////////
 
-    private void setAddResponse(ADD iResponse) {
+    private void setAddBehavior(ADD iResponse) {
         synchronized (_eventSync) {
-            _eAddingResponse = iResponse;
+            _eAddingBehavior = iResponse;
             _eventSync.notifyAll();
         }
     }
 
-    private void setTakeResponse(TAKE iResponse) {
+    private void setTakeBehavior(TAKE iResponse) {
         synchronized (_eventSync) {
-            _eTakingResponse = iResponse;
+            _eTakingBehavior = iResponse;
             _eventSync.notifyAll();
         }
     }
 
-    private void setAddTakeResponse(ADD iAddResponse, TAKE iTakeResponse) {
+    private void setAddTakeBehavior(ADD iAddResponse, TAKE iTakeResponse) {
         synchronized (_eventSync) {
-            _eAddingResponse = iAddResponse;
-            _eTakingResponse = iTakeResponse;
+            _eAddingBehavior = iAddResponse;
+            _eTakingBehavior = iTakeResponse;
             _eventSync.notifyAll();
         }
     }
@@ -133,13 +161,13 @@ public class MultiStateBlockingQueue<T> {
 
         synchronized (_eventSync) {
             while (true) {
-                if (_eAddingResponse == ADD.IGNORE) {
+                if (_eAddingBehavior == ADD.IGNORE) {
                     if (DEBUG) System.out.println(Thread.currentThread().getName() + " stopped: returning false");
                     return false;
-                } else if (_eAddingResponse == ADD.BLOCK) {
+                } else if (_eAddingBehavior == ADD.BLOCK) {
                     _eventSync.wait();
                 } else if (isFull()) {
-                    switch (_eAddingResponse) {
+                    switch (_eAddingBehavior) {
                         case IGNORE_WHEN_FULL:
                             return false;
                         case BLOCK_WHEN_FULL:
@@ -147,7 +175,10 @@ public class MultiStateBlockingQueue<T> {
                             _eventSync.wait();
                             break;
                         case OVERWRITE_WHEN_FULL:
+                            if (DEBUG) System.out.println(Thread.currentThread().getName() + " adding (w/ overwrite) " + o.toString());
                             enqueue(o);
+                            if (DEBUG) System.out.println(Thread.currentThread().getName() + " notifying other threads and returning");
+                            _eventSync.notifyAll();
                             return true;
                         default:
                             throw new IllegalStateException();
@@ -179,14 +210,14 @@ public class MultiStateBlockingQueue<T> {
         
         synchronized (_eventSync) {
             while (true) {
-                if (_eTakingResponse == TAKE.IGNORE) {
+                if (_eTakingBehavior == TAKE.IGNORE) {
                     if (DEBUG) System.out.println(Thread.currentThread().getName() + " stopped: returning null");
                     return null;
-                } else if (_eTakingResponse == TAKE.BLOCK) {
+                } else if (_eTakingBehavior == TAKE.BLOCK) {
                     if (DEBUG) System.out.println(Thread.currentThread().getName() + " paused: waiting");
                     _eventSync.wait();
                 } else if (isEmpty()) {
-                    switch (_eTakingResponse) {
+                    switch (_eTakingBehavior) {
                         case IGNORE_WHEN_EMPTY:
                             return null;
                         case BLOCK_WHEN_EMPTY:
@@ -203,6 +234,7 @@ public class MultiStateBlockingQueue<T> {
         }
     }
 
+    /** Always called within <code>syncronized (_eventSync)</code> */
     protected T dequeue() {
         T o = _aoQueue[_iHeadPos];
         if (DEBUG) System.out.println(Thread.currentThread().getName() + " removing object: " + o.toString());

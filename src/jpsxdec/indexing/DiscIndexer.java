@@ -38,6 +38,7 @@
 package jpsxdec.indexing;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -60,10 +61,10 @@ public abstract class DiscIndexer {
         };
     }
 
-    private List<DiscItem> _mediaList;
+    private Collection<DiscItem> _mediaList;
 
     /** The indexer needs a place to put the created disc items. */
-    final public void putYourCompletedMediaItemsHere(List<DiscItem> items) {
+    final public void putYourCompletedMediaItemsHere(Collection<DiscItem> items) {
         _mediaList = items;
     }
 
@@ -89,7 +90,7 @@ public abstract class DiscIndexer {
 
     /** Lines from the index file as passed to be handled by the indexers.
      * @return  if the line successfully created a disc item. */
-    abstract public boolean deserializeLineRead(DiscItemSerialization deserializedLine);
+    abstract public DiscItem deserializeLineRead(DiscItemSerialization deserializedLine);
 
     abstract public void staticRead(IndexingDemuxerIS is) throws IOException;
 

@@ -1,6 +1,6 @@
 Usage:
 
-java -jar jpsxdec.jar { -? | -h | -help}
+java -jar jpsxdec.jar < -? | -h | -help >
   Display this help
 
 java -jar jpsxdec.jar -f <in_file> -x <index_file>
@@ -12,13 +12,13 @@ java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
   or generate an index on the fly for <in_file> (optionally saving it as <index_file>)
   and perform one of the following <main_command_and_options>
 
-    -i/-item # <item_command_and_options>
-    -a/-all <video, audio, file> <item_command_and_options>
+    -i/-item <# | id> <item_command_and_options>
+    -a/-all <video | audio | file> <item_command_and_options>
       Perform <item_command_and_options> on one index item,
       or all index items of a type
 
         If no other command is specified:
-          Saves (after possibly converting) index item #
+          Saves (after possibly converting) index item
           using optional processing options (see item's help for options)
 
         -?/-h/-help
@@ -31,7 +31,7 @@ java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
         (see manual or item's help for full list of possible commands)
 
     -visualize <pdf_out_file>
-      Display the layout of sectors and index items {disabled}
+      Display the layout of sectors and index items
 
 java -jar -f <in_file> <main_command_and_options>
   Main commands that only require only an input file

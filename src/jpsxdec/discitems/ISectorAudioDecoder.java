@@ -47,7 +47,7 @@ public interface ISectorAudioDecoder {
 
     // TODO: figure out some other way that doesn't require this icky method
     /** Opens the decoder for writing to the supplied AudioOutputStream. */
-    void open(ISectorTimedAudioWriter audioFeeder);
+    void setAudioListener(ISectorTimedAudioWriter audioFeeder);
 
     // TODO: figure out a way to not need this interface
     public interface ISectorTimedAudioWriter {

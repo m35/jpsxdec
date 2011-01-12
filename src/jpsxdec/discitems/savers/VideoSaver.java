@@ -42,8 +42,6 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.discitems.DiscItemAudioStream;
-import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IVideoSector;
@@ -56,7 +54,6 @@ public abstract class VideoSaver implements IDiscItemSaver {
 
     private static final Logger log = Logger.getLogger(VideoSaver.class.getName());
 
-    private final DiscItemAudioStream _parallelAudio;
     private ProgressListener _progress;
     protected File _directory;
     protected final VideoSaverBuilderSnapshot _snap;
@@ -64,7 +61,6 @@ public abstract class VideoSaver implements IDiscItemSaver {
     public VideoSaver(VideoSaverBuilderSnapshot snap) {
         super();
         _snap = snap;
-        _parallelAudio = snap.saveAudio ? snap.parallelAudio : null;
     }
 
     public String getInput() {
@@ -82,16 +78,19 @@ public abstract class VideoSaver implements IDiscItemSaver {
     }
 
     public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException {
+        try {
+            _progress = pl;
+            _directory = dir;
 
-        _progress = pl;
-        _directory = dir;
+            initialize(); // tell the children to setup
 
-        initialize(); // tell the children to setup
-
-        if (_parallelAudio != null) {
-            startVideoAndAudio(pl);
-        } else {
-            startVideoOnly(pl);
+            if (_snap.audioDecoder != null) {
+                startVideoAndAudio(pl);
+            } else {
+                startVideoOnly(pl);
+            }
+        } finally {
+            _progress = null;
         }
     }
 
@@ -128,15 +127,12 @@ public abstract class VideoSaver implements IDiscItemSaver {
                 }
             }
             pl.progressEnd();
-        } catch (IOException ex) {
-            log.log(Level.SEVERE, "", ex);
-            pl.error(ex);
         } finally {
             try {
                 close();
             } catch (Throwable ex) {
-                log.log(Level.SEVERE, "", ex);
-                pl.error(ex);
+                log.log(Level.SEVERE, "Error closing saving process", ex);
+                pl.getLog().log(Level.SEVERE, "Error closing saving process", ex);
             }
         }
     }
@@ -175,15 +171,12 @@ public abstract class VideoSaver implements IDiscItemSaver {
             }
 
             pl.progressEnd();
-        } catch (IOException ex) {
-            log.log(Level.SEVERE, "", ex);
-            pl.error(ex);
         } finally {
             try {
                 close();
             } catch (Throwable ex) {
-                log.log(Level.SEVERE, "", ex);
-                pl.error(ex);
+                log.log(Level.SEVERE, "Error closing saving process", ex);
+                pl.getLog().log(Level.SEVERE, "Error closing saving process", ex);
             }
         }
     }

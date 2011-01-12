@@ -38,7 +38,7 @@
 package jpsxdec.sectors;
 
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.NotThisTypeException;
     
@@ -54,17 +54,18 @@ public class SectorXANull extends IdentifiedSector {
     {
         super(cdSector);
         // if it doesn't have a sector header, then it can't be a null sector
-        if (!cdSector.hasSectorHeader())
+        if (!cdSector.hasRawSectorHeader())
             throw new NotThisTypeException();
         // if it's not a Form 2 sector, then it can't be a null sector
         if (cdSector.getSubMode().getForm() != 2)
             throw new NotThisTypeException();
 
         // if it's not flagged as a null sector...
-        if (cdSector.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.NULL)
+        SubMode sm = cdSector.getSubMode();
+        if (sm.getAudio() || sm.getVideo() || sm.getData())
         {
             // if it's flagged as an audio sector, then it's not a null sector
-            if (cdSector.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.AUDIO)
+            if (!sm.getAudio())
                 throw new NotThisTypeException();
 
             // if it has a valid channel number, then it's not a null sector

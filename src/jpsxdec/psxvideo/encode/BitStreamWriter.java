@@ -40,10 +40,9 @@ package jpsxdec.psxvideo.encode;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/**
- * Writes bits to an OutputStream, 16 bits at a time,
- * in little-endian or big-endian order.
- */
+/** Rather sloppy bit writer to an output stream.
+ *  Writes bits to an OutputStream, 16 bits at a time,
+ *  in little-endian or big-endian order. */
 public class BitStreamWriter {
 
     private OutputStream _os;
@@ -52,11 +51,13 @@ public class BitStreamWriter {
     private boolean _blnIsBigEndian = true;
 
     public BitStreamWriter(OutputStream os) {
-        super();
         _os = os;
     }
 
-    /** Write a string of bits. */
+    /** Write a string of bits. 
+     * @param s  String consisting of '1' or '0'.
+     * @throws IllegalArgumentException if string contains anything besides '1' or '0'.
+     */
     public void write(String s) throws IOException {
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);

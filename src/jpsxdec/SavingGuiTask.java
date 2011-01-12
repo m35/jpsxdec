@@ -37,185 +37,105 @@
 
 package jpsxdec;
 
-import java.io.BufferedOutputStream;
+import java.awt.EventQueue;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.JOptionPane;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import jpsxdec.SavingGuiTable.Row;
+import jpsxdec.util.UserFriendlyHandler;
 import jpsxdec.util.ProgressListener;
 import jpsxdec.util.TaskCanceledException;
 import org.jdesktop.swingworker.SwingWorker;
 
-/**
- *
- * @author Michael
- */
-public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message> implements ProgressListener {
+public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message> 
+        implements ProgressListener
+{
     public static final String ALL_DONE = "alldone";
 
     private final ArrayList<Row> _rows;
     private final File _dir;
     private Row _currentRow;
-    private boolean _blnFirstRowError;
 
-    private PrintStream _logStream;
-    public String _sErrorLog;
-
-    private PrintStream getLogStream() {
-        if (_logStream == null) {
-            try {
-                String sFile = "saving" + System.currentTimeMillis() + ".log";
-                _logStream = new PrintStream(new BufferedOutputStream(new FileOutputStream(sFile)));
-                _sErrorLog = sFile;
-                _logStream.println(Main.VerString);
-                _logStream.println("Java " + System.getProperty("java.version"));
-                _logStream.println(System.getProperty("os.name") + " " + System.getProperty("os.version"));
-            } catch (FileNotFoundException ex) {
-                ex.printStackTrace();
-            }
+    private Logger _errLog;
+    
+    public UserFriendlyHandler _handler = new UserFriendlyHandler("save") {
+        protected void onWarn(LogRecord record) {
+            EventQueue.invokeLater(new Event_Warning(_currentRow));
         }
-        return _logStream;
-    }
+        protected void onErr(LogRecord record) {
+            EventQueue.invokeLater(new Event_Error(_currentRow));
+        }
+    };
 
-
-    public SavingGuiTask(ArrayList<Row> rows, File _dir) {
-        this._rows = rows;
-        this._dir = _dir;
+    public SavingGuiTask(ArrayList<Row> rows, File dir) {
+        _rows = rows;
+        _dir = dir;
+        _errLog = Logger.getLogger("save");
     }
 
     @Override
     protected Void doInBackground() throws Exception {
+        _errLog.addHandler(_handler);
         for (Row row : _rows) {
             _currentRow = row;
-            _blnFirstRowError = true;
             try {
+                _handler.setSubheader(row._saver.getInput());
                 row._saver.startSave(this, _dir);
             } catch (TaskCanceledException ex) {
                 // cool
-                java.awt.EventQueue.invokeLater(new Event_Progress(row, -1));
+                EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_CANCELED));
                 break;
             } catch (Exception ex) {
                 // uncool
-                java.awt.EventQueue.invokeLater(new Event_Exception(row, ex));
+                EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 if (ex instanceof InterruptedException)
                     break;
                 else
                     continue;
             } catch (Throwable ex) {
                 // VERY uncool
-                java.awt.EventQueue.invokeLater(new Event_Exception(row, ex));
+                EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 continue;
             }
-            java.awt.EventQueue.invokeLater(new Event_Done(row));
+            EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_DONE));
         }
         firePropertyChange(ALL_DONE, null, null);
-        if (_logStream != null) {
-            _logStream.close();
-        }
+        _handler.close();
+        _errLog.removeHandler(_handler);
+
         return null;
     }
 
+    // -- Event types -------------------------------------------------------
 
     private abstract static class Event implements Runnable {
         protected final Row _row;
-
-        public Event(Row row) {
-            _row = row;
-        }
-
+        public Event(Row row) { _row = row; }
         abstract public void run();
     }
     private class Event_Warning extends Event {
-        private final Throwable _val;
-        private final String _msg;
-        public Event_Warning(Row row, String msg, Throwable val) {
-            super(row); _msg = msg; _val = val;
-            PrintStream stream = getLogStream();
-            if (stream != null) {
-                if (_blnFirstRowError) {
-                    stream.println(_row._saver.getInput());
-                    _blnFirstRowError = false;
-                }
-                stream.print("Warning: ");
-                if (_msg != null)
-                    stream.println(_msg);
-                if (_val != null) {
-                    _val.printStackTrace(stream);
-                }
-            }
-        }
-        public void run() {
-            _row.incWarn();
-        }
+        public Event_Warning(Row row) { super(row); }
+        public void run() { _row.incWarn(); }
     }
     private class Event_Error extends Event {
-        private final Throwable _val;
-        private final String _msg;
-        public Event_Error(Row row, String msg, Throwable val) { 
-            super(row); _msg = msg; _val = val;
-            PrintStream stream = getLogStream();
-            if (stream != null) {
-                if (_blnFirstRowError) {
-                    stream.println(_row._saver.getInput());
-                    _blnFirstRowError = false;
-                }
-                stream.print("Warning: ");
-                if (_msg != null)
-                    stream.println(_msg);
-                if (_val != null) {
-                    _val.printStackTrace(stream);
-                }
-            }
-        }
-        public void run() {
-            _row.incErr();
-        }
+        public Event_Error(Row row) { super(row); }
+        public void run() { _row.incErr(); }
     }
     private static class Event_Progress extends Event {
         private final int _val;
         public Event_Progress(Row row, int val) { super(row); _val = val; }
-        public void run() {
-            _row.setProgress(_val);
-        }
-    }
-    private class Event_Exception extends Event {
-        private final Throwable _val;
-        public Event_Exception(Row row, Throwable val) { 
-            super(row); _val = val;
-            PrintStream stream = getLogStream();
-            if (stream != null) {
-                if (_blnFirstRowError) {
-                    stream.println(_row._saver.getInput());
-                    _blnFirstRowError = false;
-                }
-                stream.print("Failure: ");
-                _val.printStackTrace(stream);
-            }
-            _row.setProgress(-2);
-        }
-        public void run() {
-        }
-    }
-    private static class Event_Done extends Event {
-        public Event_Done(Row row) { super(row); }
-        public void run() {
-            _row.setProgress(100);
-        }
+        public void run() { _row.setProgress(_val); }
     }
     public static class Event_Message extends Event {
         private final String _val;
         public Event_Message(Row row, String val) { super(row); _val = val; }
-        public void run() {
-            _row.setMessage(_val);
-        }
+        public void run() { _row.setMessage(_val); }
     }
 
 
-    final protected void process(List<SavingGuiTask.Event_Message> chunks) {
+    final protected void process(List<Event_Message> chunks) {
         chunks.get(chunks.size()-1).run();
     }
 
@@ -225,17 +145,19 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     }
 
     public void progressStart() throws TaskCanceledException {
-        java.awt.EventQueue.invokeLater(new Event_Progress(_currentRow, 0));
+        if (isCancelled())
+            throw new TaskCanceledException();
+        EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_STARTED));
     }
 
     public void progressEnd() throws TaskCanceledException {
-        java.awt.EventQueue.invokeLater(new Event_Progress(_currentRow, 100));
+        EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_DONE));
     }
 
     public void progressUpdate(double dblPercentComplete) throws TaskCanceledException {
         if (isCancelled())
             throw new TaskCanceledException();
-        java.awt.EventQueue.invokeLater(new Event_Progress(_currentRow, (int)Math.round(dblPercentComplete * 100)));
+        EventQueue.invokeLater(new Event_Progress(_currentRow, (int)Math.round(dblPercentComplete * 100)));
     }
 
     public void event(String sDescription) {
@@ -247,36 +169,12 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         return true;
     }
 
-    public void warning(String sMessage, Throwable ex) {
-        java.awt.EventQueue.invokeLater(new Event_Warning(_currentRow, sMessage, ex));
-    }
-
-    public void warning(Throwable ex) {
-        java.awt.EventQueue.invokeLater(new Event_Warning(_currentRow, null, ex));
-    }
-
-    public void warning(String sMessage) {
-        java.awt.EventQueue.invokeLater(new Event_Warning(_currentRow, sMessage, null));
-    }
-
-    public void error(String sMessage, Throwable ex) {
-        java.awt.EventQueue.invokeLater(new Event_Error(_currentRow, sMessage, ex));
-    }
-
-    public void error(Throwable ex) {
-        java.awt.EventQueue.invokeLater(new Event_Warning(_currentRow, null, ex));
-    }
-
-    public void error(String sMessage) {
-        java.awt.EventQueue.invokeLater(new Event_Warning(_currentRow, sMessage, null));
-    }
-
     public void info(String s) {
         // ignored
     }
 
-    public void more(String s) {
-        // ignored
+    public Logger getLog() {
+        return _errLog;
     }
 
 }

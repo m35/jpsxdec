@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import java.io.PrintStream;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.NotThisTypeException;
 
@@ -90,19 +91,15 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
     private CdSector _sourceCdSector;
 
     
-    public IdentifiedSector(CdSector cdSector) {
+    public IdentifiedSector(CdSector cdSector) throws NotThisTypeException {
+        if (cdSector.isCdAudioSector())
+            throw new NotThisTypeException();
         _sourceCdSector = cdSector;
-        
     }
 
     /** Returns a string description of the sector type. */
     public String toString() {
         return _sourceCdSector.toString();
-    }
-    
-    /** The 'file' value in the raw CD header, or -1 if there was no header. */
-    public long getFile() {
-        return _sourceCdSector.getFile();
     }
     
     /** @return The 'channel' value in the raw CDXA header, 
@@ -125,6 +122,12 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         return _sourceCdSector.toString();
     }
 
+    public int getErrorCount() {
+        return 0;
+    }
+
+    public void printErrors(PrintStream ps) {
+    }
 }
 
 

@@ -40,6 +40,7 @@ package jpsxdec.discitems;
 import java.io.File;
 import jpsxdec.util.ProgressListener;
 import java.io.IOException;
+import java.util.logging.Logger;
 import jpsxdec.util.TaskCanceledException;
 
 /** Holds a snapshot of {@link DiscItemSaverBuilder} options and will begin

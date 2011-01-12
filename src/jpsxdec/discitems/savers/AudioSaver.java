@@ -41,6 +41,7 @@ import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import java.io.File;
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.discitems.DiscItemAudioStream;
@@ -61,14 +62,12 @@ public class AudioSaver implements IDiscItemSaver  {
     private final File _fileSubPath;
     private final JavaAudioFormat _containerFormat;
 
-    private static final boolean WRITE_BIG_ENDIAN = true;
-
     public AudioSaver(DiscItemAudioStream audItem, File fileSubPath,
                        JavaAudioFormat containerFormat, double dblVolume)
     {
         _audItem = audItem;
         _fileSubPath = fileSubPath;
-        _decoder = audItem.makeDecoder(WRITE_BIG_ENDIAN, dblVolume);
+        _decoder = audItem.makeDecoder(dblVolume);
         _containerFormat = containerFormat;
     }
 
@@ -115,7 +114,7 @@ public class AudioSaver implements IDiscItemSaver  {
             try {
                 _audioWriter.close();
             } catch (Throwable ex) {
-                pl.error(ex);
+                pl.getLog().log(Level.SEVERE, "Error closing audio writer", ex);
             }
         }
     }

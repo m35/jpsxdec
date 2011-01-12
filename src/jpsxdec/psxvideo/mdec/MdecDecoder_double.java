@@ -199,6 +199,7 @@ public class MdecDecoder_double extends MdecDecoder {
         } catch (Throwable ex) {
             // fill in the remaining data with zeros
             int iTotalMacBlks = _iMacBlockWidth * _iMacBlockHeight;
+            // pickup where decoding left off
             for (; iMacBlk < iTotalMacBlks; iMacBlk++) {
                 for (; iBlock < 6; iBlock++) {
                     writeEndOfBlock(iMacBlk, iBlock, 0, 0);

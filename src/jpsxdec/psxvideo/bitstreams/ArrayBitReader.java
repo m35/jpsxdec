@@ -61,6 +61,8 @@ public class ArrayBitReader {
         0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF
     };
 
+    /** Performs no initilization. {@link #reset(byte[], boolean, int)}
+     * needs to be called before using this class. */
     public ArrayBitReader() {
         
     }
@@ -192,8 +194,8 @@ public class ArrayBitReader {
             }
         } else {
             try {
-            iCount -= iTmpBitsLeft;
-            lngRet = (_abData[iTmpOffs] & BIT_MASK[iTmpBitsLeft]);
+                iCount -= iTmpBitsLeft;
+                lngRet = (_abData[iTmpOffs] & BIT_MASK[iTmpBitsLeft]);
             } catch (ArrayIndexOutOfBoundsException ex) {
                 throw new EOFException("Unexpected end of bit-stream.");
             }
@@ -202,15 +204,15 @@ public class ArrayBitReader {
             iTmpOffs += INC[_bEndian + (iTmpOffs & 1)];
 
             try {
-            while (iCount >= 8) {
-                lngRet = (lngRet << 8) | (_abData[iTmpOffs] & 0xFF);
-                iTmpOffs += INC[_bEndian + (iTmpOffs & 1)];
-                iCount -= 8;
-            }
+                while (iCount >= 8) {
+                    lngRet = (lngRet << 8) | (_abData[iTmpOffs] & 0xFF);
+                    iTmpOffs += INC[_bEndian + (iTmpOffs & 1)];
+                    iCount -= 8;
+                }
 
-            if (iCount > 0) {
-                iTmpBitsLeft -= iCount;
-                lngRet = (lngRet << iCount) | ((_abData[iTmpOffs] & 0xFF) >>> iTmpBitsLeft);
+                if (iCount > 0) {
+                    iTmpBitsLeft -= iCount;
+                    lngRet = (lngRet << iCount) | ((_abData[iTmpOffs] & 0xFF) >>> iTmpBitsLeft);
                 }
             } catch (ArrayIndexOutOfBoundsException ex) {
                 return lngRet << iCount;
@@ -249,11 +251,12 @@ public class ArrayBitReader {
     
     /** Test this class. */
     public static void main(String[] args) throws EOFException {
-        ArrayBitReader abr = new ArrayBitReader(new byte[] {(byte)0xFF, 
-        (byte)0xFF, (byte)0xFF,
-        (byte)0xFF, (byte)0xFF,
-        (byte)0xFF, (byte)0xFF,
-        (byte)0xFF, (byte)0xFF,
+        ArrayBitReader abr = new ArrayBitReader(new byte[] {
+            (byte)0xFF,
+            (byte)0xFF, (byte)0xFF,
+            (byte)0xFF, (byte)0xFF,
+            (byte)0xFF, (byte)0xFF,
+            (byte)0xFF, (byte)0xFF,
         });
         
         long l;
@@ -263,8 +266,4 @@ public class ArrayBitReader {
         l = abr.readUnsignedBits(3);
     }
 
-    byte[] getArray() {
-        return _abData;
-    }
-    
 }

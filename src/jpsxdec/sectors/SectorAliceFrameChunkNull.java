@@ -39,7 +39,6 @@ package jpsxdec.sectors;
 
 import java.io.IOException;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -69,11 +68,10 @@ public class SectorAliceFrameChunkNull extends IdentifiedSector
     public SectorAliceFrameChunkNull(CdSector cdSector) throws NotThisTypeException
     {
         super(cdSector);
-        if (cdSector.hasSectorHeader()) {
+        if (cdSector.hasRawSectorHeader()) {
             // if it has a header, the sector type MUST be data or video
             // (anything else is ignored)
-            if (cdSector.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.DATA &&
-                cdSector.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.VIDEO)
+            if (!(cdSector.getSubMode().getData() || cdSector.getSubMode().getVideo()))
             {
                 throw new NotThisTypeException();
             }

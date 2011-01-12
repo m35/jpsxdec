@@ -43,6 +43,7 @@ import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.ISquareAudioSector;
+import jpsxdec.util.ExposedBAOS;
 import jpsxdec.util.NotThisTypeException;
 
 /** Represents a series of Square ADPCM sectors that combine to make an audio stream.
@@ -132,8 +133,8 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return new AudioFormat(_iSamplesPerSecond, 16, 2, true, blnBigEndian);
     }
 
-    public ISectorAudioDecoder makeDecoder(boolean blnBigEndian, double dblVolume) {
-        return new SquareConverter(new SquareADPCMDecoder(blnBigEndian, dblVolume));
+    public ISectorAudioDecoder makeDecoder(double dblVolume) {
+        return new SquareConverter(new SquareADPCMDecoder(dblVolume));
     }
 
     private class SquareConverter implements ISectorAudioDecoder {
@@ -141,13 +142,13 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         private final SquareADPCMDecoder __decoder;
         private ISectorTimedAudioWriter __audioWriter;
         private ISquareAudioSector __leftAudioSector, __rightAudioSector;
-        private byte[] __abTempBuffer;
+        private final ExposedBAOS __abTempBuffer;
         private AudioFormat __format;
 
         public SquareConverter(SquareADPCMDecoder decoder) {
             __decoder = decoder;
             // 1840 is the most # of ADPCM bytes found in any Square game sector (FF9)
-            __abTempBuffer = new byte[SquareADPCMDecoder.calculateOutputBufferSize(1840)];
+            __abTempBuffer = new ExposedBAOS(SquareADPCMDecoder.calculateOutputBufferSize(1840));
         }
 
         public void setAudioListener(ISectorTimedAudioWriter audioOut) {
@@ -168,16 +169,13 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
                     __leftAudioSector.getSamplesPerSecond() != __rightAudioSector.getSamplesPerSecond())
                     throw new RuntimeException("Left/Right audio does not match.");
 
-                int iOutBufferSize = SquareADPCMDecoder.calculateOutputBufferSize(__rightAudioSector.getAudioDataSize());
-                if (__abTempBuffer == null || __abTempBuffer.length < iOutBufferSize)
-                        __abTempBuffer = new byte[iOutBufferSize];
-
+                __abTempBuffer.reset();
                 int iSize = __decoder.decode(__leftAudioSector.getIdentifiedUserDataStream(),
                         __rightAudioSector.getIdentifiedUserDataStream(),
                         __rightAudioSector.getAudioDataSize(), __abTempBuffer);
                 if (__format == null)
                     __format = __decoder.getOutputFormat(__rightAudioSector.getSamplesPerSecond());
-                __audioWriter.write(__format, __abTempBuffer, 0, iSize, __rightAudioSector.getSectorNumber());
+                __audioWriter.write(__format, __abTempBuffer.getBuffer(), 0, __abTempBuffer.size(), __rightAudioSector.getSectorNumber());
             } else {
                 throw new RuntimeException("Invalid audio channel " + audSector.getAudioChannel());
             }

@@ -37,13 +37,13 @@
 
 package jpsxdec.sectors;
 
+import java.io.PrintStream;
 import jpsxdec.audio.XAADPCMDecoder;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -57,15 +57,16 @@ public class SectorXA extends IdentifiedSector {
     private final int _iSamplesPerSecond;
     private final int _iBitsPerSample;
     private final boolean _blnStereo;
+    private final int _iErrors;
 
     public SectorXA(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
 
-        if (!cdSector.hasSectorHeader())
+        if (!cdSector.hasRawSectorHeader())
             throw new NotThisTypeException();
         if (cdSector.getSubMode().getForm() != 2)
             throw new NotThisTypeException();
-        if (cdSector.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.AUDIO)
+        if (!cdSector.getSubMode().getAudio())
             throw new NotThisTypeException();
         // Ace Combat 3 has several sectors with channel 255
         // They seem to be "null" sectors
@@ -116,6 +117,7 @@ public class SectorXA extends IdentifiedSector {
                 throw new NotThisTypeException();
         }
 
+        _iErrors = iErrors;
         _blnStereo = cdSector.getCodingInfo().isStereo();
         _iSamplesPerSecond = cdSector.getCodingInfo().getSampleRate();
     }
@@ -270,5 +272,16 @@ public class SectorXA extends IdentifiedSector {
         else
             return -1;
     }
+
+    @Override
+    public int getErrorCount() {
+        return _iErrors;
+    }
+
+    @Override
+    public void printErrors(PrintStream ps) {
+        ps.println("Sector " + getSectorNumber() + ": " +_iErrors+ " errors in XA sound parameters");
+    }
+
 
 }

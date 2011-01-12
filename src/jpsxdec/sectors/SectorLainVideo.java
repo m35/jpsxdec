@@ -47,67 +47,92 @@ import jpsxdec.util.NotThisTypeException;
 
 // FIXME: this is dangerously close to FF7 video sectors
 // checking for this type of sector first would be one solution to prevent false-positives
-public class SectorLainVideo extends SectorSTR {
+public class SectorLainVideo extends SectorAbstractVideo {
 
-    private byte _bQuantizationScaleLumin;
-    private byte _bQuantizationScaleChrom;
+    // .. Additional fields ...............................................
+
+    // Magic 0x80010160                     //  0    [4 bytes]
+    // ChunkNumber                          //  4    [2 bytes]
+    // ChunksInThisFrame                    //  6    [2 bytes]
+    // FrameNumber                          //  8    [4 bytes]
+    // UsedDemuxedSize                      //  12   [4 bytes]
+    // Width                                //  16   [2 bytes]
+    // Height                               //  18   [2 bytes]
+    private byte _bQuantizationScaleLumin;  //  20   [1 byte]
+    private byte _bQuantizationScaleChrom;  //  21   [1 byte]
+    private int  _iMagic3800;               //  22   [2 bytes]
+    // RunLengthCodeCount                   //  24   [2 bytes]
+    // Version                              //  26   [2 bytes]
+    // FourZeros                            //  28   [2 bytes]
+
 
     public SectorLainVideo(CdSector cdSector) throws NotThisTypeException {
-        super(cdSector); // will call overridden readHeader() method
-    }
+        super(cdSector);
+        if (cdSector.hasRawSectorHeader()) {
+            // Not all movies have the real-time flag set, so we can't rely on it
+            if (!(cdSector.getSubMode().getData() || cdSector.getSubMode().getVideo()))
+            {
+                throw new NotThisTypeException();
+            }
+        }
+        try {
+            ByteArrayInputStream inStream = cdSector.getCdUserDataStream();
 
-    @Override
-    protected void readHeader(ByteArrayInputStream inStream) throws NotThisTypeException, IOException {
-        _lngMagic = IO.readUInt32LE(inStream);
-        if (_lngMagic != VIDEO_CHUNK_MAGIC)
-            throw new NotThisTypeException();
+            long _lngMagic = IO.readUInt32LE(inStream);
+            if (_lngMagic != SectorSTR.VIDEO_CHUNK_MAGIC)
+                throw new NotThisTypeException();
 
-        _iChunkNumber = IO.readSInt16LE(inStream);
-        if (_iChunkNumber < 0)
-            throw new NotThisTypeException();
-        _iChunksInThisFrame = IO.readSInt16LE(inStream);
-        if (_iChunksInThisFrame < 1)
-            throw new NotThisTypeException();
-        _iFrameNumber = IO.readSInt32LE(inStream);
-        if (_iFrameNumber < 1)
-            throw new NotThisTypeException();
+            _iChunkNumber = IO.readSInt16LE(inStream);
+            if (_iChunkNumber < 0)
+                throw new NotThisTypeException();
+            _iChunksInThisFrame = IO.readSInt16LE(inStream);
+            if (_iChunksInThisFrame < 1)
+                throw new NotThisTypeException();
+            _iFrameNumber = IO.readSInt32LE(inStream);
+            if (_iFrameNumber < 1)
+                throw new NotThisTypeException();
 
-        _lngUsedDemuxedSize = IO.readSInt32LE(inStream);
-        if (_lngUsedDemuxedSize < 0)
-            throw new NotThisTypeException();
+            _lngUsedDemuxedSize = IO.readSInt32LE(inStream);
+            if (_lngUsedDemuxedSize < 0)
+                throw new NotThisTypeException();
 
-        _iWidth = IO.readSInt16LE(inStream);
-        if (_iWidth != 320)
-            throw new NotThisTypeException();
-        _iHeight = IO.readSInt16LE(inStream);
-        if (_iHeight != 240)
-            throw new NotThisTypeException();
+            _iWidth = IO.readSInt16LE(inStream);
+            if (_iWidth != 320)
+                throw new NotThisTypeException();
+            _iHeight = IO.readSInt16LE(inStream);
+            if (_iHeight != 240)
+                throw new NotThisTypeException();
 
-        _bQuantizationScaleLumin = IO.readSInt8(inStream);
-        if (_bQuantizationScaleLumin < 0)
-            throw new NotThisTypeException();
-        _bQuantizationScaleChrom = IO.readSInt8(inStream);
-        if (_bQuantizationScaleChrom < 0)
-            throw new NotThisTypeException();
+            _bQuantizationScaleLumin = IO.readSInt8(inStream);
+            if (_bQuantizationScaleLumin < 0) // 1 movie has 0 qscale in header
+                throw new NotThisTypeException();
+            _bQuantizationScaleChrom = IO.readSInt8(inStream);
+            if (_bQuantizationScaleChrom < 0) // 1 movie has 0 qscale in header
+                throw new NotThisTypeException();
 
-        _iMagic3800 = IO.readUInt16LE(inStream);
-        if (_iMagic3800 != 0x3800 && _iMagic3800 != 0x0000 && _iMagic3800 != _iFrameNumber)
-            throw new NotThisTypeException();
+            _iMagic3800 = IO.readUInt16LE(inStream);
+            if (_iMagic3800 != 0x3800 && _iMagic3800 != 0x0000 && _iMagic3800 != _iFrameNumber)
+                throw new NotThisTypeException();
 
-        _iRunLengthCodeCount = IO.readUInt16LE(inStream);
+            _iRunLengthCodeCount = IO.readUInt16LE(inStream);
+            if (_iRunLengthCodeCount < 0) // some movies report 0 code count
+                throw new NotThisTypeException();
 
-        _iVersion = IO.readUInt16LE(inStream);
-        if (_iVersion != 0)
-            throw new NotThisTypeException();
+            int iVersion = IO.readUInt16LE(inStream);
+            if (iVersion != 0)
+                throw new NotThisTypeException();
 
-        _lngFourZeros = IO.readUInt32LE(inStream);
-        if (_lngFourZeros != 0)
+            long lngFourZeros = IO.readUInt32LE(inStream);
+            if (lngFourZeros != 0)
+                throw new NotThisTypeException();
+        } catch (IOException ex) {
             throw new NotThisTypeException();
+        }
     }
 
     public String toString() {
-        return String.format("%s %s frame:%d chunk:%d/%d %dx%d ver:%d " +
-            "{demux frame size=%d rlc=%d 3800=%04x qscaleL=%d qscaleC=%d 4*00=%08x}",
+        return String.format("%s %s frame:%d chunk:%d/%d %dx%d " +
+            "{demux frame size=%d rlc=%d 3800=%04x qscaleL=%d qscaleC=%d}",
             getTypeName(),
             super.cdToString(),
             _iFrameNumber,
@@ -115,13 +140,11 @@ public class SectorLainVideo extends SectorSTR {
             _iChunksInThisFrame,
             _iWidth,
             _iHeight,
-            _iVersion,
             _lngUsedDemuxedSize,
             _iRunLengthCodeCount,
             _iMagic3800,
             _bQuantizationScaleLumin,
-            _bQuantizationScaleChrom,
-            _lngFourZeros
+            _bQuantizationScaleChrom
             );
     }
 
@@ -130,6 +153,8 @@ public class SectorLainVideo extends SectorSTR {
         return "Lain Video";
     }
 
+    /** {@inheritDoc}
+     * Lain needs special handling due to its unique header. */
     public int replaceFrameData(CdFileSectorReader cd,
                                 byte[] abDemuxData, int iDemuxOfs,
                                 int iLuminQscale, int iChromQscale,
@@ -166,5 +191,10 @@ public class SectorLainVideo extends SectorSTR {
         cd.writeSector(getSectorNumber(), abSectUserData);
 
         return iBytesToCopy;
+    }
+
+    @Override
+    public int getSectorHeaderSize() {
+        return 32;
     }
 }

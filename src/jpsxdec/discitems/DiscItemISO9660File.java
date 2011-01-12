@@ -40,10 +40,6 @@ package jpsxdec.discitems;
 import argparser.ArgParser;
 import argparser.BooleanHolder;
 import com.jhlabs.awt.ParagraphLayout;
-import com.l2fprod.common.swing.JDirectoryChooser;
-import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.File;
@@ -51,17 +47,9 @@ import java.io.FileOutputStream;
 import java.net.URI;
 import java.text.DecimalFormat;
 import java.util.logging.Logger;
-import javax.swing.JButton;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
-import javax.swing.JTextField;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.Document;
-import jpsxdec.BetterFileChooser;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ProgressListener;
 import jpsxdec.util.FeedbackStream;
@@ -338,6 +326,7 @@ public class DiscItemISO9660File extends DiscItem {
                     fos.write(cdSector.getCdUserDataCopy());
                 pl.progressUpdate((iSector - iStartSect) / iSectLen);
             }
+            fos.close();
             pl.progressEnd();
         }
 

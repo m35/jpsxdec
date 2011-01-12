@@ -38,7 +38,6 @@
 package jpsxdec.discitems.savers;
 
 import java.io.File;
-import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.savers.VideoSaverBuilder.DecodeQualities;
@@ -57,7 +56,6 @@ public class VideoSaverBuilderSnapshot {
     public final DecodeQualities decodeQuality;
     public final float jpgCompression;
     public final boolean saveAudio;
-    public final DiscItemAudioStream parallelAudio;
     public final boolean preciseAvSync;
     public final MdecDecoder videoDecoder;
     public final File baseName;
@@ -79,8 +77,7 @@ public class VideoSaverBuilderSnapshot {
         preciseFrameTiming = builder.getPreciseFrameTiming();
         decodeQuality = builder.getDecodeQuality();
         jpgCompression = builder.getJpgCompression();
-        saveAudio = builder.getSaveAudio();
-        parallelAudio = builder.getParallelAudio();
+        saveAudio = builder.getSavingAudio();
         preciseAvSync = builder.getPreciseAVSync();
     }
 

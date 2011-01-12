@@ -105,7 +105,6 @@ public class MediaPlayer implements IAudioVideoReader {
 
     //-----------------------------------------------------------------------
 
-    private final static boolean AUDIO_BIGENDIAN = true;
     private ISectorAudioDecoder _audioDecoder;
     private AudPlayerSectorTimedAudioWriter _audioOut;
 
@@ -117,7 +116,7 @@ public class MediaPlayer implements IAudioVideoReader {
         _iSector = _iMovieStartSector = aud.getStartSector();
         _iMovieEndSector = aud.getEndSector();
 
-        _audioDecoder = aud.makeDecoder(AUDIO_BIGENDIAN, 1.0);
+        _audioDecoder = aud.makeDecoder(1.0);
 
         // ignore video
         _decoder = null;

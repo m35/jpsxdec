@@ -37,9 +37,9 @@
 
 package jpsxdec.cdreaders;
 
+import java.io.PrintStream;
 import java.util.logging.Logger;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** 2336 sectors only include the raw {@link CdxaSubHeader}, but not the
@@ -56,12 +56,11 @@ public class CdSector2336 extends CdSector {
     private final int _iUserDataOffset;
     private final int _iUserDataSize;
 
-    public CdSector2336(byte[] abSectorBytes, int iByteStartOffset, int iSectorIndex, long lngFilePointer, int iTolerance)
-            throws NotThisTypeException
+    public CdSector2336(byte[] abSectorBytes, int iByteStartOffset, int iSectorIndex, long lngFilePointer)
     {
         super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);
 
-        _subHeader = new CdxaSubHeader(iSectorIndex, abSectorBytes, iByteStartOffset, iTolerance);
+        _subHeader = new CdxaSubHeader(abSectorBytes, iByteStartOffset);
         _iUserDataOffset = _iByteStartOffset + _subHeader.getSize();
         if (_subHeader.getSubMode().getForm() == 1)
             _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
@@ -108,16 +107,16 @@ public class CdSector2336 extends CdSector {
 
     //..........................................................................
     
-    public boolean hasSectorHeader() {
+    public boolean hasRawSectorHeader() {
         return true;
+    }
+
+    public boolean isCdAudioSector() {
+        return false;
     }
 
     //..........................................................................
     
-    public int getFile() {
-        return _subHeader.getFileNumber();
-    }
-
     public int getChannel() {
         return _subHeader.getChannel();
     }
@@ -133,22 +132,6 @@ public class CdSector2336 extends CdSector {
         return _subHeader.getCodingInfo();
     }
 
-    /** Returns the coding info.bits_per_sample in the sector header,
-     *  or -1 if it has no header. */
-    public int getCodingInfo_BitsPerSample() {
-        return _subHeader.getCodingInfo().getBitsPerSample();
-    }
-
-    /** Returns 0 for mono, 1 for stereo, or -1 if it has no header. */
-    public boolean getCodingInfo_MonoStereo() {
-        return _subHeader.getCodingInfo().isStereo();
-    }
-
-    /** Returns 37800 or 18900, or -1 if it has no header. */
-    public int getCodingInfo_SampleRate() {
-        return _subHeader.getCodingInfo().getSampleRate();
-    }
-
     //..........................................................................
     
     /** Returns the actual offset in bytes from the start of the file/CD
@@ -156,6 +139,16 @@ public class CdSector2336 extends CdSector {
      *  [implements IGetFilePointer] */
     public long getFilePointer() {
         return _lngFilePointer + _subHeader.getSize();
+    }
+
+    @Override
+    public void printErrors(Logger logger) {
+        _subHeader.printErrors(_iSectorIndex, logger);
+    }
+
+    @Override
+    public int getErrorCount() {
+        return _subHeader.getErrorCount();
     }
     
     public String toString() {

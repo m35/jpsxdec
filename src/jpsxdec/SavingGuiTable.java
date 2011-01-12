@@ -98,6 +98,12 @@ public class SavingGuiTable extends AbstractTableModel {
 
     }
 
+    public final static int PROGRESS_FAILED = -3;
+    public final static int PROGRESS_CANCELED = -2;
+    public final static int PROGRESS_WAITING = -1;
+    public final static int PROGRESS_DONE = 100;
+    public final static int PROGRESS_STARTED = 0;
+
     private static class ProgressRenderer extends DefaultTableCellRenderer {
 
         private final JProgressBar _bar = new JProgressBar(0, 100);
@@ -110,15 +116,15 @@ public class SavingGuiTable extends AbstractTableModel {
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             int i = (Integer)value;
             String sText;
-            if(i == -2)
+            if(i == PROGRESS_FAILED)
                 sText = "Failed!";
-            else if (i == -1)
+            else if (i == PROGRESS_CANCELED)
                 sText = "Canceled";
-            else if (i == 0)
+            else if (i == PROGRESS_WAITING)
                 sText = "Waiting";
-            else if (i > 99)
+            else if (i >= PROGRESS_DONE)
                 sText = "Done";
-            else {
+            else { // >= PROGRESS_STARTED
                 _bar.setValue(i);
                 return _bar;
             }
@@ -209,7 +215,7 @@ public class SavingGuiTable extends AbstractTableModel {
 
 
     // http://www.pikopong.com/blog/2008/08/13/auto-resize-jtable-column-width/
-    private static void autoResizeColWidth(JTable table) {
+    public static void autoResizeColWidth(JTable table) {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
         int margin = 5;

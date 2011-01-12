@@ -52,10 +52,12 @@ public class Rec601YCbCr {
     public Rec601YCbCr() {
     }
 
+    /** Performs simple bilinear downsampling interpolation for chroma components. */
     public Rec601YCbCr(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
         fromRgb(rgb1, rgb2, rgb3, rgb4);
     }
 
+    /** Performs simple bilinear downsampling interpolation for chroma components. */
     public void fromRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
         cb = cr = 0;
         y1 = oneRgb(rgb1);

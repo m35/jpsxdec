@@ -47,6 +47,7 @@ import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.UnidentifiedSector;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IGetFilePointer;
+import jpsxdec.util.NotThisTypeException;
 
 /** Demuxes a series of UnidentifiedSector into a solid stream.
  *  In the process of reading the sectors, they are also passed to
@@ -97,17 +98,19 @@ public class IndexingDemuxerIS extends InputStream implements IGetFilePointer
     }
 
     private IdentifiedSector identifySector(CdSector cdSector) {
-        IdentifiedSector oPSXSect;
-        for (DiscIndexer oIndexer : _aoIndexers) {
-            oPSXSect = IdentifiedSector.identifySector(cdSector);
-            if (oPSXSect != null) {
-                notifyListeners(oPSXSect);
-                return oPSXSect;
-            }
+        IdentifiedSector identifiedSect;
+        identifiedSect = IdentifiedSector.identifySector(cdSector);
+        if (identifiedSect != null) {
+            notifyListeners(identifiedSect);
+            return identifiedSect;
         }
-        oPSXSect = new UnidentifiedSector(cdSector);
-        notifyListeners(oPSXSect);
-        return oPSXSect;
+        try {
+            identifiedSect = new UnidentifiedSector(cdSector);
+        } catch (NotThisTypeException ex) {
+            return null;
+        }
+        notifyListeners(identifiedSect);
+        return identifiedSect;
     }
     private void notifyListeners(IdentifiedSector cdSector) {
         if (_iCurSectNum > _iMaxReadSectNum) {
@@ -234,7 +237,7 @@ public class IndexingDemuxerIS extends InputStream implements IGetFilePointer
             _iCurSectNum++;
 
             IdentifiedSector oSect = identifySector(_sourceCd.getSector(_iCurSectNum));
-            if (oSect.getSectorType() == IdentifiedSector.SECTOR_UNKNOWN) {
+            if (oSect instanceof UnidentifiedSector) {
                 _psxSectStream = oSect.getIdentifiedUserDataStream();
                 _iState = READING_UNKNOWN_DATA;
             } else {

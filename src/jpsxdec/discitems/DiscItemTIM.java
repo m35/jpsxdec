@@ -41,11 +41,12 @@ package jpsxdec.discitems;
 import argparser.ArgParser;
 import argparser.StringHolder;
 import java.io.PrintStream;
-import javax.swing.JPanel;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.sectors.IdentifiedSectorRangeIterator;
@@ -324,7 +325,7 @@ public class DiscItemTIM extends DiscItem {
                 }
                 pl.progressEnd();
             } catch (IOException ex) {
-                pl.error(ex);
+                pl.getLog().log(Level.SEVERE, null, ex);
             }
         }
 

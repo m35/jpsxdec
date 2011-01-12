@@ -87,7 +87,7 @@ public abstract class DiscItemAudioStream extends DiscItem {
     /** Creates a decoder capable of converting IdentifiedSectors into audio
      *  data which will then be fed into an AudioOutputStream.
      * @see ISectorAudioDecoder#open(ISectorAudioDecoder.ISectorTimedAudioWriter)  */
-    abstract public ISectorAudioDecoder makeDecoder(boolean blnBigEndian, double dblVolume);
+    abstract public ISectorAudioDecoder makeDecoder(double dblVolume);
 
     abstract public AudioFormat getAudioFormat(boolean blnBigEndian);
 
@@ -101,6 +101,10 @@ public abstract class DiscItemAudioStream extends DiscItem {
 
     public DiscItemSaverBuilder makeSaverBuilder() {
         return new AudioSaverBuilder(this);
+    }
+
+    public boolean hasSameFormat(DiscItemAudioStream other) {
+        return getSampleRate() == other.getSampleRate() && isStereo() == other.isStereo();
     }
 
 }

@@ -201,7 +201,7 @@ class VideoSavers  {
                 receiveUncompressor(uncompressor, iFrameNumber, iFrameEndSector);
             } catch (NotThisTypeException ex) {
                 log.log(Level.WARNING, null, ex);
-                getListener().warning(ex);
+                getListener().getLog().log(Level.WARNING, null, ex);
             }
         }
 
@@ -215,17 +215,17 @@ class VideoSavers  {
                     MdecInputStreamReader.writeMdecBlocks(uncompressor, bos, TOTAL_BLOCKS);
                 } catch (DecodingException ex) {
                     log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
-                    getListener().warning("Error uncompressing frame " + iFrameNumber, ex);
+                    getListener().getLog().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
                 }
             } catch (IOException ex) {
                 log.log(Level.SEVERE, "Error writing frame " + iFrameNumber, ex);
-                getListener().error("Error writing frame " + iFrameNumber, ex);
+                getListener().getLog().log(Level.WARNING, "Error writing frame " + iFrameNumber, ex);
             } finally {
                 try {
                     bos.close();
                 } catch (IOException ex) {
                     log.log(Level.SEVERE, "Error closing file for frame " + iFrameNumber, ex);
-                    getListener().error("Error closing file for frame " + iFrameNumber, ex);
+                    getListener().getLog().log(Level.WARNING, "Error closing file for frame " + iFrameNumber, ex);
                 }
             }
         }
@@ -258,8 +258,8 @@ class VideoSavers  {
             try {
                 _decoder.decode(uncompressor);
             } catch (DecodingException ex) {
-                log.log(Level.SEVERE, "Error uncompressing frame " + iFrameNumber, ex);
-                getListener().error("Error uncompressing frame " + iFrameNumber, ex);
+                log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                getListener().getLog().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
             }
             receiveDecoded(_decoder, iFrameNumber, iFrameEndSector);
         }
@@ -298,11 +298,11 @@ class VideoSavers  {
             try {
                 if (!ImageIO.write(bi, _eFmt.getId(), f)) {
                     log.log(Level.WARNING, "Unable to write frame file " + f);
-                    getListener().warning("Unable to write frame file " + f);
+                    getListener().getLog().log(Level.WARNING, "Unable to write frame file " + f);
                 }
             } catch (IOException ex) {
                 log.log(Level.WARNING, "Error writing frame file " + f, ex);
-                getListener().error("Error writing frame file " + f, ex);
+                getListener().getLog().log(Level.WARNING, "Error writing frame file " + f, ex);
             }
         }
 
@@ -314,11 +314,11 @@ class VideoSavers  {
             try {
                 if (!ImageIO.write(bi, _eFmt.getId(), f)) {
                     log.log(Level.WARNING, "Unable to write error frame file " + f);
-                    getListener().warning("Unable to write error frame file " + f);
+                    getListener().getLog().log(Level.WARNING, "Unable to write error frame file " + f);
                 }
             } catch (IOException ex) {
                 log.log(Level.WARNING, "Error writing error frame file " + f, ex);
-                getListener().error("Error writing error frame file " + f, ex);
+                getListener().getLog().log(Level.WARNING, "Error writing error frame file " + f, ex);
             }
         }
 
@@ -401,12 +401,12 @@ class VideoSavers  {
                 if (_aviWriter.getAudioSamplesWritten() < 1 &&
                     _avSync.getInitialAudio() > 0)
                 {
-                    getListener().warning("Writing " + _avSync.getInitialAudio() + " samples of silence to align audio/video playback.");
+                    getListener().getLog().log(Level.INFO, "Writing " + _avSync.getInitialAudio() + " samples of silence to align audio/video playback.");
                     _aviWriter.writeSilentSamples(_avSync.getInitialAudio());
                 }
                 long lngNeededSilence = _avSync.calculateAudioToCatchUp(iPresentationSector, _aviWriter.getAudioSamplesWritten());
                 if (lngNeededSilence > 0) {
-                    getListener().warning("Adding " + lngNeededSilence + " samples to keep audio in sync.");
+                    getListener().getLog().log(Level.INFO, "Adding " + lngNeededSilence + " samples to keep audio in sync.");
                     _aviWriter.writeSilentSamples(lngNeededSilence);
                 }
 
@@ -457,7 +457,7 @@ class VideoSavers  {
             // if first frame
             if (_aviWriter.getVideoFramesWritten() < 1 && _vidSync.getInitialVideo() > 0) {
 
-                getListener().warning("Writing " + _vidSync.getInitialVideo() + " blank frame(s) to align audio/video playback.");
+                getListener().getLog().log(Level.INFO, "Writing " + _vidSync.getInitialVideo() + " blank frame(s) to align audio/video playback.");
                 _aviWriter.writeBlankFrame();
                 for (int i = _vidSync.getInitialVideo()-1; i > 0; i--) {
                     _aviWriter.repeatPreviousFrame();
@@ -472,7 +472,7 @@ class VideoSavers  {
             if (iDupCount < 0)
                 // hopefully this will never happen because the frame rate
                 // calculated during indexing should prevent it
-                getListener().warning("Frame "+iFrame+" is ahead of reading by " + (-iDupCount) + " frame(s).");
+                getListener().getLog().log(Level.WARNING, "Frame "+iFrame+" is ahead of reading by " + (-iDupCount) + " frame(s).");
             else while (iDupCount > 0) { // will never happen with first frame
                 _aviWriter.repeatPreviousFrame();
                 iDupCount--;
@@ -487,8 +487,8 @@ class VideoSavers  {
             try {
                 writeError(ex);
             } catch (IOException ex1) {
-                log.log(Level.WARNING, "Error writing error frame " + iFrame, ex);
-                getListener().error(ex);
+                log.log(Level.SEVERE, "Error writing error frame " + iFrame, ex);
+                getListener().getLog().log(Level.SEVERE, "Error writing error frame " + iFrame, ex);
             }
         }
 

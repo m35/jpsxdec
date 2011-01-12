@@ -37,28 +37,29 @@
 
 package jpsxdec.util;
 
-public class ConsoleProgressListener implements ProgressListener {
+import java.io.PrintStream;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+
+public class ConsoleProgressListener extends UserFriendlyHandler implements ProgressListener {
 
     private static final int BAR_WIDTH = 30;
 
     private String _sLastEvent = "";
-    private boolean _blnNewLine = false;
     private double _dblNextProgressMark = 0;
-    private FeedbackStream _fbs;
+    private PrintStream _ps;
+    private int _iWarnCount = 0;
+    private int _iErrCount = 0;
+    private Logger _errLog;
 
-    public ConsoleProgressListener() {
-        this(new FeedbackStream());
+    public ConsoleProgressListener(String sLogFileBaseName) {
+        this(sLogFileBaseName, System.out);
     }
-    public ConsoleProgressListener(FeedbackStream fbs) {
-        _fbs = fbs;
-    }
-
-    public void error(String sDescription) {
-        if (_blnNewLine) {
-            _fbs.println();
-            _blnNewLine = false;
-        }
-        _fbs.printlnErr(sDescription);
+    public ConsoleProgressListener(String sLogFileBaseName, PrintStream ps) {
+        super(sLogFileBaseName);
+        _ps = ps;
+        _errLog = Logger.getLogger("dunno");
+        _errLog.addHandler(this);
     }
 
     public void event(String sDescription) {
@@ -66,18 +67,20 @@ public class ConsoleProgressListener implements ProgressListener {
     }
 
     public void info(String s) {
-        _fbs.println(s);
+        _ps.println(s);
     }
-
 
     public void progressEnd() {
-        _fbs.println(buildProgress(1));
+        _ps.println(buildProgress(1));
         _dblNextProgressMark = 0;
+        _errLog.removeHandler(this);
+        close();
     }
 
+    public void progressStart() { progressStart(null); }
     public void progressStart(String s) {
         if (s != null)
-            _fbs.println(s);
+            _ps.println(s);
         _dblNextProgressMark = 0;
     }
 
@@ -96,8 +99,7 @@ public class ConsoleProgressListener implements ProgressListener {
         // a carriage return after the string \r
         // resets the cursor position back to the beginning of the line
         // but for now just do normal new line
-        _fbs.println(sLine);
-        _blnNewLine = true;
+        _ps.println(sLine);
         
         _dblNextProgressMark = Math.round((dblPercentComplete + 0.05) * 10.0) / 10.0;
     }
@@ -114,39 +116,28 @@ public class ConsoleProgressListener implements ProgressListener {
 
         strBuild.append(String.format("] %4d%% %s", (long)Math.floor(dblPercentComplete * 100), _sLastEvent));
 
+        if (_iWarnCount > 0)
+            strBuild.append(" ").append(_iWarnCount).append(" warnings");
+        if (_iWarnCount > 0)
+            strBuild.append(" ").append(_iErrCount).append(" errors");
+
         return strBuild.toString();
     }
 
-    public void warning(String sDescription) {
-        if (_blnNewLine) {
-            _fbs.println();
-            _blnNewLine = false;
-        }
-        _fbs.printlnWarn(sDescription);
+    @Override
+    protected void onErr(LogRecord record) {
+        _iErrCount++;
     }
 
-    public void more(String s) {
-        if (_blnNewLine) {
-            _fbs.println();
-            _blnNewLine = false;
-        }
-        _fbs.printlnMore(s);
+    @Override
+    protected void onWarn(LogRecord record) {
+        _iWarnCount++;
     }
-
-
-    public void progressStart() { progressStart(null); }
-
 
     public boolean seekingEvent() { return true; }
 
-    public void warning(String sMessage, Throwable cause) {
-        warning(sMessage + " " + cause.getMessage());
+    public Logger getLog() {
+        return _errLog;
     }
-    public void warning(Throwable ex) { warning(ex.getMessage()); }
-
-    public void error(String sMessage, Throwable ex) {
-        error(sMessage + " " + ex.getMessage());
-    }
-    public void error(Throwable ex) { error(ex.getMessage()); }
 
 }

@@ -38,99 +38,136 @@
 package jpsxdec.sectors;
 
 import java.io.IOException;
+import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.psxvideo.encode.ParsedMdecImage;
+import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 
-/** Alice In Cyber Land frame chunk sector. */
-public class SectorAliceFrameChunk extends SectorAliceFrameChunkNull
-        implements IVideoSector 
-{
+/** Shared super class of several video sector types. */
+public abstract class SectorAbstractVideo extends IdentifiedSector implements IVideoSector {
+    
+    private static final Logger log = Logger.getLogger(SectorAbstractVideo.class.getName());
+    protected Logger log() { return log; }
 
+    // .. Instance fields ..................................................
+
+    protected int  _iChunkNumber;
+    protected int  _iChunksInThisFrame;
+    protected int  _iFrameNumber;
+    protected long _lngUsedDemuxedSize;
+    protected int  _iWidth;
+    protected int  _iHeight;
+    protected int  _iRunLengthCodeCount;
+    
     // .. Constructor .....................................................
 
-    public SectorAliceFrameChunk(CdSector cdSector) throws NotThisTypeException
-    {
+    public SectorAbstractVideo(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
-        // ingnore null frames between movies
-        if (_iFrameNumber == 0xFFFF)
-            throw new NotThisTypeException();
     }
 
-    // .. Public functions .................................................
+    // .. Abstract methods .................................................
 
-    public int getWidth() {
-        return 320;
+    abstract public String toString();
+
+    abstract public String getTypeName();
+
+    abstract public int getSectorHeaderSize();
+
+    // .. Public methods ...................................................
+
+    final public int getChunkNumber() {
+        return _iChunkNumber;
     }
 
-    public int getHeight() {
-        return 224;
+    final public int getChunksInFrame() {
+        return _iChunksInThisFrame;
     }
 
-    @Override
-    public int getSectorType() {
+    final public int getFrameNumber() {
+        return _iFrameNumber;
+    }
+
+    final public int getWidth() {
+        return _iWidth;
+    }
+
+    final public int getHeight() {
+        return _iHeight;
+    }
+
+    final public int getIdentifiedUserDataSize() {
+            return super.getCDSector().getCdUserDataSize() -
+                getSectorHeaderSize();
+    }
+
+    final public ByteArrayFPIS getIdentifiedUserDataStream() {
+        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+                getSectorHeaderSize(), getIdentifiedUserDataSize());
+    }
+
+    final public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
+        super.getCDSector().getCdUserDataCopy(getSectorHeaderSize(), abOut,
+                iOutPos, getIdentifiedUserDataSize());
+    }
+
+    final public int getSectorType() {
         return SECTOR_VIDEO;
     }
 
-    @Override
-    public String getTypeName() {
-        return "Alice";
-    }
-
-    public boolean matchesPrevious(IVideoSector prevSector) {
+    /** Checks if this sector is part of the same stream as the previous video sector. */
+    final public boolean matchesPrevious(IVideoSector prevSector) {
         if (!(prevSector.getClass().equals(prevSector.getClass())))
             return false;
 
-        SectorAliceFrameChunk oAliceFrame = (SectorAliceFrameChunk) prevSector;
-        if (getHeight() != oAliceFrame.getHeight() ||
-            getWidth() != oAliceFrame.getWidth())
+        if (prevSector.getFrameNumber() == getFrameNumber() &&
+            prevSector.getChunksInFrame() != getChunksInFrame())
             return false;
 
-        long lngNextChunkNum = prevSector.getChunkNumber()+1;
-        long lngNextFrameNum = prevSector.getFrameNumber();
-        if (lngNextChunkNum >= prevSector.getChunksInFrame()) {
-            lngNextChunkNum = 0;
-            lngNextFrameNum++;
-        }
-        return (lngNextChunkNum == getChunkNumber() &&
-                lngNextFrameNum == getFrameNumber());
-    }
+        if (getWidth()  != prevSector.getWidth() ||
+            getHeight() != prevSector.getHeight())
+               return false;
 
-    public DiscItem createMedia(int iStartSector, int iStartFrame, int iFrame1LastSector)
-    {
-        int iSectors = getSectorNumber() - iStartSector + 1;
-        int iFrames = getFrameNumber() - iStartFrame + 1;
-        return createMedia(iStartSector, iStartFrame, iFrame1LastSector, iSectors, iFrames);
-    }
-    public DiscItem createMedia(int iStartSector, int iStartFrame,
-                                int iFrame1LastSector,
-                                int iSectors, int iPerFrame)
-    {
-        return new DiscItemVideoStream(iStartSector, getSectorNumber(),
-                                    iStartFrame, getFrameNumber(),
-                                    getWidth(), getHeight(),
-                                    iSectors, iPerFrame,
-                                    iFrame1LastSector);
+        /*  This logic is accurate, but not forgiving at all
+        long iNextChunk = prevSector.getChunkNumber() + 1;
+        long iNextFrame = prevSector.getFrameNumber();
+        if (iNextChunk >= prevSector.getChunksInFrame()) {
+            iNextChunk = 0;
+            iNextFrame++;
+        }
+
+        if (iNextChunk != getChunkNumber() || iNextFrame != getFrameNumber())
+            return false;
+        */
+
+        // softer logic
+        if (prevSector.getFrameNumber() == getFrameNumber())
+            return true;
+        else if (prevSector.getFrameNumber() == getFrameNumber() - 1)
+            return true;
+        else
+            return false;
     }
 
     public int replaceFrameData(CdFileSectorReader cd,
-                                byte[] abDemuxData, int iDemuxOfs, 
+                                byte[] abDemuxData, int iDemuxOfs,
                                 int iLuminQscale, int iChromQscale,
                                 int iMdecCodeCount)
             throws IOException
     {
         if (iLuminQscale != iChromQscale)
             throw new IllegalArgumentException();
-
+        
         int iDemuxSizeForHeader = (abDemuxData.length + 3) & ~3;
 
         byte[] abSectUserData = getCDSector().getCdUserDataCopy();
 
         IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader);
+        IO.writeInt16LE(abSectUserData, 20, ParsedMdecImage.calculateHalfCeiling32(iMdecCodeCount));
+        IO.writeInt16LE(abSectUserData, 24, (short)iLuminQscale);
 
         int iBytesToCopy = getIdentifiedUserDataSize();
         if (iDemuxOfs + iBytesToCopy > abDemuxData.length)
@@ -145,10 +182,9 @@ public class SectorAliceFrameChunk extends SectorAliceFrameChunkNull
         return iBytesToCopy;
     }
 
-    public boolean splitAudio() {
+
+    final public boolean splitAudio() {
         return (getFrameNumber() == 1 && getChunkNumber() == 0);
     }
-
-
 }
 

@@ -318,7 +318,7 @@ Offset   Size   Endian --------------------------------------------------------
   4 . . . 2 . . little . Multiplexed chunk number of this video frame
                            0 to (Number of multiplexed chunks) - 1
   6 . . . 2 . . little . Number of multiplexed chunks in this frame
-  8 . . . 2 . . little . Frame number: Starts at 1
+  8 . . . 4 . . little . Frame number: Starts at 1
  12 . . . 4 . . little . Bytes of data used in demuxed frame, rounded up to a
                            multiple of 4 (if not already a multiple of 4)
  16 . . . 2 . . little . Width of frame in pixels

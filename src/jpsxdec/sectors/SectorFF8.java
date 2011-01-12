@@ -42,7 +42,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import jpsxdec.audio.SquareADPCMDecoder;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -58,7 +57,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
     protected int        _iSectorsInAVFrame;       // [1 byte]
     protected int        _iFrameNumber;            // [2 bytes]
     
-    public SectorFF8(CdSector oCDSect) {
+    public SectorFF8(CdSector oCDSect) throws NotThisTypeException {
         super(oCDSect);
     }
 
@@ -66,8 +65,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
             throws IOException, NotThisTypeException 
     {
         // both audio and video sectors are flagged as data
-        if (oCDSect.hasSectorHeader() && 
-            oCDSect.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.DATA)
+        if (oCDSect.hasRawSectorHeader() && !oCDSect.getSubMode().getData())
             throw new NotThisTypeException();
         
         InputStream oIS = oCDSect.getCdUserDataStream();
@@ -225,6 +223,12 @@ public abstract class SectorFF8 extends IdentifiedSector {
             cd.writeSector(getSectorNumber(), abSectUserData);
 
             return iBytesToCopy;
+        }
+
+        public boolean splitAudio() {
+            // don't want to split audio because that would cut the audio
+            // at the beginning of the movie
+            return false;
         }
     }
 

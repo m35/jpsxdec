@@ -195,7 +195,7 @@ public class ReplaceFrame {
         int iLuminQscale = 1;
         int iChromQscale = 1;
         while (true) {
-            fbs.println("Trying qscale lumin: " + iLuminQscale + " chrom: " + iChromQscale);
+            fbs.println("Trying qscale luma: " + iLuminQscale + " chroma: " + iChromQscale);
             MdecEncoder encoded = new MdecEncoder(psxImage, iLuminQscale, iChromQscale);
 
             parsedNew = new ParsedMdecImage(demuxer.getWidth(), demuxer.getHeight());

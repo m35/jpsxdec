@@ -38,13 +38,20 @@
 package jpsxdec.discitems.savers;
 
 import com.jhlabs.awt.ParagraphLayout;
+import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.event.ItemEvent;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.table.AbstractTableModel;
+import jpsxdec.SavingGuiTable;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemVideoStream;
@@ -56,6 +63,7 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
 
     private VideoSaverBuilder _writerBuilder;
     private final ChangeListener[] _aoControls;
+    private JPanel _topPanel = new JPanel(new ParagraphLayout());
 
     /** Use just 1 change listener to notify all the controls so it's
      * easier to swap out when the builder is changed. */
@@ -69,7 +77,7 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
 
 
     public VideoSaverBuilderGui(VideoSaverBuilder writerBuilder) {
-        super(new ParagraphLayout());
+        super(new BorderLayout());
         _writerBuilder = writerBuilder;
 
         _aoControls = new ChangeListener[] {
@@ -80,10 +88,12 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
             new DecodeQuality(),
             new JpgCompression(),
             new PreciseFps(),
-            new SaveAudio(),
             //new Volume(),
-            new PreciseAv()
+            new PreciseAv(),
+            new ParallelAudio(),
         };
+
+        super.add(_topPanel, BorderLayout.NORTH);
 
         _writerBuilder.addChangeListener(_listenerWrapper);
 
@@ -103,6 +113,17 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
             return false;
         }
     }
+
+    @Override
+    public Component add(Component comp) {
+        return _topPanel.add(comp);
+    }
+
+    @Override
+    public void add(Component comp, Object constraints) {
+        _topPanel.add(comp, constraints);
+    }
+
 
 
     private class VideoFormat extends AbstractCombo {
@@ -229,19 +250,6 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
         }
     }
 
-    private class SaveAudio extends AbstractCheck {
-        public SaveAudio() { super("Save audio:"); }
-        public boolean isSelected() {
-            return _writerBuilder.getSaveAudio();
-        }
-        public void setSelected(boolean b) {
-            _writerBuilder.setSaveAudio(b);
-        }
-        public boolean isEnabled() {
-            return _writerBuilder.getSaveAudio_enabled();
-        }
-    }
-
 
     private abstract class AbstractDiscSpeed extends ToggleButtonModel implements ChangeListener {
         JRadioButton __btn = new JRadioButton();
@@ -258,9 +266,8 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
                 fireItemStateChanged(new ItemEvent(this, ItemEvent.ITEM_STATE_CHANGED, this,
                         __prev ? ItemEvent.SELECTED : ItemEvent.DESELECTED));
             }
-            if (__btn.isEnabled() != isEnabled()) {
-                fireStateChanged();
-            }
+            if (__btn.isEnabled() != isEnabled())
+                __btn.setEnabled(isEnabled());
         }
         public boolean isEnabled() {
             return _writerBuilder.getSingleSpeed_enabled();
@@ -294,7 +301,6 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
         AbstractDiscSpeed __1x, __2x;
         public DiscSpeed() {
             __label.setEnabled(_writerBuilder.getSingleSpeed_enabled());
-            __fps.setEnabled(_writerBuilder.getSingleSpeed_enabled());
             __cur = _writerBuilder.getSingleSpeed();
             add(__label, ParagraphLayout.NEW_PARAGRAPH);
             __1x = new DiscSpeed1x();
@@ -306,8 +312,6 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
             updateFps();
             if (_writerBuilder.getSingleSpeed_enabled() != __label.isEnabled())
                 __label.setEnabled(_writerBuilder.getSingleSpeed_enabled());
-            if (_writerBuilder.getSingleSpeed_enabled() != __fps.isEnabled())
-                __fps.setEnabled(_writerBuilder.getSingleSpeed_enabled());
             __1x.stateChanged(e);
             __2x.stateChanged(e);
         }
@@ -351,6 +355,85 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui {
                     __postfix2.setText(sEnd);
             }
         }
+    }
+
+    private enum COLUMNS {
+        Save() {
+            public Class type() { return Boolean.class; }
+            public boolean editable() { return true; }
+            public Object get(VideoSaverBuilder bldr, int i) {
+                return bldr.getParallelAudio_selected(i);
+            }
+            public void set(VideoSaverBuilder bldr, int i, Object val) {
+                bldr.setParallelAudio(i, (Boolean)val);
+            }
+        },
+        Num() {
+            public Class type() { return Integer.class; }
+            public Object get(VideoSaverBuilder bldr, int i) {
+                return bldr.getParallelAudio(i).getIndexId().getListIndex();
+            }
+            public String toString() { return "#"; }
+        },
+        Id() {
+            public Class type() { return String.class; }
+            public Object get(VideoSaverBuilder bldr, int i) {
+                return bldr.getParallelAudio(i).getIndexId().getTopLevel();
+            }
+            public String toString() { return ""; }
+        },
+        Details() {
+            public Class type() { return String.class; }
+            public Object get(VideoSaverBuilder bldr, int i) {
+                return bldr.getParallelAudio(i).getInterestingDescription();
+            }
+        };
+        abstract public Class type();
+        public boolean editable() { return false; }
+        abstract public Object get(VideoSaverBuilder bldr, int i);
+        public void set(VideoSaverBuilder bldr, int i, Object val) {}
+    }
+    private class ParallelAudio extends AbstractTableModel implements ChangeListener {
+
+        public ParallelAudio() {
+            JTable tbl = new JTable(this);
+            tbl.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+            VideoSaverBuilderGui.super.add(new JScrollPane(tbl), BorderLayout.CENTER);
+            SavingGuiTable.autoResizeColWidth(tbl);
+        }
+
+        public int getRowCount() {
+            return _writerBuilder.getParallelAudioCount();
+        }
+
+        public int getColumnCount() {
+            return COLUMNS.values().length;
+        }
+
+        public String getColumnName(int columnIndex) {
+            return COLUMNS.values()[columnIndex].toString();
+        }
+
+        public Class<?> getColumnClass(int columnIndex) {
+            return COLUMNS.values()[columnIndex].type();
+        }
+
+        public boolean isCellEditable(int rowIndex, int columnIndex) {
+            return COLUMNS.values()[columnIndex].editable();
+        }
+
+        public Object getValueAt(int rowIndex, int columnIndex) {
+            return COLUMNS.values()[columnIndex].get(_writerBuilder, rowIndex);
+        }
+
+        public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
+            COLUMNS.values()[columnIndex].set(_writerBuilder, rowIndex, aValue);
+        }
+
+        public void stateChanged(ChangeEvent e) {
+            this.fireTableDataChanged();
+        }
+
     }
 
 }

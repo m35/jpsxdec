@@ -11,71 +11,65 @@
     <property name="src.dir" location="src"/>
     <property name="src-lgpl.dir" location="src-lgpl"/>
     <property name="build.dir" location="release-build"/>
+    <property name="build-lgpl.dir" location="release-build-lgpl"/>
     <property name="dist.dir"  location="release-dist"/>
-    <property name="zip.dir"   location="release-zip"/>
 
-    <property name="javac.target" value="1.5"/>
-    <property name="javac.source" value="1.5" />
+    <property name="javac.target.ver" value="1.5"/>
+    <property name="javac.source.ver" value="1.5" />
     
     <property name="jar.file" value="jpsxdec.jar" />
     <property name="jar-lgpl.file" value="jpsxdec-lib.jar" />
 
     <property name="main.class" value="jpsxdec.Main" />
 
-    <property name="jar.include.glob" value="**/*.dat,**/*.properties,**/*.png,**/*.gif" />
+    <property name="resource.include.glob" value="**/*.dat,**/*.properties,**/*.png,**/*.gif" />
     <fileset dir="." id="release.include.files">
         <include name="CHANGES.txt" />
         <include name="CREDITS.txt" />
         <include name="lgpl-2.1.txt" />
         <include name="apache-2.0.txt" />
         <include name="LICENSE.txt" />
+        <include name="jpsxdec.exe" />
     </fileset>
 
     <target name="init">
-        <!-- Create the build directory structure used by compile -->
-        <mkdir dir="${build.dir}"/>
+        <!-- Nothing to do -->
     </target>
 
     <target name="compile" depends="init" description="compile the source" >
-        <!-- Compile the java code from ${src} into ${build} -->
-        <javac srcdir="${src.dir}:${src-lgpl.dir}" destdir="${build.dir}"
-            target="${javac.target}" source="${javac.source}" encoding="UTF8"
-            debug="true" />
-        <copy todir="${build.dir}" verbose="true">
-            <fileset dir="${src.dir}"      includes="${jar.include.glob}" excludes="*" />
-            <fileset dir="${src-lgpl.dir}" includes="${jar.include.glob}" excludes="*" />
-        </copy>
+        <!-- Compile the java code in root source dirs, intermingling the .class files -->
+        <!-- In order to keep the class files separate so they can be grouped 
+             into separate jars, we can't specify a separate build directory -->
+        <javac srcdir="${src.dir}:${src-lgpl.dir}"
+            source="${javac.source.ver}" target="${javac.target.ver}"
+            encoding="UTF8" debug="true" />
+            
+        <!-- I don't want those class files littering the sources, so get them out immediately.
+             Unfortunately javac won't be able to do incremental builds because of this. -->
+        <move-class-copy-resources src.dir="${src.dir}" build.dir="${build.dir}" />
+        <move-class-copy-resources src.dir="${src-lgpl.dir}" build.dir="${build-lgpl.dir}" />
     </target>
+    
+    <macrodef name="move-class-copy-resources">
+        <attribute name="src.dir"/>
+        <attribute name="build.dir"/>
+        <sequential>
+            <move todir="@{build.dir}" overwrite="true">
+                <fileset dir="@{src.dir}">
+                    <include name="**/*.class"/>
+                </fileset>
+            </move>
+            <copy todir="@{build.dir}" verbose="true">
+                <fileset dir="@{src.dir}" includes="${resource.include.glob}" />
+            </copy>
+        </sequential>
+    </macrodef>
+    
 
     <target name="release" depends="compile" description="generate the distribution" >
     
-        <!-- Identify what .clss files belong in the lgpl jar -->
-        <path id="lgpl.classes">
-            <fileset dir="${build.dir}" includes="**/*.class">
-                <present present="both" targetdir="${src-lgpl.dir}">
-                    <mapper>
-                        <globmapper from="*.class" to="*.java" />
-                    </mapper>
-                </present>
-            </fileset>
-        </path>
-
-        <!-- Helpful message -->
-        <echo message="Files to be included in lgpl jar" />
-        <pathconvert pathsep="${line.separator}    " refid="lgpl.classes" property="lgpl.classes.list" />
-        <echo message="    ${lgpl.classes.list}"></echo>
-
         <!-- Create the distribution directory -->
         <mkdir dir="${dist.dir}"/>
-
-        <!-- Create the lgpl jar -->
-        <jar destfile="${dist.dir}/${jar-lgpl.file}" compress="true">
-            <path refid="lgpl.classes" />
-        </jar>
-        <!-- Delete the lgpl .class files -->
-        <delete verbose="true">
-            <path refid="lgpl.classes" />
-        </delete>
 
         <!-- Create the main jar -->
         <jar jarfile="${dist.dir}/${jar.file}" basedir="${build.dir}" compress="true">
@@ -85,17 +79,30 @@
             </manifest>
         </jar>
         
+        <!-- Create the lgpl jar -->
+        <jar destfile="${dist.dir}/${jar-lgpl.file}" basedir="${build-lgpl.dir}" compress="true" />
+
         <!-- Copy over the distribution files -->
         <copy todir="${dist.dir}" flatten="true" verbose="true">
             <fileset refid="release.include.files" />
         </copy>
         
     </target>
+    
+    
 
     <target name="clean" description="clean up" >
-        <!-- Delete the ${build} and ${dist} directory trees -->
+        <!-- Delete the build and dist directories -->
         <delete dir="${build.dir}"/>
+        <delete dir="${build-lgpl.dir}"/>
         <delete dir="${dist.dir}"/>
+        <!-- Also clear out any leftover class files in case there was an error -->
+        <delete>
+            <fileset dir="${src.dir}" includes="**/*.class" />
+        </delete>
+        <delete>
+            <fileset dir="${src-lgpl.dir}" includes="**/*.class" />
+        </delete>
     </target>
 
 </project>

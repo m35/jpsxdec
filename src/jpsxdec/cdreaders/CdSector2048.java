@@ -37,6 +37,7 @@
 
 package jpsxdec.cdreaders;
 
+import java.io.PrintStream;
 import java.util.logging.Logger;
 import jpsxdec.util.ByteArrayFPIS;
 
@@ -88,7 +89,11 @@ public class CdSector2048 extends CdSector {
 
     //..........................................................................
 
-    public boolean hasSectorHeader() {
+    public boolean hasRawSectorHeader() {
+        return false;
+    }
+
+    public boolean isCdAudioSector() {
         return false;
     }
 
@@ -97,6 +102,15 @@ public class CdSector2048 extends CdSector {
      *  [implements IGetFilePointer] */
     public long getFilePointer() {
         return _lngFilePointer;
+    }
+
+    @Override
+    public void printErrors(Logger logger) {
+    }
+
+    @Override
+    public int getErrorCount() {
+        return 0;
     }
     
     public String toString() {

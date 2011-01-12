@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems;
 
+import java.util.Iterator;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.FrameDemuxer;
 import java.io.IOException;
@@ -44,6 +45,8 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sound.sampled.LineUnavailableException;
@@ -302,24 +305,17 @@ public class DiscItemVideoStream extends DiscItem {
                 log.info("Added to this media item " + this.toString());
             _aoAudioStreams = parallelAudio.toArray(new DiscItemAudioStream[parallelAudio.size()]);
 
-            // sort the parallel audio streams by size, in descending order
-            Arrays.sort(_aoAudioStreams, new Comparator<DiscItemAudioStream>() {
-                public int compare(DiscItemAudioStream o1, DiscItemAudioStream o2) {
-                    int i1Overlap = getOverlap((DiscItem)o1);
-                    int i2Overlap = getOverlap((DiscItem)o2);
-                    if (i1Overlap > i2Overlap)
-                        return -1;
-                    else if (i1Overlap < i2Overlap)
-                        return 1;
-                    else return 0;
-                }
-            });
+            // keep the list sorted in order found in disc index
 
+            // if there is only 1 disc speed used by parallel audio, then
+            // we can be confident the video should have the same speed
             if (_iDiscSpeed < 1) {
                 _iDiscSpeed = _aoAudioStreams[0].getDiscSpeed();
                 for (DiscItemAudioStream audio : _aoAudioStreams) {
-                    if (audio.getDiscSpeed() != _iDiscSpeed)
-                        log.warning("Audio disc speeds vary!");
+                    if (audio.getDiscSpeed() != _iDiscSpeed) {
+                        _iDiscSpeed = -1;
+                        break;
+                    }
                 }
             }
 
@@ -348,11 +344,160 @@ public class DiscItemVideoStream extends DiscItem {
         return _aoAudioStreams == null ? 0 : _aoAudioStreams.length;
     }
 
-    public DiscItemAudioStream getParallelAudioStream(int i) {
-        if (i < 0 || i >= getParallelAudioStreamCount())
-            throw new IllegalArgumentException("Video doens't have parllel audio stream " + i);
+    public List<DiscItemAudioStream> getParallelAudioStreams() {
+        if (_aoAudioStreams != null)
+            return Arrays.asList(_aoAudioStreams);
+        else
+            return null;
+    }
 
-        return _aoAudioStreams[i];
+    private static class FormatGroup {
+        private final ArrayList<DiscItemAudioStream> _items =
+                new ArrayList<DiscItemAudioStream>();
+
+        public FormatGroup(DiscItemAudioStream first) {
+            _items.add(first);
+        }
+        
+        public boolean addIfMatches(DiscItemAudioStream another) {
+            if (another.hasSameFormat(_items.get(0))) {
+                _items.add(another);
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        public void findLongest(
+                final int iIndex, LongestStack curGroup)
+        {
+            for (int i = iIndex; i < _items.size(); i++) {
+                DiscItemAudioStream potential = _items.get(i);
+                boolean blnOverlapsAny = false;
+                for (DiscItemAudioStream audItem : curGroup) {
+                    if (potential.overlaps(audItem)) {
+                        blnOverlapsAny = true;
+                        break;
+                    }
+                }
+                if (!blnOverlapsAny) {
+                    curGroup.push(potential);
+                    findLongest(i+1, curGroup);
+                    curGroup.pop();
+                }
+            }
+        }
+    }
+
+    private static class LongestStack implements Iterable<DiscItemAudioStream> {
+
+        private final ArrayList<DiscItemAudioStream> _stack =
+                new ArrayList<DiscItemAudioStream>();
+
+        private int _iCurLen = 0;
+        
+        private int _iMaxLen = 0;
+        private int _iStartSector = -1;
+        private final ArrayList<DiscItemAudioStream> _longestCopy =
+                new ArrayList<DiscItemAudioStream>();
+
+        public int getMaxLen() {
+            return _iMaxLen;
+        }
+
+        public int getStartSector() {
+            return _iStartSector;
+        }
+
+        public ArrayList<DiscItemAudioStream> getLongestCopy() {
+            return _longestCopy;
+        }
+
+        public void push(DiscItemAudioStream o) {
+            _stack.add(o);
+            _iCurLen += o.getSectorLength();
+            if (_iCurLen > _iMaxLen) {
+                _iMaxLen = _iCurLen;
+                _longestCopy.clear();
+                _longestCopy.addAll(_stack);
+                _iStartSector = _longestCopy.get(0).getStartSector();
+                for (int i = 1; i < _longestCopy.size(); i++) {
+                    if (_longestCopy.get(i).getStartSector() < _iStartSector)
+                        _iStartSector = _longestCopy.get(i).getStartSector();
+                }
+            }
+        }
+
+        public void pop() {
+            DiscItemAudioStream removed = _stack.remove(_stack.size() - 1);
+            _iCurLen -= removed.getSectorLength();
+        }
+
+        public Iterator<DiscItemAudioStream> iterator() {
+            return _stack.iterator();
+        }
+
+    }
+
+    private transient ArrayList<DiscItemAudioStream>
+            _longestNonIntersectingAudioStreams;
+
+    public List<DiscItemAudioStream> getLongestNonIntersectingAudioStreams() {
+        if (!hasAudio())
+            return null;
+
+        if (_longestNonIntersectingAudioStreams != null)
+            return _longestNonIntersectingAudioStreams;
+
+        // I'd say maybe 99% of cases will only have 1
+        if (_aoAudioStreams.length == 1) {
+            _longestNonIntersectingAudioStreams = new ArrayList<DiscItemAudioStream>(1);
+            _longestNonIntersectingAudioStreams.add(_aoAudioStreams[0]);
+            return _longestNonIntersectingAudioStreams;
+        }
+
+        // split up by format
+        ArrayList<FormatGroup> formatGroups = new ArrayList<FormatGroup>();
+        for (DiscItemAudioStream audItem : _aoAudioStreams) {
+            FormatGroup matchingGroup = null;
+            for (FormatGroup formatGroup : formatGroups) {
+                if (formatGroup.addIfMatches(audItem)) {
+                    matchingGroup = formatGroup;
+                    break;
+                }
+            }
+            if (matchingGroup == null) {
+                matchingGroup = new FormatGroup(audItem);
+                formatGroups.add(matchingGroup);
+            }
+        }
+
+        // find the longest combination of parallel audio streams
+        LongestStack longest = null;
+        for (FormatGroup formatGroup : formatGroups) {
+            LongestStack stack = new LongestStack();
+            formatGroup.findLongest(0, stack);
+            if (longest == null) {
+                longest = stack;
+            } else if (stack.getMaxLen() > longest.getMaxLen()) {
+                longest = stack;
+            } else if (stack.getMaxLen() == longest.getMaxLen()) {
+                // if more than one are of equal length, pick the one that starts first
+                if (stack.getStartSector() < longest.getStartSector())
+                    longest = stack;
+            }
+        }
+        
+        _longestNonIntersectingAudioStreams = longest.getLongestCopy();
+
+        // TODO: remove this message when this code has been well tested
+        System.out.println("Selected " + _longestNonIntersectingAudioStreams.size() +
+                " of the " + _aoAudioStreams.length + " audio streams:");
+        for (DiscItemAudioStream aud : _longestNonIntersectingAudioStreams) {
+            System.out.println("  " + aud.toString());
+        }
+
+        return _longestNonIntersectingAudioStreams;
     }
 
     public void fpsDump(FeedbackStream Feedback) throws IOException {
@@ -429,10 +574,18 @@ public class DiscItemVideoStream extends DiscItem {
     public PlayController makePlayController() throws LineUnavailableException, UnsupportedAudioFileException, IOException {
 
         if (hasAudio()) {
-            DiscItemAudioStream audio = getParallelAudioStream(0);
-            int iStartSector = Math.min(getStartSector(), audio.getStartSector());
-            int iEndSector = Math.max(getEndSector(), audio.getEndSector());
-            return new PlayController(new MediaPlayer(this, audio.makeDecoder(true, 1.0), iStartSector, iEndSector));
+
+            List<DiscItemAudioStream> audios = getLongestNonIntersectingAudioStreams();
+            ISectorAudioDecoder decoder;
+            if (audios.size() == 1)
+                decoder = audios.get(0).makeDecoder(1.0);
+            else
+                decoder = new AudioStreamsCombiner(audios, 1.0);
+
+            int iStartSector = Math.min(decoder.getStartSector(), getStartSector());
+            int iEndSector = Math.max(decoder.getEndSector(), getEndSector());
+
+            return new PlayController(new MediaPlayer(this, decoder, iStartSector, iEndSector));
         } else {
             return new PlayController(new MediaPlayer(this));
         }

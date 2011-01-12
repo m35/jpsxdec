@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import jpsxdec.audio.SquareADPCMDecoder;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -79,8 +78,8 @@ public class SectorChronoXAudio extends IdentifiedSector
 
         // since all Chrono Cross movie sectors are in Mode 2 Form 1, we can 
         // still decode the movie even if there is no raw sector header.
-        if (oCDSect.hasSectorHeader() &&
-            ( oCDSect.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.DATA ||
+        if (oCDSect.hasRawSectorHeader() &&
+            ( !oCDSect.getSubMode().getData() ||
               oCDSect.getSubMode().getForm() != 1 ))
             throw new NotThisTypeException();
 

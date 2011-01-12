@@ -40,8 +40,13 @@ package jpsxdec;
 import com.l2fprod.common.swing.JDirectoryChooser;
 import java.awt.Cursor;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import javax.imageio.ImageIO;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -50,15 +55,17 @@ import javax.swing.UIManager;
 import javax.swing.filechooser.FileFilter;
 import jpsxdec.GuiTree.TreeSpot;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.FeedbackStream;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.util.UserFriendlyHandler;
 import jpsxdec.util.player.PlayController;
 import jpsxdec.util.player.PlayController.Event;
 
 public class Gui extends javax.swing.JFrame {
+
+    private static final Logger log = Logger.getLogger(Gui.class.getName());
 
     private DiscIndex _index;
     private PlayController _currentPlayer;
@@ -72,7 +79,7 @@ public class Gui extends javax.swing.JFrame {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             SwingUtilities.updateComponentTreeUI(this);
         } catch (Exception ex) {
-            ex.printStackTrace();
+            log.log(Level.SEVERE, null, ex);
         }
 
         setTitle(Main.VerStringNonCommercial);
@@ -83,7 +90,14 @@ public class Gui extends javax.swing.JFrame {
 
         // center the gui
         this.setLocationRelativeTo(null);
+
         _guiDirectory.setText(new File("").getAbsolutePath());
+
+        try {
+            setIconImage(ImageIO.read(Gui.class.getResource("jpsxdec16.png")));
+        } catch (IOException ex) {
+            log.log(Level.SEVERE, null, ex);
+        }
     }
 
     private DiscItemSaverBuilderGui getGui(DiscItemSaverBuilder builder) {
@@ -290,7 +304,7 @@ public class Gui extends javax.swing.JFrame {
         _guiTabContainer.setLayout(new java.awt.BorderLayout(5, 5));
 
         _guiTab.setMinimumSize(new java.awt.Dimension(400, 5));
-        _guiTab.setPreferredSize(new java.awt.Dimension(400, 400));
+        _guiTab.setPreferredSize(new java.awt.Dimension(400, 500));
 
         _guiSaveContainer.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 2, 2, 2));
         _guiSaveContainer.setMinimumSize(new java.awt.Dimension(0, 500));
@@ -386,7 +400,19 @@ public class Gui extends javax.swing.JFrame {
         try {
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
             File indexFile = fc.getSelectedFile();
-            setIndex(new DiscIndex(indexFile.getPath(), new FeedbackStream()), indexFile.getName());
+            Logger log = Logger.getLogger("index");
+            UserFriendlyHandler handler;
+            log.addHandler(handler = new UserFriendlyHandler("index") {
+                protected void onWarn(LogRecord record) {
+                    // TODO
+                }
+                protected void onErr(LogRecord record) {
+                    // TODO
+                }
+            });
+            setIndex(new DiscIndex(indexFile.getPath(), log), indexFile.getName());
+            log.removeHandler(handler);
+            handler.close();
         } catch (Throwable ex) {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, ex);
@@ -496,7 +522,7 @@ public class Gui extends javax.swing.JFrame {
             if (!cd.hasSectorHeader())
                 JOptionPane.showMessageDialog(this, "Disc image does not have raw headers -- audio may not be detected.");
             
-            ProgressGui gui = new ProgressGui(this, cd);
+            IndexingGui gui = new IndexingGui(this, cd);
             gui.setVisible(true);
             if (gui.getIndex() != null) {
                 setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));

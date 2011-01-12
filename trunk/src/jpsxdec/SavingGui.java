@@ -96,10 +96,10 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
                 sResult = "Canceled";
             else
                 sResult = "Success";
-            if (_saveAll._sErrorLog == null) {
+            if (_saveAll._handler.getFileName() == null) {
                 jLabel1.setText(sResult);
             } else {
-                jLabel1.setText(sResult + " with errors - see " + _saveAll._sErrorLog + " for details");
+                jLabel1.setText(sResult + " with messages - see " + _saveAll._handler.getFileName() + " for details");
             }
         }
     }

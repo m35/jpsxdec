@@ -64,33 +64,33 @@ import java.awt.image.BufferedImage;
  */
 public class Rec601YCbCrImage {
 
-    private int _iLuminWidth;
-    private int _iLuminHeight;
-    private int _iChromWidth;
-    private int _iChromHeight;
+    private int _iLumaWidth;
+    private int _iLumaHeight;
+    private int _iChromaWidth;
+    private int _iChromaHeight;
     
     /** Holds luminance values. */
     private byte[] _abY;
-    /** Holds chrominance blue values with 4:2:0 subsampling. */
+    /** Holds chroma blue values with 4:2:0 subsampling. */
     private byte[] _abCb;
-    /** Holds chorminance red values with 4:2:0 subsampling. */
+    /** Holds chorma red values with 4:2:0 subsampling. */
     private byte[] _abCr;
     
     /** Creates a new instance of Rec601YCbCrImage
-     * @param iWidth - Width of image (in Luminance values)
-     * @param iHeight - Height of image (in Luminance values) */
+     * @param iWidth   Width of image (in Luminance values)
+     * @param iHeight  Height of image (in Luminance values) */
     public Rec601YCbCrImage(int iWidth, int iHeight) {
         if (iWidth < 2 || iHeight < 2 ||
                (iWidth % 2) != 0 ||
                (iHeight % 2) != 0) {
             throw new IllegalArgumentException("Invalid y4m dimensions.");
         }
-        _iLuminWidth  = iWidth;
-        _iLuminHeight = iHeight;
-        _iChromWidth = iWidth / 2;
-        _iChromHeight = iHeight / 2;
-        _abY  = new byte[_iLuminWidth * _iLuminHeight];
-        _abCb = new byte[_iChromWidth * _iChromHeight];
+        _iLumaWidth  = iWidth;
+        _iLumaHeight = iHeight;
+        _iChromaWidth = iWidth / 2;
+        _iChromaHeight = iHeight / 2;
+        _abY  = new byte[_iLumaWidth * _iLumaHeight];
+        _abCb = new byte[_iChromaWidth * _iChromaHeight];
         _abCr = new byte[_abCb.length];
     }
 
@@ -98,19 +98,19 @@ public class Rec601YCbCrImage {
     public Rec601YCbCrImage(BufferedImage rgb) {
         this(rgb.getWidth(), rgb.getHeight());
         
-        for (int x = 0; x < _iLuminWidth; x+=2) {
-            for (int y = 0; y < _iLuminHeight; y+=2) {
+        for (int x = 0; x < _iLumaWidth; x+=2) {
+            for (int y = 0; y < _iLumaHeight; y+=2) {
                 Rec601YCbCr ycc = new Rec601YCbCr(new RGB(rgb.getRGB(x  , y  )),
                                                   new RGB(rgb.getRGB(x+1, y  )),
                                                   new RGB(rgb.getRGB(x  , y+1)),
                                                   new RGB(rgb.getRGB(x+1, y+1))
                                                  );
-                _abY[ (x  ) + (y  ) * _iLuminWidth ] = rc(ycc.y1);
-                _abY[ (x+1) + (y  ) * _iLuminWidth ] = rc(ycc.y2);
-                _abY[ (x  ) + (y+1) * _iLuminWidth ] = rc(ycc.y3);
-                _abY[ (x+1) + (y+1) * _iLuminWidth ] = rc(ycc.y4);
-                _abCb[x/2 + (y/2) * _iChromWidth] = rc(ycc.cb);
-                _abCr[x/2 + (y/2) * _iChromWidth] = rc(ycc.cr);
+                _abY[ (x  ) + (y  ) * _iLumaWidth ] = rc(ycc.y1);
+                _abY[ (x+1) + (y  ) * _iLumaWidth ] = rc(ycc.y2);
+                _abY[ (x  ) + (y+1) * _iLumaWidth ] = rc(ycc.y3);
+                _abY[ (x+1) + (y+1) * _iLumaWidth ] = rc(ycc.y4);
+                _abCb[x/2 + (y/2) * _iChromaWidth] = rc(ycc.cb);
+                _abCr[x/2 + (y/2) * _iChromaWidth] = rc(ycc.cr);
             }
         }
     }
@@ -125,11 +125,11 @@ public class Rec601YCbCrImage {
     }
 
     public int getWidth() {
-        return _iLuminWidth;
+        return _iLumaWidth;
     }
 
     public int getHeight() {
-        return _iLuminHeight;
+        return _iLumaHeight;
     }
 
     public byte[] getY() {
@@ -143,41 +143,41 @@ public class Rec601YCbCrImage {
     }
 
     /** Sets a luminance value.
-     * @param iLuminX  X lumin pixel to set.
-     * @param iLuminY  Y lumin pixel to set.
+     * @param iLumaX  X luma pixel to set.
+     * @param iLumaY  Y luma pixel to set.
      * @param bY     New value.
      */
-    public void setY(int iLuminX, int iLuminY, byte bY) {
-        _abY[iLuminX + iLuminY * _iLuminWidth] = bY;
+    public void setY(int iLumaX, int iLumaY, byte bY) {
+        _abY[iLumaX + iLumaY * _iLumaWidth] = bY;
     }
     /** Sets chrominance blue value.
-     * @param iChromX  X chrom pixel (1/2 lumin width)
-     * @param iChromY  Y chrom pixel (1/2 lumin width)
+     * @param iChromaX  X chroma pixel (1/2 luma width)
+     * @param iChromaY  Y chroma pixel (1/2 luma width)
      * @param bCb    New value.
      */
-    public void setCb(int iChromX, int iChromY, byte bCb) {
-        _abCb[iChromX + iChromY * _iChromWidth] = bCb;
+    public void setCb(int iChromaX, int iChromaY, byte bCb) {
+        _abCb[iChromaX + iChromaY * _iChromaWidth] = bCb;
     }
     /** Sets chrominance red value.
-     * @param iChromX  X chroma pixel (1/2 luma width)
-     * @param iChromY  Y chroma pixel (1/2 luma width)
+     * @param iChromaX  X chroma pixel (1/2 luma width)
+     * @param iChromaY  Y chroma pixel (1/2 luma width)
      * @param bCr    New value.
      */
-    public void setCr(int iChromX, int iChromY, byte bCr) {
-        _abCr[iChromX + iChromY * _iChromWidth] = bCr;
+    public void setCr(int iChromaX, int iChromaY, byte bCr) {
+        _abCr[iChromaX + iChromaY * _iChromaWidth] = bCr;
     }
 
     /** Set a block of luma values
-     * @param iDestX  Top left corner where block starts (in Luma pixels)
-     * @param iDestY  Top left corner where block starts (in Luma pixels)
-     * @param iSrcWidth   Width of block (in Luma pixels)
+     * @param iDestX  Top left corner where block starts (in luma pixels)
+     * @param iDestY  Top left corner where block starts (in luma pixels)
+     * @param iSrcWidth   Width of block (in luma pixels)
      * @param abY  Array of block values with the color space -128 to +127.*/
     public void setY(int iDestX, int iDestY,
                      int iSrcOfs, int iSrcWidth,
                      int iCopyWidth, int iCopyHeight,
                      byte[] abY)
     {
-        set(_abY, iDestX + iDestY * _iLuminWidth, _iLuminHeight,
+        set(_abY, iDestX + iDestY * _iLumaWidth, _iLumaHeight,
             abY, iSrcOfs, iSrcWidth,
             iCopyWidth, iCopyHeight);
     }
@@ -187,7 +187,7 @@ public class Rec601YCbCrImage {
                      int iCopyWidth, int iCopyHeight,
                      byte[] abCb)
     {
-        set(_abCb, iDestX + iDestY * _iChromWidth, _iChromWidth,
+        set(_abCb, iDestX + iDestY * _iChromaWidth, _iChromaWidth,
             abCb, iSrcOfs, iSrcWidth,
             iCopyWidth, iCopyHeight);
     }
@@ -197,7 +197,7 @@ public class Rec601YCbCrImage {
                      int iCopyWidth, int iCopyHeight,
                      byte[] abCr)
     {
-        set(_abCr, iDestX + iDestY * _iChromWidth, _iChromWidth,
+        set(_abCr, iDestX + iDestY * _iChromaWidth, _iChromaWidth,
             abCr, iSrcOfs, iSrcWidth,
             iCopyWidth, iCopyHeight);
     }

@@ -42,7 +42,6 @@ import java.io.InputStream;
 import jpsxdec.audio.SquareADPCMDecoder;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
@@ -76,10 +75,10 @@ public abstract class SectorFF9 extends IdentifiedSector {
 
         InputStream inStream = cdSector.getCdUserDataStream();
         
-        // Without a sector header, we can't read video frames
-        if (!cdSector.hasSectorHeader())
+        // Without a sector header, we can't read FF9 video frames
+        if (!cdSector.hasRawSectorHeader())
             throw new NotThisTypeException();
-        if (cdSector.getSubMode().getDataAudioVideo() != DATA_AUDIO_VIDEO.DATA)
+        if (!cdSector.getSubMode().getData())
             throw new NotThisTypeException();
         // Mode 2 Form 1 or Form 2, depending on the type of sector
         if (cdSector.getSubMode().getForm() != iForm)
@@ -308,6 +307,11 @@ public abstract class SectorFF9 extends IdentifiedSector {
             return iBytesToCopy;
         }
 
+        public boolean splitAudio() {
+            // don't want to split audio because that would cut the audio
+            // at the beginning of the movie
+            return false;
+        }
     }
 
     /**************************************************************************/

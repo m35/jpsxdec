@@ -39,11 +39,12 @@ package jpsxdec.sectors;
 
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
+import jpsxdec.util.NotThisTypeException;
 
 
 /** If all else fails, we don't know what kind of data this sector contains. */
 public class UnidentifiedSector extends IdentifiedSector {
-    public UnidentifiedSector(CdSector cdSector) {
+    public UnidentifiedSector(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
     }
 

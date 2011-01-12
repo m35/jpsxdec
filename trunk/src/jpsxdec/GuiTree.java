@@ -40,7 +40,6 @@ package jpsxdec;
 import java.awt.Component;
 import java.awt.FontMetrics;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -72,14 +71,14 @@ import org.jdesktop.swingx.treetable.TreeTableModel;
 public class GuiTree extends JXTreeTable {
 
     public static final Icon FILE_ICON =
-            new ImageIcon(Gui.class.getResource("layer-new-3.png"));
+            new ImageIcon(GuiTree.class.getResource("layer-new-3.png"));
             //UIManager.getIcon("FileChooser.fileIcon");
             //UIManager.getIcon("Tree.leafIcon");
     public static final Icon FOLDER_ICON =
-            //new ImageIcon(Gui.class.getResource("folder.png"));
+            //new ImageIcon(GuiTree.class.getResource("folder.png"));
             UIManager.getIcon("FileView.folderIcon");
-    public static final ImageIcon VIDEO_ICON = new ImageIcon(Gui.class.getResource("film.png"));
-    public static final ImageIcon AUDIO_ICON = new ImageIcon(Gui.class.getResource("knotify.png"));
+    public static final ImageIcon VIDEO_ICON = new ImageIcon(GuiTree.class.getResource("film.png"));
+    public static final ImageIcon AUDIO_ICON = new ImageIcon(GuiTree.class.getResource("knotify.png"));
 
     RootTreeSpot _root;
 

@@ -44,6 +44,11 @@ import jpsxdec.util.NotThisTypeException;
 /** Final Fantasy 7 video uncompressor.
  * Makes use of most of STR v2 code.
  * Just adds handling for camera data at the start of the frame.
+ *<p>
+ * FF7 video also contains run-length codes where AC is 0.
+ * This case obviously works with PlayStation hardware, and is already
+ * accepted by the v2 uncompressor to make things simpler, faster, and
+ * more robust (may occur in games besides FF7).
  */
 public class BitStreamUncompressor_FF7 extends BitStreamUncompressor_STRv2 {
 

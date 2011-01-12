@@ -48,8 +48,7 @@ public class IdentifiedSectorRangeIterator {
 
     /** Interface for listener classes. */
     public static interface ISectorChangeListener {
-        void CurrentSector(int i);
-        void ReadError(SectorReadErrorException ex);
+        void currentSector(int i);
     }
 
     private CdFileSectorReader _cdReader;
@@ -82,7 +81,6 @@ public class IdentifiedSectorRangeIterator {
                 _cachedSector = IdentifiedSector.identifySector(_cdReader.getSector(_iSectorIndex));
                 _blnCached = true;
             } catch (SectorReadErrorException ex) {
-                if (_listener != null) _listener.ReadError(ex);
                 return null;
             }
         }
@@ -100,7 +98,6 @@ public class IdentifiedSectorRangeIterator {
             try {
                 identifiedSect = IdentifiedSector.identifySector(_cdReader.getSector(_iSectorIndex));
             } catch (SectorReadErrorException ex) {
-                if (_listener != null) _listener.ReadError(ex);
             }
         } else {
             identifiedSect = _cachedSector;
@@ -108,7 +105,7 @@ public class IdentifiedSectorRangeIterator {
             _blnCached = false;
         }
         _iSectorIndex++;
-        if (_listener != null) _listener.CurrentSector(_iSectorIndex);
+        if (_listener != null) _listener.currentSector(_iSectorIndex);
         return identifiedSect;
     }
     
@@ -117,7 +114,7 @@ public class IdentifiedSectorRangeIterator {
         _blnCached = false;
         _cachedSector = null;
         _iSectorIndex++;
-        if (_listener != null) _listener.CurrentSector(_iSectorIndex);
+        if (_listener != null) _listener.currentSector(_iSectorIndex);
     }
 
     
@@ -132,9 +129,6 @@ public class IdentifiedSectorRangeIterator {
         _iSectorIndex = i;
     }
 
-    /** Unable to remove sectors */ 
-    public void remove() {throw new UnsupportedOperationException();}
-    
     /** Set a listener to be notified whenever the sector is incremented. */
     public void setSectorChangeListener(ISectorChangeListener listener) {
         _listener = listener;

@@ -199,7 +199,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
         int iLuminQscale = parsedOrig.getLuminQscale();
         int iChromQscale = parsedOrig.getChromQscale();
         while (true) {
-            fbs.println("Trying qscale lumin: " + iLuminQscale + " chrom: " + iChromQscale);
+            fbs.println("Trying qscale luma: " + iLuminQscale + " chroma: " + iChromQscale);
 
             // 4. Encode replacement image with original frame qscale
             MdecEncoder encoder = new MdecEncoder(newPsxImg, iLuminQscale, iChromQscale);

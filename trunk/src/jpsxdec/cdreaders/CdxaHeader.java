@@ -37,7 +37,8 @@
 
 package jpsxdec.cdreaders;
 
-import jpsxdec.util.NotThisTypeException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** Represents a raw CD header with a sync header and sector header. */
 public class CdxaHeader {
@@ -59,34 +60,34 @@ public class CdxaHeader {
         (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0x00
     };
 
-    private int minutes;     // [1 byte] timecode relative to start of disk
-    private int seconds;     // [1 byte] timecode relative to start of disk
-    private int sectors;     // [1 byte] timecode relative to start of disk
-    private int mode;        // [1 byte] Should always be Mode 2 for PSX data tracks
+    private final int _iMinutes;     // [1 byte] timecode relative to start of disk
+    private final int _iSeconds;     // [1 byte] timecode relative to start of disk
+    private final int _iSectors;     // [1 byte] timecode relative to start of disk
+    private final int _iMode;        // [1 byte] Should always be Mode 2 for PSX data tracks
+    /** Holds bit flags indicating which sync header bytes were wrong. */
+    private final boolean _blnIsCdAudioSector;
 
-    public CdxaHeader(byte[] abSectorData, int iStartOffset, int iTolerance)
-            throws NotThisTypeException
-    {
-
-        if (iTolerance < 16) {
-            int iErrCount = 0;
-            for (int i = 0; i < SECTOR_SYNC_HEADER.length; i++) {
-                if (abSectorData[iStartOffset + i] != SECTOR_SYNC_HEADER[i])
-                    iErrCount++;
-            }
-            if (iErrCount > iTolerance) {
-                throw new NotThisTypeException("Sector sync is missing/corrupted");
-            }
+    public CdxaHeader(byte[] abSectorData, int iStartOffset) {
+        int iErrCount = 0;
+        for (int i = 0; i < SECTOR_SYNC_HEADER.length; i++) {
+            if (abSectorData[iStartOffset + i] != SECTOR_SYNC_HEADER[i])
+                iErrCount++;
         }
+        
+        _iMinutes = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 0] & 0xff;
+        _iSeconds = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 1] & 0xff;
+        _iSectors = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 2] & 0xff;
+        _iMode    = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 3] & 0xff;
 
-        minutes = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 0] & 0xff;
-        seconds = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 1] & 0xff;
-        sectors = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 2] & 0xff;
-        mode    = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 3] & 0xff;
-        if (iTolerance == 0 && mode != 2) {
-            throw new NotThisTypeException("Mode "+mode+" sector (should be Mode 2)");
-        }
+        _blnIsCdAudioSector = (_iMode < 1 || _iMode > 2 || iErrCount > 4);
+    }
 
+    public boolean isCdAudioSector() {
+        return _blnIsCdAudioSector;
+    }
+
+    public int getMode() {
+        return _iMode;
     }
 
     public int getSize() {
@@ -94,9 +95,9 @@ public class CdxaHeader {
     }
 
     public int calculateSectorNumber() {
-        return   binaryCodedDecimalToInt(minutes) * 60 * 75
-               + binaryCodedDecimalToInt(seconds) * 75
-               + binaryCodedDecimalToInt(sectors)
+        return   binaryCodedDecimalToInt(_iMinutes) * 60 * 75
+               + binaryCodedDecimalToInt(_iSeconds) * 75
+               + binaryCodedDecimalToInt(_iSectors)
                - 150;
     }
 
@@ -107,5 +108,15 @@ public class CdxaHeader {
 
     public String toString() {
         return "Header sector:" + calculateSectorNumber();
+    }
+
+    void printErrors(int iSector, Logger logger) {
+        if (!_blnIsCdAudioSector && (_iMode < 0 || _iMode > 2))
+            logger.warning("Sector " + iSector + " Mode number is corrupted " + _iMode);
+        // TODO: also report any sync header error
+    }
+
+    int getErrorCount() {
+        return !_blnIsCdAudioSector && (_iMode < 0 || _iMode > 2) ? 1 : 0;
     }
 }

@@ -39,7 +39,6 @@ package jpsxdec.indexing;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
@@ -51,13 +50,13 @@ public abstract class DiscIndexer {
 
     private static final Logger log = Logger.getLogger(DiscIndexer.class.getName());
 
-    public static DiscIndexer[] createIndexers() {
+    public static DiscIndexer[] createIndexers(Logger log) {
         return new DiscIndexer[] {
-            new DiscIndexerISO9660(),
-            new DiscIndexerSquare(),
+            new DiscIndexerISO9660(log),
+            new DiscIndexerSquare(log),
             //new DiscIndexerTim(),
-            new DiscIndexerVideo(),
-            new DiscIndexerXaAudio()
+            new DiscIndexerVideo(log),
+            new DiscIndexerXaAudio(log)
         };
     }
 

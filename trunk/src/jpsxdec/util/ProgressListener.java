@@ -37,6 +37,8 @@
 
 package jpsxdec.util;
 
+import java.util.logging.Logger;
+
 public interface ProgressListener {
 
     public void progressStart(String s) throws TaskCanceledException;
@@ -50,15 +52,7 @@ public interface ProgressListener {
     public void event(String sDescription);
     public boolean seekingEvent();
 
-    public void warning(String sMessage, Throwable cause);
-    public void warning(Throwable ex);
-    public void warning(String sDescription);
-
-    public void error(String sMessage, Throwable ex);
-    public void error(Throwable ex);
-    public void error(String sDescription);
-
     public void info(String s);
 
-    public void more(String s);
+    public Logger getLog();
 }

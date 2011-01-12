@@ -62,7 +62,13 @@ public class DiscIndexerISO9660 extends DiscIndexer {
             new ArrayList<SectorISO9660DirectoryRecords>();
     private ArrayList<SectorISO9660VolumePrimaryDescriptor> _primaryDescriptors =
             new ArrayList<SectorISO9660VolumePrimaryDescriptor>();
-    
+
+    private Logger _errLog;
+
+    public DiscIndexerISO9660(Logger errLog) {
+        _errLog = errLog;
+    }
+
     @Override
     public void indexingSectorRead(IdentifiedSector identifiedSect) {
         if (identifiedSect instanceof SectorISO9660DirectoryRecords) {

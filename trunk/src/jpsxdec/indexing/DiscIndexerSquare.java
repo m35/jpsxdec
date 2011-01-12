@@ -40,6 +40,7 @@ package jpsxdec.indexing;
 import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.discitems.DiscItemSquareAudioStream;
 import java.io.IOException;
+import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.sectors.IdentifiedSector;
@@ -57,6 +58,12 @@ public class DiscIndexerSquare extends DiscIndexer {
     private int _iPrevLeftAudioSectorNum = -1;
     /** -1 indicates no period has been calculated yet. */
     private int _iLeftAudioPeriod = -1;
+
+    private Logger _errLog;
+
+    public DiscIndexerSquare(Logger errLog) {
+        _errLog = errLog;
+    }
 
     @Override
     public DiscItem deserializeLineRead(DiscItemSerialization fields) {

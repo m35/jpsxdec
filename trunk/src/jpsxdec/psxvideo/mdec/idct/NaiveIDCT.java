@@ -43,7 +43,7 @@ package jpsxdec.psxvideo.mdec.idct;
  * It's as simple as I could make it, and as such, it's about as
  * slow as can be.
  *<p>
- * Note: Using the Stephen's version is about 13 times faster!!!!
+ * Note: Using the Stephen's version is about 13 times faster!
  * The results are almost indistinguishable. His is also likely more accurate
  * as there are fewer operations performed.
  */

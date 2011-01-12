@@ -44,7 +44,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.discitems.DiscItem;
+import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.SectorAliceFrameChunk;
 import jpsxdec.util.NotThisTypeException;
 
 /**
@@ -57,13 +59,19 @@ public class DiscIndexerXaAudio extends DiscIndexer {
 
     private static final Logger log = Logger.getLogger(DiscIndexerXaAudio.class.getName());
 
+    private Logger _errLog;
+
+    public DiscIndexerXaAudio(Logger errLog) {
+        _errLog = errLog;
+    }
+
     @Override
     public void mediaListGenerated(DiscIndex aThis) {
         
     }
 
     /** Tracks the indexing of one audio stream in one channel. */
-    private static class AudioStreamIndex {
+    private class AudioStreamIndex {
 
         /** First sector of the audio stream. */
         private final int _iStartSector;
@@ -118,8 +126,9 @@ public class DiscIndexerXaAudio extends DiscIndexer {
 
         public DiscItem createMediaItemFromCurrent() {
             if (_previousXA == null && _currentXA.isAllQuiet()) {
-                if (log.isLoggable(Level.WARNING))
-                    log.warning("Ignoring silent XA audio stream only 1 sector long at " + _iStartSector + " channel " + _currentXA.getChannel());
+                if (_errLog.isLoggable(Level.INFO)) {
+                    _errLog.info("Ignoring a silent XA audio stream that is only 1 sector long at sector " + _iStartSector + ", channel " + _currentXA.getChannel());
+                }
                 return null;
             }
             _lngSampleCount += _currentXA.getSampleCount();
@@ -185,6 +194,13 @@ public class DiscIndexerXaAudio extends DiscIndexer {
                 _aoChannels[audSect.getChannel()] = audStream;
             }
         } else {
+
+            // Alice in Cyberland, FF7, and probably others need to split
+            // audio at the start of movies because there's no other
+            // indicator of audio splitting
+            if (sector instanceof IVideoSector && ((IVideoSector)sector).splitAudio()) {
+                indexingEndOfDisc();
+            }
             // check for streams that are beyond their stride
 
             for (int i = 0; i < _aoChannels.length; i++) {
@@ -215,27 +231,6 @@ public class DiscIndexerXaAudio extends DiscIndexer {
 
     @Override
     public void staticRead(IndexingDemuxerIS oIS) throws IOException {
-        if (oIS.getSectorPosition() == 0) {
-
-        }
-    }
-
-    public void indexing_endAllCurrent() {
-        indexingEndOfDisc();
-    }
-
-    public void indexing_endAllBeforeCurrent() {
-        for (int i = 0; i < _aoChannels.length; i++) {
-            AudioStreamIndex audStream = _aoChannels[i];
-            if (audStream != null) {
-                DiscItem item = audStream.createMediaItemFromPrevious();
-                if (item != null) {
-                    super.addDiscItem(item);
-                    SectorXA current = audStream.getCurrent();
-                    _aoChannels[i] = new AudioStreamIndex(current);
-                }
-            }
-        }
     }
 
 }

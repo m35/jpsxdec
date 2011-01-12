@@ -42,6 +42,7 @@ import jpsxdec.audio.XAADPCMDecoder;
 import javax.sound.sampled.AudioFormat;
 import java.io.IOException;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.ExposedBAOS;
 import jpsxdec.util.NotThisTypeException;
 
 /** Represents a series of XA ADPCM sectors that combine to make an audio stream. */
@@ -49,38 +50,38 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
     /** Type identifier for this disc item. */
     public static final String TYPE_ID = "XA";
 
-    /** Serialziation key for Channel. */
+    /** Serialization key for Channel. */
     private final static String CHANNEL_KEY = "Channel";
     /** CD stream channel number. Should be between 0 and 31, inclusive. */
     private final int _iChannel;
     
-    /** Serialziation key for Samples. */
+    /** Serialization key for Samples. */
     private final static String SAMPLE_COUNT_KEY = "Samples";
     /** Total number of audio samples in this stream. */
     private final long _lngSampleCount;
     
-    /** Serialziation key for sample rate. */
+    /** Serialization key for sample rate. */
     private static final String SAMPLES_PER_SEC_KEY = "Samples/Sec";
     /** Sample rate of the audio stream. Should be either 37800 or 18900. */
     private final int _iSamplesPerSecond;
 
-    /** Serialziation key for stereo. */
+    /** Serialization key for stereo. */
     private static final String STEREO_KEY = "Stereo?";
     /** If the audio is in stereo. */
     private final boolean _blnIsStereo;
 
-    /** Serialziation key for bits/sample. */
+    /** Serialization key for bits/sample. */
     private final static String BITSPERSAMPLE_KEY = "Bits/Sample";
     /** ADPCM bits per sample that the audio is encoded as. Should be 4 or 8. */
     private final int _iBitsPerSample;
 
-    /** Serialziation key for audio sector stride. */
+    /** Serialization key for audio sector stride. */
     private final static String STRIDE_KEY = "Sector stride";
     /** Number of non-audio sectors between each audio sector. 
      *  Should be 4, 8, 16, or 32, or -1 if n/a (only one sector of audio).*/
     private final int _iSectorStride;
 
-    /** Serialziation key for disc speed. */
+    /** Serialization key for disc speed. */
     private final static String DISC_SPEED_KEY = "Disc speed";
     /** Speed that the disc must spin to properly play the audio stream.
      * <ul>
@@ -178,7 +179,7 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
     }
 
     public int getSectorsPastEnd() {
-        return super.getEndSector() + _iSectorStride - 1;
+        return _iSectorStride - 1;
     }
 
     public String getSerializationTypeId() {
@@ -216,19 +217,19 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         return new AudioFormat(_iSamplesPerSecond, 16, _blnIsStereo ? 2 : 1, true, blnBigEndian);
     }
 
-    public ISectorAudioDecoder makeDecoder(boolean blnBigEndian, double dblVolume) {
-        return new XAConverter(blnBigEndian, dblVolume);
+    public ISectorAudioDecoder makeDecoder(double dblVolume) {
+        return new XAConverter(dblVolume);
     }
 
     private class XAConverter implements ISectorAudioDecoder {
 
         private final XAADPCMDecoder __decoder;
         private ISectorTimedAudioWriter __outFeed;
-        private final byte[] __abTempBuffer = new byte[XAADPCMDecoder.BYTES_GENERATED_FROM_XAADPCM_SECTOR];
+        private final ExposedBAOS __tempBuffer = new ExposedBAOS(XAADPCMDecoder.BYTES_GENERATED_FROM_XAADPCM_SECTOR);
         private AudioFormat __format;
 
-        public XAConverter(boolean blnBigEndian, double dblVolume) {
-            __decoder = XAADPCMDecoder.create(getADPCMBitsPerSample(), isStereo(), blnBigEndian, dblVolume);
+        public XAConverter(double dblVolume) {
+            __decoder = XAADPCMDecoder.create(getADPCMBitsPerSample(), isStereo(), dblVolume);
         }
 
         public void setAudioListener(ISectorTimedAudioWriter audioFeed) {
@@ -254,12 +255,13 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
                 return;
             }
 
-            __decoder.decode(xaSector.getIdentifiedUserDataStream(), __abTempBuffer);
+            __tempBuffer.reset();
+            __decoder.decode(xaSector.getIdentifiedUserDataStream(), __tempBuffer);
 
             if (__format == null)
                 __format = __decoder.getOutputFormat(xaSector.getSamplesPerSecond());
 
-            __outFeed.write(__format, __abTempBuffer, 0, __abTempBuffer.length, xaSector.getSectorNumber());
+            __outFeed.write(__format, __tempBuffer.getBuffer(), 0, __tempBuffer.size(), xaSector.getSectorNumber());
         }
 
         public double getVolume() {

@@ -44,6 +44,9 @@ import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 import static jpsxdec.psxvideo.mdec.MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST;
 
+/** Encodes a {@link PsxYCbCrImage} into an {@link MdecInputStream} at the
+ *  specified quantization scale. After encoding, the MdecInputStream
+ *  will most likely be then compressed as a bitstream.  */
 public class MdecEncoder {
 
     private static final boolean DEBUG = false;
@@ -53,23 +56,29 @@ public class MdecEncoder {
     private int[][] _aaiCrBlocks;
     private int _iMacBlockWidth;
     private int _iMacBlockHeight;
-    private int _iLuminQscale;
-    private int _iChromQscale;
+    private int _iLumaQscale;
+    private int _iChromaQscale;
+    // TODO: Change to use a Forward DCT more closely resembling the PSX
     private StephensIDCT _DCT = new StephensIDCT();
 
     private static int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
             MdecInputStream.getDefaultPsxQuantMatrixCopy();
 
 
-    public MdecEncoder(PsxYCbCrImage ycbcr, int iLuminQscale, int iChromQscale) {
+    /** 
+     * The luma and chroma quantization scales are separate primarily for
+     * handling Lain bitstream format. All other video formats should use the
+     * same value for luma and chroma.
+     */
+    public MdecEncoder(PsxYCbCrImage ycbcr, int iLumaQscale, int iChromaQscale) {
 
         if (ycbcr.getLuminWidth() % 16 != 0 || ycbcr.getLuminHeight() % 16 != 0)
             throw new IllegalArgumentException();
 
         _iMacBlockWidth = ycbcr.getLuminWidth() / 16;
         _iMacBlockHeight = ycbcr.getLuminHeight() / 16;
-        _iLuminQscale = iLuminQscale;
-        _iChromQscale = iChromQscale;
+        _iLumaQscale = iLumaQscale;
+        _iChromaQscale = iChromaQscale;
 
         _aaiYBlocks = new int[_iMacBlockWidth * _iMacBlockHeight * 4][];
         _aaiCbBlocks = new int[_iMacBlockWidth * _iMacBlockHeight][];
@@ -80,7 +89,7 @@ public class MdecEncoder {
         for (int iBlockX = 0; iBlockX < _iMacBlockWidth*2; iBlockX++) {
             for (int iBlockY = 0; iBlockY < _iMacBlockHeight*2; iBlockY++) {
                 double[] adblBlock = ycbcr.get8x8blockY(iBlockX*8, iBlockY*8);
-                _aaiYBlocks[iBlockX + iBlockY * _iMacBlockWidth*2] = encodeBlock(adblBlock, _iLuminQscale);
+                _aaiYBlocks[iBlockX + iBlockY * _iMacBlockWidth*2] = encodeBlock(adblBlock, _iLumaQscale);
                 iBlock++;
             }
         }
@@ -91,11 +100,11 @@ public class MdecEncoder {
                 double[] adblBlock = ycbcr.get8x8blockCb(iBlockX*8, iBlockY*8);
                 if (DEBUG)
                     System.out.println("Encoding macroblock " + iBlock + " Cb");
-                _aaiCbBlocks[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock, _iChromQscale);
+                _aaiCbBlocks[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock, _iChromaQscale);
                 if (DEBUG)
                     System.out.println("Encoding macroblock " + iBlock + " Cr");
                 adblBlock = ycbcr.get8x8blockCr(iBlockX*8, iBlockY*8);
-                _aaiCrBlocks[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock, _iChromQscale);
+                _aaiCrBlocks[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock, _iChromaQscale);
                 iBlock++;
             }
         }
@@ -191,9 +200,9 @@ public class MdecEncoder {
 
             if (__iVectorPos == 0) { // qscale & dc
                 if (__iBlock < 2)
-                    code.setTop6Bits(_iChromQscale);
+                    code.setTop6Bits(_iChromaQscale);
                 else
-                    code.setTop6Bits(_iLuminQscale);
+                    code.setTop6Bits(_iLumaQscale);
                 code.setBottom10Bits(aiBlock[0]);
                 __iVectorPos++;
                 if (DEBUG)

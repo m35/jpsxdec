@@ -68,11 +68,12 @@ public interface IVideoSector extends IIdentifiedSector {
      *  output buffer. */
     void copyIdentifiedUserData(byte[] abOut, int iOutPos);
     
-    public int replaceFrameData(CdFileSectorReader cd,
-                                byte[] abDemuxData, int iDemuxOfs,
-                                int iLuminQscale,
-                                int iChromQscale,
-                                int iMdecCodeCount)
+    int replaceFrameData(CdFileSectorReader cd,
+                         byte[] abDemuxData, int iDemuxOfs,
+                         int iLuminQscale,
+                         int iChromQscale,
+                         int iMdecCodeCount)
                  throws IOException;
-    
+
+    boolean splitAudio();
 }

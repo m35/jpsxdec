@@ -66,7 +66,6 @@ import jpsxdec.cdreaders.CdxaRiffHeader;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.sectors.IdentifiedSectorRangeIterator;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
@@ -86,7 +85,7 @@ public class Main {
 
     private static FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
 
-    public final static String Version = "0.95.0 (alpha)";
+    public final static String Version = "0.95.1 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial), v" + Version;
 
@@ -241,7 +240,7 @@ public class Main {
         Feedback.println("Reading index file " + sIndexFile);
         // TODO: When FileNotFoundException occurs, try to find a way to
         // distringuish between the index file and the cd file
-        DiscIndex index = new DiscIndex(sIndexFile, false, Feedback);
+        DiscIndex index = new DiscIndex(sIndexFile, false, Logger.getLogger("index"));
         Feedback.println("Opening source file " + index.getSourceCD().getSourceFile());
         Feedback.println(index.size() + " items loaded");
         return index;
@@ -251,7 +250,7 @@ public class Main {
         Feedback.println("Building index");
         DiscIndex index = null;
         try {
-            index = new DiscIndex(cd, new ConsoleProgressListener(Feedback));
+            index = new DiscIndex(cd, new ConsoleProgressListener("index", Feedback));
         } catch (TaskCanceledException ex) {
             log.severe("SHOULD NEVER HAPPEN");
         }
@@ -283,7 +282,7 @@ public class Main {
                 CdFileSectorReader cd = loadDisc(sDiscFile);
                 if (idxFile.exists()) {
                     Feedback.println("Reading index file " + sIndexFile);
-                    index = new DiscIndex(sIndexFile, cd, Feedback);
+                    index = new DiscIndex(sIndexFile, cd, Logger.getLogger("index"));
                     Feedback.println(index.size() + " items loaded.");
                 } else {
                     index = buildIndex(cd);
@@ -585,14 +584,14 @@ public class Main {
                 else
                     ps = new PrintStream(_sOutfile);
 
-                IdentifiedSectorRangeIterator oIter = new IdentifiedSectorRangeIterator(cdReader);
-                while (oIter.hasNext()) {
-                    IdentifiedSector oSect = oIter.next();
-                    if (oSect != null) {
-                        String s = oSect.toString();
-                        if (s != null) ps.println(s);
+                for (int i = 0; i < cdReader.getLength(); i++) {
+                    CdSector cdSect = cdReader.getSector(i);
+                    IdentifiedSector idSect = IdentifiedSector.identifySector(cdSect);
+                    if (idSect != null) {
+                        String s = idSect.toString();
+                        ps.println(s);
                     } else {
-                        // probably unknown sector
+                        ps.println(cdSect.toString());
                     }
                 }
 
@@ -842,7 +841,7 @@ public class Main {
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();
         try {
-            saver.makeSaver().startSave(new ConsoleProgressListener(Feedback), dir);
+            saver.makeSaver().startSave(new ConsoleProgressListener("save", Feedback), dir);
         } catch (TaskCanceledException ex) {
             log.severe("SHOULD NEVER HAPPEN");
         }

@@ -42,30 +42,24 @@ import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.io.BufferedOutputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
 import java.util.List;
-import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.indexing.DiscIndex;
+import jpsxdec.util.UserFriendlyHandler;
 import jpsxdec.util.ProgressListener;
 import jpsxdec.util.TaskCanceledException;
 import org.jdesktop.swingworker.SwingWorker;
 
 
-public class ProgressGui extends javax.swing.JDialog implements PropertyChangeListener {
+public class IndexingGui extends javax.swing.JDialog implements PropertyChangeListener {
 
     /** The task to perform. */
     private ProgresGuiTask _task;
     /** Holds any exception thrown by the task. */
     private Throwable _exception;
-
-    private String _sErrorLog = "error.log";
-    private PrintStream _logStream;
 
     private int _iWarningCount;
     private int _iErrorCount;
@@ -85,13 +79,13 @@ public class ProgressGui extends javax.swing.JDialog implements PropertyChangeLi
 
 
     /** Creates new form Progress */
-    public ProgressGui(java.awt.Dialog parent, CdFileSectorReader cd) {
+    public IndexingGui(java.awt.Dialog parent, CdFileSectorReader cd) {
         super(parent, true);
         sharedConstructor(parent, cd);
     }
 
     /** Creates new form Progress */
-    public ProgressGui(java.awt.Frame parent, CdFileSectorReader cd) {
+    public IndexingGui(java.awt.Frame parent, CdFileSectorReader cd) {
         super(parent, true);
         sharedConstructor(parent, cd);
     }
@@ -142,11 +136,10 @@ public class ProgressGui extends javax.swing.JDialog implements PropertyChangeLi
             _guiResultLbl.setText("Canceled");
             _guiResultLbl.setForeground(Color.orange);
         } else if (getException() != null) {
-            _guiResultLbl.setText("Failure - See " + _sErrorLog + " for details");
+            _guiResultLbl.setText("Failure - See " + _task._handler.getFileName() + " for details");
             _guiResultLbl.setForeground(Color.red);
         } else if (_iWarningCount > 0 || _iErrorCount > 0) {
-            _guiResultLbl.setText("Success with errors - See " + _sErrorLog + " for details");
-            _guiResultLbl.setForeground(new Color(0xff,0x26,0x00));
+            _guiResultLbl.setText("Success with messages - See " + _task._handler.getFileName() + " for details");
         } else {
             _guiResultLbl.setText("Success!");
             _guiResultLbl.setForeground(Color.green);
@@ -166,24 +159,6 @@ public class ProgressGui extends javax.swing.JDialog implements PropertyChangeLi
 
     public DiscIndex getIndex() {
         return _index;
-    }
-
-    private PrintStream getLogStream() {
-        if (_logStream == null) {
-            try {
-                String sFile = "indexing" + System.currentTimeMillis() + ".log";
-                _logStream = new PrintStream(new BufferedOutputStream(new FileOutputStream(sFile)));
-                _sErrorLog = sFile;
-                _logStream.println(Main.VerString);
-                _logStream.println(System.getProperty("java.version"));
-                _logStream.println(System.getProperty("os.name"));
-                _logStream.println(System.getProperty("os.version"));
-                _logStream.println(_cd.serialize());
-            } catch (FileNotFoundException ex) {
-                ex.printStackTrace();
-            }
-        }
-        return _logStream;
     }
 
     /** This method is called from within the constructor to
@@ -369,6 +344,19 @@ public class ProgressGui extends javax.swing.JDialog implements PropertyChangeLi
         public static final String EXCEPTION = "exception";
         public static final String DONE = "done";
 
+        private final Logger _errLog;
+        private final UserFriendlyHandler _handler = new UserFriendlyHandler("index") {
+            protected void onWarn(LogRecord record) {
+                EventQueue.invokeLater(new ExceptionLater(true));
+            }
+            protected void onErr(LogRecord record) {
+                EventQueue.invokeLater(new ExceptionLater(false));
+            }
+        };
+
+        public ProgresGuiTask() {
+            _errLog = Logger.getLogger("index");
+        }
 
         @Override
         final protected void process(List<String> chunks) {
@@ -377,6 +365,8 @@ public class ProgressGui extends javax.swing.JDialog implements PropertyChangeLi
 
         @Override
         final protected Void doInBackground() {
+            _errLog.addHandler(_handler);
+            _handler.setSubheader("Indexing " + _cd.getSourceFile().toString());
             try {
                 _index = new DiscIndex(_cd, this);
             } catch (TaskCanceledException ex) {
@@ -393,8 +383,8 @@ public class ProgressGui extends javax.swing.JDialog implements PropertyChangeLi
                 return null;
             }
             firePropertyChange(DONE, null, null);
-            if (_logStream != null)
-                _logStream.close();
+            _errLog.removeHandler(_handler);
+            _handler.close();
             return null;
         }
 
@@ -433,59 +423,26 @@ public class ProgressGui extends javax.swing.JDialog implements PropertyChangeLi
         public void info(String s) {
         }
 
-        public void more(String s) {
+        public Logger getLog() {
+            return _errLog;
         }
 
-
         private class ExceptionLater implements Runnable {
-            private final String _sMsg; private final Throwable _ex;
-            private final boolean _blnWarn;
-            public ExceptionLater(boolean blnWarn, String sMsg, Throwable ex) {
-                _sMsg = sMsg; _ex = ex; _blnWarn = blnWarn;
+            private final boolean __blnWarn;
+            public ExceptionLater(boolean blnWarn) {
+                __blnWarn = blnWarn;
             }
             public void run() {
-                PrintStream stream = getLogStream();
-                if (_blnWarn) {
-                    if (stream != null)
-                        stream.print("Warning: ");
+                if (__blnWarn) {
                     _iWarningCount++;
                     _guiWarningsCount.setText(String.valueOf(_iWarningCount));
                     _guiWarningsCount.setForeground(Color.red);
                 } else {
-                    if (stream != null)
-                        stream.print("Error: ");
-                    _iErrorCount++;
+                    _iErrorCount ++;
                     _guiErrorsCount.setText(String.valueOf(_iErrorCount));
                     _guiErrorsCount.setForeground(Color.red);
                 }
-                if (stream != null) {
-                    if (_sMsg != null)
-                        stream.println(_sMsg);
-                    if (_ex != null) {
-                        _ex.printStackTrace(stream);
-                    }
-                }
             }
-        }
-
-        public void warning(String sMessage, Throwable ex) {
-            EventQueue.invokeLater(new ExceptionLater(true, sMessage, ex));
-        }
-        public void warning(Throwable ex) {
-            EventQueue.invokeLater(new ExceptionLater(true, null, ex));
-        }
-        public void warning(String sDescription) {
-            EventQueue.invokeLater(new ExceptionLater(true, sDescription, null));
-        }
-
-        public void error(final String sMessage, final Throwable ex) {
-            EventQueue.invokeLater(new ExceptionLater(false, sMessage, ex));
-        }
-        public void error(final Throwable ex) {
-            EventQueue.invokeLater(new ExceptionLater(false, null, ex));
-        }
-        public void error(String sDescription) {
-            EventQueue.invokeLater(new ExceptionLater(false, sDescription, null));
         }
 
     }

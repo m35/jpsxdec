@@ -40,9 +40,11 @@ package jpsxdec.audio;
 import java.io.InputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.util.ByteArrayFPIS;
+import jpsxdec.util.IO;
 
 /** Decodes Square's unique ADPCM audio data. Confirmed used in FF8, FF9,
  *  and Chrono Cross. This is the simplest and most straight-forward
@@ -55,18 +57,9 @@ public final class SquareADPCMDecoder {
     private final SoundUnit _leftSoundUnit;
     private final SoundUnit _rightSoundUnit;
 
-    private final ShortEndianWriter _decodeBuffer;
-    
-    public SquareADPCMDecoder(boolean blnBigEndian, double dblVolume) {
+    public SquareADPCMDecoder(double dblVolume) {
         _leftSoundUnit = new SoundUnit(dblVolume);
         _rightSoundUnit = new SoundUnit(dblVolume);
-
-        // create the output buffer depending on the how much
-        // data will be decoded and the desired endian-ness
-        if (blnBigEndian)
-            _decodeBuffer = new ShortEndianWriter.BE();
-        else
-            _decodeBuffer = new ShortEndianWriter.LE();
     }
 
     public static int calculateSamplesGenerated(int iInputBytes) {
@@ -89,9 +82,8 @@ public final class SquareADPCMDecoder {
      *  {@link #calculateOutputBufferSize(int)}.
      */
     public int decode(InputStream leftStream,
-                       InputStream rightStream,
-                       int iNumBytes,
-                       byte[] abOutBuffer)
+                      InputStream rightStream,
+                      int iNumBytes, OutputStream out)
             throws IOException
     {
         if ((iNumBytes % SoundUnit.SIZE_IN_BYTES) > 0)
@@ -102,19 +94,14 @@ public final class SquareADPCMDecoder {
 
         int iOutputSize = iSoundUnitCount * SoundUnit.SAMPLES_PER_SOUND_UNIT * 2 * 2;
 
-        if (abOutBuffer.length < iOutputSize)
-            throw new IllegalArgumentException("Out buffer size not big enough.");
-
-        _decodeBuffer.resetPos();
-
         for (int iSoundUnitIdx = 0; iSoundUnitIdx < iSoundUnitCount; iSoundUnitIdx++)
         {
             short[] asiLeftSamples = _leftSoundUnit.readSoundUnit(leftStream);
             short[] asiRightSamples = _rightSoundUnit.readSoundUnit(rightStream);
 
             for (int iSampleIdx = 0; iSampleIdx < SoundUnit.SAMPLES_PER_SOUND_UNIT; iSampleIdx++) {
-                _decodeBuffer.write(asiLeftSamples[iSampleIdx], abOutBuffer);
-                _decodeBuffer.write(asiRightSamples[iSampleIdx], abOutBuffer);
+                IO.writeInt16LE(out, asiLeftSamples[iSampleIdx]);
+                IO.writeInt16LE(out, asiRightSamples[iSampleIdx]);
             }
         }
         return iOutputSize;
@@ -243,7 +230,7 @@ public final class SquareADPCMDecoder {
     }
 
     public AudioFormat getOutputFormat(int iSampleRate) {
-        return new AudioFormat(iSampleRate, 16, 2, true, _decodeBuffer.isBigEndian());
+        return new AudioFormat(iSampleRate, 16, 2, true, false);
     }
 
 }

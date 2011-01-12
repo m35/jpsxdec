@@ -41,7 +41,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaSubHeader.SubMode.DATA_AUDIO_VIDEO;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -61,10 +60,8 @@ public class SectorChronoXVideoNull extends IdentifiedSector
     public SectorChronoXVideoNull(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
         // only if it has a sector header should we check if it reports DATA or VIDEO
-        if (cdSector.hasSectorHeader()) {
-            DATA_AUDIO_VIDEO eType = cdSector.getSubMode().getDataAudioVideo();
-            if (eType != DATA_AUDIO_VIDEO.DATA &&
-                eType != DATA_AUDIO_VIDEO.VIDEO)
+        if (cdSector.hasRawSectorHeader()) {
+            if (!(cdSector.getSubMode().getData() || cdSector.getSubMode().getVideo()))
             {
                 throw new NotThisTypeException();
             }

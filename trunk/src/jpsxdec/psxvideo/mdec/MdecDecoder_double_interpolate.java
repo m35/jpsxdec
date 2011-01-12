@@ -42,11 +42,17 @@ import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 
 /** A full Java, double-precision, floating point implementation of the
- *  PlayStation 1 MDEC chip with bilinear interpolation. */
+ *  PlayStation 1 MDEC chip with bilinear interpolation used in
+ *  chroma upsampling. 
+ *<p>
+ * To understand how that is helpful, read up on how 4:2:0 YCbCr format
+ * works, and how it is then converted to RGB.
+ */
 public class MdecDecoder_double_interpolate extends MdecDecoder_double {
 
-
+    /** Temp buffer for upsampled Cr. */
     private final double[] _adblUpCr;
+    /** Temp buffer for upsampled Cb. */
     private final double[] _adblUpCb;
 
     public MdecDecoder_double_interpolate(IDCT_double idct, int iWidth, int iHeight) {

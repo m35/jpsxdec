@@ -47,6 +47,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
+import jpsxdec.discitems.AudioStreamsCombiner;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
@@ -74,19 +75,30 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     public VideoSaverBuilder(DiscItemVideoStream vidItem) {
         _sourceVidItem = vidItem;
+        if (_sourceVidItem.hasAudio()) {
+            _parallelAudio = _sourceVidItem.getParallelAudioStreams();
+            _ablnParallelAudio = new boolean[_sourceVidItem.getParallelAudioStreamCount()];
+        } else {
+            _parallelAudio = new ArrayList<DiscItemAudioStream>(0);
+            _ablnParallelAudio = new boolean[0];
+        }
         resetToDefaults();
     }
 
     public void resetToDefaults() {
         setVideoFormat(VideoFormat.AVI_MJPG);
-        setParallelAudioBySizeOrder(0);
+        if (_sourceVidItem.hasAudio()) {
+            List<DiscItemAudioStream> defaultAud = _sourceVidItem.getLongestNonIntersectingAudioStreams();
+            for (int i = 0; i < _ablnParallelAudio.length; i++) {
+                _ablnParallelAudio[i] = defaultAud.contains(_parallelAudio.get(i));
+            }
+        }
         setAudioVolume(1.0);
         setCrop(true);
         setDecodeQuality(DecodeQualities.LOW);
         setJpgCompression(0.75f);
         setPreciseAVSync(false);
         setPreciseFrameTiming(false);
-        setSaveAudio(true);
         setSaveStartFrame(_sourceVidItem.getStartFrame());
         setSaveEndFrame(_sourceVidItem.getEndFrame());
         setSingleSpeed(false);
@@ -110,8 +122,8 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
                 other.setPreciseAVSync(getPreciseAVSync());
             if (getPreciseFrameTiming_enabled())
                 other.setPreciseFrameTiming(getPreciseFrameTiming());
-            if (getSaveAudio_enabled())
-                other.setSaveAudio(getSaveAudio());
+            if (hasAudio() && !getSavingAudio())
+                other.setParallelAudioNone();
             if (getSingleSpeed_enabled())
                 other.setSingleSpeed(getSingleSpeed());
             return true;
@@ -141,23 +153,27 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     private boolean _blnSingleSpeed;
     public boolean getSingleSpeed() {
-        switch (_sourceVidItem.getDiscSpeed()) {
+        switch (findDiscSpeed()) {
             case 1:
                 return true;
             case 2:
                 return false;
             default:
-                // if disc item doesn't know speed, try parallel audio item
-                if (getSaveAudio()) {
-                    switch (getParallelAudio().getDiscSpeed()) {
-                        case 1:
-                            return true;
-                        case 2:
-                            return false;
-                    }
-                }
+                return _blnSingleSpeed;
         }
-        return _blnSingleSpeed;
+    }
+    private int findDiscSpeed() {
+        int iDiscSpeed = _sourceVidItem.getDiscSpeed();
+        if (iDiscSpeed < 1) {
+            // if disc item doesn't know speed, try parallel audio item
+            for (int i = 0; i < _ablnParallelAudio.length; i++) {
+                if (_ablnParallelAudio[i]) {
+                    iDiscSpeed = _parallelAudio.get(i).getDiscSpeed();
+                    break;
+                }
+            }
+        }
+        return iDiscSpeed;
     }
     public void setSingleSpeed(boolean val) {
         _blnSingleSpeed = val;
@@ -165,32 +181,12 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
     public boolean getSingleSpeed_enabled() {
         return getVideoFormat().getContainer() == Container.AVI &&
-               (_sourceVidItem.getDiscSpeed() < 1);
+               (findDiscSpeed() < 1);
     }
     public Fraction getFps() {
         return Fraction.divide( 
                 getSingleSpeed() ? 75 : 150,
                 _sourceVidItem.getSectorsPerFrame());
-    }
-
-    // .........................................................................
-
-    private boolean _blnSaveAudio;
-    public boolean getSaveAudio() {
-        if (getSaveAudio_enabled())
-            return _blnSaveAudio;
-        else
-            return false;
-    }
-    public void setSaveAudio(boolean val) {
-        _blnSaveAudio = val;
-        firePossibleChange();
-    }
-    public boolean getSaveAudio_enabled() {
-        if (!_sourceVidItem.hasAudio()) return false;
-        if (getSaveStartFrame() != _sourceVidItem.getStartFrame()) return false;
-        if (!getVideoFormat().canSaveAudio()) return false;
-        return true;
     }
 
     // .........................................................................
@@ -204,7 +200,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         firePossibleChange();
     }
     public boolean getAudioVolume_enabled() {
-        return getSaveAudio();
+        return getSavingAudio();
     }
 
     // .........................................................................
@@ -403,36 +399,70 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     // .........................................................................
 
-    public int getParallelAudio_listSize() {
+    private final List<DiscItemAudioStream> _parallelAudio;
+    private final boolean[] _ablnParallelAudio;
+
+    public int getParallelAudioCount() {
         return _sourceVidItem.getParallelAudioStreamCount();
     }
-    public DiscItemAudioStream getParallelAudio_listItem(int i) {
-        return _sourceVidItem.getParallelAudioStream(i);
+    public DiscItemAudioStream getParallelAudio(int i) {
+        return _parallelAudio.get(i);
     }
 
-    private DiscItemAudioStream _parallelAudio = null;
-    public DiscItemAudioStream getParallelAudio() {
-        if (!_sourceVidItem.hasAudio()) return null;
-        if (_parallelAudio == null) return _sourceVidItem.getParallelAudioStream(0);
-        return _parallelAudio;
+    public boolean getParallelAudio_selected(int i) {
+        return _ablnParallelAudio[i];
     }
 
-    public void setParallelAudio(DiscItemAudioStream parallelAudio) {
-        if (_sourceVidItem.isAudioVideoAligned(_sourceVidItem)) {
-            _parallelAudio = parallelAudio;
-            firePossibleChange();
+    public void setParallelAudio(DiscItemAudioStream parallelAudio, boolean blnSelected) {
+        if (!_sourceVidItem.hasAudio())
+            return;
+
+        setParallelAudio(_parallelAudio.indexOf(parallelAudio), blnSelected);
+    }
+
+    public void setParallelAudio(int iIndex, boolean blnSelected) {
+        if (!_sourceVidItem.hasAudio())
+            return;
+
+        if (iIndex < 0 || iIndex >= _sourceVidItem.getParallelAudioStreamCount())
+            return;
+
+        DiscItemAudioStream aud = _parallelAudio.get(iIndex);
+        for (int i = 0; i < _ablnParallelAudio.length; i++) {
+            if (_ablnParallelAudio[i]) {
+                DiscItemAudioStream other = _parallelAudio.get(i);
+                // if it overlaps or has a different format
+                if (aud.overlaps(other) || !aud.hasSameFormat(other)) {
+                    // disable it
+                    _ablnParallelAudio[i] = false;
+                }
+            }
         }
+
+        _ablnParallelAudio[iIndex] = blnSelected;
+        firePossibleChange();
     }
 
-    public void setParallelAudioBySizeOrder(int iSizeIndex) {
-        if (_sourceVidItem.hasAudio()) {
-            _parallelAudio = _sourceVidItem.getParallelAudioStream(iSizeIndex);
-            firePossibleChange();
+    public void setParallelAudioNone() {
+        for (int i = 0; i < getParallelAudioCount(); i++) {
+            setParallelAudio(i, false);
         }
     }
 
     public boolean getParallelAudio_enabled() {
-        return getSaveAudio();
+        return getSavingAudio();
+    }
+
+    public boolean hasAudio() {
+        return _sourceVidItem.hasAudio();
+    }
+
+    public boolean getSavingAudio() {
+        for (boolean b : _ablnParallelAudio) {
+            if (b)
+                return true;
+        }
+        return false;
     }
 
     // .........................................................................
@@ -474,19 +504,19 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public int getDecodeQuality_listSize() {
-        if (getVideoFormat() == VideoFormat.AVI_YUV)
+        if (getVideoFormat() == VideoFormat.AVI_YUV || getVideoFormat() == VideoFormat.AVI_JYUV)
             return 1;
         return DecodeQualities.values().length;
     }
     public DecodeQualities getDecodeQuality_listItem(int i) {
-        if (getVideoFormat() == VideoFormat.AVI_YUV)
+        if (getVideoFormat() == VideoFormat.AVI_YUV || getVideoFormat() == VideoFormat.AVI_JYUV)
             return DecodeQualities.HIGH;
         return DecodeQualities.values()[i];
     }
 
     private DecodeQualities _decodeQuality = DecodeQualities.LOW;
     public DecodeQualities getDecodeQuality() {
-        if (getVideoFormat() == VideoFormat.AVI_YUV)
+        if (getVideoFormat() == VideoFormat.AVI_YUV || getVideoFormat() == VideoFormat.AVI_JYUV)
             return DecodeQualities.HIGH;
         return _decodeQuality;
     }
@@ -530,7 +560,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public boolean getPreciseAVSync_enabled() {
-        return getSaveAudio();
+        return getSavingAudio();
     }
 
     // .........................................................................
@@ -653,8 +683,9 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         setCrop(!nocrop.value);
 
         setPreciseAVSync(preciseav.value);
-        
-        setSaveAudio(!noaud.value);
+
+        if (noaud.value)
+            setParallelAudioNone();
 
         if (discSpeed.value == 1) {
             setSingleSpeed(true);
@@ -683,8 +714,11 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
             ps.println("Saving audio: " + (getSaveAudio() ? "Yes" : "No"));
         */
         if (getParallelAudio_enabled()) {
-            ps.println("With audio item:");
-            ps.println(getParallelAudio());
+            ps.println("With audio item(s):");
+            for (int i = 0; i < _ablnParallelAudio.length; i++) {
+                if (_ablnParallelAudio[i])
+                    ps.println(_parallelAudio.get(i));
+            }
         }
         if (getPreciseAVSync_enabled())
             ps.println("Precise audio/video sync: " + (getPreciseAVSync() ? "Yes" : "No"));
@@ -769,9 +803,16 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         }
         
         ISectorAudioDecoder audDecoder = null;
-        if (getSaveAudio()) {
-            final boolean WRITE_BIG_ENDIAN = false;
-            audDecoder = getParallelAudio().makeDecoder(WRITE_BIG_ENDIAN, getAudioVolume());
+        if (getSavingAudio()) {
+            ArrayList<DiscItemAudioStream> parallelAudio = new ArrayList<DiscItemAudioStream>();
+            for (int i = 0; i < _ablnParallelAudio.length; i++) {
+                if (_ablnParallelAudio[i])
+                    parallelAudio.add(_parallelAudio.get(i));
+            }
+            if (parallelAudio.size() == 1)
+                audDecoder = parallelAudio.get(0).makeDecoder(getAudioVolume());
+            else
+                audDecoder = new AudioStreamsCombiner(parallelAudio, getAudioVolume());
         }
 
         VideoSaverBuilderSnapshot snap = new VideoSaverBuilderSnapshot(_sourceVidItem,

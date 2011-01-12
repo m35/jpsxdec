@@ -234,8 +234,8 @@ public class ReplaceFrames {
             fbs.printlnMore("Bitstream type: " + uncompressor);
             fbs.printlnMore("Available demux size: " + demuxer.getDemuxSize());
             fbs.printlnMore("Actual bitstream size: " + uncompressor.getStreamPosition());
-            fbs.printlnMore("Quantization scale lumin: " + uncompressor.getLuminQscale() +
-                                                  ", chrom:" + uncompressor.getChromQscale());
+            fbs.printlnMore("Quantization scale luma: " + uncompressor.getLuminQscale() +
+                                                  ", chroma:" + uncompressor.getChromQscale());
             fbs.printlnMore("MDEC code count: " + parsed.getMdecCodeCount());
             for (int i=0; i < demuxer.getChunksInFrame(); i++) {
                 System.out.println(demuxer.getChunk(i));
@@ -254,11 +254,11 @@ public class ReplaceFrames {
 
         CdFileSectorReader cd = new CdFileSectorReader(new File(args[0]), true);
         FeedbackStream fbs = new FeedbackStream();
-        DiscIndex index = new DiscIndex(cd, new ConsoleProgressListener(fbs));
+        DiscIndex index = new DiscIndex(cd, new ConsoleProgressListener("index"));
         DiscItemVideoStream vidItem = (DiscItemVideoStream) index.getByIndex(Integer.parseInt(args[1]));
         DiscItemSaverBuilder saver = vidItem.makeSaverBuilder();
         saver.commandLineOptions(new String[] {"-vf","mdec"}, fbs);
-        saver.makeSaver().startSave(new ConsoleProgressListener(fbs), new File("."));
+        saver.makeSaver().startSave(new ConsoleProgressListener("save"), new File("."));
 
         ReplaceFrames replacers = new ReplaceFrames();
 

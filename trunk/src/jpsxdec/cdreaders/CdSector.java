@@ -37,6 +37,7 @@
 
 package jpsxdec.cdreaders;
 
+import java.util.logging.Logger;
 import jpsxdec.util.ByteArrayFPIS;
 
 /** Represents a single sector on a CD. */
@@ -90,11 +91,13 @@ public abstract class  CdSector {
      */
     abstract public byte[] getRawSectorDataCopy();
 
-    abstract public boolean hasSectorHeader();
+    abstract public boolean hasRawSectorHeader();
 
     abstract public byte readUserDataByte(int i);
 
     abstract public ByteArrayFPIS getCdUserDataStream();
+
+    abstract public boolean isCdAudioSector();
 
     /**
      * @throws UnsupportedOperationException when the sector doesn't have a header.
@@ -102,39 +105,6 @@ public abstract class  CdSector {
     public int getChannel() {
         throw new UnsupportedOperationException();
     }
-
-    /**
-     * @return 4 or 8.
-     * @throws UnsupportedOperationException when the sector doesn't have a header.
-     */
-    public int getCodingInfo_BitsPerSample() {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * @return If coding is stereo.
-     * @throws UnsupportedOperationException when the sector doesn't have a header.
-     */
-    public boolean getCodingInfo_MonoStereo() {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * @return 37800 or 18900.
-     * @throws UnsupportedOperationException when the sector doesn't have a header.
-     */
-    public int getCodingInfo_SampleRate() {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Returns the File value in a raw sector sub-header.
-     * @throws UnsupportedOperationException when the sector doesn't have a header.
-     */
-    public int getFile() {
-        throw new UnsupportedOperationException();
-    }
-
 
     /**
      * @return The sector number from the sector header.
@@ -157,6 +127,9 @@ public abstract class  CdSector {
     public CdxaSubHeader.CodingInfo getCodingInfo() {
         throw new UnsupportedOperationException();
     }
+
+    abstract public int getErrorCount();
+    abstract public void printErrors(Logger logger);
 
 
 }

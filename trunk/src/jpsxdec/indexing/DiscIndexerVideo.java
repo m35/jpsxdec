@@ -66,6 +66,11 @@ public class DiscIndexerVideo extends DiscIndexer {
     private int _iStartFrame;
     private int _iFrame1LastSector = -1;
     private STRFrameRateCalc _fpsCalc;
+    private Logger _errLog;
+
+    public DiscIndexerVideo(Logger errLog) {
+        _errLog = errLog;
+    }
 
     @Override
     public DiscItem deserializeLineRead(DiscItemSerialization oSerial) {
@@ -121,7 +126,8 @@ public class DiscIndexerVideo extends DiscIndexer {
     private void endOfMovie() {
         Fraction oSectorsPerFrame;
         if (_fpsCalc != null && (oSectorsPerFrame = _fpsCalc.getSectorsPerFrame()) != null) {
-            log.info(_fpsCalc.toString());
+            if (log.isLoggable(Level.INFO))
+                log.info(_fpsCalc.toString());
             if (_iStartFrame > 1 && log.isLoggable(Level.WARNING)) {
                 log.warning("Video stream first frame is not 0 or 1: " + _iStartFrame);
             }

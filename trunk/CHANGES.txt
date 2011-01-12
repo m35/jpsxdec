@@ -1,14 +1,23 @@
+v0.95.1 rev1831 (11 Jan 2011)
+    - Added Windows .exe to start the program
+    - Fixed and improved audio/video indexing logic
+    - Fixed and improved video identification
+    - Interface changed to select which audio to use with video
+    - Videos with multiple audio clips are now handled the best they can be
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
 v0.95.0 rev1779 (9 Nov 2010)
     - Reimplemented a new and improved GUI!
+    - Greatly reduced the number of reported errors for things that aren't really errors
     - Added 'Pause' ability to player, and made its logic more robust
     - Added -visualize option to generate a pdf visualizing the index items
     - New index format, with unique identifiers
     - Can now use index item identifiers for -i option
     - Added -dir option to specify output directory
-    - Index items are now saved with their full path (as shown in their identifier)
+    - Appends index item's directory to the output path when saving
+      (as shown in their identifier)
     Known Problems:
     - Audio + Video player on Linux might be choppy
-    - Reports way too many errors when encountering CD audio track and disc errors
     - Not all options have been well tested
     - Audio and Video indexing logic may be slightly degraded
     - 'psx' video decoder quality does not quite match actual hardware output

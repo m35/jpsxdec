@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import java.io.PrintStream;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
 
@@ -62,10 +63,6 @@ public interface IIdentifiedSector {
     /** @return A stream of the sector's user data payload. */
     public ByteArrayFPIS getIdentifiedUserDataStream();
     
-    /** @return The 'file' value in the raw CDXA header, 
-     *          or -1 if there is no header. */
-    public long getFile();
-    
     /** @return The 'channel' value in the raw CDXA header, 
      *          or -1 if there is no header. */
     public int getChannel();
@@ -74,4 +71,8 @@ public interface IIdentifiedSector {
     public int getSectorNumber();
 
     public CdSector getCDSector();
+
+    public int getErrorCount();
+
+    public void printErrors(PrintStream ps);
 }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,71 +37,53 @@
 
 package jpsxdec.sectors;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** This is the header for Chrono Cross 'null' video sectors. */
-public class SectorChronoXVideoNull extends IdentifiedSector
-{
+public class SectorChronoXVideoNull extends IdentifiedSector {
+    
     private static final Logger log = Logger.getLogger(SectorChronoXVideoNull.class.getName());
     protected Logger log() { return log; }
-
-    // .. Static stuff .....................................................
-
-    public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 = 0x81010160;
-    public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC2 = 0x01030160;
-
-    public SectorChronoXVideoNull(CdSector cdSector) throws NotThisTypeException {
-        super(cdSector);
-        // only if it has a sector header should we check if it reports DATA or VIDEO
-        if (cdSector.hasRawSectorHeader()) {
-            if (!(cdSector.getSubMode().getData() || cdSector.getSubMode().getVideo()))
-            {
-                throw new NotThisTypeException();
-            }
-        }
-        try {
-            readHeader(cdSector.getCdUserDataStream());
-        } catch (IOException ex) {
-            throw new NotThisTypeException();
-        }
-    }
 
     private long _lngMagic;
     private int _iChunkNumber;
     private int _iChunksInThisFrame;
     private int _iFrameNumber;
 
-    protected void readHeader(ByteArrayInputStream inStream)
-            throws NotThisTypeException, IOException 
-    {
-        _lngMagic = IO.readUInt32LE(inStream);
+    public SectorChronoXVideoNull(CdSector cdSector) {
+        super(cdSector);
+        if (isSuperInvalidElseReset()) return;
 
-        if (_lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
-            _lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
-            throw new NotThisTypeException();
+        if (cdSector.isCdAudioSector()) return;
 
-        _iChunkNumber = IO.readSInt16LE(inStream);
-        if (_iChunkNumber < 0)
-            throw new NotThisTypeException();
-        _iChunksInThisFrame = IO.readSInt16LE(inStream);
-        if (_iChunksInThisFrame < 1)
-            throw new NotThisTypeException();
-        _iFrameNumber = IO.readSInt16LE(inStream);
-        if (_iFrameNumber < 0)
-            throw new NotThisTypeException();
+        // only if it has a sector header should we check if it reports DATA or VIDEO
+        if (cdSector.hasRawSectorHeader() &&
+            cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
+        {
+            return;
+        }
+        
+        _lngMagic = cdSector.readUInt32LE(0);
+        if (_lngMagic != SectorChronoXVideo.CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
+            _lngMagic != SectorChronoXVideo.CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
+            return;
 
-        for (int i = 0; i < 22; i++) {
-            if (inStream.read() != 0xff)
-                throw new NotThisTypeException();
+        _iChunkNumber = cdSector.readSInt16LE(4);
+        if (_iChunkNumber < 0) return;
+        _iChunksInThisFrame = cdSector.readSInt16LE(6);
+        if (_iChunksInThisFrame < 1) return;
+        _iFrameNumber = cdSector.readSInt16LE(8);
+        if (_iFrameNumber < 0) return;
+
+        for (int i = 10; i < 32; i++) {
+            if (cdSector.readUserDataByte(i) != -1) return;
         }
 
+        setProbability(100);
     }
 
     // .. Public functions .................................................
@@ -124,7 +106,13 @@ public class SectorChronoXVideoNull extends IdentifiedSector
 
     @Override
     public String toString() {
-        return getTypeName() + " " + super.toString();
+        return String.format("%s %s frame:%d chunk:%d/%d",
+            getTypeName(),
+            super.cdToString(),
+            _iFrameNumber,
+            _iChunkNumber,
+            _iChunksInThisFrame
+            );
     }
 
 }

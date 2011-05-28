@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -121,6 +121,10 @@ public abstract class  CdSector {
         throw new UnsupportedOperationException();
     }
 
+    public int subModeMask(int i) {
+        throw new UnsupportedOperationException();
+    }
+
     /**
      * @throws UnsupportedOperationException when the sector doesn't have a header.
      */
@@ -131,5 +135,42 @@ public abstract class  CdSector {
     abstract public int getErrorCount();
     abstract public void printErrors(Logger logger);
 
+    public short readSInt16LE(int i) {
+        int b1 = readUserDataByte(i  ) & 0xFF;
+        int b2 = readUserDataByte(i+1) & 0xFF;
+        return (short)((b2 << 8) + b1);
+    }
+
+    public int readUInt16LE(int i) {
+        int b1 = readUserDataByte(i  ) & 0xFF;
+        int b2 = readUserDataByte(i+1) & 0xFF;
+        return (b2 << 8) | b1;
+    }
+
+    public long readUInt32LE(int i) {
+        int b1 = readUserDataByte(i) & 0xFF;
+        int b2 = readUserDataByte(i+1) & 0xFF;
+        int b3 = readUserDataByte(i+2) & 0xFF;
+        long b4 = readUserDataByte(i+3) & 0xFF;
+        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+        return total;
+    }
+
+    public int readSInt32LE(int i) {
+        int b1 = readUserDataByte(i) & 0xFF;
+        int b2 = readUserDataByte(i+1) & 0xFF;
+        int b3 = readUserDataByte(i+2) & 0xFF;
+        int b4 = readUserDataByte(i+3) & 0xFF;
+        int total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+        return total;
+    }
+
+    public long readSInt64BE(int i) {
+        long lngRet = readUserDataByte(i);
+        for (int j = 1; j < 8; j++) {
+            lngRet = (lngRet << 8) | (readUserDataByte(i+j) & 0xff);
+        }
+        return lngRet;
+    }
 
 }

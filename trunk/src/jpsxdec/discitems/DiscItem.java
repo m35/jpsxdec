@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,13 +42,22 @@ import jpsxdec.sectors.IdentifiedSector;
 import java.io.IOException;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.sectors.IdentifiedSectorRangeIterator;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
 
-/** Abstract superclass of all disc items.. Constructors of sub-classes will
- * attempt to deserialize a PlayaStation disc item from CD sectors. */
+/** Abstract superclass of all disc items. A "disc item" represents some media
+ * or information that can be extracted from the disc and saved separately,
+ * usually in better format. The information contained by DiscItems can be
+ * serialized and deserialized for easy storage. DiscItems should be able to
+ * generate a {@link DiscItemSaverBuilder}, which provides options on how the
+ * disc item will be converted and saved.
+ * <p>
+ * DiscItems also can (and usually should) hold an {@link IndexId} indicating
+ * where this DiscItem falls within a list of DiscItems. This id can also
+ * contain a suggested name that this DiscItem might use when extracting and
+ * saving (e.g. if it's part of a file on a disc, use that file name).
+ */
 public abstract class DiscItem {
 
     private final int _iStartSector;
@@ -93,7 +102,7 @@ public abstract class DiscItem {
     /** Because the media items knows what sectors are used,
      *  it can reduce the number of tests to identify a CD sector type.
      *  @return Identified sector, or null if no match. */
-    final public IdentifiedSector identifySector(CdSector sector) {
+    public IdentifiedSector identifySector(CdSector sector) {
         return IdentifiedSector.identifySector(sector);
         /* // this is nice in theory, but I don't think I'll mess with it
         for (Class<IdentifiedSector> oSectorType : m_aoSectorsUsed) {
@@ -122,7 +131,7 @@ public abstract class DiscItem {
         return _iEndSector;
     }
 
-    /** Returns the number of sectors that may hold data related to this disc itme. */
+    /** Returns the number of sectors that may hold data related to this disc item. */
     public int getSectorLength() {
         return _iEndSector - _iStartSector + 1;
     }
@@ -133,10 +142,6 @@ public abstract class DiscItem {
 
     public CdFileSectorReader getSourceCD() {
         return _cdReader;
-    }
-
-    public IdentifiedSectorRangeIterator getSectorIterator() {
-        return new IdentifiedSectorRangeIterator(_cdReader, _iStartSector, _iEndSector);
     }
 
     public File getSuggestedBaseName() {

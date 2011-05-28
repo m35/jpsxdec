@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,7 @@ package jpsxdec.util;
 
 import java.io.ByteArrayOutputStream;
 
-/** Subclass of ByteArrayOutputStream to expose the raw buffer data.
+/** Subclass of {@link ByteArrayOutputStream} to expose the raw buffer data.
  *  This can save copying the buffer if it only has one use. */
 public class ExposedBAOS extends ByteArrayOutputStream {
 

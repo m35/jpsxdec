@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -220,6 +220,7 @@ public class DiscItemVideoStream extends DiscItem {
     }
     
 
+    /** 1 for 1x (75 sectors/second), 2 for 2x (150 sectors/second), or -1 if unknown. */
     public int getDiscSpeed() {
         return _iDiscSpeed;
     }
@@ -280,7 +281,7 @@ public class DiscItemVideoStream extends DiscItem {
         return (IVideoSector) identifiedSect;
     }
 
-    public DiscItemSaverBuilder makeSaverBuilder() {
+    public VideoSaverBuilder makeSaverBuilder() {
         return new VideoSaverBuilder(this);
     }
 
@@ -514,13 +515,11 @@ public class DiscItemVideoStream extends DiscItem {
                 IdentifiedSector isect = IdentifiedSector.identifySector(sector);
                 if (isect instanceof IVideoSector) {
                     IVideoSector vidSect = (IVideoSector) isect;
-                    ps.println(String.format(
-                            "%-5d %-4d %d/%d",
-                            iSector,
-                            vidSect.getFrameNumber(),
-                            vidSect.getChunkNumber(),
-                            vidSect.getChunksInFrame()
-                            ));
+                    ps.println(String.format("%-5d %-4d %d/%d",
+                                            iSector,
+                                            vidSect.getFrameNumber(),
+                                            vidSect.getChunkNumber(),
+                                            vidSect.getChunksInFrame() ));
                 } else {
                     ps.println(String.format(
                             "%-5d X",

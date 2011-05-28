@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,56 +45,60 @@ import java.util.Iterator;
 import jpsxdec.util.IO;
 
 
-/** Recreation of the compression alogrithm used to store data on the 
+/** Recreation of the compression algorithm used to store data on the
  *  Serial Experiments Lain PSX Game discs. 
- *  
- *  This is apparently an LZS type of compression, which, according to 
- *  halkun of Qhimm forums, is often used in Playstation games. He 
+ *<p>
+ *  This is apparently an LZSS type of compression, which, according to
+ *  halkun of Qhimm forums, is often used in PlayStation games. He
  *  referenced some additional code about it:
- *  http://sprite.phys.ncku.edu.tw/NCKUtech/DCM/pub/DCM_CODE_ASM/lzss.c */
+ *  http://sprite.phys.ncku.edu.tw/NCKUtech/DCM/pub/DCM_CODE_ASM/lzss.c
+ *<p>
+ *  Note that this LZSS format appears very similar to the one used in Final
+ *  Fantasy 7, but may not be exactly compatible.
+ */
 public class Lain_Pk {
     
-    public static int DebugVerbose = 2;
+    public static int DEBUG = 2;
     
     private static interface IZipField {
-        int getBit();
+        int getBitFlag();
         void write(OutputStream os) throws IOException;
     }
     
     /** Represents a run of bytes prior the current position that are
      *  identical to the bytes at the current position. */
     private static class BackCopy implements IZipField {
-        public int RelativePosition;
-        public int Length;
+        private final int _iRelativePosition;
+        private final int _iLength;
 
-        public BackCopy(int Position, int Length) {
-            this.RelativePosition = Position;
-            this.Length = Length;
+        public BackCopy(int iPosition, int iLength) {
+            _iRelativePosition = iPosition;
+            _iLength = iLength;
         }
 
-        public int getBit() {
+        public int getBitFlag() {
             return 1;
         }
 
         public void write(OutputStream os) throws IOException {
-            os.write(this.RelativePosition - 1);
-            os.write(this.Length - 3);
+            os.write(_iRelativePosition - 1);
+            os.write(_iLength - 3);
         }
     }
     /** Represents a literal byte at the current position. */
     private static class DirectCopy implements IZipField {
-        public int Value;
+        private final int _iValue;
 
-        public DirectCopy(int Value) {
-            this.Value = Value;
+        public DirectCopy(int iValue) {
+            _iValue = iValue;
         }
 
-        public int getBit() {
+        public int getBitFlag() {
             return 0;
         }
 
         public void write(OutputStream os) throws IOException {
-            os.write(Value);
+            os.write(_iValue);
         }
     }
     /** Compress data using the Lain compression method */
@@ -111,7 +115,7 @@ public class Lain_Pk {
                 x++;
             } else {
                 oZipFields.add(oBackCpy);
-                x += oBackCpy.Length;
+                x += oBackCpy._iLength;
             }
 
         }
@@ -119,7 +123,7 @@ public class Lain_Pk {
         // write the size of the uncompressed data
         IO.writeInt32LE(oStream, abData.length);
         
-        IZipField[] o8fields = new IZipField[8];
+        IZipField[] ao8fields = new IZipField[8];
         Iterator<IZipField> it = oZipFields.iterator();
         while (it.hasNext()) {
             int iFieldsToWrite;
@@ -128,14 +132,14 @@ public class Lain_Pk {
             // also exit this construction if we run out of data
             for (iFieldsToWrite = 0; iFieldsToWrite < 8 && it.hasNext(); iFieldsToWrite++) 
             {
-                o8fields[iFieldsToWrite] = it.next();
-                iFlags |= o8fields[iFieldsToWrite].getBit() << (7 - iFieldsToWrite);
+                ao8fields[iFieldsToWrite] = it.next();
+                iFlags |= ao8fields[iFieldsToWrite].getBitFlag() << (7 - iFieldsToWrite);
             }
             // write the flags byte
             oStream.write(iFlags);
             // write the 8 fields (or as many as we have)
             for (int i = 0; i < iFieldsToWrite; i++) {
-                o8fields[i].write(oStream);
+                ao8fields[i].write(oStream);
             }
         }
         
@@ -146,7 +150,7 @@ public class Lain_Pk {
         int iLongestRunPos = 0;
         int iLongestRunLen = 0;
         
-        int iMatchPos = iEndPos - 256;
+        int iMatchPos = iEndPos - (255 + 1);
         if (iMatchPos < 0) iMatchPos = 0;
         for (; iMatchPos < iEndPos; iMatchPos++) {
             int iMatchLen = matchLength(abData, iMatchPos, iEndPos);
@@ -165,7 +169,7 @@ public class Lain_Pk {
     private static int matchLength(byte[] abData, int iMatchPos, int iEndPos) {
         int i = 0;
         while ((iEndPos + i < abData.length)
-                && i <= 257
+                && i <= (255 + 3)
                 && abData[iMatchPos+i] == abData[iEndPos+i])
         {
             i++;
@@ -197,13 +201,13 @@ public class Lain_Pk {
         {
             int iFlags = raf.readUnsignedByte();
             
-            if (DebugVerbose > 2)
+            if (DEBUG > 2)
                 System.err.println(String.format("Flags %02x", iFlags));
             
             for (int iFlagMask = 0x80; iFlagMask > 0; iFlagMask>>>=1) {
                 if (iUncompressedPos >= lngUncompressedSize) break;
                 
-                if (DebugVerbose > 2)
+                if (DEBUG > 2)
                     System.err.print(String.format(
                             "[InPos: %d OutPos: %d] Flags %02x: bit %02x: ",
                             raf.getFilePointer(),
@@ -212,13 +216,13 @@ public class Lain_Pk {
                             iFlagMask
                             ));
                     
-                if ((iFlags & iFlagMask) > 0) {
+                if ((iFlags & iFlagMask) != 0) {
                     int iCopyOffset = raf.readUnsignedByte();
                     int iCopySize = raf.readUnsignedByte();
                     iCopyOffset = (iCopyOffset + 1);
                     iCopySize = (iCopySize + 3);
                     
-                    if (DebugVerbose > 2)
+                    if (DEBUG > 2)
                         System.err.println(
                                 "Copy " + iCopySize + 
                                 " bytes from -" + iCopyOffset + 
@@ -234,7 +238,7 @@ public class Lain_Pk {
                 } else {
                     byte b = raf.readByte();
                     
-                    if (DebugVerbose > 2)
+                    if (DEBUG > 2)
                         System.err.println(String.format("{Byte %02x}", b));
                     
                     abUncompressed[iUncompressedPos] = b;
@@ -242,7 +246,7 @@ public class Lain_Pk {
                 }
             }
         }
-        if (DebugVerbose > 2)
+        if (DEBUG > 2)
             System.err.println("File pos: " + raf.getFilePointer());
         
         return abUncompressed;

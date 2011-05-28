@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,51 +44,20 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.formats.JavaAudioFormat;
 
-public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui {
-
-    private AudioSaverBuilder _sourceBuilder;
-    private final ChangeListener[] _aoControls;
-
-    /** Use just 1 change listener to notify all the controls so it's
-     * easier to swap out when the builder is changed. */
-    private ChangeListener _listenerWrapper = new ChangeListener() {
-        public void stateChanged(ChangeEvent e) {
-            for (ChangeListener control : _aoControls) {
-                control.stateChanged(e);
-            }
-        }
-    };
+public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuilder> {
 
     public AudioSaverBuilderGui(AudioSaverBuilder builder) {
-        super(new ParagraphLayout());
-        _sourceBuilder = builder;
+        super(builder, new ParagraphLayout());
+        setParagraphLayoutPanel(this);
 
-        _aoControls = new ChangeListener[] {
+        addControls(
             new AudioFormat(),
             new Volume()
-        };
+        );
 
-        _sourceBuilder.addChangeListener(_listenerWrapper);
-    }
-
-    @Override
-    public boolean useSaverBuilder(DiscItemSaverBuilder saverBuilder) {
-        if (saverBuilder instanceof AudioSaverBuilder) {
-            DiscItemSaverBuilder oldBuilder = _sourceBuilder;
-            _sourceBuilder = (AudioSaverBuilder) saverBuilder;
-            oldBuilder.removeChangeListener(_listenerWrapper);
-            _sourceBuilder.addChangeListener(_listenerWrapper);
-            _listenerWrapper.stateChanged(null);
-            return true;
-        } else {
-            return false;
-        }
-
-        
     }
 
     protected class AudioFormat extends AbstractListModel implements ComboBoxModel, ChangeListener {
@@ -99,7 +68,7 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui {
 
         public AudioFormat() {
             __label = new JLabel("Saved as:");
-            __name = new JLabel(_sourceBuilder.getFileBaseName());
+            __name = new JLabel(_writerBuilder.getFileBaseName());
             __combo = new JComboBox(this);
             add(__label, ParagraphLayout.NEW_PARAGRAPH);
             add(__name);
@@ -112,26 +81,26 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui {
             }
         }
         public int getSize() {
-            return _sourceBuilder.getContainerFormat_listSize();
+            return _writerBuilder.getContainerFormat_listSize();
         }
         public Object getElementAt(int index) {
-            return _sourceBuilder.getContainerFormat_listItem(index);
+            return _writerBuilder.getContainerFormat_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
-            _sourceBuilder.setContainerForamt((JavaAudioFormat) anItem);
+            _writerBuilder.setContainerForamt((JavaAudioFormat) anItem);
         }
         public Object getSelectedItem() {
-            return _sourceBuilder.getContainerFormat();
+            return _writerBuilder.getContainerFormat();
         }
     }
 
     private class Volume extends AbstractSlider {
         public Volume() { super("Volume:"); }
         public int getValue() {
-            return (int) (_sourceBuilder.getVolume() * 100);
+            return (int) (_writerBuilder.getVolume() * 100);
         }
         public void setValue(int n) {
-            _sourceBuilder.setVolume(n / 100.);
+            _writerBuilder.setVolume(n / 100.);
         }
         protected boolean isEnabled() {
             return true;

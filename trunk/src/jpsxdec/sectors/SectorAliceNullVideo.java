@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,81 +37,74 @@
 
 package jpsxdec.sectors;
 
-import java.io.IOException;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Alice In Cyber Land 'null' frame chunk sector. */
-public class SectorAliceFrameChunkNull extends IdentifiedSector
-{
+public class SectorAliceNullVideo extends IdentifiedSector {
 
     // .. Static stuff .....................................................
 
-    public static final long VIDEO_CHUNK_MAGIC = 0x00000160;
-    public static final int FRAME_CHUNK_HEADER_SIZE = 32;
+    public static final long ALICE_VIDEO_SECTOR_MAGIC = 0x00000160;
+    public static final int ALICE_VIDEO_SECTOR_HEADER_SIZE = 32;
 
     // .. Instance fields ..................................................
 
-    // Magic                                   //  0    [4 bytes]
-    private final int  _iChunkNumber;          //  4    [2 bytes]
-    private final int  _iChunksInThisFrame;    //  6    [2 bytes]
-    protected final int  _iFrameNumber;        //  8    [4 bytes]
-    private final long _lngUsedDemuxSize;      //  12   [4 bytes]
-    // 16 bytes -- all zeros                   //  16   [16 bytes]
+    // Magic 0x00000160                  //  0    [4 bytes]
+    private int  _iChunkNumber;          //  4    [2 bytes]
+    private int  _iChunksInThisFrame;    //  6    [2 bytes]
+    protected int  _iFrameNumber;        //  8    [4 bytes]
+    private long _lngUsedDemuxSize;      //  12   [4 bytes]
+    // 16 bytes -- all zeros             //  16   [16 bytes]
     //   32 TOTAL
-    
-    // .. Constructor .....................................................
 
-    public SectorAliceFrameChunkNull(CdSector cdSector) throws NotThisTypeException
-    {
+
+    public SectorAliceNullVideo(CdSector cdSector) {
         super(cdSector);
-        if (cdSector.hasRawSectorHeader()) {
-            // if it has a header, the sector type MUST be data or video
-            // (anything else is ignored)
-            if (!(cdSector.getSubMode().getData() || cdSector.getSubMode().getVideo()))
-            {
-                throw new NotThisTypeException();
-            }
+        if (isSuperInvalidElseReset()) return;
+
+        if (cdSector.isCdAudioSector()) return;
+
+        // only if it has a sector header should we check if it reports DATA or VIDEO
+        if (cdSector.hasRawSectorHeader() &&
+            cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
+        {
+            return;
         }
-        try {
-            ByteArrayFPIS bais = cdSector.getCdUserDataStream();
-            if (IO.readUInt32LE(bais) != VIDEO_CHUNK_MAGIC)
-                throw new NotThisTypeException();
+        
+        if (cdSector.readUInt32LE(0) != ALICE_VIDEO_SECTOR_MAGIC)
+                return;
 
-            _iChunkNumber = IO.readSInt16LE(bais);
-            if (_iChunkNumber < 0)
-                throw new NotThisTypeException();
-            _iChunksInThisFrame = IO.readSInt16LE(bais);
-            if (_iChunksInThisFrame < 3)
-                throw new NotThisTypeException();
-            _iFrameNumber = IO.readSInt32LE(bais);
+        _iChunkNumber = cdSector.readSInt16LE(4);
+        if (_iChunkNumber < 0)
+                return;
+        _iChunksInThisFrame = cdSector.readSInt16LE(6);
+        if (_iChunksInThisFrame < 3)
+                return;
 
-            // null frames between movies have a frame number of 0xFFFF
-            // the high bit signifies the end of a video
-            if (_iFrameNumber < 0)
-                throw new NotThisTypeException();
+        // null frames between movies have a frame number of 0xFFFF
+        // the high bit signifies the end of a video
+        _iFrameNumber = cdSector.readSInt32LE(8);
+        if (_iFrameNumber < 0)
+                return;
 
-            _lngUsedDemuxSize = IO.readUInt32LE(bais);
+        _lngUsedDemuxSize = cdSector.readUInt32LE(12);
 
-            // make sure all 16 bytes are zero
-            for (int i = 0; i < 16; i++)
-                if (bais.read() != 0)
-                    throw new NotThisTypeException();
+        // make sure all 16 bytes are zero
+        for (int i = 16; i < 32; i++)
+            if (cdSector.readUserDataByte(i) != 0)
+                return;
 
-        } catch (IOException ex) {
-            throw new NotThisTypeException();
-        }
+        setProbability(100);
     }
 
     // .. Public functions .................................................
 
     public String toString() {
-        StringBuilder sb = new StringBuilder(getTypeName());
-        sb.append(' ');
-        sb.append(super.toString());
+        StringBuilder sb = 
+                new StringBuilder(getTypeName()).append(' ').append(super.toString());
         sb.append(" frame:");
         if (_iFrameNumber == 0xFFFF)
             sb.append("NUL");
@@ -120,13 +113,8 @@ public class SectorAliceFrameChunkNull extends IdentifiedSector
             if (isEndFrame())
                 sb.append("[End]");
         }
-        sb.append(" chunk:");
-        sb.append(_iChunkNumber);
-        sb.append('/');
-        sb.append(_iChunksInThisFrame);
-        sb.append(" {demux=");
-        sb.append(_lngUsedDemuxSize);
-        sb.append('}');
+        sb.append(" chunk:").append(_iChunkNumber).append('/').append(_iChunksInThisFrame);
+        sb.append(" {demux=").append(_lngUsedDemuxSize).append('}');
         return sb.toString();
     }
 
@@ -150,16 +138,16 @@ public class SectorAliceFrameChunkNull extends IdentifiedSector
 
     public int getIdentifiedUserDataSize() {
         return super.getCDSector().getCdUserDataSize() -
-            FRAME_CHUNK_HEADER_SIZE;
+            ALICE_VIDEO_SECTOR_HEADER_SIZE;
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
         return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
-                FRAME_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
+                ALICE_VIDEO_SECTOR_HEADER_SIZE, getIdentifiedUserDataSize());
     }
 
     public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
-        super.getCDSector().getCdUserDataCopy(FRAME_CHUNK_HEADER_SIZE, abOut,
+        super.getCDSector().getCdUserDataCopy(ALICE_VIDEO_SECTOR_HEADER_SIZE, abOut,
                 iOutPos, getIdentifiedUserDataSize());
     }
     

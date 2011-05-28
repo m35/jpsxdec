@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -69,10 +69,11 @@ import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.sectors.UnidentifiedSector;
 import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
-import jpsxdec.util.ConsoleProgressListener;
+import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
@@ -85,7 +86,7 @@ public class Main {
 
     private static FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
 
-    public final static String Version = "0.95.1 (alpha)";
+    public final static String Version = "0.96.0 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial), v" + Version;
 
@@ -99,6 +100,7 @@ public class Main {
         }
     }
 
+    /** Main entry point to the jPSXdec program. */
     public static void main(String[] asArgs) {
 
         loadDefaultLogger();
@@ -179,6 +181,7 @@ public class Main {
                     System.exit(1);
                 } else {
 
+                    // TODO: let commands load what's needed via function calls
                     switch (mainCommand.getWhatsNeeded()) {
                         case Command.NEEDS_INFILE:
                             _INPUT_FILE = confirmFile(inputFileArg.value);
@@ -194,8 +197,8 @@ public class Main {
                 }
             }
         } catch (Throwable ex) {
-            Feedback.printErr("Error: ");
-            Feedback.printlnErr(ex);
+            Feedback.printlnErr("Error: " + ex.toString() + " (" + ex.getClass().getSimpleName() + ")");
+            log.log(Level.SEVERE, "Unhandled exception", ex);
             System.exit(1);
         }
         System.exit(0);
@@ -250,7 +253,7 @@ public class Main {
         Feedback.println("Building index");
         DiscIndex index = null;
         try {
-            index = new DiscIndex(cd, new ConsoleProgressListener("index", Feedback));
+            index = new DiscIndex(cd, new ConsoleProgressListenerLogger("index", Feedback));
         } catch (TaskCanceledException ex) {
             log.severe("SHOULD NEVER HAPPEN");
         }
@@ -371,6 +374,7 @@ public class Main {
 
     // -------------------------------------------------------------
 
+    // TODO: open and load these data when these functions are called
     private static CdFileSectorReader getCdReader() {
         return _INPUT_DISC;
     }
@@ -830,18 +834,22 @@ public class Main {
 
     private static void decodeDiscItem(DiscItem item, File dir, String[] asRemainingArgs) throws IOException {
 
-        DiscItemSaverBuilder saver = item.makeSaverBuilder();
+        DiscItemSaverBuilder builder = item.makeSaverBuilder();
 
         Feedback.println("Saving " + item.toString());
 
-        saver.commandLineOptions(asRemainingArgs, Feedback);
+        builder.commandLineOptions(asRemainingArgs, Feedback);
+
+        Feedback.println();
+        
+        IDiscItemSaver saver = builder.makeSaver();
 
         saver.printSelectedOptions(Feedback);
 
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();
         try {
-            saver.makeSaver().startSave(new ConsoleProgressListener("save", Feedback), dir);
+            saver.startSave(new ConsoleProgressListenerLogger("save", Feedback), dir);
         } catch (TaskCanceledException ex) {
             log.severe("SHOULD NEVER HAPPEN");
         }

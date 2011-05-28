@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,7 +43,6 @@ import argparser.ArgParser;
 import argparser.BooleanHolder;
 import argparser.IntHolder;
 import argparser.StringHolder;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -410,7 +409,10 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public boolean getParallelAudio_selected(int i) {
-        return _ablnParallelAudio[i];
+        if (getParallelAudio_enabled())
+            return _ablnParallelAudio[i];
+        else
+            return false;
     }
 
     public void setParallelAudio(DiscItemAudioStream parallelAudio, boolean blnSelected) {
@@ -450,7 +452,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public boolean getParallelAudio_enabled() {
-        return getSavingAudio();
+        return getVideoFormat().canSaveAudio();
     }
 
     public boolean hasAudio() {
@@ -458,6 +460,9 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public boolean getSavingAudio() {
+        if (!getVideoFormat().canSaveAudio())
+            return false;
+        
         for (boolean b : _ablnParallelAudio) {
             if (b)
                 return true;
@@ -694,42 +699,6 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         }
 
         return asRemain;
-    }
-
-    public void printSelectedOptions(PrintStream ps) {
-        ps.format("Disc speed: %s (%s fps)", getSingleSpeed() ? "1x" : "2x", DiscItemVideoStream.formatFps(getFps()));
-        ps.println();
-        ps.println("Video format: " + getVideoFormat());
-        if (getJpgCompression_enabled())
-            ps.println("JPG quality: " + Math.round(getJpgCompression()*100) + "%");
-        ps.println("Frames: " + getSaveStartFrame() + "-" + getSaveEndFrame());
-        if (getCrop_enabled())
-            ps.println("Cropping: " + (getCrop() ? "Yes" : "No"));
-        if (getPreciseFrameTiming_enabled())
-            ps.println("Precise FPS: " + (getPreciseFrameTiming() ? "Yes" : "No"));
-        if (getDecodeQuality_enabled())
-            ps.println("Decode quality: " + getDecodeQuality());
-        /*
-        if (getSaveAudio_enabled())
-            ps.println("Saving audio: " + (getSaveAudio() ? "Yes" : "No"));
-        */
-        if (getParallelAudio_enabled()) {
-            ps.println("With audio item(s):");
-            for (int i = 0; i < _ablnParallelAudio.length; i++) {
-                if (_ablnParallelAudio[i])
-                    ps.println(_parallelAudio.get(i));
-            }
-        }
-        if (getPreciseAVSync_enabled())
-            ps.println("Precise audio/video sync: " + (getPreciseAVSync() ? "Yes" : "No"));
-
-        String sStartFile = getVideoFormat().formatPostfix(_sourceVidItem, getStartFrame());
-        String sEndFile = getVideoFormat().formatPostfix(_sourceVidItem, getEndFrame());
-        if (sStartFile.equals(sEndFile)) {
-            ps.println("Saving as: " + getOutputBaseName() + sStartFile);
-        } else {
-            ps.println("Saving as: " + getOutputBaseName() + sStartFile + " - " + getOutputBaseName() + sEndFile);
-        }
     }
 
     public void printHelp(FeedbackStream fbs) {

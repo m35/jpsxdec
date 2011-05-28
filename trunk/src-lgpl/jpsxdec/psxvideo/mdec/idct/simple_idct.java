@@ -29,7 +29,7 @@ package jpsxdec.psxvideo.mdec.idct;
 
 /**
  based upon some outcommented c code from mpeg2dec (idct_mmx.c
- written by Aaron Holtzman <aholtzma@ess.engr.uvic.ca>)
+ written <a href="mailto:aholtzma@ess.engr.uvic.ca">by Aaron Holtzman</a> )
  */
 
 public final class simple_idct implements IDCT_int {

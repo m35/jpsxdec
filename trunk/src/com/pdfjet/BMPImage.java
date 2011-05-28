@@ -1,6 +1,6 @@
 /**
  * 
- *  Copyright (c) 2010 Jonas Krogsbøll
+ *  Copyright (c) 2010 Jonas Krogsbll
 
 All rights reserved.
 
@@ -104,7 +104,7 @@ public class BMPImage {
         image = new byte[w * h * 3];
 
         int rowsize = 4 * (int)Math.ceil(bpp*w/32.0);   // 4 byte alignment
-        // hiv hver række ud:
+        // hiv hver rkke ud:
         byte row[];
         int index;
         try {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -170,10 +170,10 @@ public class CdxaSubHeader {
     private final int _iConfidenceBalance;
 
 
-    private static boolean checkFile(int iFileNumber) {
+    private static boolean isFileValid(int iFileNumber) {
         return iFileNumber == 0 || iFileNumber == 1;
     }
-    private static boolean checkChannel(int iChannelNumber) {
+    private static boolean isChannelValid(int iChannelNumber) {
         return iChannelNumber >= 0 && iChannelNumber < 32;
     }
 
@@ -191,39 +191,39 @@ public class CdxaSubHeader {
 
         int iConfidenceBalance = 0;
 
-        boolean blnValid1 = checkFile(_iFileNum1);
+        boolean blnValid1 = isFileValid(_iFileNum1);
         if (_iFileNum1 == _iFileNum2) {
             _eFileIssue = blnValid1 ? IssueType.EQUAL_BOTH_GOOD :
                                       IssueType.EQUAL_BOTHBAD;
         } else {
-            _eFileIssue = IssueType.diffIssue(blnValid1, checkFile(_iFileNum2));
+            _eFileIssue = IssueType.diffIssue(blnValid1, isFileValid(_iFileNum2));
             iConfidenceBalance += _eFileIssue.Balance;
         }
 
-        blnValid1 = checkChannel(_iChannel1);
+        blnValid1 = isChannelValid(_iChannel1);
         if (_iChannel1 == _iChannel2) {
             _eChannelIssue = blnValid1 ? IssueType.EQUAL_BOTH_GOOD :
                                          IssueType.EQUAL_BOTHBAD;
         } else {
-            _eChannelIssue = IssueType.diffIssue(blnValid1, checkChannel(_iChannel2));
+            _eChannelIssue = IssueType.diffIssue(blnValid1, isChannelValid(_iChannel2));
             iConfidenceBalance += _eChannelIssue.Balance;
         }
 
-        blnValid1 = _submode1.check();
+        blnValid1 = _submode1.isValid();
         if (_submode1.toByte() == _submode2.toByte()) {
             _eSubModeIssue = blnValid1 ? IssueType.EQUAL_BOTH_GOOD :
                                          IssueType.EQUAL_BOTHBAD;
         } else {
-            _eSubModeIssue = IssueType.diffIssue(blnValid1, _submode2.check());
+            _eSubModeIssue = IssueType.diffIssue(blnValid1, _submode2.isValid());
             iConfidenceBalance += _eSubModeIssue.Balance;
         }
 
-        blnValid1 = _codingInfo1.check();
+        blnValid1 = _codingInfo1.isValid();
         if (_codingInfo1.toByte() == _codingInfo2.toByte()) {
             _eCodingInfoIssue = blnValid1 ? IssueType.EQUAL_BOTH_GOOD :
                                             IssueType.EQUAL_BOTHBAD;
         } else {
-            _eCodingInfoIssue = IssueType.diffIssue(blnValid1, _codingInfo2.check());
+            _eCodingInfoIssue = IssueType.diffIssue(blnValid1, _codingInfo2.isValid());
             iConfidenceBalance += _eChannelIssue.Balance;
         }
 
@@ -260,6 +260,11 @@ public class CdxaSubHeader {
         }
     }
 
+    public String toString() {
+        return String.format("File.Channel:%d.%d Submode:%s",
+                    getFileNumber(), getChannel(), getSubMode().toString());
+    }
+    
     //**************************************************************************
 
     public static class SubMode {
@@ -303,7 +308,7 @@ public class CdxaSubHeader {
 
         public int toByte() { return _iSubmode; }
 
-        public boolean check() {
+        public boolean isValid() {
             int iByte = (_iSubmode >> 1) & 7;
             int iCount = 0;
             for (int i=8; i > 0; i >>= 1) {
@@ -318,8 +323,8 @@ public class CdxaSubHeader {
          * Return 8 character string representing the 8 bit flags:
          *<pre>
          * M - EOF marker
-         * R - Read-time
-         * F - Form
+         * R - Real-time
+         * 2 - Form 1/2
          * T - Trigger
          * D - Data
          * A - Audio
@@ -352,20 +357,20 @@ public class CdxaSubHeader {
         private static final String[] CHAR_FLAGS_2 = {
             "----",
             "---T",
-            "--F-",
-            "--FT",
+            "--2-",
+            "--2T",
             "-R--",
             "-R-T",
-            "-RF-",
-            "-RFT",
+            "-R2-",
+            "-R2T",
             "M---",
             "M--T",
-            "M-F-",
-            "M-FT",
+            "M-2-",
+            "M-2T",
             "MR--",
             "MR-T",
-            "MRF-",
-            "MRFT",
+            "MR2-",
+            "MR2T",
         };
 
     }
@@ -402,20 +407,20 @@ public class CdxaSubHeader {
            return _iCodinginfo;
         }
 
-        public boolean check() {
+        public boolean isValid() {
             return (_iCodinginfo & 0x2a) == 0;
         }
 
         public String toString() {
-            return String.format("%s %d bits/sample %d samples/sec",
-                                 isStereo() ? "Stereo" : "Mono",
-                                 getBitsPerSample(), getSampleRate());
+            StringBuilder sb = new StringBuilder(isStereo() ? "Stereo" : "Mono");
+            sb.append((_iCodinginfo & 2) == 0 ? " " : "! ");
+            sb.append(getBitsPerSample()).append(" bits/sample");
+            sb.append((_iCodinginfo & 8) == 0 ? " " : "! ");
+            sb.append(getSampleRate()).append(" samples/sec");
+            if ((_iCodinginfo & 32) != 0) sb.append('!');
+            return sb.toString();
         }
     }
 
-    public String toString() {
-        return String.format("File.Channel:%d.%d Submode:%s",
-                    getFileNumber(), getChannel(), getSubMode().toString());
-    }
 }
     

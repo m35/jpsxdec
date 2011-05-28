@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,7 +53,8 @@ public class AudioSync {
 
     /**
      *
-     * @param fltSamplesPerSecond  A float because that's what {@link AudioFormat}
+     * @param fltSamplesPerSecond  A float because that's what
+     *                             {@link javax.sound.sampled.AudioFormat}
      *                             uses, but in the case of PSX audio writing,
      *                             it's assumed to be a whole number.
      */

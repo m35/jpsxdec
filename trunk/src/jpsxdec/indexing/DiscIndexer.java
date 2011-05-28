@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -91,7 +91,7 @@ public abstract class DiscIndexer {
      * @return  if the line successfully created a disc item. */
     abstract public DiscItem deserializeLineRead(DiscItemSerialization deserializedLine);
 
-    abstract public void staticRead(IndexingDemuxerIS is) throws IOException;
+    abstract public void staticRead(DemuxedUnidentifiedDataStream is) throws IOException;
 
     /** Called after the entire indexing process is complete. The DiscIndex
      * will not be changing any further, but indexers can tweak individual items

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -60,12 +60,12 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     /* ---------------------------------------------------------------------- */
 
     /** Sequence of bits indicating an escape code. */
-    protected final static String AC_ESCAPE_CODE = "000001";
+    public final static String AC_ESCAPE_CODE = "000001";
 
     /** Sequence of bits indicating the end of a block.
      * Unlike the MPEG1 specification, these bits can, and often do appear as
      * the first and only variable-length-code in a block. */
-    private final static String VLC_END_OF_BLOCK = "10"; // bits 10
+    public final static String VLC_END_OF_BLOCK = "10"; // bits 10
 
     /** The longest of all the AC variable-length-codes is 16 bits,
      *  not including the sign bit. */
@@ -77,7 +77,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
 
     /** Represents an AC variable length code. */
-    protected static class ACVariableLengthCode {
+    public static class ACVariableLengthCode {
         public String VariableLengthCode;
         public int RunOfZeros;
         public int AbsoluteLevel;
@@ -90,16 +90,10 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         }
     }
 
-    /** STR v2 varible-length codes. The order of these codes are important
+    /** STR v2 variable-length codes. The order of these codes are important
      * because the uncompressor needs similar codes to be indexed. */
-    private final static ACVariableLengthCode[] AC_VARIABLE_LENGTH_CODES_MPEG1 =
+    public final static ACVariableLengthCode[] AC_VARIABLE_LENGTH_CODES_MPEG1 =
     {
-    /*  new ACVariableLengthCode("1"                 , 0 , 1  ),
-          The MPEG1 specification declares that if the first
-          variable-length-code in a block is "1" that it should be translated
-          to the run-length-code (0, 1). The PSX variable-length-code
-          decoding does not follow this rule. */
-
                              //  Code               "Run" "Level"
 /*  0 */new ACVariableLengthCode("11"                , 0 , 1  ),
 
@@ -257,10 +251,15 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     protected MdecDebugger _debug;
 
     // current read state
-    protected int _iCurrentMacroBlock;
-    protected int _iCurrentBlock;
+    private int _iCurrentMacroBlock;
+    protected int getCurrentMacroBlock() { return _iCurrentMacroBlock; }
+    private int _iCurrentMacroBlockSubBlock;
+    protected int getCurrentMacroBlockSubBlock() { return _iCurrentMacroBlockSubBlock; }
+    private int _iCurrentBlock;
+    protected int getCurrentBlock() { return _iCurrentBlock; }
     protected boolean _blnStartOfBlock;
-    protected int _iCurrentBlockVectorPos;
+    protected boolean atStartOfBlock() { return _blnStartOfBlock; }
+    private int _iCurrentBlockVectorPos;
 
     public BitStreamUncompressor_STRv2() {
         _aoVarLenCodes = AC_VARIABLE_LENGTH_CODES_MPEG1;
@@ -275,14 +274,6 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
     public long getMagic3800() {
         return _iMagic3800;
-    }
-
-    public int getBlock() {
-        return _iCurrentBlock;
-    }
-
-    public int getMacroBlock() {
-        return _iCurrentMacroBlock;
     }
 
     @Override
@@ -303,7 +294,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     /* ---------------------------------------------------------------------- */
 
     @Override
-    public void reset(byte[] abDemuxData) throws NotThisTypeException {
+    final public void reset(byte[] abDemuxData) throws NotThisTypeException {
         reset(abDemuxData, 0);
     }
 
@@ -312,6 +303,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     {
         readHeader(abDemuxData, iStart, _bitReader);
         _iCurrentMacroBlock = 0;
+        _iCurrentMacroBlockSubBlock = 0;
         _iCurrentBlock = 0;
         _blnStartOfBlock = true;
         _iCurrentBlockVectorPos = 0;
@@ -354,9 +346,10 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             if (decode_AC_VariableLengthCode(code)) {
                 // end of block
                 _iCurrentBlock++;
-                if (_iCurrentBlock >= 6) {
+                _iCurrentMacroBlockSubBlock++;
+                if (_iCurrentMacroBlockSubBlock >= 6) {
                     _iCurrentMacroBlock++;
-                    _iCurrentBlock = 0;
+                    _iCurrentMacroBlockSubBlock = 0;
                 }
                 _blnStartOfBlock = true;
                 _iCurrentBlockVectorPos = 1;

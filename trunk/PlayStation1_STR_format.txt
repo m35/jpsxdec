@@ -1,15 +1,12 @@
 ﻿
                       The PlayStation 1 Video (STR) Format
-                               v0.58, March 2010
+                                v0.59, May 2011
                        http://code.google.com/p/jpsxdec/
                        http://kenai.com/projects/jpsxdec/
                          http://jpsxdec.blogspot.com/
 
 --------------------------------------------------------------------------------
-This document, copyright (c) 2008-2010 Michael Sabin, is licensed under a MIT License. Permission has been obtained
-(http://sourceforge.net/mailarchive/message.php?msg_name=474C4DEB.5080304%40multimedia.cx)
-to also include some source code comments from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this license is at the end of this file.
-Note that the related jPSXdec program is NOT licensed under the MIT license, but is under a non-commercial license.
+This document, copyright (c) 2008-2011 Michael Sabin, is licensed under a MIT License. Permission has been obtained to also include some source code comments from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this license is at the end of this file. Note that the related jPSXdec program is NOT licensed under the MIT license, but is under a non-commercial license.
 --------------------------------------------------------------------------------
 
 Change History
@@ -65,13 +62,19 @@ v0.58
     - ch 2.3.3, 2.3.4: The MDEC chip is partially programmable.
     - ch 2.3.6: It's called a "level shift". Fixed pseudocode equation.
     - Overall: A few tweaks and rewording. Fixed some data offsets.
+v0.59
+    - ch 2.2.1: Note about DC precision bits.
+    - ch 2.2.2: Added v3 has end of frame bits.
+    - ch 3.3: Note about FF9 curious codes.
+    - ch 3.7: Added .iki format.
+    - Overall: Some unknown fields identified
+               Luminance -> Luma, Crominance -> Chroma, Subcode -> Submode
+               Many minor tweaks and corrections
+
 
 Left to do:
 * Confirm FF Tactics format
 * Confirm Legend of Mana format
-* Figure out Chrono Cross final movie format
-* Figure out Sonic Wings Special movie format
-* Figure out Ace Combat 3 formats
 * Add more game formats as they are found...
 --------------------------------------------------------------------------------
 
@@ -103,6 +106,7 @@ Left to do:
 ##    3.4. Chrono Cross (and Legend of Mana?)
 ##    3.5. Serial Experiments Lain
 ##    3.6. Alice in Cyber Land
+##    3.7. .iki
 ## 4. Credits, Thanks, etc.
 ##
 
@@ -1478,7 +1482,8 @@ Offset
    20 +--             --+-----------------------------------------------------+
       |                 |  MDEC code count (2 bytes, little-endian)
       |                 |    Number of MDEC codes divided by 2, and rounded up
-      |                 |    to a multiple of 32 (if not already a multiple of 32)
+      |                 |    to a multiple of 32 (if not already a multiple
+      |                 |    of 32)
    22 +--             --+-----------------------------------------------------+
       |                 |  Always 0x3800 (2 bytes, little-endian)
    24 +--             --+-----------------------------------------------------+
@@ -1778,6 +1783,115 @@ All movies use one or more of the following frame rates:
     7.5 fps, 10 fps, 15 fps, 30 fps
 
 ################################################################################
+## 3.7. Ace Combat 3 Electrosphere
+################################################################################
+
+:: Ace Combat 3 Sector Header ::
+
+Offset   Size   Endian --------------------------------------------------------
+  0 . . . 1 . .  n/a . . Always 1
+  1 . . . 1 . .  n/a . . Multiplexed chunk number of this video frame
+                           0 to (Number of multiplexed chunks) - 1
+  2 . . . 2 . . little . Number of multiplexed chunks in this frame
+  4 . . . 2 . . . ?? . . Unknown
+  6 . . . 2 . . little . Inverted frame number: Starts at last frame
+  8 . . . 2 . . little . Frame width in pixels
+ 10 . . . 2 . . little . Frame height in pixels
+ 12 . .  14 . .  n/a . . All zeros
+ 24 . . . 8 . . . ?? . . Unknown
+ 32 ---------------------------------------------------------------------------
+
+################################################################################
+## 3.7. .iki
+################################################################################
+
+The .iki video format (found in files with .iki or .ik2 extension) is used in at least two games made by Sony: "Legend of Dragoon" and "UmJammer Lammy". Unlike other video variations, it takes full advantage of the capabilities of the MDEC chip by letting each block have its own quantization scale (as opposed to having one quantization scale for the entire frame).
+
+iki movie sectors have some different properties:
+    * There are only as many iki video sectors as needed to hold all the frame's data. Remaining sectors are null. 
+    * The first sector's Submode.Channel starts at zero, then increments for each sector after that, and resets to zero after an audio sector.
+    * ik2 videos can also have variable frame rates that are very inconsistent. 
+
+:: iki Sector Header ::
+
+Offset   Size   Endian --------------------------------------------------------
+  0 . . . 4 . . little . Always 0x80010160
+  4 . . . 2 . . little . Multiplexed chunk number of this video frame
+                           0 to (Number of multiplexed chunks) - 1
+  6 . . . 2 . . little . Number of multiplexed chunks in this frame
+  8 . . . 4 . . little . Frame number: Starts at 1
+ 12 . . . 4 . . little . Bytes of data used in demuxed frame, rounded up to a
+                           multiple of 4 (if not already a multiple of 4)
+ 16 . . . 2 . . little . Width of frame in pixels
+ 18 . . . 2 . . little . Height of frame in pixels
+ 20 . . . 2 . . little . Number of MDEC codes in the frame
+ 22 . . . 2 . . little . Always 0x3800
+ 24 . . . 2 . . little . Width of frame in pixels (again)
+ 26 . . . 2 . . little . Height of frame in pixels (again)
+ 28 . . . 4 . . little . Always 0x00000000
+ 32 ---------------------------------------------------------------------------
+
+
+:: iki Frame Data Header ::
+
+Offset   Size   Endian ---------------------------------------------------
+  0 . . . 2 . . little . Number of run length codes in the frame
+  2 . . . 2 . . little . Always 0x3800
+  4 . . . 2 . . little . Width of frame in pixels
+  6 . . . 2 . . little . Height of frame in pixels
+  8 . . . 2 . . little . Size of compressed initial block codes (n)
+ 10 . . . n . .  n/a . . Compressed initial block codes
+ 10+n  . . . . . . . . . Compressed macro blocks
+                           Stream of 2 byte little-endian values
+                           Number of macro blocks =
+                             (width+15)/16 * (height+15)/16
+ -------------------------------------------------------------------------
+
+A list of the quantization scale and DC coefficient for every block is found in the frame header instead of being part of the bitstream. This list of values is compressed using yet another variation of LZS compression (different from Lain or FF7).
+
+Because the list of values contains an MDEC code for each block, it's easy to calculate how big the uncompressed data will be: the number of macro blocks in the frame, multiplied by the number of blocks in a macro block (6), multiplied by the size of an MDEC code (2).
+
+    UncompressedSize = [ (width+15)/16 * (height+15)/16 ] * 6 * 2
+    
+
+ -- Pseudocode to uncompress iki LZS compressed initial block codes ------------
+    While OutputStream.BytesWritten() < UncompressedSize
+        Flags = InputStream.ReadByte()
+        Mask = 1
+        Do 8 Times
+            If (Flags & Mask) == 0
+                OutputStream.WriteByte( InputStream.ReadByte() )
+            Else
+                CopySize = InputStream.ReadUnsignedByte() + 3
+                CopyOffset = InputStream.ReadUnsignedByte()
+                If (CopyOffset & 0x80) != 0
+                    CopyOffset = ((CopyOffset & 0x7f) << 8) |
+                                 InputStream.ReadUnsignedByte()
+                End If
+                CopyOffset = CopyOffset + 1
+                
+                Do CopySize Times
+                    OutputStream.WriteByte( 
+                        OutputStream.ReadByteBeforeCurrentPos( CopyOffset ) )
+                Loop
+            End If
+            If OutputStream.BytesWritten() >= UncompressedSize
+                Finish
+            End If
+            Mask = Mask << 1
+        Loop
+    End While
+ ------------------------------------------------------------------------------
+
+The first-half of the uncompressed data contains the most significant byte, and the second-half of the data contains the least significant byte of each block's initial MDEC code. The data is clearly arranged this way to maximize compression.
+
+The bitstream is identical to the standard v2 bitstream, except at the start of each block. When reading the DC coefficient, instead of reading bits from the stream (as in ch 2.2.2), take the value from the uncompressed data:
+
+    Block Quantization Scale and DC Coefficient MDEC code =
+        (UncompressedData[CurrentBlock] << 8) |
+        UncompressedData[CurrentBlock + UncompressedDataSize / 2]
+
+################################################################################
 ## 4. Thanks, credits, etc.
 ################################################################################
 
@@ -1785,7 +1899,7 @@ Mike Melanson and Stuart Caie for adding STR decoding support to xine, including
 
 The q-gears development team and forum memebers for thier source code and documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/branches/old_sources/src/common/movie/decoders/).
 
-"Everything You Have Always Wanted to Know about the PlayStation But Were Afraid to Ask." compiled / edited by Joshua Walker. Perhaps the most valuable reference for any kind of PSX hacking, especially the PSX assembly instruction set (note that it has CrCb reversal error mentioned in ch 2.2).
+"Everything You Have Always Wanted to Know about the PlayStation But Were Afraid to Ask." compiled / edited by Joshua Walker. Perhaps the most valuable reference for any kind of PSX hacking, especially the PSX assembly instruction set (note that it has the Cr/Cb reversal error mentioned in ch 2.2).
 
 smf, developer for MAME, for figuring out that everyone was getting the order of Cr/Cb wrong (http://smf.mameworld.info/?p=12).
 
@@ -1801,6 +1915,8 @@ Developers of the pSX emulator. While not open source, at least it is still unde
 
 cclh12 at romhacking.net for generously providing some actual PlayStation 1 hardware RAM dumps.
 
+Mezmorize at GameHacking.org (formally GSHI) forums for helping me get my own hardware RAM dumps working.
+
 "Fyiro", the Japanese fellow that wrote the source code for the PsxMC FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
 
 T_chan for sharing a bit of his knowledge about the FF9 format (http://www.network54.com/Forum/119865/thread/1196268797).
@@ -1811,7 +1927,7 @@ The most excellent folks at IRCNet #lain :D
 Finally, a very special thanks to all the PlayStation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs are real men of genius.
 
 --------------------------------------------------------------------------------
-Copyright (c) 2008-2009 Michael Sabin
+Copyright (c) 2008-2011 Michael Sabin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this file (the "Document"), to deal in the Document without restriction,

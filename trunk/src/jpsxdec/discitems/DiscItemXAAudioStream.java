@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,7 @@
 
 package jpsxdec.discitems;
 
-import jpsxdec.sectors.SectorXA;
+import jpsxdec.sectors.SectorXAAudio;
 import jpsxdec.audio.XAADPCMDecoder;
 import javax.sound.sampled.AudioFormat;
 import java.io.IOException;
@@ -119,7 +119,7 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         if (_iSectorStride < 1) {
             _iDiscSpeed = -1;
         } else {
-            _iDiscSpeed = SectorXA.calculateDiscSpeed(_iSamplesPerSecond, _blnIsStereo, _iSectorStride);
+            _iDiscSpeed = SectorXAAudio.calculateDiscSpeed(_iSamplesPerSecond, _blnIsStereo, _iSectorStride);
             if (_iDiscSpeed < 1)
                 throw new RuntimeException("Disc speed calc doesn't add up.");
         }
@@ -243,12 +243,12 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
             if (sector.getSectorNumber() < getStartSector() ||
                 sector.getSectorNumber() > getEndSector() ||
                 sector.getChannel() != getChannel() ||
-                !(sector instanceof SectorXA))
+                !(sector instanceof SectorXAAudio))
             {
                 return;
             }
 
-            SectorXA xaSector = (SectorXA) sector;
+            SectorXAAudio xaSector = (SectorXAAudio) sector;
             if (xaSector.isStereo() != isStereo() ||
                 xaSector.getBitsPerSample() != getADPCMBitsPerSample())
             {
@@ -291,9 +291,13 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         public int getPresentationStartSector() {
             return DiscItemXAAudioStream.this.getPresentationStartSector();
         }
+
+        public DiscItemAudioStream[] getSourceItems() {
+            return new DiscItemAudioStream[] {DiscItemXAAudioStream.this};
+        }
     }
 
-    public boolean isPartOfStream(SectorXA xaSector) {
+    public boolean isPartOfStream(SectorXAAudio xaSector) {
         return xaSector.getBitsPerSample() == _iBitsPerSample &&
                xaSector.getChannel() == _iChannel &&
                xaSector.getBitsPerSample() == _iBitsPerSample;

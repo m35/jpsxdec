@@ -28,7 +28,7 @@ order of CrCb wrong (http://smf.mameworld.info/?p=12).
 
 Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error,
 verifying that jPSXdec is doing things right, and for
-pointing out that the quantization table is uploaded to the MDEC 
+pointing how the quantization table is uploaded to the MDEC.
 
 Andrew Z for pursuing high quality ADPCM decoding, and verifying jPSXdec
 is doing an impeccable job.
@@ -79,6 +79,9 @@ Stephen Manley for generously sharing his DCT.java class (http://www.nyx.net/~sm
 Bernhard Huber for his very nice javadoc-templates
 (http://members.aon.at/bhuber14/
 http://plugins.netbeans.org/PluginPortal/faces/PluginDetailPage.jsp?pluginid=1168)
+
+Morten Nobel-Joergensen for the Java Image Scaling Library
+(http://code.google.com/p/java-image-scaling/).
 
 Doug Lea for sharing his Fraction.java class.
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -155,7 +155,7 @@ public class DiscIndexerISO9660 extends DiscIndexer {
     }
 
     @Override
-    public void staticRead(IndexingDemuxerIS indexingIS) throws IOException {
+    public void staticRead(DemuxedUnidentifiedDataStream indexingIS) throws IOException {
         // this doesn't create static items
     }
 

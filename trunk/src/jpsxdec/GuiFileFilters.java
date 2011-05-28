@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -64,6 +64,7 @@ public class GuiFileFilters {
                        s.endsWith(".img") ||
                        s.endsWith(".str") ||
                        s.endsWith(".mov") ||
+                       s.endsWith(".iki") ||
                        s.endsWith(".xa") ||
                        s.endsWith(".xai");
             }
@@ -79,12 +80,13 @@ public class GuiFileFilters {
             }
         },
         new FileFilter() {
-            public String getDescription() { return "PlayStation video (*.str, *.mov)"; }
+            public String getDescription() { return "PlayStation video (*.str, *.mov, *.iki)"; }
             public boolean accept(File f) {
                 String s = f.getName().toLowerCase();
                 return f.isDirectory() ||
                        s.endsWith(".str") ||
-                       s.endsWith(".mov");
+                       s.endsWith(".mov") ||
+                       s.endsWith(".iki");
             }
         },
         new FileFilter() {

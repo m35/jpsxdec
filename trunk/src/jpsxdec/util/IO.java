@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,7 +45,6 @@ public final class IO {
     /** When you want an input stream to have getFilePointer(). */
     public static class InputStreamWithFP 
             extends InputStream 
-            implements IGetFilePointer 
     {
 
         private InputStream is;
@@ -146,18 +145,18 @@ public final class IO {
         return (b2 << 8) | b1;
     }
     
-    public static void writeInt16LE(OutputStream os, long lng)
+    public static void writeInt16LE(OutputStream os, int i)
             throws IOException 
     {
-        os.write((int)(lng & 0xFF));
-        os.write((int)((lng >>> 8) & 0xFF));
+        os.write(i & 0xFF);
+        os.write((i >>> 8) & 0xFF);
     }
 
-    public static void writeInt16LE(RandomAccessFile raf, int lng)
+    public static void writeInt16LE(RandomAccessFile raf, short si)
             throws IOException 
     {
-        raf.write((int)(lng & 0xFF));
-        raf.write((int)((lng >>> 8) & 0xFF));
+        raf.write((int)(si & 0xFF));
+        raf.write((int)((si >>> 8) & 0xFF));
     }
 
     public static void writeInt16LE(byte[] ab, int pos, short si) {
@@ -192,16 +191,24 @@ public final class IO {
         os.write((int)((lng >>> 24) & 0xFF));
     }
 
+    public static void writeInt32BE(OutputStream os, int i)
+            throws IOException
+    {
+        os.write((int)((i >>> 24) & 0xFF));
+        os.write((int)((i >>> 16) & 0xFF));
+        os.write((int)((i >>>  8) & 0xFF));
+        os.write((int)( i         & 0xFF));
+    }
+
     public static void writeInt32LE(byte[] ab, int pos, long lng) {
         ab[pos  ] = (byte)( lng         & 0xFF);
         ab[pos+1] = (byte)((lng >>>  8) & 0xFF);
         ab[pos+2] = (byte)((lng >>> 16) & 0xFF);
         ab[pos+3] = (byte)((lng >>> 24) & 0xFF);
     }
-    
+
     /** Reads little-endian 32 bits from a RandomAccessFile.
-     *  Throws EOFException if at end of stream. 
-     *  Throws IOException if 0xFFFFFFFF is read, causing an overflow to -1. */
+     *  Throws EOFException if at end of stream. */
     public static long readUInt32LE(RandomAccessFile raf) throws IOException {
         int b1 = raf.readUnsignedByte();
         if (b1 < 0)
@@ -212,29 +219,24 @@ public final class IO {
         int b3 = raf.readUnsignedByte();
         if (b3 < 0)
             throw new EOFException("Unexpected end of file in readUInt32LE");
-        int b4 = raf.readUnsignedByte();
+        long b4 = raf.readUnsignedByte();
         if (b4 < 0)
             throw new EOFException("Unexpected end of file in readUInt32LE");
-        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-        if (total == -1) throw 
-               new IOException("Reading of unsigned 32 bits 0xFFFFFFFF -> -1");
-        return total;
+        return (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
     }
     
     public static long readUInt32LE(byte[] ab, int i) {
         int b1 = ab[i] & 0xFF;
         int b2 = ab[i+1] & 0xFF;
         int b3 = ab[i+2] & 0xFF;
-        int b4 = ab[i+3] & 0xFF;
+        long b4 = ab[i+3] & 0xFF;
         long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
         return total;
     }
     
     /** Function to read little-endian 32 bits from an InputStream.
-     *  Throws EOFException if at end of stream. 
-     *  Note that if 0xFFFFFFFF is read, it will overflow to -1. */
+     *  Throws EOFException if at end of stream. */
     public static long readUInt32LE(InputStream is) throws IOException {
-        // Note that if 0xFFFFFFFF, it will overflow to -1
         int b1 = is.read();
         if (b1 < 0)
             throw new EOFException("Unexpected end of file in readUInt32LE");
@@ -244,7 +246,7 @@ public final class IO {
         int b3 = is.read();
         if (b3 < 0)
             throw new EOFException("Unexpected end of file in readUInt32LE");
-        int b4 = is.read();
+        long b4 = is.read();
         if (b4 < 0)
             throw new EOFException("Unexpected end of file in readUInt32LE");
         long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
@@ -252,7 +254,6 @@ public final class IO {
     }
     
     public static int readSInt32LE(InputStream is) throws IOException {
-        // Note that if 0xFFFFFFFF, it will overflow to -1
         int b1 = is.read();
         if (b1 < 0)
             throw new EOFException("Unexpected end of file in readUInt32LE");
@@ -344,6 +345,14 @@ public final class IO {
         }
     }
 
+    public static int[] readBEIntArray(InputStream is, int iInts) throws IOException {
+        int[] ai = new int[iInts];
+        for (int i = 0; i < ai.length; i++) {
+            ai[i] = readSInt32BE(is);
+        }
+        return ai;
+    }
+
     public static void skip(InputStream is, long lngTotal) throws IOException {
         while (lngTotal > 0) {
             long lngCount = is.skip(lngTotal);
@@ -362,16 +371,32 @@ public final class IO {
         }
     }
 
-    public static void writeFile(String s, byte[] ab) throws IOException {
-        FileOutputStream fos = new FileOutputStream(s);
-        fos.write(ab);
-        fos.close();
+    public static void writeFile(String sFile, byte[] ab) throws IOException {
+        writeFile(new File(sFile), ab);
     }
     
-    public static void writeFile(File file, byte[] abData) throws IOException {
+    public static void writeFile(File file, byte[] ab) throws IOException {
         FileOutputStream fos = new FileOutputStream(file);
-        fos.write(abData);
-        fos.close();
+        try {
+            fos.write(ab);
+        } finally {
+            fos.close();
+        }
+    }
+
+    public static void writeFileBE(String sFile, int[] ai) throws IOException {
+        writeFileBE(new File(sFile), ai);
+    }
+
+    public static void writeFileBE(File file, int[] ai) throws IOException {
+        FileOutputStream fos = new FileOutputStream(file);
+        try {
+            for (int i : ai) {
+                writeInt32BE(fos, i);
+            }
+        } finally {
+            fos.close();
+        }
     }
     
     public static void writeIStoFile(InputStream is, String sFile) throws IOException {
@@ -390,19 +415,40 @@ public final class IO {
     }
     
     public static byte[] readFile(String sFile) throws IOException {
-        RandomAccessFile raf = new RandomAccessFile(sFile, "r");
-        byte[] ab = readByteArray(raf, (int)raf.length());
-        raf.close();
-        return ab;
+        return readFile(new File(sFile));
     }
     
     public static byte[] readFile(File file) throws IOException {
+        // using RandomAccessFile for easy access to file size
         RandomAccessFile raf = new RandomAccessFile(file, "r");
-        byte[] ab = readByteArray(raf, (int)raf.length());
-        raf.close();
-        return ab;
+        try {
+            if (raf.length() > Integer.MAX_VALUE)
+                throw new UnsupportedOperationException("Unable to read file larger than max array size.");
+            return readByteArray(raf, (int)raf.length());
+        } finally {
+            raf.close();
+        }
     }
 
+    public static int[] readFileBE(String sFile) throws IOException {
+        return readFileBE(new File(sFile));
+    }
+
+    public static int[] readFileBE(File file) throws IOException {
+        RandomAccessFile raf = new RandomAccessFile(file, "r");
+        try {
+            long lngLength = (raf.length() + 3) / 4;
+            if (lngLength > Integer.MAX_VALUE || lngLength < 0)
+                throw new UnsupportedOperationException("Unable to read file larger than max array size.");
+            int[] ai = new int[(int)lngLength];
+            for (int i = 0; i < ai.length; i++) {
+                ai[i] = raf.readInt();
+            }
+            return ai;
+        } finally {
+            raf.close();
+        }
+    }
     public static byte[] readEntireStream(InputStream is) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         writeIStoOS(is, baos);

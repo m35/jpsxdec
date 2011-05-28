@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,12 +35,60 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.util;
+package jpsxdec.discitems;
 
-/** Interface to provide getFilePointer() function to classes beyond
- *  just RandomAccessFile. I want debug information to print the
- *  position in the file where data is coming from. So the file
- *  pointer has to be passed along with every input stream. */
-public interface IGetFilePointer {
-    public long getFilePointer();
+import java.io.IOException;
+import java.io.InputStream;
+import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdSector;
+
+/** Demuxes a series of UnidentifiedSectorUnknownData into a solid stream.
+ *  Sectors are pulled from an iterator as they are needed. */
+public class DemuxedSectorInputStream extends InputStream
+{
+
+    private final CdFileSectorReader _cd;
+    private int _iSector;
+    private int _iOffset;
+
+    private CdSector _currentSector;
+    
+
+    public DemuxedSectorInputStream(CdFileSectorReader cd, int iSector, int iOffset)
+            throws IOException
+    {
+        _cd = cd;
+        _iSector = iSector;
+        _iOffset = iOffset;
+        _currentSector = _cd.getSector(iSector);
+    }
+
+    @Override // [InputStream]
+    public int read() throws IOException {
+        if (_iOffset >= _currentSector.getCdUserDataSize()) {
+            if (_iSector + 1 >= _cd.getLength())
+                return -1;
+            else {
+                _iSector++;
+                _currentSector = _cd.getSector(_iSector);
+                _iOffset = 0;
+            }
+        }
+        int iByte = _currentSector.readUserDataByte(_iOffset) & 0xff;
+        _iOffset++;
+        return iByte;
+    }
+
+    public CdFileSectorReader getSourceCd() {
+        return _cd;
+    }
+
+    public long getFilePointer() {
+        return _currentSector.getFilePointer() + _iOffset;
+    }
+
+    public int getSectorNumber() {
+        return _iSector;
+    }
+
 }

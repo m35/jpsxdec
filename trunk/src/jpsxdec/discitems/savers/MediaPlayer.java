@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -76,7 +76,7 @@ public class MediaPlayer implements IAudioVideoReader {
 
     private final MdecDecoder_int _decoder;
     private final DiscItemVideoStream _vid;
-    private final int _iSectorsPerSecond = 150;
+    private final int _iSectorsPerSecond;
     private final int[] _aiFrameIndexes;
     private BitStreamUncompressor _uncompressor;
     private FrameDemuxer _demuxer;
@@ -94,6 +94,12 @@ public class MediaPlayer implements IAudioVideoReader {
         _cdReader = vid.getSourceCD();
         _iSector = _iMovieStartSector = iSectorStart;
         _iMovieEndSector = iSectorEnd;
+        if (vid.getDiscSpeed() == 1) {
+            _iSectorsPerSecond = 75;
+        } else {
+            // if disc speed is unknown, assume 2x
+            _iSectorsPerSecond = 150;
+        }
 
         _vid = vid;
         _decoder = new MdecDecoder_int(new simple_idct(),
@@ -115,6 +121,12 @@ public class MediaPlayer implements IAudioVideoReader {
         _cdReader = aud.getSourceCD();
         _iSector = _iMovieStartSector = aud.getStartSector();
         _iMovieEndSector = aud.getEndSector();
+        if (aud.getDiscSpeed() == 1) {
+            _iSectorsPerSecond = 75;
+        } else {
+            // if disc speed is unknown, assume 2x
+            _iSectorsPerSecond = 150;
+        }
 
         _audioDecoder = aud.makeDecoder(1.0);
 
@@ -129,6 +141,8 @@ public class MediaPlayer implements IAudioVideoReader {
     public MediaPlayer(DiscItemVideoStream vid, ISectorAudioDecoder audio, int iSectorStart, int iSectorEnd) throws UnsupportedAudioFileException, IOException {
         // do the video init
         this(vid, iSectorStart, iSectorEnd);
+
+        // TODO: try to use the audio disc speed because it's more reliable
 
         // manually init the audio
         _audioDecoder = audio;
@@ -174,7 +188,7 @@ public class MediaPlayer implements IAudioVideoReader {
         if (_audioDecoder != null)
             _audioDecoder.reset();
         _iSector = _iMovieStartSector + (int)(lngTime * _iSectorsPerSecond / 1000);
-        throw new RuntimeException();
+        throw new UnsupportedOperationException();
         // TODO: either backup or move forward to the beginning of a frame (if there is video)
     }
 
@@ -299,7 +313,7 @@ public class MediaPlayer implements IAudioVideoReader {
                 System.err.println(ex.getMessage());
             }
 
-            _decoder.readDecodedRgb(getVideoWidth(), getVideoHeight(), drawHere, 0, getVideoWidth());
+            _decoder.readDecodedRgb(getVideoWidth(), getVideoHeight(), drawHere);
         }
 
         @Override

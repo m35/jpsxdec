@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,17 +43,17 @@ public class Maths {
     
     /** A faster but LESS ACCURATE implementation of the Math.round() function.
      * This introduces a bit more floating-point error by the +/- 0.5. */
-    final public static long round(double dbl) {
+    public static long round(double dbl) {
         return dbl > 0 ? (long)(dbl + 0.5) : (long)(dbl - 0.5);
     }
     /** A faster but LESS ACCURATE implementation of the Math.round() function.
      * This introduces a bit more floating-point error by the +/- 0.5. */
-    final public static int iround(double dbl) {
+    public static int iround(double dbl) {
         return dbl > 0 ? (int)(dbl + 0.5) : (int)(dbl - 0.5);
     }
     /** A faster but LESS ACCURATE implementation of the Math.round() function.
      * This introduces a bit more floating-point error by the +/- 0.5. */
-    final public static int round(float flt) {
+    public static int round(float flt) {
         return flt > 0 ? (int)(flt + 0.5) : (int)(flt - 0.5);
     }
 
@@ -77,7 +77,7 @@ public class Maths {
 
     }
 
-    public final static long shrRound(long val, int shr) {
+    public static long shrRound(long val, int shr) {
         if (shr == 0 || val == 0)
             return val;
         long i = (val >> (shr - 1)) & 1;

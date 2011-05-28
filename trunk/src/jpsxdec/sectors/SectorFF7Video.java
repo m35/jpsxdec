@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,14 +37,12 @@
 
 package jpsxdec.sectors;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** This is the header for FF7 (v1) video sectors. */
@@ -54,18 +52,19 @@ public class SectorFF7Video extends SectorAbstractVideo {
 
     public static final int FRAME_SECTOR_HEADER_SIZE = 32;
     
-    // .. Additional fields ...............................................
-
     // Magic 0x80010160                 //  0    [4 bytes]
-    // ChunkNumber                      //  4    [2 bytes]
-    // ChunksInThisFrame                //  6    [2 bytes]
-    // FrameNumber                      //  8    [4 bytes]
-    // UsedDemuxedSize                  //  12   [4 bytes]
-    // Width                            //  16   [2 bytes]
-    // Height                           //  18   [2 bytes]
+    private int  _iChunkNumber;         //  4    [2 bytes]
+    private int  _iChunksInThisFrame;   //  6    [2 bytes]
+    private int  _iFrameNumber;         //  8    [4 bytes]
+    private long _lngUsedDemuxedSize;   //  12   [4 bytes]
+    private int  _iWidth;               //  16   [2 bytes]
+    private int  _iHeight;              //  18   [2 bytes]
     private long _lngUnknown8bytes;     //  20   [8 bytes]
     // FourZeros                        //  28   [4 bytes]
     //   32 TOTAL
+    // First chunk may have 40 bytes of camera data
+
+    public int getSectorHeaderSize() { return _iUserDataStart; }
 
     private int _iUserDataStart;
     
@@ -75,90 +74,66 @@ public class SectorFF7Video extends SectorAbstractVideo {
     private static final int SUB_MODE_MASK = 
             (SubMode.MASK_FORM | SubMode.MASK_TRIGGER | SubMode.MASK_AUDIO);
 
-    public SectorFF7Video(CdSector cdSector) throws NotThisTypeException {
+    public SectorFF7Video(CdSector cdSector) {
         super(cdSector);
+        if (isSuperInvalidElseReset()) return;
 
-        if (cdSector.hasRawSectorHeader()) {
-            SubMode sm = cdSector.getSubMode();
-            if ((sm.toByte() & SUB_MODE_MASK) != 0)
-            {
-                throw new NotThisTypeException();
-            }
-
+        // at least 1 movie doesn't have audio, video, or data flags set
+        if (cdSector.hasRawSectorHeader() && cdSector.subModeMask(SUB_MODE_MASK) != 0) {
+            return;
         }
-        try {
 
-            ByteArrayInputStream inStream = cdSector.getCdUserDataStream();
+        long lngMagic = cdSector.readUInt32LE(0);
+        if (lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
+        _iChunkNumber = cdSector.readSInt16LE(4);
+        if (_iChunkNumber < 0) return;
+        _iChunksInThisFrame = cdSector.readSInt16LE(6);
+        if (_iChunksInThisFrame < 6 || _iChunksInThisFrame > 10) return;
+        _iFrameNumber = cdSector.readSInt32LE(8);
+        if (_iFrameNumber < 0) return;
+        _lngUsedDemuxedSize = cdSector.readSInt32LE(12);
+        if (_lngUsedDemuxedSize < 2500 || _lngUsedDemuxedSize > 21000) return;
+        _iWidth = cdSector.readSInt16LE(16);
+        if (_iWidth != 320 && _iWidth != 640) return;
+        _iHeight = cdSector.readSInt16LE(18);
+        if (_iHeight != 224 && _iHeight != 192 && _iHeight != 240) return;
+        _lngUnknown8bytes = cdSector.readSInt64BE(20);
 
-            long lngMagic = IO.readUInt32LE(inStream);
-            if (lngMagic != SectorSTR.VIDEO_CHUNK_MAGIC)
-                throw new NotThisTypeException();
+        
+        if (_iHeight == 240) {
+            // this block is unfortunately necessary to prevent false-positives with Lain sectors
 
-            _iChunkNumber = IO.readSInt16LE(inStream);
-            if (_iChunkNumber < 0)
-                throw new NotThisTypeException();
-            _iChunksInThisFrame = IO.readSInt16LE(inStream);
-            if (_iChunksInThisFrame < 1)
-                throw new NotThisTypeException();
-            _iFrameNumber = IO.readSInt32LE(inStream);
-            if (_iFrameNumber < 0)
-                throw new NotThisTypeException();
+            // if movie height is 240, then the unknown data must all be 0
+            if (_lngUnknown8bytes != 0) return;
 
-            _lngUsedDemuxedSize = IO.readSInt32LE(inStream);
-            if (_lngUsedDemuxedSize < 2000)
-                throw new NotThisTypeException();
+            // and there can only be 10 chunks for frames that are really high
+            if (_iChunksInThisFrame == 10 && _iFrameNumber < 900) return;
+        }
 
-            _iWidth = IO.readSInt16LE(inStream);
-            if (_iWidth != 320 && _iWidth != 640)
-                throw new NotThisTypeException();
-            _iHeight = IO.readSInt16LE(inStream);
-            if (_iHeight != 224 && _iHeight != 192 && _iHeight != 240)
-                throw new NotThisTypeException();
+        long lngFourZeros = cdSector.readUInt32LE(28);
+        if (lngFourZeros != 0) return;
 
-            _lngUnknown8bytes = IO.readSInt64BE(inStream);
-
-            if (_iHeight == 240) {
-                // this block is unfortunately necessary to prevent false-positives with Lain sectors
-                // An alternative might be to put Lain detection first
-
-                // if movie height is 240, then the unknown data must all be 0
-                if (_lngUnknown8bytes != 0)
-                    throw new NotThisTypeException();
-
-                // and there can only be 10 chunks for frames that are really high
-                if (_iChunksInThisFrame == 10 && _iFrameNumber < 900)
-                    throw new NotThisTypeException();
-            }
-
-
-            long lngFourZeros = IO.readUInt32LE(inStream);
-            if (lngFourZeros != 0)
-                throw new NotThisTypeException();
-
-            if (_iChunkNumber == 0) {
-                inStream.skip(2);
-                if (IO.readUInt16LE(inStream) != 0x3800) {
-                    IO.skip(inStream, 40 - 4 + 2);
-                    if (IO.readUInt16LE(inStream) != 0x3800)
-                        throw new NotThisTypeException();
-                    _iUserDataStart = FRAME_SECTOR_HEADER_SIZE + 40;
-                } else {
-                    _iUserDataStart = FRAME_SECTOR_HEADER_SIZE;
-                }
+        if (_iChunkNumber == 0) {
+            if (cdSector.readUInt16LE(32+2) != 0x3800) {
+                if (cdSector.readUInt16LE(32+40+2) != 0x3800)
+                    return;
+                _iUserDataStart = FRAME_SECTOR_HEADER_SIZE + 40;
             } else {
                 _iUserDataStart = FRAME_SECTOR_HEADER_SIZE;
             }
-        } catch (IOException ex) {
-            throw new NotThisTypeException();
+        } else {
+            _iUserDataStart = FRAME_SECTOR_HEADER_SIZE;
         }
 
+        // still could be Lain or some other types of video sectors
+        setProbability(85);
     }
 
     // .. Public functions .................................................
 
     public String toString() {
 
-        String sRet = String.format("%s %s frame:%d chunk:%d/%d %dx%d {unknown=%016x}",
+        String sRet = String.format("%s %s frame:%d chunk:%d/%d %dx%d {used demux=%d unknown=%016x}",
             getTypeName(),
             super.cdToString(),
             _iFrameNumber,
@@ -166,6 +141,7 @@ public class SectorFF7Video extends SectorAbstractVideo {
             _iChunksInThisFrame,
             _iWidth,
             _iHeight,
+            _lngUsedDemuxedSize,
             _lngUnknown8bytes
             );
 
@@ -210,11 +186,29 @@ public class SectorFF7Video extends SectorAbstractVideo {
         return iBytesToCopy;
     }
 
-    @Override
-    public int getSectorHeaderSize() {
-        return _iUserDataStart;
+    public int getChunkNumber() {
+        return _iChunkNumber;
     }
 
+    public int getChunksInFrame() {
+        return _iChunksInThisFrame;
+    }
+
+    public int getFrameNumber() {
+        return _iFrameNumber;
+    }
+
+    public int getHeight() {
+        return _iHeight;
+    }
+
+    public int getWidth() {
+        return _iWidth;
+    }
+
+    public boolean splitAudio() {
+        return (getFrameNumber() == 1 && getChunkNumber() == 0);
+    }
 }
 
 

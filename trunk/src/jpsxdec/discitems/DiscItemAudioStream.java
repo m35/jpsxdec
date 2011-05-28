@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -85,8 +85,8 @@ public abstract class DiscItemAudioStream extends DiscItem {
     abstract public int getDiscSpeed();
 
     /** Creates a decoder capable of converting IdentifiedSectors into audio
-     *  data which will then be fed into an AudioOutputStream.
-     * @see ISectorAudioDecoder#open(ISectorAudioDecoder.ISectorTimedAudioWriter)  */
+     *  data which will then be fed to a {@link ISectorAudioDecoder.ISectorTimedAudioWriter}.
+     * @see ISectorAudioDecoder#setAudioListener(ISectorAudioDecoder.ISectorTimedAudioWriter)  */
     abstract public ISectorAudioDecoder makeDecoder(double dblVolume);
 
     abstract public AudioFormat getAudioFormat(boolean blnBigEndian);
@@ -99,7 +99,7 @@ public abstract class DiscItemAudioStream extends DiscItem {
         return new PlayController(new MediaPlayer(this));
     }
 
-    public DiscItemSaverBuilder makeSaverBuilder() {
+    public AudioSaverBuilder makeSaverBuilder() {
         return new AudioSaverBuilder(this);
     }
 

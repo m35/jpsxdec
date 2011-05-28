@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,7 +54,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.util.ConsoleProgressListener;
+import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.sectors.IdentifiedSector;
@@ -254,11 +254,11 @@ public class ReplaceFrames {
 
         CdFileSectorReader cd = new CdFileSectorReader(new File(args[0]), true);
         FeedbackStream fbs = new FeedbackStream();
-        DiscIndex index = new DiscIndex(cd, new ConsoleProgressListener("index"));
+        DiscIndex index = new DiscIndex(cd, new ConsoleProgressListenerLogger("index"));
         DiscItemVideoStream vidItem = (DiscItemVideoStream) index.getByIndex(Integer.parseInt(args[1]));
         DiscItemSaverBuilder saver = vidItem.makeSaverBuilder();
         saver.commandLineOptions(new String[] {"-vf","mdec"}, fbs);
-        saver.makeSaver().startSave(new ConsoleProgressListener("save"), new File("."));
+        saver.makeSaver().startSave(new ConsoleProgressListenerLogger("save"), new File("."));
 
         ReplaceFrames replacers = new ReplaceFrames();
 

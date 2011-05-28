@@ -1,11 +1,11 @@
 
 jPSXdec: PlayStation 1 Media Decoder/Converter in Java
-Copyright (C) 2007-2010  Michael Sabin
+Copyright (C) 2007-2011  Michael Sabin
 All rights reserved.
 
 jPSXdec is licensed as a whole under this non-commercial license:
 
-================================================================================
+................................................................................
 
 Redistribution and use of the jPSXdec code or any derivative works are
 permitted provided that the following conditions are met:
@@ -38,9 +38,12 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-================================================================================
+................................................................................
 
 (note: the related PlayStation1_STR_format.txt document is under a MIT license)
+
+
+================================================================================
 
 
 Some individual components are licensed under compatible licenses:
@@ -92,6 +95,17 @@ The text of this license is contained in the file apache-2.0.txt
 
 ................................................................................
 
+org/openide/*
+From Netbeans IDE
+http://netbeans.org/
+Copyright 1997-2010 Oracle and/or its affiliates. All rights reserved.
+Dual licensed under GNU General Public License Version 2 only ("GPL") or the
+Common Development and Distribution License ("CDDL").
+In this case, it must be licensed under the CDDL to be compatible.
+The text of this dual license can be found in the file CDDL-GPL-2-CP
+
+................................................................................
+
 com/pdfjet/*
 PDFJet - Open Source Edition
 http://pdfjet.com/os/edition.html
@@ -134,6 +148,7 @@ http://creativecommons.org/licenses/by/2.5/
 ................................................................................
 
 jpsxdec/media-optical-5.png
+jpsxdec/image-x-generic.png
 From Tango Icon Library
 http://tango.freedesktop.org/Tango_Icon_Library
 Released into Public Domain
@@ -149,6 +164,11 @@ The text of this license is contained in the file lgpl-2.1.txt
 jpsxdec/plugins/psx/video/mdec/idct/simple_idct.java
 Copyright (c) Michael Niedermayer
 Originally from ffmpeg (ported by Alexander Strange)
+
+com/mortennobel/imagescaling/*
+Java Image Scaling Library
+http://code.google.com/p/java-image-scaling/
+Copyright 2009, Morten Nobel-Joergensen
 
 org/jdesktop/beans/*
 org/jdesktop/swingx/*

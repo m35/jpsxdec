@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,43 +41,43 @@ import java.io.ByteArrayInputStream;
 
 /** Custom ByteArrayInputStream with file pointer 
  *  tracking and quick sub-stream generation. */
-public class ByteArrayFPIS extends ByteArrayInputStream implements IGetFilePointer {
+public class ByteArrayFPIS extends ByteArrayInputStream {
 
-    private long m_lngFP = 0;
-    private final int m_iBufStart;
+    private long _lngFP = 0;
+    private final int _iBufStart;
     
     public ByteArrayFPIS(byte[] buf, int offset, int length) {
         super(buf, offset, length);
-        m_iBufStart = super.pos;
+        _iBufStart = super.pos;
     }
 
     public ByteArrayFPIS(byte[] buf) {
         super(buf);
-        m_iBufStart = super.pos;
+        _iBufStart = super.pos;
     }
     
     public ByteArrayFPIS(byte[] buf, int offset, int length, long filePos) {
         super(buf, offset, length);
-        m_lngFP = filePos;
-        m_iBufStart = super.pos;
+        _lngFP = filePos;
+        _iBufStart = super.pos;
     }
 
     public ByteArrayFPIS(byte[] buf, long filePos) {
         super(buf);
-        m_lngFP = filePos;
-        m_iBufStart = super.pos;
+        _lngFP = filePos;
+        _iBufStart = super.pos;
     }
 
     public ByteArrayFPIS(ByteArrayFPIS bafp, int offset, int length, long filePos) {
         super(bafp.buf, bafp.pos + offset, length);
-        m_lngFP = filePos;
-        m_iBufStart = super.pos;
+        _lngFP = filePos;
+        _iBufStart = super.pos;
     }
     
     public ByteArrayFPIS(ByteArrayFPIS bafp, int offset, int length) {
         super(bafp.buf, bafp.pos + offset, length);
-        m_lngFP = bafp.m_lngFP;
-        m_iBufStart = super.pos;
+        _lngFP = bafp._lngFP;
+        _iBufStart = super.pos;
     }
 
     public ByteArrayFPIS(ByteArrayFPIS bafp) {
@@ -85,15 +85,16 @@ public class ByteArrayFPIS extends ByteArrayInputStream implements IGetFilePoint
     }
     
     public long getFilePointer() {
-        return m_lngFP + super.pos;
+        return _lngFP + super.pos;
     }
 
+    /** Returns the number of bytes that have been read from the stream. */
     public int getOffset() {
-        return super.pos - m_iBufStart;
+        return super.pos - _iBufStart;
     }
     
     public ByteArrayFPIS copy() {
-        return new ByteArrayFPIS(super.buf, super.pos, super.count, m_lngFP);
+        return new ByteArrayFPIS(super.buf, super.pos, super.count, _lngFP);
     }
     
     public int size() {

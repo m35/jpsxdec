@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,6 +59,8 @@ public class CdxaRiffHeader {
     public static void write(OutputStream os, long lngFileSize) throws IOException {
         if (lngFileSize % 2352 != 0)
             throw new IllegalArgumentException(lngFileSize + " is not a multiple of 2352");
+        if (lngFileSize > 0xffffffffL)
+            throw new IllegalArgumentException("File size " + lngFileSize + " too big to write to header.");
         os.write(RIFF);
         IO.writeInt32LE(os, lngFileSize + SIZEOF - 8);
         os.write(CDXA);

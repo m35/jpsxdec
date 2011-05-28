@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,36 +37,30 @@
 
 package jpsxdec.sectors;
 
-import java.io.IOException;
-import java.io.InputStream;
-import jpsxdec.util.IO;
+import jpsxdec.cdreaders.CdSector;
 
 /** The AKAO structure used in some Square games. FF8, FF9, and Chrono Cross
- *  movies all contain this struture. It seems to be different than the AKAO
+ *  movies all contain this structure. It seems to be different than the AKAO
  *  structure used for sound-effects (from what I read in the Qhimm forums).
  *  As you can see, there are not many fields identified for this structure. */
 public class SquareAKAOstruct {
     
-    public static final long AKAO_ID = 0x4F414B41; // "AKAO" in little-endian
-    public static final long SIZE = 80;
+    public static final long AKAO_ID = 0x4F414B41L; // "AKAO" in little-endian
+    public static final int SIZE = 80;
     
-    final public long AKAO;                 // [4 bytes]
-    final public long FrameNumSub1;         // [4 bytes] often the frame number - 1
+    public final long AKAO;                 // 0 [4 bytes]
+    public final long FrameNumSub1;         // 4 [4 bytes] often the frame number - 1
     // [20 bytes] unknown
-    final public long Unknown;              // [4 bytes]
-    final public long BytesOfData;          // [4 bytes] number of bytes of audio data
+    public final long Unknown;              // 28 [4 bytes]
+    public final long BytesOfData;          // 32 [4 bytes] number of bytes of audio data
     // [44 bytes] unknown
     
-    public SquareAKAOstruct(InputStream inStream) throws IOException {
-        AKAO = IO.readUInt32LE(inStream);
-        FrameNumSub1 = IO.readUInt32LE(inStream);
+    public SquareAKAOstruct(CdSector cdSector, int i) {
+        AKAO = cdSector.readUInt32LE(i);
+        FrameNumSub1 = cdSector.readUInt32LE(i+4);
 
-        IO.skip(inStream, 20);
-
-        Unknown = IO.readUInt32LE(inStream);
-        BytesOfData = IO.readUInt32LE(inStream);
-
-        IO.skip(inStream, 44);
+        Unknown = cdSector.readUInt32LE(i+28);
+        BytesOfData = cdSector.readUInt32LE(i+32);
     }
     
     public String toString() {

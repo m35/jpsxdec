@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -174,6 +174,8 @@ public class STRFrameRateCalc {
     public String toString() {
         if (_wholeFrameRate == null) {
             return "No matching variable rates.";
+        } else if (_inconsistentFrameRate != null) {
+            return "Possible variable rates: " + _inconsistentFrameRate;
         } else {
             return "Possible variable rates: " + Arrays.toString(_wholeFrameRate.getAllPossibleSectorsPerFrame());
         }

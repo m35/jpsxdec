@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,62 +39,63 @@ package jpsxdec.sectors;
 
 import java.io.PrintStream;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.util.NotThisTypeException;
 
-/** Base class for all identified sector types. Encapsulates CD sectors with
- *  special meaning. */
+/** Abstract base class for all identified sector types. Encapsulates CD sectors
+ *  with special meaning. */
 public abstract class IdentifiedSector implements IIdentifiedSector {
 
     public static IdentifiedSector identifySector(CdSector cdSector) {
+        IdentifiedSector s;
         // sorted in order of likelyhood of encountering (my best guess)
-        try { return new SectorSTR(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorXA(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorXANull(cdSector); }
-        catch (NotThisTypeException e) {}
-        //try { return new SectorISO9660PathTable(cdSector); }
-        //catch (NotThisTypeException e) {}
-        try { return new SectorISO9660DirectoryRecords(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorISO9660VolumePrimaryDescriptor(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorFF7Video(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorFF8.SectorFF8Video(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorFF8.SectorFF8Audio(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorFF9.SectorFF9Video(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorFF9.SectorFF9Audio(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorChronoXAudio(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorChronoXVideo(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorChronoXVideoNull(cdSector); }
-        catch (NotThisTypeException e) {}
-        try { return new SectorLainVideo(cdSector); }
-        catch (NotThisTypeException e) {}
-        try {
-            SectorAliceFrameChunkNull nullAlice = new SectorAliceFrameChunkNull(cdSector);
-            try {
-                return new SectorAliceFrameChunk(cdSector);
-            } catch (NotThisTypeException ex) {
+        if ((s = new SectorXAAudio(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorXANull(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorStrVideo(cdSector)).getProbability() > 0) return s;
+        //if ((s = new SectorISO9660PathTable(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorISO9660DirectoryRecords(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorISO9660VolumePrimaryDescriptor(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorCdAudio(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorFF8.SectorFF8Video(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorFF8.SectorFF8Audio(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorFF9.SectorFF9Video(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorFF9.SectorFF9Audio(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorChronoXAudio(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorChronoXVideo(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorChronoXVideoNull(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorIkiVideo(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorAceCombat3Video(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorFF7Video(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorLainVideo(cdSector)).getProbability() > 0) return s;
+
+        SectorAliceNullVideo nullAlice = new SectorAliceNullVideo(cdSector);
+        if (nullAlice.getProbability() > 0) {
+            s = new SectorAliceVideo(cdSector);
+            if (s.getProbability() > 0)
+                return s;
+            else
                 return nullAlice;
-            }
-        } catch (NotThisTypeException e) {}
+        }
+        
         return null;
     }
 
-    private CdSector _sourceCdSector;
-
+    private final CdSector _sourceCdSector;
+    private int _iProbability = 1;
     
-    public IdentifiedSector(CdSector cdSector) throws NotThisTypeException {
-        if (cdSector.isCdAudioSector())
-            throw new NotThisTypeException();
+    public IdentifiedSector(CdSector cdSector) {
         _sourceCdSector = cdSector;
+    }
+
+    protected boolean isSuperInvalidElseReset() {
+        if (_iProbability == 0)
+            return true;
+        _iProbability = 0;
+        return false;
+    }
+    protected void setProbability(int iProbability) {
+        _iProbability = iProbability;
+    }
+    public int getProbability() {
+        return _iProbability;
     }
 
     /** Returns a string description of the sector type. */

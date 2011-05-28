@@ -13,6 +13,7 @@
     <property name="build.dir" location="release-build"/>
     <property name="build-lgpl.dir" location="release-build-lgpl"/>
     <property name="dist.dir"  location="release-dist"/>
+    <property name="javadoc.dir" location="release-javadoc"/>
 
     <property name="javac.target.ver" value="1.5"/>
     <property name="javac.source.ver" value="1.5" />
@@ -28,6 +29,7 @@
         <include name="CREDITS.txt" />
         <include name="lgpl-2.1.txt" />
         <include name="apache-2.0.txt" />
+        <include name="CDDL-GPL-2-CP" />
         <include name="LICENSE.txt" />
         <include name="jpsxdec.exe" />
     </fileset>
@@ -88,8 +90,24 @@
         </copy>
         
     </target>
+
+    <target name="javadoc" description="generate code documentation via javadoc">
+        <javadoc additionalparam="-stylesheetfile javadoc.css" charset="UTF-8" destdir="${javadoc.dir}" docencoding="UTF-8" failonerror="true" private="true" use="true" windowtitle="jPSXdec">
+            <classpath>
+                <path path="${javac.classpath}"/>
+            </classpath>
+            <fileset dir="${src.dir}">
+                <filename name="**/*.java"/>
+            </fileset>
+            <fileset dir="${src-lgpl.dir}">
+                <filename name="**/*.java"/>
+            </fileset>
+        </javadoc>
+    </target>
     
-    
+    <target name="doxygen" description="generate code documentation via doxygen">
+        <echo message="Not implemented yet"/>
+    </target>
 
     <target name="clean" description="clean up" >
         <!-- Delete the build and dist directories -->

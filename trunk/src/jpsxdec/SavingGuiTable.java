@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,12 +59,13 @@ import jpsxdec.discitems.IDiscItemSaver;
 public class SavingGuiTable extends AbstractTableModel {
 
     private static enum COLUMNS {
-        Saving(String.class) { Object val(Row row) {
+        Source(String.class) { Object val(Row row) {
             return row._saver.getInput();
         }},
-        Output(String.class) { Object val(Row row) {
-            return row._saver.getOutput();
-        }},
+        SaveAs(String.class) { 
+            Object val(Row row) { return row._saver.getOutputSummary(); }
+            public String toString() { return "Save As"; }
+        },
         Progress(Integer.class) { Object val(Row row) {
             return row.Progress;
         }},

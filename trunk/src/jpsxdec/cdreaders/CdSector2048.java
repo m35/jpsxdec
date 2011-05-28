@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,23 +54,23 @@ public class CdSector2048 extends CdSector {
 
     /** Returns the size of the 'user data' portion of the sector. */
     public int getCdUserDataSize() {
-        return CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1;
+        return CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1;
     }
     
     public byte readUserDataByte(int i) {
-        if (i < 0 || i >= CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1) throw new IndexOutOfBoundsException();
+        if (i < 0 || i >= CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1) throw new IndexOutOfBoundsException();
         return _abSectorBytes[_iByteStartOffset + i];
     }
 
     /** Returns copy of the 'user data' portion of the sector. */
     public byte[] getCdUserDataCopy() {
-        byte[] ab = new byte[CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1];
-        getCdUserDataCopy(0, ab, 0, CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1);
+        byte[] ab = new byte[CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1];
+        getCdUserDataCopy(0, ab, 0, CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1);
         return ab;
     }
 
     public void getCdUserDataCopy(int iSourcePos, byte[] abOut, int iOutPos, int iLength) {
-        if (iLength > CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1) throw new IndexOutOfBoundsException();
+        if (iLength > CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1) throw new IndexOutOfBoundsException();
         System.arraycopy(_abSectorBytes, _iByteStartOffset + iSourcePos, 
                 abOut, iOutPos,
                 iLength);
@@ -78,7 +78,7 @@ public class CdSector2048 extends CdSector {
     
     /** Returns an InputStream of the 'user data' portion of the sector. */
     public ByteArrayFPIS getCdUserDataStream() {
-        return new ByteArrayFPIS(_abSectorBytes, _iByteStartOffset, CdFileSectorReader.SECTOR_USER_DATA_SIZE_MODE1, _lngFilePointer);
+        return new ByteArrayFPIS(_abSectorBytes, _iByteStartOffset, CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1, _lngFilePointer);
     }
 
     /** Returns direct reference to the underlying sector data, with raw

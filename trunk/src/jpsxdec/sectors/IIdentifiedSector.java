@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ import java.io.PrintStream;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
 
+/** Interface implemented by all identified CD sectors. */
 public interface IIdentifiedSector {
     
     public static final int SECTOR_UNKNOWN = 0;
@@ -50,29 +51,32 @@ public interface IIdentifiedSector {
     public static final int SECTOR_ISO9660_DR = 16;
     public static final int SECTOR_ISO9660_PT = 32;
     
-    /** @return The sector type of the sector (SECOTR_*). */
+    /** Returns the sector type of the sector ({@code SECOTR_*}),
+     *  or -1 if of some other type. */
     public int getSectorType();
     
     /** @return Human readable sector type (used for reference and debugging).*/
     public String getTypeName();
     
-    /** @return The size of the sector's payload, excluding any of the PSX (or otherwise)
+    /** Returns the size of the sector's payload, excluding any of the PSX (or otherwise)
      *  sector's specific headers or footers. */
     public int getIdentifiedUserDataSize();
 
-    /** @return A stream of the sector's user data payload. */
+    /** Returns a stream of the sector's user data payload. */
     public ByteArrayFPIS getIdentifiedUserDataStream();
     
-    /** @return The 'channel' value in the raw CDXA header, 
-     *          or -1 if there is no header. */
+    /** Returns the 'channel' value in the raw CDXA header,
+     *  or -1 if there is no header. */
     public int getChannel();
 
-    /** @return The sector offset from the start of the file. */
+    /** Returns the sector offset from the start of the file. */
     public int getSectorNumber();
 
     public CdSector getCDSector();
 
+    /** Returns the number of errors found in the underlying {@link CdSector}. */
     public int getErrorCount();
 
+    /** Prints the errors found in the underlying {@link CdSector} to a stream. */
     public void printErrors(PrintStream ps);
 }

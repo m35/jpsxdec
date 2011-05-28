@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.discitems;
 import com.jhlabs.awt.ParagraphLayout;
 import java.awt.LayoutManager;
 import java.awt.event.ItemEvent;
+import java.util.ArrayList;
+import java.util.Arrays;
 import javax.swing.AbstractListModel;
 import javax.swing.ComboBoxModel;
 import javax.swing.DefaultBoundedRangeModel;
@@ -52,28 +54,58 @@ import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-public abstract class DiscItemSaverBuilderGui extends JPanel {
+public abstract class DiscItemSaverBuilderGui<T extends DiscItemSaverBuilder> extends JPanel {
 
-    public DiscItemSaverBuilderGui() {
+    protected T _writerBuilder;
+    private ArrayList<ChangeListener> _aoControls = new ArrayList<ChangeListener>();
+    private JPanel _paragraphLayoutPanel;
+
+
+    /** Use just 1 change listener to notify all the controls so it's
+     * easier to swap out when the builder is changed. */
+    private ChangeListener _listenerWrapper = new ChangeListener() {
+        public void stateChanged(ChangeEvent e) {
+            for (ChangeListener control : _aoControls) {
+                control.stateChanged(e);
+            }
+        }
+    };
+
+    public DiscItemSaverBuilderGui(T writerBuilder) {
+        _writerBuilder = writerBuilder;
+        _writerBuilder.addChangeListener(_listenerWrapper);
     }
 
-    public DiscItemSaverBuilderGui(boolean isDoubleBuffered) {
-        super(isDoubleBuffered);
-    }
-
-    public DiscItemSaverBuilderGui(LayoutManager layout) {
+    public DiscItemSaverBuilderGui(T writerBuilder, LayoutManager layout) {
         super(layout);
-    }
-
-    public DiscItemSaverBuilderGui(LayoutManager layout, boolean isDoubleBuffered) {
-        super(layout, isDoubleBuffered);
+        _writerBuilder = writerBuilder;
+        _writerBuilder.addChangeListener(_listenerWrapper);
     }
 
     /** If the saver builder is compatible with this gui, returns true
      * and replaces the underlying builder with the supplied one,
      * otherwise returns false. */
-    abstract public boolean useSaverBuilder(DiscItemSaverBuilder saverBuilder);
+    public boolean useSaverBuilder(DiscItemSaverBuilder saverBuilder) {
+        if (saverBuilder.getClass() == _writerBuilder.getClass()) {
+            DiscItemSaverBuilder oldBuilder = _writerBuilder;
+            _writerBuilder = (T)saverBuilder;
+            oldBuilder.removeChangeListener(_listenerWrapper);
+            _writerBuilder.addChangeListener(_listenerWrapper);
+            _listenerWrapper.stateChanged(null);
+            revalidate();
+            return true;
+        } else {
+            return false;
+        }
+    }
 
+    protected void addControls(ChangeListener ... aoControls) {
+        _aoControls.addAll(Arrays.asList(aoControls));
+    }
+
+    protected void setParagraphLayoutPanel(JPanel paragraphPanel) {
+        _paragraphLayoutPanel = paragraphPanel;
+    }
 
     protected abstract class AbstractSlider extends DefaultBoundedRangeModel implements ChangeListener {
         JLabel __label;
@@ -88,9 +120,9 @@ public abstract class DiscItemSaverBuilderGui extends JPanel {
             __label.setEnabled(isEnabled());
             __slider.setEnabled(isEnabled());
             __value.setEnabled(isEnabled());
-            add(__label, ParagraphLayout.NEW_PARAGRAPH);
-            add(__slider);
-            add(__value);
+            _paragraphLayoutPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);
+            _paragraphLayoutPanel.add(__slider);
+            _paragraphLayoutPanel.add(__value);
         }
         public int getMaximum() { return 100; }
         public int getMinimum() { return 0; }
@@ -120,8 +152,8 @@ public abstract class DiscItemSaverBuilderGui extends JPanel {
             __label = new JLabel(sLabel);
             __label.setEnabled(isEnabled());
             __chk.setModel(this);
-            add(__label, ParagraphLayout.NEW_PARAGRAPH);
-            add(__chk);
+            _paragraphLayoutPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);
+            _paragraphLayoutPanel.add(__chk);
         }
         public void stateChanged(ChangeEvent e) {
             if (isSelected() != __cur) {
@@ -149,8 +181,8 @@ public abstract class DiscItemSaverBuilderGui extends JPanel {
         public AbstractCombo(String sLabel) {
             __label = new JLabel(sLabel);
             __combo = new JComboBox(this);
-            add(__label, ParagraphLayout.NEW_PARAGRAPH);
-            add(__combo, ParagraphLayout.STRETCH_H);
+            _paragraphLayoutPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);
+            _paragraphLayoutPanel.add(__combo, ParagraphLayout.STRETCH_H);
         }
         public void stateChanged(ChangeEvent e) {
             if (__cur != getSelectedItem()) {

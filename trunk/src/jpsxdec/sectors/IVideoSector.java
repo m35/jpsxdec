@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -67,7 +67,14 @@ public interface IVideoSector extends IIdentifiedSector {
     /** Copies the identified user data portion of the sector data to the
      *  output buffer. */
     void copyIdentifiedUserData(byte[] abOut, int iOutPos);
-    
+
+    /** Permanently changes the data on the disc associated with this sector!
+     *  The associated CD reader must be opened for writing, otherwise
+     *  this will fail.
+     * 
+     * @return number of bytes copied from the demux data to the disc, not
+     *         including any bytes changed in the sector header.
+     */
     int replaceFrameData(CdFileSectorReader cd,
                          byte[] abDemuxData, int iDemuxOfs,
                          int iLuminQscale,
@@ -75,5 +82,9 @@ public interface IVideoSector extends IIdentifiedSector {
                          int iMdecCodeCount)
                  throws IOException;
 
+    /** Tells the indexer that all current audio streams should be ended
+     * at this sector. This is unfortunately necessary because the only way
+     * to where the end the audio for some games is to check the related
+     * video clip. */
     boolean splitAudio();
 }

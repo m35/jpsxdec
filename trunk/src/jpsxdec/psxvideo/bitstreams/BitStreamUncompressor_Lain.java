@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -242,7 +242,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor_STRv2 {
     protected void readQscaleDC(MdecCode oCode) throws EOFException, DecodingException {
         oCode.setBottom10Bits( (int)_bitReader.readSignedBits(10) );
         if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(Misc.bitsToString(oCode.getBottom10Bits(), 10));
-        if (_iCurrentBlock < 2)
+        if (getCurrentMacroBlockSubBlock() < 2)
             oCode.setTop6Bits(_iQscaleChrom);
         else
             oCode.setTop6Bits(_iQscaleLumin);

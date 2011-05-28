@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,12 +39,9 @@ package jpsxdec.sectors;
 
 import jpsxdec.cdreaders.CdFileSectorReader;
 import java.io.IOException;
-import java.io.InputStream;
 import jpsxdec.audio.SquareADPCMDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Base class for Final Fantasy 8 movie (audio/video) sectors. */
@@ -57,39 +54,36 @@ public abstract class SectorFF8 extends IdentifiedSector {
     protected int        _iSectorsInAVFrame;       // [1 byte]
     protected int        _iFrameNumber;            // [2 bytes]
     
-    public SectorFF8(CdSector oCDSect) throws NotThisTypeException {
-        super(oCDSect);
-    }
+    public SectorFF8(CdSector cdSector) {
+        super(cdSector);
+        if (isSuperInvalidElseReset()) return;
 
-    protected InputStream ReadHeader(CdSector oCDSect)
-            throws IOException, NotThisTypeException 
-    {
-        // both audio and video sectors are flagged as data
-        if (oCDSect.hasRawSectorHeader() && !oCDSect.getSubMode().getData())
-            throw new NotThisTypeException();
+        if (cdSector.isCdAudioSector()) return;
         
-        InputStream oIS = oCDSect.getCdUserDataStream();
+        // both audio and video sectors are flagged as data
+        if (cdSector.hasRawSectorHeader() && !cdSector.getSubMode().getData())
+            return;
         
         char c;
-        c = (char)oIS.read();
-        if ((_achHead[0] = c) != 'S') throw new NotThisTypeException();
-        c = (char)oIS.read();
-        if ((_achHead[1] = c) != 'M') throw new NotThisTypeException();
-        c = (char)oIS.read();
+        c = (char)cdSector.readUserDataByte(0);
+        if ((_achHead[0] = c) != 'S') return;
+        c = (char)cdSector.readUserDataByte(1);
+        if ((_achHead[1] = c) != 'M') return;
+        c = (char)cdSector.readUserDataByte(2);
         _achHead[2] = c; // 'J' for video, 'N' left audio and 'R' for right audio
-        c = (char)oIS.read();
-        if ((_achHead[3] = c) != '\1') throw new NotThisTypeException();
+        c = (char)cdSector.readUserDataByte(3);
+        if ((_achHead[3] = c) != '\1') return;
         // There appear to be 10 sectors for every frame
         // First two sectors are audio (left, right channels)
         // Then the remaining 8 sectors is the video frame, always
         // 320x224.
-        _iSectorNumber = oIS.read(); // 0 to _iSectorsInAVFrame
-        _iSectorsInAVFrame = oIS.read(); // either 9 or 1
+        _iSectorNumber = cdSector.readUserDataByte(4); // 0 to _iSectorsInAVFrame
+        _iSectorsInAVFrame = cdSector.readUserDataByte(5); // either 9 or 1
         //if (_iSectorsInAVFrame != 9) throw new NotThisTypeException();
-        _iFrameNumber = IO.readSInt16LE(oIS); // starts @ 0
-        if (_iFrameNumber < 0) throw new NotThisTypeException();
-        
-        return oIS;
+        _iFrameNumber = cdSector.readSInt16LE(6); // starts @ 0
+        if (_iFrameNumber < 0) return;
+
+        setProbability(100);
     }
 
     public int getFrameNumber() {
@@ -116,22 +110,16 @@ public abstract class SectorFF8 extends IdentifiedSector {
     ////////////////////////////////////////////////////////////////////////////
 
     /** Final Fantasy 8 video chunk sector. */
-    public static class SectorFF8Video
-            extends SectorFF8
+    public static class SectorFF8Video extends SectorFF8
             implements IVideoSector 
     {
 
+        public SectorFF8Video(CdSector cdSector) {
+            super(cdSector);
+            if (isSuperInvalidElseReset()) return;
 
-        public SectorFF8Video(CdSector oCDSect)
-                throws NotThisTypeException 
-        {
-            super(oCDSect);
-            try {
-                super.ReadHeader(oCDSect);
-            } catch (IOException ex) {
-                throw new NotThisTypeException();
-            }
-            if (super._achHead[2] != 'J') throw new NotThisTypeException();
+            if (super._achHead[2] != 'J') return;
+            setProbability(100);
         }
 
         /** [implements IVideoSector] */
@@ -242,47 +230,36 @@ public abstract class SectorFF8 extends IdentifiedSector {
         protected final char _achHead[] = new char[4]; // [4 bytes] "SM_\1"
         protected int        _iSectorNumber;           // [1 byte]
         protected int        _iSectorsInAVFrame;       // [1 byte]
-        protected long       _iFrameNumber;          // [2 bytes]
+        protected long       _iFrameNumber;            // [2 bytes]
         */
         
         public final static int AUDIO_ADDITIONAL_HEADER_SIZE = 360;
 
         // 232 bytes; unknown
-        protected final char _achMORIYA[] = new char[6];
+        private final char _achMORIYA[] = new char[6];
         // 10 bytes; unknown
-        protected SquareAKAOstruct _oAKAOstruct;
+        private SquareAKAOstruct _AKAOstruct;
         // 76 bytes; unknown
         
-        public SectorFF8Audio(CdSector oCDSect)
-                throws NotThisTypeException 
-        {
-            super(oCDSect);
+        public SectorFF8Audio(CdSector cdSector) {
+            super(cdSector);
+            if (isSuperInvalidElseReset()) return;
             
-            try {
-                InputStream is = super.ReadHeader(oCDSect);
-                
-                if (super._achHead[2] != 'N' && super._achHead[2] != 'R')
-                    throw new NotThisTypeException();
+            if (super._achHead[2] != 'N' && super._achHead[2] != 'R')
+                return;
 
-                IO.skip(is, 232);
-                
-                _achMORIYA[0] = (char)IO.readUInt8(is);
-                _achMORIYA[1] = (char)IO.readUInt8(is);
-                _achMORIYA[2] = (char)IO.readUInt8(is);
-                _achMORIYA[3] = (char)IO.readUInt8(is);
-                _achMORIYA[4] = (char)IO.readUInt8(is);
-                _achMORIYA[5] = (char)IO.readUInt8(is);
-                
-                IO.skip(is, 10);
-                
-                _oAKAOstruct = new SquareAKAOstruct(is);
+            _achMORIYA[0] = (char)cdSector.readUserDataByte(240);
+            _achMORIYA[1] = (char)cdSector.readUserDataByte(241);
+            _achMORIYA[2] = (char)cdSector.readUserDataByte(242);
+            _achMORIYA[3] = (char)cdSector.readUserDataByte(243);
+            _achMORIYA[4] = (char)cdSector.readUserDataByte(244);
+            _achMORIYA[5] = (char)cdSector.readUserDataByte(245);
 
-                // TODO: check Sound Parameters values that the index is valid
-                
-            } catch (IOException ex) {
-                throw new NotThisTypeException();
-            }
-            
+            _AKAOstruct = new SquareAKAOstruct(cdSector, 246);
+
+            // TODO: check Sound Parameters values that the index is valid
+
+            setProbability(100);
         }
 
         public int getSamplesPerSecond() {
@@ -290,7 +267,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
         public int getIdentifiedUserDataSize() {
-            return (int)_oAKAOstruct.BytesOfData;
+            return (int)_AKAOstruct.BytesOfData;
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
@@ -303,11 +280,11 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return String.format("AudioFF8 %s MORIYA:%s %s", 
                    super.toString(),
                    new String(_achMORIYA),
-                   _oAKAOstruct.toString());
+                   _AKAOstruct.toString());
         }
 
         public int getAudioDataSize() {
-            return (int)_oAKAOstruct.BytesOfData; // always 1680 for FF8
+            return (int)_AKAOstruct.BytesOfData; // always 1680 for FF8
         }
 
         public int getAudioChunkNumber() {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,49 +38,40 @@
 package jpsxdec.discitems;
 
 
-import argparser.ArgParser;
-import argparser.StringHolder;
-import java.io.PrintStream;
-import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.imageio.ImageIO;
-import jpsxdec.formats.JavaImageFormat;
-import jpsxdec.sectors.IdentifiedSectorRangeIterator;
+import jpsxdec.discitems.savers.TimSaverBuilder;
 import jpsxdec.tim.Tim;
-import jpsxdec.util.ProgressListener;
-import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
-import jpsxdec.util.TabularFeedback;
-import jpsxdec.util.TaskCanceledException;
 
 
-/** Represents a TIM file found in a PSX disc. Currently only searches at the
- *  start of sectors for TIM files, but TIM files could be found anywhere
- *  in a sector.
- *  TODO: Search everywhere */
+/** Represents a TIM file found on a PlayStation disc. TIM images could be found
+ * anywhere in a sector. */
 public class DiscItemTIM extends DiscItem {
-    
+
+    private static final Logger log = Logger.getLogger(DiscItemTIM.class.getName());
+
     public static final String TYPE_ID = "Tim";
 
     private static final String START_OFFSET_KEY = "Start Offset";
     private final int _iStartOffset;
-    private static final String PALETTE_COUNT_KEY = "Palette Count";
+    private static final String PALETTE_COUNT_KEY = "Palettes";
     private final int _iPaletteCount;
-    private static final String BITSPERPIXEL_KEY = "Bis-per-pixel";
+    private static final String BITSPERPIXEL_KEY = "Bpp";
     private final int _iBitsPerPixel;
+    private static final String DIMENSIONS_KEY = "Dimensions";
+    private final int _iWidth, _iHeight;
     
     public DiscItemTIM(int iStartSector, int iEndSector, 
-                       int iStartOffset, int iPaletteCount, int iBitsPerPixel)
-            throws NotThisTypeException
+                       int iStartOffset, int iPaletteCount, int iBitsPerPixel,
+                       int iWidth, int iHeight)
     {
         super(iStartSector, iEndSector);
         _iStartOffset = iStartOffset;
         _iPaletteCount = iPaletteCount;
         _iBitsPerPixel = iBitsPerPixel;
+        _iWidth = iWidth;
+        _iHeight = iHeight;
     }
     
     public DiscItemTIM(DiscItemSerialization fields) throws NotThisTypeException {
@@ -88,14 +79,18 @@ public class DiscItemTIM extends DiscItem {
         _iStartOffset = fields.getInt(START_OFFSET_KEY);
         _iPaletteCount = fields.getInt(PALETTE_COUNT_KEY);
         _iBitsPerPixel = fields.getInt(BITSPERPIXEL_KEY);
+        int[] aiDims = fields.getDimensions(DIMENSIONS_KEY);
+        _iWidth = aiDims[0];
+        _iHeight = aiDims[1];
     }
     
     public DiscItemSerialization serialize() {
-        DiscItemSerialization oFields = super.superSerial(TYPE_ID);
-        oFields.addNumber(START_OFFSET_KEY, _iStartOffset);
-        oFields.addNumber(PALETTE_COUNT_KEY, _iPaletteCount);
-        oFields.addNumber(BITSPERPIXEL_KEY, _iBitsPerPixel);
-        return oFields;
+        DiscItemSerialization fields = super.superSerial(TYPE_ID);
+        fields.addNumber(START_OFFSET_KEY, _iStartOffset);
+        fields.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
+        fields.addNumber(PALETTE_COUNT_KEY, _iPaletteCount);
+        fields.addNumber(BITSPERPIXEL_KEY, _iBitsPerPixel);
+        return fields;
     }
     
     public String getSerializationTypeId() {
@@ -104,23 +99,15 @@ public class DiscItemTIM extends DiscItem {
 
     @Override
     public String getInterestingDescription() {
-        return "Palettes: " + _iPaletteCount;
+        return _iWidth + "x" + _iHeight + ", Palettes: " + _iPaletteCount;
     }
 
-    public Tim readTIM() throws IOException {
-        
-        IdentifiedSectorRangeIterator sectIter = getSectorIterator();
-        
-        try {
-            UnidentifiedDataPullDemuxerIS inStream = new UnidentifiedDataPullDemuxerIS(sectIter);
-            return Tim.read(inStream);
-        } catch (NotThisTypeException ex) {
-            throw new IOException("This is not actually a TIM file?");
-        }
-    }
-
-    public DiscItemSaverBuilder makeSaverBuilder() {
+    public TimSaverBuilder makeSaverBuilder() {
         return new TimSaverBuilder(this);
+    }
+
+    public int getStartOffset() {
+        return _iStartOffset;
     }
 
     /** Returns the number of palettes if the TIM file is paletted 
@@ -134,208 +121,9 @@ public class DiscItemTIM extends DiscItem {
     public int getBitsPerPixel() {
         return _iBitsPerPixel;
     }
-    
-    private static class TimSaverBuilder extends DiscItemSaverBuilder {
 
-        private Tim _tim;
-        private boolean[] _ablnSavePalette;
-        private JavaImageFormat _imageFormat;
-        private DiscItemTIM _timItem;
-
-        public void resetToDefaults() {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-
-        @Override
-        public boolean copySettings(DiscItemSaverBuilder other) {
-            if (other instanceof TimSaverBuilder) {
-                throw new UnsupportedOperationException("Not supported yet.");
-            }
-            return false;
-        }
-
-        public static String getCmdLineList(boolean blnTrueColor) {
-            StringBuilder sb = new StringBuilder();
-            for (JavaImageFormat fmt : JavaImageFormat.getAvailable()) {
-                if (blnTrueColor == fmt.hasTrueColor() ||
-                    (!blnTrueColor) == fmt.paletted())
-                {
-                    if (sb.length() > 0)
-                        sb.append(", ");
-                    sb.append(fmt.getId());
-                }
-            }
-            return sb.toString();
-        }
-
-        public static JavaImageFormat fromCmdLine(String sCmdLine) {
-            for (JavaImageFormat fmt : JavaImageFormat.getAvailable()) {
-                if (fmt.getId().equals(sCmdLine))
-                    return fmt;
-            }
-            return null;
-        }
-
-        public TimSaverBuilder(DiscItemTIM timItem) {
-            _timItem = timItem;
-            _ablnSavePalette = new boolean[_timItem.getPaletteCount()];
-            Arrays.fill(_ablnSavePalette, true);
-            _imageFormat = JavaImageFormat.PNG;
-        }
-
-        private boolean timIsTrueColor() {
-            return _timItem.getBitsPerPixel() == 16 ||
-                   _timItem.getBitsPerPixel() == 24;
-        }
-
-        public DiscItemSaverBuilderGui getOptionPane() {
-            return null;
-        }
-
-        public int getPaletteCount() {
-            return _tim.getPaletteCount();
-        }
-        public void setSavePalette(int iPalette, boolean blnSave) {
-            _ablnSavePalette[iPalette] = blnSave;
-        }
-        public void toggleSavePalette(int iPalette) {
-            _ablnSavePalette[iPalette] = !_ablnSavePalette[iPalette];
-        }
-        public boolean getSavePalette(int iPalette) {
-            return _ablnSavePalette[iPalette];
-        }
-
-        public void setImageFormat(JavaImageFormat fmt) {
-            _imageFormat = fmt;
-        }
-
-        public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
-            if (asArgs == null) return null;
-
-            ArgParser parser = new ArgParser("", false);
-
-            StringHolder timpalettes = new StringHolder();
-            parser.addOption("-pal %s", timpalettes);
-
-            StringHolder format = new StringHolder();
-            parser.addOption("-imgfmt,-if %s {"+ getCmdLineList(timIsTrueColor()) +"}", format);
-
-            String[] asRemain = null;
-            asRemain = parser.matchAllArgs(asArgs, 0, 0);
-
-            // parse args for which palettes to save
-            if (timpalettes.value != null) {
-                // TODO: finish this
-                _ablnSavePalette = parseNumberListRange(timpalettes.value, getPaletteCount());
-            }
-
-            if (format.value != null) {
-                JavaImageFormat fmt = fromCmdLine(format.value);
-                if (fmt == null) {
-                    fbs.printlnWarn("Invalid format " + format.value);
-                } else {
-                    fbs.printlnWarn("Using format " + fmt.getExtension());
-                    setImageFormat(fmt);
-                }
-            }
-
-            return asRemain;
-        }
-
-
-        /** Parse a string of comma-delimited numbers and ranges, then creates an
-         *  array with indexes toggled based on the numbers.
-         *  e.g. 3,6-9,15 */
-        private static boolean[] parseNumberListRange(String s, int iMax) {
-            boolean[] abln = new boolean[iMax];
-            Arrays.fill(abln, false);
-            try {
-                for (String num : s.split(",")) {
-                    if (s.indexOf('-') > 0) {
-                        // TODO: Finish
-                        throw new UnsupportedOperationException("Not finished yet.");
-                    } else {
-                        abln[Integer.parseInt(num)] = true;
-                    }
-                }
-            } catch (NumberFormatException ex) {
-                return null;
-            } catch (IndexOutOfBoundsException ex) {
-                return null;
-            }
-            return abln;
-        }
-        
-
-        public void printHelp(FeedbackStream fbs) {
-            TabularFeedback tfb = new TabularFeedback();
-            tfb.setRowSpacing(1);
-
-            tfb.print("-pal <#,#-#>").tab().print("Palettes to save (default all).");
-            tfb.newRow();
-            tfb.print("-imgfmt,-if <format>").tab().println("Output image format (default png). Options:");
-            tfb.indent().print(getCmdLineList(timIsTrueColor()));
-
-            tfb.write(fbs);
-        }
-
-        public IDiscItemSaver makeSaver() {
-            return new TimItemSaver(_tim, _imageFormat, _timItem);
-        }
-
-        public void printSelectedOptions(PrintStream ps) {
-            // TODO: Print tim options
-        }
-
-
-
+    public Tim readTim() throws IOException, NotThisTypeException {
+        DemuxedSectorInputStream stream = new DemuxedSectorInputStream(getSourceCD(), getStartSector(), getStartOffset());
+        return Tim.read(stream);
     }
-
-
-    private static class TimItemSaver implements IDiscItemSaver {
-        private Tim _tim;
-        private JavaImageFormat _imageFormat;
-        private DiscItemTIM _timItem;
-
-        public TimItemSaver(Tim tim, JavaImageFormat imageFormat, DiscItemTIM timItem) {
-            _tim = tim;
-            _imageFormat = imageFormat;
-            _timItem = timItem;
-        }
-
-        public String getInput() {
-            return _timItem.getIndexId().serialize();
-        }
-
-        public String getOutput() {
-            return makeFileName(0) + " - " + makeFileName(_tim.getPaletteCount()-1);
-        }
-
-        public void startSave(ProgressListener pl, File dir) throws TaskCanceledException {
-
-            try {
-                pl.progressStart();
-                for (int i = 0; i < _tim.getPaletteCount(); i++) {
-                    String sFile = makeFileName(i);
-                    pl.event("Writing " + sFile);
-                    BufferedImage bi = _tim.toBufferedImage(i);
-                    File f = new File(sFile);
-                    ImageIO.write(bi, _imageFormat.getId(), f);
-                    pl.progressUpdate((double)i / _tim.getPaletteCount());
-                }
-                pl.progressEnd();
-            } catch (IOException ex) {
-                pl.getLog().log(Level.SEVERE, null, ex);
-            }
-        }
-
-        private String makeFileName(int iFile) {
-            return String.format("%s_p%02d.%s",
-                    _timItem.getSuggestedBaseName(),
-                    iFile,
-                    _imageFormat.getExtension());
-        }
-    }
-
-
 }

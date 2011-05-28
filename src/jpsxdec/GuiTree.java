@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -58,6 +58,7 @@ import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemISO9660File;
 import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemTIM;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.discitems.IndexId;
@@ -68,6 +69,7 @@ import org.jdesktop.swingx.renderer.CheckBoxProvider;
 import org.jdesktop.swingx.renderer.DefaultTableRenderer;
 import org.jdesktop.swingx.treetable.TreeTableModel;
 
+/** Subclassed {@link JXTreeTable} that maintains my own view-model and other tweaks. */
 public class GuiTree extends JXTreeTable {
 
     public static final Icon FILE_ICON =
@@ -79,8 +81,9 @@ public class GuiTree extends JXTreeTable {
             UIManager.getIcon("FileView.folderIcon");
     public static final ImageIcon VIDEO_ICON = new ImageIcon(GuiTree.class.getResource("film.png"));
     public static final ImageIcon AUDIO_ICON = new ImageIcon(GuiTree.class.getResource("knotify.png"));
+    public static final ImageIcon IMAGE_ICON = new ImageIcon(GuiTree.class.getResource("image-x-generic.png"));
 
-    RootTreeSpot _root;
+    RootTreeItem _root;
 
     public void formatTreeTable(DiscIndex index) {
         _root = buildTree(index.getRoot());
@@ -103,8 +106,8 @@ public class GuiTree extends JXTreeTable {
         getColumn(COLUMNS.Details.toString()).setPreferredWidth(Math.max(200, getColumn(COLUMNS.Details.toString()).getWidth()));
     }
 
-    public TreeSpot getTreeTblSelection() {
-        return (TreeSpot) getValueAt(getSelectedRow(), convertColumnIndexToView(COLUMNS.Name.ordinal()));
+    public TreeItem getTreeTblSelection() {
+        return (TreeItem) getValueAt(getSelectedRow(), convertColumnIndexToView(COLUMNS.Name.ordinal()));
     }
 
     public void selectAllType(String sCmd) {
@@ -127,31 +130,31 @@ public class GuiTree extends JXTreeTable {
     private enum COLUMNS {
 
         Num(Integer.class) {
-            Object val(TreeSpot item) {
+            Object val(TreeItem item) {
                 return item.getIndexNum();
             }
             public String toString() {
                 return "#";
             }
         },
-        Save(Boolean.class) { Object val(TreeSpot item) {
+        Save(Boolean.class) { Object val(TreeItem item) {
             return item.getSave();
         }},
-        Name(TreeSpot.class) {
-            Object val(TreeSpot item) {
+        Name(TreeItem.class) {
+            Object val(TreeItem item) {
                 return item;
             }
             public String toString() {
                 return "";
             }
         },
-        Type(String.class) { Object val(TreeSpot item) {
+        Type(String.class) { Object val(TreeItem item) {
             return item.getType();
         }},
-        Sectors(String.class) { Object val(TreeSpot item) {
+        Sectors(String.class) { Object val(TreeItem item) {
             return item.getSectorRange();
         }},
-        Details(String.class) { Object val(TreeSpot item) {
+        Details(String.class) { Object val(TreeItem item) {
             return item.getDetails();
         }},
         ;
@@ -159,16 +162,16 @@ public class GuiTree extends JXTreeTable {
         COLUMNS(Class type) {
             _type = type;
         }
-        abstract Object val(TreeSpot item);
+        abstract Object val(TreeItem item);
     }
 
     // -------------------------------------------------------------------------
 
-    public static abstract class TreeSpot {
+    public static abstract class TreeItem {
 
-        protected ArrayList<TreeSpot> _kids = new ArrayList<TreeSpot>();
+        protected ArrayList<TreeItem> _kids = new ArrayList<TreeItem>();
 
-        public TreeSpot getKid(int childIndex) {
+        public TreeItem getKid(int childIndex) {
             return _kids.get(childIndex);
         }
 
@@ -180,24 +183,24 @@ public class GuiTree extends JXTreeTable {
             return _kids.indexOf(node);
         }
 
-        public void addKid(TreeSpot kid) {
+        public void addKid(TreeItem kid) {
             _kids.add(kid);
         }
 
-        public Iterator<TreeSpot> iterator() {
+        public Iterator<TreeItem> iterator() {
             return _kids.iterator();
         }
 
-        public DirectoryTreeSpot getOrCreateDir(String sName) {
-            for (TreeSpot node : _kids) {
-                if (node instanceof DirectoryTreeSpot) {
-                    DirectoryTreeSpot dirNode = (DirectoryTreeSpot) node;
+        public DirectoryTreeItem getOrCreateDir(String sName) {
+            for (TreeItem node : _kids) {
+                if (node instanceof DirectoryTreeItem) {
+                    DirectoryTreeItem dirNode = (DirectoryTreeItem) node;
                     if ( dirNode.getName().equals(sName) ) {
                         return dirNode;
                     }
                 }
             }
-            DirectoryTreeSpot dirNode = new DirectoryTreeSpot(sName);
+            DirectoryTreeItem dirNode = new DirectoryTreeItem(sName);
             _kids.add(dirNode);
             return dirNode;
         }
@@ -243,7 +246,7 @@ public class GuiTree extends JXTreeTable {
 
     }
 
-    private static class RootTreeSpot extends TreeSpot {
+    private static class RootTreeItem extends TreeItem {
         @Override
         public DiscItemSaverBuilder getBuilder() { return null; }
 
@@ -273,11 +276,11 @@ public class GuiTree extends JXTreeTable {
 
     }
 
-    private static class DirectoryTreeSpot extends RootTreeSpot {
+    private static class DirectoryTreeItem extends RootTreeItem {
 
         private String _sDirName;
 
-        public DirectoryTreeSpot(String _sDirName) {
+        public DirectoryTreeItem(String _sDirName) {
             this._sDirName = _sDirName;
         }
 
@@ -296,17 +299,17 @@ public class GuiTree extends JXTreeTable {
 
     }
 
-    private static class DiscItemTreeSpot extends TreeSpot {
+    private static class DiscItemTreeItem extends TreeItem {
 
         private DiscItem _item;
         private DiscItemSaverBuilder _builder;
         private boolean _blnSave = false;
 
-        public DiscItemTreeSpot(IndexId indexId) {
+        public DiscItemTreeItem(IndexId indexId) {
             _item = indexId.getItem();
             // recursively add the kids
             for (IndexId childId : indexId) {
-                _kids.add(new DiscItemTreeSpot(childId));
+                _kids.add(new DiscItemTreeItem(childId));
             }
         }
 
@@ -324,12 +327,15 @@ public class GuiTree extends JXTreeTable {
 
         @Override
         public Icon getIcon() {
+            // TODO: let the item create the icon
             if (_item instanceof DiscItemVideoStream) {
                 return VIDEO_ICON;
             } else if (_item instanceof DiscItemISO9660File) {
                 return FILE_ICON;
             } else if (_item instanceof DiscItemAudioStream) {
                 return AUDIO_ICON;
+            } else if (_item instanceof DiscItemTIM) {
+                return IMAGE_ICON;
             } else
                 return null;
         }
@@ -409,19 +415,19 @@ public class GuiTree extends JXTreeTable {
 
     // .........................................................................
 
-    private static RootTreeSpot buildTree(List<IndexId> indexIds) {
-        RootTreeSpot root = new RootTreeSpot();
+    private static RootTreeItem buildTree(List<IndexId> indexIds) {
+        RootTreeItem root = new RootTreeItem();
         for (IndexId id : indexIds) {
             if (id.getFile() != null) {
                 String[] asDirs = splitFileDirs(id.getFile());
 
-                TreeSpot tree = root;
+                TreeItem tree = root;
                 for (String sDir : asDirs) {
                     tree = tree.getOrCreateDir(sDir);
                 }
-                tree.addKid(new DiscItemTreeSpot(id));
+                tree.addKid(new DiscItemTreeItem(id));
             } else {
-                root.addKid(new DiscItemTreeSpot(id));
+                root.addKid(new DiscItemTreeItem(id));
             }
         }
         return root;
@@ -441,9 +447,9 @@ public class GuiTree extends JXTreeTable {
     // -------------------------------------------------------------------------
 
     private static class DiscTreeModel implements TreeTableModel {
-        private TreeSpot _treeRoot;
+        private TreeItem _treeRoot;
 
-        public DiscTreeModel(TreeSpot _treeRoot) {
+        public DiscTreeModel(TreeItem _treeRoot) {
             this._treeRoot = _treeRoot;
         }
 
@@ -451,24 +457,24 @@ public class GuiTree extends JXTreeTable {
             return COLUMNS.Name.ordinal();
         }
 
-        public TreeSpot getRoot() {
+        public TreeItem getRoot() {
             return _treeRoot;
         }
 
-        public TreeSpot getChild(Object parent, int index) {
-            return ((TreeSpot)parent).getKid(index);
+        public TreeItem getChild(Object parent, int index) {
+            return ((TreeItem)parent).getKid(index);
         }
 
         public int getChildCount(Object parent) {
-            return ((TreeSpot)parent).kidCount();
+            return ((TreeItem)parent).kidCount();
         }
 
         public boolean isLeaf(Object node) {
-            return ((TreeSpot)node).kidCount() == 0;
+            return ((TreeItem)node).kidCount() == 0;
         }
 
         public int getIndexOfChild(Object parent, Object child) {
-            return ((TreeSpot)parent).indexOf(child);
+            return ((TreeItem)parent).indexOf(child);
         }
 
         public void addTreeModelListener(TreeModelListener l) {}
@@ -476,7 +482,7 @@ public class GuiTree extends JXTreeTable {
         public void valueForPathChanged(TreePath path, Object newValue) {}
 
         public boolean isCellEditable(Object o, int i) {
-            return (i == COLUMNS.Save.ordinal()) && o instanceof DiscItemTreeSpot;
+            return (i == COLUMNS.Save.ordinal()) && o instanceof DiscItemTreeItem;
         }
 
         public int getColumnCount() {
@@ -492,11 +498,11 @@ public class GuiTree extends JXTreeTable {
         }
         
         public Object getValueAt(Object o, int i) {
-            return COLUMNS.values()[i].val((TreeSpot)o);
+            return COLUMNS.values()[i].val((TreeItem)o);
         }
 
         public void setValueAt(Object value, Object node, int i) {
-            ((DiscItemTreeSpot)node).setSave(((Boolean)value).booleanValue());
+            ((DiscItemTreeItem)node).setSave(((Boolean)value).booleanValue());
         }
     }
 
@@ -507,7 +513,7 @@ public class GuiTree extends JXTreeTable {
         public Component getTreeCellRendererComponent(JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row, boolean hasFocus) {
             super.getTreeCellRendererComponent(tree, value, selected,
                                                expanded, leaf, row, hasFocus);
-            Icon ico = ((TreeSpot)value).getIcon();
+            Icon ico = ((TreeItem)value).getIcon();
             if (ico != null)
                 setIcon(ico);
             

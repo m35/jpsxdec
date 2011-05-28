@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,10 +41,15 @@ import jpsxdec.psxvideo.mdec.DecodingException;
 import java.io.IOException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 
-
+/** Interface for classes that will convert an {@link MdecInputStream} into
+ * a binary bit-stream.
+ */
 public interface BitStreamCompressor {
-    byte[] compress(MdecInputStream inStream, int iLuminQscale, int iChromQscale, int iMdecCodeCount)
+    
+    byte[] compress(MdecInputStream inStream, int iLumaQscale, int iChromaQscale, int iMdecCodeCount)
             throws DecodingException, IOException;
 
+    /** If the Luma and Chroma quantization scales can be different
+     * (only available for Lain compressor). */
     boolean separateQscales();
 }

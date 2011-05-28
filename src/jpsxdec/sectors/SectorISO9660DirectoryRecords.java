@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,40 +46,51 @@ import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.NotThisTypeException;
 
 /** Sectors containing ISO9660 Directory Records. */
-public class SectorISO9660DirectoryRecords
-        extends UnidentifiedSector
+public class SectorISO9660DirectoryRecords extends IdentifiedSector
         implements Iterable<DirectoryRecord>
 {
 
     private ArrayList<DirectoryRecord> _dirRecords;
     
-    public SectorISO9660DirectoryRecords(CdSector cdSectotr)
-            throws NotThisTypeException
-    {
-        super(cdSectotr);
-        DirectoryRecord oFirstRec;
-        ByteArrayFPIS oSectStream = cdSectotr.getCdUserDataStream();
+    public SectorISO9660DirectoryRecords(CdSector cdSector) {
+        super(cdSector);
+        if (isSuperInvalidElseReset()) return;
+
+        if (cdSector.isCdAudioSector()) return;
+
+        DirectoryRecord firstRec;
+        ByteArrayFPIS sectStream = cdSector.getCdUserDataStream();
         try {
-            oFirstRec = new DirectoryRecord(oSectStream);
+            firstRec = new DirectoryRecord(sectStream);
         } catch (IOException ex) {
-            throw new NotThisTypeException();
+            return;
+        } catch (NotThisTypeException ex) {
+            return;
         }
         
         _dirRecords = new ArrayList<DirectoryRecord>();
-        _dirRecords.add(oFirstRec);
+        _dirRecords.add(firstRec);
         try {
             while (true) {
-                _dirRecords.add(new DirectoryRecord(oSectStream));
+                _dirRecords.add(new DirectoryRecord(sectStream));
             }
         } catch (NotThisTypeException ex) {} catch (IOException ex) {}
+
+        setProbability(100);
     }
 
-    @Override
     public int getSectorType() {
         return IdentifiedSector.SECTOR_ISO9660_DR;
     }
 
-    @Override
+    public int getIdentifiedUserDataSize() {
+        return super.getCDSector().getCdUserDataSize();
+    }
+
+    public ByteArrayFPIS getIdentifiedUserDataStream() {
+        return super.getCDSector().getCdUserDataStream();
+    }
+
     public String getTypeName() {
         return "ISO9660 Directory Records";
     }
@@ -95,6 +106,6 @@ public class SectorISO9660DirectoryRecords
     @Override
     public String toString() {
         return String.format("ISO DirRec %s %s",
-                super.cdToString(), _dirRecords.toString());
+                super.toString(), _dirRecords);
     }
 }

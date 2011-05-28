@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,6 @@ import jpsxdec.cdreaders.CdSector;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Shared super class of several video sector types. */
@@ -53,20 +52,15 @@ public abstract class SectorAbstractVideo extends IdentifiedSector implements IV
     private static final Logger log = Logger.getLogger(SectorAbstractVideo.class.getName());
     protected Logger log() { return log; }
 
-    // .. Instance fields ..................................................
-
-    protected int  _iChunkNumber;
-    protected int  _iChunksInThisFrame;
-    protected int  _iFrameNumber;
-    protected long _lngUsedDemuxedSize;
-    protected int  _iWidth;
-    protected int  _iHeight;
-    protected int  _iRunLengthCodeCount;
-    
     // .. Constructor .....................................................
 
-    public SectorAbstractVideo(CdSector cdSector) throws NotThisTypeException {
+    public SectorAbstractVideo(CdSector cdSector) {
         super(cdSector);
+        if (isSuperInvalidElseReset()) return;
+
+        if (cdSector.isCdAudioSector()) return;
+
+        setProbability(1);
     }
 
     // .. Abstract methods .................................................
@@ -75,29 +69,10 @@ public abstract class SectorAbstractVideo extends IdentifiedSector implements IV
 
     abstract public String getTypeName();
 
-    abstract public int getSectorHeaderSize();
+    abstract protected int getSectorHeaderSize();
 
     // .. Public methods ...................................................
 
-    final public int getChunkNumber() {
-        return _iChunkNumber;
-    }
-
-    final public int getChunksInFrame() {
-        return _iChunksInThisFrame;
-    }
-
-    final public int getFrameNumber() {
-        return _iFrameNumber;
-    }
-
-    final public int getWidth() {
-        return _iWidth;
-    }
-
-    final public int getHeight() {
-        return _iHeight;
-    }
 
     final public int getIdentifiedUserDataSize() {
             return super.getCDSector().getCdUserDataSize() -
@@ -123,15 +98,16 @@ public abstract class SectorAbstractVideo extends IdentifiedSector implements IV
         if (!(prevSector.getClass().equals(prevSector.getClass())))
             return false;
 
-        if (prevSector.getFrameNumber() == getFrameNumber() &&
-            prevSector.getChunksInFrame() != getChunksInFrame())
-            return false;
-
         if (getWidth()  != prevSector.getWidth() ||
             getHeight() != prevSector.getHeight())
                return false;
 
         /*  This logic is accurate, but not forgiving at all
+
+        if (prevSector.getFrameNumber() == getFrameNumber() &&
+            prevSector.getChunksInFrame() != getChunksInFrame())
+            return false;
+
         long iNextChunk = prevSector.getChunkNumber() + 1;
         long iNextFrame = prevSector.getFrameNumber();
         if (iNextChunk >= prevSector.getChunksInFrame()) {
@@ -143,10 +119,8 @@ public abstract class SectorAbstractVideo extends IdentifiedSector implements IV
             return false;
         */
 
-        // softer logic
-        if (prevSector.getFrameNumber() == getFrameNumber())
-            return true;
-        else if (prevSector.getFrameNumber() == getFrameNumber() - 1)
+        // much softer logic
+        if (prevSector.getFrameNumber() <= getFrameNumber())
             return true;
         else
             return false;
@@ -183,8 +157,5 @@ public abstract class SectorAbstractVideo extends IdentifiedSector implements IV
     }
 
 
-    final public boolean splitAudio() {
-        return (getFrameNumber() == 1 && getChunkNumber() == 0);
-    }
 }
 

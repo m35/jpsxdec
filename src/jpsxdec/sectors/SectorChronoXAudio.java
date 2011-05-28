@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,13 +37,10 @@
 
 package jpsxdec.sectors;
 
-import java.io.IOException;
-import java.io.InputStream;
 import jpsxdec.audio.SquareADPCMDecoder;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 /** Audio sectors used in Chrono Cross movies. Nearly identical to FF9
  *  audio sectors. */
@@ -53,69 +50,60 @@ public class SectorChronoXAudio extends IdentifiedSector
     // .. Static stuff .....................................................
 
     /** Used on disc 1. */
-    public static final int AUDIO_CHUNK_MAGIC1 = 0x00000160;
+    public static final long AUDIO_CHUNK_MAGIC1 = 0x00000160L;
     /** Used on disc 1. */
-    public static final int AUDIO_CHUNK_MAGIC2 = 0x00010160;
+    public static final long AUDIO_CHUNK_MAGIC2 = 0x00010160L;
     /** Used on disc 2. */
-    public static final int AUDIO_CHUNK_MAGIC3 = 0x01000160;
+    public static final long AUDIO_CHUNK_MAGIC3 = 0x01000160L;
     /** Used on disc 2. */
-    public static final int AUDIO_CHUNK_MAGIC4 = 0x01010160;
+    public static final long AUDIO_CHUNK_MAGIC4 = 0x01010160L;
     
     public static final int FRAME_AUDIO_CHUNK_HEADER_SIZE = 208;
 
     // .. Instance .........................................................
 
-    // Magic                                  //  0    [4 bytes]
+    // Magic                                 //  0    [4 bytes]
     private int _iAudioChunkNumber;          //  4    [2 bytes]
     private int _iAudioChunksInFrame;        //  6    [2 bytes]
     private int _iFrameNumber;               //  8    [2 bytes]
-    // 118 bytes unknown                     //  12   [118 bytes]
-    private SquareAKAOstruct _akaoStruct;    //  130  [80 bytes]
+    // 118 bytes unknown                     //  10   [118 bytes]
+    private SquareAKAOstruct _akaoStruct;    //  128  [80 bytes]
     //   208 TOTAL
 
-    public SectorChronoXAudio(CdSector oCDSect) throws NotThisTypeException {
-        super(oCDSect);
+    public SectorChronoXAudio(CdSector cdSector) {
+        super(cdSector);
+        if (isSuperInvalidElseReset()) return;
+
+        if (cdSector.isCdAudioSector()) return;
 
         // since all Chrono Cross movie sectors are in Mode 2 Form 1, we can 
         // still decode the movie even if there is no raw sector header.
-        if (oCDSect.hasRawSectorHeader() &&
-            ( !oCDSect.getSubMode().getData() ||
-              oCDSect.getSubMode().getForm() != 1 ))
-            throw new NotThisTypeException();
-
-        try {
-            InputStream is = oCDSect.getCdUserDataStream();
-
-            long lngMagic = IO.readUInt32LE(is);
-            
-            // make sure the magic nubmer is correct
-            if (lngMagic != AUDIO_CHUNK_MAGIC1 &&
-                lngMagic != AUDIO_CHUNK_MAGIC2 &&
-                lngMagic != AUDIO_CHUNK_MAGIC3 &&
-                lngMagic != AUDIO_CHUNK_MAGIC4)
-                throw new NotThisTypeException();
-
-            _iAudioChunkNumber = IO.readSInt16LE(is);
-            if (_iAudioChunkNumber < 0 || _iAudioChunkNumber > 1)
-                throw new NotThisTypeException();
-            _iAudioChunksInFrame = IO.readSInt16LE(is);
-            if (_iAudioChunksInFrame != 2)
-                throw new NotThisTypeException();
-            _iFrameNumber = IO.readSInt16LE(is);
-            if (_iFrameNumber < 1)
-                throw new NotThisTypeException();
-            
-            IO.skip(is, 118);
-
-            _akaoStruct = new SquareAKAOstruct(is);
-            
-            // All Chrono Chross movies have an AKAO tag
-            if (_akaoStruct.AKAO != SquareAKAOstruct.AKAO_ID)
-                throw new NotThisTypeException();
-            
-        } catch (IOException ex) {
-            throw new NotThisTypeException();
+        if (cdSector.hasRawSectorHeader() &&
+            cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_FORM) != SubMode.MASK_DATA)
+        {
+            return;
         }
+
+        // make sure the magic nubmer is correct
+        long lngMagic = cdSector.readUInt32LE(0);
+        if (lngMagic != AUDIO_CHUNK_MAGIC1 &&
+            lngMagic != AUDIO_CHUNK_MAGIC2 &&
+            lngMagic != AUDIO_CHUNK_MAGIC3 &&
+            lngMagic != AUDIO_CHUNK_MAGIC4)
+            return;
+
+        _iAudioChunkNumber = cdSector.readSInt16LE(4);
+        if (_iAudioChunkNumber != 0 && _iAudioChunkNumber != 1) return;
+        _iAudioChunksInFrame = cdSector.readSInt16LE(6);
+        if (_iAudioChunksInFrame != 2) return;
+        _iFrameNumber = cdSector.readSInt16LE(8);
+        if (_iFrameNumber < 1) return;
+
+        _akaoStruct = new SquareAKAOstruct(cdSector, 128);
+        // All Chrono Chross movies have an AKAO tag
+        if (_akaoStruct.AKAO != SquareAKAOstruct.AKAO_ID) return;
+
+        setProbability(100);
     }
 
     // .. Properties .......................................................

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -181,7 +181,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     @Override
     protected void readQscaleDC(MdecCode code) throws EOFException, DecodingException {
         code.setTop6Bits(_iQscale);
-        switch (_iCurrentBlock) {
+        switch (getCurrentMacroBlockSubBlock()) {
             case 0:
                 code.setBottom10Bits(_iPreviousCr_DC = decodeV3_DC_Chrominance(_iPreviousCr_DC));
                 return;
@@ -221,7 +221,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             if (iMask == 0) {
                 throw new DecodingException(
                         "Error decoding macro block:" +
-                        " Unknown DC variable length code " + iBits);
+                        " Unknown DC variable length code " + Misc.bitsToString(iBits, 8));
             }
             
             dcVlc = DC_Chrominance_VarLenCodes[iTblIndex];
@@ -303,6 +303,8 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             _iPreviousY_DC += iDC_Differential
                     // !!! ???We must multiply it by 4 for no reason??? !!!
                               * 4;
+            if (!(_iPreviousY_DC >= -512 && _iPreviousY_DC <= 511))
+                throw new DecodingException("DC out of bounds " + _iPreviousY_DC);
         }
     }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,34 +40,45 @@ package jpsxdec.sectors;
 import jpsxdec.iso9660.VolumePrimaryDescriptor;
 import java.io.IOException;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.NotThisTypeException;
 
 /** Sector containing the ISO9660 Volume Primary Descriptor. I believe
  * this usually falls at sector 16 in the disc image. */
-public class SectorISO9660VolumePrimaryDescriptor extends UnidentifiedSector
-{
+public class SectorISO9660VolumePrimaryDescriptor extends IdentifiedSector {
     
-    private final VolumePrimaryDescriptor _primaryDescriptor;
+    private VolumePrimaryDescriptor _primaryDescriptor;
     
-    public SectorISO9660VolumePrimaryDescriptor(CdSector cdSector)
-            throws NotThisTypeException
-    {
+    public SectorISO9660VolumePrimaryDescriptor(CdSector cdSector) {
         super(cdSector);
+        if (isSuperInvalidElseReset()) return;
+
+        if (cdSector.isCdAudioSector()) return;
+
         int iSectNum = cdSector.getSectorNumberFromStart();
-        if (iSectNum >= 0 && iSectNum != 16) throw new NotThisTypeException();
+        if (iSectNum >= 0 && iSectNum != 16) return;
         try {
             _primaryDescriptor = new VolumePrimaryDescriptor(cdSector.getCdUserDataStream());
         } catch (IOException ex) {
-            throw new NotThisTypeException();
+            return;
+        } catch (NotThisTypeException ex) {
+            return;
         }
+        setProbability(100);
     }
     
-    @Override
     public int getSectorType() {
         return IdentifiedSector.SECTOR_ISO9660_VPD;
     }
 
-    @Override
+    public int getIdentifiedUserDataSize() {
+        return super.getCDSector().getCdUserDataSize();
+    }
+
+    public ByteArrayFPIS getIdentifiedUserDataStream() {
+        return super.getCDSector().getCdUserDataStream();
+    }
+
     public String getTypeName() {
         return "ISO9660 Volume Primary Descriptor";
     }
@@ -79,7 +90,7 @@ public class SectorISO9660VolumePrimaryDescriptor extends UnidentifiedSector
     @Override
     public String toString() {
         return String.format("ISO PriDesc %s %s",
-                super.cdToString(), _primaryDescriptor.toString());
+                super.toString(), _primaryDescriptor);
     }
 
 }

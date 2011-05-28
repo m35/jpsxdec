@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -169,7 +169,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
                                                             WIDTH, HEIGHT);
         decoder.decode(parsedOrig.getStream());
         RgbIntImage rgb = new RgbIntImage(WIDTH, HEIGHT);
-        decoder.readDecodedRgb(rgb.getWidth(), rgb.getHeight(), rgb.getData(), 0, rgb.getWidth());
+        decoder.readDecodedRgb(rgb.getWidth(), rgb.getHeight(), rgb.getData());
         BufferedImage origImg = rgb.toBufferedImage();
         BufferedImage newImg = ImageIO.read(getImageFile());
 

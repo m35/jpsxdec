@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -175,12 +175,6 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         return new AudioSaver(_audItem,
                 new File(_audItem.getSuggestedBaseName().getPath() + "." + getExtension()),
                 _containerFormat, _dblVolume);
-    }
-
-    public void printSelectedOptions(PrintStream ps) {
-        ps.println("Format: " + getContainerFormat());
-        ps.println("Volume: " + Math.round(getVolume() * 100) + "%");
-        ps.println("Filename: " + getFileBaseName());
     }
 
 }

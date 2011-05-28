@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ import java.awt.EventQueue;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import jpsxdec.SavingGuiTable.Row;
@@ -89,6 +90,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
                 break;
             } catch (Exception ex) {
                 // uncool
+                _errLog.log(Level.SEVERE, "Unhandled error", ex);
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 if (ex instanceof InterruptedException)
                     break;
@@ -96,6 +98,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
                     continue;
             } catch (Throwable ex) {
                 // VERY uncool
+                _errLog.log(Level.SEVERE, "Unhandled error", ex);
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 continue;
             }

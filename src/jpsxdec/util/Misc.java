@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,10 @@
 
 package jpsxdec.util;
 
+import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -299,5 +301,11 @@ public final class Misc {
 
         return true;
     }
+
+    private static final URI CURRENT_URI = new File(".").toURI();
+    public static final String forwardSlashPath(File f) {
+        return CURRENT_URI.relativize(f.toURI()).toString();
+    }
+
 
 }

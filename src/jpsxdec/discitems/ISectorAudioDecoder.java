@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,13 +54,12 @@ public interface ISectorAudioDecoder {
         void write(AudioFormat format, byte[] abData, int iStart, int iLen, int iPresentationSector) throws IOException;
     }
 
-    /** The format that the AudioOutputStream supplied in
-     * {@link #open(ISectorTimedAudioWriter)}
-     * must have. */
+    /** The format of the audio data that will be fed to the
+     * {@link ISectorTimedAudioWriter} listener. */
     AudioFormat getOutputFormat();
 
-    /** If it likes the sector, writes audio data to the ISectorTimedAudioWriter
-     *  supplied by the {@link #open(ISectorTimedAudioWriter)} method. */
+    /** If it likes the sector, feeds audio data to the ISectorTimedAudioWriter
+     *  supplied by the {@link #setAudioListener(ISectorTimedAudioWriter)} method. */
     void feedSector(IdentifiedSector sector) throws IOException;
 
     double getVolume();
@@ -73,4 +72,6 @@ public interface ISectorAudioDecoder {
 
     int getStartSector();
     int getEndSector();
+
+    DiscItemAudioStream[] getSourceItems();
 }

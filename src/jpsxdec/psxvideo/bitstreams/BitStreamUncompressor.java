@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,6 +50,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             return new BitStreamUncompressor_STRv3();
         else if(BitStreamUncompressor_FF7.checkHeader(abHeaderBytes))
             return new BitStreamUncompressor_FF7();
+        else if(BitStreamUncompressor_Iki.checkHeader(abHeaderBytes))
+            return new BitStreamUncompressor_Iki();
         else if(BitStreamUncompressor_Lain.checkHeader(abHeaderBytes))
             return new BitStreamUncompressor_Lain();
         else

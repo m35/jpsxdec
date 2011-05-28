@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,9 +46,9 @@ import java.awt.image.IndexColorModel;
 import java.awt.image.WritableRaster;
 
 /** Creates more predictable image color spaces.
- *
+ *<p>
  * Java can sometimes create images that don't always output the exact
- * bytes you put into them. These helper function try to alleviate that. */
+ * bytes you put into them. These helper functions try to alleviate that. */
 public class Imaging {
     public static final ColorModel LINEAR_RGB_INT;
     public static final IndexColorModel LINEAR_GRAY_INDEXED;

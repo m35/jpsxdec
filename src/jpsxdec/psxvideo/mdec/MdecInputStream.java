@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,9 @@ import java.io.EOFException;
 /** Read MDEC codes one at a time from a stream. */
 public abstract class MdecInputStream {
 
-    /** Reads an MDEC code into the provided MdecCode object.
+    /** Reads the next MDEC code from the stream into the provided
+     * {@link MdecCode} object.
+     * 
      *  @return  true if the EOD code is read. */
     public abstract boolean readMdecCode(MdecCode code)
             throws DecodingException, EOFException;
@@ -165,11 +167,6 @@ public abstract class MdecInputStream {
         @Override
         public MdecCode clone() {
             return new MdecCode(_iTop6Bits, _iBottom10Bits);
-        }
-
-        public void copy(MdecCode o) {
-            o.setTop6Bits(_iTop6Bits);
-            o.setBottom10Bits(_iBottom10Bits);
         }
 
         public boolean isEOD() {

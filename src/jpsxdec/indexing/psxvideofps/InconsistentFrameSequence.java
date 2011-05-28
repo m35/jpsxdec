@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,46 +53,66 @@ public class InconsistentFrameSequence {
 
     private static final Logger log = Logger.getLogger(InconsistentFrameSequence.class.getName());
 
+    // -------------------------------------------------------------------------
+    // --  Static stuff  -------------------------------------------------------
+    // -------------------------------------------------------------------------
+
     /** List of sectors/frame data files. Update this list if the files change. */
     public static final String[] FPS_LISTS = new String[] {
         "20FPS_A8.dat",
         "20FPS_A16.dat",
         "NTSC20_A8.dat",
+        "NTSC20_A8-SB.dat",
         "NTSC15_A8-100,999.dat",
         "NTSC15_A8-101,1000.dat"
     };
 
-    /** Parses the header line in a sectors/frame data file.  */
+    /** Parses the header line in a sectors/frame sequence text file.
+     * <pre>[sectors]/[per-frame] [audio start sector] [audio sector stride] (loop)</pre>
+     * The 4 values can be delimited by anything that isn't a number.
+     * if the string "loop" is found in the line, then the sequence will loop
+     * back to the start when the end is reached.
+     */
     private static class HeaderParse {
-            public final int iSectors   ,
-                iPerFrame  ,
-                iAudStart  ,
-                iAudStride ;
-            public final boolean blnLoop;
+        public final int iSectors,
+                         iPerFrame,
+                         iAudStart,
+                         iAudStride;
+        public final boolean blnLoop;
 
-            /**
-             * @throws NumberFormatException When there's an error reading a line.
-             * @throws ArrayIndexOutOfBoundsException When there's an error reading a line.
-             */
-            public HeaderParse(String sLine) {
-                String[] asValues = sLine.split("\\D+");
-                iSectors    = Integer.parseInt(asValues[0]);
-                iPerFrame   = Integer.parseInt(asValues[1]);
-                iAudStart   = Integer.parseInt(asValues[2]);
-                iAudStride  = Integer.parseInt(asValues[3]);
-                blnLoop = sLine.contains("loop");
-            }
+        /**
+         * @throws NumberFormatException When there's an error reading a line.
+         * @throws ArrayIndexOutOfBoundsException When there's an error reading a line.
+         */
+        public HeaderParse(String sLine) {
+            String[] asValues = sLine.split("\\D+");
+            iSectors    = Integer.parseInt(asValues[0]);
+            iPerFrame   = Integer.parseInt(asValues[1]);
+            iAudStart   = Integer.parseInt(asValues[2]);
+            iAudStride  = Integer.parseInt(asValues[3]);
+            blnLoop = sLine.contains("loop");
+        }
     }
 
+    /** Parses a line in a sectors/frame sequence text file. The format is
+     * <pre>
+     * [sector number] [frame number] [chunk number] [total chunks in frame]
+     * </pre>
+     * The 4 values can be delimited by anything that isn't a number.
+     * Anything after the 4 values is ignored.
+     * 
+     * @throws NotThisTypeException If there is an error parsing the line.
+     */
     private static class LineParse {
-       public  final int iSectorNum,
-                    iFrameNum,
-                    iChunkNum,
-                    iChunkCount;
+       public final int iSectorNum,
+                        iFrameNum,
+                        iChunkNum,
+                        iChunkCount;
 
        public LineParse(String sLine) throws NotThisTypeException {
            this(sLine, 0, 0);
        }
+       // TODO: actually use this constructor
        public LineParse(String sLine, int iLoopFrame, int iLoopSector) 
                throws NotThisTypeException
        {
@@ -160,6 +180,9 @@ public class InconsistentFrameSequence {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // --  Instance stuff  -----------------------------------------------------
+    // -------------------------------------------------------------------------
 
     private BufferedReader _reader;
     private final String _sSourceResource;
@@ -167,10 +190,10 @@ public class InconsistentFrameSequence {
     private int _iCurrentLineSector;
 
     private InconsistentFrameSequence(BufferedReader reader, String sSourceResource,
-            int iStartLine, HeaderParse oHead)
+            int iStartLine, HeaderParse head)
     {
         _reader = reader;
-        _header = oHead;
+        _header = head;
         _iCurrentLineSector = iStartLine;
         _sSourceResource = sSourceResource;
     }
@@ -180,7 +203,9 @@ public class InconsistentFrameSequence {
             String sLine = null;
             while (_iCurrentLineSector <= iSector) {
                 sLine = _reader.readLine();
+                // if at the end of the resource, but we're looping
                 if (sLine == null && _header.blnLoop) {
+                    // close and reopen the text resource
                     _reader.close();
                     InputStream is = InconsistentFrameSequence.class.getResourceAsStream(_sSourceResource);
                     _reader = new BufferedReader(new InputStreamReader(is));
@@ -190,16 +215,16 @@ public class InconsistentFrameSequence {
                 _iCurrentLineSector++;
             }
             if (sLine == null) {
-                // darn, the movie is longer that this sequence.
+                // darn, the movie is longer than we have defined in the sequence.
                 // we can probably assume it's a match, but this code
-                // should be cleaned up and refactored to handle that.
+                // TODO: should be changed to handle that and report.
                 // as for now, we'll fail
                 log.warning("Movie is longer than sequence " + _sSourceResource);
                 return false;
             }
             LineParse line = new LineParse(sLine);
 
-            boolean ret = //iFrame == line.iFrameNum && // don't check frame in case of looping
+            boolean ret = iFrame == line.iFrameNum && // don't check frame in case of looping
                    iChunk == line.iChunkNum &&
                    line.iChunkCount == iFrameChunkCount;
             if (!ret) {
@@ -217,4 +242,11 @@ public class InconsistentFrameSequence {
     public Fraction getSectorsPerFrame() {
         return new Fraction(_header.iSectors, _header.iPerFrame);
     }
+
+    @Override
+    public String toString() {
+        return _sSourceResource;
+    }
+
+
 }

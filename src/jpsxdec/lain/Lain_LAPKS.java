@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -93,7 +93,7 @@ public class Lain_LAPKS {
                 uncompresor.reset(oCell.Data);
                 oDecoder.decode(uncompresor);
                 RgbIntImage oRgb = new RgbIntImage(oCell.Width, oCell.Height);
-                oDecoder.readDecodedRgb(oRgb.getWidth(), oRgb.getHeight(), oRgb.getData(), 0, oRgb.getWidth());
+                oDecoder.readDecodedRgb(oRgb.getWidth(), oRgb.getHeight(), oRgb.getData());
                 
                 String s = String.format("%s%02d_f%02d",
                         sOutFileBase,
@@ -311,7 +311,7 @@ public class Lain_LAPKS {
                 os.write((int)QuantChrom); // normally run len code
                 os.write((int)QuantLumin); // '''''''''''''''''''''
                 IO.writeInt16LE(os, 0x3800);
-                IO.writeInt16LE(os, NumRunLenCodes); // normally q scale
+                IO.writeInt16LE(os, (int)NumRunLenCodes); // normally q scale
                 IO.writeInt16LE(os, 0x0000); // version 0 (Lain)
             } catch (IOException ex) {
                 ex.printStackTrace();

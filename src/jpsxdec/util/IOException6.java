@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,7 @@ package jpsxdec.util;
 import java.io.IOException;
 
 /** {@link IOException} in Java 5 doesn't have the
- * {@link #IOException6(java.lang.Throwable) constructor. */
+ * {@link java.lang.Throwable} constructor. */
 public class IOException6 extends IOException {
 
     public IOException6(Throwable cause) {

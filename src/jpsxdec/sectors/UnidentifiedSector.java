@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,8 +44,12 @@ import jpsxdec.util.NotThisTypeException;
 
 /** If all else fails, we don't know what kind of data this sector contains. */
 public class UnidentifiedSector extends IdentifiedSector {
+
     public UnidentifiedSector(CdSector cdSector) throws NotThisTypeException {
         super(cdSector);
+
+        if (cdSector.isCdAudioSector())
+            throw new NotThisTypeException();
     }
 
     public String toString() {
@@ -58,11 +62,6 @@ public class UnidentifiedSector extends IdentifiedSector {
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
         return super.getCDSector().getCdUserDataStream();
-    }
-    
-    @Override
-    public CdSector getCDSector() {
-        return super.getCDSector();
     }
     
     public int getSectorType() {

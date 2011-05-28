@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,22 +43,22 @@ import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Alice In Cyber Land frame chunk sector. */
-public class SectorAliceFrameChunk extends SectorAliceFrameChunkNull
+public class SectorAliceVideo extends SectorAliceNullVideo
         implements IVideoSector 
 {
 
-    // .. Constructor .....................................................
 
-    public SectorAliceFrameChunk(CdSector cdSector) throws NotThisTypeException
-    {
+    public SectorAliceVideo(CdSector cdSector) {
         super(cdSector);
+        if (isSuperInvalidElseReset()) return;
+
         // ingnore null frames between movies
-        if (_iFrameNumber == 0xFFFF)
-            throw new NotThisTypeException();
+        if (_iFrameNumber == 0xFFFF) return;
+
+        setProbability(100);
     }
 
     // .. Public functions .................................................
@@ -85,9 +85,9 @@ public class SectorAliceFrameChunk extends SectorAliceFrameChunkNull
         if (!(prevSector.getClass().equals(prevSector.getClass())))
             return false;
 
-        SectorAliceFrameChunk oAliceFrame = (SectorAliceFrameChunk) prevSector;
-        if (getHeight() != oAliceFrame.getHeight() ||
-            getWidth() != oAliceFrame.getWidth())
+        SectorAliceVideo prevAlice = (SectorAliceVideo) prevSector;
+        if (getHeight() != prevAlice.getHeight() ||
+            getWidth() != prevAlice.getWidth())
             return false;
 
         long lngNextChunkNum = prevSector.getChunkNumber()+1;

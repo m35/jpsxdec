@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,6 @@ package jpsxdec.sectors;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.NotThisTypeException;
     
 /** 'Null' XA sectors.
  * XA files have lots of audio channels. When a channel is no longer used
@@ -49,33 +48,33 @@ import jpsxdec.util.NotThisTypeException;
  * and are often full of zeros. */
 public class SectorXANull extends IdentifiedSector {
 
-    public SectorXANull(CdSector cdSector)
-            throws NotThisTypeException 
-    {
+    public SectorXANull(CdSector cdSector) {
         super(cdSector);
+        if (isSuperInvalidElseReset()) return;
+        
+        if (cdSector.isCdAudioSector()) return;
+
         // if it doesn't have a sector header, then it can't be a null sector
-        if (!cdSector.hasRawSectorHeader())
-            throw new NotThisTypeException();
+        if (!cdSector.hasRawSectorHeader()) return;
         // if it's not a Form 2 sector, then it can't be a null sector
-        if (cdSector.getSubMode().getForm() != 2)
-            throw new NotThisTypeException();
+        if (cdSector.getSubMode().getForm() != 2) return;
 
         // if it's not flagged as a null sector...
         SubMode sm = cdSector.getSubMode();
         if (sm.getAudio() || sm.getVideo() || sm.getData())
         {
             // if it's flagged as an audio sector, then it's not a null sector
-            if (!sm.getAudio())
-                throw new NotThisTypeException();
+            if (!sm.getAudio()) return;
 
             // if it has a valid channel number, then it's not a null sector
             if (cdSector.getChannel() >= 0 || cdSector.getChannel() < 32) {
-                throw new NotThisTypeException();
+                return;
                 // Ace Combat 3 has several AUDIO sectors with channel 255
                 // that seem to be "null" sectors
             }
         }
 
+        setProbability(100);
     }
 
     public String toString() {
@@ -83,12 +82,11 @@ public class SectorXANull extends IdentifiedSector {
     }
 
     public int getIdentifiedUserDataSize() {
-            return 1; // just making the sector 1 byte long for no reason
+            return 0;
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
-                0, getIdentifiedUserDataSize());
+        return null;
     }
     
     public int getSectorType() {

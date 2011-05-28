@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,96 +37,80 @@
 
 package jpsxdec.sectors;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 
 
-/** This is the header for Chrono Cross video sectors. */
+/** Represents a Chrono Cross video sector. */
 public class SectorChronoXVideo extends SectorAbstractVideo {
     
     private static final Logger log = Logger.getLogger(SectorChronoXVideo.class.getName());
-    protected Logger log() { return log; }
 
     // .. Static stuff .....................................................
 
-    public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 = 0x81010160;
-    public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC2 = 0x01030160;
+    public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 = 0x81010160L;
+    public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC2 = 0x01030160L;
 
-
-    // .. Additional fields ...............................................
+    // .. Fields ..........................................................
 
     // Magic 0x81010160 or 0x01030160   //  0    [4 bytes]
-    // ChunkNumber                      //  4    [2 bytes]
-    // ChunksInThisFrame                //  6    [2 bytes]
-    // FrameNumber                      //  8    [4 bytes]
-    // UsedDemuxedSize                  //  12   [4 bytes]
-    // Width                            //  16   [2 bytes]
-    // Height                           //  18   [2 bytes]
-    // RunLengthCodeCount               //  20   [2 bytes]
+    private int  _iChunkNumber;         //  4    [2 bytes]
+    private int  _iChunksInThisFrame;   //  6    [2 bytes]
+    private int  _iFrameNumber;         //  8    [4 bytes]
+    private long _lngUsedDemuxedSize;   //  12   [4 bytes]
+    private int  _iWidth;               //  16   [2 bytes]
+    private int  _iHeight;              //  18   [2 bytes]
+    private int  _iRunLengthCodeCount;  //  20   [2 bytes]
     private int  _iQuantizationScale;   //  24   [2 bytes]
     private int  _iVersion;             //  26   [2 bytes]
     private long _lngFourZeros;         //  28   [4 bytes]
     //   32 TOTAL
+    
+    @Override
+    protected int getSectorHeaderSize() { return 32; }
 
-    public SectorChronoXVideo(CdSector cdSector) throws NotThisTypeException {
-        super(cdSector); 
-        if (cdSector.hasRawSectorHeader()) {
-            if (!(cdSector.getSubMode().getData() || cdSector.getSubMode().getVideo()))
-            {
-                throw new NotThisTypeException();
-            }
+    public SectorChronoXVideo(CdSector cdSector) {
+        super(cdSector);
+        if (isSuperInvalidElseReset()) return;
+
+        // only if it has a sector header should we check if it reports DATA or VIDEO
+        if (cdSector.hasRawSectorHeader() &&
+            cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
+        {
+            return;
         }
-        try {
-            ByteArrayInputStream inStream = cdSector.getCdUserDataStream();
-            
-            long lngMagic = IO.readUInt32LE(inStream);
 
-            if (lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
-                lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
-                throw new NotThisTypeException();
+        long lngMagic = cdSector.readUInt32LE(0);
+        if (lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
+            lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
+            return;
 
-            _iChunkNumber = IO.readSInt16LE(inStream);
-            if (_iChunkNumber < 0)
-                throw new NotThisTypeException();
-            _iChunksInThisFrame = IO.readSInt16LE(inStream);
-            if (_iChunksInThisFrame < 1)
-                throw new NotThisTypeException();
-            _iFrameNumber = IO.readSInt32LE(inStream);
-            if (_iFrameNumber < 0)
-                throw new NotThisTypeException();
+        _iChunkNumber = cdSector.readSInt16LE(4);
+        if (_iChunkNumber < 0) return;
+        _iChunksInThisFrame = cdSector.readSInt16LE(6);
+        if (_iChunksInThisFrame < 1) return;
+        _iFrameNumber = cdSector.readSInt32LE(8);
+        if (_iFrameNumber < 0) return;
+        _lngUsedDemuxedSize = cdSector.readSInt32LE(12);
+        if (_lngUsedDemuxedSize < 0) return;
+        _iWidth = cdSector.readSInt16LE(16);
+        if (_iWidth < 1) return;
+        _iHeight = cdSector.readSInt16LE(18);
+        if (_iHeight < 1) return;
+        _iRunLengthCodeCount = cdSector.readUInt16LE(20);
+        if (_iRunLengthCodeCount < 1) return;
+        int iMagic3800 = cdSector.readUInt16LE(22);
+        if (iMagic3800 != 0x3800) return;
+        _iQuantizationScale = cdSector.readSInt16LE(24);
+        if (_iQuantizationScale < 1) return;
+        _iVersion = cdSector.readUInt16LE(26);
+        _lngFourZeros = cdSector.readUInt32LE(28);
 
-            _lngUsedDemuxedSize = IO.readSInt32LE(inStream);
-            if (_lngUsedDemuxedSize < 0)
-                throw new NotThisTypeException();
-
-            _iWidth = IO.readSInt16LE(inStream);
-            if (_iWidth < 1)
-                throw new NotThisTypeException();
-            _iHeight = IO.readSInt16LE(inStream);
-            if (_iHeight < 1)
-                throw new NotThisTypeException();
-
-            _iRunLengthCodeCount = IO.readUInt16LE(inStream);
-
-            long iMagic3800 = IO.readUInt16LE(inStream);
-            if (iMagic3800 != 0x3800)
-                throw new NotThisTypeException();
-
-            _iQuantizationScale = IO.readSInt16LE(inStream);
-            if (_iQuantizationScale < 1)
-                throw new NotThisTypeException();
-            _iVersion = IO.readUInt16LE(inStream);
-            _lngFourZeros = IO.readUInt32LE(inStream);
-        } catch (IOException ex) {
-            throw new NotThisTypeException();
-        }
+        setProbability(100);
     }
 
-    // .. Public functions .................................................
+    // .. Public methods ...................................................
 
     @Override
     public String getTypeName() {
@@ -135,7 +119,7 @@ public class SectorChronoXVideo extends SectorAbstractVideo {
 
     public String toString() {
         return String.format("%s %s frame:%d chunk:%d/%d %dx%d ver:%d " +
-            "{demux frame size=%d rlc=%d 3800=%04x qscale=%d 4*00=%08x}",
+            "{demux frame size=%d rlc=%d qscale=%d 4*00=%08x}",
             getTypeName(),
             super.cdToString(),
             _iFrameNumber,
@@ -151,10 +135,28 @@ public class SectorChronoXVideo extends SectorAbstractVideo {
             );
     }
 
-    @Override
-    public int getSectorHeaderSize() {
-        return 32;
+    public int getChunkNumber() {
+        return _iChunkNumber;
     }
 
+    public int getChunksInFrame() {
+        return _iChunksInThisFrame;
+    }
+
+    public int getFrameNumber() {
+        return _iFrameNumber;
+    }
+
+    public int getHeight() {
+        return _iHeight;
+    }
+
+    public int getWidth() {
+        return _iWidth;
+    }
+
+    public boolean splitAudio() {
+        return (getFrameNumber() == 1 && getChunkNumber() == 0);
+    }
 }
 

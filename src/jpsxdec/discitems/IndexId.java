@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,10 +40,10 @@ package jpsxdec.discitems;
 import java.io.File;
 import java.util.AbstractList;
 import java.util.ArrayList;
-import jpsxdec.discitems.DiscItem;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
+/** Holds the index unique number, and unique string id based on a file. */
 public class IndexId extends AbstractList<IndexId> {
     private File _sourceFile;
     private int[] _aiTreeIndexes;
@@ -129,9 +129,12 @@ public class IndexId extends AbstractList<IndexId> {
 
 
     public String serialize() {
-        return "#" + _iListIndex + " " + safePath().getPath() + getTreeIndex();
+        return "#" + _iListIndex + " " + getId();
     }
 
+    public String getId() {
+        return Misc.forwardSlashPath(safePath()) + getTreeIndex();
+    }
 
     public File getFile() {
         return _sourceFile;

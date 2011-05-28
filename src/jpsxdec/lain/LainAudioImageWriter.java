@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -61,7 +61,7 @@ public class LainAudioImageWriter {
 
     public static void main_(String[] args) throws IOException {
         RandomAccessFile raf = new RandomAccessFile("..\\..\\mystery.pk", "r");
-        Lain_Pk.DebugVerbose = 10;
+        Lain_Pk.DEBUG = 10;
         
         IO.skip(raf, 4); // skip 'napk'
         

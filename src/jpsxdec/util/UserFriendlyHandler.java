@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -159,7 +159,7 @@ public abstract class UserFriendlyHandler extends StreamHandler {
         public String format(LogRecord record) {
             StringBuilder sb = new StringBuilder();
             if (_sSubHeaderLine != null) {
-                sb.append(_sSubHeaderLine);
+                sb.append(_sSubHeaderLine).append(LINE_SEPARATOR);
                 _sSubHeaderLine = null;
             }
             Level lvl = record.getLevel();

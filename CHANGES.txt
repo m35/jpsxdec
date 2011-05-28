@@ -1,3 +1,13 @@
+v0.96.0 rev1996 (28 May 2011)
+    - Added Tim image detection and saving - enjoy thousands of items in the list
+    - Added support for most .iki videos (additional handling to be added later)
+    - Remembers last used directories when opening/saving disc images/index files
+    - Added dropdown lists of previously opened disc images and indexes
+    - Slightly improved color accuracy of nearly exact PSX video conversion
+    - Various bug fixes
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
+    - Massive lists of items scroll choppy on Windows
 v0.95.1 rev1831 (11 Jan 2011)
     - Added Windows .exe to start the program
     - Fixed and improved audio/video indexing logic

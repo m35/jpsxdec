@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,6 @@
 
 package jpsxdec.discitems;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.WeakHashMap;
 import javax.swing.event.ChangeEvent;
@@ -46,9 +44,11 @@ import javax.swing.event.ChangeListener;
 import jpsxdec.util.FeedbackStream;
 
 
-/** Created by DiscItems to manage the item's possible saving options. 
+/** Created by {@link DiscItem}s to manage the item's possible saving options.
+ *<p>
  *  Accepts the command-line text to parse and interpret as the saving options,
- *  and/or creates the dialog interface for visually selecting saving options.
+ *  and/or creates a dialog interface for visually selecting saving options.
+ *<p>
  *  Call {@link #makeSaver()} when ready to save.  */
 public abstract class DiscItemSaverBuilder {
 
@@ -79,14 +79,12 @@ public abstract class DiscItemSaverBuilder {
         }
     }
 
-    /** Create a GUI for all the options that can be placed in a window. */
+    /** Create a GUI for options that can be placed in a window. */
     abstract public DiscItemSaverBuilderGui getOptionPane();
     /** Prints the item's specific possible command-line options. */
     abstract public void printHelp(FeedbackStream fbs);
     /** Parse command-line options from an array of command-line arguments. */
     abstract public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs);
-    /** Prints the current options settings. */
-    abstract public void printSelectedOptions(PrintStream ps);
     abstract public void resetToDefaults();
     abstract public boolean copySettings(DiscItemSaverBuilder other);
     /** Creates the saver using a snapshot of current options. */

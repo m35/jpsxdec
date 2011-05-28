@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,6 @@ package jpsxdec.psxvideo.mdec;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.formats.RgbIntImage;
 import jpsxdec.formats.RGB;
 import jpsxdec.psxvideo.PsxYCbCr_int;
 import jpsxdec.psxvideo.mdec.idct.IDCT_int;
@@ -77,7 +76,7 @@ public class MdecDecoder_int extends MdecDecoder {
     protected final int[] _aiLumaBlkOfsLookup;
     protected final int[] _aiChromaMacBlkOfsLookup;
 
-    protected final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
+    protected int[] _aiQuantizationTable =
             MdecInputStream.getDefaultPsxQuantMatrixCopy();
 
     public MdecDecoder_int(IDCT_int idct, int iWidth, int iHeight) {
@@ -146,7 +145,7 @@ public class MdecDecoder_int extends MdecDecoder {
 
                         if (_code.getBottom10Bits() != 0) {
                             _CurrentBlock[0] =
-                                    _code.getBottom10Bits() * PSX_DEFAULT_QUANTIZATION_MATRIX[0];
+                                    _code.getBottom10Bits() * _aiQuantizationTable[0];
                             iCurrentBlockNonZeroCount = 1;
                             iCurrentBlockLastNonZeroPosition = 0;
                         } else {
@@ -177,7 +176,7 @@ public class MdecDecoder_int extends MdecDecoder {
                             // Dequantize
                             _CurrentBlock[iRevZigZagPos] =
                                         (_code.getBottom10Bits()
-                                      * PSX_DEFAULT_QUANTIZATION_MATRIX[iRevZigZagPos]
+                                      * _aiQuantizationTable[iRevZigZagPos]
                                       * iCurrentBlockQscale + 4) >> 3;
                             //  i      >> 3  ==  (int)Math.floor(i / 8.0)
                             // (i + 4) >> 3  ==  (int)Math.round(i / 8.0)
@@ -330,4 +329,9 @@ public class MdecDecoder_int extends MdecDecoder {
         }
     }
 
+    public void setQuantizationTable(int[] aiNewTable) {
+        if (aiNewTable.length != _aiQuantizationTable.length)
+            throw new IllegalArgumentException("Incorrect table size");
+        System.arraycopy(aiNewTable, 0, _aiQuantizationTable, 0, _aiQuantizationTable.length);
+    }
 }

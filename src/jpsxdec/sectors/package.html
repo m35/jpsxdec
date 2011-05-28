@@ -1,0 +1,32 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head><title>jPSXdec</title></head>
+<body>
+All the known sector types.
+<p>
+    All sectors extend {@link IdentifiedSector}, which in turn implements
+    {@link IIdentifiedSector}.
+</p>
+<p>
+    All streaming video sectors implement {@link IVideoSector}.
+</p>
+<p>
+    Square related sectors
+</p>
+    <ul>
+        <li>{@link SectorChronoXAudio}</li>
+        <li>{@link SectorChronoXVideo}</li>
+        <li>{@link SectorChronoXVideoNull}</li>
+        <li>{@link SectorFF8}</li>
+        <li>{@link SectorFF9}</li>
+    </ul>
+<p>
+    use {@link ISquareAudioSector} and {SquareAKAOstruct}.
+</p>
+<p>
+    {@link UnidentifiedSector} can be used when a sector is unknown, but
+    an interface expects {@link IdentifiedSector}.
+</p>
+
+</body>
+</html>

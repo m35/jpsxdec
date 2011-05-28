@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,44 +39,43 @@ package jpsxdec.sectors;
 
 import java.io.PrintStream;
 import jpsxdec.audio.XAADPCMDecoder;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Standard audio sector for XA. */
-public class SectorXA extends IdentifiedSector {
+public class SectorXAAudio extends IdentifiedSector {
 
-    private static final Logger log = Logger.getLogger(SectorXA.class.getName());
+    private static final Logger log = Logger.getLogger(SectorXAAudio.class.getName());
 
-    private final int _iSamplesPerSecond;
-    private final int _iBitsPerSample;
-    private final boolean _blnStereo;
-    private final int _iErrors;
+    private int _iSamplesPerSecond;
+    private int _iBitsPerSample;
+    private boolean _blnStereo;
+    private int _iErrors;
 
-    public SectorXA(CdSector cdSector) throws NotThisTypeException {
+    public SectorXAAudio(CdSector cdSector) {
         super(cdSector);
+        if (isSuperInvalidElseReset()) return;
 
-        if (!cdSector.hasRawSectorHeader())
-            throw new NotThisTypeException();
-        if (cdSector.getSubMode().getForm() != 2)
-            throw new NotThisTypeException();
-        if (!cdSector.getSubMode().getAudio())
-            throw new NotThisTypeException();
+        if (cdSector.isCdAudioSector()) return;
+
+        if (!cdSector.hasRawSectorHeader()) return;
+        if (cdSector.subModeMask(SubMode.MASK_FORM | SubMode.MASK_AUDIO) !=
+                                (SubMode.MASK_FORM | SubMode.MASK_AUDIO)) return;
         // Ace Combat 3 has several sectors with channel 255
         // They seem to be "null" sectors
-        if (cdSector.getChannel() < 0 || cdSector.getChannel() >= 32)
-            throw new NotThisTypeException();
+        if (cdSector.getChannel() < 0 || cdSector.getChannel() >= 32) return;
+
+        _blnStereo = cdSector.getCodingInfo().isStereo();
+        _iSamplesPerSecond = cdSector.getCodingInfo().getSampleRate();
+        _iBitsPerSample = cdSector.getCodingInfo().getBitsPerSample();
 
         // TODO: check Sound Parameters values that the index is valid
 
         int iErrors = 0;
-        _iBitsPerSample = cdSector.getCodingInfo().getBitsPerSample();
         if (_iBitsPerSample == 4) {
             for (int iOfs = 0; 
                  iOfs < cdSector.getCdUserDataSize() - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
@@ -110,16 +109,14 @@ public class SectorXA extends IdentifiedSector {
                 }
             }
         }
-        // My Spyro image has a lot of errors
-        if (iErrors > 0) {
-            log.log(Level.WARNING, "Found {0} errors in XA sound parameters for {1}", new Object[]{iErrors, cdSector.toString()});
-            if (iErrors > 11)
-                throw new NotThisTypeException();
-        }
 
         _iErrors = iErrors;
-        _blnStereo = cdSector.getCodingInfo().isStereo();
-        _iSamplesPerSecond = cdSector.getCodingInfo().getSampleRate();
+
+        if (iErrors > 0) {
+            log.log(Level.WARNING, "Found {0} errors in XA sound parameters for {1}", new Object[]{iErrors, cdSector.toString()});
+        }
+        
+        setProbability(100);
     }
 
     public boolean isStereo() {
@@ -134,8 +131,8 @@ public class SectorXA extends IdentifiedSector {
         return _iSamplesPerSecond;
     }
 
-    /** The last 20 bytes of the sector are unused.
-     *  [extends IdentifiedSector] */
+    /** The last 20 bytes of the sector are unused. */
+    // [extends IdentifiedSector]
     public int getIdentifiedUserDataSize() {
             return super.getCDSector().getCdUserDataSize() - 20;
     }
@@ -162,34 +159,34 @@ public class SectorXA extends IdentifiedSector {
     }
 
     public String toString() {
-        String s = String.format("XA Audio %s %s %d bits/sample %d samples/sec",
-               super.toString(),
-               _blnStereo ? "Stereo" : "Mono",
-               _iBitsPerSample,
-               _iSamplesPerSecond);
-        if (isAllQuiet()) {
-            return s + " SILENT";
-        } else {
-            return s;
-        }
+        StringBuilder sb = new StringBuilder("XA Audio ");
+        sb.append(super.toString()).append(' ');
+        sb.append(_blnStereo ? "Stereo" : "Mono").append(' ');
+        sb.append(_iBitsPerSample).append(" bits/sample ");
+        sb.append(_iSamplesPerSecond).append(" samples/sec");
+        if (_iErrors > 0)
+            sb.append(" {").append(_iErrors).append(" errors}");
+        if (isAllQuiet())
+            sb.append(" SILENT");
+        return sb.toString();
     }
 
-    public SectorXA matchesPrevious(IdentifiedSector prevSect) {
-        if (!(prevSect instanceof SectorXA))
-            return null;
+    public boolean matchesPrevious(IdentifiedSector prevSect) {
+        if (!(prevSect instanceof SectorXAAudio))
+            return false;
 
-        SectorXA prevXA = (SectorXA)prevSect;
+        SectorXAAudio prevXA = (SectorXAAudio)prevSect;
 
         if (getChannel() != prevXA.getChannel() ||
             getBitsPerSample() != prevXA.getBitsPerSample() ||
             getSamplesPerSecond() != prevXA.getSamplesPerSecond() ||
             isStereo() != prevXA.isStereo())
-            return null;
+            return false;
         int iStride = getSectorNumber() - prevSect.getSectorNumber();
         if (calculateDiscSpeed(_iSamplesPerSecond, _blnStereo, iStride) > 0)
-            return prevXA;
+            return true;
         else
-            return null;
+            return false;
     }
 
     /** Checks if the sector doesn't generate any sound. Note that this
@@ -201,20 +198,16 @@ public class SectorXA extends IdentifiedSector {
      *  sectors. In that case it really doesn't generate anything but silence.
      *  */
     public boolean isAllQuiet() {
-        InputStream is = getIdentifiedUserDataStream();
-        try {
-            for(int iSndGrp = 0;
-                iSndGrp < XAADPCMDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR;
-                iSndGrp++)
-            {
-                IO.skip(is, 16); // skip the sound parameters
-                // just check if all ADPCM values are 0
-                for (int j = 16; j < XAADPCMDecoder.SIZE_OF_SOUND_GROUP; j++) {
-                    if (is.read() != 0)
-                        return false;
-                }
+        for(int iSndGrp = 0, i = 0;
+            iSndGrp < XAADPCMDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR;
+            iSndGrp++, i += XAADPCMDecoder.SIZE_OF_SOUND_GROUP)
+        {
+            // just check if all ADPCM values are 0
+            for (int j = 16; j < XAADPCMDecoder.SIZE_OF_SOUND_GROUP; j++) {
+                if (getCDSector().readUserDataByte(i+j) != 0)
+                    return false;
             }
-        } catch (IOException ex) {}
+        }
         return true;
     }
 

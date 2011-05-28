@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.net.URI;
 import java.text.DecimalFormat;
 import java.util.logging.Logger;
 import javax.swing.JLabel;
@@ -109,14 +108,9 @@ public class DiscItemISO9660File extends DiscItem {
     public DiscItemSerialization serialize() {
         DiscItemSerialization fields = super.superSerial(TYPE_ID);
         fields.addNumber("Size", _lngSize);
-        fields.addString("Path", forwardSlashPath(_path));
+        fields.addString("Path", Misc.forwardSlashPath(_path));
         return fields;
 
-    }
-
-    private static final URI CURRENT_URI = new File(".").toURI();
-    private static final String forwardSlashPath(File f) {
-        return CURRENT_URI.relativize(f.toURI()).toString();
     }
 
     public DiscItemISO9660File(DiscItemSerialization fields) throws NotThisTypeException {
@@ -125,7 +119,7 @@ public class DiscItemISO9660File extends DiscItem {
         _path = new File(fields.getString("Path"));
     }
 
-    public DiscItemSaverBuilder makeSaverBuilder() {
+    public ISO9660SaverBuilder makeSaverBuilder() {
         return new ISO9660SaverBuilder();
     }
 
@@ -138,7 +132,7 @@ public class DiscItemISO9660File extends DiscItem {
         return DecimalFormat.getInstance().format(_lngSize) + " bytes";
     }
 
-    private class ISO9660SaverBuilder extends DiscItemSaverBuilder {
+    public class ISO9660SaverBuilder extends DiscItemSaverBuilder {
 
         public ISO9660SaverBuilder() {
             resetToDefaults();
@@ -213,75 +207,39 @@ public class DiscItemISO9660File extends DiscItem {
             fbs.outdent();
         }
 
-        public void printSelectedOptions(PrintStream ps) {
-            if (getSaveRaw())
-                ps.println("Saving with raw sectors");
-            else
-                ps.println("Saving with iso sectors");
-        }
-
     }
 
-    private static class ISO9660FileSaverBuilderGui extends DiscItemSaverBuilderGui {
-        private ISO9660SaverBuilder _sourceBldr;
-        private final ChangeListener[] _aoControls;
-
-        /** Use just 1 change listener to notify all the controls so it's
-         * easier to swap out when the builder is changed. */
-        private ChangeListener _listenerWrapper = new ChangeListener() {
-            public void stateChanged(ChangeEvent e) {
-                for (ChangeListener control : _aoControls) {
-                    control.stateChanged(e);
-                }
-            }
-        };
+    private static class ISO9660FileSaverBuilderGui extends DiscItemSaverBuilderGui<ISO9660SaverBuilder> {
 
         public ISO9660FileSaverBuilderGui(ISO9660SaverBuilder sourceBldr) {
-            super(new ParagraphLayout());
-            _sourceBldr = sourceBldr;
-            _aoControls = new ChangeListener[] {
+            super(sourceBldr, new ParagraphLayout());
+            setParagraphLayoutPanel(this);
+            addControls(
                 new FileName(),
                 new SaveRaw()
-            };
-
-            _sourceBldr.addChangeListener(_listenerWrapper);
-        }
-
-        @Override
-        public boolean useSaverBuilder(DiscItemSaverBuilder saverBuilder) {
-            if (saverBuilder instanceof ISO9660SaverBuilder) {
-                DiscItemSaverBuilder oldBuilder = _sourceBldr;
-                _sourceBldr =  (ISO9660SaverBuilder) saverBuilder;
-                oldBuilder.removeChangeListener(_listenerWrapper);
-                _sourceBldr.addChangeListener(_listenerWrapper);
-                _listenerWrapper.stateChanged(null);
-                revalidate();
-                return true;
-            } else {
-                return false;
-            }
+            );
         }
 
         private class FileName implements ChangeListener {
             JLabel __label = new JLabel("Save as:");
             JLabel __name;
             public FileName() {
-                __name = new JLabel(_sourceBldr.getFileName());
+                __name = new JLabel(_writerBuilder.getFileName());
                 add(__label, ParagraphLayout.NEW_PARAGRAPH);
                 add(__name);
             }
             public void stateChanged(ChangeEvent e) {
-                if (!__name.getText().equals(_sourceBldr.getFileName()))
-                    __name.setText(_sourceBldr.getFileName());
+                if (!__name.getText().equals(_writerBuilder.getFileName()))
+                    __name.setText(_writerBuilder.getFileName());
             }
         }
 
         private class SaveRaw extends AbstractCheck {
 
             public SaveRaw() { super("Save raw:"); }
-            public boolean isSelected() { return _sourceBldr.getSaveRaw(); }
-            public void setSelected(boolean b) { _sourceBldr.setSaveRaw(b); }
-            public boolean isEnabled() { return _sourceBldr.getSaveRaw_enabled(); }
+            public boolean isSelected() { return _writerBuilder.getSaveRaw(); }
+            public void setSelected(boolean b) { _writerBuilder.setSaveRaw(b); }
+            public boolean isEnabled() { return _writerBuilder.getSaveRaw_enabled(); }
 
         }
         
@@ -298,8 +256,16 @@ public class DiscItemISO9660File extends DiscItem {
             return getIndexId().toString();
         }
 
-        public String getOutput() {
+        public String getOutputSummary() {
             return getPath().getPath();
+        }
+
+        public File getOutputFile(int i) {
+            return _path;
+        }
+
+        public int getOutputFileCount() {
+            return 1;
         }
 
         public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException {
@@ -329,6 +295,14 @@ public class DiscItemISO9660File extends DiscItem {
             fos.close();
             pl.progressEnd();
         }
+
+        public void printSelectedOptions(PrintStream ps) {
+            if (_blnSaveRaw)
+                ps.println("Saving with raw sectors");
+            else
+                ps.println("Saving with iso sectors");
+        }
+
 
     }
 

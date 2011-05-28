@@ -1,0 +1,31 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head><title>jPSXdec</title></head>
+<body>
+
+    Cross-platform video/audio player.
+
+    <p>
+    You don't need the JMF to play videos.
+
+    <p>
+    The player utilizes several threads perform different tasks
+    <ol>
+        <li>Demuxer thread ({@link jpsxdec.util.player.DemuxReader})
+        <li>Video processor thread ({@link jpsxdec.util.player.VideoProcessor})
+        <li>Audio processor thread ({@link jpsxdec.util.player.AudioProcessor})
+        <li>Video player thread ({@link jpsxdec.util.player.VideoPlayer})
+        <li>Audio player thread ({@link jpsxdec.util.player.AudioPlayer} wraps the
+                         {@link javax.sound.sampled.SourceDataLine})
+    </ol>
+    <p>
+    Packets of data are passed between these threads via
+    {@link jpsxdec.util.player.MultiStateBlockingQueue}s.
+
+    <p>
+    There is also the external Controller thread 
+    ({@link jpsxdec.util.player.PlayController}) that is typically the gui.
+
+
+</body>
+</html>

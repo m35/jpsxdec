@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,7 @@ import java.io.PrintStream;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-public class ConsoleProgressListener extends UserFriendlyHandler implements ProgressListener {
+public class ConsoleProgressListenerLogger extends UserFriendlyHandler implements ProgressListener {
 
     private static final int BAR_WIDTH = 30;
 
@@ -52,10 +52,10 @@ public class ConsoleProgressListener extends UserFriendlyHandler implements Prog
     private int _iErrCount = 0;
     private Logger _errLog;
 
-    public ConsoleProgressListener(String sLogFileBaseName) {
+    public ConsoleProgressListenerLogger(String sLogFileBaseName) {
         this(sLogFileBaseName, System.out);
     }
-    public ConsoleProgressListener(String sLogFileBaseName, PrintStream ps) {
+    public ConsoleProgressListenerLogger(String sLogFileBaseName, PrintStream ps) {
         super(sLogFileBaseName);
         _ps = ps;
         _errLog = Logger.getLogger("dunno");

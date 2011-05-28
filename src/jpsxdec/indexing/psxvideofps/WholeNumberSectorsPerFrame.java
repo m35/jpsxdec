@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2010  Michael Sabin
+ * Copyright (C) 2007-2011  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -87,7 +87,7 @@ public class WholeNumberSectorsPerFrame {
             throw new IllegalArgumentException();
 
         // TODO: If the frame number increases by more than 1, make sure the
-        // test intervals occur at least twice within the space between frames
+        // test intervals occur at least twice within the space between frames?
 
         boolean blnRet;
 

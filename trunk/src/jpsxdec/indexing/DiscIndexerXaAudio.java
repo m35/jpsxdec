@@ -46,7 +46,6 @@ import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.sectors.SectorAliceVideo;
 import jpsxdec.util.NotThisTypeException;
 
 /**
@@ -90,7 +89,9 @@ public class DiscIndexerXaAudio extends DiscIndexer {
         private long _lngSampleCount = 0;
 
         /** Number of sectors between XA sectors that are part of this stream.
-         * Should only ever be 4, 8, 16, or 32. */
+         * Should only ever be 1, 2, 4, 8, 16, or 32
+         * (enforced by {@link SectorXAAudio#matchesPrevious(jpsxdec.sectors.IdentifiedSector)}).
+         * Is -1 until 2nd sector is discovered. */
         private int _iAudioStride = -1;
 
         public AudioStreamIndex(SectorXAAudio first) {

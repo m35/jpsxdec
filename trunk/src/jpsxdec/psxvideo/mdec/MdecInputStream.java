@@ -37,8 +37,6 @@
 
 package jpsxdec.psxvideo.mdec;
 
-import java.io.EOFException;
-
 /** Read MDEC codes one at a time from a stream. */
 public abstract class MdecInputStream {
 
@@ -47,7 +45,7 @@ public abstract class MdecInputStream {
      * 
      *  @return  true if the EOD code is read. */
     public abstract boolean readMdecCode(MdecCode code)
-            throws DecodingException, EOFException;
+            throws MdecException;
 
     /** 16-bit MDEC code indicating the end of a block. */
     public final static int MDEC_END_OF_DATA = 0xFE00;
@@ -74,7 +72,7 @@ public abstract class MdecInputStream {
     }
 
     /** Matrix of indexes indicating the order that matrix values are
-     *  zig-zaged into a vector. */
+     *  zig-zagged into a vector. */
     public static final int[] ZIG_ZAG_LOOKUP_MATRIX = {
          0,  1,  5,  6, 14, 15, 27, 28,
          2,  4,  7, 13, 16, 26, 29, 42,
@@ -87,7 +85,7 @@ public abstract class MdecInputStream {
     };
 
     /** List of vector indexes indicating the order that vector values
-     * are reverse-zig-zaged into a matrix. */
+     * are reverse-zig-zagged into a matrix. */
     public static final int[] REVERSE_ZIG_ZAG_LOOKUP_LIST =
     {
          0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18, 11,  4,  5,
@@ -104,7 +102,7 @@ public abstract class MdecInputStream {
      *  not an END_OF_DATA code (0xFE00), then the top 6 bits indicate
      *  the number of zeros preceeding an AC code, with the bottom 10 bits
      *  indicating the "alternating current" (AC) code.  */
-    public static class MdecCode {
+    public static class MdecCode implements Cloneable {
 
         private int _iTop6Bits;
         private int _iBottom10Bits;
@@ -125,6 +123,13 @@ public abstract class MdecInputStream {
         public void setTop6Bits(int iTop6Bits) {
             assert iTop6Bits >= 0 && iTop6Bits <= 63;
             _iTop6Bits = iTop6Bits;
+        }
+
+        public void setBits(int iTop6, int iBottom10) {
+            assert iTop6 >= 0 && iTop6 <= 63;
+            assert iBottom10 >= -512 && iBottom10 <= 511;
+            _iTop6Bits = iTop6;
+            _iBottom10Bits = iBottom10;
         }
 
         /** Generic constructor */

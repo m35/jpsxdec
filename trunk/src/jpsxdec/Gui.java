@@ -292,6 +292,8 @@ public class Gui extends javax.swing.JFrame {
                 ps.close();
             }
 
+            _settings.addPreviousIndex(selection.getAbsolutePath());
+
             return selection;
         } catch (Throwable ex) {
             ex.printStackTrace();
@@ -399,7 +401,7 @@ public class Gui extends javax.swing.JFrame {
         _guiToolbar.setRollover(true);
 
         _guiOpenDisc.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jpsxdec/media-optical-5.png"))); // NOI18N
-        _guiOpenDisc.setText("Analyzie Disc Image");
+        _guiOpenDisc.setText("Open And Analyzie Disc Image");
         _guiOpenDisc.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
         _guiOpenDisc.setMargin(new java.awt.Insets(5, 10, 5, 10));
         _guiOpenDisc.addActionListener(new java.awt.event.ActionListener() {
@@ -725,7 +727,6 @@ public class Gui extends javax.swing.JFrame {
         if (file != null) {
             _guiSaveIndex.setEnabled(false);
             setIndexTitle(file.getName());
-            _settings.addPreviousIndex(file.getAbsolutePath());
         }
 
     }//GEN-LAST:event__guiSaveIndexActionPerformed

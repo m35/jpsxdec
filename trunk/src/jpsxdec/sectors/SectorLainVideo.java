@@ -37,11 +37,11 @@
 
 package jpsxdec.sectors;
 
-import java.io.IOException;
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Lain;
 import jpsxdec.util.IO;
+import jpsxdec.util.NotThisTypeException;
 
 
 // FIXME: this is dangerously close to FF7 video sectors
@@ -142,42 +142,33 @@ public class SectorLainVideo extends SectorAbstractVideo {
     /** {@inheritDoc}
      * Lain needs special handling due to its unique header. */
     @Override
-    public int replaceFrameData(CdFileSectorReader cd,
-                                byte[] abDemuxData, int iDemuxOfs,
-                                int iLuminQscale, int iChromQscale,
-                                int iMdecCodeCount)
-            throws IOException
+    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
+                                int iMdecCodeCount, byte[] abSectUserData)
     {
-        byte[] abSectUserData = getCDSector().getCdUserDataCopy();
+        BitStreamUncompressor_Lain bsu = new BitStreamUncompressor_Lain();
+        try {
+            bsu.reset(abDemuxData);
+        } catch (NotThisTypeException ex) {
+            throw new IllegalArgumentException("Incompatable frame type " + bsu);
+        }
+        int iQscaleLuma = bsu.getLumaQscale();
+        int iQscaleChroma = bsu.getChromaQscale();
 
-        // no need to write demux size because it won't be any different
+        // no need to update the demux size because it won't be any different
         // as it is just the total number of bytes of demuxed data available
         // among all the frame sectors
-        abSectUserData[20] = (byte)iLuminQscale;
-        abSectUserData[21] = (byte)iChromQscale;
+        abSectUserData[20] = (byte)iQscaleLuma;
+        abSectUserData[21] = (byte)iQscaleChroma;
         IO.writeInt16LE(abSectUserData, 24, (short)iMdecCodeCount);
 
-        int iBytesToCopy = getIdentifiedUserDataSize();
-        if (iDemuxOfs + iBytesToCopy > abDemuxData.length)
-            iBytesToCopy = abDemuxData.length - iDemuxOfs;
-
-        // save the 0x3800/last movie frame number if it's the first chunk
-        boolean blnIsFirstChunk = IO.readSInt16LE(abSectUserData, 4) == 0;
-        short i3800orLastFrameNum=0;
-        if (blnIsFirstChunk)
-            i3800orLastFrameNum = IO.readSInt16LE(abSectUserData, 32+2);
-
-        // bytes to copy might be 0, which is ok because we
-        // still need to write the updated headers
-        System.arraycopy(abDemuxData, iDemuxOfs, abSectUserData, 32, iBytesToCopy);
-
-        // resore the 0x3800/last movie frame number
-        if (blnIsFirstChunk)
-            IO.writeInt16LE(abSectUserData, 32+2, i3800orLastFrameNum);
-
-        cd.writeSector(getSectorNumber(), abSectUserData);
-
-        return iBytesToCopy;
+        // modify the frame demux data to match the sector's
+        // 0x38000/last movie frame number if it's the first chunk
+        if (IO.readSInt16LE(abSectUserData, 4) == 0) {
+            short si3800orLastFrameNum = IO.readSInt16LE(abSectUserData, 32+2);
+            IO.writeInt16LE(abDemuxData, 2, si3800orLastFrameNum);
+        }
+        
+        return 32;
     }
 
     public int getChunkNumber() {

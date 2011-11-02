@@ -40,10 +40,61 @@ package jpsxdec.psxvideo.mdec;
 /** Super class of the two different MDEC decoders: int and double. */
 public abstract class MdecDecoder {
 
+    public static boolean DEBUG = false;
+    
+    protected static boolean debugPrintln(String s) {
+        System.out.println(s);
+        return true;
+    }
+
+    protected final MdecInputStream.MdecCode _code = new MdecInputStream.MdecCode();
+
+    protected final int _iMacBlockWidth;
+    protected final int _iMacBlockHeight;
+
+    /** Luma dimensions. */
+    protected final int W, H;
+    /** Chroma dimensions. */
+    protected final int CW, CH;
+
+    protected final int[] _aiLumaBlkOfsLookup;
+    protected final int[] _aiChromaMacBlkOfsLookup;
+
+    protected final int[] _aiQuantizationTable =
+            MdecInputStream.getDefaultPsxQuantMatrixCopy();
+
+    protected MdecDecoder(int iWidth, int iHeight) {
+        _iMacBlockWidth = (iWidth + 15) / 16;
+        _iMacBlockHeight = (iHeight + 15) / 16;
+        W = _iMacBlockWidth * 16;
+        H = _iMacBlockHeight * 16;
+        CW = _iMacBlockWidth * 8;
+        CH = _iMacBlockHeight * 8;
+
+        _aiChromaMacBlkOfsLookup = new int[_iMacBlockWidth * _iMacBlockHeight];
+        _aiLumaBlkOfsLookup = new int[_iMacBlockWidth * _iMacBlockHeight * 4];
+
+        int iMbIdx = 0;
+        for (int iMbX=0; iMbX < _iMacBlockWidth; iMbX++) {
+            for (int iMbY=0; iMbY < _iMacBlockHeight; iMbY++) {
+                _aiChromaMacBlkOfsLookup[iMbIdx] = iMbX*8 + iMbY*8 * CW;
+                int iBlkIdx = 0;
+                for (int iBlkY=0; iBlkY < 2; iBlkY++) {
+                    for (int iBlkX=0; iBlkX < 2; iBlkX++) {
+                        _aiLumaBlkOfsLookup[iMbIdx*4+iBlkIdx] = iMbX*16 + iBlkX*8 +
+                                                                (iMbY*16 + iBlkY*8) * W;
+                        iBlkIdx++;
+                    }
+                }
+                iMbIdx++;
+            }
+        }
+    }
+
     /** Reads an image from the MdecInputStream and decodes it to an internal
      *  PSX YCbCr buffer. */
     abstract public void decode(MdecInputStream mdecStream)
-            throws DecodingException;
+            throws MdecException.Decode;
     
     /** Retrieve the contents of the internal PSX YCbCr buffer converted to RGB. */
     abstract public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,
@@ -53,4 +104,9 @@ public abstract class MdecDecoder {
         readDecodedRgb(iDestWidth, iDestHeight, aiDest, 0, iDestWidth);
     }
 
+    public void setQuantizationTable(int[] aiNewTable) {
+        if (aiNewTable.length != _aiQuantizationTable.length)
+            throw new IllegalArgumentException("Incorrect table size");
+        System.arraycopy(aiNewTable, 0, _aiQuantizationTable, 0, _aiQuantizationTable.length);
+    }
 }

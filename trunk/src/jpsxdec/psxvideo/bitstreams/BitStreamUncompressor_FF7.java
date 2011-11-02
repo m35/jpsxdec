@@ -37,7 +37,6 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import java.util.logging.Logger;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
@@ -52,37 +51,30 @@ import jpsxdec.util.NotThisTypeException;
  */
 public class BitStreamUncompressor_FF7 extends BitStreamUncompressor_STRv2 {
 
-    private static final Logger log = Logger.getLogger(BitStreamUncompressor_FF7.class.getName());
-    protected Logger getLog() { return log; }
-
-    public BitStreamUncompressor_FF7() {
-        super();
-    }
-
     @Override
-    protected void readHeader(byte[] abFrameData, int iStart, ArrayBitReader bitReader) throws NotThisTypeException {
+    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
 
-        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, iStart+0);
-        _iMagic3800          = IO.readUInt16LE(abFrameData, iStart+2);
-        _iQscale             = IO.readSInt16LE(abFrameData, iStart+4);
-        int iVersion         = IO.readSInt16LE(abFrameData, iStart+6);
+        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
+        int iMagic3800       = IO.readUInt16LE(abFrameData, 2);
+        _iQscale             = IO.readSInt16LE(abFrameData, 4);
+        int iVersion         = IO.readSInt16LE(abFrameData, 6);
 
-        if (_iMagic3800 != 0x3800 || _iQscale < 1 ||
+        if (iMagic3800 != 0x3800 || _iQscale < 1 ||
             iVersion != 1 || _iHalfVlcCountCeil32 < 0)
             throw new NotThisTypeException();
 
-        bitReader.reset(abFrameData, true, iStart+8);
+        bitReader.reset(abFrameData, true, 8);
     }
 
     public static boolean checkHeader(byte[] abFrameData) {
 
-        int iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
-        int iMagic3800          = IO.readUInt16LE(abFrameData, 2);
-        int iQscale             = IO.readSInt16LE(abFrameData, 4);
-        int iVersion            = IO.readSInt16LE(abFrameData, 6);
+        int _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
+        int iMagic3800           = IO.readUInt16LE(abFrameData, 2);
+        int _iQscale             = IO.readSInt16LE(abFrameData, 4);
+        int iVersion             = IO.readSInt16LE(abFrameData, 6);
 
-        return !(iMagic3800 != 0x3800 || iQscale < 1 ||
-                 iVersion != 1 || iHalfVlcCountCeil32 < 0);
+        return !(iMagic3800 != 0x3800 || _iQscale < 1 ||
+                 iVersion != 1 || _iHalfVlcCountCeil32 < 0);
     }
 
     @Override
@@ -92,10 +84,10 @@ public class BitStreamUncompressor_FF7 extends BitStreamUncompressor_STRv2 {
 
     @Override
     public BitStreamCompressor makeCompressor() {
-        return new Compressor_FF7();
+        return new BitStreamCompressor_FF7();
     }
 
-    public static class Compressor_FF7 extends BitStreamUncompressor_STRv2.BitstreamCompressor_STRv2 {
+    public static class BitStreamCompressor_FF7 extends BitstreamCompressor_STRv2 {
 
         @Override
         protected int getHeaderVersion() { return 1; }

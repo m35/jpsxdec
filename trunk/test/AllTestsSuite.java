@@ -35,26 +35,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.psxvideo.mdec;
+import jpsxdec.discitems.psxvideoencode.Replace;
+import jpsxdec.psxvideo.bitstreams.BitReader;
+import jpsxdec.psxvideo.bitstreams.Bitstreams;
+import jpsxdec.psxvideo.bitstreams.LainCompressor;
+import jpsxdec.psxvideo.mdec.Decoder;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
 
-/** Error during uncompression of the frame. A portion of the frame was likely
- * decoded before this error occurred. */
-public class DecodingException extends Exception {
+@RunWith(Suite.class)
+@Suite.SuiteClasses({
+    BitReader.class,
+    Bitstreams.class,
+    LainCompressor.class,
+    Decoder.class,
+    Replace.class
+})
+public class AllTestsSuite {
 
-    public DecodingException() {
-        super();
+    @BeforeClass
+    public static void setUpClass() throws Exception {
     }
 
-    public DecodingException(String message) {
-        super(message);
+    @AfterClass
+    public static void tearDownClass() throws Exception {
     }
 
-    public DecodingException(Throwable cause) {
-        super(cause);
+    @Before
+    public void setUp() throws Exception {
     }
 
-    public DecodingException(String message, Throwable cause) {
-        super(message, cause);
+    @After
+    public void tearDown() throws Exception {
     }
 
 }

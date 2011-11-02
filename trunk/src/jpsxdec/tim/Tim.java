@@ -51,7 +51,7 @@ import jpsxdec.util.ExposedBAOS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
-/** The PlayStation 1 TIM file. Used in many Playstation games.
+/** The PlayStation 1 TIM file. Used in many PlayStation games.
  * This is based on the excellent Q-gears documentation here:
  * http://wiki.qhimm.com/PSX/TIM_file
  * <p>
@@ -96,11 +96,11 @@ public class Tim {
         }
         
         /** Create a CLUT based on a ready-made CLUT palette. */
-        public CLUT(int[] aiPalette) {
+        public CLUT(int[] aiPalette, int iX, int iY, int iWidth) {
             _aiColorData = aiPalette;
-            _iClutX = 0;
-            _iClutY = 0;
-            _iClutWidth = aiPalette.length;
+            _iClutX = iX;
+            _iClutY = iY;
+            _iClutWidth = iWidth;
             _iClutHeight = aiPalette.length / _iClutWidth;
             _lngLength = _iClutWidth * _iClutHeight * 2 + 12;
         }
@@ -115,6 +115,18 @@ public class Tim {
             for (int i : _aiColorData) {
                 IO.writeInt16LE(os, i);
             }
+        }
+
+        public BufferedImage toBufferedImage() {
+            int[] ai = new int[_aiColorData.length];
+            for (int i = 0; i < ai.length; i++) {
+                ai[i] = color16toColor32(_aiColorData[i]);
+            }
+
+            BufferedImage bi = new BufferedImage(_iClutWidth, _iClutHeight, BufferedImage.TYPE_INT_ARGB);
+            bi.setRGB(0, 0, _iClutWidth, _iClutHeight, ai, 0, _iClutWidth);
+
+            return bi;
         }
         
         private int[] getColorData() {
@@ -151,7 +163,7 @@ public class Tim {
      *  bits-per-pixel, and array of RGB data. Generates a 16 or 24 bit
      *  TIM file (without a CLUT), or a 4 or 8 bit TIM file (with a CLUT). 
      *  The CLUT palette is automatically generated from the image data.
-     * 
+     *<p>
      *  Note that if an image has more than 16 or 256 colors for 4 and 8 BPP,
      *  respectively, then this function will fail.
      * @param aiBuffImg      ARGB data  
@@ -184,7 +196,13 @@ public class Tim {
                     int[] aiTimImg = new int[iWidth * iHeight];
                     bi.getRaster().getPixels(0, 0, iWidth, iHeight, aiTimImg);
 
-                    newTim = new Tim(aiTimImg, iWidth, iHeight, aiPalette);
+                    if (aiPalette.length <= 16) {
+                        newTim = new Tim(aiTimImg, 0, 0, iWidth, iHeight, aiPalette, 0, 0, 16, 4);
+                    } else if (aiPalette.length <= 256) {
+                        newTim = new Tim(aiTimImg, 0, 0, iWidth, iHeight, aiPalette, 0, 0, 256, 8);
+                    } else {
+                        throw new IllegalArgumentException("Palette length is too big.");
+                    }
                 } else {
                     // pull the image into an RGB array
                     int[] aiBuffImg = bi.getRGB(0, 0, bi.getWidth(), bi.getHeight(), null, 0, bi.getWidth());
@@ -223,7 +241,13 @@ public class Tim {
             int[] aiTimImg = new int[iWidth * iHeight];
             bi.getRaster().getPixels(0, 0, iWidth, iHeight, aiTimImg);
 
-            newTim = new Tim(aiTimImg, iWidth, iHeight, aiPalette);
+            if (aiPalette.length <= 16) {
+                newTim = new Tim(aiTimImg, 0, 0, iWidth, iHeight, aiPalette, 0, 0, 16, 4);
+            } else if (aiPalette.length <= 256) {
+                newTim = new Tim(aiTimImg, 0, 0, iWidth, iHeight, aiPalette, 0, 0, 256, 8);
+            } else {
+                throw new IllegalArgumentException("Palette length is too big.");
+            }
 
         } else {
 
@@ -238,6 +262,46 @@ public class Tim {
         return newTim;
     }
 
+    public static Tim create(BufferedImage bi, BufferedImage clut, int iBitsPerPixel)
+    {
+        return create(bi, 0, 0, clut, 0, 0, iBitsPerPixel);
+    }
+    /** Create a TIM image with a custom CLUT.
+     * This is the most advanced method of creating a TIM image.
+     * It allows one to create a TIM with multiple CLUT palettes.
+     */
+    public static Tim create(BufferedImage bi, int iX, int iY, 
+                             BufferedImage clut, int iClutX, int iClutY,
+                             int iBitsPerPixel)
+    {
+        if (iBitsPerPixel != 8 && iBitsPerPixel != 4)
+            throw new IllegalArgumentException();
+
+        if (clut.getWidth() % 16 != 0)
+            throw new IllegalArgumentException();
+
+        Tim newTim;
+
+        if ((bi.getType() == BufferedImage.TYPE_BYTE_INDEXED ||
+            bi.getType() == BufferedImage.TYPE_BYTE_BINARY) &&
+            bi.getColorModel() instanceof IndexColorModel)
+        {
+            int iWidth = bi.getWidth(), iHeight = bi.getHeight();
+
+            int[] aiTimImg = new int[iWidth * iHeight];
+            bi.getRaster().getPixels(0, 0, iWidth, iHeight, aiTimImg);
+
+            int[] aiClut = clut.getRGB(0, 0, clut.getWidth(), clut.getHeight(), null, 0, clut.getWidth());
+
+            newTim = new Tim(aiTimImg, iX, iY, iWidth, iHeight,
+                             aiClut, iClutX, iClutY, clut.getWidth(), iBitsPerPixel);
+            
+        } else {
+            throw new UnsupportedOperationException();
+        }
+
+        return newTim;
+    }
             
     //--------------------------------------------------------------------------
     //-- Fields ----------------------------------------------------------------
@@ -266,7 +330,7 @@ public class Tim {
     /** Y position of the TIM file (often 0). */
     private final int _iImageY;
     /** Width of the image data in 16-bit values. */
-    private final int _iImageByteWidth;
+    private final int _iImageWordWidth;
     /** Height of the image in pixels. */
     private final int _iImageHeight;
     /** The raw image data of the TIM. */
@@ -277,7 +341,7 @@ public class Tim {
     /** Extracted and converted from @code _lngBpp_HasColorLookupTbl. */
     private final boolean _blnHasColorLookupTable;
     /** Height of the image in pixels.
-     * Calculated based on {@link #_iImageByteWidth} and {@link #_iBitsPerPixel}. */
+     * Calculated based on {@link #_iImageWordWidth} and {@link #_iBitsPerPixel}. */
     private final int _iPixelWidth;
     
     //--------------------------------------------------------------------------
@@ -327,22 +391,22 @@ public class Tim {
         if (_lngImageLength <= 0) throw new NotThisTypeException();
         _iImageX = IO.readUInt16LE(inStream);
         _iImageY = IO.readUInt16LE(inStream);
-        _iImageByteWidth = IO.readUInt16LE(inStream);
-        if (_iImageByteWidth == 0) throw new NotThisTypeException();
+        _iImageWordWidth = IO.readUInt16LE(inStream);
+        if (_iImageWordWidth == 0) throw new NotThisTypeException();
         _iImageHeight = IO.readUInt16LE(inStream);
         if (_iImageHeight == 0) throw new NotThisTypeException();
         
-        if (_lngImageLength != _iImageByteWidth * _iImageHeight * 2 + HEADER_SIZE)
+        if (_lngImageLength != _iImageWordWidth * _iImageHeight * 2 + HEADER_SIZE)
             throw new NotThisTypeException();
         
         _abImageData = IO.readByteArray(inStream,
-                (_iImageByteWidth * _iImageHeight) * 2);
+                (_iImageWordWidth * _iImageHeight) * 2);
         
         switch (_iBitsPerPixel) {
-            case 4:  _iPixelWidth = (int)(_iImageByteWidth * 2 * 2); break;
-            case 8:  _iPixelWidth = (int)(_iImageByteWidth * 2    ); break;
-            case 16: _iPixelWidth = (int)(_iImageByteWidth        ); break;
-            case 24: _iPixelWidth = (int)(_iImageByteWidth * 2 / 3); break;
+            case 4:  _iPixelWidth = (int)(_iImageWordWidth * 2 * 2); break;
+            case 8:  _iPixelWidth = (int)(_iImageWordWidth * 2    ); break;
+            case 16: _iPixelWidth = (int)(_iImageWordWidth        ); break;
+            case 24: _iPixelWidth = (int)(_iImageWordWidth * 2 / 3); break;
             default: throw new RuntimeException("Impossible Tim BPP " + _iBitsPerPixel);
         }
     }
@@ -367,26 +431,26 @@ public class Tim {
             case  4: 
                 if (iWidth % 4 != 0)
                     throw new IllegalArgumentException("Currently unable to handle width not divisible by 4");
-                _iImageByteWidth = iWidth / 2 / 2;
+                _iImageWordWidth = iWidth / 2 / 2;
                 _blnHasColorLookupTable = true;
                 iBitsPerPixReverseLookup = 0; 
                 break;
             case  8: 
                 if (iWidth % 2 != 0)
                     throw new IllegalArgumentException("Currently unable to handle width not divisible by 2");
-                _iImageByteWidth = iWidth / 2;
+                _iImageWordWidth = iWidth / 2;
                 _blnHasColorLookupTable = true;
                 iBitsPerPixReverseLookup = 1; 
                 break;
             case 16: 
-                _iImageByteWidth = iWidth;
+                _iImageWordWidth = iWidth;
                 _blnHasColorLookupTable = false;
                 iBitsPerPixReverseLookup = 2; 
                 break;
             case 24: 
                 if (iWidth % 2 != 0)
                     throw new IllegalArgumentException("Currently unable to handle width not divisible by 2");
-                _iImageByteWidth = iWidth * 3 / 2;
+                _iImageWordWidth = iWidth * 3 / 2;
                 _blnHasColorLookupTable = false;
                 iBitsPerPixReverseLookup = 3; 
                 break;
@@ -396,16 +460,16 @@ public class Tim {
         
         
         ExposedBAOS baos = new ExposedBAOS(
-                (int)(_iImageByteWidth * _iImageHeight * 2));
+                (int)(_iImageWordWidth * _iImageHeight * 2));
         
         if (_blnHasColorLookupTable) {
             int[] aiPalette = convertToPalettedTim(aiBuffImg, _iBitsPerPixel, baos);
-            _iBpp_HasColorLookupTbl = (iBitsPerPixReverseLookup << 8) | 0x800;
-            _clut = new CLUT(aiPalette);
+            _iBpp_HasColorLookupTbl = iBitsPerPixReverseLookup | 0x08;
+            _clut = new CLUT(aiPalette, 0, 0, aiPalette.length);
         } else {
             // convert the image data to TIM colors and write it using proper BPP
             convertToTim(aiBuffImg, iBitsPerPixel, baos);
-            _iBpp_HasColorLookupTbl = (iBitsPerPixReverseLookup << 8) | 0x000;
+            _iBpp_HasColorLookupTbl = iBitsPerPixReverseLookup | 0x00;
             _clut = null;
         }
         
@@ -415,7 +479,7 @@ public class Tim {
         _iUnknown2 = 0;
         _iImageX = 0;
         _iImageY = 0;
-        _lngImageLength = _iImageByteWidth * _iImageHeight * 2 + 12;
+        _lngImageLength = _iImageWordWidth * _iImageHeight * 2 + 12;
         
         _abImageData = baos.getBuffer();
     }
@@ -447,7 +511,7 @@ public class Tim {
             int[] aiBuffImg, int iBitsPerPixel, ByteArrayOutputStream baos) 
     {
         // use a Hashtable to store the palette
-        HashMap<Integer, Integer> oColors = new HashMap<Integer, Integer>();
+        HashMap<Integer, Integer> colors = new HashMap<Integer, Integer>();
  
         int iPaletteIdx = 0; // current palette index
 
@@ -457,23 +521,23 @@ public class Tim {
         for (int i = 0; i < aiBuffImg.length; i++) {
             // convert the rgb color into a TIM color
             int iRGB = aiBuffImg[i];
-            Integer oiTIMColor = new Integer( color32toColor16(iRGB) );
+            Integer oiTIMColor = Integer.valueOf( color32toColor16(iRGB) );
             // add the color to the palette if it's not already
             int iPalColor;
-            if (!oColors.containsKey(oiTIMColor)) {
+            if (!colors.containsKey(oiTIMColor)) {
                 iPalColor = iPaletteIdx;
-                oColors.put(oiTIMColor, new Integer(iPaletteIdx));
+                colors.put(oiTIMColor, Integer.valueOf(iPaletteIdx));
                 iPaletteIdx++;
 
                 // make sure we don't overflow the palette size
-                if (iBitsPerPixel == 8 && oColors.size() > 256) 
+                if (iBitsPerPixel == 8 && colors.size() > 256)
                     throw new IllegalArgumentException(
-                    "Unable to squeeze " + oColors.size() + " colors into 256");
-                else if (iBitsPerPixel == 4 && oColors.size() > 16) 
+                    "Unable to squeeze " + colors.size() + " colors into 256");
+                else if (iBitsPerPixel == 4 && colors.size() > 16)
                     throw new IllegalArgumentException(
-                    "Unable to squeeze " + oColors.size() + " colors into 16");
+                    "Unable to squeeze " + colors.size() + " colors into 16");
             } else {
-                iPalColor = oColors.get(oiTIMColor);
+                iPalColor = colors.get(oiTIMColor);
             }
             // write the palette index to the Tim image data
             aiTimImg[i] = iPalColor;
@@ -486,7 +550,7 @@ public class Tim {
         else // if (iBitsPerPixel == 4)
             aiPalette = new int[16];
 
-        for (Entry<Integer, Integer> oii : oColors.entrySet()) {
+        for (Entry<Integer, Integer> oii : colors.entrySet()) {
             aiPalette[oii.getValue()] = oii.getKey();
         }
         
@@ -514,34 +578,30 @@ public class Tim {
       *  Each array element represents one pixel.
       *  Generates a 4 or 8 bit TIM file, depending on the size of aiPalette.
       */
-    private Tim(int[] aiTimImg, int iWidth, int iHeight, int[] aiPalette) {
+    private Tim(int[] aiTimImg, int iImageX, int iImageY, int iWidth, int iHeight,
+                int[] aiPalette, int iClutX, int iClutY, int iPaletteWidth, int iBitsPerPixel)
+    {
         if (iWidth * iHeight != aiTimImg.length)
             throw new IllegalArgumentException("Dimensions do not match data.");
         
-        _iPixelWidth   = iWidth;
-        
-        if (aiPalette.length <= 16) {
-            _iBitsPerPixel = 4;
-        } else if (aiPalette.length <= 256) {
-            _iBitsPerPixel = 8;
-        } else {
-            throw new IllegalArgumentException("Palette length is too big.");
-        }
+        _iPixelWidth = iWidth;
         
         _blnHasColorLookupTable = true;
+
+        _iBitsPerPixel = iBitsPerPixel;
         
         int iBitsPerPixReverseLookup;
         switch (_iBitsPerPixel) {
             case  4: 
                 if (_iPixelWidth % 4 != 0)
-                    throw new IllegalArgumentException("Currently unable to handle width not divisible by 4");
-                _iImageByteWidth = _iPixelWidth / 2 / 2;
+                    throw new UnsupportedOperationException("Currently unable to handle width not divisible by 4");
+                _iImageWordWidth = _iPixelWidth / 2 / 2;
                 iBitsPerPixReverseLookup = 0; 
                 break;
             case  8: 
                 if (_iPixelWidth % 2 != 0)
                     throw new IllegalArgumentException("Currently unable to handle width not divisible by 2");
-                _iImageByteWidth = _iPixelWidth / 2;
+                _iImageWordWidth = _iPixelWidth / 2;
                 iBitsPerPixReverseLookup = 1; 
                 break;
             default:
@@ -556,22 +616,21 @@ public class Tim {
         _iUnknown1 = 0;
         
         // has CLUT
-        _iBpp_HasColorLookupTbl = (iBitsPerPixReverseLookup << 8) | 0x800;
+        _iBpp_HasColorLookupTbl = iBitsPerPixReverseLookup | 0x08;
         // convert the 32bit palette into TIM 16bit
         for (int i = 0; i < aiPalette.length; i++) {
             aiPalette[i] = color32toColor16(aiPalette[i]);
         }
 
-        _clut = new CLUT(aiPalette);
+        _clut = new CLUT(aiPalette, iClutX, iClutY, iPaletteWidth);
         
         _iUnknown2 = 0;
-        _iImageX = 0;
-        _iImageY = 0;
-        _lngImageLength = _iImageByteWidth * _iImageHeight * 2 + 12;
+        _iImageX = iImageX;
+        _iImageY = iImageY;
+        _lngImageLength = _iImageWordWidth * _iImageHeight * 2 + 12;
         
-        // finally write the image data with the proper bits per pixel
-        ExposedBAOS baos = 
-                new ExposedBAOS((int)(_iImageByteWidth * _iImageHeight * 2));
+        // finally create the image data with the proper bits per pixel
+        ExposedBAOS baos = new ExposedBAOS(_iImageWordWidth * _iImageHeight * 2);
         
         int iClr;
         switch (_iBitsPerPixel) {
@@ -626,8 +685,36 @@ public class Tim {
     public int getHeight() {
         return (int)_iImageHeight;
     }
+
+    public void setPixelClutIndex(int iX, int iY, int iClutIndex) {
+        switch (_iBitsPerPixel) {
+            case 4:
+                if (iClutIndex < 0 || iClutIndex > 15)
+                    throw new IllegalArgumentException("Invalid CLUT index " + iClutIndex);
+                int iOffset = iY * _iPixelWidth / 2 + iX / 2;
+                int iVal = _abImageData[iOffset];
+                if ((iX & 1) == 0)
+                    iVal = (iVal & 0xf0) | iClutIndex;
+                else
+                    iVal = (iVal & 0x0f) | (iClutIndex << 4);
+                _abImageData[iOffset] = (byte)iVal;
+                break;
+            case 8:
+                if (iClutIndex < 0 || iClutIndex > 255)
+                    throw new IllegalArgumentException("Invalid CLUT index " + iClutIndex);
+                _abImageData[iY * _iPixelWidth + iX] = (byte)iClutIndex;
+                break;
+            case 16:
+                throw new IllegalArgumentException("Cannot set CLUT index on non CLUT image");
+            case 24:
+                throw new IllegalArgumentException("Cannot set CLUT index on non CLUT image");
+        }
+
+    }
     
-    /** @param iPalette  Which palette to use for the decoded image.
+    /** Unfortunately the palette order and indexes may be changed when
+     *  saving the BufferedImage to a file.
+     * @param iPalette  Which palette to use for the decoded image.
      *  @see #getPaletteCount() */
     public BufferedImage toBufferedImage(int iPalette) {
 
@@ -755,6 +842,13 @@ public class Tim {
             throw new RuntimeException(ex);
         }
     }
+
+    public BufferedImage getClutImage() {
+        if (_clut != null)
+            return _clut.toBufferedImage();
+        else
+            return null;
+    }
     
     public int[] getColorData() {
         if (_clut != null)
@@ -781,7 +875,7 @@ public class Tim {
         IO.writeInt32LE(os, _lngImageLength);
         IO.writeInt16LE(os, _iImageX);
         IO.writeInt16LE(os, _iImageY);
-        IO.writeInt16LE(os, _iImageByteWidth);
+        IO.writeInt16LE(os, _iImageWordWidth);
         IO.writeInt16LE(os, _iImageHeight);
         
         os.write(_abImageData);
@@ -800,7 +894,7 @@ public class Tim {
             _lngImageLength,
             _iImageX,
             _iImageY,
-            _iImageByteWidth,
+            _iImageWordWidth,
             _iImageHeight);
     }
     

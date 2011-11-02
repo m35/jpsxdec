@@ -183,16 +183,22 @@ public abstract class DiscItemSaverBuilderGui<T extends DiscItemSaverBuilder> ex
             __combo = new JComboBox(this);
             _paragraphLayoutPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);
             _paragraphLayoutPanel.add(__combo, ParagraphLayout.STRETCH_H);
+            updateEnabled();
         }
         public void stateChanged(ChangeEvent e) {
-            if (__cur != getSelectedItem()) {
-                __cur = getSelectedItem();
+            Object o;
+            if (__cur != (o = getSelectedItem())) {
+                __cur = o;
                 fireContentsChanged(this, 0, getSize());
             }
-            if (getEnabled() != __label.isEnabled())
-                __label.setEnabled(getEnabled());
-            if (getEnabled() != __combo.isEnabled())
-                __combo.setEnabled(getEnabled());
+            updateEnabled();
+        }
+        private void updateEnabled() {
+            boolean bln = getEnabled();
+            if (bln != __label.isEnabled())
+                __label.setEnabled(bln);
+            if (bln != __combo.isEnabled())
+                __combo.setEnabled(bln);
         }
         abstract public int getSize();
         abstract public Object getElementAt(int index);

@@ -38,8 +38,6 @@
 package jpsxdec.psxvideo.encode;
 
 import jpsxdec.psxvideo.PsxYCbCrImage;
-import java.io.EOFException;
-import jpsxdec.psxvideo.mdec.DecodingException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 import static jpsxdec.psxvideo.mdec.MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST;
@@ -51,13 +49,11 @@ public class MdecEncoder {
 
     private static final boolean DEBUG = false;
 
-    private int[][] _aaiYBlocks;
-    private int[][] _aaiCbBlocks;
-    private int[][] _aaiCrBlocks;
-    private int _iMacBlockWidth;
-    private int _iMacBlockHeight;
-    private int _iLumaQscale;
-    private int _iChromaQscale;
+    private final double[][] _aadblYBlockVectors;
+    private final double[][] _aadblCbBlockVectors;
+    private final double[][] _aadblCrBlockVectors;
+    private final int _iMacBlockWidth;
+    private final int _iMacBlockHeight;
     // TODO: Change to use a Forward DCT more closely resembling the PSX
     private StephensIDCT _DCT = new StephensIDCT();
 
@@ -65,53 +61,51 @@ public class MdecEncoder {
             MdecInputStream.getDefaultPsxQuantMatrixCopy();
 
 
-    /** 
+    /**
      * The luma and chroma quantization scales are separate primarily for
      * handling Lain bitstream format. All other video formats should use the
      * same value for luma and chroma.
      */
-    public MdecEncoder(PsxYCbCrImage ycbcr, int iLumaQscale, int iChromaQscale) {
+    public MdecEncoder(PsxYCbCrImage ycbcr) {
 
-        if (ycbcr.getLuminWidth() % 16 != 0 || ycbcr.getLuminHeight() % 16 != 0)
+        if (ycbcr.getLumaWidth() % 16 != 0 || ycbcr.getLumaHeight() % 16 != 0)
             throw new IllegalArgumentException();
 
-        _iMacBlockWidth = ycbcr.getLuminWidth() / 16;
-        _iMacBlockHeight = ycbcr.getLuminHeight() / 16;
-        _iLumaQscale = iLumaQscale;
-        _iChromaQscale = iChromaQscale;
+        _iMacBlockWidth = ycbcr.getLumaWidth() / 16;
+        _iMacBlockHeight = ycbcr.getLumaHeight() / 16;
 
-        _aaiYBlocks = new int[_iMacBlockWidth * _iMacBlockHeight * 4][];
-        _aaiCbBlocks = new int[_iMacBlockWidth * _iMacBlockHeight][];
-        _aaiCrBlocks = new int[_iMacBlockWidth * _iMacBlockHeight][];
+        _aadblYBlockVectors = new double[_iMacBlockWidth * _iMacBlockHeight * 4][];
+        _aadblCbBlockVectors = new double[_iMacBlockWidth * _iMacBlockHeight][];
+        _aadblCrBlockVectors = new double[_iMacBlockWidth * _iMacBlockHeight][];
 
-        // encode luminance
+        // encode luma
         int iBlock = 0;
         for (int iBlockX = 0; iBlockX < _iMacBlockWidth*2; iBlockX++) {
             for (int iBlockY = 0; iBlockY < _iMacBlockHeight*2; iBlockY++) {
                 double[] adblBlock = ycbcr.get8x8blockY(iBlockX*8, iBlockY*8);
-                _aaiYBlocks[iBlockX + iBlockY * _iMacBlockWidth*2] = encodeBlock(adblBlock, _iLumaQscale);
+                _aadblYBlockVectors[iBlockX + iBlockY * _iMacBlockWidth*2] = encodeBlock(adblBlock);
                 iBlock++;
             }
         }
-        // encode chrominance
+        // encode chroma
         iBlock = 0;
         for (int iBlockX = 0; iBlockX < _iMacBlockWidth; iBlockX++) {
             for (int iBlockY = 0; iBlockY < _iMacBlockHeight; iBlockY++) {
                 double[] adblBlock = ycbcr.get8x8blockCb(iBlockX*8, iBlockY*8);
                 if (DEBUG)
                     System.out.println("Encoding macroblock " + iBlock + " Cb");
-                _aaiCbBlocks[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock, _iChromaQscale);
+                _aadblCbBlockVectors[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock);
                 if (DEBUG)
                     System.out.println("Encoding macroblock " + iBlock + " Cr");
                 adblBlock = ycbcr.get8x8blockCr(iBlockX*8, iBlockY*8);
-                _aaiCrBlocks[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock, _iChromaQscale);
+                _aadblCrBlockVectors[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock);
                 iBlock++;
             }
         }
 
     }
 
-    private int[] encodeBlock(double[] adblBlock, int iQscale) {
+    private double[] encodeBlock(double[] adblBlock) {
         if (DEBUG) {
             System.out.println("Pre DCT");
             for (int y = 0; y < 8; y++) {
@@ -137,8 +131,8 @@ public class MdecEncoder {
             }
         }
 
-        int[] aiBlock = quantizeBlock(adblBlock, iQscale);
-        
+        double[] aiBlock = preQuantizeZigZagBlock(adblBlock);
+
         if (DEBUG) {
             System.out.println("Final block");
             for (int y = 0; y < 8; y++) {
@@ -153,71 +147,79 @@ public class MdecEncoder {
         return aiBlock;
     }
 
-    private int[] quantizeBlock(double[] adblBlock, int iQscale) {
-        int[] aiBlock = new int[8*8];
-        // quantize it
-        if (DEBUG)
-            System.out.format("[0] = [0]%1.3f / %d = ", adblBlock[0], PSX_DEFAULT_QUANTIZATION_MATRIX[0]);
-        aiBlock[0] = (int)Math.round(adblBlock[0]
+    private double[] preQuantizeZigZagBlock(double[] adblBlock) {
+        double[] adblVector = new double[8*8];
+        // partially quantize it
+        adblVector[0] = (int)Math.round(adblBlock[0]
                      / (double)PSX_DEFAULT_QUANTIZATION_MATRIX[0]);
         if (DEBUG)
-            System.out.println(aiBlock[0]);
+            System.out.println(adblVector[0]);
         for (int i = 1; i < REVERSE_ZIG_ZAG_LOOKUP_LIST.length; i++) {
             int iZigZagPos = REVERSE_ZIG_ZAG_LOOKUP_LIST[i];
-            if (DEBUG) {
-                System.out.format("[%d] = [%d]%1.3f / (%d * %d) * 8 = ",
-                        i, iZigZagPos, adblBlock[iZigZagPos],
-                        PSX_DEFAULT_QUANTIZATION_MATRIX[iZigZagPos],
-                        iQscale);
-            }
-            aiBlock[i] = (int)Math.round(adblBlock[iZigZagPos] * 8.0 /
-                         (PSX_DEFAULT_QUANTIZATION_MATRIX[iZigZagPos] * iQscale));
+            adblVector[i] = adblBlock[iZigZagPos] * 8.0 / PSX_DEFAULT_QUANTIZATION_MATRIX[iZigZagPos];
             if (DEBUG)
-                System.out.println(aiBlock[i]);
+                System.out.println(adblVector[i]);
         }
-        return aiBlock;
+        return adblVector;
     }
 
-    public MdecInputStream getStream() {
-        return new EncodedMdecInputStream();
+    public MdecInputStream getStream(int[] aiBlockQscales) {
+        return new EncodedMdecInputStream(aiBlockQscales);
     }
 
     private class EncodedMdecInputStream extends MdecInputStream {
 
         private int __iMacroBlockX=0, __iMacroBlockY=0, __iBlock=0, __iVectorPos=0;
-        
-        public boolean readMdecCode(MdecCode code) throws DecodingException, EOFException {
-            int[] aiBlock;
+        private int __iQscale;
+
+        private final int[] __aiBlockQscales;
+        private int __iQscaleIndex = 0;
+
+        public EncodedMdecInputStream(int[] aiBlockQscales) {
+            __aiBlockQscales = aiBlockQscales;
+        }
+
+        private void nextQscale() {
+            __iQscale = __aiBlockQscales[__iQscaleIndex];
+            if (__iQscale < 1 || __iQscale > 63)
+                throw new RuntimeException();
+        }
+
+        public boolean readMdecCode(MdecCode code) {
+            double[] adblVector;
             switch (__iBlock) {
-                case 0: aiBlock = _aaiCrBlocks[ __iMacroBlockX +  __iMacroBlockY * _iMacBlockWidth]; break;
-                case 1: aiBlock = _aaiCbBlocks[ __iMacroBlockX +  __iMacroBlockY * _iMacBlockWidth]; break;
-                case 2: aiBlock = _aaiYBlocks[__iMacroBlockX * 2    +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
-                case 3: aiBlock = _aaiYBlocks[__iMacroBlockX * 2 +1 +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
-                case 4: aiBlock = _aaiYBlocks[__iMacroBlockX * 2    + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
-                case 5: aiBlock = _aaiYBlocks[__iMacroBlockX * 2 +1 + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
+                case 0: adblVector = _aadblCrBlockVectors[ __iMacroBlockX +  __iMacroBlockY * _iMacBlockWidth]; break;
+                case 1: adblVector = _aadblCbBlockVectors[ __iMacroBlockX +  __iMacroBlockY * _iMacBlockWidth]; break;
+                case 2: adblVector = _aadblYBlockVectors[__iMacroBlockX * 2    +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
+                case 3: adblVector = _aadblYBlockVectors[__iMacroBlockX * 2 +1 +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
+                case 4: adblVector = _aadblYBlockVectors[__iMacroBlockX * 2    + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
+                case 5: adblVector = _aadblYBlockVectors[__iMacroBlockX * 2 +1 + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
                 default: throw new IllegalStateException();
             }
 
             if (__iVectorPos == 0) { // qscale & dc
-                if (__iBlock < 2)
-                    code.setTop6Bits(_iChromaQscale);
-                else
-                    code.setTop6Bits(_iLumaQscale);
-                code.setBottom10Bits(aiBlock[0]);
+                nextQscale();
+                code.setTop6Bits(__iQscale);
+                code.setBottom10Bits((int)Math.round(adblVector[0]));
                 __iVectorPos++;
                 if (DEBUG)
                     System.out.println(code);
                 return false;
             } else {
                 int iZeroCount = 0;
-                while (__iVectorPos < aiBlock.length && aiBlock[__iVectorPos] == 0) {
-                    iZeroCount++;
+                int iQuantVal = -1;
+                while (__iVectorPos < adblVector.length) {
+                    iQuantVal = (int)Math.round(adblVector[__iVectorPos] / __iQscale);
+                    if (iQuantVal == 0)
+                        iZeroCount++;
+                    else
+                        break;
                     __iVectorPos++;
                 }
 
-                if (__iVectorPos < aiBlock.length) {
+                if (__iVectorPos < adblVector.length) {
                     code.setTop6Bits(iZeroCount);
-                    code.setBottom10Bits(aiBlock[__iVectorPos]);
+                    code.setBottom10Bits(iQuantVal);
                     __iVectorPos++;
                     if (DEBUG)
                         System.out.println(code);
@@ -226,19 +228,22 @@ public class MdecEncoder {
                     code.setToEndOfData();
                     __iVectorPos = 0;
 
-                    // increment indexes
-                    __iBlock++;
-                    if (__iBlock >= 6) {
-                        __iBlock = 0;
-                        __iMacroBlockY++;
-                        if (__iMacroBlockY >= _iMacBlockHeight) {
-                            __iMacroBlockY = 0;
-                            __iMacroBlockX++;
-                        }
-                    }
+                    incremntIndexes();
                     if (DEBUG)
                         System.out.println(code);
                     return true;
+                }
+            }
+        }
+
+        private void incremntIndexes() {
+            __iBlock++;
+            if (__iBlock >= 6) {
+                __iBlock = 0;
+                __iMacroBlockY++;
+                if (__iMacroBlockY >= _iMacBlockHeight) {
+                    __iMacroBlockY = 0;
+                    __iMacroBlockX++;
                 }
             }
         }

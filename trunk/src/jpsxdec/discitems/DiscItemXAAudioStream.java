@@ -78,7 +78,7 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
     /** Serialization key for audio sector stride. */
     private final static String STRIDE_KEY = "Sector stride";
     /** Number of non-audio sectors between each audio sector. 
-     *  Should be 4, 8, 16, or 32, or -1 if n/a (only one sector of audio).*/
+     *  Should be 1, 4, 8, 16, or 32, or -1 if unknown (only one sector of audio).*/
     private final int _iSectorStride;
 
     /** Serialization key for disc speed. */
@@ -107,8 +107,10 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         if (iSamplesPerSecond != 37800 && iSamplesPerSecond != 18900)
             throw new IllegalArgumentException();
         if (lngSampleCount < 0) throw new IllegalArgumentException();
-        if (iStride != -1 && iStride != 4 && iStride != 8 && iStride != 16 && iStride != 32) 
+        if (iStride != -1 && iStride != 1 && iStride != 2 &&
+            iStride != 4 && iStride != 8 && iStride != 16 && iStride != 32)
             throw new IllegalArgumentException("Illegal audio sector stride " + iStride);
+        
         _lngSampleCount = lngSampleCount;
         _iSamplesPerSecond = iSamplesPerSecond;
         _blnIsStereo = blnIsStereo;
@@ -116,10 +118,10 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         _iBitsPerSample = iBitsPerSample;
         _iSectorStride = iStride;
 
-        if (_iSectorStride < 1) {
+        if (_iSectorStride == -1) {
             _iDiscSpeed = -1;
         } else {
-            _iDiscSpeed = SectorXAAudio.calculateDiscSpeed(_iSamplesPerSecond, _blnIsStereo, _iSectorStride);
+            _iDiscSpeed = SectorXAAudio.calculateDiscSpeed(_iSamplesPerSecond, _blnIsStereo, _iBitsPerSample, _iSectorStride);
             if (_iDiscSpeed < 1)
                 throw new RuntimeException("Disc speed calc doesn't add up.");
         }
@@ -225,11 +227,15 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
 
         private final XAADPCMDecoder __decoder;
         private ISectorTimedAudioWriter __outFeed;
-        private final ExposedBAOS __tempBuffer = new ExposedBAOS(XAADPCMDecoder.BYTES_GENERATED_FROM_XAADPCM_SECTOR);
+        private final ExposedBAOS __tempBuffer;
         private AudioFormat __format;
 
         public XAConverter(double dblVolume) {
-            __decoder = XAADPCMDecoder.create(getADPCMBitsPerSample(), isStereo(), dblVolume);
+            __decoder = XAADPCMDecoder.create(DiscItemXAAudioStream.this.getADPCMBitsPerSample(),
+                                              DiscItemXAAudioStream.this.isStereo(), dblVolume);
+            __tempBuffer = new ExposedBAOS(
+                    XAADPCMDecoder.bytesGeneratedFromXaAdpcmSector(
+                    DiscItemXAAudioStream.this.getADPCMBitsPerSample()));
         }
 
         public void setAudioListener(ISectorTimedAudioWriter audioFeed) {

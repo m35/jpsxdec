@@ -170,11 +170,11 @@ public class PsxYCbCrImage {
     }
 
 
-    public int getLuminHeight() {
+    public int getLumaHeight() {
         return _iHeight;
     }
 
-    public int getLuminWidth() {
+    public int getLumaWidth() {
         return _iWidth;
     }
 
@@ -193,7 +193,7 @@ public class PsxYCbCrImage {
     }
 
     public BufferedImage YToBufferedImage() {
-        return doubleArrayToBufferedImage(getLuminWidth(), getLuminHeight(), _adblY, 2);
+        return doubleArrayToBufferedImage(getLumaWidth(), getLumaHeight(), _adblY, 2);
     }
 
     private static BufferedImage doubleArrayToBufferedImage(int iWidth, int iHeight, double[] adbl, int iMod) {

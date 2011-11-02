@@ -112,8 +112,19 @@ public class DiscIndex implements Iterable<DiscItem> {
         final TaskCanceledException[] aoTaskCanceled = { null };
 
         sectIter.setListener(new DiscriminatingSectorIterator.SectorReadListener() {
+            int iCurrentSectorNumber = -1;
             public void sectorRead(CdSector sect) {
                 sect.printErrors(pl.getLog());
+                if (sect.hasRawSectorHeader()) {
+                    if (iCurrentSectorNumber < 0) {
+                        iCurrentSectorNumber = sect.getHeaderSectorNumber();
+                    }  else {
+                        if (iCurrentSectorNumber + 1 != sect.getHeaderSectorNumber())
+                            pl.getLog().warning("Non-continuous sector header index: " +
+                                    iCurrentSectorNumber + " -> " + sect.getHeaderSectorNumber());
+                        iCurrentSectorNumber = sect.getHeaderSectorNumber();
+                    }
+                }
 
                 int iSector = sect.getSectorNumberFromStart();
                 try {

@@ -37,13 +37,13 @@
 
 package jpsxdec.sectors;
 
-import java.io.IOException;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
+import jpsxdec.util.NotThisTypeException;
 
 
 /** Shared super class of several video sector types. */
@@ -126,36 +126,30 @@ public abstract class SectorAbstractVideo extends IdentifiedSector implements IV
             return false;
     }
 
-    public int replaceFrameData(CdFileSectorReader cd,
-                                byte[] abDemuxData, int iDemuxOfs,
-                                int iLuminQscale, int iChromQscale,
-                                int iMdecCodeCount)
-            throws IOException
+    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
+                                int iMdecCodeCount, byte[] abSectUserData)
     {
-        if (iLuminQscale != iChromQscale)
-            throw new IllegalArgumentException();
-        
-        int iDemuxSizeForHeader = (abDemuxData.length + 3) & ~3;
+        BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(abDemuxData);
+        if (!(bsu instanceof BitStreamUncompressor_STRv2))
+            throw new IllegalArgumentException("Incompatable frame type " + bsu);
+        BitStreamUncompressor_STRv2 bsu2 = (BitStreamUncompressor_STRv2) bsu;
+        try {
+            bsu2.reset(abDemuxData);
+        } catch (NotThisTypeException ex) {
+            throw new RuntimeException("Shouldn't happen");
+        }
 
-        byte[] abSectUserData = getCDSector().getCdUserDataCopy();
+        int iQscale = bsu2.getQscale();
+
+        int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
 
         IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader);
-        IO.writeInt16LE(abSectUserData, 20, ParsedMdecImage.calculateHalfCeiling32(iMdecCodeCount));
-        IO.writeInt16LE(abSectUserData, 24, (short)iLuminQscale);
+        IO.writeInt16LE(abSectUserData, 20,
+                BitStreamUncompressor_STRv2.calculateHalfCeiling32(iMdecCodeCount));
+        IO.writeInt16LE(abSectUserData, 24, (short)(iQscale));
 
-        int iBytesToCopy = getIdentifiedUserDataSize();
-        if (iDemuxOfs + iBytesToCopy > abDemuxData.length)
-            iBytesToCopy = abDemuxData.length - iDemuxOfs;
-
-        // bytes to copy might be 0, which is ok because we
-        // still need to write the updated headers
-        System.arraycopy(abDemuxData, iDemuxOfs, abSectUserData, 32, iBytesToCopy);
-
-        cd.writeSector(getSectorNumber(), abSectUserData);
-
-        return iBytesToCopy;
+        return 32;
     }
-
 
 }
 

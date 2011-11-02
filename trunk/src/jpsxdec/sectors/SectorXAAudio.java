@@ -76,7 +76,9 @@ public class SectorXAAudio extends IdentifiedSector {
         // TODO: check Sound Parameters values that the index is valid
 
         int iErrors = 0;
+        int iMaxErrors;
         if (_iBitsPerSample == 4) {
+            iMaxErrors = XAADPCMDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 2;
             for (int iOfs = 0; 
                  iOfs < cdSector.getCdUserDataSize() - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
                  iOfs+=XAADPCMDecoder.SIZE_OF_SOUND_GROUP)
@@ -92,6 +94,7 @@ public class SectorXAAudio extends IdentifiedSector {
                 }
             }
         } else {
+            iMaxErrors = XAADPCMDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 3;
             for (int iOfs = 0;
                  iOfs < cdSector.getCdUserDataSize() - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
                  iOfs+=XAADPCMDecoder.SIZE_OF_SOUND_GROUP)
@@ -100,11 +103,12 @@ public class SectorXAAudio extends IdentifiedSector {
                 // are repeated four times and are ordered like this:
                 // 0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3
                 for (int i = 0; i < 4; i++) {
-                    if (cdSector.readUserDataByte(iOfs + i) != cdSector.readUserDataByte(iOfs + 4 + i))
+                    byte b = cdSector.readUserDataByte(iOfs + i);
+                    if (b != cdSector.readUserDataByte(iOfs + 4 + i))
                         iErrors++;
-                    if (cdSector.readUserDataByte(iOfs + i) != cdSector.readUserDataByte(iOfs + 8 + i))
+                    if (b != cdSector.readUserDataByte(iOfs + 8 + i))
                         iErrors++;
-                    if (cdSector.readUserDataByte(iOfs + i) != cdSector.readUserDataByte(iOfs + 12 + i))
+                    if (b != cdSector.readUserDataByte(iOfs + 12 + i))
                         iErrors++;
                 }
             }
@@ -113,10 +117,10 @@ public class SectorXAAudio extends IdentifiedSector {
         _iErrors = iErrors;
 
         if (iErrors > 0) {
-            log.log(Level.WARNING, "Found {0} errors in XA sound parameters for {1}", new Object[]{iErrors, cdSector.toString()});
+            log.log(Level.WARNING, "{0} errors out of {1} in XA sound parameters for {2}", new Object[]{iErrors, iMaxErrors, cdSector.toString()});
         }
         
-        setProbability(100);
+        setProbability(100 - iErrors * 100 / iMaxErrors);
     }
 
     public boolean isStereo() {
@@ -153,9 +157,9 @@ public class SectorXAAudio extends IdentifiedSector {
 
     public long getSampleCount() {
         if (_blnStereo)
-            return XAADPCMDecoder.PCM_SAMPLES_FROM_XA_ADPCM_SECTOR / 2;
+            return XAADPCMDecoder.pcmSamplesGeneratedFromXAADPCMSector(_iBitsPerSample) / 2;
         else
-            return XAADPCMDecoder.PCM_SAMPLES_FROM_XA_ADPCM_SECTOR;
+            return XAADPCMDecoder.pcmSamplesGeneratedFromXAADPCMSector(_iBitsPerSample);
     }
 
     public String toString() {
@@ -183,7 +187,9 @@ public class SectorXAAudio extends IdentifiedSector {
             isStereo() != prevXA.isStereo())
             return false;
         int iStride = getSectorNumber() - prevSect.getSectorNumber();
-        if (calculateDiscSpeed(_iSamplesPerSecond, _blnStereo, iStride) > 0)
+        if (iStride == 1)
+            return true;
+        if (calculateDiscSpeed(_iSamplesPerSecond, _blnStereo, _iBitsPerSample, iStride) > 0)
             return true;
         else
             return false;
@@ -211,56 +217,75 @@ public class SectorXAAudio extends IdentifiedSector {
         return true;
     }
 
-    /**<pre>
-     * Disc Speed = ( Samples/sec * Mono/Stereo * Stride ) / 4032
+    /** Return 1 for 1x, 2 for 2x, or -1 for impossible.
+     * <pre>
+     * Disc Speed = ( Samples/sec * Mono/Stereo * Stride * Bits/sample ) / 16128
      *
      * Samples/sec  Mono/Stereo  Bits/sample  Stride  Disc Speed
+     *   18900           1           4          2      invalid
      *   18900           1           4          4      invalid
      *   18900           1           4          8      invalid
      *   18900           1           4          16       75    "Level C"
      *   18900           1           4          32       150   "Level C"
-     *   18900           1           8          4      invalid
-     *   18900           1           8          8      invalid
-     *   18900           1           8          16       75    "Level A"
-     *   18900           1           8          32       150   "Level A"
+     *
+     *   18900           1           8          2      invalid
+     *   18900           1           8          4        150   "Level A"
+     *   18900           1           8          8        75    "Level A"
+     *   18900           1           8          16     invalid
+     *   18900           1           8          32     invalid
+     *
+     *   18900           2           4          2      invalid
      *   18900           2           4          4      invalid
      *   18900           2           4          8        75    "Level C"
      *   18900           2           4          16       150   "Level C"
      *   18900           2           4          32     invalid
-     *   18900           2           8          4      invalid
-     *   18900           2           8          8        75    "Level A"
-     *   18900           2           8          16       150   "Level A"
+     *
+     *   18900           2           8          2      invalid
+     *   18900           2           8          4        75    "Level A"
+     *   18900           2           8          8        150   "Level A"
+     *   18900           2           8          16     invalid
      *   18900           2           8          32     invalid
+     *
+     *   37800           1           4          2      invalid
      *   37800           1           4          4      invalid
      *   37800           1           4          8        75    "Level B"
      *   37800           1           4          16       150   "Level B"
      *   37800           1           4          32     invalid
-     *   37800           1           8          4      invalid
-     *   37800           1           8          8        75    "Level A"
-     *   37800           1           8          16       150   "Level A"
+     *
+     *   37800           1           8          2      invalid
+     *   37800           1           8          4        75    "Level A"
+     *   37800           1           8          8        150   "Level A"
+     *   37800           1           8          16     invalid
      *   37800           1           8          32     invalid
+     *
+     *   37800           2           4          2      invalid
      *   37800           2           4          4        75    "Level B"
      *   37800           2           4          8        150   "Level B"
      *   37800           2           4          16     invalid
      *   37800           2           4          32     invalid
-     *   37800           2           8          4        75    "Level A"
-     *   37800           2           8          8        150   "Level A"
+     *
+     *   37800           2           8          2        75    "Level A"
+     *   37800           2           8          4        150   "Level A"
+     *   37800           2           8          8      invalid
      *   37800           2           8          16     invalid
      *   37800           2           8          32     invalid
      *</pre>*/
     public static int calculateDiscSpeed(int iSamplesPerSecond,
-                                         boolean blnStereo, int iSectorStride)
+                                         boolean blnStereo, 
+                                         int iBitsPerSample,
+                                         int iSectorStride)
     {
         if (iSectorStride < 1)
             return -1;
 
-        int iDiscSpeed_x_4032 = iSamplesPerSecond *
+        int iDiscSpeed_x_16128 = iSamplesPerSecond *
                                (blnStereo ? 2 : 1) *
-                                iSectorStride;
+                                iSectorStride *
+                                iBitsPerSample;
 
-        if (iDiscSpeed_x_4032 == 75 * 4032)
+        if (iDiscSpeed_x_16128 == 75 * 16128)
             return 1; // 1x = 75 sectors/sec
-        else if (iDiscSpeed_x_4032 == 150 * 4032)
+        else if (iDiscSpeed_x_16128 == 150 * 16128)
             return 2; // 2x = 150 sectors/sec
         else
             return -1;

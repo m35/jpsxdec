@@ -43,7 +43,7 @@ import jpsxdec.sectors.IVideoSector;
 
 /** Demuxes a series of frame chunk sectors into a solid stream.
  *  This is surprisingly more complicated that it seems. */
-public abstract class FrameDemuxer {
+public class FrameDemuxer {
 
     private static final Logger log = Logger.getLogger(FrameDemuxer.class.getName());
 
@@ -56,18 +56,10 @@ public abstract class FrameDemuxer {
     /** Expected dimensions of the frame. */
     private final int _iWidth, _iHeight;
 
-    /** Current frame number, or -1 if no current frame. */
-    private int _iFrame = -1;
+    private DemuxedFrame _current;
 
-    private IVideoSector[] _aoChunks;
-    /** Number of chunks in the current frame, or -1 if no current frame. */
-    private int _iChunkCount = -1;
-    /** Size in bytes of the data contained in all the demux sectors. */
-    private int _iDemuxFrameSize = -1;
-
-    /** Basically the last sector of the frame, which we assume is when
-     * the frame will be displayed. */
-    private int _iPresentationSector = -1;
+    private final DemuxedFrame[] _queue = new DemuxedFrame[2];
+    private int _iQueueSize = 0;
 
     /* ---------------------------------------------------------------------- */
     /* Constructors---------------------------------------------------------- */
@@ -88,7 +80,7 @@ public abstract class FrameDemuxer {
     }
     
     /* ---------------------------------------------------------------------- */
-    /* Properties ----------------------------------------------------------- */
+    /* Public Functions ----------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
     public int getWidth() {
@@ -99,58 +91,25 @@ public abstract class FrameDemuxer {
         return _iHeight;
     }
 
-    /** Size of the demuxed frame, or -1 if no sectors have been added. */
-    public int getDemuxSize() {
-        return _iDemuxFrameSize;
+    /** Indicates that one or more frames are completely demuxed and ready
+     * to be read by {@link #nextCompletedFrame()} since
+     * {@link #feedSector(null)} was called. */
+    public boolean hasCompletedFrames() {
+        return _iQueueSize > 0;
     }
 
-    /** The last sector of the frame, or -1 if no sectors have been added. */
-    public int getPresentationSector() {
-        return _iPresentationSector;
-    }
-
-    /** The frame number of the demuxed frame, or -1 if no sectors have been added. */
-    public int getFrame() {
-        return _iFrame;
-    }
-    
-    private boolean isFull() {
-        if (_iChunkCount < 1)
-            return false;
-
-        for (int i = 0; i < _iChunkCount; i++) {
-            if (_aoChunks[i] == null) return false;
+    /** Returns the next frame that was completed since
+     * {@link #feedSector(null)} was called. */
+    public DemuxedFrame nextCompletedFrame() {
+        while (_iQueueSize > 0) {
+            _iQueueSize--;
+            DemuxedFrame frame = _queue[_iQueueSize];
+            _queue[_iQueueSize] = null;
+            return frame;
         }
-        return true;
+        return null;
     }
 
-    public boolean isEmpty() {
-        if (_iChunkCount < 1)
-            return true;
-
-        for (int i = 0; i < _iChunkCount; i++) {
-            if (_aoChunks[i] != null) return false;
-        }
-        return true;
-    }
-
-    public int getChunksInFrame() {
-        return _iChunkCount;
-    }
-
-    /** @return the video sector, or null if no sector has been set.
-     * @throws ArrayIndexOutOfBoundsException if index is less-than 0 or
-     *                                        greater-than {@link #getChunksInFrame()}. */
-    public IVideoSector getChunk(int i) {
-        if (_aoChunks == null)
-            return null;
-        return _aoChunks[i];
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* Public Functions ----------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-    
     public void feedSector(IVideoSector chunk) throws IOException {
 
         if (chunk.getSectorNumber() < _iVideoStartSector ||
@@ -163,114 +122,64 @@ public abstract class FrameDemuxer {
         if (chunk.getHeight() != _iHeight)
             throw new IllegalArgumentException("Inconsistent height.");
 
+        // clear completed queue
+        queueClear();
 
-        if (_iFrame < 0) {
-            newFrame(chunk);
-        } else if (_iFrame == chunk.getFrameNumber()) {
-            continueFrame(chunk);
+        // is it the first 
+        if (_current == null) {
+            _current = new DemuxedFrame(chunk);
         } else {
-            endFrame();
-            newFrame(chunk);
-        }
-        
-        if (isFull()) {
-            endFrame();
-        }
-    }
-
-    public void flush() throws IOException {
-        endFrame();
-    }
-
-    private void continueFrame(IVideoSector chunk) {
-        // for easy reference
-        final int iChkNum = chunk.getChunkNumber();
-
-        if (chunk.getChunksInFrame() != _iChunkCount) {
-            // if the number of chunks in the frame suddenly changed
-            throw new IllegalArgumentException("Number of chunks in this frame changed from " +
-                          _iChunkCount + " to " + chunk.getChunksInFrame());
-        } else if (iChkNum < 0 || iChkNum >= _iChunkCount) {
-            // if the chunk number is out of valid range
-            throw new IllegalArgumentException("Frame chunk number " + iChkNum + " is outside the range of possible chunk numbers.");
-        }
-
-        // make sure we don't alrady have the chunk
-        if (_aoChunks[iChkNum] != null)
-            throw new IllegalArgumentException("Chunk number " + iChkNum + " already received.");
-
-        // finally add the chunk where it belongs in the list
-        _aoChunks[iChkNum] = chunk;
-        // add the sector's data size to the total
-        _iDemuxFrameSize += chunk.getIdentifiedUserDataSize();
-        // update the presentation sector if it's larger
-        if (chunk.getSectorNumber() > _iPresentationSector)
-            _iPresentationSector = chunk.getSectorNumber();
-    }
-
-    private void newFrame(IVideoSector chunk) {
-        _iFrame = chunk.getFrameNumber();
-        _iChunkCount = chunk.getChunksInFrame();
-
-        // ensure we have enough capacity for the expected chunks
-        if (_aoChunks == null || _aoChunks.length < _iChunkCount)
-            _aoChunks = new IVideoSector[_iChunkCount];
-
-        // save the chunk
-        _aoChunks[chunk.getChunkNumber()] = chunk;
-        // add the sector's data size to the total
-        _iDemuxFrameSize = chunk.getIdentifiedUserDataSize();
-        // set the presentation sector to the only sector we have so far
-        _iPresentationSector = chunk.getSectorNumber();
-    }
-
-    /** Clears the current saved frame. {@link #frameComplete()} is not called. */
-    public void clear() {
-        for (int i = 0; i < _aoChunks.length; i++) {
-            _aoChunks[i] = null;
-        }
-
-        _iDemuxFrameSize = -1;
-        _iChunkCount = -1;
-        _iFrame = -1;
-        _iPresentationSector = -1;
-    }
-
-    // TODO: make this protected?
-    /** Copies the demux data into the supplied buffer.
-     * @throws IllegalArgumentException if buffer is smaller than {@link #getDemuxSize()}.
-     */
-    public void copyDemuxData(byte[] abBuffer) {
-        if (abBuffer.length < getDemuxSize())
-            throw new IllegalArgumentException("Buffer not big enough for demux data");
-
-        int iPos = 0;
-        for (int iChunk = 0; iChunk < _iChunkCount; iChunk++) {
-            IVideoSector chunk = _aoChunks[iChunk];
-            if (chunk != null) {
-                chunk.copyIdentifiedUserData(abBuffer, iPos);
-                iPos += chunk.getIdentifiedUserDataSize();
-            } else {
-                log.warning("Frame " + _iFrame + " chunk " + iChunk + " missing.");
+            boolean blnRejected = _current.addChunk(chunk);
+            if (blnRejected) {
+                queueAdd(_current);
+                _current = new DemuxedFrame(chunk);
             }
         }
-    }
 
-    private void endFrame() throws IOException {
-        if (_iChunkCount < 1) {
-            return;
+        if (_current.isFull()) {
+            queueAdd(_current);
+            _current = null;
         }
 
-        frameComplete();
-
-        clear();
+        notifyCompleted();
     }
 
-    /** Called when no more sectors for a frame will be received. 
-     *  Subclasses can call {@link #getDemuxSize()} to allocate a buffer
-     *  to fit the demuxed data, and {@link #copyDemuxData(byte[])}
-     *  to get the data.
-     */
-    abstract protected void frameComplete() throws IOException;
+    /** Finish any uncompleted frame and add it to the completed frame queue. */
+    public void flush() throws IOException {
+        if (_current != null) {
+            queueAdd(_current);
+            _current = null;
+        }
+        notifyCompleted();
+    }
 
+    /* ---------------------------------------------------------------------- */
+    /* Private functions ---------------------------------------------------- */
+    /* ---------------------------------------------------------------------- */
+    
+    private void notifyCompleted() throws IOException {
+        for (int i = 0; i < _iQueueSize; i++) {
+            frameComplete(_queue[i]);
+        }
+    }
+
+    private void queueClear() {
+        while (_iQueueSize > 0) {
+            _iQueueSize--;
+            _queue[_iQueueSize] = null;
+        }
+    }
+
+    private void queueAdd(DemuxedFrame frame) {
+        _queue[_iQueueSize] = frame;
+        _iQueueSize++;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* Protected functions -------------------------------------------------- */
+    /* ---------------------------------------------------------------------- */
+
+    /** Optionally override this method to be automatically notified
+     * whenever a frame is completed. */
+    protected void frameComplete(DemuxedFrame frame) throws IOException {}
 }

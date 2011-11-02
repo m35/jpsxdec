@@ -38,8 +38,6 @@
 package jpsxdec.psxvideo.mdec;
 
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.Rec601YCbCrImage;
 import jpsxdec.formats.Rec601YCbCr;
@@ -55,9 +53,6 @@ import jpsxdec.psxvideo.mdec.idct.IDCT_double;
  * synchronize. */
 public class MdecDecoder_double extends MdecDecoder {
 
-    private static final Logger log = Logger.getLogger(MdecDecoder_double.class.getName());
-    protected Logger log() { return log; }
-
     protected final IDCT_double _idct;
 
     protected final double[] _CrBuffer;
@@ -65,57 +60,18 @@ public class MdecDecoder_double extends MdecDecoder {
     protected final double[] _LumaBuffer;
 
     protected final double[] _CurrentBlock = new double[64];
-    protected final MdecInputStream.MdecCode _code = new MdecInputStream.MdecCode();
-
-    protected final int _iMacBlockWidth;
-    protected final int _iMacBlockHeight;
-
-    /** Luma dimensions. */
-    protected final int W, H;
-    /** Chroma dimensions. */
-    protected final int CW, CH;
-
-    protected final int[] _aiLumaBlkOfsLookup;
-    protected final int[] _aiChromaMacBlkOfsLookup;
-
-    protected final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
-            MdecInputStream.getDefaultPsxQuantMatrixCopy();
 
     public MdecDecoder_double(IDCT_double idct, int iWidth, int iHeight) {
+        super(iWidth, iHeight);
         _idct = idct;
         
-        _iMacBlockWidth = (iWidth + 15) / 16;
-        _iMacBlockHeight = (iHeight + 15) / 16;
-        W = _iMacBlockWidth * 16;
-        H = _iMacBlockHeight * 16;
-        CW = _iMacBlockWidth * 8;
-        CH = _iMacBlockHeight * 8;
         _CrBuffer = new double[ CW*CH];
         _CbBuffer = new double[ _CrBuffer.length];
         _LumaBuffer = new double[ W*H];
-
-        _aiChromaMacBlkOfsLookup = new int[_iMacBlockWidth * _iMacBlockHeight];
-        _aiLumaBlkOfsLookup = new int[_iMacBlockWidth * _iMacBlockHeight * 4];
-
-        int iMbIdx = 0;
-        for (int iMbX=0; iMbX < _iMacBlockWidth; iMbX++) {
-            for (int iMbY=0; iMbY < _iMacBlockHeight; iMbY++) {
-                _aiChromaMacBlkOfsLookup[iMbIdx] = iMbX*8 + iMbY*8 * CW;
-                int iBlkIdx = 0;
-                for (int iBlkY=0; iBlkY < 2; iBlkY++) {
-                    for (int iBlkX=0; iBlkX < 2; iBlkX++) {
-                        _aiLumaBlkOfsLookup[iMbIdx*4+iBlkIdx] = iMbX*16 + iBlkX*8 +
-                                                                (iMbY*16 + iBlkY*8) * W;
-                        iBlkIdx++;
-                    }
-                }
-                iMbIdx++;
-            }
-        }
     }
 
     public void decode(MdecInputStream mdecInStream)
-            throws DecodingException
+            throws MdecException.Decode
     {
 
         int iCurrentBlockQscale;
@@ -133,8 +89,7 @@ public class MdecDecoder_double extends MdecDecoder {
                 for (int iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY ++)
                 {
                     // debug
-                    if (log().isLoggable(Level.FINEST))
-                        log().finest(String.format("Decoding macro block %d (%d, %d)", iMacBlk, iMacBlkX, iMacBlkY));
+                    assert DEBUG ? debugPrintln(String.format("Decoding macro block %d (%d, %d)", iMacBlk, iMacBlkX, iMacBlkY)) : true;
 
                     //System.out.println(String.format("Uncompressing macro block %d (%d, %d)", iMacBlk, iMacBlkX, iMacBlkY));
 
@@ -142,12 +97,11 @@ public class MdecDecoder_double extends MdecDecoder {
                         Arrays.fill(_CurrentBlock, 0);
                         mdecInStream.readMdecCode(_code);
 
-                        if (log().isLoggable(Level.FINEST))
-                            log().finest("Qscale & DC " + _code);
+                        assert DEBUG ? debugPrintln("Qscale & DC " + _code) : true;
 
                         if (_code.getBottom10Bits() != 0) {
                             _CurrentBlock[0] =
-                                    _code.getBottom10Bits() * PSX_DEFAULT_QUANTIZATION_MATRIX[0];
+                                    _code.getBottom10Bits() * _aiQuantizationTable[0];
                             iCurrentBlockNonZeroCount = 1;
                             iCurrentBlockLastNonZeroPosition = 0;
                         } else {
@@ -159,8 +113,7 @@ public class MdecDecoder_double extends MdecDecoder {
 
                         while (!mdecInStream.readMdecCode(_code)) {
 
-                            if (log().isLoggable(Level.FINEST))
-                                log().finest(_code.toString());
+                            assert DEBUG ? debugPrintln(_code.toString()) : true;
 
                             ////////////////////////////////////////////////////////
                             iCurrentBlockVectorPosition += _code.getTop6Bits() + 1;
@@ -170,7 +123,7 @@ public class MdecDecoder_double extends MdecDecoder {
                                 // Reverse Zig-Zag
                                 iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                             } catch (ArrayIndexOutOfBoundsException ex) {
-                                throw new DecodingException(String.format(
+                                throw new MdecException.Decode(String.format(
                                         "[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d",
                                         iCurrentBlockVectorPosition,
                                         iMacBlk, iMacBlkX, iMacBlkY, iBlock));
@@ -178,15 +131,14 @@ public class MdecDecoder_double extends MdecDecoder {
                             // Dequantize
                             _CurrentBlock[iRevZigZagPos] =
                                         (_code.getBottom10Bits()
-                                      * PSX_DEFAULT_QUANTIZATION_MATRIX[iRevZigZagPos]
+                                      * _aiQuantizationTable[iRevZigZagPos]
                                       * iCurrentBlockQscale) / 8.0;
                             iCurrentBlockNonZeroCount++;
                             iCurrentBlockLastNonZeroPosition = iRevZigZagPos;
                             ////////////////////////////////////////////////////////
                         }
 
-                        if (log().isLoggable(Level.FINEST))
-                            log().finest(_code.toString());
+                        assert DEBUG ? debugPrintln(_code.toString()) : true;
 
                         writeEndOfBlock(iMacBlk, iBlock,
                                 iCurrentBlockNonZeroCount,
@@ -197,6 +149,7 @@ public class MdecDecoder_double extends MdecDecoder {
                 }
             }
         } catch (Throwable ex) {
+            String sErr = "Error decoding macro block " + iMacBlk + " block " + iBlock;
             // fill in the remaining data with zeros
             int iTotalMacBlks = _iMacBlockWidth * _iMacBlockHeight;
             // pickup where decoding left off
@@ -206,32 +159,31 @@ public class MdecDecoder_double extends MdecDecoder {
                 }
                 iBlock = 0;
             }
-            if (ex instanceof DecodingException) {
-                throw (DecodingException)ex;
+            if (ex instanceof MdecException.Decode) {
+                throw (MdecException.Decode)ex;
             } else {
-                throw new DecodingException("Error decoding macro block " + iMacBlk + " block " + iBlock, ex);
+                throw new MdecException.Decode(sErr, ex);
             }
         }
     }
 
+    private boolean debugPrintBlock(String sMsg) {
+        System.out.println(sMsg);
+        for (int i = 0; i < 8; i++) {
+            System.out.print("[ ");
+            for (int j = 0; j < 8; j++) {
+                System.out.format( "%1.3f, ", _CurrentBlock[j+i*8]);
+            }
+            System.out.print("]");
+            System.out.println();
+        }
+        return true;
+    }
 
     private void writeEndOfBlock(int iMacroBlock, int iBlock,
                                  int iNonZeroCount, int iNonZeroPos)
     {
-
-        if (log().isLoggable(Level.FINEST)) {
-            log().finest("Pre-IDCT block");
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 8; i++) {
-                sb.setLength(0);
-                sb.append("[ ");
-                for (int j = 0; j < 8; j++) {
-                    sb.append(String.format( "%1.3f, ", _CurrentBlock[j+i*8]));
-                }
-                sb.append("]");
-                log().finest(sb.toString());
-            }
-        }
+        assert DEBUG ? debugPrintBlock("Pre-IDCT block") : true;
 
         double[] outputBuffer;
         int iOutOffset, iOutWidth;
@@ -265,22 +217,8 @@ public class MdecDecoder_double extends MdecDecoder {
                 System.arraycopy(_CurrentBlock, iSrcOfs, outputBuffer, iOutOffset, 8);
         }
 
-        if (log().isLoggable(Level.FINEST)) {
-            log().finest("Post-IDCT block");
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 8; i++) {
-                sb.setLength(0);
-                sb.append("[ ");
-                for (int j = 0; j < 8; j++) {
-                    if (iNonZeroCount == 0)
-                        sb.append("0, ");
-                    else
-                        sb.append(String.format( "%1.3f, ", _CurrentBlock[j+i*8]));
-                }
-                sb.append("]");
-                log().finest(sb.toString());
-            }
-        }
+        assert DEBUG ? debugPrintBlock("Post-IDCT block") : true;
+
     }
 
     final static boolean YUV_TESTS = false;

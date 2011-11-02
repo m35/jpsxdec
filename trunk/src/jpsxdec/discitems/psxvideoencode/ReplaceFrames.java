@@ -38,12 +38,9 @@
 package jpsxdec.discitems.psxvideoencode;
 
 
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -56,14 +53,13 @@ import javax.xml.transform.stream.StreamResult;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.savers.FrameDemuxer;
 import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.savers.DemuxedFrame;
 import jpsxdec.sectors.IVideoSector;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.mdec.DecodingException;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IOException6;
 import jpsxdec.util.NotThisTypeException;
@@ -171,7 +167,7 @@ public class ReplaceFrames {
     }
 
     public void replaceFrames(DiscItemVideoStream vidItem, final CdFileSectorReader cd, final FeedbackStream fbs)
-            throws IOException, DecodingException, NotThisTypeException
+            throws IOException, NotThisTypeException, MdecException
     {
         final Throwable[] exception = new Throwable[1];
         
@@ -179,18 +175,18 @@ public class ReplaceFrames {
         demuxer = new FrameDemuxer(vidItem.getWidth(), vidItem.getHeight(),
                                    vidItem.getStartSector(), vidItem.getEndSector())
         {
-            protected void frameComplete() throws IOException {
+            protected void frameComplete(DemuxedFrame frame) throws IOException {
 
-                ReplaceFrame replacer = getFrameToReplace(getFrame());
+                ReplaceFrame replacer = getFrameToReplace(frame.getFrame());
                 if (replacer != null) {
-                    fbs.println("Frame " + getFrame() + ":");
+                    fbs.println("Frame " + frame.getFrame() + ":");
                     if (fbs.printMore())
-                        printExistingFrameStats(this, fbs);
+                        frame.printStats(fbs);
                     fbs.indent();
                     fbs.println("Replacing with " + replacer.getImageFile());
                     try {
-                        replacer.replace(this, cd, fbs);
-                    } catch (DecodingException ex) {
+                        replacer.replace(frame, cd, fbs);
+                    } catch (MdecException ex) {
                         exception[0] = ex;
                     } catch (NotThisTypeException ex) {
                         exception[0] = ex;
@@ -210,8 +206,8 @@ public class ReplaceFrames {
                 demuxer.feedSector((IVideoSector) sector);
 
             if (exception[0] != null) {
-                if (exception[0] instanceof DecodingException)
-                    throw (DecodingException)exception[0];
+                if (exception[0] instanceof MdecException)
+                    throw (MdecException)exception[0];
                 else if (exception[0] instanceof NotThisTypeException)
                     throw (NotThisTypeException)exception[0];
                 else
@@ -222,29 +218,6 @@ public class ReplaceFrames {
         demuxer.flush();
     }
 
-    public static void printExistingFrameStats(FrameDemuxer demuxer, FeedbackStream fbs) {
-        try {
-            ParsedMdecImage parsed = new ParsedMdecImage(demuxer.getWidth(), demuxer.getHeight());
-            byte[] abBitStream = new byte[demuxer.getDemuxSize()];
-            demuxer.copyDemuxData(abBitStream);
-            BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream, demuxer.getFrame());
-            uncompressor.reset(abBitStream);
-            parsed.readFrom(uncompressor);
-            fbs.indent();
-            fbs.printlnMore("Bitstream type: " + uncompressor);
-            fbs.printlnMore("Available demux size: " + demuxer.getDemuxSize());
-            fbs.printlnMore("Actual bitstream size: " + uncompressor.getStreamPosition());
-            fbs.printlnMore("Quantization scale luma: " + uncompressor.getLuminQscale() +
-                                                  ", chroma:" + uncompressor.getChromQscale());
-            fbs.printlnMore("MDEC code count: " + parsed.getMdecCodeCount());
-            for (int i=0; i < demuxer.getChunksInFrame(); i++) {
-                System.out.println(demuxer.getChunk(i));
-            }
-            fbs.outdent();
-        } catch (Throwable ex) {
-            throw new RuntimeException(ex);
-        }
-    }
 
     public static void main(String[] args) throws Throwable {
         if (args.length != 3) {

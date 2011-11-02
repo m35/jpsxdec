@@ -37,8 +37,7 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import jpsxdec.psxvideo.mdec.DecodingException;
-import java.io.IOException;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 
 /** Interface for classes that will convert an {@link MdecInputStream} into
@@ -46,10 +45,7 @@ import jpsxdec.psxvideo.mdec.MdecInputStream;
  */
 public interface BitStreamCompressor {
     
-    byte[] compress(MdecInputStream inStream, int iLumaQscale, int iChromaQscale, int iMdecCodeCount)
-            throws DecodingException, IOException;
+    byte[] compress(MdecInputStream inStream, int iMdecCodeCount)
+            throws MdecException, MdecException.TooMuchEnergyToCompress;
 
-    /** If the Luma and Chroma quantization scales can be different
-     * (only available for Lain compressor). */
-    boolean separateQscales();
 }

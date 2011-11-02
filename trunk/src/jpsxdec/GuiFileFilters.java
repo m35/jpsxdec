@@ -62,6 +62,7 @@ public class GuiFileFilters {
                        s.endsWith(".iso") ||
                        s.endsWith(".bin") ||
                        s.endsWith(".img") ||
+                       s.endsWith(".mdf") ||
                        s.endsWith(".str") ||
                        s.endsWith(".mov") ||
                        s.endsWith(".iki") ||
@@ -70,23 +71,25 @@ public class GuiFileFilters {
             }
         },
         new FileFilter() {
-            public String getDescription() { return "CD images (*.iso, *.bin, *.img)"; }
+            public String getDescription() { return "CD images (*.iso, *.bin, *.img, *.mdf)"; }
             public boolean accept(File f) {
                 String s = f.getName().toLowerCase();
                 return f.isDirectory() ||
                        s.endsWith(".iso") ||
                        s.endsWith(".bin") ||
-                       s.endsWith(".img");
+                       s.endsWith(".img") ||
+                       s.endsWith(".mdf");
             }
         },
         new FileFilter() {
-            public String getDescription() { return "PlayStation video (*.str, *.mov, *.iki)"; }
+            public String getDescription() { return "PlayStation video (*.str, *.mov, *.iki, *.ik2)"; }
             public boolean accept(File f) {
                 String s = f.getName().toLowerCase();
                 return f.isDirectory() ||
                        s.endsWith(".str") ||
                        s.endsWith(".mov") ||
-                       s.endsWith(".iki");
+                       s.endsWith(".iki") ||
+                       s.endsWith(".ik2");
             }
         },
         new FileFilter() {

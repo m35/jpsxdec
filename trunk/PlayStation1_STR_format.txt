@@ -1,7 +1,6 @@
 ﻿
                       The PlayStation 1 Video (STR) Format
-                                v0.59, May 2011
-                       http://code.google.com/p/jpsxdec/
+                              v1.00, October 2011
                        http://kenai.com/projects/jpsxdec/
                          http://jpsxdec.blogspot.com/
 
@@ -62,13 +61,13 @@ v0.58
     - ch 2.3.3, 2.3.4: The MDEC chip is partially programmable.
     - ch 2.3.6: It's called a "level shift". Fixed pseudocode equation.
     - Overall: A few tweaks and rewording. Fixed some data offsets.
-v0.59
+v1.00
     - ch 2.2.1: Note about DC precision bits.
     - ch 2.2.2: Added v3 has end of frame bits.
     - ch 3.3: Note about FF9 curious codes.
     - ch 3.7: Added .iki format.
     - Overall: Some unknown fields identified
-               Luminance -> Luma, Crominance -> Chroma, Subcode -> Submode
+               Luminance -> Luma, Chrominance -> Chroma, Subcode -> Submode
                Many minor tweaks and corrections
 
 
@@ -645,21 +644,10 @@ Every block is terminated by an END_OF_BLOCK code.
 
 // TODO: Confirm the following...
 
-Finally, frames end with an extra 11 bit block.
+Finally, frames end with an extra 11 bits
 
 	01111111110               v2 end of frame
 	11111111110               v3 end of frame
-
-The v2 bits are equivalent to 011 (1, -1) 111 (0, -1) 111 (0, -1) 10 (EOB), which turns into this pre-IDCT matrix.
-
-  [  0  -1   0   0   0   0   0   0 ]
-  [ -1   0   0   0   0   0   0   0 ]
-  [ -1   0   0   0   0   0   0   0 ]
-  [  0   0   0   0   0   0   0   0 ]
-  [  0   0   0   0   0   0   0   0 ]
-  [  0   0   0   0   0   0   0   0 ]
-  [  0   0   0   0   0   0   0   0 ]
-  [  0   0   0   0   0   0   0   0 ]
   
 While not necessary for custom decoding, games expect the extra block and will crash if not present. I suspect the block is added to make the game's bit-reader faster since it doesn't have to consider partially hitting the end of the buffer when reading bits.
 
@@ -734,7 +722,7 @@ The # of zeros and AC Coefficient are packed similarly. You take the 6 bits from
 
   ((Num_Of_Zeros & 0x3F) << 10) | (AC_Coefficient & 0x3FF)
 
-Finally, the binary '01' END_OF_BLOCK is converted to the MDEC END_OF_DATA code 0xFE00.
+Finally, the binary '10' END_OF_BLOCK is converted to the MDEC END_OF_DATA code 0xFE00.
 
  -- Pseudocode to generate a macro block readable by the MDEC ------------------
 
@@ -756,7 +744,7 @@ Note that since the MDEC reads data as little-endian, if these 16 bit values are
 
 [Side note about quality]
 
-The v2 bitstream can actually store quality equivelent to MPEG-2 format, due to all DCT coefficients having up to 10-bits of precision. Meanwhile, v3 bitstreams are just a little better quaity than MPEG-1 because the DC Coefficient only has 8-bits of precision. In both cases however the compression is far simpiler and doesn't take advantage of temporal redundancy (i.e. it is like MJPG with only intra "I frames", and no P and B frames). So even though it could store high quality, the size becomes the primary bottleneck.
+The v2 bitstream can actually store quality equivalent to MPEG-2 format, due to all DCT coefficients having up to 10-bits of precision. Meanwhile, v3 bitstreams are just a little better quality than MPEG-1 because the DC Coefficient only has 8-bits of precision. In both cases however the compression is far simpler and doesn't take advantage of temporal redundancy (i.e. it is like MJPG with only intra "I frames", and no P and B frames). So even though it could store high quality, the size becomes the primary bottleneck.
 
 ################################################################################
 ## 2.3. MDEC emulation
@@ -887,7 +875,7 @@ The de-quantization matrix is actually programmable, but (nearly?) all games use
 
 > Unrelated technical note: this table is actually uploaded to the MDEC chip in zig-zag order.
 
-          PSX_QUANIZATION_TABLE[x,y]
+          PSX_QUANTIZATION_TABLE[x,y]
        x=0   1   2   3   4   5   6   7
        --------------------------------
   y=0 |  2, 16, 19, 22, 26, 27, 29, 34 |
@@ -903,20 +891,20 @@ The de-quantization matrix is actually programmable, but (nearly?) all games use
 All values in the matrix need to be multiplied by their corresponding value above. Also, all but the first matrix element (the DC Coefficient) need to be multiplied by the Quantization Scale provided at the beginning of this  macro block, along with additional scaling.
 
  ------------------------------------------------------------------------------
-    Define Deqantizized_Matrix[8, 8]
+    Define Dequantized_Matrix[8, 8]
 
     For x = 0 to 7
         For y = 0 to 7
             If x == 0 And y == 0 Then
                 /* The DC coefficient is not multiplied
                    by the quantization scale */
-                Deqantizized_Matrix[x, y] = Coefficient_Matrix[x, y]
-                                            * PSX_QUANIZATION_TABLE[x, y]
+                Dequantized_Matrix[x, y] = Coefficient_Matrix[x, y]
+                                           * PSX_QUANTIZATION_TABLE[x, y]
             Else
-                Deqantizized_Matrix[x, y] = 2 * Coefficient_Matrix[x, y]
-                                              * Quantization_Scale
-                                              * PSX_QUANIZATION_TABLE[x, y]
-                                              / 16
+                Dequantized_Matrix[x, y] = 2 * Coefficient_Matrix[x, y]
+                                             * Quantization_Scale
+                                             * PSX_QUANTIZATION_TABLE[x, y]
+                                             / 16
             End If
         Next
     Next
@@ -961,7 +949,7 @@ Here it is in pseudocode:
             For DCT_x 0 to 7
                 For DCT_y = 0 to 7
 
-                    Sub_Total = Deqantizized_Matrix[DCT_x, DCT_y]
+                    Sub_Total = Dequantized_Matrix[DCT_x, DCT_y]
 
                     If DCT_x == 0
                         Sub_Total *= Sqrt(1 / 8)
@@ -1001,7 +989,7 @@ IDCT_table = [ 0.354 -0.354 -0.354  0.354  0.354 -0.354 -0.354  0.354 ]
              [ 0.191 -0.462  0.462 -0.191 -0.191  0.462 -0.462  0.191 ]
              [ 0.098 -0.278  0.416 -0.490  0.490 -0.416  0.278 -0.098 ]
 
-IDCT_table^transposed * Deqantized_Matrix * IDCT_table
+IDCT_table^transposed * Dequantized_Matrix * IDCT_table
 
 Like the quantization table, the IDCT matrix is programmable, but (nearly?) all games use the same table:
 

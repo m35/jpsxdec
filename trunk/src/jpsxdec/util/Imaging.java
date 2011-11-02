@@ -82,11 +82,11 @@ public class Imaging {
                 null); // properties
     }
     public static BufferedImage createLinearGrayIndexed256(byte[] abGray, int iWidth, int iHeight) {
-        WritableRaster oRaster = LINEAR_GRAY_INDEXED.createCompatibleWritableRaster(iWidth, iHeight);
-        oRaster.setDataElements(0, 0, iWidth, iHeight, abGray);
+        WritableRaster raster = LINEAR_GRAY_INDEXED.createCompatibleWritableRaster(iWidth, iHeight);
+        raster.setDataElements(0, 0, iWidth, iHeight, abGray);
         return new BufferedImage(
                 LINEAR_GRAY_INDEXED,
-                oRaster,
+                raster,
                 false,
                 null);
     }

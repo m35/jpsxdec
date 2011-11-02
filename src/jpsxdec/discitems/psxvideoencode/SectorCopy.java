@@ -44,30 +44,33 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 public class SectorCopy {
 
     public static void main(String[] args) throws IOException {
-        
-        if (args.length != 3) 
+
+        if (args.length != 3)
             throw new IllegalArgumentException("Need 3 args: <source file> <dest CD image> <dest sector start>");
+
+        sectorCopy(args[0], args[1], Integer.parseInt(args[2]));
+    }
+    public static void sectorCopy(String sSource, String sDest, int iStartSector) throws IOException {
         
-        CdFileSectorReader oSrc = new CdFileSectorReader(new File(args[0]));
-        CdFileSectorReader oDest = new CdFileSectorReader(new File(args[1]), true);
-        int iStartSector = Integer.parseInt(args[2]);
+        CdFileSectorReader src = new CdFileSectorReader(new File(sSource));
+        CdFileSectorReader dest = new CdFileSectorReader(new File(sDest), true);
         
-        if (oSrc.getLength() > oDest.getLength())
+        if (src.getLength() > dest.getLength())
             throw new IllegalArgumentException("Source file is larger than dest file");
         
-        if (iStartSector + oSrc.getLength() > oDest.getLength())
+        if (iStartSector + src.getLength() > dest.getLength())
             throw new IllegalArgumentException("Source file will run off the end of dest file");
         
-        for (int iOfsSect = 0; iOfsSect < oSrc.getLength(); iOfsSect++) {
-            byte[] abSrcUserData = oSrc.getSector(iOfsSect).getCdUserDataCopy();
+        for (int iOfsSect = 0; iOfsSect < src.getLength(); iOfsSect++) {
+            byte[] abSrcUserData = src.getSector(iOfsSect).getCdUserDataCopy();
             System.out.println("Overriting sector " + (iStartSector + iOfsSect));
-            oDest.writeSector(iStartSector + iOfsSect, abSrcUserData);
+            dest.writeSector(iStartSector + iOfsSect, abSrcUserData);
         }
         
-        System.out.println(oSrc.getLength() + " sectors overwritten.");
+        System.out.println(src.getLength() + " sectors overwritten.");
         
-        oSrc.close();
-        oDest.close();
+        src.close();
+        dest.close();
         
     }
 

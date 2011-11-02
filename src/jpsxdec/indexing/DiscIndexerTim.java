@@ -132,7 +132,7 @@ public class DiscIndexerTim extends DiscIndexer {
         }
 
         long lngImageLength = IO.readUInt32LE(inStream);
-        if (lngImageLength <= 0)
+        if (lngImageLength == 0)
             return;
 
         // image x,y

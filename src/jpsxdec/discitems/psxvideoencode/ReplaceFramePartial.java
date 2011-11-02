@@ -38,26 +38,27 @@
 package jpsxdec.discitems.psxvideoencode;
 
 
-import jpsxdec.psxvideo.encode.MdecEncoder;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.discitems.savers.DemuxedFrame;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.discitems.savers.FrameDemuxer;
-import jpsxdec.sectors.IVideoSector;
 import jpsxdec.psxvideo.PsxYCbCrImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
-import jpsxdec.psxvideo.mdec.DecodingException;
 import jpsxdec.psxvideo.encode.ParsedMdecImage.Block;
 import jpsxdec.psxvideo.encode.ParsedMdecImage.MacroBlock;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
@@ -151,15 +152,14 @@ public class ReplaceFramePartial extends ReplaceFrame {
     }
 
     @Override
-    public void replace(FrameDemuxer demuxer, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, DecodingException, NotThisTypeException {
-        final int WIDTH = demuxer.getWidth();
-        final int HEIGHT = demuxer.getHeight();
+    public void replace(DemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
+        final int WIDTH = frame.getWidth();
+        final int HEIGHT = frame.getHeight();
 
         // 1. Parse original image
-        byte[] origBits = new byte[demuxer.getDemuxSize()];
-        demuxer.copyDemuxData(origBits);
+        byte[] origBits = frame.copyDemuxData(null);
         BitStreamUncompressor uncompressor =
-                BitStreamUncompressor.identifyUncompressor(origBits, demuxer.getFrame());
+                BitStreamUncompressor.identifyUncompressor(origBits);
         uncompressor.reset(origBits);
         ParsedMdecImage parsedOrig = new ParsedMdecImage(WIDTH, HEIGHT);
         parsedOrig.readFrom(uncompressor);
@@ -178,7 +178,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
         //    the bounding box and mask
         ArrayList<Point> diffMacblks = findDiffMacroblocks(origImg, newImg);
 
-        if (diffMacblks.size() == 0) {
+        if (diffMacblks.isEmpty()) {
             fbs.println("No differences found, skipping.");
             return;
         } else if (diffMacblks.size() == ParsedMdecImage.calculateMacroBlocks(WIDTH, HEIGHT)) {
@@ -194,66 +194,46 @@ public class ReplaceFramePartial extends ReplaceFrame {
         PsxYCbCrImage newPsxImg = new PsxYCbCrImage(newImg);
         BitStreamCompressor compressor = uncompressor.makeCompressor();
         ParsedMdecImage parsedNew = new ParsedMdecImage(WIDTH, HEIGHT);
-        byte[] abNewDemux;
-
-        int iLuminQscale = parsedOrig.getLuminQscale();
-        int iChromQscale = parsedOrig.getChromQscale();
-        while (true) {
-            fbs.println("Trying qscale luma: " + iLuminQscale + " chroma: " + iChromQscale);
-
-            // 4. Encode replacement image with original frame qscale
-            MdecEncoder encoder = new MdecEncoder(newPsxImg, iLuminQscale, iChromQscale);
+        byte[] abNewDemux = null;
+        
+        // 4. Encode replacement image with original frame qscale
+        MdecEncoder encoder = new MdecEncoder(newPsxImg);
+        Iterator<int[]> qscales = uncompressor.qscaleIterator(false);
+        while (qscales.hasNext()) {
+            fbs.println("Trying " + qscales);
 
             // 5. Replace new macroblocks in the parsed source image
-            parsedNew.readFrom(encoder.getStream());
+            parsedNew.readFrom(encoder.getStream(qscales.next()));
             for (Point macblk : diffMacblks) {
                 MacroBlock origMacblk = parsedOrig.getMacroBlock(macblk.x, macblk.y);
                 MacroBlock newMacblk = parsedNew.getMacroBlock(macblk.x, macblk.y);
                 copyMacroBlock(origMacblk, newMacblk, fbs);
             }
 
-            // 6. Recompress the entire original image with the new macroblocks
-            abNewDemux = compressor.compress(parsedOrig.getStream(),
-                    parsedOrig.getLuminQscale(), parsedOrig.getChromQscale(),
-                    parsedOrig.getMdecCodeCount());
+            try {
+                // 6. Recompress the entire original image with the new macroblocks
+                abNewDemux = compressor.compress(parsedOrig.getStream(), parsedOrig.getMdecCodeCount());
 
-            // 7. Check if it will fit
-            if (abNewDemux.length <= demuxer.getDemuxSize()) {
-                System.out.format("  New demux size %d <= max source %d ",
-                        abNewDemux.length, demuxer.getDemuxSize());
-                System.out.println();
-                break;
-            } else {
-                System.out.format("  >>> New demux size %d > max source %d <<<",
-                        abNewDemux.length, demuxer.getDemuxSize());
-                System.out.println();
-            }
-
-            // 8. If not, start again from step 4, increasing the qscale
-            if (compressor.separateQscales()) {
-                if (iLuminQscale == iChromQscale)
-                    iChromQscale++;
-                else if (iLuminQscale < iChromQscale) {
-                    iLuminQscale++;
-                    iChromQscale--;
+                // 7. Check if it will fit
+                if (abNewDemux.length <= frame.getDemuxSize()) {
+                    System.out.format("  New demux size %d <= max source %d ",
+                            abNewDemux.length, frame.getDemuxSize());
+                    System.out.println();
+                    break;
                 } else {
-                    iChromQscale++;
+                    System.out.format("  >>> New demux size %d > max source %d <<<",
+                            abNewDemux.length, frame.getDemuxSize());
+                    System.out.println();
                 }
-            } else {
-                iLuminQscale++;
-                iChromQscale++;
+
+            } catch (MdecException.TooMuchEnergyToCompress ex) {
+                fbs.printlnWarn(ex.getMessage());
             }
+            // 8. If not, start again from step 4, increasing the qscale
         }
 
         // 9. replace the frame
-        int iDemuxOfs = 0;
-        for (int i = 0; i < demuxer.getChunksInFrame(); i++) {
-            IVideoSector vidSector = demuxer.getChunk(i);
-            iDemuxOfs += vidSector.replaceFrameData(cd, abNewDemux, iDemuxOfs,
-                    parsedOrig.getLuminQscale(), parsedOrig.getChromQscale(),
-                    parsedOrig.getMdecCodeCount());
-        }
-
+        frame.writeToSectors(abNewDemux, abNewDemux.length, parsedNew.getMdecCodeCount(), cd, fbs);
     }
 
     private ArrayList<Point> findDiffMacroblocks(BufferedImage origImg, BufferedImage newImg)

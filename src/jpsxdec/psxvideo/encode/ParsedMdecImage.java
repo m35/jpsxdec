@@ -37,18 +37,17 @@
 
 package jpsxdec.psxvideo.encode;
 
-import java.io.EOFException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.psxvideo.mdec.DecodingException;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 
 /** Parses and stores a stream of MDEC 16-bit codes, in the process is analyzes
- *  it for information necessay for recompression. It also has methods to
+ *  it for information necessary for recompression. It also has methods to
  *  tweak individual macro-blocks, which is also useful for recompression. */
 public class ParsedMdecImage  {
     
@@ -259,13 +258,13 @@ public class ParsedMdecImage  {
             _iCurrentMacroBlock = iStartMacroBlock;
         }
 
-        public boolean readMdecCode(MdecCode code) throws EOFException  {
+        public boolean readMdecCode(MdecCode code) throws MdecException.Read  {
 
             MacroBlock currentMacBlk;
             try {
                 currentMacBlk = _mdecList[_iCurrentMacroBlock];
             } catch (ArrayIndexOutOfBoundsException ex) {
-                throw new EOFException();
+                throw new MdecException.Read("End of stream");
             }
 
             Block currentBlk = currentMacBlk.getBlockCopy(_iCurrentBlock);
@@ -304,10 +303,6 @@ public class ParsedMdecImage  {
     /** Height of the frame in pixels */
     protected int _iHeight;
 
-    protected int _iLuminQscale;
-
-    protected int _iChromQscale;
-
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -329,6 +324,9 @@ public class ParsedMdecImage  {
 
     }
     
+    public int getBlockCount() {
+        return calculateMacroBlocks(_iWidth, _iHeight) * 6;
+    }
 
     public static int calculateMacroBlocks(int iWidth, int iHeight) {
         // Actual width/height in macroblocks 
@@ -347,13 +345,6 @@ public class ParsedMdecImage  {
         
         // Calculate number of macro-blocks in the frame
         return (iActualWidth / 16) * (iActualHeight / 16);
-    }
-
-    /** A strange value needed for video bitstreams and video sector headers.
-     *  It's the number of MDEC codes, divided by two, then rounded up to the
-     *  next closest multiple of 32 (if not already a multiple of 32).  */
-    public static short calculateHalfCeiling32(int iMdecCodeCount) {
-        return (short) ((((iMdecCodeCount + 1) / 2) + 31) & ~31);
     }
 
     /* ---------------------------------------------------------------------- */
@@ -389,19 +380,10 @@ public class ParsedMdecImage  {
         return iMdecCodeCount;
     }
 
-    public int getChromQscale() {
-        return _iChromQscale;
-    }
-
-    public int getLuminQscale() {
-        return _iLuminQscale;
-    }
-
-    public void readFrom(MdecInputStream mdecIn)
-            throws DecodingException, EOFException
+    public void readFrom(MdecInputStream mdecIn) throws MdecException
     {
-        _iChromQscale = -1;
-        _iLuminQscale = -1;
+        int iChromQscale = -1;
+        int iLuminQscale = -1;
 
         ArrayList<MdecCode> acCoefficients = new ArrayList<MdecCode>();
 
@@ -428,15 +410,21 @@ public class ParsedMdecImage  {
                     mdecIn.readMdecCode(qscaleDC);
                     thisBlk.DCCoefficient = qscaleDC;
                     if (thisBlk.isChrom()) {
-                        if (_iChromQscale < 0)
-                            _iChromQscale = qscaleDC.getTop6Bits();
-                        else if (_iChromQscale != qscaleDC.getTop6Bits())
-                            log.warning("Chrominance q-scale changed mid frame!");
+                        if (iChromQscale < 0)
+                            iChromQscale = qscaleDC.getTop6Bits();
+                        else if (iChromQscale > 0) {
+                            if (iChromQscale != qscaleDC.getTop6Bits()) {
+                                iChromQscale = 0;
+                            }
+                        }
                     } else {
-                        if (_iLuminQscale < 0)
-                            _iLuminQscale = qscaleDC.getTop6Bits();
-                        else if (_iLuminQscale != qscaleDC.getTop6Bits())
-                            log.warning("Luminance q-scale changed mid frame!");
+                        if (iLuminQscale < 0)
+                            iLuminQscale = qscaleDC.getTop6Bits();
+                        else if (iLuminQscale > 0) {
+                            if (iLuminQscale != qscaleDC.getTop6Bits()) {
+                                iLuminQscale = 0;
+                            }
+                        }
                     }
 
                     acCoefficients.clear();
@@ -454,6 +442,7 @@ public class ParsedMdecImage  {
                 iMacroBlockIndex++;
             }
         }
+
     }
 
 }

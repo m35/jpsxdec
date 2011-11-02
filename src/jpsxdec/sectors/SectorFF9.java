@@ -37,14 +37,13 @@
 
 package jpsxdec.sectors;
 
-import java.io.IOException;
 import jpsxdec.audio.SquareADPCMDecoder;
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
+import jpsxdec.util.NotThisTypeException;
 
 
 /** Base class for Final Fantasy 9 movie (audio/video) sectors. */
@@ -253,34 +252,26 @@ public abstract class SectorFF9 extends IdentifiedSector {
             return true;
         }
         
-        public int replaceFrameData(CdFileSectorReader cd,
-                                    byte[] abDemuxData, int iDemuxOfs,
-                                    int iLuminQscale, int iChromQscale,
-                                    int iMdecCodeCount)
-                throws IOException
+        public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
+                                    int iMdecCodeCount, byte[] abSectUserData)
         {
-            if (iLuminQscale != iChromQscale)
-                throw new IllegalArgumentException();
-            
-            int iHeaderDemuxSize = (abDemuxData.length + 3) & ~3;
+            BitStreamUncompressor_STRv2 bsu = new BitStreamUncompressor_STRv2();
+            try {
+                bsu.reset(abDemuxData);
+            } catch (NotThisTypeException ex) {
+                throw new IllegalArgumentException("Incompatable frame type " + bsu);
+            }
 
-            byte[] abSectUserData = getCDSector().getCdUserDataCopy();
+            int iQscale = bsu.getQscale();
 
-            IO.writeInt32LE(abSectUserData, 12, iHeaderDemuxSize / 4);
-            IO.writeInt16LE(abSectUserData, 20, ParsedMdecImage.calculateHalfCeiling32(iMdecCodeCount) );
-            IO.writeInt16LE(abSectUserData, 24, (short) iLuminQscale);
+            int iDemuxSizeForHeader = (bsu.getStreamPosition() + 3) & ~3;
 
-            int iBytesToCopy = getIdentifiedUserDataSize();
-            if (iDemuxOfs + iBytesToCopy > abDemuxData.length)
-                iBytesToCopy = abDemuxData.length - iDemuxOfs;
+            IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader / 4);
+            IO.writeInt16LE(abSectUserData, 20,
+                    BitStreamUncompressor_STRv2.calculateHalfCeiling32(iMdecCodeCount));
+            IO.writeInt16LE(abSectUserData, 24, (short)(iQscale));
 
-            // bytes to copy might be 0, which is ok because we
-            // still need to write the updated headers
-            System.arraycopy(abDemuxData, iDemuxOfs, abSectUserData, FRAME_CHUNK_HEADER_SIZE, iBytesToCopy);
-
-            cd.writeSector(getSectorNumber(), abSectUserData);
-
-            return iBytesToCopy;
+            return 32;
         }
 
         public boolean splitAudio() {

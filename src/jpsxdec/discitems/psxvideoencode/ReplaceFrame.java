@@ -38,19 +38,20 @@
 package jpsxdec.discitems.psxvideoencode;
 
 
+import java.util.Iterator;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
-import jpsxdec.psxvideo.encode.MdecEncoder;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.discitems.savers.FrameDemuxer;
-import jpsxdec.sectors.IVideoSector;
+import jpsxdec.discitems.savers.DemuxedFrame;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.PsxYCbCrImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.mdec.DecodingException;
+import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
@@ -111,137 +112,95 @@ public class ReplaceFrame {
         _sFormat = sFormat;
     }
 
-    public void replace(FrameDemuxer demuxer, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, DecodingException, NotThisTypeException {
+    public void replace(DemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
         // identify existing frame bs format
-        byte[] abExistingFrame = new byte[demuxer.getDemuxSize()];
-        demuxer.copyDemuxData(abExistingFrame);
-        BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abExistingFrame, demuxer.getFrame());
+        byte[] abExistingFrame = frame.copyDemuxData(null);
+        BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abExistingFrame);
 
-        CompressedImage newFrame;
+        byte[] newFrame;
 
         if ("bs".equals(_sFormat)) {
             // glean the necessary info from already compressed frame
-            byte[] abNewDemux = IO.readFile(_imageFile);
+            newFrame = IO.readFile(_imageFile);
 
-            if (abNewDemux.length > demuxer.getDemuxSize()) {
+            if (newFrame.length > frame.getDemuxSize()) {
                 throw new RuntimeException(String.format(
                         "Demux data does fit in frame %d!! Available size %d, needed size %d",
-                        getFrame(), demuxer.getDemuxSize(), abNewDemux.length));
+                        getFrame(), frame.getDemuxSize(), newFrame.length));
             }
-            BitStreamUncompressor un = BitStreamUncompressor.identifyUncompressor(abNewDemux, demuxer.getFrame());
-            un.reset(abNewDemux);
-
-            ParsedMdecImage parsed = new ParsedMdecImage(demuxer.getWidth(), demuxer.getHeight());
-            parsed.readFrom(un);
-
-            newFrame = new CompressedImage();
-            newFrame.iMdecCodeCount = parsed.getMdecCodeCount();
-            newFrame.iLuminQscale = un.getLuminQscale();
-            newFrame.iChromQscale = un.getChromQscale();
-
         } else if ("mdec".equals(_sFormat)) {
             // compress frame
-            ParsedMdecImage parsed = new ParsedMdecImage(demuxer.getWidth(), demuxer.getHeight());
+            ParsedMdecImage parsed = new ParsedMdecImage(frame.getWidth(), frame.getHeight());
             parsed.readFrom(new MdecInputStreamReader(_imageFile));
 
-            newFrame = new CompressedImage();
-            newFrame.iMdecCodeCount = parsed.getMdecCodeCount();
-            newFrame.iLuminQscale = parsed.getLuminQscale();
-            newFrame.iChromQscale = parsed.getChromQscale();
-
             BitStreamCompressor compressor = uncompressor.makeCompressor();
-            byte[] abNewDemux = compressor.compress(parsed.getStream(),
-                    newFrame.iLuminQscale, newFrame.iChromQscale,
-                    newFrame.iMdecCodeCount);
-
-            newFrame.abBitStream = abNewDemux;
+            newFrame = compressor.compress(parsed.getStream(), parsed.getMdecCodeCount());
 
         } else {
-            BitStreamCompressor compressor = uncompressor.makeCompressor();
-            newFrame = compressReplacement(demuxer, compressor, fbs);
+            newFrame = compressReplacement(frame, uncompressor, fbs);
         }
 
-        if (newFrame.abBitStream.length > demuxer.getDemuxSize())
+        if (newFrame.length > frame.getDemuxSize())
             throw new RuntimeException(String.format(
                     "Demux data does fit in frame %d!! Available size %d, needed size %d",
-                    getFrame(), demuxer.getDemuxSize(), newFrame.abBitStream.length));
+                    getFrame(), frame.getDemuxSize(), newFrame.length));
 
-        int iDemuxOfs = 0;
-        for (int i = 0; i < demuxer.getChunksInFrame(); i++) {
-            IVideoSector vidSector = demuxer.getChunk(i);
-            if (vidSector != null) {
-                iDemuxOfs += vidSector.replaceFrameData(cd, newFrame.abBitStream, iDemuxOfs,
-                        newFrame.iLuminQscale, newFrame.iChromQscale,
-                        newFrame.iMdecCodeCount);
-            } else {
-                fbs.printlnWarn("Trying to replace a frame with missing chunks??");
-            }
-        }
+        BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(newFrame);
+        bsu.reset(newFrame);
+        bsu.readToEnd(frame.getWidth(), frame.getHeight());
+        bsu.skipPaddingBits();
 
+        // +2 because getStreamPosition() returns the active word, not the next word to be read
+        frame.writeToSectors(newFrame, bsu.getStreamPosition()+2, bsu.getMdecCodeCount(), cd, fbs);
     }
 
-    private CompressedImage compressReplacement(FrameDemuxer demuxer, BitStreamCompressor compressor, FeedbackStream fbs) throws DecodingException, IOException {
+    private byte[] compressReplacement(DemuxedFrame frame, BitStreamUncompressor uncompressor, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
 
         BufferedImage bi = ImageIO.read(_imageFile);
         
-        if (bi.getWidth() !=  ((demuxer.getWidth() +15)& ~15) ||
-            bi.getHeight() != ((demuxer.getHeight()+15)& ~15))
-            throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace.");
+        if (bi.getWidth()  != ((frame.getWidth() +15)& ~15) ||
+            bi.getHeight() != ((frame.getHeight()+15)& ~15))
+            throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace: " +
+                    bi.getWidth() + "x" + bi.getHeight() + " != " + frame.getWidth() + "x" + frame.getHeight());
         
         PsxYCbCrImage psxImage = new PsxYCbCrImage(bi);
 
         ParsedMdecImage parsedNew;
-        byte[] abNewDemux;
-        int iLuminQscale = 1;
-        int iChromQscale = 1;
-        while (true) {
-            fbs.println("Trying qscale luma: " + iLuminQscale + " chroma: " + iChromQscale);
-            MdecEncoder encoded = new MdecEncoder(psxImage, iLuminQscale, iChromQscale);
+        byte[] abNewDemux = null;
+        MdecEncoder encoded = new MdecEncoder(psxImage);
+        BitStreamCompressor compressor = uncompressor.makeCompressor();
+        byte[] abOriginal = new byte[frame.getDemuxSize()];
+        frame.copyDemuxData(abOriginal);
+        uncompressor.reset(abOriginal);
+        uncompressor.readToEnd(frame.getWidth(), frame.getHeight());
+        Iterator<int[]> qscales = uncompressor.qscaleIterator(true);
+        while (qscales.hasNext()) {
+            int[] qs = qscales.next();
+            fbs.println("Trying " + Arrays.toString(qs));
 
-            parsedNew = new ParsedMdecImage(demuxer.getWidth(), demuxer.getHeight());
-            parsedNew.readFrom(encoded.getStream());
+            parsedNew = new ParsedMdecImage(frame.getWidth(), frame.getHeight());
+            parsedNew.readFrom(encoded.getStream(qs));
 
-            abNewDemux = compressor.compress(parsedNew.getStream(), iLuminQscale, iChromQscale, parsedNew.getMdecCodeCount());
-            int iNewDemuxSize = abNewDemux.length;
-            if (iNewDemuxSize <= demuxer.getDemuxSize()) {
-                fbs.println(String.format("  New frame %d demux size %d <= max source %d ",
-                                demuxer.getFrame(), iNewDemuxSize, demuxer.getDemuxSize()));
-                break;
-            } else {
-                fbs.println(String.format("  >>> New frame %d demux size %d > max source %d <<<",
-                                demuxer.getFrame(), iNewDemuxSize, demuxer.getDemuxSize()));
-            }
-
-            if (compressor.separateQscales()) {
-                if (iLuminQscale == iChromQscale)
-                    iChromQscale++;
-                else if (iLuminQscale < iChromQscale) {
-                    iLuminQscale++;
-                    iChromQscale--;
+            try {
+                abNewDemux = compressor.compress(parsedNew.getStream(), parsedNew.getMdecCodeCount());
+                int iNewDemuxSize = abNewDemux.length;
+                if (iNewDemuxSize <= frame.getDemuxSize()) {
+                    fbs.println(String.format("  New frame %d demux size %d <= max source %d ",
+                                    frame.getFrame(), iNewDemuxSize, frame.getDemuxSize()));
+                    break;
                 } else {
-                    iChromQscale++;
+                    fbs.println(String.format("  >>> New frame %d demux size %d > max source %d <<<",
+                                    frame.getFrame(), iNewDemuxSize, frame.getDemuxSize()));
                 }
-            } else {
-                iLuminQscale++;
-                iChromQscale++;
+            } catch (MdecException.TooMuchEnergyToCompress ex) {
+                fbs.printlnWarn(ex.getMessage());
             }
         }
 
-        CompressedImage newFrame = new CompressedImage();
-        newFrame.abBitStream = abNewDemux;
-        newFrame.iChromQscale = iChromQscale;
-        newFrame.iLuminQscale = iLuminQscale;
-        newFrame.iMdecCodeCount = parsedNew.getMdecCodeCount();
-        
-        return newFrame;
+        return abNewDemux;
     }
 
-    private static class CompressedImage {
-        public byte[] abBitStream;
-        public int iLuminQscale;
-        public int iChromQscale;
-        public int iMdecCodeCount;
-    }
+
 
 }
 

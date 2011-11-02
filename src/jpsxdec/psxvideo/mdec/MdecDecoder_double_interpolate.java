@@ -37,13 +37,17 @@
 
 package jpsxdec.psxvideo.mdec;
 
+import com.mortennobel.imagescaling.ResampleFilter;
+import com.mortennobel.imagescaling.ResampleFilters;
+import com.mortennobel.imagescaling.ResampleOp;
 import jpsxdec.formats.RGB;
 import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 
 /** A full Java, double-precision, floating point implementation of the
- *  PlayStation 1 MDEC chip with bilinear interpolation used in
- *  chroma upsampling. 
+ *  PlayStation 1 MDEC chip with interpolation used in chroma upsampling. 
+ *<p>
+ *  Default upsampling method is Bilinear.
  *<p>
  * To understand how that is helpful, read up on how 4:2:0 YCbCr format
  * works, and how it is then converted to RGB.
@@ -55,20 +59,57 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
     /** Temp buffer for upsampled Cb. */
     private final double[] _adblUpCb;
 
+    private final ResampleOp _resampler;
+    private Upsampler _upsampler = Upsampler.Bilinear;
+
+    public enum Upsampler {
+        /** i.e. Box */ NearestNeighbor(null),
+        /** i.e. Triangle */ Bilinear(null),
+        Bicubic(ResampleFilters.getBiCubicFilter()),
+        Bell(ResampleFilters.getBellFilter()),
+        Mitchell(ResampleFilters.getMitchellFilter()),
+        BSpline(ResampleFilters.getBSplineFilter()),
+        Lanczos3(ResampleFilters.getLanczos3Filter()),
+        Hermite(ResampleFilters.getHermiteFilter());
+
+        private final ResampleFilter _filter;
+        private Upsampler(ResampleFilter filter) {
+            _filter = filter;
+        }
+    }
+
     public MdecDecoder_double_interpolate(IDCT_double idct, int iWidth, int iHeight) {
         super(idct, iWidth, iHeight);
 
         _adblUpCb = new double[W * H];
         _adblUpCr = new double[W * H];
+
+        _resampler = new ResampleOp();
+        _resampler.setNumberOfThreads(1);
+    }
+
+    public void setResampler(Upsampler u) {
+        _upsampler = u;
     }
 
     @Override
     public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,
                                int iOutStart, int iOutStride)
     {
-
-        bilinearUpsample(_CrBuffer, _adblUpCr);
-        bilinearUpsample(_CbBuffer, _adblUpCb);
+        switch (_upsampler) {
+            case NearestNeighbor:
+                nearestNeighborUpsample(_CrBuffer, _adblUpCr);
+                nearestNeighborUpsample(_CbBuffer, _adblUpCb);
+                break;
+            case Bilinear:
+                bilinearUpsample(_CrBuffer, _adblUpCr);
+                bilinearUpsample(_CbBuffer, _adblUpCb);
+                break;
+            default:
+                _resampler.setFilter(_upsampler._filter);
+                _resampler.doFilter(_CrBuffer, CW, CH, _adblUpCr);
+                _resampler.doFilter(_CbBuffer, CW, CH, _adblUpCb);
+        }
 
         RGB rgb = new RGB();
         double y, cb, cr;
@@ -94,7 +135,7 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
         int outOfs = 0;
         int inOfs = 0;
         for (int inY=0; inY < CH; inY++) {
-            // copy a line, scaling horizontall
+            // copy a line, scaling horizontally
             for (int inX=0; inX < CW; inX++) {
                 out[outOfs++] = in[inOfs];
                 out[outOfs++] = in[inOfs];

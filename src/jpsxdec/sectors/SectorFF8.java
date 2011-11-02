@@ -37,8 +37,6 @@
 
 package jpsxdec.sectors;
 
-import jpsxdec.cdreaders.CdFileSectorReader;
-import java.io.IOException;
 import jpsxdec.audio.SquareADPCMDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
@@ -192,25 +190,10 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return true;
         }
 
-        public int replaceFrameData(CdFileSectorReader cd,
-                                    byte[] abDemuxData, int iDemuxOfs,
-                                    int iLuminQscale, int iChromQscale,
-                                    int iMdecCodeCount)
-                throws IOException
+        public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
+                                    int iMdecCodeCount, byte[] abSectUserData)
         {
-            byte[] abSectUserData = getCDSector().getCdUserDataCopy();
-
-            int iBytesToCopy = getIdentifiedUserDataSize();
-            if (iDemuxOfs + iBytesToCopy > abDemuxData.length)
-                iBytesToCopy = abDemuxData.length - iDemuxOfs;
-
-            // bytes to copy might be 0, which is ok because we
-            // still need to write the updated headers
-            System.arraycopy(abDemuxData, iDemuxOfs, abSectUserData, SectorFF8.SHARED_HEADER_SIZE, iBytesToCopy);
-
-            cd.writeSector(getSectorNumber(), abSectUserData);
-
-            return iBytesToCopy;
+            return SectorFF8.SHARED_HEADER_SIZE;
         }
 
         public boolean splitAudio() {

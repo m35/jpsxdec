@@ -90,6 +90,16 @@ public final class IO {
         return (short)((b2 << 8) + (b1 << 0));
     }
 
+    public static short readSInt16LE(RandomAccessFile is) throws IOException {
+        int b1 = is.read();
+        if (b1 < 0)
+            throw new EOFException("Unexpected end of file in readUInt16LE");
+        int b2 = is.read();
+        if (b2 < 0)
+            throw new EOFException("Unexpected end of file in readUInt16LE");
+        return (short)((b2 << 8) + (b1 << 0));
+    }
+
     public static short readSInt16LE(byte[] ab, int i) {
         int b1 = ab[i  ] & 0xFF;
         int b2 = ab[i+1] & 0xFF;
@@ -191,6 +201,15 @@ public final class IO {
         os.write((int)((lng >>> 24) & 0xFF));
     }
 
+    public static void writeInt32LE(RandomAccessFile os, long lng)
+            throws IOException
+    {
+        os.write((int)( lng         & 0xFF));
+        os.write((int)((lng >>>  8) & 0xFF));
+        os.write((int)((lng >>> 16) & 0xFF));
+        os.write((int)((lng >>> 24) & 0xFF));
+    }
+
     public static void writeInt32BE(OutputStream os, int i)
             throws IOException
     {
@@ -269,6 +288,24 @@ public final class IO {
         int total = ((b4 << 24) + (b3 << 16) + (b2 << 8) + (b1 << 0));
         return total;
     }
+
+    public static int readSInt32LE(RandomAccessFile is) throws IOException {
+        int b1 = is.read();
+        if (b1 < 0)
+            throw new EOFException("Unexpected end of file in readUInt32LE");
+        int b2 = is.read();
+        if (b2 < 0)
+            throw new EOFException("Unexpected end of file in readUInt32LE");
+        int b3 = is.read();
+        if (b3 < 0)
+            throw new EOFException("Unexpected end of file in readUInt32LE");
+        int b4 = is.read();
+        if (b4 < 0)
+            throw new EOFException("Unexpected end of file in readUInt32LE");
+        int total = ((b4 << 24) + (b3 << 16) + (b2 << 8) + (b1 << 0));
+        return total;
+    }
+
 
     //== 64-bit ================================================================
 
@@ -401,17 +438,24 @@ public final class IO {
     
     public static void writeIStoFile(InputStream is, String sFile) throws IOException {
         FileOutputStream fos = new FileOutputStream(sFile);
-        writeIStoOS(is, fos);
+        try {
+            writeIStoOS(is, fos);
+        } finally {
+            fos.close();
+        }
     }
     public static void writeIStoFile(InputStream is, File file) throws IOException {
         FileOutputStream fos = new FileOutputStream(file);
-        writeIStoOS(is, fos);
+        try {
+            writeIStoOS(is, fos);
+        } finally {
+            fos.close();
+        }
     }
     public static void writeIStoOS(InputStream is, OutputStream os) throws IOException {
         int i; byte[] b = new byte[2048];
         while ((i = is.read(b)) > 0)
             os.write(b, 0, i);
-        os.close();
     }
     
     public static byte[] readFile(String sFile) throws IOException {
@@ -478,5 +522,15 @@ public final class IO {
             return aoNames;
         }
     }
-    
+
+    public static void copyFile(File src, File dest) throws IOException {
+        InputStream in = new FileInputStream(src);
+        try {
+            writeIStoFile(in, dest);
+        } finally {
+            in.close();
+        }
+    }
+
+
 }

@@ -37,8 +37,6 @@
 
 package jpsxdec.sectors;
 
-import java.io.IOException;
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemVideoStream;
@@ -117,32 +115,14 @@ public class SectorAliceVideo extends SectorAliceNullVideo
                                     iFrame1LastSector);
     }
 
-    public int replaceFrameData(CdFileSectorReader cd,
-                                byte[] abDemuxData, int iDemuxOfs, 
-                                int iLuminQscale, int iChromQscale,
-                                int iMdecCodeCount)
-            throws IOException
+    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
+                                int iMdecCodeCount, byte[] abSectUserData)
     {
-        if (iLuminQscale != iChromQscale)
-            throw new IllegalArgumentException();
-
-        int iDemuxSizeForHeader = (abDemuxData.length + 3) & ~3;
-
-        byte[] abSectUserData = getCDSector().getCdUserDataCopy();
+        int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
 
         IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader);
 
-        int iBytesToCopy = getIdentifiedUserDataSize();
-        if (iDemuxOfs + iBytesToCopy > abDemuxData.length)
-            iBytesToCopy = abDemuxData.length - iDemuxOfs;
-
-        // bytes to copy might be 0, which is ok because we
-        // still need to write the updated headers
-        System.arraycopy(abDemuxData, iDemuxOfs, abSectUserData, 32, iBytesToCopy);
-
-        cd.writeSector(getSectorNumber(), abSectUserData);
-
-        return iBytesToCopy;
+        return 32;
     }
 
     public boolean splitAudio() {

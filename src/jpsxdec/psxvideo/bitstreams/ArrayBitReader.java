@@ -39,7 +39,6 @@ package jpsxdec.psxvideo.bitstreams;
 
 
 import java.io.EOFException;
-import java.util.Random;
 import jpsxdec.util.Misc;
 
 /** A (hopefully) very fast bit reader. It can be initialized to read the bits
@@ -58,7 +57,7 @@ public class ArrayBitReader {
     private int _iBitsLeft;
 
     /** Quick lookup table to mask remaining bits. */
-    private static int BIT_MASK[] = new int[] {
+    private static final int BIT_MASK[] = {
         0x00000000,
         0x00000001, 0x00000003, 0x00000007, 0x0000000F,
         0x0000001F, 0x0000003F, 0x0000007F, 0x000000FF,
@@ -101,16 +100,18 @@ public class ArrayBitReader {
         _siCurrentWord = readWord(_iByteOffset);
     }
 
-    /** Reads 16-bits at the requested offset in the proper endian order. */
-    private short readWord(int i) {
+    /** Reads 16-bits at the requested offset in the proper endian order. 
+     * @throws ArrayIndexOutOfBoundsException
+     */
+    private short readWord(int i) throws ArrayIndexOutOfBoundsException {
         if (_blnLittleEndian) {
             int b1 = _abData[i  ] & 0xFF;
             int b2 = _abData[i+1] & 0xFF;
-            return (short)((b2 << 8) + (b1 << 0));
+            return (short)((b2 << 8) + b1);
         } else {
             int b1 = _abData[i+1] & 0xFF;
             int b2 = _abData[i  ] & 0xFF;
-            return (short)((b2 << 8) + (b1 << 0));
+            return (short)((b2 << 8) + b1);
         }
     }
 
@@ -119,8 +120,9 @@ public class ArrayBitReader {
         return _iByteOffset;
     }
     
-    /** Reads the requested number of bits. */
-    public long readUnsignedBits(int iCount) throws EOFException {
+    /** Reads the requested number of bits.
+     * @param iCount  expected to be from 1 to 31  */
+    public int readUnsignedBits(int iCount) throws EOFException {
         assert iCount >= 0 && iCount <= 31;
         
         try {
@@ -136,19 +138,19 @@ public class ArrayBitReader {
             throw new EOFException();
         }
 
-        long lngRet = 0;
+        int iRet = 0;
         if (iCount <= _iBitsLeft) { // iCount <= _iBitsLeft <= 16
-            lngRet = (_siCurrentWord >>> (_iBitsLeft - iCount)) & BIT_MASK[iCount];
+            iRet = (_siCurrentWord >>> (_iBitsLeft - iCount)) & BIT_MASK[iCount];
             _iBitsLeft -= iCount;
         } else {
-            lngRet = _siCurrentWord & BIT_MASK[_iBitsLeft];
+            iRet = _siCurrentWord & BIT_MASK[_iBitsLeft];
             iCount -= _iBitsLeft;
             _iBitsLeft = 0;
 
             try {
                 while (iCount >= 16) {
                     _iByteOffset += 2;
-                    lngRet = (lngRet << 16) | (readWord(_iByteOffset) & 0xFFFF);
+                    iRet = (iRet << 16) | (readWord(_iByteOffset) & 0xFFFF);
                     iCount -= 16;
                 }
 
@@ -156,25 +158,27 @@ public class ArrayBitReader {
                     _iByteOffset += 2;
                     _siCurrentWord = readWord(_iByteOffset);
                     _iBitsLeft = 16 - iCount;
-                    lngRet = (lngRet << iCount) | ((_siCurrentWord & 0xFFFF) >>> _iBitsLeft);
+                    iRet = (iRet << iCount) | ((_siCurrentWord & 0xFFFF) >>> _iBitsLeft);
                 }
             } catch (ArrayIndexOutOfBoundsException ex) {
                 // _iBitsLeft will == 0
                 _iByteOffset -= 2;
-                return lngRet << iCount;
+                return iRet << iCount;
             }
         }
 
-        return lngRet;
+        return iRet;
     }
     
     /** Reads the requested number of bits then sets the sign 
-     *  according to the highest bit. */
-    public long readSignedBits(int iCount) throws EOFException {
-        return (readUnsignedBits(iCount) << (64 - iCount)) >> (64 - iCount); // extend sign bit
+     *  according to the highest bit.
+     * @param iCount  expected to be from 1 to 31  */
+    public int readSignedBits(int iCount) throws EOFException {
+        return (readUnsignedBits(iCount) << (32 - iCount)) >> (32 - iCount); // extend sign bit
     }    
     
-    public long peekUnsignedBits(int iCount) throws EOFException {
+    /** @param iCount  expected to be from 1 to 31  */
+    public int peekUnsignedBits(int iCount) throws EOFException {
         int iSaveOffs = _iByteOffset;
         int iSaveBitsLeft = _iBitsLeft;
         short siSaveCurrentWord = _siCurrentWord;
@@ -187,8 +191,9 @@ public class ArrayBitReader {
         }
     }
     
-    public long peekSignedBits(int iCount) throws EOFException {
-        return (peekUnsignedBits(iCount) << (64 - iCount)) >> (64 - iCount); // extend sign bit
+    /** @param iCount  expected to be from 1 to 31  */
+    public int peekSignedBits(int iCount) throws EOFException {
+        return (peekUnsignedBits(iCount) << (32 - iCount)) >> (32 - iCount); // extend sign bit
     }    
     
     public void skipBits(int iCount) throws EOFException {
@@ -230,99 +235,9 @@ public class ArrayBitReader {
             return Misc.bitsToString(readUnsignedBits(iCount), iCount);
     }
 
+    /** Returns the number of bits remaining in the source data. */
     public int bitsRemaining() {
         return (_abData.length - _iByteOffset) * 8 - (16 - _iBitsLeft);
-    }
-
-    /** Test this class. */
-    public static void main(String[] args) throws EOFException {
-        final Random rand = new Random();
-
-        byte[] abTest = new byte[6];
-        rand.nextBytes(abTest);
-        
-        StringBuilder sb = new StringBuilder();
-        for (byte b : abTest) {
-            sb.append(Misc.bitsToString(b, 8));
-        }
-        final String BIT_STRING = sb.toString();
-        System.out.println(BIT_STRING);
-        sb.setLength(0);
-
-        ArrayBitReader abr = new ArrayBitReader(abTest, false);
-
-        System.out.println("Reading " + 16);
-        sb.append(abr.peekBitsToString(16));
-        abr.skipBits(16);
-        System.out.println("Reading " + 16);
-        sb.append(abr.peekBitsToString(16));
-        abr.skipBits(16);
-        System.out.println("Reading " + 16);
-        sb.append(abr.peekBitsToString(16));
-        abr.skipBits(16);
-        System.out.println(sb);
-
-        sb.setLength(0);
-        abr = new ArrayBitReader(abTest, false);
-
-        int i;
-        for (i = rand.nextInt(31)+1; i < abr.bitsRemaining(); i = rand.nextInt(31)+1) {
-            String s = abr.peekBitsToString(i);
-            System.out.println("Reading " + i + " " + s);
-            sb.append(s);
-            abr.skipBits(i);
-        }
-        i = abr.bitsRemaining();
-        if (i > 0) {
-            String s = abr.peekBitsToString(i);
-            System.out.println("Reading " + i + " " + s);
-            sb.append(s);
-            abr.skipBits(i);
-        }
-
-        final String READ_BITS = sb.toString();
-        System.out.println(READ_BITS);
-        if (READ_BITS.equals(BIT_STRING)) {
-            System.out.println("Success!");
-        } else {
-            System.out.println("FAILURE!");
-        }
-
-
-        
-        long lngPeek, lngRead;
-        String sPeek;
-
-        abr.reset(abTest, true, 0);
-        
-        System.out.println(abr.bitsRemaining());
-        sPeek = abr.peekBitsToString(31);
-        lngPeek = abr.peekUnsignedBits(31);
-        lngRead = abr.readUnsignedBits(31);
-        System.out.println(lngPeek+" == "+lngRead+" (" + sPeek + "): " + (lngPeek == lngRead));
-        System.out.println(abr.bitsRemaining());
-        lngPeek = abr.peekUnsignedBits(3);
-        lngRead = abr.readUnsignedBits(3);
-        System.out.println(lngPeek+" == "+lngRead+" : " + (lngPeek == lngRead));
-        System.out.println(abr.bitsRemaining());
-        lngPeek = abr.peekUnsignedBits(3);
-        lngRead = abr.readUnsignedBits(3);
-        System.out.println(lngPeek+" == "+lngRead+" : " + (lngPeek == lngRead));
-        System.out.println(abr.bitsRemaining());
-        lngPeek = abr.peekUnsignedBits(11);
-        lngRead = abr.readUnsignedBits(11);
-        System.out.println(lngPeek+" == "+lngRead+" : " + (lngPeek == lngRead));
-        System.out.println(abr.bitsRemaining());
-
-        abr.reset(abTest, true, 0);
-        abr.skipBits(5);
-        System.out.println(abr.bitsRemaining());
-        abr.skipBits(30);
-        System.out.println(abr.bitsRemaining());
-        lngPeek = abr.peekUnsignedBits(13);
-        lngRead = abr.readUnsignedBits(13);
-        System.out.println(lngPeek+" == "+lngRead+" : " + (lngPeek == lngRead));
-        System.out.println(abr.bitsRemaining());
     }
 
 }

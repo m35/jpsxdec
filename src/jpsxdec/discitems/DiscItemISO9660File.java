@@ -44,7 +44,11 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.text.DecimalFormat;
+import java.util.Enumeration;
+import java.util.NoSuchElementException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
@@ -93,6 +97,10 @@ public class DiscItemISO9660File extends DiscItem {
         return _path;
     }
 
+    public long getSize() {
+        return _lngSize;
+    }
+
     public String getBaseName() {
         return Misc.getBaseName(_path.getName());
     }
@@ -121,6 +129,37 @@ public class DiscItemISO9660File extends DiscItem {
 
     public ISO9660SaverBuilder makeSaverBuilder() {
         return new ISO9660SaverBuilder();
+    }
+
+    public InputStream getStream() {
+        return new java.io.SequenceInputStream(new Enumeration<InputStream>() {
+            private int __iSector = 0;
+            private InputStream __next;
+            public boolean hasMoreElements() {
+                if (__iSector <= getSectorLength()) {
+                    if (__next == null) {
+                        try {
+                            __next = getRelativeSector(__iSector).getCdUserDataStream();
+                        } catch (IOException ex) {
+                            log.log(Level.SEVERE, null, ex);
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            }
+
+            public InputStream nextElement() {
+                // TODO: somehow end the stream early on the final sector so as to generate the exact size
+                if (!hasMoreElements())
+                    throw new NoSuchElementException();
+                __iSector++;
+                InputStream next = __next;
+                __next = null;
+                return next;
+            }
+        });
     }
 
     public String getSerializationTypeId() {

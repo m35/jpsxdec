@@ -190,7 +190,7 @@ public class SavingGuiTable extends AbstractTableModel {
         //table.getColumn(COLUMNS.Saving.name()).setPreferredWidth(200);
     }
 
-    public void update(Row row, COLUMNS col) {
+    private void update(Row row, COLUMNS col) {
         fireTableCellUpdated(_rows.indexOf(row), col.ordinal());
     }
 
@@ -211,7 +211,7 @@ public class SavingGuiTable extends AbstractTableModel {
     }
 
     public String getColumnName(int column) {
-        return COLUMNS.values()[column].name();
+        return COLUMNS.values()[column].toString();
     }
 
 

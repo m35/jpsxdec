@@ -43,7 +43,9 @@ import argparser.StringHolder;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.event.WindowEvent;
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -57,6 +59,7 @@ import java.util.HashMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.imageio.ImageIO;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -70,7 +73,22 @@ import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.discitems.savers.VideoSaverBuilder.DecodeQualities;
+import jpsxdec.formats.JavaImageFormat;
+import jpsxdec.formats.RgbIntImage;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.mdec.MdecDecoder;
+import jpsxdec.psxvideo.mdec.MdecDecoder_double;
+import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
+import jpsxdec.psxvideo.mdec.MdecDecoder_int;
+import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.psxvideo.mdec.MdecInputStream;
+import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
+import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
+import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_int;
+import jpsxdec.psxvideo.mdec.idct.simple_idct;
 import jpsxdec.sectors.UnidentifiedSector;
+import jpsxdec.tim.Tim;
 import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
 import jpsxdec.util.ConsoleProgressListenerLogger;
@@ -86,13 +104,17 @@ public class Main {
 
     private static FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
 
-    public final static String Version = "0.96.0 (alpha)";
+    public final static String Version = "0.97.0 (alpha)";
     public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial), v" + Version;
 
     public static void loadDefaultLogger() {
+        loadLogger("LogToFile.properties");
+    }
+
+    public static void loadLogger(String sLogFileResource) {
         try { // load the logger configuration
-            InputStream is = Main.class.getResourceAsStream("LogToFile.properties");
+            InputStream is = Main.class.getResourceAsStream(sLogFileResource);
             if (is != null)
                 java.util.logging.LogManager.getLogManager().readConfiguration(is);
         } catch (IOException ex) {
@@ -184,9 +206,17 @@ public class Main {
                     // TODO: let commands load what's needed via function calls
                     switch (mainCommand.getWhatsNeeded()) {
                         case Command.NEEDS_INFILE:
+                            if (inputFileArg.value == null) {
+                                Feedback.printlnErr("Input file required");
+                                System.exit(1);
+                            }
                             _INPUT_FILE = confirmFile(inputFileArg.value);
                             break;
                         case Command.NEEDS_INDISC:
+                            if (inputFileArg.value == null) {
+                                Feedback.printlnErr("Input file disc image required");
+                                System.exit(1);
+                            }
                             _INPUT_DISC = loadDisc(inputFileArg.value);
                             break;
                         case Command.NEEDS_INDEX:
@@ -394,6 +424,7 @@ public class Main {
     private static abstract class Command {
         protected final String _sArg;
 
+        /** @param sArg  Option name. */
         public Command(String sArg) {
             _sArg = sArg;
         }
@@ -431,7 +462,9 @@ public class Main {
             return validate(_receiver.value);
         }
 
-        abstract protected String validate(String s);
+        /** Checks that the option value is valid.
+         *  Returns {@code null} if OK, or error message if invalid. */
+        abstract protected String validate(String sOptionValue);
     }
 
     // #########################################################################
@@ -532,8 +565,17 @@ public class Main {
             super("-static");
         }
 
+        private static enum StaticType { bs, mdec, tim }
+        private StaticType _eStaticType;
+
         protected String validate(String s) {
-            return null;
+            for (StaticType type : StaticType.values()) {
+                if (s.equals(type.name())) {
+                    _eStaticType = type;
+                    return null;
+                }
+            }
+            return "Invalid static type: " + s;
         }
         public int getWhatsNeeded() {
             return NEEDS_INFILE;
@@ -541,23 +583,189 @@ public class Main {
         public int execute(String[] asRemainingArgs) {
             try {
 
-                Feedback.println("Reading static file");
+                File inFile = getInFile();
 
-                final FileInputStream is;
-                is = new FileInputStream(getInFile());
+                switch (_eStaticType) {
+                    case bs:
+                    case mdec:
+                        
+                        if (asRemainingArgs == null) {
+                            Feedback.printlnErr("-dim option required");
+                            return -1;
+                        }
 
-                InputStream isfp = new IO.InputStreamWithFP(is);
+                        ArgParser parser = new ArgParser("", false);
+                        BooleanHolder debug = new BooleanHolder(false);
+                        parser.addOption("-debug %v", debug);
+                        StringHolder dimentions = new StringHolder();
+                        parser.addOption("-dim %s", dimentions);
+                        StringHolder quality = new StringHolder("high");
+                        parser.addOption("-quality,-q %s", quality);
+                        StringHolder format = new StringHolder("png");
+                        parser.addOption("-fmt %s", format);
+                        StringHolder upsample = new StringHolder();
+                        parser.addOption("-up %s", upsample);
 
-                // TODO: figure out where static stuff goes
-                throw new UnsupportedOperationException("finish static");
+                        //......
+                        parser.matchAllArgs(asRemainingArgs, 0, 0);
+                        //......
+
+                        if (dimentions.value == null) {
+                            Feedback.printlnErr("-dim option required");
+                            return -1;
+                        }
+
+                        final int iWidth, iHeight;
+                        int[] aiDim = Misc.splitInt(dimentions.value, "x");
+                        iWidth = aiDim[0]; iHeight = aiDim[1];
+
+                        if (debug.value) {
+                            BitStreamUncompressor.DEBUG = true;
+                            MdecDecoder.DEBUG = true;
+                            boolean blnAssertsEnabled = false;
+                            assert blnAssertsEnabled = true;
+                            if (!blnAssertsEnabled) {
+                                Feedback.printlnWarn("Unable to enable decoding debug because asserts are disabled.");
+                                Feedback.printlnWarn("Start java using the -ea option.");
+                            }
+                        }
+
+                        Feedback.println("Reading static file " + inFile);
+
+                        MdecInputStream mdecIn;
+                        byte[] abBitstream = IO.readFile(inFile);
+                        if (_eStaticType == StaticType.bs) {
+                            mdecIn = BitStreamUncompressor.identifyUncompressor(abBitstream);
+                            if (mdecIn == null) {
+                                Feedback.printlnErr("Unable to identify bitstream format.");
+                                return -1;
+                            }
+                            ((BitStreamUncompressor)mdecIn).reset(abBitstream);
+                        } else {
+                            mdecIn = new MdecInputStreamReader(new ByteArrayInputStream(abBitstream));
+                        }
+
+                        String sFileBaseName = Misc.getBaseName(inFile.getName());
+
+                        JavaImageFormat jImgFmt = null;
+                        if (format.value.equals(StaticType.mdec.name())) {
+                            FileOutputStream fos = new FileOutputStream(sFileBaseName + ".mdec");
+                            try {
+                                MdecInputStreamReader.writeMdecDims(mdecIn, fos, iWidth, iHeight);
+                            } finally {
+                                fos.close();
+                            }
+                        } else {
+                            for (JavaImageFormat fmt : JavaImageFormat.getAvailable()) {
+                                if (fmt.getExtension().equals(format.value)) {
+                                    jImgFmt = fmt;
+                                    break;
+                                }
+                            }
+
+                            if (jImgFmt == null) {
+                                Feedback.printlnErr("Invalid format type " + format.value);
+                                return -1;
+                            }
+
+                            MdecDecoder vidDecoder;
+                            switch (DecodeQualities.fromCmdLine(quality.value)) {
+                                case HIGH_PLUS:
+                                    vidDecoder = new MdecDecoder_double_interpolate(new PsxMdecIDCT_double(), iWidth, iHeight);
+                                    MdecDecoder_double_interpolate.Upsampler up = null;
+                                    if (upsample.value == null) {
+                                        up = MdecDecoder_double_interpolate.Upsampler.Bicubic;
+                                    } else {
+                                        for (MdecDecoder_double_interpolate.Upsampler upsampler : MdecDecoder_double_interpolate.Upsampler.values()) {
+                                            if (upsampler.name().equalsIgnoreCase(upsample.value)) {
+                                                up = upsampler;
+                                                break;
+                                            }
+                                        }
+                                        if (up == null) {
+                                            Feedback.printlnErr("Invalid upsampling " + upsample.value);
+                                            return -1;
+                                        }
+                                    }
+                                    Feedback.println("Using upsampling " + up.name());
+                                    ((MdecDecoder_double_interpolate)vidDecoder).setResampler(up);
+                                    break;
+                                case HIGH:
+                                    vidDecoder = new MdecDecoder_double(new PsxMdecIDCT_double(), iWidth, iHeight);
+                                    break;
+                                case LOW:
+                                    vidDecoder = new MdecDecoder_int(new simple_idct(), iWidth, iHeight);
+                                    break;
+                                case PSX:
+                                    vidDecoder = new MdecDecoder_int(new PsxMdecIDCT_int(), iWidth, iHeight);
+                                    break;
+                                default:
+                                    throw new RuntimeException("Invalid quality " + quality.value);
+                            }
+                            Feedback.println("Using quality " + quality.value);
+
+                            try {
+                                vidDecoder.decode(mdecIn);
+                            } catch (MdecException.Decode ex) {
+                                Feedback.printlnErr(ex);
+                            }
+                            int[] aiRgb = new int[iWidth * iHeight];
+                            vidDecoder.readDecodedRgb(iWidth, iHeight, aiRgb);
+                            RgbIntImage rgb = new RgbIntImage(iWidth, iHeight, aiRgb);
+                            BufferedImage bi = rgb.toBufferedImage();
+
+                            ImageIO.write(bi, jImgFmt.getId(), new File(sFileBaseName + "." + jImgFmt.getExtension()));
+
+                        }
+
+                        Feedback.println("Frame converted successfully.");
+
+                        return 0;
+
+                    case tim:
+                        Feedback.println("Reading TIM file "+ inFile);
+                        final FileInputStream is = new FileInputStream(inFile);
+                        try {
+                            String sOutBaseName = Misc.getBaseName(inFile.getName());
+
+                            Tim tim = Tim.read(is);
+
+                            for (int i = 0; i < tim.getPaletteCount(); i++) {
+                                BufferedImage bi = tim.toBufferedImage(i);
+                                String sFileName = String.format("%s_p%02d.png", sOutBaseName, i);
+                                File file = new File(sFileName);
+                                Feedback.println("Writing " + file.getPath());
+                                ImageIO.write(bi, "png", file);
+                            }
+
+                            Feedback.println("Image converted successfully");
+
+                        } catch (NotThisTypeException ex) {
+                            Feedback.printlnErr("Error: not a Tim image");
+                            return -1;
+                        } finally {
+                            is.close();
+                        }
+
+                        return 0;
+                }
+
+                throw new RuntimeException("Shouldn't happen");
+
 
             } catch (IOException ex) {
                 log.log(Level.SEVERE, "IO error", ex);
                 Feedback.printlnErr(ex);
                 return -1;
+            } catch (NotThisTypeException ex) {
+                log.log(Level.SEVERE, null, ex);
+                Feedback.printlnErr(ex);
+                return -1;
+            } catch (MdecException ex) {
+                log.log(Level.SEVERE, null, ex);
+                Feedback.printlnErr(ex);
+                return -1;
             }
-
-            //return 0;
 
         }
     }

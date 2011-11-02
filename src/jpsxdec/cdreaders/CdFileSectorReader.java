@@ -109,6 +109,10 @@ public class CdFileSectorReader {
         this(inputFile, blnAllowWrites, 16);
     }
 
+    public CdFileSectorReader(File inputFile, int iSectorSize) throws IOException {
+        this(inputFile, iSectorSize, false, 16);
+    }
+
     /** Opens a CD file for reading. Tries to guess the CD size. */
     public CdFileSectorReader(File sourceFile,
             boolean blnAllowWrites, int iSectorsToBuffer)
@@ -314,12 +318,12 @@ public class CdFileSectorReader {
             throws IOException
     {
 
-        CdSector oSect = getSector(iSector);
+        CdSector cdSector = getSector(iSector);
 
-        if (oSect.getCdUserDataSize() != abSrcUserData.length)
+        if (cdSector.getCdUserDataSize() != abSrcUserData.length)
             throw new IllegalArgumentException("Data to write is not the right size.");
 
-        long lngUserDataOfs = oSect.getFilePointer();
+        long lngUserDataOfs = cdSector.getFilePointer();
 
         _inputFile.seek(lngUserDataOfs);
         _inputFile.write(abSrcUserData);
@@ -411,7 +415,7 @@ public class CdFileSectorReader {
                 if (cdSector.getSubMode().getForm() != 2 || cdSector.isCdAudioSector())
                     continue;
 
-                if (new SectorXAAudio(cdSector).getProbability() > 0) {
+                if (new SectorXAAudio(cdSector).getProbability() == 100) {
                     // we've found an XA audio sector
                     // maybe try to find another just to be sure?
 
@@ -427,7 +431,7 @@ public class CdFileSectorReader {
                         cdFile.seek(lngSectStart + lngAdditionalOffset);
                         IO.readByteArray(cdFile, abTestSectorData, 0, SECTOR_SIZE_2336_BIN_NOSYNC);
 
-                        if (new SectorXAAudio(cdSector).getProbability() > 0) {
+                        if (new SectorXAAudio(cdSector).getProbability() == 100) {
                             // sweet, we found another one. we're done.
                             // backup to the first sector
                             __lng1stSectorOffset = lngSectStart % SECTOR_SIZE_2336_BIN_NOSYNC;

@@ -37,477 +37,267 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import jpsxdec.psxvideo.mdec.DecodingException;
 import java.io.ByteArrayOutputStream;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
-import java.io.IOException;
 import java.io.EOFException;
-import java.util.logging.Logger;
-import jpsxdec.util.Misc;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Iterator;
+import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.psxvideo.mdec.MdecException.Uncompress;
+import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.IO;
+import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
-import jpsxdec.psxvideo.encode.BitStreamWriter;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
 
-/** Uncompressor for demuxed STR v2 video data. */
+
+/** Bitstream parser/decoder for the very common "version 2" demuxed video
+ * frames, used by most games.
+ * <p>
+ * WARNING: The public methods are NOT thread safe. Create a separate
+ * instance of this class for each thread, or wrap the calls with synchronize. */
 public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
-    private static final Logger log = Logger.getLogger(BitStreamUncompressor_STRv2.class.getName());
-    protected Logger getLog() { return log; }
+    /** STR v2, v3, FF7, and .iki AC coefficient variable-length (Huffman) codes.
+     * Conveniently identical to MPEG1. */
+    private static final AcLookup AC_VARIABLE_LENGTH_CODES_MPEG1 = new AcLookup()
+                 //  Code        "Run" "Level"
+                ._11s              (0 ,  1)
+                ._011s             (1 ,  1)
+                ._0100s            (0 ,  2)
+                ._0101s            (2 ,  1)
+                ._00101s           (0 ,  3)
+                ._00110s           (4 ,  1)
+                ._00111s           (3 ,  1)
+                ._000100s          (7 ,  1)
+                ._000101s          (6 ,  1)
+                ._000110s          (1 ,  2)
+                ._000111s          (5 ,  1)
+                ._0000100s         (2 ,  2)
+                ._0000101s         (9 ,  1)
+                ._0000110s         (0 ,  4)
+                ._0000111s         (8 ,  1)
+                ._00100000s        (13,  1)
+                ._00100001s        (0 ,  6)
+                ._00100010s        (12,  1)
+                ._00100011s        (11,  1)
+                ._00100100s        (3 ,  2)
+                ._00100101s        (1 ,  3)
+                ._00100110s        (0 ,  5)
+                ._00100111s        (10,  1)
+                ._0000001000s      (16,  1)
+                ._0000001001s      (5 ,  2)
+                ._0000001010s      (0 ,  7)
+                ._0000001011s      (2 ,  3)
+                ._0000001100s      (1 ,  4)
+                ._0000001101s      (15,  1)
+                ._0000001110s      (14,  1)
+                ._0000001111s      (4 ,  2)
+                ._000000010000s    (0 , 11)
+                ._000000010001s    (8 ,  2)
+                ._000000010010s    (4 ,  3)
+                ._000000010011s    (0 , 10)
+                ._000000010100s    (2 ,  4)
+                ._000000010101s    (7 ,  2)
+                ._000000010110s    (21,  1)
+                ._000000010111s    (20,  1)
+                ._000000011000s    (0 ,  9)
+                ._000000011001s    (19,  1)
+                ._000000011010s    (18,  1)
+                ._000000011011s    (1 ,  5)
+                ._000000011100s    (3 ,  3)
+                ._000000011101s    (0 ,  8)
+                ._000000011110s    (6 ,  2)
+                ._000000011111s    (17,  1)
+                ._0000000010000s   (10,  2)
+                ._0000000010001s   (9 ,  2)
+                ._0000000010010s   (5 ,  3)
+                ._0000000010011s   (3 ,  4)
+                ._0000000010100s   (2 ,  5)
+                ._0000000010101s   (1 ,  7)
+                ._0000000010110s   (1 ,  6)
+                ._0000000010111s   (0 , 15)
+                ._0000000011000s   (0 , 14)
+                ._0000000011001s   (0 , 13)
+                ._0000000011010s   (0 , 12)
+                ._0000000011011s   (26,  1)
+                ._0000000011100s   (25,  1)
+                ._0000000011101s   (24,  1)
+                ._0000000011110s   (23,  1)
+                ._0000000011111s   (22,  1)
+                // Table 3
+                ._00000000010000s  (0 , 31)
+                ._00000000010001s  (0 , 30)
+                ._00000000010010s  (0 , 29)
+                ._00000000010011s  (0 , 28)
+                ._00000000010100s  (0 , 27)
+                ._00000000010101s  (0 , 26)
+                ._00000000010110s  (0 , 25)
+                ._00000000010111s  (0 , 24)
+                ._00000000011000s  (0 , 23)
+                ._00000000011001s  (0 , 22)
+                ._00000000011010s  (0 , 21)
+                ._00000000011011s  (0 , 20)
+                ._00000000011100s  (0 , 19)
+                ._00000000011101s  (0 , 18)
+                ._00000000011110s  (0 , 17)
+                ._00000000011111s  (0 , 16)
+                ._000000000010000s (0 , 40)
+                ._000000000010001s (0 , 39)
+                ._000000000010010s (0 , 38)
+                ._000000000010011s (0 , 37)
+                ._000000000010100s (0 , 36)
+                ._000000000010101s (0 , 35)
+                ._000000000010110s (0 , 34)
+                ._000000000010111s (0 , 33)
+                ._000000000011000s (0 , 32)
+                ._000000000011001s (1 , 14)
+                ._000000000011010s (1 , 13)
+                ._000000000011011s (1 , 12)
+                ._000000000011100s (1 , 11)
+                ._000000000011101s (1 , 10)
+                ._000000000011110s (1 ,  9)
+                ._000000000011111s (1 ,  8)
+                ._0000000000010000s(1 , 18)
+                ._0000000000010001s(1 , 17)
+                ._0000000000010010s(1 , 16)
+                ._0000000000010011s(1 , 15)
+                ._0000000000010100s(6 ,  3)
+                ._0000000000010101s(16,  2)
+                ._0000000000010110s(15,  2)
+                ._0000000000010111s(14,  2)
+                ._0000000000011000s(13,  2)
+                ._0000000000011001s(12,  2)
+                ._0000000000011010s(11,  2)
+                ._0000000000011011s(31,  1)
+                ._0000000000011100s(30,  1)
+                ._0000000000011101s(29,  1)
+                ._0000000000011110s(28,  1)
+                ._0000000000011111s(27,  1);
 
-    /* ---------------------------------------------------------------------- */
-    /* AC Variable length code stuff ---------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-
-    /** Sequence of bits indicating an escape code. */
-    public final static String AC_ESCAPE_CODE = "000001";
-
-    /** Sequence of bits indicating the end of a block.
-     * Unlike the MPEG1 specification, these bits can, and often do appear as
-     * the first and only variable-length-code in a block. */
-    public final static String VLC_END_OF_BLOCK = "10"; // bits 10
-
-    /** The longest of all the AC variable-length-codes is 16 bits,
-     *  not including the sign bit. */
-    public final static int AC_LONGEST_VARIABLE_LENGTH_CODE = 16;
-
-    /** 11 bits found at the end of STR v2 and v3 movies.
+    /** 11 bits found at the end of STR v2 movies.
      * <pre>011 111 111 10</pre> */
     private final static String END_OF_FRAME_EXTRA_BITS = "01111111110";
 
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
 
-    /** Represents an AC variable length code. */
-    public static class ACVariableLengthCode {
-        public String VariableLengthCode;
-        public int RunOfZeros;
-        public int AbsoluteLevel;
-
-        public ACVariableLengthCode(String vlc, int run, int level)
-        {
-            VariableLengthCode = vlc;
-            RunOfZeros = run;
-            AbsoluteLevel = level;
-        }
-    }
-
-    /** STR v2 variable-length codes. The order of these codes are important
-     * because the uncompressor needs similar codes to be indexed. */
-    public final static ACVariableLengthCode[] AC_VARIABLE_LENGTH_CODES_MPEG1 =
-    {
-                             //  Code               "Run" "Level"
-/*  0 */new ACVariableLengthCode("11"                , 0 , 1  ),
-
-/*  1 */new ACVariableLengthCode("011"               , 1 , 1  ),
-
-/*  2 */new ACVariableLengthCode("0100"              , 0 , 2  ),
-/*  3 */new ACVariableLengthCode("0101"              , 2 , 1  ),
-
-/*  4 */new ACVariableLengthCode("00101"             , 0 , 3  ),
-/*  5 */new ACVariableLengthCode("00110"             , 4 , 1  ),
-/*  6 */new ACVariableLengthCode("00111"             , 3 , 1  ),
-
-/*  7 */new ACVariableLengthCode("000100"            , 7 , 1  ),
-/*  8 */new ACVariableLengthCode("000101"            , 6 , 1  ),
-/*  9 */new ACVariableLengthCode("000110"            , 1 , 2  ),
-/* 10 */new ACVariableLengthCode("000111"            , 5 , 1  ),
-
-/* 11 */new ACVariableLengthCode("0000100"           , 2 , 2  ),
-/* 12 */new ACVariableLengthCode("0000101"           , 9 , 1  ),
-/* 13 */new ACVariableLengthCode("0000110"           , 0 , 4  ),
-/* 14 */new ACVariableLengthCode("0000111"           , 8 , 1  ),
-
-/* 15 */new ACVariableLengthCode("00100000"          , 13, 1  ),
-/* 16 */new ACVariableLengthCode("00100001"          , 0 , 6  ),
-/* 17 */new ACVariableLengthCode("00100010"          , 12, 1  ),
-/* 18 */new ACVariableLengthCode("00100011"          , 11, 1  ),
-/* 19 */new ACVariableLengthCode("00100100"          , 3 , 2  ),
-/* 20 */new ACVariableLengthCode("00100101"          , 1 , 3  ),
-/* 21 */new ACVariableLengthCode("00100110"          , 0 , 5  ),
-/* 22 */new ACVariableLengthCode("00100111"          , 10, 1  ),
-
-/* 23 */new ACVariableLengthCode("0000001000"        , 16, 1  ),
-/* 24 */new ACVariableLengthCode("0000001001"        , 5 , 2  ),
-/* 25 */new ACVariableLengthCode("0000001010"        , 0 , 7  ),
-/* 26 */new ACVariableLengthCode("0000001011"        , 2 , 3  ),
-/* 27 */new ACVariableLengthCode("0000001100"        , 1 , 4  ),
-/* 28 */new ACVariableLengthCode("0000001101"        , 15, 1  ),
-/* 29 */new ACVariableLengthCode("0000001110"        , 14, 1  ),
-/* 30 */new ACVariableLengthCode("0000001111"        , 4 , 2  ),
-
-/* 31 */new ACVariableLengthCode("000000010000"      , 0 , 11 ),
-/* 32 */new ACVariableLengthCode("000000010001"      , 8 , 2  ),
-/* 33 */new ACVariableLengthCode("000000010010"      , 4 , 3  ),
-/* 34 */new ACVariableLengthCode("000000010011"      , 0 , 10 ),
-/* 35 */new ACVariableLengthCode("000000010100"      , 2 , 4  ),
-/* 36 */new ACVariableLengthCode("000000010101"      , 7 , 2  ),
-/* 37 */new ACVariableLengthCode("000000010110"      , 21, 1  ),
-/* 38 */new ACVariableLengthCode("000000010111"      , 20, 1  ),
-/* 39 */new ACVariableLengthCode("000000011000"      , 0 , 9  ),
-/* 40 */new ACVariableLengthCode("000000011001"      , 19, 1  ),
-/* 41 */new ACVariableLengthCode("000000011010"      , 18, 1  ),
-/* 42 */new ACVariableLengthCode("000000011011"      , 1 , 5  ),
-/* 43 */new ACVariableLengthCode("000000011100"      , 3 , 3  ),
-/* 44 */new ACVariableLengthCode("000000011101"      , 0 , 8  ),
-/* 45 */new ACVariableLengthCode("000000011110"      , 6 , 2  ),
-/* 46 */new ACVariableLengthCode("000000011111"      , 17, 1  ),
-
-/* 47 */new ACVariableLengthCode("0000000010000"     , 10, 2  ),
-/* 48 */new ACVariableLengthCode("0000000010001"     , 9 , 2  ),
-/* 49 */new ACVariableLengthCode("0000000010010"     , 5 , 3  ),
-/* 50 */new ACVariableLengthCode("0000000010011"     , 3 , 4  ),
-/* 51 */new ACVariableLengthCode("0000000010100"     , 2 , 5  ),
-/* 52 */new ACVariableLengthCode("0000000010101"     , 1 , 7  ),
-/* 53 */new ACVariableLengthCode("0000000010110"     , 1 , 6  ),
-/* 54 */new ACVariableLengthCode("0000000010111"     , 0 , 15 ),
-/* 55 */new ACVariableLengthCode("0000000011000"     , 0 , 14 ),
-/* 56 */new ACVariableLengthCode("0000000011001"     , 0 , 13 ),
-/* 57 */new ACVariableLengthCode("0000000011010"     , 0 , 12 ),
-/* 58 */new ACVariableLengthCode("0000000011011"     , 26, 1  ),
-/* 59 */new ACVariableLengthCode("0000000011100"     , 25, 1  ),
-/* 60 */new ACVariableLengthCode("0000000011101"     , 24, 1  ),
-/* 61 */new ACVariableLengthCode("0000000011110"     , 23, 1  ),
-/* 62 */new ACVariableLengthCode("0000000011111"     , 22, 1  ),
-
-/* 63 */new ACVariableLengthCode("00000000010000"    , 0 , 31 ),
-/* 64 */new ACVariableLengthCode("00000000010001"    , 0 , 30 ),
-/* 65 */new ACVariableLengthCode("00000000010010"    , 0 , 29 ),
-/* 66 */new ACVariableLengthCode("00000000010011"    , 0 , 28 ),
-/* 67 */new ACVariableLengthCode("00000000010100"    , 0 , 27 ),
-/* 68 */new ACVariableLengthCode("00000000010101"    , 0 , 26 ),
-/* 69 */new ACVariableLengthCode("00000000010110"    , 0 , 25 ),
-/* 70 */new ACVariableLengthCode("00000000010111"    , 0 , 24 ),
-/* 71 */new ACVariableLengthCode("00000000011000"    , 0 , 23 ),
-/* 72 */new ACVariableLengthCode("00000000011001"    , 0 , 22 ),
-/* 73 */new ACVariableLengthCode("00000000011010"    , 0 , 21 ),
-/* 74 */new ACVariableLengthCode("00000000011011"    , 0 , 20 ),
-/* 75 */new ACVariableLengthCode("00000000011100"    , 0 , 19 ),
-/* 76 */new ACVariableLengthCode("00000000011101"    , 0 , 18 ),
-/* 77 */new ACVariableLengthCode("00000000011110"    , 0 , 17 ),
-/* 78 */new ACVariableLengthCode("00000000011111"    , 0 , 16 ),
-
-/* 79 */new ACVariableLengthCode("000000000010000"   , 0 , 40 ),
-/* 80 */new ACVariableLengthCode("000000000010001"   , 0 , 39 ),
-/* 81 */new ACVariableLengthCode("000000000010010"   , 0 , 38 ),
-/* 82 */new ACVariableLengthCode("000000000010011"   , 0 , 37 ),
-/* 83 */new ACVariableLengthCode("000000000010100"   , 0 , 36 ),
-/* 84 */new ACVariableLengthCode("000000000010101"   , 0 , 35 ),
-/* 85 */new ACVariableLengthCode("000000000010110"   , 0 , 34 ),
-/* 86 */new ACVariableLengthCode("000000000010111"   , 0 , 33 ),
-/* 87 */new ACVariableLengthCode("000000000011000"   , 0 , 32 ),
-/* 88 */new ACVariableLengthCode("000000000011001"   , 1 , 14 ),
-/* 89 */new ACVariableLengthCode("000000000011010"   , 1 , 13 ),
-/* 90 */new ACVariableLengthCode("000000000011011"   , 1 , 12 ),
-/* 91 */new ACVariableLengthCode("000000000011100"   , 1 , 11 ),
-/* 92 */new ACVariableLengthCode("000000000011101"   , 1 , 10 ),
-/* 93 */new ACVariableLengthCode("000000000011110"   , 1 , 9  ),
-/* 94 */new ACVariableLengthCode("000000000011111"   , 1 , 8  ),
-
-/* 95 */new ACVariableLengthCode("0000000000010000"  , 1 , 18 ),
-/* 96 */new ACVariableLengthCode("0000000000010001"  , 1 , 17 ),
-/* 97 */new ACVariableLengthCode("0000000000010010"  , 1 , 16 ),
-/* 98 */new ACVariableLengthCode("0000000000010011"  , 1 , 15 ),
-/* 99 */new ACVariableLengthCode("0000000000010100"  , 6 , 3  ),
-/*100 */new ACVariableLengthCode("0000000000010101"  , 16, 2  ),
-/*101 */new ACVariableLengthCode("0000000000010110"  , 15, 2  ),
-/*102 */new ACVariableLengthCode("0000000000010111"  , 14, 2  ),
-/*103 */new ACVariableLengthCode("0000000000011000"  , 13, 2  ),
-/*104 */new ACVariableLengthCode("0000000000011001"  , 12, 2  ),
-/*105 */new ACVariableLengthCode("0000000000011010"  , 11, 2  ),
-/*106 */new ACVariableLengthCode("0000000000011011"  , 31, 1  ),
-/*107 */new ACVariableLengthCode("0000000000011100"  , 30, 1  ),
-/*108 */new ACVariableLengthCode("0000000000011101"  , 29, 1  ),
-/*109 */new ACVariableLengthCode("0000000000011110"  , 28, 1  ),
-/*110 */new ACVariableLengthCode("0000000000011111"  , 27, 1  )
-    };
-
-    /* ---------------------------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-
-    public static class MdecDebugger {
-        public long Position;
-        public StringBuilder Bits = new StringBuilder();
-        public void print(MdecCode code) {
-            System.out.format("@%d %s -> %s", Position, Bits, code);
-            System.out.println();
-            Bits.setLength(0);
-        }
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
-
-    protected ACVariableLengthCode _aoVarLenCodes[];
-
-    /* ---------------------------------------------------------------------- */
-
-    // Frame header info
-    protected int _iQscale;
-    protected int _iMagic3800;
+    /** Frame's quantization scale. */
+    protected int _iQscale = -1;
     protected int _iHalfVlcCountCeil32;
 
-    protected ArrayBitReader _bitReader = new ArrayBitReader();
-
-    protected MdecDebugger _debug;
-
-    // current read state
-    private int _iCurrentMacroBlock;
-    protected int getCurrentMacroBlock() { return _iCurrentMacroBlock; }
-    private int _iCurrentMacroBlockSubBlock;
-    protected int getCurrentMacroBlockSubBlock() { return _iCurrentMacroBlockSubBlock; }
-    private int _iCurrentBlock;
-    protected int getCurrentBlock() { return _iCurrentBlock; }
-    protected boolean _blnStartOfBlock;
-    protected boolean atStartOfBlock() { return _blnStartOfBlock; }
-    private int _iCurrentBlockVectorPos;
-
     public BitStreamUncompressor_STRv2() {
-        _aoVarLenCodes = AC_VARIABLE_LENGTH_CODES_MPEG1;
-        if (DEBUG_UNCOMPRESSOR) _debug = new MdecDebugger();
+        super(AC_VARIABLE_LENGTH_CODES_MPEG1);
     }
 
-    /* ---------------------------------------------------------------------- */
+    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
+        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
+        int iMagic3800       = IO.readUInt16LE(abFrameData, 2);
+        _iQscale             = IO.readSInt16LE(abFrameData, 4);
+        int iVersion         = IO.readSInt16LE(abFrameData, 6);
 
-    public int getHalfVlcCountCeil32() {
-        return _iHalfVlcCountCeil32;
-    }
-
-    public long getMagic3800() {
-        return _iMagic3800;
-    }
-
-    @Override
-    public int getStreamPosition() {
-        return (_bitReader.getPosition() + 1) & ~1;
-    }
-
-    @Override
-    public int getLuminQscale() {
-        return _iQscale;
-    }
-
-    @Override
-    public int getChromQscale() {
-        return _iQscale;
-    }
-
-    /* ---------------------------------------------------------------------- */
-
-    @Override
-    final public void reset(byte[] abDemuxData) throws NotThisTypeException {
-        reset(abDemuxData, 0);
-    }
-
-    @Override
-    public void reset(byte[] abDemuxData, int iStart) throws NotThisTypeException
-    {
-        readHeader(abDemuxData, iStart, _bitReader);
-        _iCurrentMacroBlock = 0;
-        _iCurrentMacroBlockSubBlock = 0;
-        _iCurrentBlock = 0;
-        _blnStartOfBlock = true;
-        _iCurrentBlockVectorPos = 0;
-    }
-
-    protected void readHeader(byte[] abFrameData, int iStart, ArrayBitReader bitReader) throws NotThisTypeException {
-        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, iStart+0);
-        _iMagic3800          = IO.readUInt16LE(abFrameData, iStart+2);
-        _iQscale             = IO.readSInt16LE(abFrameData, iStart+4);
-        int iVersion         = IO.readSInt16LE(abFrameData, iStart+6);
-
-        if (_iMagic3800 != 0x3800 || _iQscale < 1 ||
+        if (iMagic3800 != 0x3800 || _iQscale < 1 ||
             iVersion != 2  || _iHalfVlcCountCeil32 < 0)
             throw new NotThisTypeException();
 
-        bitReader.reset(abFrameData, true, iStart+8);
+        bitReader.reset(abFrameData, true, 8);
     }
 
     public static boolean checkHeader(byte[] abFrameData) {
-        int iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
-        int iMagic3800          = IO.readUInt16LE(abFrameData, 2);
-        int iQscale             = IO.readSInt16LE(abFrameData, 4);
-        int iVersion            = IO.readSInt16LE(abFrameData, 6);
+        int _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
+        int iMagic3800           = IO.readUInt16LE(abFrameData, 2);
+        int _iQscale             = IO.readSInt16LE(abFrameData, 4);
+        int iVersion             = IO.readSInt16LE(abFrameData, 6);
 
-        return iMagic3800 == 0x3800 &&
-               iQscale >= 1 &&
-               iVersion == 2 &&
-               iHalfVlcCountCeil32 >= 0;
+        return !(iMagic3800 != 0x3800 || _iQscale < 1 ||
+                 iVersion != 2 || _iHalfVlcCountCeil32 < 0);
     }
 
-    @Override
-    public boolean readMdecCode(MdecCode code) throws DecodingException, EOFException
-    {
-        if (DEBUG_UNCOMPRESSOR) _debug.Position = _bitReader.getPosition();
-        
-        if (_blnStartOfBlock) { // read Q-scale and DC if start of block
-            readQscaleDC(code);
-            _blnStartOfBlock = false;
-        } else { // read AC otherwise
-            if (decode_AC_VariableLengthCode(code)) {
-                // end of block
-                _iCurrentBlock++;
-                _iCurrentMacroBlockSubBlock++;
-                if (_iCurrentMacroBlockSubBlock >= 6) {
-                    _iCurrentMacroBlock++;
-                    _iCurrentMacroBlockSubBlock = 0;
-                }
-                _blnStartOfBlock = true;
-                _iCurrentBlockVectorPos = 1;
-            } else {
-                // block continues
-                _iCurrentBlockVectorPos += code.getTop6Bits() + 1;
-                if (_iCurrentBlockVectorPos > 64) {
-                    throw new DecodingException(
-                            "Run length out of bounds: " + _iCurrentBlockVectorPos);
-                }
-            }
-        }
-        
-        if (DEBUG_UNCOMPRESSOR) _debug.print(code);
-
-        return _blnStartOfBlock;
-    }
-
-    protected void readQscaleDC(MdecCode code) throws EOFException, DecodingException {
+    protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress, EOFException {
         code.setTop6Bits(_iQscale);
-        code.setBottom10Bits((int)_bitReader.readSignedBits(10));
-        if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(Misc.bitsToString(code.getBottom10Bits(), 10));
+        code.setBottom10Bits(_bitReader.readSignedBits(10));
+        assert DEBUG ? _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10)) : true;
         assert !code.isEOD(); // a Qscale of 63 and DC of -512 would look like EOD
     }
 
-
-    private static final int b1000000000000000_ = 0x8000 << 1;
-    private static final int b0100000000000000_ = 0x4000 << 1;
-    private static final int b0010000000000000_ = 0x2000 << 1;
-    private static final int b0001100000000000_ = 0x1800 << 1;
-    private static final int b0001000000000000_ = 0x1000 << 1;
-    private static final int b0000100000000000_ = 0x0800 << 1;
-    private static final int b0000010000000000_ = 0x0400 << 1;
-    private static final int b0000001000000000_ = 0x0200 << 1;
-    private static final int b0000000100000000_ = 0x0100 << 1;
-    private static final int b0000000010000000_ = 0x0080 << 1;
-    private static final int b0000000001000000_ = 0x0040 << 1;
-    private static final int b0000000000100000_ = 0x0020 << 1;
-    private static final int b0000000000010000_ = 0x0010 << 1;
-    protected boolean decode_AC_VariableLengthCode(MdecCode code)
-            throws DecodingException, EOFException
-    {
-        final ACVariableLengthCode vlc;
-        
-        // peek enough bits for the longest variable length code (16 bits)
-        // plus 1 for the sign bit.
-        long lngBits = _bitReader.peekUnsignedBits( AC_LONGEST_VARIABLE_LENGTH_CODE + 1 );
-        
-        // Walk through the bits, one-by-one
-        // Fun fact: The Lain Playstation game uses this same decoding approach
-        if (    (lngBits & b1000000000000000_) != 0) {        // "1"
-            if ((lngBits & b0100000000000000_) != 0) {        // "11"
-                vlc = _aoVarLenCodes[0];
-            } else {                                          // "10"
-                // End of block
-                _bitReader.skipBits(2);
-                code.setToEndOfData();
-                if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(VLC_END_OF_BLOCK);
-                return true;
-            }
-        } else if ((lngBits & b0100000000000000_) != 0) {     // "01"
-            if    ((lngBits & b0010000000000000_) != 0) {     // "011"
-                vlc = _aoVarLenCodes[1];
-            } else {                                          // "010x"
-                vlc = _aoVarLenCodes[2 + (int)((lngBits >>> 13) & 1)];
-            }
-        } else if ((lngBits & b0010000000000000_) != 0) {      // "001"
-            if    ((lngBits & b0001100000000000_) != 0)  {     // "001xx"
-                vlc = _aoVarLenCodes[3 + (int)((lngBits >>> 12) & 3)];
-            } else {                                           // "00100xxx"
-                vlc = _aoVarLenCodes[15 + (int)((lngBits >>> 9) & 7)];
-            }
-        } else if ((lngBits & b0001000000000000_) != 0) {      // "0001xx"
-            vlc = _aoVarLenCodes[7 + (int)((lngBits >>> 11) & 3)];
-        } else if ((lngBits & b0000100000000000_) != 0) {      // "00001xx"
-            vlc = _aoVarLenCodes[11 + (int)((lngBits >>> 10) & 3)];
-        } else if ((lngBits & b0000010000000000_) != 0) {      // "000001"
-            // escape code
-            decode_AC_EscapeCode(lngBits, code);
-            return false;
-        } else if ((lngBits & b0000001000000000_) != 0) {      // "0000001xxx"
-            vlc = _aoVarLenCodes[23 + (int)((lngBits >>> 7) & 7)];
-        } else if ((lngBits & b0000000100000000_) != 0) {      // "00000001xxxx"
-            vlc = _aoVarLenCodes[31 + (int)((lngBits >>> 5) & 15)];
-        } else if ((lngBits & b0000000010000000_) != 0) {      // "000000001xxxx"
-            vlc = _aoVarLenCodes[47 + (int)((lngBits >>> 4) & 15)];
-        } else if ((lngBits & b0000000001000000_) != 0) {      // "0000000001xxxx"
-            vlc = _aoVarLenCodes[63 + (int)((lngBits >>> 3) & 15)];
-        } else if ((lngBits & b0000000000100000_) != 0) {      // "00000000001xxxx"
-            vlc = _aoVarLenCodes[79 + (int)((lngBits >>> 2) & 15)];
-        } else if ((lngBits & b0000000000010000_) != 0) {      // "000000000001xxxx"
-            vlc = _aoVarLenCodes[95 + (int)((lngBits >>> 1) & 15)];
-        } else {
-            throw new DecodingException(
-                    "Unmatched AC variable length code: " +
-                     Misc.bitsToString(lngBits, AC_LONGEST_VARIABLE_LENGTH_CODE + 1));
-        }
-        
-        code.setTop6Bits(vlc.RunOfZeros);
-
-        if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(vlc.VariableLengthCode);
-
-        // Take either the positive or negitive AC coefficient,
-        // depending on the sign bit
-        if ((lngBits & (1 << (16 - vlc.VariableLengthCode.length()))) == 0) {
-            // positive
-            if (DEBUG_UNCOMPRESSOR) _debug.Bits.append("0");
-            code.setBottom10Bits(vlc.AbsoluteLevel);
-        } else {
-            // negative
-            if (DEBUG_UNCOMPRESSOR) _debug.Bits.append("1");
-            code.setBottom10Bits(-vlc.AbsoluteLevel);
-        }
-
-        // Skip that many bits
-        _bitReader.skipBits(vlc.VariableLengthCode.length() + 1);
-        
-        return false;
-    }
-    
-    protected void decode_AC_EscapeCode(long lngBits, MdecCode code)
-            throws DecodingException, EOFException
-    {
-        if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(AC_ESCAPE_CODE);
-
-        // Get the (6 bit) run of zeros from the bits already read
-        // 17 bits: eeeeeezzzzzz_____ : e = escape code, z = run of zeros
-        code.setTop6Bits((int)( (lngBits >>> (17 - 12)) & 63 ));
-        if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(Misc.bitsToString(code.getTop6Bits(), 6));
-
-        // Skip the escape code (6 bits) and the run of zeros (6 bits)
-        _bitReader.skipBits( 12 );
-
+    protected void readEscapeAcCode(MdecCode code) throws EOFException {
         // Normal playstation encoding stores the escape code in 16 bits:
-        // 6 for run of zeros (already read), 10 for AC Coefficient
+        // 6 for run of zeros, 10 for AC Coefficient
+        int iRunAndAc = _bitReader.readUnsignedBits(6 + 10);
+        code.set(iRunAndAc);
+        assert DEBUG ? _debug.append(Misc.bitsToString(iRunAndAc, 16)) : true;
 
-        // Read the 10 bits of AC Coefficient
-        code.setBottom10Bits((int)_bitReader.readSignedBits(10));
-        if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(Misc.bitsToString(code.getBottom10Bits(), 10));
-
-        // Ignore zero AC coefficients.
+        // Ignore AC == 0 coefficients.
         // (I consider this an error, but FF7 has these codes,
         // so clearly the MDEC can handle it.)
-
         if (code.getBottom10Bits() == 0) {
-            getLog().info("Escape code has 0 AC coefficient.");
+            log.info("Escape code has 0 AC coefficient.");
         }
-
     }
 
+    private static final int b01111111110 = 0x3FE;
+
     @Override
-    public String toString() {
-        return "STRv2";
+    public void skipPaddingBits() throws EOFException {
+        int iPaddingBits = _bitReader.readUnsignedBits(11);
+        if (iPaddingBits != b01111111110)
+            log.warning("Incorrect padding bits " + Misc.bitsToString(iPaddingBits, 11));
     }
 
     @Override
     public BitStreamCompressor makeCompressor() {
         return new BitstreamCompressor_STRv2();
+    }
+
+    public int getQscale() {
+        return _iQscale;
+    }
+
+    @Override
+    public String getName() {
+        return "STRv2";
+    }
+
+
+    /** A strange value needed for video bitstreams and video sector headers.
+     *  It's the number of MDEC codes, divided by two, then rounded up to the
+     *  next closest multiple of 32 (if not already a multiple of 32).  */
+    public static short calculateHalfCeiling32(int iMdecCodeCount) {
+        return (short) ((((iMdecCodeCount + 1) / 2) + 31) & ~31);
+    }
+
+
+    public Iterator<int[]> qscaleIterator(final boolean blnStartAt1) {
+        return new QscaleIter(blnStartAt1 ? 1 : _iQscale, getCurrentMacroBlock() * 6);
+    }
+
+    private static class QscaleIter implements Iterator<int[]> {
+        private int _iQscale;
+        private final int _iSize;
+
+        public QscaleIter(int iQscale, int iSize) {
+            _iQscale = iQscale;
+            _iSize = iSize;
+        }
+
+        public boolean hasNext() { return _iQscale < 64; }
+
+        public int[] next() {
+            int[] ab = new int[_iSize];
+            Arrays.fill(ab, _iQscale);
+            _iQscale++;
+            return ab;
+        }
+
+        public void remove() { throw new UnsupportedOperationException(); }
+    }
+
+    public String toString() {
+        return String.format("%s Qscale=%d Offset=%d MB=%d.%d Mdec count=%d",
+                getName(), getQscale(),
+                getStreamPosition(),
+                getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
+                getMdecCodeCount());
     }
 
     /*########################################################################*/
@@ -516,69 +306,90 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
     public static class BitstreamCompressor_STRv2 implements BitStreamCompressor {
 
-        public byte[] compress(MdecInputStream inStream, int iLuminQscale, int iChromQscale, int iMdecCodeCount)
-                throws DecodingException, IOException
+        private int _iQscale;
+
+        public byte[] compress(MdecInputStream inStream, int iMdecCodeCount)
+                throws MdecException
         {
-            if (iLuminQscale < 1 || iLuminQscale > 63)
-                throw new IllegalArgumentException("Invalid Luminance quantization scale " + iLuminQscale);
-            if (iChromQscale < 1 || iChromQscale > 63)
-                throw new IllegalArgumentException("Invalid Chrominance quantization scale " + iChromQscale);
             if (iMdecCodeCount < 0)
                 throw new IllegalArgumentException("Invalid MDEC code count " + iMdecCodeCount);
-            if (!separateQscales() && iLuminQscale != iChromQscale)
-                throw new IllegalArgumentException("Quantization scales should be the same: " +
-                                                   iLuminQscale + " != " + iChromQscale);
 
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            BitStreamWriter bitStream = new BitStreamWriter(baos);
-            
-            bitStream.setLittleEndian(true);
-            writeHeader(bitStream, iLuminQscale, iChromQscale, iMdecCodeCount);
+            _iQscale = -1;
 
-            MdecCode oCode = new MdecCode();
+            ByteArrayOutputStream bits = new ByteArrayOutputStream();
 
-            boolean newBlk = true;
-            int iBlock = 0;
-            for (int i = 0; i < iMdecCodeCount; i++) {
-                String sBitsToWrite;
-                if (inStream.readMdecCode(oCode)) {
-                    sBitsToWrite = VLC_END_OF_BLOCK;
-                    newBlk = true;
-                    iBlock = (iBlock + 1) % 6;
-                } else {
-                    if (newBlk) {
-                        if (iBlock < 2) {
-                            if (oCode.getTop6Bits() != iChromQscale) {
-                                throw new IllegalArgumentException(String.format("Qscale given %d, should be %d in MDEC code %s #%d",
-                                        oCode.getTop6Bits(), iChromQscale, oCode, i));
-                            }
-                        } else {
-                            if (oCode.getTop6Bits() != iLuminQscale) {
-                                throw new IllegalArgumentException(String.format("Qscale given %d, should be %d in MDEC code %s #%d",
-                                        oCode.getTop6Bits(), iLuminQscale, oCode, i));
-                            }
-                        }
-                        sBitsToWrite = encodeDC(oCode.getBottom10Bits(), iBlock);
-                        newBlk = false;
+            BitStreamWriter bitStream = new BitStreamWriter(bits);
+            bitStream.setLittleEndian(isBitstreamLittleEndian());
+
+            MdecCode code = new MdecCode();
+
+            try {
+                boolean blnNewBlk = true;
+                int iBlock = 0;
+                for (int i = 0; i < iMdecCodeCount; i++) {
+                    String sBitsToWrite;
+                    if (inStream.readMdecCode(code)) {
+                        sBitsToWrite = AcLookup.END_OF_BLOCK.BitString;
+                        blnNewBlk = true;
+                        iBlock = (iBlock + 1) % 6;
                     } else {
-                        sBitsToWrite = encodeAC(oCode);
+                        if (blnNewBlk) {
+                            validateQscale(iBlock, code.getTop6Bits());
+                            sBitsToWrite = encodeDC(code.getBottom10Bits(), iBlock);
+                            blnNewBlk = false;
+                        } else {
+                            sBitsToWrite = encodeAC(code);
+                        }
                     }
+                    if (DEBUG)
+                        System.out.println("Converting " + code.toString() + " to " + sBitsToWrite + " at " + bits.size());
+                    bitStream.write(sBitsToWrite);
                 }
-                if (DEBUG_COMPRESSOR)
-                    System.out.println("Converting " + oCode.toString() + " to " + sBitsToWrite + " at " + baos.size());
-                bitStream.write(sBitsToWrite);
+
+                if (iBlock != 0)
+                    throw new IllegalStateException("Ended compressing in the middle of a macroblock.");
+
+                addTrailingBits(bitStream);
+                bitStream.close();
+            } catch (IOException ex) {
+                throw new MdecException.Write(ex);
             }
 
-            if (iBlock != 0)
-                throw new IllegalStateException("Ended compressing in the middle of a macroblock.");
+            byte[] abHeader = createHeader(iMdecCodeCount);
 
-            addTrailingBits(bitStream);
-            bitStream.close();
-            return baos.toByteArray();
+            byte[] abReturn = new byte[abHeader.length + bits.size()];
+            System.arraycopy(abHeader, 0, abReturn, 0, abHeader.length);
+            System.arraycopy(bits.toByteArray(), 0, abReturn, abHeader.length, bits.size());
+
+            return abReturn;
+        }
+
+        protected boolean isBitstreamLittleEndian() {
+            return true;
+        }
+
+        protected void codeRead(MdecCode code) throws MdecException.Compress, MdecException.Read {
+            if (code.isEOD()) {
+                if (_iQscale < 0) {
+                    _iQscale = code.getTop6Bits();
+                    if (_iQscale < 1 || _iQscale > 63)
+                        throw new MdecException.Read("Invalid quantization scale " + _iQscale);
+                } else if (_iQscale != code.getTop6Bits())
+                    throw new MdecException.Compress("Inconsistent qscale");
+            }
         }
 
         protected void addTrailingBits(BitStreamWriter bitStream) throws IOException {
             bitStream.write(END_OF_FRAME_EXTRA_BITS);
+        }
+
+        protected void validateQscale(int iBlock, int iQscale) throws MdecException.Write {
+            if (_iQscale < 0) {
+                _iQscale = iQscale;
+                if (_iQscale < 1 || _iQscale > 63)
+                    throw new MdecException.Encode("Invalid quantization scale " + _iQscale);
+            } else if (_iQscale != iQscale)
+                throw new MdecException.Compress("Inconsistent qscale");
         }
 
         protected String encodeDC(int iDC, int iBlock) {
@@ -590,55 +401,54 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return Misc.bitsToString(iDC, 10);
         }
 
-        protected String encodeAC(MdecCode code) {
+        private String encodeAC(MdecCode code)throws MdecException.Compress {
             if (code.getTop6Bits() < 0 || code.getTop6Bits() > 63)
                 throw new IllegalArgumentException("Invalid AC zero run length " + code.getTop6Bits());
-            if (code.getBottom10Bits() < -1024 || code.getBottom10Bits() > 1023)
+            if (code.getBottom10Bits() < -512 || code.getBottom10Bits() > 511)
                 throw new IllegalArgumentException("Invalid AC code " + code.getBottom10Bits());
 
-            for (ACVariableLengthCode oVlc : getAcVaribleLengthCodeList()) {
-                if (code.getTop6Bits() == oVlc.RunOfZeros && Math.abs(code.getBottom10Bits()) == oVlc.AbsoluteLevel) {
-                    return oVlc.VariableLengthCode + ((code.getBottom10Bits() < 0) ? "1" : "0");
+            for (AcBitCode vlc : getAcVaribleLengthCodeList().getCodeList()) {
+                if (code.getTop6Bits() == vlc.ZeroRun && Math.abs(code.getBottom10Bits()) == vlc.AcCoefficient) {
+                    return vlc.BitString.replace('s', (code.getBottom10Bits() < 0) ? '1' : '0');
                 }
             }
             // not a pre-defined code
-            return encodeACescape(code);
+            return encodeAcEscape(code);
         }
 
-        protected ACVariableLengthCode[] getAcVaribleLengthCodeList() {
+        protected AcLookup getAcVaribleLengthCodeList() {
             return AC_VARIABLE_LENGTH_CODES_MPEG1;
         }
 
-        protected String encodeACescape(MdecCode code) {
+        protected String encodeAcEscape(MdecCode code) throws MdecException.Compress {
             if (code.getTop6Bits() < 0 || code.getTop6Bits() > 63)
                 throw new IllegalArgumentException("Invalid AC zero run length " + code.getTop6Bits());
             if (code.getBottom10Bits() < -1024 || code.getBottom10Bits() > 1023)
                 throw new IllegalArgumentException("Invalid AC code " + code.getBottom10Bits());
-            
-            return AC_ESCAPE_CODE +
+
+            return AcLookup.ESCAPE_CODE.BitString +
                     Misc.bitsToString(code.getTop6Bits(), 6) +
                     Misc.bitsToString(code.getBottom10Bits(), 10);
         }
 
+        protected byte[] createHeader(int iMdecCodeCount) {
+            byte[] ab = new byte[8];
+
+            IO.writeInt16LE(ab, 0, calculateHalfCeiling32(iMdecCodeCount));
+            IO.writeInt16LE(ab, 2, (short)0x3800);
+            IO.writeInt16LE(ab, 4, (short)_iQscale);
+            IO.writeInt16LE(ab, 6, (short)getHeaderVersion());
+
+            return ab;
+        }
+
         protected int getHeaderVersion() { return 2; }
 
-        protected void writeHeader(BitStreamWriter bitStream, int iLuminQscale, int iChromScale, int iMdecCodeCount) throws IOException {
-            if (iLuminQscale != iChromScale)
-                throw new IllegalArgumentException("Quantization scales must be equal " +
-                        iLuminQscale + " != " + iChromScale);
-            if (iLuminQscale < 0)
-                throw new IllegalArgumentException("Invalid Q scale " + iLuminQscale);
-
-            bitStream.setLittleEndian(true);
-            bitStream.write( ParsedMdecImage.calculateHalfCeiling32(iMdecCodeCount) , 16);
-            bitStream.write( 0x3800, 16);
-            bitStream.write( iLuminQscale, 16);
-            bitStream.write( getHeaderVersion(), 16);
-        }
-
-        public boolean separateQscales() {
-            return false;
-        }
     }
 
+
+    /** Debug */
+    public static void main(String[] args) {
+        AC_VARIABLE_LENGTH_CODES_MPEG1.print(System.out);
+    }
 }

@@ -56,9 +56,9 @@ import jpsxdec.sectors.IVideoSector;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.aviwriter.AviWriter;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.mdec.DecodingException;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.util.aviwriter.AviWriterDIB;
@@ -83,11 +83,9 @@ class VideoSavers  {
                                         _snap.videoItem.getStartSector(), _snap.videoItem.getEndSector())
             {
                 private byte[] __abBuf;
-                protected void frameComplete() throws IOException {
-                    if (__abBuf == null || __abBuf.length < getDemuxSize())
-                        __abBuf = new byte[getDemuxSize()];
-                    copyDemuxData(__abBuf);
-                    receive(__abBuf, getDemuxSize(), getFrame(), getPresentationSector());
+                protected void frameComplete(DemuxedFrame frame) throws IOException {
+                    __abBuf = frame.copyDemuxData(__abBuf);
+                    receive(__abBuf, frame.getDemuxSize(), frame.getFrame(), frame.getPresentationSector());
                 }
             };
         }
@@ -164,7 +162,7 @@ class VideoSavers  {
         private BitStreamUncompressor identify(byte[] abDemuxBuf, int iFrame)
                 throws NotThisTypeException
         {
-            BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abDemuxBuf, iFrame);
+            BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abDemuxBuf);
             if (uncompressor == null) {
                 throw new NotThisTypeException("Error with frame " + iFrame + ": Unable to determine frame type.");
             } else {
@@ -209,7 +207,7 @@ class VideoSavers  {
                 try {
                     final int TOTAL_BLOCKS = ((getHeight() + 15)) / 16 * ((getWidth() + 15) / 16) * 6;
                     MdecInputStreamReader.writeMdecBlocks(uncompressor, bos, TOTAL_BLOCKS);
-                } catch (DecodingException ex) {
+                } catch (MdecException ex) {
                     log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
                     getListener().getLog().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
                 }
@@ -253,7 +251,7 @@ class VideoSavers  {
         final protected void receiveUncompressor(BitStreamUncompressor uncompressor, int iFrameNumber, int iFrameEndSector) throws IOException {
             try {
                 _decoder.decode(uncompressor);
-            } catch (DecodingException ex) {
+            } catch (MdecException.Decode ex) {
                 log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
                 getListener().getLog().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
             }

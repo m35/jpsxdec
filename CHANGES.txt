@@ -1,3 +1,19 @@
+v0.97.0 rev2196 (1 Nov 2011)
+    - Added many interpolation options for chroma upsampling
+    - Added handling for XA streams consisting of adjacent XA sectors
+    - Fixed handling of XA streams with 8 bits/sample
+    - Optimized bitstream unpacker for faster decoding
+    - Improved detection of 2336 bytes/sector images
+    - Added -static command-line option for decoding TIM, mdec, and bitstream files
+    - Handful of minor bug-fixes and tweaks
+    Internals:
+    - Fixed Tim creation
+    - Added a few unit/function tests
+    - Fixed encoding and improved design
+    - Extracted Lain specific stuff to separate project
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
+    - Massive lists of items scroll choppy on Windows
 v0.96.0 rev1996 (28 May 2011)
     - Added Tim image detection and saving - enjoy thousands of items in the list
     - Added support for most .iki videos (additional handling to be added later)

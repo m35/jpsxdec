@@ -68,12 +68,16 @@ public enum JavaImageFormat {
 
         boolean blnAvailable = false;
         for (String s : asValues) {
-            if (!s.equalsIgnoreCase(id))
+            if (s.equalsIgnoreCase(id)) {
                 blnAvailable = true;
+                break;
+            }
         }
         _blnAvailable = blnAvailable;
     }
 
+    /** Unique id identifying this image format.
+     * Also the id used for ImageIO operations. */
     public String getId() {
         return _sExtension;
     }

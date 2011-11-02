@@ -42,15 +42,23 @@ import java.util.Iterator;
 import java.util.TreeSet;
 
 /** Detects whole-number (integer) sectors/frame rate of
- * STR movies. This can also handle variable rates.
+ * STR movies. This can also handle variable rates as long as they have some common factor.
  *<p>
  * It uses this basic idea: find what sector/frame interval will
  * be sure to land on every point between frames. As each frame is examined,
  * the number of possibilities are whittled down until there should be very
  * few. There needs to be at least 3 frames in the video before an
  * initial guess can be made.
- *</p>
- * This isn't usable for movies with &lt; 3 frames,
+ * <pre>
+ * Example: (# means the frame number of a sector, 'a' means audio sector)
+ * 1 1 1 1 1 2 2 2 a 2 3 3 3 3 3 4 4 a 4 4 5 5 5 5 5 6 a 6 6 6 7 7 7 7 7 a 8 8 ...
+ *          ^         ^         ^         ^         ^         ^         ^-^
+ * '^' represents a point between frames. The last point spans two sectors.
+ * Given the pattern established by the other points, we can safely throw out
+ * the second point.
+ * </pre>
+ *<p>
+ * This isn't usable for movies with only 1 or 2 frames,
  * but with that few of frames, the frame rate isn't a big deal.
  */
 public class WholeNumberSectorsPerFrame {
@@ -63,9 +71,12 @@ public class WholeNumberSectorsPerFrame {
     /** The number of the previous sector that was reported to be a video sector. */
     private int _iPreviousVideoSect = -1;
 
-    /** 3 states: prior to the 2nd frame == null,
-     * still possibilities .size() > 0,
-     * no more possibilities .size() == 0
+    /** 3 states:
+     * <ol>
+     * <li>prior to the 2nd frame: <code>_startingPoints == null</code>
+     * <li>still possibilities: <code>_startingPoints.size() &lt; 0</code>
+     * <li>no more possibilities: <code>_startingPoints.size() == 0</code>
+     * </ol>
      */
     private TreeSet<SectorsPerFrameFromStart> _startingPoints;
 
@@ -92,10 +103,10 @@ public class WholeNumberSectorsPerFrame {
         boolean blnRet;
 
         if (_startingPoints == null) {
-            // haven't reached 2nd frame before now
+            // haven't reached 2nd frame yet
 
             if (_iCurrentFrame != iFrame) {
-                // we've reached 2nd frame
+                // now we've reached 2nd frame
 
                 // create a possible sectors/frame for each sector that the
                 // 2nd frame could actually start from
@@ -109,15 +120,16 @@ public class WholeNumberSectorsPerFrame {
             }
             blnRet = true;
         } else if (_startingPoints.isEmpty()) {
-            // no more possibilities :(
+            // already determined there are no more possibilities :(
             blnRet = false;
         } else {
             // can add more
             
             if (_iCurrentFrame == iFrame) {
+                // still part of existing frame, so we're ok
                 blnRet = true;
             } else {
-                // if new frame
+                // so we have a new frame, eh?
 
                 blnRet = false;
                 for (Iterator<SectorsPerFrameFromStart> it = _startingPoints.iterator(); it.hasNext();) {
@@ -143,16 +155,6 @@ public class WholeNumberSectorsPerFrame {
         return blnRet;
     }
 
-    /** Mostly for debugging. Returns all possible sectors/frame, including
-     * redundant factors. */
-    int[] getAllPossibleSectorsPerFrame() {
-        if (_startingPoints == null)
-            return null;
-        else if (_startingPoints.isEmpty())
-            return new int[] {1};
-        return integerCollectionToIntArray(getCombined());
-    }
-
     /** Returns an array of the best possible sectors/frame for this video.
      * Hopefully it will only return 1 number. In the case of multiple
      * numbers, the one with the highest value is probably the best.
@@ -163,6 +165,16 @@ public class WholeNumberSectorsPerFrame {
         else if (_startingPoints.isEmpty())
             return new int[] {1};
         return integerCollectionToIntArray(removeFactors(getCombined()));
+    }
+
+    /** Mostly for debugging. Returns all possible sectors/frame, including
+     * redundant factors. */
+    int[] getAllPossibleSectorsPerFrame() {
+        if (_startingPoints == null)
+            return null;
+        else if (_startingPoints.isEmpty())
+            return new int[] {1};
+        return integerCollectionToIntArray(getCombined());
     }
 
     /** Combines all the possible sectors/frame into one collection.
@@ -215,10 +227,14 @@ public class WholeNumberSectorsPerFrame {
     private static class SectorsPerFrameFromStart implements Comparable<SectorsPerFrameFromStart> {
         /** Number of the sector that we are assuming the 2nd frame in a video started at. */
         private final int _iFrame2StartSector;
-        /** 3 possible states:
-         * no frame yet = null,
-         * some possibilities .size() > 0,
-         * no possibilities .size() == 0 */
+
+        /** 3 states:
+         * <ol>
+         * <li>no frame yet: <code>_possibleSectorsPerFrame == null</code>
+         * <li>still possibilities: <code>_possibleSectorsPerFrame.size() &gt; 0</code>
+         * <li>no possibilities: <code>_possibleSectorsPerFrame.size() == 0</code>
+         * </ol>
+         */
         private TreeSet<Integer> _possibleSectorsPerFrame;
 
         public SectorsPerFrameFromStart(int iFrame2StartSector) {

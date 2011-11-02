@@ -43,6 +43,7 @@ import java.awt.EventQueue;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
@@ -55,6 +56,8 @@ import org.jdesktop.swingworker.SwingWorker;
 
 
 public class IndexingGui extends javax.swing.JDialog implements PropertyChangeListener {
+
+    private static final Logger log = Logger.getLogger(IndexingGui.class.getName());
 
     /** The task to perform. */
     private ProgresGuiTask _task;
@@ -119,7 +122,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
             _guiProgress.setValue((Integer)evt.getNewValue());
         } else if (ProgresGuiTask.EXCEPTION.equals(evt.getPropertyName()) ) {
             // fatal/unhandled exception
-            _exception = (Exception)evt.getNewValue();
+            _exception = (Throwable)evt.getNewValue();
             JOptionPane.showMessageDialog(this, _exception.toString(), "Exception", JOptionPane.ERROR_MESSAGE);
             _exception.printStackTrace(System.err); // debug
             taskComplete();
@@ -142,7 +145,6 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
             _guiResultLbl.setText("Success with messages - See " + _task._handler.getFileName() + " for details");
         } else {
             _guiResultLbl.setText("Success!");
-            _guiResultLbl.setForeground(Color.green);
         }
     }
 
@@ -371,18 +373,15 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 _index = new DiscIndex(_cd, this);
             } catch (TaskCanceledException ex) {
                 // cool
-            } catch (Exception ex) {
+            } catch (Throwable ex) {
                 // uncool
                 _exception = ex;
-                firePropertyChange(EXCEPTION, null, ex);
-                return null;
-            } catch (Throwable ex) {
-                // VERY uncool
-                _exception = ex;
-                firePropertyChange(EXCEPTION, null, ex);
+                firePropertyChange(EXCEPTION, null, ex); // calls IndexingGui#propertyChange()
+                log.log(Level.SEVERE, "Unhandled error", ex);
+                _errLog.log(Level.SEVERE, "Unhandled error", ex);
                 return null;
             }
-            firePropertyChange(DONE, null, null);
+            firePropertyChange(DONE, null, null); // calls IndexingGui#propertyChange()
             _errLog.removeHandler(_handler);
             _handler.close();
             return null;

@@ -1,6 +1,6 @@
 Usage:
 
-java -jar jpsxdec.jar < -? | -h | -help >
+java -jar jpsxdec.jar <-?, -h, -help>
   Display this help
 
 java -jar jpsxdec.jar -f <in_file> -x <index_file>
@@ -12,8 +12,8 @@ java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
   or generate an index on the fly for <in_file> (optionally saving it as <index_file>)
   and perform one of the following <main_command_and_options>
 
-    -i/-item <# | id> <item_command_and_options>
-    -a/-all <video | audio | file> <item_command_and_options>
+    -item/-i <#, id> <item_command_and_options>
+    -all/-a <video, audio, file> <item_command_and_options>
       Perform <item_command_and_options> on one index item,
       or all index items of a type
 
@@ -21,7 +21,7 @@ java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
           Saves (after possibly converting) index item
           using optional processing options (see item's help for options)
 
-        -?/-h/-help
+        -help/-h/-?
           Display help about the index item
 
         (for audio/video)
@@ -39,13 +39,32 @@ java -jar -f <in_file> <main_command_and_options>
     -static <type>
       Process special static file types {disabled}
 
-    -copysect { # | #-# }
+    -copysect <#, #-#>
       Copy sectors to a another file.
 
     -sectordump <out_file>
       Write list of sector types to <out_file> (for debugging)
 
-  Additional option (optional):
-    -v/-verbose #
+    -static <tim, bs, mdec> <options>
+        For bs or mdec (no additional options for tim):
+
+        -dim <width>x<height>
+          Frame dimensions (required)
+
+        -quality/-q <low, high, high+, psx>
+          Decoding quality (default high).
+
+        -fmt <mdec, png, bmp, jpg>
+          Output format (default png).
+
+        -up <upsampling>
+          Chroma upsampling method (default Bicubic).
+          Options: NearestNeighbor, Bilinear, Bicubic, Bell, 
+                   Mitchell, BSpline, Lanczos3, Hermite
+
+        -debug
+
+Universal option (optional):
+    -verbose/-v #
     How much info to print: 0 for none, 1 for only errors,
                             2 for normal, 3 for extra

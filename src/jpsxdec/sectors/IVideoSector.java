@@ -39,6 +39,7 @@ package jpsxdec.sectors;
 
 import java.io.IOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 
 /** Interface that should be implemented by all video sector classes. */
 public interface IVideoSector extends IIdentifiedSector {
@@ -68,23 +69,19 @@ public interface IVideoSector extends IIdentifiedSector {
      *  output buffer. */
     void copyIdentifiedUserData(byte[] abOut, int iOutPos);
 
-    /** Permanently changes the data on the disc associated with this sector!
-     *  The associated CD reader must be opened for writing, otherwise
-     *  this will fail.
+    /** Confirms that the demuxed bitstream data is compatible with the sector,
+     * then modifies the sector data and demuxed bitstream data to be correct
+     * for writing.
      * 
-     * @return number of bytes copied from the demux data to the disc, not
-     *         including any bytes changed in the sector header.
+     * @return Video frame sector header size.
      */
-    int replaceFrameData(CdFileSectorReader cd,
-                         byte[] abDemuxData, int iDemuxOfs,
-                         int iLuminQscale,
-                         int iChromQscale,
-                         int iMdecCodeCount)
-                 throws IOException;
+    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
+                                int iMdecCodeCount, byte[] abSectUserData);
 
     /** Tells the indexer that all current audio streams should be ended
      * at this sector. This is unfortunately necessary because the only way
      * to where the end the audio for some games is to check the related
      * video clip. */
     boolean splitAudio();
+
 }

@@ -44,20 +44,19 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.discitems.psxvideoencode.ReplaceFrames;
+import jpsxdec.discitems.savers.DemuxedFrame;
 import jpsxdec.discitems.savers.VideoSaverBuilder;
-import jpsxdec.psxvideo.mdec.DecodingException;
 import jpsxdec.util.player.PlayController;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.Fraction;
@@ -297,13 +296,13 @@ public class DiscItemVideoStream extends DiscItem {
                     parallelAudio.add(audItem);
                     audItem.setPartOfVideo(true);
                     if (log.isLoggable(Level.INFO))
-                        log.info("Parallel audio: " + item.toString());
+                        log.fine("Parallel audio: " + item.toString());
                 }
             }
         }
         if (parallelAudio.size() > 0) {
             if (log.isLoggable(Level.INFO))
-                log.info("Added to this media item " + this.toString());
+                log.fine("Added to this media item " + this.toString());
             _aoAudioStreams = parallelAudio.toArray(new DiscItemAudioStream[parallelAudio.size()]);
 
             // keep the list sorted in order found in disc index
@@ -540,8 +539,8 @@ public class DiscItemVideoStream extends DiscItem {
         demuxer = new FrameDemuxer(vidItem.getWidth(), vidItem.getHeight(),
                                    vidItem.getStartSector(), vidItem.getEndSector())
         {
-            protected void frameComplete() throws IOException {
-                ReplaceFrames.printExistingFrameStats(this, Feedback);
+            protected void frameComplete(DemuxedFrame frame) throws IOException {
+                frame.printStats(Feedback);
             }
         };
 
@@ -560,10 +559,11 @@ public class DiscItemVideoStream extends DiscItem {
                 throw new RuntimeException(ex);
             }
         }
+        demuxer.flush();
 
     }
 
-    public void replaceFrames(FeedbackStream Feedback, String sXmlFile) throws IOException, DecodingException, NotThisTypeException {
+    public void replaceFrames(FeedbackStream Feedback, String sXmlFile) throws IOException, NotThisTypeException, MdecException {
         DiscItem item = this;
 
         ReplaceFrames replacers = new ReplaceFrames(sXmlFile);

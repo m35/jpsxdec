@@ -54,6 +54,7 @@ import jpsxdec.SavingGuiTable;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.savers.VideoSaverBuilder.DecodeQualities;
+import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
 import jpsxdec.util.Fraction;
 
 /** Gui for {@link VideoSaverBuilder} options. */
@@ -71,6 +72,7 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuil
             new Crop(),
             new DiscSpeed(),
             new DecodeQuality(),
+            new ChromaUpsampling(),
             new JpgCompression(),
             new PreciseFps(),
             //new Volume(),
@@ -118,6 +120,25 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuil
         }
     }
 
+
+    private class ChromaUpsampling extends AbstractCombo {
+        public ChromaUpsampling() { super("Chroma Upsampling:"); }
+        public int getSize() {
+            return _writerBuilder.getChromaInterpolation_listSize();
+        }
+        public Object getElementAt(int index) {
+            return _writerBuilder.getChromaInterpolation_listItem(index);
+        }
+        public void setSelectedItem(Object anItem) {
+            _writerBuilder.setChromaInterpolation((Upsampler) anItem);
+        }
+        public Object getSelectedItem() {
+            return _writerBuilder.getChromaInterpolation();
+        }
+        protected boolean getEnabled() {
+            return _writerBuilder.getChromaInterpolation_enabled();
+        }
+    }
 
     private class JpgCompression extends AbstractSlider {
         public JpgCompression() { super("JPG compression quality:"); }
@@ -281,7 +302,7 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuil
     }
 
     private class FileName implements ChangeListener {
-        JLabel __label = new JLabel("Saved as:");
+        JLabel __label = new JLabel("Save as:");
         JLabel __postfix1 = new JLabel(" ");
         JLabel __postfix2 = new JLabel(" ");
         public FileName() {

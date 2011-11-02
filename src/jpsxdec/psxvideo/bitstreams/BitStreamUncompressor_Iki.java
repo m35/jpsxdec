@@ -1,5 +1,3 @@
-package jpsxdec.psxvideo.bitstreams;
-
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
  * Copyright (C) 2007-2011  Michael Sabin
@@ -37,14 +35,12 @@ package jpsxdec.psxvideo.bitstreams;
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import java.io.EOFException;
-import java.io.File;
-import javax.imageio.ImageIO;
-import jpsxdec.formats.RgbIntImage;
-import jpsxdec.psxvideo.mdec.DecodingException;
-import jpsxdec.psxvideo.mdec.MdecDecoder_double;
+package jpsxdec.psxvideo.bitstreams;
+
+import java.util.Arrays;
+import java.util.Iterator;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
-import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
@@ -53,45 +49,20 @@ import jpsxdec.util.NotThisTypeException;
 public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
 
-    public final static String FRAME = "0100";
-
-    public static void main(String[] args) throws Exception {
-        BitStreamUncompressor_Iki drag = new BitStreamUncompressor_Iki();
-        byte[] abFile = IO.readFile("STR\\DEMOH[0]_320x192["+FRAME+"].bs");
-        drag.reset(abFile);
-        IO.writeFile(FRAME+"-j.lzs", drag._abQscaleDcLookupTable);
-        MdecDecoder_double decoder = new MdecDecoder_double(new PsxMdecIDCT_double(), drag._iWidth, drag._iHeight);
-        decoder.decode(drag);
-
-        RgbIntImage rgb = new RgbIntImage(drag._iWidth, drag._iHeight);
-        decoder.readDecodedRgb(drag._iWidth, drag._iHeight, rgb.getData());
-        ImageIO.write(rgb.toBufferedImage(), "png", new File(FRAME+"-j.png"));
-    }
-
     private int _iWidth, _iHeight, _iMdecCodeCount, _iCompressedDataSize, _iLookupTableHalfSize;
     private byte[] _abQscaleDcLookupTable;
-    
 
-
-    @Override
-    public int getChromQscale() {
-        throw new UnsupportedOperationException();
-    }
+    private int _iCurrentBlock;
 
     @Override
-    public int getLuminQscale() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    protected void readHeader(byte[] abFrameData, int iStart, ArrayBitReader bitReader) throws NotThisTypeException {
+    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
         _iMdecCodeCount = IO.readUInt16LE(abFrameData, 0);
-        int i3800 = IO.readUInt16LE(abFrameData, 2);
+        int iMagic3800 = IO.readUInt16LE(abFrameData, 2);
         _iWidth = IO.readSInt16LE(abFrameData, 4);
         _iHeight = IO.readSInt16LE(abFrameData, 6);
         _iCompressedDataSize = IO.readUInt16LE(abFrameData, 8);
 
-        if (_iMdecCodeCount < 0 || i3800 != 0x3800 || _iWidth < 1 || _iHeight < 1 || _iCompressedDataSize < 1)
+        if (_iMdecCodeCount < 0 || iMagic3800 != 0x3800 || _iWidth < 1 || _iHeight < 1 || _iCompressedDataSize < 1)
             throw new NotThisTypeException();
 
         int iMacroBlockCount = ((_iWidth + 15) / 16) * ((_iHeight + 15) / 16);
@@ -105,31 +76,36 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         _iLookupTableHalfSize = iQscaleDcLookupTableSize / 2;
 
         bitReader.reset(abFrameData, true, 10 + _iCompressedDataSize);
+
+        _iCurrentBlock = 0;
     }
 
     public static boolean checkHeader(byte[] abFrameData) {
         int _iMdecCodeCount = IO.readUInt16LE(abFrameData, 0);
-        int i3800 = IO.readUInt16LE(abFrameData, 2);
+        int iMagic3800 = IO.readUInt16LE(abFrameData, 2);
         int _iWidth = IO.readSInt16LE(abFrameData, 4);
         int _iHeight = IO.readSInt16LE(abFrameData, 6);
         int _iCompressedDataSize = IO.readUInt16LE(abFrameData, 8);
 
-        return !(_iMdecCodeCount < 0 || i3800 != 0x3800 || _iWidth < 1 || _iHeight < 1 || _iCompressedDataSize < 1);
+        return !(_iMdecCodeCount < 0 || iMagic3800 != 0x3800 || _iWidth < 1 || _iHeight < 1 || _iCompressedDataSize < 1);
     }
 
     @Override
-    protected void readQscaleDC(MdecCode code) throws EOFException, DecodingException {
-        int iCurrentBlock = getCurrentBlock();
-        int b1 = _abQscaleDcLookupTable[iCurrentBlock] & 0xff;
-        int b2 = _abQscaleDcLookupTable[iCurrentBlock+_iLookupTableHalfSize] & 0xff;
+    protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress {
+        if (_iCompressedDataSize >= _iLookupTableHalfSize)
+            throw new MdecException.Uncompress("End of stream");
+        readBlockQscaleAndDC(code, _iCurrentBlock);
+        _iCurrentBlock++;
+    }
+
+    private void readBlockQscaleAndDC(MdecCode code, int iBlock) {
+        int b1 = _abQscaleDcLookupTable[iBlock] & 0xff;
+        int b2 = _abQscaleDcLookupTable[iBlock+_iLookupTableHalfSize] & 0xff;
         code.set((b1 << 8) | b2);
     }
 
-    public static final boolean DEBUG = false;
-
     /** .iki videos utilize yet another LZSS compression format that is
-     * different from both FF7 and Lain.
-     */
+     * different from both FF7 and Lain.   */
     private static void ikiLzsUncompress(byte[] abSrc, int iSrcPosition,
                                          byte[] abDest, int iUncompressedSize)
     {
@@ -180,6 +156,74 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         }
         if (DEBUG)
             System.err.println("Src pos at end: " + iSrcPosition);
+    }
+
+    @Override
+    public String getName() {
+        return "Iki";
+    }
+
+    @Override
+    public int getQscale() {
+        throw new UnsupportedOperationException("Getting quantization scale for iki is not possible");
+    }
+
+    @Override
+    public Iterator<int[]> qscaleIterator(boolean blnStartAt1) {
+        final int[] aiQscales = new int[_iLookupTableHalfSize];
+        if (blnStartAt1) {
+            Arrays.fill(aiQscales, 1);
+        } else {
+            MdecCode code = new MdecCode();
+            for (int i = 0; i < _iLookupTableHalfSize; i++) {
+                readBlockQscaleAndDC(code, i);
+                aiQscales[i] = code.getTop6Bits();
+            }
+        }
+
+        return new Iterator<int[]>() {
+            
+            public boolean hasNext() { 
+                int iMin = aiQscales[0];
+                for (int i = 1; i < aiQscales.length; i++) {
+                    if (aiQscales[i] < iMin)
+                        iMin = aiQscales[i];
+                }
+                return iMin < 64;
+            }
+
+            public int[] next() {
+                // TODO: finish iki encoding stuff
+                throw new UnsupportedOperationException("Not implemented yet");
+            }
+
+            public void remove() { throw new UnsupportedOperationException(); }
+        };
+    }
+
+
+
+    public String toString() {
+        int iMinQscale = 64, iMaxQscale = 0;
+        MdecCode code = new MdecCode();
+        for (int i = 0; i < _iLookupTableHalfSize; i++) {
+            readBlockQscaleAndDC(code, i);
+            int iQscale = code.getTop6Bits();
+            if (iQscale < iMinQscale)
+                iMinQscale = iQscale;
+            if(iQscale > iMaxQscale)
+                iMaxQscale = iQscale;
+        }
+        return String.format("%s Qscale=%d-%d Offset=%d MB=%d.%d Mdec count=%d",
+                getName(), iMinQscale, iMaxQscale,
+                getStreamPosition(),
+                getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
+                getMdecCodeCount());
+    }
+
+    @Override
+    public BitStreamCompressor makeCompressor() {
+        throw new UnsupportedOperationException();
     }
 
 }

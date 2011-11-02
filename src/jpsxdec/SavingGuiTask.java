@@ -53,6 +53,8 @@ import org.jdesktop.swingworker.SwingWorker;
 public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message> 
         implements ProgressListener
 {
+    private static final Logger log = Logger.getLogger(SavingGuiTask.class.getName());
+
     public static final String ALL_DONE = "alldone";
 
     private final ArrayList<Row> _rows;
@@ -88,19 +90,15 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
                 // cool
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_CANCELED));
                 break;
-            } catch (Exception ex) {
+            } catch (Throwable ex) {
                 // uncool
+                log.log(Level.SEVERE, "Unhandled error", ex);
                 _errLog.log(Level.SEVERE, "Unhandled error", ex);
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 if (ex instanceof InterruptedException)
                     break;
                 else
                     continue;
-            } catch (Throwable ex) {
-                // VERY uncool
-                _errLog.log(Level.SEVERE, "Unhandled error", ex);
-                EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
-                continue;
             }
             EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_DONE));
         }

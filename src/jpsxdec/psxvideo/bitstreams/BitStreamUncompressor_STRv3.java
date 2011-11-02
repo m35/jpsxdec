@@ -37,13 +37,12 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import jpsxdec.psxvideo.mdec.DecodingException;
 import java.io.IOException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.NotThisTypeException;
 import java.io.EOFException;
-import java.util.logging.Logger;
-import jpsxdec.psxvideo.encode.BitStreamWriter;
+import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
@@ -52,18 +51,17 @@ import jpsxdec.util.Misc;
  */
 public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
-    private static final Logger log = Logger.getLogger(BitStreamUncompressor_STRv3.class.getName());
-    protected Logger getLog() { return log; }
-
     /* From the offical MPEG-1 ISO standard specification (ISO 11172).
      * Specifically table 2-D.12 in 11172-2.
      * These tables are only used for version 3 STR frames. */
 
-    /** The longest of all the DC Chrominance variable-length-codes is 8 bits */
-    public final static int DC_CHROMINANCE_LONGEST_VARIABLE_LENGTH_CODE = 8;
+    // TODO: Cleanup these DC code tables
 
-    /** Table of DC Chrominance (Cr, Cb) variable length codes */
-    private final static DCVariableLengthCode DC_Chrominance_VarLenCodes[] = {
+    /** The longest of all the DC Chroma variable-length-codes is 8 bits */
+    public final static int DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE = 8;
+
+    /** Table of DC Chroma (Cr, Cb) variable length codes */
+    private final static DCVariableLengthCode DC_Chroma_VarLenCodes[] = {
         //                       Variable   Bits
         //                        length   used to    Negative             Positive
         //                         code   store DC  differential         differential
@@ -78,11 +76,11 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         new DCVariableLengthCode("11111110" , 8,  -255 /* to -128 */), // 128 to 255
     };
 
-    /** The longest of all the DC Luminance variable-length-codes is 7 bits */
-    public final static int DC_LUMINANCE_LONGEST_VARIABLE_LENGTH_CODE = 7;
+    /** The longest of all the DC Luma variable-length-codes is 7 bits */
+    public final static int DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE = 7;
 
-    /** Table of DC Luminance (Y1, Y2, Y3, Y4) variable length codes */
-    private final static DCVariableLengthCode DC_Luminance_VarLenCodes[] = {
+    /** Table of DC Luma (Y1, Y2, Y3, Y4) variable length codes */
+    private final static DCVariableLengthCode DC_Luma_VarLenCodes[] = {
         //                       Variable   Bits
         //                        length   used to    Negative           Positive
         //                         code   store DC  differential       differential
@@ -136,79 +134,74 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         }
     }
 
+    /** 11 bits found at the end of STR v3 movies.
+     * <pre>11111111110</pre> */
     private final static String END_OF_FRAME_EXTRA_BITS = "11111111110";
 
     public BitStreamUncompressor_STRv3() {
         super();
     }
-    
+
     // Holds the previous DC values for ver 3 frames.
     private int _iPreviousCr_DC;
     private int _iPreviousCb_DC;
     private int _iPreviousY_DC;
 
     @Override
-    public void reset(byte[] abDemuxData, int iStart) throws NotThisTypeException {
-        _iPreviousCr_DC = _iPreviousCb_DC = _iPreviousY_DC = 0;
-        super.reset(abDemuxData, iStart);
-    }
+    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
+        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
+        int iMagic3800       = IO.readUInt16LE(abFrameData, 2);
+        _iQscale             = IO.readSInt16LE(abFrameData, 4);
+        int iVersion         = IO.readSInt16LE(abFrameData, 6);
 
-    @Override
-    protected void readHeader(byte[] abFrameData, int iStart, ArrayBitReader bitReader) throws NotThisTypeException {
-        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, iStart+0);
-        _iMagic3800          = IO.readUInt16LE(abFrameData, iStart+2);
-        _iQscale             = IO.readSInt16LE(abFrameData, iStart+4);
-        int iVersion         = IO.readSInt16LE(abFrameData, iStart+6);
-
-        if (_iMagic3800 != 0x3800 || _iQscale < 1 || iVersion != 3)
+        if (iMagic3800 != 0x3800 || _iQscale < 1 ||
+            iVersion != 3  || _iHalfVlcCountCeil32 < 0)
             throw new NotThisTypeException();
 
-        bitReader.reset(abFrameData, true, iStart+8);
+        bitReader.reset(abFrameData, true, 8);
+        _iPreviousCr_DC = _iPreviousCb_DC = _iPreviousY_DC = 0;
     }
 
     public static boolean checkHeader(byte[] abFrameData) {
-        int iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
-        int iMagic3800          = IO.readUInt16LE(abFrameData, 2);
-        int iQscale             = IO.readSInt16LE(abFrameData, 4);
-        int iVersion            = IO.readSInt16LE(abFrameData, 6);
+        int _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
+        int iMagic3800           = IO.readUInt16LE(abFrameData, 2);
+        int _iQscale             = IO.readSInt16LE(abFrameData, 4);
+        int iVersion             = IO.readSInt16LE(abFrameData, 6);
 
-        return iMagic3800 == 0x3800 &&
-               iQscale >= 1 &&
-               iVersion == 3 &&
-               iHalfVlcCountCeil32 >= 0;
+        return !(iMagic3800 != 0x3800 || _iQscale < 1 ||
+                 iVersion != 3  || _iHalfVlcCountCeil32 < 0);
     }
 
     @Override
-    protected void readQscaleDC(MdecCode code) throws EOFException, DecodingException {
+    protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress, EOFException {
         code.setTop6Bits(_iQscale);
         switch (getCurrentMacroBlockSubBlock()) {
             case 0:
-                code.setBottom10Bits(_iPreviousCr_DC = decodeV3_DC_Chrominance(_iPreviousCr_DC));
+                code.setBottom10Bits(_iPreviousCr_DC = readV3DcChroma(_iPreviousCr_DC));
                 return;
             case 1:
-                code.setBottom10Bits(_iPreviousCb_DC = decodeV3_DC_Chrominance(_iPreviousCb_DC));
+                code.setBottom10Bits(_iPreviousCb_DC = readV3DcChroma(_iPreviousCb_DC));
                 return;
             default:
-                decodeV3_DC_Luminance();
+                readV3DcLuma();
                 code.setBottom10Bits(_iPreviousY_DC);
         }
     }
 
 
-
+    
     private static final int b10000000 = 0x80;
     private static final int b01000000 = 0x40;
-    private int decodeV3_DC_Chrominance(int iPreviousDC)
-        throws DecodingException, EOFException
+    private int readV3DcChroma(int iPreviousDC) throws MdecException.Uncompress, EOFException
     {
         // Peek enough bits
-        int iBits = (int)_bitReader.peekUnsignedBits(
-                DC_CHROMINANCE_LONGEST_VARIABLE_LENGTH_CODE);
+        int iBits = _bitReader.peekUnsignedBits(
+                DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE);
         
         DCVariableLengthCode dcVlc;
         
         if ((iBits & b10000000) == 0) { // "0x"
-            dcVlc = DC_Chrominance_VarLenCodes[(iBits >>> 6) & 1];
+            dcVlc = DC_Chroma_VarLenCodes[(iBits >>> 6) & 1];
         } else {                        // "1x*"
             // count how many 1's there are
             int iMask = b01000000;
@@ -219,32 +212,31 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             }
             
             if (iMask == 0) {
-                throw new DecodingException(
-                        "Error decoding macro block:" +
+                throw new MdecException.Uncompress(
+                        "Error uncompressing macro block:" +
                         " Unknown DC variable length code " + Misc.bitsToString(iBits, 8));
             }
             
-            dcVlc = DC_Chrominance_VarLenCodes[iTblIndex];
+            dcVlc = DC_Chroma_VarLenCodes[iTblIndex];
             
         }
-        if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(dcVlc.VariableLengthCode);
+        assert DEBUG ? _debug.append(dcVlc.VariableLengthCode) : true;
 
         _bitReader.skipBits(dcVlc.VariableLengthCode.length());
 
         if (dcVlc.DC_Length != 0) {
 
             // Read the DC differential
-            int iDC_Differential =
-                   (int)_bitReader.readUnsignedBits(dcVlc.DC_Length);
+            int iDC_Differential = _bitReader.readUnsignedBits(dcVlc.DC_Length);
 
-            if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(Misc.bitsToString(iDC_Differential, dcVlc.DC_Length));
+            assert DEBUG ? _debug.append(Misc.bitsToString(iDC_Differential, dcVlc.DC_Length)) : true;
 
             if ((iDC_Differential & dcVlc.DC_TopBitMask) == 0)
                 iDC_Differential += dcVlc.DC_NegativeDifferential;
 
             // because v3 encoding only uses 8 bits of precision for DC,
             // it needs to be shifted up by 2 bits to be ready for
-            // the Qtable[0] multiplication of 2 which will up it to the full
+            // the Qtable[0] multiplication of 2 which will fill up it to the full
             // 11 bits that DC is supposed to have
             iPreviousDC += iDC_Differential << 2;
         }
@@ -256,19 +248,16 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     private static final int b1000000 = 0x40;
     private static final int b0100000 = 0x20;
     private static final int b0010000 = 0x10;
-    private final void decodeV3_DC_Luminance()
-        throws DecodingException, EOFException
-    {
+    private void readV3DcLuma() throws MdecException.Uncompress, EOFException {
         // Peek enough bits
-        int iBits = (int)_bitReader.peekUnsignedBits(
-                DC_LUMINANCE_LONGEST_VARIABLE_LENGTH_CODE);
+        int iBits = _bitReader.peekUnsignedBits(DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE);
         
         DCVariableLengthCode dcVlc;
         
         if (       (iBits & b1000000) == 0) { // "0x"
-            dcVlc = DC_Luminance_VarLenCodes[    ((iBits >>> 5) & 1)];
+            dcVlc = DC_Luma_VarLenCodes[    ((iBits >>> 5) & 1)];
         } else if ((iBits & b0100000) == 0) { // "10"
-            dcVlc = DC_Luminance_VarLenCodes[2 + ((iBits >>> 4) & 1)];
+            dcVlc = DC_Luma_VarLenCodes[2 + ((iBits >>> 4) & 1)];
         } else {                              // "11x"
             int iMask = b0010000;
             int iTblIndex = 4;
@@ -278,13 +267,13 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             }
             
             if (iMask == 0) {
-                throw new DecodingException("Error decoding macro block:" +
-                                                 " Unknown DC variable length code " + iBits);
+                throw new MdecException.Uncompress("Error decoding macro block:" +
+                                            " Unknown DC variable length code " + iBits);
             }
             
-            dcVlc = DC_Luminance_VarLenCodes[iTblIndex];
+            dcVlc = DC_Luma_VarLenCodes[iTblIndex];
         }
-        if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(dcVlc.VariableLengthCode);
+        assert DEBUG ? _debug.append(dcVlc.VariableLengthCode) : true;
 
         // skip the variable length code bits
         _bitReader.skipBits(dcVlc.VariableLengthCode.length());
@@ -292,24 +281,36 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         if (dcVlc.DC_Length != 0) {
 
             // Read the DC differential
-            int iDC_Differential = 
-                   (int)_bitReader.readUnsignedBits(dcVlc.DC_Length);
+            int iDC_Differential = _bitReader.readUnsignedBits(dcVlc.DC_Length);
 
-            if (DEBUG_UNCOMPRESSOR) _debug.Bits.append(Misc.bitsToString(iDC_Differential, dcVlc.DC_Length));
+            assert DEBUG ? _debug.append(Misc.bitsToString(iDC_Differential, dcVlc.DC_Length)) : true;
 
             if ((iDC_Differential & dcVlc.DC_TopBitMask) == 0)
                 iDC_Differential += dcVlc.DC_NegativeDifferential;
 
-            _iPreviousY_DC += iDC_Differential
-                    // !!! ???We must multiply it by 4 for no reason??? !!!
-                              * 4;
+            // because v3 encoding only uses 8 bits of precision for DC,
+            // it needs to be shifted up by 2 bits to be ready for
+            // the Qtable[0] multiplication of 2 which will fill up it to the full
+            // 11 bits that DC is supposed to have
+            _iPreviousY_DC += iDC_Differential * 4;
+
             if (!(_iPreviousY_DC >= -512 && _iPreviousY_DC <= 511))
-                throw new DecodingException("DC out of bounds " + _iPreviousY_DC);
+                throw new MdecException.Uncompress("DC out of bounds " + _iPreviousY_DC);
+        }
+    }
+
+    private static final int b11111111110 = 0x7FE;
+
+    @Override
+    public void skipPaddingBits() throws EOFException {
+        int iPaddingBits = _bitReader.readUnsignedBits(11);
+        if (iPaddingBits != b11111111110) {
+            log.warning("Incorrect padding bits " + Misc.bitsToString(iPaddingBits, 11));
         }
     }
 
     @Override
-    public String toString() {
+    public String getName() {
         return "STRv3";
     }
     
@@ -324,34 +325,39 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         protected int getHeaderVersion() { return 3; }
 
         @Override
-        public byte[] compress(MdecInputStream inStream, int iLuminQscale, int iChromQscale, int iMdecCodeCount) throws DecodingException, IOException {
-            _iPreviousCr_DC = _iPreviousCb_DC = _iPreviousY_DC = 0;
-            return super.compress(inStream, iLuminQscale, iChromQscale, iMdecCodeCount);
+        public byte[] compress(MdecInputStream inStream, int iMdecCodeCount) throws MdecException {
+            _iPreviousCr_DC4 = _iPreviousCb_DC4 = _iPreviousY_DC4 = 0;
+            return super.compress(inStream, iMdecCodeCount);
         }
 
-        private int _iPreviousCr_DC;
-        private int _iPreviousCb_DC;
-        private int _iPreviousY_DC;
+        private int _iPreviousCr_DC4, _iPreviousCb_DC4, _iPreviousY_DC4;
 
         @Override
         protected String encodeDC(int iDC, int iBlock) {
             int iDCdiff;
+            int iDC4 = 0;
+            switch (iDC % 4) {
+                case 0: iDC4 = iDC    ; break;
+                case 1: iDC4 = iDC - 1; break;
+                case 2: iDC4 = iDC - 2; break;
+                case 3: iDC4 = iDC + 1; break;
+            }
             DCVariableLengthCode[] lookupTable;
             switch (iBlock) {
                 case 0:
-                    iDCdiff = iDC - _iPreviousCr_DC;
-                    _iPreviousCr_DC = iDC;
-                    lookupTable = DC_Chrominance_VarLenCodes;
+                    iDCdiff = iDC4 - _iPreviousCr_DC4;
+                    _iPreviousCr_DC4 = iDC4;
+                    lookupTable = DC_Chroma_VarLenCodes;
                     break;
                 case 1:
-                    iDCdiff = iDC - _iPreviousCb_DC;
-                    _iPreviousCb_DC = iDC;
-                    lookupTable = DC_Chrominance_VarLenCodes;
+                    iDCdiff = iDC4 - _iPreviousCb_DC4;
+                    _iPreviousCb_DC4 = iDC4;
+                    lookupTable = DC_Chroma_VarLenCodes;
                     break;
                 default:
-                    iDCdiff = iDC - _iPreviousY_DC;
-                    _iPreviousY_DC = iDC;
-                    lookupTable = DC_Luminance_VarLenCodes;
+                    iDCdiff = iDC4 - _iPreviousY_DC4;
+                    _iPreviousY_DC4 = iDC4;
+                    lookupTable = DC_Luma_VarLenCodes;
                     break;
             }
 

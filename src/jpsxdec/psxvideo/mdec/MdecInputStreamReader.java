@@ -50,6 +50,7 @@ import jpsxdec.util.IO;
 public class MdecInputStreamReader extends MdecInputStream {
 
     private InputStream _inStream;
+    private int _iBlock = 0;
 
     public MdecInputStreamReader(String sFile) throws FileNotFoundException {
         _inStream = new FileInputStream(sFile);
@@ -64,27 +65,39 @@ public class MdecInputStreamReader extends MdecInputStream {
     }
 
     @Override
-    public boolean readMdecCode(MdecCode code) throws DecodingException, EOFException {
+    public boolean readMdecCode(MdecCode code) throws MdecException.Read {
         try {
             code.set(IO.readSInt16LE(_inStream));
-            return code.isEOD();
+            if (code.isEOD()) {
+                _iBlock++;
+                return true;
+            } else {
+                return false;
+            }
         } catch (EOFException ex) {
-            throw ex;
+            throw new MdecException.Read("Unexpected end of stream in block " + _iBlock);
         } catch (IOException ex) {
-            throw new DecodingException(ex);
+            throw new MdecException.Read(ex);
         }
     }
 
+    public void close() throws IOException {
+        _inStream.close();
+    }
+
+    // -------------------------------------------------------------------------
+
     public static void writeMdecDims(MdecInputStream mdecIn, OutputStream streamOut,
             int iWidth, int iHeight)
-            throws DecodingException, IOException
+            throws MdecException, IOException
     {
-        int iBlockCount = ((iWidth + 15) / 16) * ((iHeight + 15) / 16) * 6;
+        int iMacroblockCount = ((iWidth + 15) / 16) * ((iHeight + 15) / 16);
+        int iBlockCount = iMacroblockCount * 6;
         writeMdecBlocks(mdecIn, streamOut, iBlockCount);
     }
     public static void writeMdecBlocks(MdecInputStream mdecIn, OutputStream streamOut,
             int iBlockCount)
-            throws DecodingException, IOException
+            throws MdecException, IOException
     {
         MdecCode code = new MdecCode();
         int iBlock = 0;

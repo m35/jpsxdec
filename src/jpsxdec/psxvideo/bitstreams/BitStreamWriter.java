@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.psxvideo.encode;
+package jpsxdec.psxvideo.bitstreams;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -66,7 +66,7 @@ public class BitStreamWriter {
             } else if (c == '1') {
                 write(true);
             } else {
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException(s);
             }
         }
     }
@@ -84,7 +84,7 @@ public class BitStreamWriter {
     }
 
     public void write(long lngValue, int iBits) throws IOException {
-        if (iBits == 0) throw new IllegalArgumentException();
+        if (iBits == 0) throw new IllegalArgumentException(iBits + " == " + 0);
         for (long lngMask = 1L << (iBits-1); lngMask != 0; lngMask >>= 1) {
             write((lngValue & lngMask) != 0);
         }

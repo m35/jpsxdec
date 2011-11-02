@@ -55,8 +55,8 @@ import jpsxdec.util.player.VideoProcessor;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.mdec.DecodingException;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.idct.simple_idct;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.player.AudioPlayer;
@@ -164,10 +164,10 @@ public class MediaPlayer implements IAudioVideoReader {
                     _demuxer = new FrameDemuxer(_vid.getWidth(), _vid.getHeight(),
                                                 _iMovieStartSector, _iMovieEndSector)
                     {
-                        protected void frameComplete() throws IOException {
+                        protected void frameComplete(DemuxedFrame frame) throws IOException {
                             StrFrame strFrame = _framePool.borrow();
-                            strFrame.init(getDemuxSize(), getFrame(), getPresentationSector() - _iMovieStartSector);
-                            copyDemuxData(strFrame.__abDemuxBuf);
+                            strFrame.init(frame.getDemuxSize(), frame.getFrame(), frame.getPresentationSector() - _iMovieStartSector);
+                            strFrame.__abDemuxBuf = frame.copyDemuxData(strFrame.__abDemuxBuf);
                             vidProc.addFrame(strFrame);
                         }
                     };
@@ -288,7 +288,7 @@ public class MediaPlayer implements IAudioVideoReader {
 
         public void decodeVideo(int[] drawHere) {
             if (_uncompressor == null) {
-                _uncompressor = BitStreamUncompressor.identifyUncompressor(__abDemuxBuf, __iFrame);
+                _uncompressor = BitStreamUncompressor.identifyUncompressor(__abDemuxBuf);
                 if (_uncompressor == null) {
                     System.err.println("Unable to identify frame type.");
                     return;
@@ -297,7 +297,7 @@ public class MediaPlayer implements IAudioVideoReader {
             try {
                 _uncompressor.reset(__abDemuxBuf);
             } catch (NotThisTypeException ex) {
-                _uncompressor = BitStreamUncompressor.identifyUncompressor(__abDemuxBuf, __iFrame);
+                _uncompressor = BitStreamUncompressor.identifyUncompressor(__abDemuxBuf);
                 if (_uncompressor == null) {
                     System.err.println("Unable to identify frame type.");
                     return;
@@ -306,11 +306,15 @@ public class MediaPlayer implements IAudioVideoReader {
 
             try {
                 _decoder.decode(_uncompressor);
-            } catch (DecodingException ex) {
+            } catch (MdecException.Decode ex) {
                 System.err.print("Frame ");
                 System.err.print(__iFrame);
                 System.err.print(' ');
-                System.err.println(ex.getMessage());
+                System.err.print(ex.getMessage());
+                if (ex.getCause() != null && ex.getCause().getMessage() != null)
+                    System.err.println(": " + ex.getCause().getMessage());
+                else
+                    System.err.println();
             }
 
             _decoder.readDecodedRgb(getVideoWidth(), getVideoHeight(), drawHere);

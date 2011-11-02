@@ -56,6 +56,7 @@ import jpsxdec.discitems.savers.VideoSavers.*;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
+import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_int;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
@@ -95,6 +96,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         setAudioVolume(1.0);
         setCrop(true);
         setDecodeQuality(DecodeQualities.LOW);
+        setChromaInterpolation(Upsampler.Bicubic);
         setJpgCompression(0.75f);
         setPreciseAVSync(false);
         setPreciseFrameTiming(false);
@@ -115,6 +117,8 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
                 other.setCrop(getCrop());
             if (getDecodeQuality_enabled())
                 other.setDecodeQuality(getDecodeQuality());
+            if (getChromaInterpolation_enabled())
+                other.setChromaInterpolation(getChromaInterpolation());
             if (getJpgCompression_enabled())
                 other.setJpgCompression(getJpgCompression());
             if (getPreciseAVSync_enabled())
@@ -537,6 +541,32 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     // .........................................................................
 
+    private Upsampler _mdecUpsampler = Upsampler.Bicubic;
+
+    public boolean getChromaInterpolation_enabled() {
+        System.out.println(getDecodeQuality());
+        return getDecodeQuality_enabled() && getDecodeQuality() == DecodeQualities.HIGH_PLUS;
+    }
+
+    public Upsampler getChromaInterpolation_listItem(int i) {
+        return Upsampler.values()[i];
+    }
+
+    public int getChromaInterpolation_listSize() {
+        return Upsampler.values().length;
+    }
+
+    public Upsampler getChromaInterpolation() {
+        return _mdecUpsampler;
+    }
+
+    public void setChromaInterpolation(Upsampler val) {
+        _mdecUpsampler = val;
+        firePossibleChange();
+    }
+
+    // .........................................................................
+
     private boolean _blnPreciseFrameTiming = false;
     public boolean getPreciseFrameTiming() {
         return _blnPreciseFrameTiming;
@@ -607,8 +637,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         
         ArgParser parser = new ArgParser("", false);
 
-        IntHolder discSpeed = new IntHolder(-10);
-        parser.addOption("-ds %i {[1, 2]}", discSpeed);
+        //...........
 
         StringHolder vidfmt = new StringHolder();
         parser.addOption("-vidfmt,-vf %s", vidfmt);
@@ -619,15 +648,25 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
             parser.addOption("-jpg %i", jpg);
         }
 
-        StringHolder frames = new StringHolder();
-        parser.addOption("-frame,-frames,-f %s", frames);
-
         BooleanHolder nocrop = new BooleanHolder(false);
         parser.addOption("-nocrop %v", nocrop); // only non demux & mdec formats
 
         StringHolder quality = new StringHolder();
         parser.addOption("-quality,-q %s", quality);
 
+        StringHolder up = new StringHolder();
+        parser.addOption("-up %s", up);
+
+        //...........
+
+        IntHolder discSpeed = new IntHolder(-10);
+        parser.addOption("-ds %i {[1, 2]}", discSpeed);
+
+        StringHolder frames = new StringHolder();
+        parser.addOption("-frame,-frames,-f %s", frames);
+
+        //...........
+        
         BooleanHolder noaud = new BooleanHolder(false);
         parser.addOption("-noaud %v", noaud); // Only with AVI & audio
 
@@ -673,6 +712,17 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
                 setDecodeQuality(dq);
             } else {
                 fbs.printlnWarn("Invalid decode quality " + quality.value);
+            }
+        }
+
+        if (up.value != null) {
+            Upsampler upsampler = null;
+            for (Upsampler upper : Upsampler.values()) {
+                if (upsampler.name().equalsIgnoreCase(up.value)) {
+                    upsampler = upper;
+                    setChromaInterpolation(upper);
+                    break;
+                }
             }
         }
 
@@ -724,6 +774,17 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
                               .indent().print(DecodeQualities.getCmdLineList());
         tfb.newRow();
 
+        tfb.print("-vf <format>").tab().println("Output video format (default avi). Options:")
+                              .indent().print(VideoFormat.getCmdLineList());
+        tfb.newRow();
+
+        tfb.print("-up <upsampling>").tab().print("Chroma upsampling method (default NearestNeighbor). Options:")
+                              .indent();
+        for (Upsampler up : Upsampler.values()) {
+            tfb.println("").print(up.name());
+        }
+        tfb.newRow();
+
         JavaImageFormat JPG = JavaImageFormat.JPG;
         if (JPG.isAvailable()) {
             tfb.print("-jpg <between 1 and 100>").tab()
@@ -757,6 +818,7 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
         switch (getDecodeQuality()) {
             case HIGH_PLUS:
                 vidDecoder = new MdecDecoder_double_interpolate(new PsxMdecIDCT_double(), _sourceVidItem.getWidth(), _sourceVidItem.getHeight());
+                ((MdecDecoder_double_interpolate)vidDecoder).setResampler(MdecDecoder_double_interpolate.Upsampler.Lanczos3);
                 break;
             case HIGH:
                 vidDecoder = new MdecDecoder_double(new PsxMdecIDCT_double(), _sourceVidItem.getWidth(), _sourceVidItem.getHeight());

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -36,10 +36,6 @@
  */
 
 package jpsxdec.sectors;
-
-import java.io.IOException;
-import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 
 /** Interface that should be implemented by all video sector classes. */
 public interface IVideoSector extends IIdentifiedSector {
@@ -78,10 +74,21 @@ public interface IVideoSector extends IIdentifiedSector {
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                 int iMdecCodeCount, byte[] abSectUserData);
 
+    /** Do not split audio streams. @see #splitXaAudio() */
+    public static final int SPLIT_XA_AUDIO_NONE = 0;
+    /** Tells the XA indexer that all current audio streams should be ended
+     * at this sector.  @see #splitXaAudio() */
+    public static final int SPLIT_XA_AUDIO_CURRENT = 1;
     /** Tells the indexer that all current audio streams should be ended
-     * at this sector. This is unfortunately necessary because the only way
-     * to where the end the audio for some games is to check the related
-     * video clip. */
-    boolean splitAudio();
+     * just before the last audio sector.  @see #splitXaAudio() */
+    public static final int SPLIT_XA_AUDIO_PREVIOUS = 2;
+
+    /** Tells the XA indexer if all current audio streams should be ended in
+     * some way. This is unfortunately necessary because the only way
+     * to know where the end the audio for some games is to check the related
+     * video clip. 
+     * @return {@link #SPLIT_XA_AUDIO_NONE}, {@link #SPLIT_XA_AUDIO_CURRENT}, or
+     *         {@link #SPLIT_XA_AUDIO_PREVIOUS} */
+    int splitXaAudio();
 
 }

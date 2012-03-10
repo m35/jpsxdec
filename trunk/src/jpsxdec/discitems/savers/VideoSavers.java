@@ -166,7 +166,7 @@ class VideoSavers  {
             if (uncompressor == null) {
                 throw new NotThisTypeException("Error with frame " + iFrame + ": Unable to determine frame type.");
             } else {
-                String s = "Video format identified as " + uncompressor.toString();
+                String s = "Video format identified as " + uncompressor.getName();
                 log.info(s);
                 getListener().info(s);
             }

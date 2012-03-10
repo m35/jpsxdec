@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -62,12 +62,12 @@ public class SectorXAAudio extends IdentifiedSector {
 
         if (cdSector.isCdAudioSector()) return;
 
-        if (!cdSector.hasRawSectorHeader()) return;
+        if (!cdSector.hasSubHeader()) return;
         if (cdSector.subModeMask(SubMode.MASK_FORM | SubMode.MASK_AUDIO) !=
                                 (SubMode.MASK_FORM | SubMode.MASK_AUDIO)) return;
         // Ace Combat 3 has several sectors with channel 255
         // They seem to be "null" sectors
-        if (cdSector.getChannel() < 0 || cdSector.getChannel() >= 32) return;
+        if (cdSector.getSubHeaderChannel() < 0 || cdSector.getSubHeaderChannel() >= 32) return;
 
         _blnStereo = cdSector.getCodingInfo().isStereo();
         _iSamplesPerSecond = cdSector.getCodingInfo().getSampleRate();
@@ -116,11 +116,12 @@ public class SectorXAAudio extends IdentifiedSector {
 
         _iErrors = iErrors;
 
-        if (iErrors > 0) {
-            log.log(Level.WARNING, "{0} errors out of {1} in XA sound parameters for {2}", new Object[]{iErrors, iMaxErrors, cdSector.toString()});
-        }
-        
         setProbability(100 - iErrors * 100 / iMaxErrors);
+        
+        if (iErrors > 0) {
+            log.log(Level.WARNING, "{0} errors out of {1} in XA sound parameters for {2}", 
+                    new Object[]{iErrors, iMaxErrors, this.toString()});
+        }
     }
 
     public boolean isStereo() {

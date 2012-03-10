@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,9 +46,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.text.DecimalFormat;
-import java.util.Enumeration;
-import java.util.NoSuchElementException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
@@ -131,35 +128,14 @@ public class DiscItemISO9660File extends DiscItem {
         return new ISO9660SaverBuilder();
     }
 
-    public InputStream getStream() {
-        return new java.io.SequenceInputStream(new Enumeration<InputStream>() {
-            private int __iSector = 0;
-            private InputStream __next;
-            public boolean hasMoreElements() {
-                if (__iSector <= getSectorLength()) {
-                    if (__next == null) {
-                        try {
-                            __next = getRelativeSector(__iSector).getCdUserDataStream();
-                        } catch (IOException ex) {
-                            log.log(Level.SEVERE, null, ex);
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-                return false;
-            }
-
-            public InputStream nextElement() {
-                // TODO: somehow end the stream early on the final sector so as to generate the exact size
-                if (!hasMoreElements())
-                    throw new NoSuchElementException();
-                __iSector++;
-                InputStream next = __next;
-                __next = null;
-                return next;
-            }
-        });
+    /** Stream of user data (not raw). 
+     * Because a file could contain Form 2 sectors, that may make the number of
+     * bytes readable from the stream different from the reported file size.
+     * So the stream will end with the full data of the file's last sector
+     * since it may be impossible to determine exactly how many bytes should be
+     * read from the final sector.  */
+    public InputStream getUserDataStream() {
+        return new DemuxedSectorInputStream(getSourceCD(), getStartSector(), 0, getEndSector());
     }
 
     public String getSerializationTypeId() {

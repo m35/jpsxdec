@@ -38,12 +38,14 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
 
-
+/** Combines multiple the {@link ISectorAudioDecoder}s from multiple 
+ * {@link DiscItemAudioStream} into a single continuous stream. 
+ * This is necessary when a video stream has multiple audio contiguous
+ * audio clips, usually due to corrupted audio sectors due to ripping error. */
 public class AudioStreamsCombiner implements ISectorAudioDecoder {
 
     private final AudioFormat _outFormat;
@@ -52,13 +54,16 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
     private int _iPresStartSector;
 
     private final ISectorAudioDecoder[] _aoDecoders;
+    private final DiscItemAudioStream[] _aoSrcItems;
 
     public AudioStreamsCombiner(List<DiscItemAudioStream> audStreams, double dblVolume)
     {
         if (thereIsOverlap(audStreams))
             throw new IllegalArgumentException("Streams are not mutually exclusive.");
 
-        _aoDecoders = new ISectorAudioDecoder[audStreams.size()];
+        _aoSrcItems = audStreams.toArray(new DiscItemAudioStream[audStreams.size()]);
+        
+        _aoDecoders = new ISectorAudioDecoder[_aoSrcItems.length];
 
         final boolean blnIsStereo;
         final int iSampleRate;
@@ -148,11 +153,6 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
     }
 
     public DiscItemAudioStream[] getSourceItems() {
-        // TODO: maybe there's a better way to do this
-        DiscItemAudioStream[] items = new DiscItemAudioStream[_aoDecoders.length];
-        for (int i = 0; i < items.length; i++) {
-            items[i] = _aoDecoders[i].getSourceItems()[0];
-        }
-        return items;
+        return _aoSrcItems.clone();
     }
 }

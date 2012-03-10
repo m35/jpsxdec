@@ -48,11 +48,10 @@ import java.util.logging.Logger;
 import javax.swing.JPanel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.tim.Tim;
 
 
-//<------------- work here --------------->
+/** GUI to select {@link TimSaverBuilder} options. */
 class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implements ChangeListener {
 
     private static final Logger log = Logger.getLogger(TimSaverBuilderGui.class.getName());
@@ -131,7 +130,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
 
         @Override
         public void setSelectedItem(Object anItem) {
-            _writerBuilder.setImageFormat((JavaImageFormat) anItem);
+            _writerBuilder.setImageFormat((TimSaverBuilder.TimSaveFormat) anItem);
         }
 
         @Override

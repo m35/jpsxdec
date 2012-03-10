@@ -133,7 +133,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
             if (isSuperInvalidElseReset()) return;
 
             // Without a sector header, we can't read FF9 video frames
-            if (!cdSector.hasRawSectorHeader()) return;
+            if (!cdSector.hasSubHeader()) return;
             if (cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_FORM) !=
                     (SubMode.MASK_DATA | SubMode.MASK_FORM))
                 return;
@@ -274,10 +274,10 @@ public abstract class SectorFF9 extends IdentifiedSector {
             return 32;
         }
 
-        public boolean splitAudio() {
+        public int splitXaAudio() {
             // don't want to split audio because that would cut the audio
             // at the beginning of the movie
-            return false;
+            return SPLIT_XA_AUDIO_NONE;
         }
     }
 

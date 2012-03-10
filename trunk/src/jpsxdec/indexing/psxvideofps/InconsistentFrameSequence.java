@@ -38,9 +38,11 @@
 package jpsxdec.indexing.psxvideofps;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.logging.Logger;
 import jpsxdec.util.Fraction;
@@ -64,7 +66,9 @@ public class InconsistentFrameSequence {
         "NTSC20_A8.dat",
         "NTSC20_A8-SB.dat",
         "NTSC15_A8-100,999.dat",
-        "NTSC15_A8-101,1000.dat"
+        "NTSC15_A8-101,1000.dat",
+        "LUNAR2_24FPS_A16(S43).dat",
+        "LUNAR2_24FPS_A16(S56).dat",
     };
 
     /** Parses the header line in a sectors/frame sequence text file.
@@ -188,6 +192,7 @@ public class InconsistentFrameSequence {
     private final String _sSourceResource;
     private final HeaderParse _header;
     private int _iCurrentLineSector;
+    private boolean _blnHasLooped = false;
 
     private InconsistentFrameSequence(BufferedReader reader, String sSourceResource,
             int iStartLine, HeaderParse head)
@@ -211,6 +216,7 @@ public class InconsistentFrameSequence {
                     _reader = new BufferedReader(new InputStreamReader(is));
                     _reader.readLine(); // skip header
                     sLine = _reader.readLine();
+                    _blnHasLooped = true;
                 }
                 _iCurrentLineSector++;
             }
@@ -224,7 +230,10 @@ public class InconsistentFrameSequence {
             }
             LineParse line = new LineParse(sLine);
 
-            boolean ret = iFrame == line.iFrameNum && // don't check frame in case of looping
+            // don't check frame in case of looping
+            boolean blnFrameMatches = (iFrame == line.iFrameNum || _blnHasLooped);
+
+            boolean ret = blnFrameMatches && 
                    iChunk == line.iChunkNum &&
                    line.iChunkCount == iFrameChunkCount;
             if (!ret) {
@@ -248,5 +257,60 @@ public class InconsistentFrameSequence {
         return _sSourceResource;
     }
 
+
+    /** Calls {@link #findFpsDumpLoop(java.io.InputStream)} with first argument. */
+    public static void main(String[] asArgs) throws IOException {
+        InputStream is;
+        //is = InconsistentFrameSequence.class.getResourceAsStream(FPS_LISTS[7]);
+        //is = new FileInputStream("..\\jpsxdec\\dist\\S43.txt");
+        is = new FileInputStream(asArgs[0]);
+
+        findFpsDumpLoop(is);
+    }
+
+    /** For debugging. Reads an fps dump log and tries to determine if it
+     *  loops at any point (like for 20 fps) */
+    public static void findFpsDumpLoop(InputStream is) throws IOException {
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+        ArrayList<LineParse> lines = new ArrayList<LineParse>();
+        HeaderParse header = new HeaderParse(reader.readLine());
+        String sLine;
+        while ((sLine = reader.readLine()) != null) {
+            try {
+                lines.add(new LineParse(sLine));
+            } catch (NotThisTypeException ex) {
+                lines.add(null);
+            }
+        }
+        reader.close();
+
+
+        int iMaxMatchCount = 0;
+        int iMaxStart = -1;
+        for (int iStart = 1; iStart < lines.size(); iStart++) {
+            int iMatchCount;
+            for (iMatchCount = 0; iMatchCount < lines.size()-iStart; iMatchCount++) {
+                LineParse expected = lines.get(iMatchCount);
+                LineParse actual = lines.get(iStart+iMatchCount);
+                if (expected != actual) {
+                    if (expected == null || actual == null)
+                        break;
+                    if (expected.iChunkCount != actual.iChunkCount ||
+                        expected.iChunkNum != actual.iChunkNum)
+                        break;
+                }
+            }
+            if (iMatchCount > iMaxMatchCount) {
+                iMaxMatchCount = iMatchCount;
+                iMaxStart = iStart;
+            }
+        }
+
+        System.out.println("Start: " + iMaxStart);
+        System.out.println("Count: " + iMaxMatchCount);
+        System.out.println("Reamin: " + (lines.size() - (iMaxMatchCount+iMaxStart)));
+
+    }
 
 }

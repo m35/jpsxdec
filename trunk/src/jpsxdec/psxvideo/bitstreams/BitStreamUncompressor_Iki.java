@@ -48,10 +48,13 @@ import jpsxdec.util.NotThisTypeException;
 
 public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
-
-    private int _iWidth, _iHeight, _iMdecCodeCount, _iCompressedDataSize, _iLookupTableHalfSize;
+    private int _iMdecCodeCount;
+    private int _iWidth, _iHeight;
+    private int _iCompressedDataSize;
+    
     private byte[] _abQscaleDcLookupTable;
 
+    private int _iBlockCount;
     private int _iCurrentBlock;
 
     @Override
@@ -66,14 +69,13 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
             throw new NotThisTypeException();
 
         int iMacroBlockCount = ((_iWidth + 15) / 16) * ((_iHeight + 15) / 16);
-        int iQscaleDcLookupTableSize = iMacroBlockCount * 6 /* blocks/macroblock */ * 2 /* bytes per block */;
+        _iBlockCount = iMacroBlockCount * 6; // 6 blocks in a macroblock
+        int iQscaleDcLookupTableSize = _iBlockCount * 2; // 2 bytes per block
 
         if (_abQscaleDcLookupTable == null || _abQscaleDcLookupTable.length < iQscaleDcLookupTableSize)
             _abQscaleDcLookupTable = new byte[iQscaleDcLookupTableSize];
 
         ikiLzsUncompress(abFrameData, 10, _abQscaleDcLookupTable, iQscaleDcLookupTableSize);
-
-        _iLookupTableHalfSize = iQscaleDcLookupTableSize / 2;
 
         bitReader.reset(abFrameData, true, 10 + _iCompressedDataSize);
 
@@ -92,7 +94,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
     @Override
     protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress {
-        if (_iCompressedDataSize >= _iLookupTableHalfSize)
+        if (_iCurrentBlock >= _iBlockCount)
             throw new MdecException.Uncompress("End of stream");
         readBlockQscaleAndDC(code, _iCurrentBlock);
         _iCurrentBlock++;
@@ -100,7 +102,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
     private void readBlockQscaleAndDC(MdecCode code, int iBlock) {
         int b1 = _abQscaleDcLookupTable[iBlock] & 0xff;
-        int b2 = _abQscaleDcLookupTable[iBlock+_iLookupTableHalfSize] & 0xff;
+        int b2 = _abQscaleDcLookupTable[iBlock+_iBlockCount] & 0xff;
         code.set((b1 << 8) | b2);
     }
 
@@ -170,12 +172,12 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
     @Override
     public Iterator<int[]> qscaleIterator(boolean blnStartAt1) {
-        final int[] aiQscales = new int[_iLookupTableHalfSize];
+        final int[] aiQscales = new int[_iBlockCount];
         if (blnStartAt1) {
             Arrays.fill(aiQscales, 1);
         } else {
             MdecCode code = new MdecCode();
-            for (int i = 0; i < _iLookupTableHalfSize; i++) {
+            for (int i = 0; i < _iBlockCount; i++) {
                 readBlockQscaleAndDC(code, i);
                 aiQscales[i] = code.getTop6Bits();
             }
@@ -204,9 +206,10 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
 
     public String toString() {
+        // find the minimum and maximum quantization scales used
         int iMinQscale = 64, iMaxQscale = 0;
         MdecCode code = new MdecCode();
-        for (int i = 0; i < _iLookupTableHalfSize; i++) {
+        for (int i = 0; i < _iBlockCount; i++) {
             readBlockQscaleAndDC(code, i);
             int iQscale = code.getTop6Bits();
             if (iQscale < iMinQscale)
@@ -222,8 +225,12 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
     }
 
     @Override
-    public BitStreamCompressor makeCompressor() {
+    public BitStreamCompressor_Iki makeCompressor() {
         throw new UnsupportedOperationException();
+    }
+
+    public static class BitStreamCompressor_Iki extends BitstreamCompressor_STRv2 {
+        private BitStreamCompressor_Iki() {}
     }
 
 }

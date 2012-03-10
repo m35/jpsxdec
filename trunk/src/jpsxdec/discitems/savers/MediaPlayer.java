@@ -290,7 +290,7 @@ public class MediaPlayer implements IAudioVideoReader {
             if (_uncompressor == null) {
                 _uncompressor = BitStreamUncompressor.identifyUncompressor(__abDemuxBuf);
                 if (_uncompressor == null) {
-                    System.err.println("Unable to identify frame type.");
+                    System.err.println("Unable to identify type of frame " + __iFrame);
                     return;
                 }
             }
@@ -299,7 +299,7 @@ public class MediaPlayer implements IAudioVideoReader {
             } catch (NotThisTypeException ex) {
                 _uncompressor = BitStreamUncompressor.identifyUncompressor(__abDemuxBuf);
                 if (_uncompressor == null) {
-                    System.err.println("Unable to identify frame type.");
+                    System.err.println("Unable to identify type of frame " + __iFrame);
                     return;
                 }
             }

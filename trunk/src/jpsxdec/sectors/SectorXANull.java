@@ -55,7 +55,7 @@ public class SectorXANull extends IdentifiedSector {
         if (cdSector.isCdAudioSector()) return;
 
         // if it doesn't have a sector header, then it can't be a null sector
-        if (!cdSector.hasRawSectorHeader()) return;
+        if (!cdSector.hasSubHeader()) return;
         // if it's not a Form 2 sector, then it can't be a null sector
         if (cdSector.getSubMode().getForm() != 2) return;
 
@@ -67,7 +67,7 @@ public class SectorXANull extends IdentifiedSector {
             if (!sm.getAudio()) return;
 
             // if it has a valid channel number, then it's not a null sector
-            if (cdSector.getChannel() >= 0 || cdSector.getChannel() < 32) {
+            if (cdSector.getSubHeaderChannel() >= 0 || cdSector.getSubHeaderChannel() < 32) {
                 return;
                 // Ace Combat 3 has several AUDIO sectors with channel 255
                 // that seem to be "null" sectors

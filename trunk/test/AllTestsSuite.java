@@ -35,11 +35,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import jpsxdec.discitems.psxvideoencode.Replace;
-import jpsxdec.psxvideo.bitstreams.BitReader;
-import jpsxdec.psxvideo.bitstreams.Bitstreams;
-import jpsxdec.psxvideo.bitstreams.LainCompressor;
-import jpsxdec.psxvideo.mdec.Decoder;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -49,11 +44,14 @@ import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-    BitReader.class,
-    Bitstreams.class,
-    LainCompressor.class,
-    Decoder.class,
-    Replace.class
+    jpsxdec.psxvideo.bitstreams.BitReader.class,
+    jpsxdec.psxvideo.bitstreams.Bitstreams.class,
+    jpsxdec.psxvideo.bitstreams.LainCompressor.class,
+    jpsxdec.psxvideo.mdec.Decoder.class,
+    jpsxdec.discitems.psxvideoencode.Replace.class,
+    jpsxdec.tim.TimTest.class,
+    jpsxdec.cdreaders.Cd.class,
+    jpsxdec.discitems.DiscItemXAAudioStream_test.class
 })
 public class AllTestsSuite {
 

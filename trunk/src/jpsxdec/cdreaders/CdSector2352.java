@@ -37,8 +37,10 @@
 
 package jpsxdec.cdreaders;
 
+import java.util.Arrays;
 import java.util.logging.Logger;
 import jpsxdec.util.ByteArrayFPIS;
+import jpsxdec.util.Misc;
 
 
 /** 2352 sectors are the size found in BIN/CUE disc images and include the
@@ -113,31 +115,44 @@ public class CdSector2352 extends CdSector {
 
     //..........................................................................
     
-    public boolean hasRawSectorHeader() {
-        return true;
-    }
-
     @Override
     public boolean isCdAudioSector() {
         return _header.isCdAudioSector();
     }
 
-    /** @return The sector number from the sector header,
-     *          or -1 if not available. */
+    @Override
+    public boolean hasHeaderSectorNumber() {
+        return !_header.isCdAudioSector();
+    }
+
     public int getHeaderSectorNumber() {
         return _header.calculateSectorNumber();
     }
 
     //..........................................................................
     
-    public int getChannel() {
+    public int getSubHeaderChannel() {
         if (_subHeader == null)
-            return super.getChannel();
+            return super.getSubHeaderChannel();
         else
             return _subHeader.getChannel();
     }
 
+    public int getSubHeaderFile() {
+        if (_subHeader == null)
+            return super.getSubHeaderFile();
+        else
+            return _subHeader.getFileNumber();
+    }
+
+
+
     //..........................................................................
+
+    @Override
+    public boolean hasSubHeader() {
+        return _subHeader != null;
+    }
 
     @Override
     public CdxaSubHeader.SubMode getSubMode() {
@@ -168,10 +183,10 @@ public class CdSector2352 extends CdSector {
     /** Returns the actual offset in bytes from the start of the file/CD
      *  to the start of the sector userdata.
      *  [implements IGetFilePointer] */
-    public long getFilePointer() {
+    public long getUserDataFilePointer() {
         return _lngFilePointer + _header.getSize() + _subHeader.getSize();
     }
-
+    
     @Override
     public void printErrors(Logger logger) {
         _header.printErrors(_iSectorIndex, logger);
@@ -193,4 +208,50 @@ public class CdSector2352 extends CdSector {
         else
             return String.format("[Sector:%d (%d) %s]", _iSectorIndex, _header.calculateSectorNumber(), _subHeader);
     }
+
+    @Override
+    public byte[] rebuildRawSector(byte[] abUserData) {
+        if (isCdAudioSector())
+            return abUserData.clone();
+        
+        byte[] abRawData = getRawSectorDataCopy();
+        System.arraycopy(abUserData, 0, abRawData, _header.getSize() + _subHeader.getSize(), abUserData.length);
+        CdSector2352.rebuildErrorCorrection(abRawData, getSubMode().getForm());
+        
+        return abRawData;
+    }
+    
+    public static void rebuildErrorCorrection(byte[] abRawData, int iForm) {
+        if (iForm == 1) {
+            // Sets EDC
+            long lngEdc = SectorErrorCorrection.generateErrorDetectionAndCorrection(abRawData, 0x10, 0x818);
+            abRawData[0x818  ] = (byte)(lngEdc & 0xff);
+            abRawData[0x818+1] = (byte)((lngEdc >>  8) & 0xff);
+            abRawData[0x818+2] = (byte)((lngEdc >> 16) & 0xff);
+            abRawData[0x818+3] = (byte)((lngEdc >> 24) & 0xff);
+
+            // save the binary coded decimal sector number
+            byte[] bcd = Misc.copyOfRange(abRawData, 12, 12+4);
+            // fill the binary coded decimal sector number with zeros
+            Arrays.fill(abRawData, 12, 12+4, (byte)0);
+            // fill the ECC P and ECC Q with zeros
+            Arrays.fill(abRawData, 0x81C, 0x8C8, (byte)0);
+            Arrays.fill(abRawData, 0x8C8, 0x930, (byte)0);
+
+            // rebuild ECC P+Q
+            SectorErrorCorrection.generateErrorCorrectionCode_P(abRawData, 12/*to 12+2064*/, abRawData, 0x81C/*to 0x8C8*/);
+            SectorErrorCorrection.generateErrorCorrectionCode_Q(abRawData, 12/*to 12+4+0x800+4+8+L2_P*/, abRawData, 0x8C8/*to 0x930*/);
+
+            // restore the binary coded decimal sector number
+            System.arraycopy(bcd, 0, abRawData, 12, bcd.length);
+        } else { // form 2
+            // Sets EDC
+            long lngEdc = SectorErrorCorrection.generateErrorDetectionAndCorrection(abRawData, 0x10, 0x92C);
+            abRawData[0x92C  ] = (byte)(lngEdc & 0xff);
+            abRawData[0x92C+1] = (byte)((lngEdc >>  8) & 0xff);
+            abRawData[0x92C+2] = (byte)((lngEdc >> 16) & 0xff);
+            abRawData[0x92C+3] = (byte)((lngEdc >> 24) & 0xff);
+        }
+    }
+    
 }

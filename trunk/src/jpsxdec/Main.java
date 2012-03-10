@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -72,6 +72,7 @@ import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemTIM;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.discitems.savers.VideoSaverBuilder.DecodeQualities;
 import jpsxdec.formats.JavaImageFormat;
@@ -104,9 +105,9 @@ public class Main {
 
     private static FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
 
-    public final static String Version = "0.97.0 (alpha)";
-    public final static String VerString = "jPSXdec: PSX media decoder, v" + Version;
-    public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial), v" + Version;
+    public final static String Version = "0.98.0 (beta)";
+    public final static String VerString = "jPSXdec: PSX media decoder v" + Version;
+    public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial) v" + Version;
 
     public static void loadDefaultLogger() {
         loadLogger("LogToFile.properties");
@@ -283,7 +284,9 @@ public class Main {
         Feedback.println("Building index");
         DiscIndex index = null;
         try {
-            index = new DiscIndex(cd, new ConsoleProgressListenerLogger("index", Feedback));
+            ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger("index", Feedback);
+            cpll.setSubheader("Indexing " + cd.toString());
+            index = new DiscIndex(cd, cpll);
         } catch (TaskCanceledException ex) {
             log.severe("SHOULD NEVER HAPPEN");
         }
@@ -972,8 +975,10 @@ public class Main {
         ap.addOption("-play %v", playArg);
         BooleanHolder frameInfoArg = new BooleanHolder();
         ap.addOption("-frameinfodump %v", frameInfoArg);
-        StringHolder replaceArg = new StringHolder();
-        ap.addOption("-replaceframes %s", replaceArg);
+        StringHolder replaceFrames = new StringHolder();
+        ap.addOption("-replaceframes %s", replaceFrames);
+        StringHolder replaceTim = new StringHolder();
+        ap.addOption("-replacetim %s", replaceTim);
         StringHolder directory = new StringHolder();
         ap.addOption("-dir %s", directory);
 
@@ -1013,12 +1018,31 @@ public class Main {
                 } else {
                     ((DiscItemVideoStream)item).frameInfoDump(Feedback);
                 }
-            } else if (replaceArg.value != null) {
+            } else if (replaceFrames.value != null) {
                 if (!(item instanceof DiscItemVideoStream)) {
                     Feedback.printlnErr("Disc item isn't a video.");
                     return -1;
                 } else {
-                    ((DiscItemVideoStream)item).replaceFrames(Feedback, replaceArg.value);
+                    Feedback.printlnWarn("Hope your disc image is backed up because this is irreversable.");
+                    Feedback.printlnWarn("Reopening disc image with write access.");
+                    item.getSourceCD().reopenForWriting();
+                    ((DiscItemVideoStream)item).replaceFrames(Feedback, replaceFrames.value);
+                }
+            } else if (replaceTim.value != null) {
+                if (!(item instanceof DiscItemTIM)) {
+                    Feedback.printlnErr("Disc item isn't a TIM image.");
+                    return -1;
+                } else {
+                    DiscItemTIM timItem = (DiscItemTIM)item;
+                    if (timItem.getPaletteCount() != 1) {
+                        Feedback.printlnErr("Unable to replace a TIM image that has multiple palettes.");
+                        return -1;
+                    }
+                    BufferedImage bi = ImageIO.read(new File(replaceTim.value));
+                    Feedback.printlnWarn("Hope your disc image is backed up because this is irreversable.");
+                    Feedback.printlnWarn("Reopening disc image with write access.");
+                    item.getSourceCD().reopenForWriting();
+                    timItem.replace(Feedback, bi);
                 }
             } else {
                 File dir;
@@ -1057,7 +1081,9 @@ public class Main {
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();
         try {
-            saver.startSave(new ConsoleProgressListenerLogger("save", Feedback), dir);
+            ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger("save", Feedback);
+            cpll.setSubheader(dir.toString());
+            saver.startSave(cpll, dir);
         } catch (TaskCanceledException ex) {
             log.severe("SHOULD NEVER HAPPEN");
         }
@@ -1067,7 +1093,7 @@ public class Main {
     }
 
 
-    public static class Command_Visualize extends StringCommand {
+    private static class Command_Visualize extends StringCommand {
         private String _sOutfile;
 
         public Command_Visualize() {

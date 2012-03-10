@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,7 +47,7 @@ public class TimPaletteSelector extends javax.swing.JPanel {
     private final Tim _tim;
     private final int _iPalette;
     private final TimSaverBuilder _writerBuilder;
-    private final Mod _btnModel = new Mod();
+    private final Mod _btnModel;
     
     /** Creates new form TIMPaletteCheck */
     public TimPaletteSelector(Tim bi, int iPalette, TimSaverBuilder builder) {
@@ -57,6 +57,7 @@ public class TimPaletteSelector extends javax.swing.JPanel {
         _iPalette = iPalette;
         _guiPalChk.setText(Integer.toString(iPalette));
         _writerBuilder = builder;
+        _btnModel = new Mod();
 
         _guiPalChk.setModel(_btnModel);
     }
@@ -108,6 +109,11 @@ public class TimPaletteSelector extends javax.swing.JPanel {
             return _writerBuilder.getSavePalette(_iPalette);
         }
 
+        @Override
+        public boolean isEnabled() {
+            return _writerBuilder.getPaletteSelection_enabled();
+        }
+        
         public void stateChanged() {
             super.setSelected(_writerBuilder.getSavePalette(_iPalette));
         }

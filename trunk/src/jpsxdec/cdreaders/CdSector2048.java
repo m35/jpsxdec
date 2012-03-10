@@ -37,7 +37,6 @@
 
 package jpsxdec.cdreaders;
 
-import java.io.PrintStream;
 import java.util.logging.Logger;
 import jpsxdec.util.ByteArrayFPIS;
 
@@ -89,7 +88,13 @@ public class CdSector2048 extends CdSector {
 
     //..........................................................................
 
-    public boolean hasRawSectorHeader() {
+    @Override
+    public boolean hasSubHeader() {
+        return false;
+    }
+
+    @Override
+    public boolean hasHeaderSectorNumber() {
         return false;
     }
 
@@ -100,10 +105,15 @@ public class CdSector2048 extends CdSector {
     /** Returns the actual offset in bytes from the start of the file/CD
      *  to the start of the sector userdata.
      *  [implements IGetFilePointer] */
-    public long getFilePointer() {
+    public long getUserDataFilePointer() {
         return _lngFilePointer;
     }
 
+    @Override
+    public byte[] rebuildRawSector(byte[] abUserData) {
+        return abUserData.clone();
+    }
+    
     @Override
     public void printErrors(Logger logger) {
     }

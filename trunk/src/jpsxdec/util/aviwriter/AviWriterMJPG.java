@@ -57,7 +57,7 @@ import jpsxdec.util.ExposedBAOS;
  * According to <a href="http://en.wikipedia.org/wiki/MJPEG">Wikipedia</a>:
  * <blockquote>
  * "there is no document that defines a single exact format that is
- * universally recognized as a complete specification of “Motion JPEG” for
+ * universally recognized as a complete specification of "Motion JPEG" for
  * use in all contexts."
  * </blockquote>
  * <p>

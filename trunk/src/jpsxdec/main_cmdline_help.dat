@@ -68,3 +68,5 @@ Universal option (optional):
     -verbose/-v #
     How much info to print: 0 for none, 1 for only errors,
                             2 for normal, 3 for extra
+
+For all command-line options, see the manual.

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -115,15 +115,16 @@ public class DiscIndex implements Iterable<DiscItem> {
             int iCurrentSectorNumber = -1;
             public void sectorRead(CdSector sect) {
                 sect.printErrors(pl.getLog());
-                if (sect.hasRawSectorHeader()) {
-                    if (iCurrentSectorNumber < 0) {
-                        iCurrentSectorNumber = sect.getHeaderSectorNumber();
-                    }  else {
-                        if (iCurrentSectorNumber + 1 != sect.getHeaderSectorNumber())
-                            pl.getLog().warning("Non-continuous sector header index: " +
-                                    iCurrentSectorNumber + " -> " + sect.getHeaderSectorNumber());
-                        iCurrentSectorNumber = sect.getHeaderSectorNumber();
+                if (sect.hasHeaderSectorNumber()) {
+                    int iNewSectNumber = sect.getHeaderSectorNumber();
+                    if (iCurrentSectorNumber >= 0) {
+                        if (iCurrentSectorNumber + 1 != iNewSectNumber)
+                            pl.getLog().warning("Non-continuous sector header number: " +
+                                    iCurrentSectorNumber + " -> " + iNewSectNumber);
                     }
+                    iCurrentSectorNumber = iNewSectNumber;
+                } else {
+                    iCurrentSectorNumber = -1;
                 }
 
                 int iSector = sect.getSectorNumberFromStart();
@@ -194,8 +195,8 @@ public class DiscIndex implements Iterable<DiscItem> {
             indexer.indexingEndOfDisc();
         }
 
-        // sort the list according to the start sector & hierarchy level
-        Collections.sort(_iterate, SORT_BY_SECTORHIERARHCY);
+        // sort the numbered index list according to the start sector & hierarchy level
+        Collections.sort(_iterate, SORT_BY_SECTOR_HIERARHCY);
 
         _root = buildTree(_iterate);
         
@@ -204,7 +205,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             addLookupItem(item);
         }
         
-        // notify the indexerss that the list has been generated
+        // notify the indexers that the list has been generated
         for (DiscIndexer indexer : aoIndexers) {
             indexer.mediaListGenerated(this);
         }
@@ -216,7 +217,7 @@ public class DiscIndex implements Iterable<DiscItem> {
 
     }
 
-    private ArrayList<IndexId> buildTree(ArrayList<DiscItem> LIST) {
+    private ArrayList<IndexId> buildTree(ArrayList<DiscItem> allItems) {
 
         ArrayList<IndexId> root = new ArrayList<IndexId>();
 
@@ -226,7 +227,7 @@ public class DiscIndex implements Iterable<DiscItem> {
 
         // create ids for all the disc items, and take special interest in files and videos
         int iIndex = 0;
-        for (DiscItem item : LIST) {
+        for (DiscItem item : allItems) {
             if (item instanceof DiscItemISO9660File) {
                 IndexId itemId = new IndexId(item, iIndex, ((DiscItemISO9660File)item).getPath());
                 // files never have parents, so add them to root now
@@ -234,6 +235,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                 // also keep a special list of them for quicker reference
                 files.add(itemId);
             } else {
+                // don't give it a path yet, we'll figure that out soon
                 IndexId itemId = new IndexId(item, iIndex);
                 // otherwise keep special list of videos for quick reference
                 if (item instanceof DiscItemVideoStream)
@@ -245,13 +247,13 @@ public class DiscIndex implements Iterable<DiscItem> {
         }
 
         EachNonFile:
-        for (IndexId nonFile : nonFiles) {
+        for (IndexId nonFileId : nonFiles) {
 
             // if it's audio, first check if it can be a child of a video
-            if (nonFile.getItem() instanceof DiscItemAudioStream) {
-                for (IndexId video : videos) {
-                    if (((DiscItemVideoStream)video.getItem()).isAudioVideoAligned(nonFile.getItem())) {
-                        video.add(nonFile);
+            if (nonFileId.getItem() instanceof DiscItemAudioStream) {
+                for (IndexId videoId : videos) {
+                    if (((DiscItemVideoStream)videoId.getItem()).isAudioAlignedWithThis(nonFileId.getItem())) {
+                        videoId.add(nonFileId);
                         continue EachNonFile;
                     }
                 }
@@ -259,11 +261,13 @@ public class DiscIndex implements Iterable<DiscItem> {
 
             // if not audio, or if audio doesn't have a video parent,
             // check if it can be a child of a file
-
+            // by finding which file has the most overlap
+            // TODO: but if the audio is not split properly, 
+            // this will attatch to the largest file, but first file might be nicer
             IndexId mostOverlap = null;
             int iMostOverlap = 0;
             for (IndexId file : files) {
-                int iOverlap = file.getItem().getOverlap(nonFile.getItem());
+                int iOverlap = file.getItem().getOverlap(nonFileId.getItem());
                 if (iOverlap > iMostOverlap) {
                     mostOverlap = file;
                     iMostOverlap = iOverlap;
@@ -272,10 +276,10 @@ public class DiscIndex implements Iterable<DiscItem> {
 
             if (mostOverlap != null) {
                 // it is part of a file
-                mostOverlap.add(nonFile);
+                mostOverlap.add(nonFileId);
             } else {
                 // if not, add it to root
-                root.add(nonFile);
+                root.add(nonFileId);
             }
         }
 
@@ -318,6 +322,12 @@ public class DiscIndex implements Iterable<DiscItem> {
     }
 
 
+    /** The level in the hierarchy is determined by the type of media item it is.
+     * At the top is files, next is videos, under that audio, then everything else.
+     * I don't want to include this prioritization in the disc items because
+     * it requires too much awareness of other types, and is really outside the
+     * scope of disc items which aren't really aware of an index. Also it's nice
+     * to have it here in a central place. */
     private static int typeHierarchyLevel(DiscItem item) {
         if (item instanceof DiscItemISO9660File)
             return 1;
@@ -329,7 +339,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             return 4;
     }
 
-    private static Comparator<DiscItem> SORT_BY_SECTORHIERARHCY = new Comparator<DiscItem>() {
+    private final Comparator<DiscItem> SORT_BY_SECTOR_HIERARHCY = new Comparator<DiscItem>() {
         public int compare(DiscItem o1, DiscItem o2) {
             if (o1.getStartSector() < o2.getStartSector())
                 return -1;
@@ -404,8 +414,8 @@ public class DiscIndex implements Iterable<DiscItem> {
             // source file
             if (sLine.startsWith(CdFileSectorReader.SERIALIZATION_START)) {
                 if (cdReader != null) {
-                    if (!sLine.equals(cdReader.serialize())) {
-                        errLog.warning("Warning: Disc format does not match what index says.");
+                    if (!cdReader.matchesSerialization(sLine)) {
+                        errLog.warning("Disc format does not match what index says.");
                     }
                 } else {
                     _sourceCD = new CdFileSectorReader(sLine, blnAllowWrites);
@@ -451,28 +461,28 @@ public class DiscIndex implements Iterable<DiscItem> {
 
 
         // debug print the list contents
-        if (log.isLoggable(Level.INFO)) {
-            for (DiscItem item : this) log.info(item.toString());
+        if (log.isLoggable(Level.FINE)) {
+            for (DiscItem item : this) log.fine(item.toString());
         }
 
     }
 
-    private ArrayList<IndexId> recreateTree(ArrayList<DiscItem> LIST) {
+    private ArrayList<IndexId> recreateTree(ArrayList<DiscItem> allItems) {
         // TODO: optimize this
-        for (DiscItem item : LIST) {
+        for (DiscItem item : allItems) {
             IndexId id = item.getIndexId();
-            id.findAndAddChildren(LIST);
+            id.findAndAddChildren(allItems);
         }
 
-        ArrayList<IndexId> root = new ArrayList<IndexId>();
-        for (DiscItem item : LIST) {
+        ArrayList<IndexId> rootIds = new ArrayList<IndexId>();
+        for (DiscItem item : allItems) {
             IndexId id = item.getIndexId();
             if (id.isRoot()) {
-                root.add(id);
+                rootIds.add(id);
             }
         }
 
-        return root;
+        return rootIds;
     }
 
 

@@ -43,7 +43,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.mdec.MdecException.Uncompress;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
@@ -245,7 +244,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     }
 
     @Override
-    public BitStreamCompressor makeCompressor() {
+    public BitstreamCompressor_STRv2 makeCompressor() {
         return new BitstreamCompressor_STRv2();
     }
 

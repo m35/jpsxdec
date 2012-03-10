@@ -406,6 +406,8 @@ public class GuiTree extends JXTreeTable {
                 _blnSave = _blnSave || getItem() instanceof DiscItemAudioStream;
             } else if (sCmd.equals("all Files")) {
                 _blnSave = _blnSave || getItem() instanceof DiscItemISO9660File;
+            } else if (sCmd.equals("all Images")) {
+                _blnSave = _blnSave || getItem() instanceof DiscItemTIM;
             }
             super.selectAllType(sCmd);
         }

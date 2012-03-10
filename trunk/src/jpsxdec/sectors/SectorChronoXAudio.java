@@ -78,7 +78,7 @@ public class SectorChronoXAudio extends IdentifiedSector
 
         // since all Chrono Cross movie sectors are in Mode 2 Form 1, we can 
         // still decode the movie even if there is no raw sector header.
-        if (cdSector.hasRawSectorHeader() &&
+        if (cdSector.hasSubHeader() &&
             cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_FORM) != SubMode.MASK_DATA)
         {
             return;

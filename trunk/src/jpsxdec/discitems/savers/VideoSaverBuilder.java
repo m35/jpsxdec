@@ -544,7 +544,6 @@ public class VideoSaverBuilder extends DiscItemSaverBuilder {
     private Upsampler _mdecUpsampler = Upsampler.Bicubic;
 
     public boolean getChromaInterpolation_enabled() {
-        System.out.println(getDecodeQuality());
         return getDecodeQuality_enabled() && getDecodeQuality() == DecodeQualities.HIGH_PLUS;
     }
 

@@ -288,11 +288,12 @@ public class DiscItemVideoStream extends DiscItem {
 
     /** Called by indexer after index has been created. */
     public void collectParallelAudio(DiscIndex index) {
+        // TODO: clean this up, remove DiscIndex dependency, and make it more consistent with the disc index
         ArrayList<DiscItemAudioStream> parallelAudio = new ArrayList<DiscItemAudioStream>();
         for (DiscItem item : index) {
             if (item instanceof DiscItemAudioStream) {
                 DiscItemAudioStream audItem = (DiscItemAudioStream) item;
-                if (isAudioVideoAligned(audItem)) {
+                if (isAudioAlignedWithThis(audItem)) {
                     parallelAudio.add(audItem);
                     audItem.setPartOfVideo(true);
                     if (log.isLoggable(Level.INFO))
@@ -322,15 +323,18 @@ public class DiscItemVideoStream extends DiscItem {
         }
     }
 
-    public boolean isAudioVideoAligned(DiscItem audioItem) {
+    /** Checks if another disc item (currently only audio) falls within
+     * this video in such a way as to be reasonably certain it is part of this 
+     * video. */
+    public boolean isAudioAlignedWithThis(DiscItem audioItem) {
         int iSectorsInside = getOverlap(audioItem);
         if (iSectorsInside == 0)
             return false;
         
         // basically if the majority of audio is inside the video,
         // then they're parallel. However, this misses the odd case where
-        // one audio stream engulfs two video streams (though it is unlikely
-        // because you can't start an audio stream in the middle).
+        // one audio stream engulfs two video streams, which can happen
+        // if an audio stream fails to be split
         int iSecotrsOutside = audioItem.getSectorLength() - iSectorsInside;
 
         return iSectorsInside > iSecotrsOutside;

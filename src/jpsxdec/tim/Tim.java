@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -172,52 +172,72 @@ public class Tim {
         return new Tim(aiBuffImg, iWidth, iHeight, iBitsPerPixel);
     }
     
-    /** Creates a TIM from a BufferedImage with the specified BPP. */
+    /** Creates a TIM from a BufferedImage with the specified bits-per-pixel. 
+     * @throws IllegalArgumentException if unable to squeeze all the colors into 
+     * the palette.     */
     public static Tim create(BufferedImage bi, int iBitsPerPixel) {
         
         Tim newTim;
 
-        // read a new TIM file based on what we find about the BufferedImage
-        switch (iBitsPerPixel) {
-
+        final int iSrcBpp;
+        
+        if (bi.getType() == BufferedImage.TYPE_BYTE_INDEXED &&
+            bi.getColorModel() instanceof IndexColorModel)
+        {
+            IndexColorModel icm = (IndexColorModel) bi.getColorModel();
+            int iPaletteSize = icm.getMapSize();
+            if (iPaletteSize <= 16)
+                iSrcBpp = 4;
+            else if (iPaletteSize <= 256)
+                iSrcBpp = 8;
+            else
+                iSrcBpp = 24; 
+        } else {
+            iSrcBpp = 24; // it might actually be 16bpp, but we'd treat it the same
+        }
+        
+        final int PALETTE_COPY = 0;
+        final int TRUE_COLOR_PARSE = 1;
+        final int iConversionType;
+        
+        switch (iSrcBpp) {
             case 4:
+                if (iBitsPerPixel <= 8)
+                    iConversionType = PALETTE_COPY;
+                else
+                    iConversionType = TRUE_COLOR_PARSE;
+                break;
             case 8:
-                if (bi.getType() == BufferedImage.TYPE_BYTE_INDEXED &&
-                    bi.getColorModel() instanceof IndexColorModel)
-                {
-                    IndexColorModel icm = (IndexColorModel) bi.getColorModel();
-
-                    int[] aiPalette = new int[icm.getMapSize()];
-                    icm.getRGBs(aiPalette);
-
-
-                    int iWidth = bi.getWidth(), iHeight = bi.getHeight();
-
-                    int[] aiTimImg = new int[iWidth * iHeight];
-                    bi.getRaster().getPixels(0, 0, iWidth, iHeight, aiTimImg);
-
-                    if (aiPalette.length <= 16) {
-                        newTim = new Tim(aiTimImg, 0, 0, iWidth, iHeight, aiPalette, 0, 0, 16, 4);
-                    } else if (aiPalette.length <= 256) {
-                        newTim = new Tim(aiTimImg, 0, 0, iWidth, iHeight, aiPalette, 0, 0, 256, 8);
-                    } else {
-                        throw new IllegalArgumentException("Palette length is too big.");
-                    }
-                } else {
-                    // pull the image into an RGB array
-                    int[] aiBuffImg = bi.getRGB(0, 0, bi.getWidth(), bi.getHeight(), null, 0, bi.getWidth());
-                    newTim = new Tim(aiBuffImg, bi.getWidth(), bi.getHeight(), iBitsPerPixel);
-                }
+                if (iBitsPerPixel == 8)
+                    iConversionType = PALETTE_COPY;
+                else 
+                    iConversionType = TRUE_COLOR_PARSE;
                 break;
-            case 16:
-            case 24:
-                // pull the image into an RGB array
-                int[] aiBuffImg = bi.getRGB(0, 0, bi.getWidth(), bi.getHeight(), null, 0, bi.getWidth());
-
-                newTim = new Tim(aiBuffImg, bi.getWidth(), bi.getHeight(), iBitsPerPixel);
+            default: // 24
+                    iConversionType = TRUE_COLOR_PARSE;
                 break;
-            default:
-                throw new IllegalArgumentException("Not a valid bits/pixel");
+        }
+        
+        final int iWidth = bi.getWidth(), iHeight = bi.getHeight();
+        
+        if (iConversionType == PALETTE_COPY) {
+            IndexColorModel icm = (IndexColorModel) bi.getColorModel();
+
+            int[] aiPalette = new int[icm.getMapSize()];
+            icm.getRGBs(aiPalette);
+
+            int[] aiTimImg = new int[iWidth * iHeight];
+            bi.getRaster().getPixels(0, 0, iWidth, iHeight, aiTimImg);
+
+            if (iBitsPerPixel == 4) {
+                newTim = new Tim(aiTimImg, 0, 0, iWidth, iHeight, aiPalette, 0, 0, 16, 4);
+            } else { // (iBitsPerPixel == 8)
+                newTim = new Tim(aiTimImg, 0, 0, iWidth, iHeight, aiPalette, 0, 0, 256, 8);
+            }
+        } else {
+            // pull the image into an RGB array
+            int[] aiBuffImg = bi.getRGB(0, 0, iWidth, iHeight, null, 0, bi.getWidth());
+            newTim = new Tim(aiBuffImg, iWidth, iHeight, iBitsPerPixel);
         }
         
         return newTim;
@@ -266,10 +286,10 @@ public class Tim {
     {
         return create(bi, 0, 0, clut, 0, 0, iBitsPerPixel);
     }
+    
     /** Create a TIM image with a custom CLUT.
      * This is the most advanced method of creating a TIM image.
-     * It allows one to create a TIM with multiple CLUT palettes.
-     */
+     * It allows one to create a TIM with multiple CLUT palettes.  */
     public static Tim create(BufferedImage bi, int iX, int iY, 
                              BufferedImage clut, int iClutX, int iClutY,
                              int iBitsPerPixel)
@@ -417,13 +437,12 @@ public class Tim {
      *  TIM file (without a CLUT).
      * @param aiBuffImg  ARGB data
      */
-    private Tim(int[] aiBuffImg, int iWidth, int iHeight, int iBitsPerPixel) 
-    {
+    private Tim(int[] aiBuffImg, int iWidth, int iHeight, int iBitsPerPixel) {
         if (iWidth * iHeight != aiBuffImg.length)
             throw new IllegalArgumentException("Dimensions do not match data.");
         
         _iPixelWidth   = iWidth;
-        _iImageHeight = iHeight;
+        _iImageHeight  = iHeight;
         _iBitsPerPixel = iBitsPerPixel;
         
         int iBitsPerPixReverseLookup;
@@ -459,8 +478,7 @@ public class Tim {
         }
         
         
-        ExposedBAOS baos = new ExposedBAOS(
-                (int)(_iImageWordWidth * _iImageHeight * 2));
+        ExposedBAOS baos = new ExposedBAOS(_iImageWordWidth * _iImageHeight * 2);
         
         if (_blnHasColorLookupTable) {
             int[] aiPalette = convertToPalettedTim(aiBuffImg, _iBitsPerPixel, baos);
@@ -860,8 +878,19 @@ public class Tim {
     public byte[] getImageData() {
         return _abImageData.clone();
     }
+    
+    /** Tries to replace this TIM's image data and palette data (if it has a clut)
+     * with the image data of the buffered image.
+     * @throws IllegalArgumentException if the BufferedImage data is incompatible.
+     */
+    public void replaceImageData(BufferedImage bi) {
+        Tim newTim = create(bi, _iBitsPerPixel);
+        System.arraycopy(newTim._abImageData, 0, _abImageData, 0, _abImageData.length);
+        if (_clut != null)
+            System.arraycopy(newTim._clut._aiColorData, 0, _clut._aiColorData, 0, _clut._aiColorData.length);
+    }
 
-    /** Writes a tim file. */
+    /** Writes TIM image to the stream. */
     public void write(OutputStream os) throws IOException {
         os.write(_iTag);
         os.write(_iVersion);

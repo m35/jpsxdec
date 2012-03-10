@@ -76,6 +76,10 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         _lngRightSampleCount = lngRightSampleCount;
         _iSamplesPerSecond = iSamplesPerSecond;
         _iSectorsPastEnd = iSectorsPastEnd;
+
+        if (_lngLeftSampleCount != _lngRightSampleCount)
+            log.warning("Left & right sample count does not match: " +
+                    _lngLeftSampleCount + " != " + _lngRightSampleCount);
     }
     
     public DiscItemSquareAudioStream(DiscItemSerialization fields) throws NotThisTypeException
@@ -86,6 +90,10 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         _lngLeftSampleCount = fields.getLong(SAMPLE_COUNT_LEFT_KEY);
         _lngRightSampleCount = fields.getLong(SAMPLE_COUNT_RIGHT_KEY);
         _iSectorsPastEnd = fields.getInt(SECTORS_PAST_END_KEY);
+
+        if (_lngLeftSampleCount != _lngRightSampleCount)
+            log.warning("Left & right sample count does not match: " +
+                    _lngLeftSampleCount + " != " + _lngRightSampleCount);
     }
     
     public DiscItemSerialization serialize() {
@@ -111,12 +119,10 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
 
     @Override
     public String getInterestingDescription() {
-        // assuming left/right sample count is the same
-        if (_lngLeftSampleCount != _lngRightSampleCount)
-            log.warning("Left & right sample count does not match: " +
-                    _lngLeftSampleCount + " != " + _lngRightSampleCount);
+        long lngSampleCount = _lngLeftSampleCount > _lngRightSampleCount ?
+                              _lngLeftSampleCount : _lngRightSampleCount;
         return String.format("%s, %d Hz Stereo",
-                DiscItemVideoStream.formatTime(_lngLeftSampleCount / _iSamplesPerSecond),
+                DiscItemVideoStream.formatTime(lngSampleCount / _iSamplesPerSecond),
                 _iSamplesPerSecond);
     }
 

@@ -50,7 +50,6 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         if ((s = new SectorXAAudio(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorXANull(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorStrVideo(cdSector)).getProbability() > 0) return s;
-        //if ((s = new SectorISO9660PathTable(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorISO9660DirectoryRecords(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorISO9660VolumePrimaryDescriptor(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorCdAudio(cdSector)).getProbability() > 0) return s;
@@ -65,7 +64,9 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         if ((s = new SectorAceCombat3Video(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorFF7Video(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorLainVideo(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorDreddVideo(cdSector)).getProbability() > 0) return s;
 
+        // special handling for Alice
         SectorAliceNullVideo nullAlice = new SectorAliceNullVideo(cdSector);
         if (nullAlice.getProbability() > 0) {
             s = new SectorAliceVideo(cdSector);
@@ -85,15 +86,20 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         _sourceCdSector = cdSector;
     }
 
+    /** Returns true if the super-class is definitely not a match (probability=0).
+     * If it returns false, then it also resets probability to 0 for the child-class
+     * to determine its own probability. */
     protected boolean isSuperInvalidElseReset() {
         if (_iProbability == 0)
             return true;
         _iProbability = 0;
         return false;
     }
+    /** Between 0 and 100. */
     protected void setProbability(int iProbability) {
         _iProbability = iProbability;
     }
+    /** Between 0 and 100. */
     public int getProbability() {
         return _iProbability;
     }
@@ -107,7 +113,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
      *          or -1 if there was no header, or if it is a 'NULL' sector
      *          (overridden by SectorXANull).*/
     public int getChannel() {
-        return _sourceCdSector.getChannel();
+        return _sourceCdSector.getSubHeaderChannel();
     }
 
     /** @return The sector number from the start of the source file. */

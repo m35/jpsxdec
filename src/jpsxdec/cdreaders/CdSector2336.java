@@ -37,7 +37,6 @@
 
 package jpsxdec.cdreaders;
 
-import java.io.PrintStream;
 import java.util.logging.Logger;
 import jpsxdec.util.ByteArrayFPIS;
 
@@ -107,8 +106,14 @@ public class CdSector2336 extends CdSector {
 
     //..........................................................................
     
-    public boolean hasRawSectorHeader() {
+    @Override
+    public boolean hasSubHeader() {
         return true;
+    }
+
+    @Override
+    public boolean hasHeaderSectorNumber() {
+        return false;
     }
 
     public boolean isCdAudioSector() {
@@ -117,9 +122,13 @@ public class CdSector2336 extends CdSector {
 
     //..........................................................................
     
-    public int getChannel() {
+    public int getSubHeaderChannel() {
         return _subHeader.getChannel();
     }
+    public int getSubHeaderFile() {
+        return _subHeader.getFileNumber();
+    }
+
 
     //..........................................................................
 
@@ -143,7 +152,7 @@ public class CdSector2336 extends CdSector {
     /** Returns the actual offset in bytes from the start of the file/CD
      *  to the start of the sector userdata.
      *  [implements IGetFilePointer] */
-    public long getFilePointer() {
+    public long getUserDataFilePointer() {
         return _lngFilePointer + _subHeader.getSize();
     }
 
@@ -160,4 +169,11 @@ public class CdSector2336 extends CdSector {
     public String toString() {
         return String.format("[Sector:%d %s]", _iSectorIndex, _subHeader.toString());
     }
+
+    @Override
+    public byte[] rebuildRawSector(byte[] abUserData) {
+        throw new UnsupportedOperationException("ECC generation not supported for CdSector2336");
+    }
+    
+    
 }

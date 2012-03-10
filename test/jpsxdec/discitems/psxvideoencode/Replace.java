@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,9 +37,9 @@
 
 package jpsxdec.discitems.psxvideoencode;
 
+import testutil.Util;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.savers.DemuxedFrame;
@@ -57,6 +57,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import static testutil.Util.*;
 
 public class Replace {
 
@@ -79,28 +80,13 @@ public class Replace {
     public void tearDown() {
     }
 
-    private static File resourceAsTempFile(String sResource) throws IOException {
-        File f = File.createTempFile(sResource, "-tmp");
-        resourceAsFile(sResource, f);
-        return f;
-    }
-
-    private static void resourceAsFile(String sResource, File f) throws IOException {
-        InputStream is = Replace.class.getResourceAsStream(sResource);
-        try {
-            IO.writeIStoFile(is, f);
-        } finally {
-            is.close();
-        }
-    }
-
     @Test
     public void image_v2() throws IOException, TaskCanceledException {
-        final File EXPECTED = resourceAsTempFile("ORIGINALv2+REPLACE-PNG.STR");
-        final File REPLACEMENT_FRAME = resourceAsTempFile("REPLACE320x240.PNG");
+        final File EXPECTED = resourceAsTempFile(getClass(), "ORIGINALv2+REPLACE-PNG.STR");
+        final File REPLACEMENT_FRAME = resourceAsTempFile(getClass(), "REPLACE320x240.PNG");
 
         final File ACTUAL = new File("ACTUAL-image_v2.STR");
-        resourceAsFile("ORIGINALv2.STR", ACTUAL);
+        resourceAsFile(getClass(), "ORIGINALv2.STR", ACTUAL);
 
         final ReplaceFrame rf = new ReplaceFrame(1);
         rf.setImageFile(REPLACEMENT_FRAME);
@@ -109,15 +95,16 @@ public class Replace {
 
         // now compare
         assertArrayEquals(IO.readFile(EXPECTED), IO.readFile(ACTUAL));
+        ACTUAL.delete();
     }
 
     @Test
     public void image_v3() throws IOException, TaskCanceledException {
-        final File EXPECTED = resourceAsTempFile("ORIGINALv3+REPLACE-PNG.STR");
-        final File REPLACEMENT_FRAME = resourceAsTempFile("REPLACE320x160.PNG");
+        final File EXPECTED = resourceAsTempFile(getClass(), "ORIGINALv3+REPLACE-PNG.STR");
+        final File REPLACEMENT_FRAME = resourceAsTempFile(getClass(), "REPLACE320x160.PNG");
 
         final File ACTUAL = new File("ACTUAL-image_v3.STR");
-        resourceAsFile("ORIGINALv3.STR", ACTUAL);
+        Util.resourceAsFile(getClass(), "ORIGINALv3.STR", ACTUAL);
 
         final ReplaceFrame rf = new ReplaceFrame(1);
         rf.setImageFile(REPLACEMENT_FRAME);
@@ -126,15 +113,16 @@ public class Replace {
 
         // now compare
         assertArrayEquals(IO.readFile(EXPECTED), IO.readFile(ACTUAL));
+        ACTUAL.delete();
     }
 
     @Test
     public void image_lain() throws IOException, TaskCanceledException {
-        final File EXPECTED = resourceAsTempFile("ORIGINALlain+REPLACE-PNG.STR");
-        final File REPLACEMENT_FRAME = resourceAsTempFile("REPLACE320x240.PNG");
+        final File EXPECTED = resourceAsTempFile(getClass(), "ORIGINALlain+REPLACE-PNG.STR");
+        final File REPLACEMENT_FRAME = resourceAsTempFile(getClass(), "REPLACE320x240.PNG");
 
         final File ACTUAL = new File("ACTUAL-image_lain.STR");
-        resourceAsFile("ORIGINALlain.STR", ACTUAL);
+        resourceAsFile(getClass(), "ORIGINALlain.STR", ACTUAL);
 
         final ReplaceFrame rf = new ReplaceFrame(1);
         rf.setImageFile(REPLACEMENT_FRAME);
@@ -143,17 +131,18 @@ public class Replace {
 
         // now compare
         assertArrayEquals(IO.readFile(EXPECTED), IO.readFile(ACTUAL));
+        ACTUAL.delete();
     }
 
 
 
     @Test
     public void bitstream_v2() throws IOException, TaskCanceledException {
-        final File ORIGINAL = resourceAsTempFile("ORIGINALv2.STR");
-        final File REPLACEMENT_FRAME = resourceAsTempFile("ORIGINALv2-frame1-320x240.bs");
+        final File ORIGINAL = resourceAsTempFile(getClass(), "ORIGINALv2.STR");
+        final File REPLACEMENT_FRAME = resourceAsTempFile(getClass(), "ORIGINALv2-frame1-320x240.bs");
 
         final File ACTUAL = new File("ACTUAL-bs_v2.STR");
-        resourceAsFile("ORIGINALv2.STR", ACTUAL);
+        resourceAsFile(getClass(), "ORIGINALv2.STR", ACTUAL);
 
         final ReplaceFrame rf = new ReplaceFrame(1);
         rf.setImageFile(REPLACEMENT_FRAME);
@@ -162,16 +151,16 @@ public class Replace {
         doReplace(rf, ACTUAL);
         // now compare
         assertArrayEquals(IO.readFile(ORIGINAL), IO.readFile(ACTUAL));
-
+        ACTUAL.delete();
     }
 
     @Test
     public void bitstream_lain() throws IOException, TaskCanceledException {
-        final File ORIGINAL = resourceAsTempFile("ORIGINALlain.STR");
-        final File REPLACEMENT_FRAME = resourceAsTempFile("ORIGINALlain-frame4-320x240.bs");
+        final File ORIGINAL = resourceAsTempFile(getClass(), "ORIGINALlain.STR");
+        final File REPLACEMENT_FRAME = resourceAsTempFile(getClass(), "ORIGINALlain-frame4-320x240.bs");
 
         final File ACTUAL = new File("ACTUAL-bs_lain.STR");
-        resourceAsFile("ORIGINALlain.STR", ACTUAL);
+        resourceAsFile(getClass(), "ORIGINALlain.STR", ACTUAL);
 
         final ReplaceFrame rf = new ReplaceFrame(4);
         rf.setImageFile(REPLACEMENT_FRAME);
@@ -180,7 +169,7 @@ public class Replace {
         doReplace(rf, ACTUAL);
         // now compare
         assertArrayEquals(IO.readFile(ORIGINAL), IO.readFile(ACTUAL));
-
+        ACTUAL.delete();
     }
 
 

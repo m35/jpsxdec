@@ -59,7 +59,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         if (cdSector.isCdAudioSector()) return;
         
         // both audio and video sectors are flagged as data
-        if (cdSector.hasRawSectorHeader() && !cdSector.getSubMode().getData())
+        if (cdSector.hasSubHeader() && !cdSector.getSubMode().getData())
             return;
         
         char c;
@@ -196,10 +196,10 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return SectorFF8.SHARED_HEADER_SIZE;
         }
 
-        public boolean splitAudio() {
+        public int splitXaAudio() {
             // don't want to split audio because that would cut the audio
             // at the beginning of the movie
-            return false;
+            return SPLIT_XA_AUDIO_NONE;
         }
     }
 
@@ -208,6 +208,8 @@ public abstract class SectorFF8 extends IdentifiedSector {
             extends SectorFF8
             implements ISquareAudioSector
     {
+
+        private static final int FF8_AUDIO_SECTOR_BYTE_DATA_SIZE = 1680;
         
         /*
         protected final char _achHead[] = new char[4]; // [4 bytes] "SM_\1"
@@ -219,7 +221,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         public final static int AUDIO_ADDITIONAL_HEADER_SIZE = 360;
 
         // 232 bytes; unknown
-        private final char _achMORIYA[] = new char[6];
+        private final char _acSHUN_MORIYA[] = new char[16];
         // 10 bytes; unknown
         private SquareAKAOstruct _AKAOstruct;
         // 76 bytes; unknown
@@ -231,16 +233,23 @@ public abstract class SectorFF8 extends IdentifiedSector {
             if (super._achHead[2] != 'N' && super._achHead[2] != 'R')
                 return;
 
-            _achMORIYA[0] = (char)cdSector.readUserDataByte(240);
-            _achMORIYA[1] = (char)cdSector.readUserDataByte(241);
-            _achMORIYA[2] = (char)cdSector.readUserDataByte(242);
-            _achMORIYA[3] = (char)cdSector.readUserDataByte(243);
-            _achMORIYA[4] = (char)cdSector.readUserDataByte(244);
-            _achMORIYA[5] = (char)cdSector.readUserDataByte(245);
+            for (int i = 0; i < 16; i++) {
+                _acSHUN_MORIYA[i] = (char)cdSector.readUserDataByte(240 + i);
+            }
 
-            _AKAOstruct = new SquareAKAOstruct(cdSector, 246);
+            String sShunMoriya = new String(_acSHUN_MORIYA);
+            if (!(sShunMoriya.startsWith("MORIYA") || sShunMoriya.startsWith("SHUN.MORIYA")))
+                return;
 
-            // TODO: check Sound Parameters values that the index is valid
+            _AKAOstruct = new SquareAKAOstruct(cdSector, 256);
+
+            if (_AKAOstruct.AKAO != SquareAKAOstruct.AKAO_ID)
+                return;
+
+            if (_AKAOstruct.BytesOfData != FF8_AUDIO_SECTOR_BYTE_DATA_SIZE)
+                return;
+
+            // TODO: check Sound Parameters values that the parameter index is valid
 
             setProbability(100);
         }
@@ -250,7 +259,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
         public int getIdentifiedUserDataSize() {
-            return (int)_AKAOstruct.BytesOfData;
+            return FF8_AUDIO_SECTOR_BYTE_DATA_SIZE;
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
@@ -262,12 +271,12 @@ public abstract class SectorFF8 extends IdentifiedSector {
         public String toString() {
             return String.format("AudioFF8 %s MORIYA:%s %s", 
                    super.toString(),
-                   new String(_achMORIYA),
+                   new String(_acSHUN_MORIYA),
                    _AKAOstruct.toString());
         }
 
         public int getAudioDataSize() {
-            return (int)_AKAOstruct.BytesOfData; // always 1680 for FF8
+            return FF8_AUDIO_SECTOR_BYTE_DATA_SIZE;
         }
 
         public int getAudioChunkNumber() {

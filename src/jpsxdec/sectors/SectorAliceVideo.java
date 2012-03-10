@@ -42,6 +42,10 @@ import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.util.IO;
 
+// sector 233609 is flagged as an audio sector in the header
+// but its content is the same as the previous sector, which is a video sector
+// so if it has raw headers, it will be detected as audio, but
+// if it doesn't, it will be detected as video
 
 /** Alice In Cyber Land frame chunk sector. */
 public class SectorAliceVideo extends SectorAliceNullVideo
@@ -80,7 +84,7 @@ public class SectorAliceVideo extends SectorAliceNullVideo
     }
 
     public boolean matchesPrevious(IVideoSector prevSector) {
-        if (!(prevSector.getClass().equals(prevSector.getClass())))
+        if (!(getClass().equals(prevSector.getClass())))
             return false;
 
         SectorAliceVideo prevAlice = (SectorAliceVideo) prevSector;
@@ -125,8 +129,9 @@ public class SectorAliceVideo extends SectorAliceNullVideo
         return 32;
     }
 
-    public boolean splitAudio() {
-        return (getFrameNumber() == 1 && getChunkNumber() == 0);
+    public int splitXaAudio() {
+        return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
+            SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
     }
 
 

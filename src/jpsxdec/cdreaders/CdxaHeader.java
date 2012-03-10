@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.cdreaders;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /** Represents a raw CD header with a sync header and sector header. */
@@ -60,60 +59,111 @@ public class CdxaHeader {
         (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0x00
     };
 
-    private final int _iMinutes;     // [1 byte] timecode relative to start of disk
-    private final int _iSeconds;     // [1 byte] timecode relative to start of disk
-    private final int _iSectors;     // [1 byte] timecode relative to start of disk
-    private final int _iMode;        // [1 byte] Should always be Mode 2 for PSX data tracks
-    /** Holds bit flags indicating which sync header bytes were wrong. */
+    private final int _iMinutesBCD; // [1 byte] timecode relative to start of disk as Binary Coded Decimal
+    private final int _iSecondsBCD; // [1 byte] timecode relative to start of disk as Binary Coded Decimal
+    private final int _iSectorsBCD; // [1 byte] timecode relative to start of disk as Binary Coded Decimal
+    private final int _iMode;       // [1 byte] Should always be Mode 2 for PSX data tracks
+
     private final boolean _blnIsCdAudioSector;
+    private final int _iSyncHeaderErrorCount;
 
     public CdxaHeader(byte[] abSectorData, int iStartOffset) {
-        int iErrCount = 0;
+        int iByteErrorCount = 0;
         for (int i = 0; i < SECTOR_SYNC_HEADER.length; i++) {
             if (abSectorData[iStartOffset + i] != SECTOR_SYNC_HEADER[i])
-                iErrCount++;
+                iByteErrorCount++;
         }
+        _iSyncHeaderErrorCount = iByteErrorCount;
         
-        _iMinutes = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 0] & 0xff;
-        _iSeconds = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 1] & 0xff;
-        _iSectors = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 2] & 0xff;
-        _iMode    = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 3] & 0xff;
+        _iMinutesBCD = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 0] & 0xff;
+        _iSecondsBCD = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 1] & 0xff;
+        _iSectorsBCD = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 2] & 0xff;
+        _iMode       = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 3] & 0xff;
 
-        _blnIsCdAudioSector = (_iMode < 1 || _iMode > 2 || iErrCount > 4);
+        if (!isValidBinaryCodedDecimal(_iMinutesBCD))
+            iByteErrorCount++;
+        if (!isValidBinaryCodedDecimal(_iSecondsBCD))
+            iByteErrorCount++;
+        if (!isValidBinaryCodedDecimal(_iSectorsBCD))
+            iByteErrorCount++;
+        if (_iMode < 1 || _iMode > 2)
+            iByteErrorCount++;
+
+        // TODO: Figure out if this is usable fuzzy logic
+        _blnIsCdAudioSector = (_iMode < 1 || _iMode > 2 || _iSyncHeaderErrorCount > 4);
     }
 
     public boolean isCdAudioSector() {
         return _blnIsCdAudioSector;
     }
 
+    /** @return Sector number. If header is corrupted, 2.
+     * @throws UnsupportedOperationException if CD sector.  */
     public int getMode() {
-        return _iMode;
+        if (_blnIsCdAudioSector)
+            throw new UnsupportedOperationException("No Mode available for CD sectors.");
+        
+        if (_iMode < 1 || _iMode > 2)
+            return 2;
+        else
+            return _iMode;
     }
 
     public int getSize() {
         return SIZE;
     }
 
+    /** @return The sector number from the sector header, or -1 if header is corrupted.
+     *  @throws UnsupportedOperationException if CD sector.  */
     public int calculateSectorNumber() {
-        return   binaryCodedDecimalToInt(_iMinutes) * 60 * 75
-               + binaryCodedDecimalToInt(_iSeconds) * 75
-               + binaryCodedDecimalToInt(_iSectors)
-               - 150;
+        if (_blnIsCdAudioSector)
+            throw new UnsupportedOperationException(
+                    "Unable to calculate header sector number from CD sector.");
+        
+        if (isValidBinaryCodedDecimal(_iMinutesBCD) &&
+            isValidBinaryCodedDecimal(_iSecondsBCD) &&
+            isValidBinaryCodedDecimal(_iSectorsBCD))
+        {
+            return   binaryCodedDecimalToInt(_iMinutesBCD) * 60 * 75
+                   + binaryCodedDecimalToInt(_iSecondsBCD) * 75
+                   + binaryCodedDecimalToInt(_iSectorsBCD)
+                   - 150;
+        } else {
+            return -1;
+        }
     }
 
+    private static boolean isValidBinaryCodedDecimal(int i) {
+        return (i & 0xf)        <= 9 && 
+               ((i >> 4) & 0xf) <= 9;
+    }
+    
     /** Converts Binary Coded Decimal (BCD) to integer. */
     private static int binaryCodedDecimalToInt(int i) {
         return ((i >> 4) & 0xf)*10 + (i & 0xf);
     }
 
     public String toString() {
-        return "Header sector:" + calculateSectorNumber();
+        if (_blnIsCdAudioSector)
+            return "CD sector";
+        return String.format("Mode: %d Number: %02x' %02x\" %02xs = %d",
+                _iMode, _iMinutesBCD, _iSecondsBCD, _iSectorsBCD, calculateSectorNumber());
     }
 
     void printErrors(int iSector, Logger logger) {
-        if (!_blnIsCdAudioSector && (_iMode < 0 || _iMode > 2))
+        if (_blnIsCdAudioSector)
+            return;
+        
+        if (_iSyncHeaderErrorCount > 0)
+            logger.warning("Sector " + iSector + " " + _iSyncHeaderErrorCount + " bytes in the sync header are corrupted");
+        if (_iMode < 0 || _iMode > 2)
             logger.warning("Sector " + iSector + " Mode number is corrupted " + _iMode);
-        // TODO: also report any sync header error
+        if (!isValidBinaryCodedDecimal(_iMinutesBCD))
+            logger.warning("Sector " + iSector + " Minutes number is corrupted " + String.format("%02x", _iMinutesBCD));
+        if (!isValidBinaryCodedDecimal(_iSecondsBCD))
+            logger.warning("Sector " + iSector + " Seconds number is corrupted " + String.format("%02x", _iSecondsBCD));
+        if (!isValidBinaryCodedDecimal(_iSectorsBCD))
+            logger.warning("Sector " + iSector + " Seconds number is corrupted " + String.format("%02x", _iSectorsBCD));
     }
 
     int getErrorCount() {

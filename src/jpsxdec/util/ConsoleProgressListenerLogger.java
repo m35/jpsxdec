@@ -58,7 +58,7 @@ public class ConsoleProgressListenerLogger extends UserFriendlyHandler implement
     public ConsoleProgressListenerLogger(String sLogFileBaseName, PrintStream ps) {
         super(sLogFileBaseName);
         _ps = ps;
-        _errLog = Logger.getLogger("dunno");
+        _errLog = Logger.getLogger(sLogFileBaseName);
         _errLog.addHandler(this);
     }
 

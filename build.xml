@@ -10,6 +10,9 @@
     <!-- global build properties -->
     <property name="src.dir" location="src"/>
     <property name="src-lgpl.dir" location="src-lgpl"/>
+    <property name="test.dir" location="test"/>
+
+    <property name="testbuild.dir" location="test-build"/>
     <property name="build.dir" location="release-build"/>
     <property name="build-lgpl.dir" location="release-build-lgpl"/>
     <property name="dist.dir"  location="release-dist"/>
@@ -29,13 +32,13 @@
         <include name="CREDITS.txt" />
         <include name="lgpl-2.1.txt" />
         <include name="apache-2.0.txt" />
-        <include name="CDDL-GPL-2-CP" />
+        <include name="CDDL-GPL-2-CP.txt" />
         <include name="LICENSE.txt" />
         <include name="jpsxdec.exe" />
     </fileset>
 
     <target name="init">
-        <!-- Nothing to do -->
+        <echo message="Be sure to set JAVA_HOME to 1.5 jdk directory before building." />
     </target>
 
     <target name="compile" depends="init" description="compile the source" >
@@ -91,8 +94,25 @@
         
     </target>
 
+    <target name="test" depends="release">
+        <mkdir dir="${testbuild.dir}"/>
+        <javac srcdir="${test.dir}" destdir="${testbuild.dir}" debug="true"
+               classpath=""
+               source="1.6" target="1.6" />
+        <junit printsummary="yes" haltonfailure="yes">
+            <classpath>
+                <pathelement location="${testbuild.dir}"/>
+                <pathelement location="${build.dir}"/>
+                <pathelement location="${build-lgpl.dir}"/>
+            </classpath>
+            <test name="AllTestsSuite"/>
+        </junit>
+    </target>
+
     <target name="javadoc" description="generate code documentation via javadoc">
-        <javadoc additionalparam="-stylesheetfile javadoc.css" charset="UTF-8" destdir="${javadoc.dir}" docencoding="UTF-8" failonerror="true" private="true" use="true" windowtitle="jPSXdec">
+        <javadoc additionalparam="-stylesheetfile javadoc.css" charset="UTF-8"
+                destdir="${javadoc.dir}" docencoding="UTF-8" failonerror="true"
+                private="true" use="true" windowtitle="jPSXdec" useexternalfile="true">
             <classpath>
                 <path path="${javac.classpath}"/>
             </classpath>

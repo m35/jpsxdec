@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -77,7 +77,7 @@ import jpsxdec.util.Fraction;
  * <h3>FIND THE DISC SPEED</h3>
  * 
  * So how can you know the disc speed the movie is being played at? Besides
- * hacking into the game to find what paramerets are being passed to the CD-ROM,
+ * hacking into the game to find what parameters are being passed to the CD-ROM,
  * you can also look at the audio for a clue.
  * <p>
  * Audio must be played back seamlessly--there cannot be any breaks. Each audio
@@ -106,7 +106,7 @@ import jpsxdec.util.Fraction;
  * 
  * <h3>FIND SECTORS PER FRAME</h3>
  * 
- * The simplist and most direct way to calculate this is to divide the total
+ * The simplest and most direct way to calculate this is to divide the total
  * number of sectors in the movie by the total number of frames.
  * <p>
  * <code>sectors/movie / frames/movie = sectors/frame</code>
@@ -130,12 +130,12 @@ import jpsxdec.util.Fraction;
  *   there's no obvious way to tell if that audio sector would have been
  *   the last chunk of the previous frame, or the first chunk of the
  *   next frame.
- * <li> If not all frames have a consisent number of sectors/frame.
+ * <li> If not all frames have a consistent number of sectors/frame.
  * </ul>
  * <p>
  * Perhaps you could scan the movie for a block of sectors that aren't
  * disrupted by any audio. For some movies that might work, but not for all of
- * them (some movies will aways have at least one audio sector in every
+ * them (some movies will always have at least one audio sector in every
  * frame).
  * <p>
  * The only way I know to most accurately find the frame rate is to walk
@@ -158,14 +158,15 @@ public class STRFrameRateCalc {
     public void nextVideo(int iSector, int iFrame, int iChunk, int iFrameChunkCount) {
         if (_wholeFrameRate != null)
             if (!_wholeFrameRate.matchesNextVideo(iSector, iFrame))
-                _wholeFrameRate = null;
+                _wholeFrameRate = null; // failed to match any whole number frame rates
+        // TODO: Log when whole frame and inconsistent frame rate matching fails
         if (_inconsistentFrameRate != null) {
             for (Iterator<InconsistentFrameSequence> it = _inconsistentFrameRate.iterator(); it.hasNext();) {
                 if (!it.next().matchesNextVideo(iSector, iFrame, iChunk, iFrameChunkCount))
                     it.remove();
             }
             if (_inconsistentFrameRate.size() == 0)
-                _inconsistentFrameRate = null;
+                _inconsistentFrameRate = null; // failed to match any inconsistent frame rates
         }
     }
     

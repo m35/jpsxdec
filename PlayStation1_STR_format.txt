@@ -1,6 +1,5 @@
-﻿
                       The PlayStation 1 Video (STR) Format
-                              v1.00, October 2011
+                              v1.01, February 2012
                        http://kenai.com/projects/jpsxdec/
                          http://jpsxdec.blogspot.com/
 
@@ -69,10 +68,12 @@ v1.00
     - Overall: Some unknown fields identified
                Luminance -> Luma, Chrominance -> Chroma, Subcode -> Submode
                Many minor tweaks and corrections
-
+v1.01
+    - ch 3.1: Added v1 frames
+    - ch 3.8: Added Ace Combat 3 Electrosphere
+    - ch 3.10: Added Judge Dredd
 
 Left to do:
-* Confirm FF Tactics format
 * Confirm Legend of Mana format
 * Add more game formats as they are found...
 --------------------------------------------------------------------------------
@@ -99,13 +100,16 @@ Left to do:
 ##        2.3.5. Combine the blocks into (Y, Cb, Cr) pixels
 ##        2.3.6. Convert the (Y, Cb, Cr) pixels into RGB pixels
 ## 3. Variations by some PSX games
-##    3.1. Final Fantasy VII (and Final Fantasy Tactics?)
-##    3.2. Final Fantasy VIII
-##    3.3. Final Fantasy IX
-##    3.4. Chrono Cross (and Legend of Mana?)
-##    3.5. Serial Experiments Lain
-##    3.6. Alice in Cyber Land
-##    3.7. .iki
+##    3.1. Version 1 frames
+##    3.2. Final Fantasy VII
+##    3.3. Final Fantasy VIII
+##    3.4. Final Fantasy IX
+##    3.5. Chrono Cross (and Legend of Mana?)
+##    3.6. Serial Experiments Lain
+##    3.7. Alice in Cyber Land
+##    3.8. Ace Combat 3 Electrosphere
+##    3.9. .iki
+##    3.10. Judge Dredd
 ## 4. Credits, Thanks, etc.
 ##
 
@@ -1109,7 +1113,16 @@ As stated before, it is the game's responsibility to read the video data from th
 Note that this information should be mostly correct, but there are likely errors here and there.
 
 ################################################################################
-## 3.1. Final Fantasy VII (and Final Fantasy Tactics?)
+## 3.1. Version 1 frames
+################################################################################
+
+Some games are known to have video sectors and video frames that report a version number of 1, but the frame data is actually normal v2.
+
+* Final Fantasy Tactics
+* Tekken 2
+
+################################################################################
+## 3.2. Final Fantasy VII
 ################################################################################
 
 :: FF7 Frame Sector Header ::
@@ -1151,7 +1164,7 @@ Offset   Size   Endian --------------------------------------------------------
 The frame version claims to be 1, but decodes just like version 2 frames, except for one difference: the variable-length-code escape codes will sometimes decode to some # of zeros, followed by an AC Coefficient of zero (e.g. (6, 0) ). This never seems to happen in version 2 or version 3 frames. This makes me think they changed the frame's quantization scale to make it smaller, but didn't combine the empty run-length codes.
 
 ################################################################################
-## 3.2. Final Fantasy VIII
+## 3.3. Final Fantasy VIII
 ################################################################################
 
 FF8 makes a large departure from how the data is stored in each sector.
@@ -1316,7 +1329,7 @@ Offset   Size   Endian -------------------------------------------------
 Video frames are always 320 x 224.
 
 ################################################################################
-## 3.3. Final Fantasy IX
+## 3.4. Final Fantasy IX
 ################################################################################
 
 FF9 makes even a larger departure from how the data is stored in each sector.
@@ -1491,7 +1504,7 @@ Offset
 A curious but minor note about FF9 variable length codes: the (0, 30) MDEC code uses the corresponding variable length code, but the (0, -30) MDEC code never uses the corresponding variable length code, and is instead compressed using the escape code.
 
 ################################################################################
-## 3.4. Chrono Cross (and Legend of Mana?)
+## 3.5. Chrono Cross (and Legend of Mana?)
 ################################################################################
 
 Like FF8 and FF9, Chrono Cross frames are 10 sectors long, starting with 2 sectors for audio, followed by 8 sectors of video. It uses FF9 style audio sectors, but standard STR video sectors. All audio and video sectors are "Mode 2 Form 1".
@@ -1550,7 +1563,7 @@ Chrono Cross:
     // TODO: Figure out the final movie format
 
 ################################################################################
-## 3.5. Serial Experiments Lain
+## 3.6. Serial Experiments Lain
 ################################################################################
 
 Serial Experiments Lain may be the only game that used its own unique set of compressed variable-length (huffman) codes. But besides that, and a slightly different frame sectors header, everything is in the standard format.
@@ -1742,7 +1755,7 @@ The escape code is handled in the MPEG1 fashion: 6 bits for the run, then either
     0000 0000 1111 1111     255
 
 ################################################################################
-## 3.6. Alice In Cyber Land
+## 3.7. Alice In Cyber Land
 ################################################################################
 
 :: Alice Frame Sector Header ::
@@ -1771,7 +1784,7 @@ All movies use one or more of the following frame rates:
     7.5 fps, 10 fps, 15 fps, 30 fps
 
 ################################################################################
-## 3.7. Ace Combat 3 Electrosphere
+## 3.8. Ace Combat 3 Electrosphere
 ################################################################################
 
 :: Ace Combat 3 Sector Header ::
@@ -1790,7 +1803,7 @@ Offset   Size   Endian --------------------------------------------------------
  32 ---------------------------------------------------------------------------
 
 ################################################################################
-## 3.7. .iki
+## 3.9. .iki
 ################################################################################
 
 The .iki video format (found in files with .iki or .ik2 extension) is used in at least two games made by Sony: "Legend of Dragoon" and "UmJammer Lammy". Unlike other video variations, it takes full advantage of the capabilities of the MDEC chip by letting each block have its own quantization scale (as opposed to having one quantization scale for the entire frame).
@@ -1839,7 +1852,7 @@ A list of the quantization scale and DC coefficient for every block is found in 
 
 Because the list of values contains an MDEC code for each block, it's easy to calculate how big the uncompressed data will be: the number of macro blocks in the frame, multiplied by the number of blocks in a macro block (6), multiplied by the size of an MDEC code (2).
 
-    UncompressedSize = [ (width+15)/16 * (height+15)/16 ] * 6 * 2
+    UncompressedSize = ( ((width+15)/16) * ((height+15)/16) ) * 6 * 2
     
 
  -- Pseudocode to uncompress iki LZS compressed initial block codes ------------
@@ -1880,12 +1893,36 @@ The bitstream is identical to the standard v2 bitstream, except at the start of 
         UncompressedData[CurrentBlock + UncompressedDataSize / 2]
 
 ################################################################################
+## 3.10. Judge Dredd
+################################################################################
+
+Continuing in its long tradition of giving PlayStation hackers headaches, this is the most difficult video sector to uniquely identify.
+
+There are two types of frames which I will just refer to type A and type B
+    A. 320x352 dimensions held in 9 chunks
+    B. 320x240 dimensions held in 10 chunks
+
+Unfortunately, there's no indication in the sectors of which type it is.
+
+:: Judge Dredd Sector Header ::
+
+Offset   Size   Endian --------------------------------------------------------
+  0 . . . 4 . . little . Multiplexed chunk number of this video frame: 0 to 9
+  4 ---------------------------------------------------------------------------
+
+Yep, that's it.
+
+Type B frames follow the standard v3 demultiplexed frame format. Type A starts with 40 extra bytes before the frame data starts.
+
+Most video frames are normal v3 format, but some are full of 0xff.
+
+################################################################################
 ## 4. Thanks, credits, etc.
 ################################################################################
 
 Mike Melanson and Stuart Caie for adding STR decoding support to xine, including the documentation in the source. (http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html) Also for archiving some example STR files (http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html).
 
-The q-gears development team and forum memebers for thier source code and documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/branches/old_sources/src/common/movie/decoders/).
+The q-gears development team and forum members for their source code and documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/branches/old_sources/src/common/movie/decoders/).
 
 "Everything You Have Always Wanted to Know about the PlayStation But Were Afraid to Ask." compiled / edited by Joshua Walker. Perhaps the most valuable reference for any kind of PSX hacking, especially the PSX assembly instruction set (note that it has the Cr/Cb reversal error mentioned in ch 2.2).
 
@@ -1915,7 +1952,7 @@ The most excellent folks at IRCNet #lain :D
 Finally, a very special thanks to all the PlayStation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs are real men of genius.
 
 --------------------------------------------------------------------------------
-Copyright (c) 2008-2011 Michael Sabin
+Copyright (c) 2008-2012 Michael Sabin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this file (the "Document"), to deal in the Document without restriction,

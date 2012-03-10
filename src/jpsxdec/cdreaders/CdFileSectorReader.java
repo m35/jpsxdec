@@ -85,7 +85,7 @@ public class CdFileSectorReader {
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    private final RandomAccessFile _inputFile;
+    private RandomAccessFile _inputFile;
     private final File _sourceFile;
     /** Creates sectors from the data based on the type of disc image it is. */
     private final SectorFactory _sectorFactory;
@@ -193,7 +193,7 @@ public class CdFileSectorReader {
     public CdFileSectorReader(String sSerialization, boolean blnAllowWrites, int iSectorsToBuffer)
             throws IOException, NotThisTypeException
     {
-        String[] asValues = Misc.regex(Pattern.compile("Filename:([^|]+)\\|Sector size:(\\d+)\\|Sector count:(\\d+)\\|First sector offset:(\\d+)"), sSerialization);
+        String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
         if (asValues == null || asValues.length != 5)
             throw new NotThisTypeException("Failed to deserialize CD string: " + sSerialization);
 
@@ -245,14 +245,40 @@ public class CdFileSectorReader {
 
     public final static String SERIALIZATION_START = "Filename:";
 
+    private static final String DESERIALIZATION =
+            "Filename:([^|]+)\\|Sector size:(\\d+)\\|Sector count:(\\d+)\\|First sector offset:(\\d+)";
+
+    private static final String SERIALIZATION =
+            SERIALIZATION_START + "%s|Sector size:%d|Sector count:%d|First sector offset:%d";
+
     public String serialize() {
-        return String.format(SERIALIZATION_START + "%s|Sector size:%d|Sector count:%d|First sector offset:%d",
+        return String.format(SERIALIZATION,
                 _sourceFile.getPath(),
                 _sectorFactory.getRawSectorSize(),
                 _iSectorCount,
                 _sectorFactory.get1stSectorOffset());
     }
 
+    public boolean matchesSerialization(String sSerialization) {
+        String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
+
+        try {
+            int iSectorCount = Integer.parseInt(asValues[3]);
+            long lngStartOffset = Long.parseLong(asValues[4]);
+            int iSectorSize = Integer.parseInt(asValues[2]);
+
+            if (iSectorCount != _iSectorCount ||
+                lngStartOffset != _sectorFactory.get1stSectorOffset() ||
+                iSectorSize != _sectorFactory.getRawSectorSize())
+                return false;
+            return true;
+        } catch (NumberFormatException ex) {
+            return false;
+        } catch (ArrayIndexOutOfBoundsException ex) {
+            return false;
+        }
+
+    }
 
     public void close() throws IOException {
         _inputFile.close();
@@ -322,11 +348,13 @@ public class CdFileSectorReader {
 
         if (cdSector.getCdUserDataSize() != abSrcUserData.length)
             throw new IllegalArgumentException("Data to write is not the right size.");
+        
+        byte[] abRawData = cdSector.rebuildRawSector(abSrcUserData);
 
-        long lngUserDataOfs = cdSector.getFilePointer();
+        int iOffset = _sectorFactory.getRawSectorSize() * iSector;
 
-        _inputFile.seek(lngUserDataOfs);
-        _inputFile.write(abSrcUserData);
+        _inputFile.seek(iOffset);
+        _inputFile.write(abRawData);
     }
 
     //..........................................................................
@@ -334,6 +362,11 @@ public class CdFileSectorReader {
     @Override
     public String toString() {
         return serialize();
+    }
+
+    public void reopenForWriting() throws IOException {
+        _inputFile.close();
+        _inputFile = new RandomAccessFile(_sourceFile, "rw");
     }
 
     /* ---------------------------------------------------------------------- */

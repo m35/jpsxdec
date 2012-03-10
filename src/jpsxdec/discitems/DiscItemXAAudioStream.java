@@ -90,6 +90,7 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
      * <li> -1 for unknown
      *     (unknown case should only occur if this audio
      *      stream is only one sector long)
+     *      or invalid (sector stride is 1)
      * </ul>
      */
     private int _iDiscSpeed;
@@ -118,12 +119,19 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         _iBitsPerSample = iBitsPerSample;
         _iSectorStride = iStride;
 
-        if (_iSectorStride == -1) {
+        // if there is no sector stride (iStride == -1, 1 sector long)
+        // or the stride is only 1, then the disc speed is unknown/invalid
+        if (_iSectorStride == -1 || _iSectorStride == 1) {
             _iDiscSpeed = -1;
         } else {
             _iDiscSpeed = SectorXAAudio.calculateDiscSpeed(_iSamplesPerSecond, _blnIsStereo, _iBitsPerSample, _iSectorStride);
             if (_iDiscSpeed < 1)
-                throw new RuntimeException("Disc speed calc doesn't add up.");
+                throw new RuntimeException(String.format("Disc speed calc doesn't add up: " +
+                        "Samples/sec %d Stereo %s Bits/sample %s Stride %d",
+                        _iSamplesPerSecond, 
+                        String.valueOf(_blnIsStereo),
+                        _iBitsPerSample,
+                        _iSectorStride));
         }
     }
 
@@ -144,6 +152,9 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         
         _iBitsPerSample = fields.getInt(BITSPERSAMPLE_KEY);
         _iSectorStride = fields.getInt(STRIDE_KEY);
+        if (_iSectorStride != -1 && _iSectorStride != 1 && _iSectorStride != 2 &&
+            _iSectorStride != 4 && _iSectorStride != 8 && _iSectorStride != 16 && _iSectorStride != 32)
+            throw new NotThisTypeException(STRIDE_KEY + " has invalid value: " + _iSectorStride);
 
         String sDiscSpeed = fields.getString(DISC_SPEED_KEY);
         if ("1x".equals(sDiscSpeed))
@@ -180,6 +191,10 @@ public class DiscItemXAAudioStream extends DiscItemAudioStream {
         return _blnIsStereo;
     }
 
+    public int getSectorStride() {
+        return _iSectorStride;
+    }
+    
     public int getSectorsPastEnd() {
         return _iSectorStride - 1;
     }

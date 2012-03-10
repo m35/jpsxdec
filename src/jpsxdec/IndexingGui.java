@@ -303,7 +303,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 _eState = State.RUNNING;
                 break;
             case RUNNING:
-                System.out.println(_task.cancel(false));
+                _task.cancel(false);
                 _guiCancelBtn.setEnabled(false);
                 // need to wait for task to finish
                 _eState = State.CANCELING;

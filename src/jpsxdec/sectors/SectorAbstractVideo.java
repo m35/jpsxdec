@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.sectors;
 
-import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
@@ -47,10 +46,9 @@ import jpsxdec.util.NotThisTypeException;
 
 
 /** Shared super class of several video sector types. */
-public abstract class SectorAbstractVideo extends IdentifiedSector implements IVideoSector {
-    
-    private static final Logger log = Logger.getLogger(SectorAbstractVideo.class.getName());
-    protected Logger log() { return log; }
+public abstract class SectorAbstractVideo extends IdentifiedSector 
+                                          implements IVideoSector
+{
 
     // .. Constructor .....................................................
 
@@ -95,7 +93,7 @@ public abstract class SectorAbstractVideo extends IdentifiedSector implements IV
 
     /** Checks if this sector is part of the same stream as the previous video sector. */
     final public boolean matchesPrevious(IVideoSector prevSector) {
-        if (!(prevSector.getClass().equals(prevSector.getClass())))
+        if (!(getClass().equals(prevSector.getClass())))
             return false;
 
         if (getWidth()  != prevSector.getWidth() ||
@@ -120,10 +118,13 @@ public abstract class SectorAbstractVideo extends IdentifiedSector implements IV
         */
 
         // much softer logic
-        if (prevSector.getFrameNumber() <= getFrameNumber())
+        if (prevSector.getFrameNumber() <= getFrameNumber() &&
+            getSectorNumber() < prevSector.getSectorNumber() + 100)
+        {
             return true;
-        else
+        } else {
             return false;
+        }
     }
 
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,

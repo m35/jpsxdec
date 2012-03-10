@@ -163,6 +163,8 @@ public abstract class DiscItem {
         _indexId = id;
     }
 
+    /** Returns the serialization with the IndexId if it has one.
+     * This is what is written to the index file. */
     public String toString() {
         if (_indexId == null)
             return serialize().serialize();

@@ -221,6 +221,7 @@ public class Gui extends javax.swing.JFrame {
                 // TODO
             }
         };
+        handler.setSubheader("Opening index " + dir.toString());
         log.addHandler(handler);
         try {
             // TODO: prompt to save current index if not saved
@@ -482,7 +483,7 @@ public class Gui extends javax.swing.JFrame {
         });
         _guiTreeButtonContainer.add(_guiSelectAll, new java.awt.GridBagConstraints());
 
-        _guiSelectAllType.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "none", "all Video", "all Audio (excluding video audio)", "all Audio (including video audio)", "all Files" }));
+        _guiSelectAllType.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "none", "all Video", "all Audio (excluding video audio)", "all Audio (including video audio)", "all Files", "all Images" }));
         _guiTreeButtonContainer.add(_guiSelectAllType, new java.awt.GridBagConstraints());
 
         _guiExpandAll.setText("Expand All");

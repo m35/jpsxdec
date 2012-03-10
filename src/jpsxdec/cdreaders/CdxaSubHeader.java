@@ -97,6 +97,7 @@ public class CdxaSubHeader {
     /** Side of the header in bytes. */
     public static final int SIZE = 8;
 
+    /** Returns the size of the subheader data structure in bytes. */
     public int getSize() {
         return SIZE;
     }
@@ -276,14 +277,14 @@ public class CdxaSubHeader {
             _iSubmode = i;
         }
 
-        public static final int MASK_EOF_MARKER = 0x80;
-        public static final int MASK_REAL_TIME = 0x40;
-        public static final int MASK_FORM = 0x20;
-        public static final int MASK_TRIGGER = 0x10;
-        public static final int MASK_DATA = 0x08;
-        public static final int MASK_AUDIO = 0x04;
-        public static final int MASK_VIDEO = 0x02;
-        public static final int MASK_END_AUDIO = 1;
+        /**'M'*/public static final int MASK_EOF_MARKER = 0x80;
+        /**'R'*/public static final int MASK_REAL_TIME = 0x40;
+        /**'2'*/public static final int MASK_FORM = 0x20;
+        /**'T'*/public static final int MASK_TRIGGER = 0x10;
+        /**'D'*/public static final int MASK_DATA = 0x08;
+        /**'A'*/public static final int MASK_AUDIO = 0x04;
+        /**'V'*/public static final int MASK_VIDEO = 0x02;
+        /**'E'*/public static final int MASK_END_AUDIO = 1;
 
         /** bit 7:  0 for all sectors except last sector of a file. */
         public boolean getEofMarker() { return (_iSubmode & 0x80) != 0; }

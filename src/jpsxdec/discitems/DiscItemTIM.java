@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,10 +38,14 @@
 package jpsxdec.discitems;
 
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.TimSaverBuilder;
 import jpsxdec.tim.Tim;
+import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
 
 
@@ -123,7 +127,72 @@ public class DiscItemTIM extends DiscItem {
     }
 
     public Tim readTim() throws IOException, NotThisTypeException {
-        DemuxedSectorInputStream stream = new DemuxedSectorInputStream(getSourceCD(), getStartSector(), getStartOffset());
+        DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
+                getSourceCD(), getStartSector(), getStartOffset());
         return Tim.read(stream);
     }
+
+    public int getWidth() {
+        return _iWidth;
+    }
+    
+    public int getHeight() {
+        return _iHeight;
+    }
+
+    /** Attempts to replace the TIM image on the disc with the a new TIM created
+     * from a BufferedImage. */
+    public void replace(FeedbackStream Feedback, BufferedImage bi) 
+            throws IOException, NotThisTypeException 
+    {
+        if (bi.getWidth() != _iWidth || bi.getHeight() != _iHeight)
+            throw new IllegalArgumentException(String.format(
+                    "New TIM dimensions (%dx%d) do not match existing TIM dimensions (%dx%d).",
+                    bi.getWidth(), bi.getHeight(), _iWidth, _iHeight));
+        if (_iPaletteCount != 1)
+            throw new IllegalArgumentException("Unable to replace a multi-paletted TIM with a simple image.");
+        
+        DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
+                getSourceCD(), getStartSector(), getStartOffset());
+        Tim tim = Tim.read(stream);
+        tim.replaceImageData(bi);
+        
+        // get the byte size of the current tim
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        tim.write(baos);
+        byte[] abNewTim = baos.toByteArray();
+        
+        writeNewTimData(abNewTim, Feedback);
+    }
+    
+    private void writeNewTimData(byte[] abNewTim, FeedbackStream Feedback) throws IOException {
+        // write to the first sector
+        CdFileSectorReader cd = getSourceCD();
+        int iSector = getStartSector();
+        byte[] abUserData = cd.getSector(iSector).getCdUserDataCopy();
+        int iBytesToWrite = abNewTim.length;
+        if (_iStartOffset + iBytesToWrite > abUserData.length)
+            iBytesToWrite = abUserData.length - _iStartOffset;
+        Feedback.println("Writing " + iBytesToWrite + " bytes to sector " + iSector);
+        System.arraycopy(abNewTim, 0, abUserData, _iStartOffset, iBytesToWrite);
+        cd.writeSector(iSector, abUserData);
+        
+        //write to the remaining sectors
+        int iBytesWritten = iBytesToWrite;
+        while (iBytesWritten < abNewTim.length) {
+            iSector++; 
+            if (iSector > getEndSector())
+                throw new RuntimeException("Replacing TIM is somehow writing to too many sectors.");
+            
+            abUserData = cd.getSector(iSector).getCdUserDataCopy();
+            iBytesToWrite = abNewTim.length - iBytesWritten;
+            if (iBytesToWrite > abUserData.length)
+                iBytesToWrite = abUserData.length;
+            Feedback.println("Writing " + iBytesToWrite + " bytes to sector " + iSector);
+            System.arraycopy(abNewTim, iBytesWritten, abUserData, 0, iBytesToWrite);
+            cd.writeSector(iSector, abUserData);
+            iBytesWritten += iBytesToWrite;
+        }
+    }
+    
 }

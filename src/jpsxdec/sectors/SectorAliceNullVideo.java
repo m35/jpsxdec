@@ -68,7 +68,7 @@ public class SectorAliceNullVideo extends IdentifiedSector {
         if (cdSector.isCdAudioSector()) return;
 
         // only if it has a sector header should we check if it reports DATA or VIDEO
-        if (cdSector.hasRawSectorHeader() &&
+        if (cdSector.hasSubHeader() &&
             cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
         {
             return;

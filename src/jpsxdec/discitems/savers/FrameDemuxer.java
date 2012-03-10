@@ -60,6 +60,7 @@ public class FrameDemuxer {
 
     private final DemuxedFrame[] _queue = new DemuxedFrame[2];
     private int _iQueueSize = 0;
+    private int _iIteratorIndex = 0;
 
     /* ---------------------------------------------------------------------- */
     /* Constructors---------------------------------------------------------- */
@@ -95,16 +96,16 @@ public class FrameDemuxer {
      * to be read by {@link #nextCompletedFrame()} since
      * {@link #feedSector(null)} was called. */
     public boolean hasCompletedFrames() {
-        return _iQueueSize > 0;
+        return _iIteratorIndex < _iQueueSize;
     }
 
     /** Returns the next frame that was completed since
      * {@link #feedSector(null)} was called. */
     public DemuxedFrame nextCompletedFrame() {
-        while (_iQueueSize > 0) {
-            _iQueueSize--;
-            DemuxedFrame frame = _queue[_iQueueSize];
-            _queue[_iQueueSize] = null;
+        if (hasCompletedFrames()) {
+            DemuxedFrame frame = _queue[_iIteratorIndex];
+            _queue[_iIteratorIndex] = null;
+            _iIteratorIndex++;
             return frame;
         }
         return null;
@@ -168,6 +169,7 @@ public class FrameDemuxer {
             _iQueueSize--;
             _queue[_iQueueSize] = null;
         }
+        _iIteratorIndex = 0;
     }
 
     private void queueAdd(DemuxedFrame frame) {

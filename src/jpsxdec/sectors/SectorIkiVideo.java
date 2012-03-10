@@ -70,7 +70,7 @@ public class SectorIkiVideo extends SectorAbstractVideo {
         if (isSuperInvalidElseReset()) return;
         
         // only if it has a sector header should we check if it reports DATA or VIDEO
-        if (cdSector.hasRawSectorHeader() &&
+        if (cdSector.hasSubHeader() &&
             cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
         {
             return;
@@ -146,8 +146,9 @@ public class SectorIkiVideo extends SectorAbstractVideo {
         return _iWidth;
     }
 
-    public boolean splitAudio() {
-        return (getFrameNumber() == 1 && getChunkNumber() == 0);
+    public int splitXaAudio() {
+        return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
+            SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
     }
 }
 

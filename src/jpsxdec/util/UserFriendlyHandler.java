@@ -91,10 +91,13 @@ public abstract class UserFriendlyHandler extends StreamHandler {
     abstract protected void onWarn(LogRecord record);
     abstract protected void onErr(LogRecord record);
 
+    /** Returns the file name of the log file. */
     public String getFileName() {
         return _file == null ? null : _file.toString();
     }
 
+    /** Inserts a sub-header in the log file, but only if something gets logged. 
+     * This prevents log files being written with no useful info. */
     public void setSubheader(String s) {
         _formatter._sSubHeaderLine = s;
     }

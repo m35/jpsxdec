@@ -87,6 +87,8 @@ public class MdecInputStreamReader extends MdecInputStream {
 
     // -------------------------------------------------------------------------
 
+    /** Writes a dimensions worth of macro blocks from an
+     * {@link MdecInputStream} to an OutputStream. */
     public static void writeMdecDims(MdecInputStream mdecIn, OutputStream streamOut,
             int iWidth, int iHeight)
             throws MdecException, IOException
@@ -95,6 +97,8 @@ public class MdecInputStreamReader extends MdecInputStream {
         int iBlockCount = iMacroblockCount * 6;
         writeMdecBlocks(mdecIn, streamOut, iBlockCount);
     }
+    /** Writes a number of blocks from an
+     * {@link MdecInputStream} to an OutputStream. */
     public static void writeMdecBlocks(MdecInputStream mdecIn, OutputStream streamOut,
             int iBlockCount)
             throws MdecException, IOException

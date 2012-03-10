@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,56 +39,78 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
+import java.util.Enumeration;
+import java.util.NoSuchElementException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.util.ByteArrayFPIS;
 
-/** Demuxes a series of UnidentifiedSectorUnknownData into a solid stream.
- *  Sectors are pulled from an iterator as they are needed. */
-public class DemuxedSectorInputStream extends InputStream
-{
+/** Demuxes a series of CdSectors into a solid stream. */
+public class DemuxedSectorInputStream extends SequenceInputStream {
 
-    private final CdFileSectorReader _cd;
-    private int _iSector;
-    private int _iOffset;
-
-    private CdSector _currentSector;
+    private static final Logger log = Logger.getLogger(DemuxedSectorInputStream.class.getName());
     
+    private static class SectorEnumerator implements Enumeration<InputStream> {
+        public final CdFileSectorReader _cd;
+        private final int _iOffset;
+        private final int _iStartSector;
+        private final int _iEndSector;
+        public int _iSector;
+        private ByteArrayFPIS _currentStream;
 
-    public DemuxedSectorInputStream(CdFileSectorReader cd, int iSector, int iOffset)
-            throws IOException
-    {
-        _cd = cd;
-        _iSector = iSector;
-        _iOffset = iOffset;
-        _currentSector = _cd.getSector(iSector);
-    }
+        public SectorEnumerator(CdFileSectorReader cd, int iSector, int iOffset, int iEndSector) {
+            _cd = cd;
+            _iStartSector = _iSector = iSector;
+            _iOffset = iOffset;
+            _iEndSector = iEndSector;
+        }
+        
+        public boolean hasMoreElements() {
+            return _iSector <= _iEndSector;
+        }
 
-    @Override // [InputStream]
-    public int read() throws IOException {
-        if (_iOffset >= _currentSector.getCdUserDataSize()) {
-            if (_iSector + 1 >= _cd.getLength())
-                return -1;
-            else {
+        public InputStream nextElement() {
+            if (!hasMoreElements())
+                throw new NoSuchElementException();
+            try {
+                // TODO: What to do with CD or form 2 sectors?
+                CdSector sector = _cd.getSector(_iSector);
+                if (sector.isCdAudioSector())
+                    log.warning("Reading CD sector intermingled with Form 1 sectors.");
+                else if (sector.hasSubHeader() && sector.getSubMode().getForm() == 2)
+                    log.warning("Reading form 2 sector intermingled with Form 1 sectors.");
+                _currentStream = sector.getCdUserDataStream();
+                if (_iSector == _iStartSector) {
+                    _currentStream.skip(_iOffset);
+                }
                 _iSector++;
-                _currentSector = _cd.getSector(_iSector);
-                _iOffset = 0;
+                return _currentStream;
+            } catch (final IOException ex) {
+                log.log(Level.SEVERE, null, ex);
+                _currentStream = null;
+                return new InputStream() {
+                    public int read() throws IOException { throw ex; }
+                };
             }
         }
-        int iByte = _currentSector.readUserDataByte(_iOffset) & 0xff;
-        _iOffset++;
-        return iByte;
+        
     }
 
-    public CdFileSectorReader getSourceCd() {
-        return _cd;
+    public DemuxedSectorInputStream(CdFileSectorReader cd, int iStartSector, int iOffset) {
+        this(cd, iStartSector, iOffset, cd.getLength()-1);
     }
-
-    public long getFilePointer() {
-        return _currentSector.getFilePointer() + _iOffset;
+    
+    public DemuxedSectorInputStream(CdFileSectorReader cd, int iStartSector, int iOffset, int iEndSector) {
+        super(new SectorEnumerator(cd, iStartSector, iOffset, iEndSector));
     }
-
-    public int getSectorNumber() {
-        return _iSector;
+    
+    @Override
+    public void close() throws IOException {
+        // no need to do anything
+        // and definitely don't want to do what SequenceInputStream does
     }
-
+    
 }

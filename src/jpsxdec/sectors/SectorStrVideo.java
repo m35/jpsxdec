@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -74,7 +74,7 @@ public class SectorStrVideo extends SectorAbstractVideo {
         if (isSuperInvalidElseReset()) return;
         
         // only if it has a sector header should we check if it reports DATA or VIDEO
-        if (cdSector.hasRawSectorHeader() &&
+        if (cdSector.hasSubHeader() &&
             cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
         {
             return;
@@ -101,10 +101,14 @@ public class SectorStrVideo extends SectorAbstractVideo {
         _iQuantizationScale = cdSector.readSInt16LE(24);
         if (_iQuantizationScale < 1) return;
         _iVersion = cdSector.readUInt16LE(26);
-        if (_iVersion != 2 && _iVersion != 3) return;
+        // Tekken 2 and FF Tactics are too cool to have video sectors and frames labeled as v2
+        // They have to make things difficult and be labeled as v1
+        if (_iVersion < 1 || _iVersion > 3) return;
         _lngUnknown = cdSector.readUInt32LE(28);
 
-        setProbability(_lngUnknown == 0 ? 100 : 90);
+        int iProbability = _lngUnknown == 0 ? 100 : 90;
+        if (_iVersion == 1) iProbability -= 5;
+        setProbability(iProbability);
     }
 
     // .. Public methods ...................................................
@@ -151,8 +155,9 @@ public class SectorStrVideo extends SectorAbstractVideo {
         return _iWidth;
     }
 
-    public boolean splitAudio() {
-        return (getFrameNumber() == 1 && getChunkNumber() == 0);
+    public int splitXaAudio() {
+        return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
+            SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
     }
 }
 

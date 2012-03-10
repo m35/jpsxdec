@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -83,15 +83,13 @@ public abstract class  CdSector {
      * to the start of the sector userdata.
      * [implements IGetFilePointer]
      */
-    abstract public long getFilePointer();
-
+    abstract public long getUserDataFilePointer();
+    
     /**
      * Returns direct reference to the underlying sector data, with raw
      * header/footer and everything it has.
      */
     abstract public byte[] getRawSectorDataCopy();
-
-    abstract public boolean hasRawSectorHeader();
 
     abstract public byte readUserDataByte(int i);
 
@@ -99,28 +97,41 @@ public abstract class  CdSector {
 
     abstract public boolean isCdAudioSector();
 
+    abstract public byte[] rebuildRawSector(byte[] abUserData);
+
     /**
      * @throws UnsupportedOperationException when the sector doesn't have a header.
      */
-    public int getChannel() {
+    public int getSubHeaderChannel() {
         throw new UnsupportedOperationException();
     }
 
+    public int getSubHeaderFile() {
+        throw new UnsupportedOperationException();
+    }
+
+    abstract public boolean hasHeaderSectorNumber();
+
     /**
-     * @return The sector number from the sector header.
-     * @throws UnsupportedOperationException when the sector doesn't have a header.
+     * @return The sector number from the sector header, or -1 if header is corrupted.
+     * @throws UnsupportedOperationException if the sector doesn't have a header with a number.
      */
     public int getHeaderSectorNumber() {
         throw new UnsupportedOperationException();
     }
 
+    abstract public boolean hasSubHeader();
+    
     /**
-     * @throws UnsupportedOperationException when the sector doesn't have a header.
+     * @throws UnsupportedOperationException when the sector doesn't {@link #hasSubHeader()}.
      */
     public CdxaSubHeader.SubMode getSubMode() {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * @throws UnsupportedOperationException when the sector doesn't {@link #hasSubmode()}.
+     */
     public int subModeMask(int i) {
         throw new UnsupportedOperationException();
     }

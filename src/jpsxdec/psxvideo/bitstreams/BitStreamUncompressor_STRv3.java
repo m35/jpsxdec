@@ -47,8 +47,7 @@ import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
 /** Uncompressor for demuxed STR v3 video data. 
- * Makes use of most of STR v2 code. Adds v3 handling for DC values.
- */
+ * Makes use of most of STR v2 code. Adds v3 handling for DC values. */
 public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
     /* From the offical MPEG-1 ISO standard specification (ISO 11172).
@@ -142,10 +141,10 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         super();
     }
 
-    // Holds the previous DC values for ver 3 frames.
-    private int _iPreviousCr_DC;
-    private int _iPreviousCb_DC;
-    private int _iPreviousY_DC;
+    /** Holds the previous DC values during a version 3 frame decoding. */
+    private int _iPreviousCr_DC,
+                _iPreviousCb_DC,
+                _iPreviousY_DC;
 
     @Override
     protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
@@ -315,7 +314,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     }
     
     @Override
-    public BitStreamCompressor makeCompressor() {
+    public BitstreamCompressor_STRv3 makeCompressor() {
         return new BitstreamCompressor_STRv3();
     }
 

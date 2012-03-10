@@ -474,6 +474,11 @@ public final class IO {
         }
     }
 
+
+    public static String readTextFile(File file) throws IOException {
+        return new String(readFile(file));
+    }
+
     public static int[] readFileBE(String sFile) throws IOException {
         return readFileBE(new File(sFile));
     }

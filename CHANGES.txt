@@ -1,3 +1,20 @@
+v0.98.0 rev2318 (9 Mar 2012)
+    - Added handling for Lunar 2 unique 24fps
+    - Added saving Tim images as Tim files
+    - More robust sector corruption detection and handling
+    - Fixed handling for XA streams consisting of adjacent XA sectors
+    - Added -replacetim command-line option
+    - Added Tekken 2 video detection
+    - Added Judge Dredd video detection
+    - Fixed FF8 audio decoding
+    - Fixed indexing of .iso disc images
+    - Various other bugfixes
+    Internals:
+    - Writing sectors to disc now automatically regenerates ECC/EDC
+    Known Problems:
+    - Audio + Video player on Linux might be choppy
+    - Massive lists of items scroll choppy on Windows
+    - UmJammer Lammy frame rate detection is wrong
 v0.97.0 rev2196 (1 Nov 2011)
     - Added many interpolation options for chroma upsampling
     - Added handling for XA streams consisting of adjacent XA sectors

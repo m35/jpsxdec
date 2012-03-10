@@ -202,11 +202,11 @@ public class DemuxedFrame {
             BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream);
             uncompressor.reset(abBitStream);
             parsed.readFrom(uncompressor);
+            fbs.println("Bitstream info: " + uncompressor);
+            fbs.println("Available demux size: " + getDemuxSize());
             fbs.indent();
-            fbs.printlnMore("Bitstream info: " + uncompressor);
-            fbs.printlnMore("Available demux size: " + getDemuxSize());
             for (int i=0; i < getChunksInFrame(); i++) {
-                System.out.println(getChunk(i));
+                fbs.println(getChunk(i));
             }
             fbs.outdent();
         } catch (Exception ex) {

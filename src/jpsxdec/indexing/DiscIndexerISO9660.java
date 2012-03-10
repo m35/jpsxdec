@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,18 +52,18 @@ import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
 
 /**
- * Constructs the ISO9660 filesystem.
+ * Constructs the ISO9660 file system.
  */
 public class DiscIndexerISO9660 extends DiscIndexer {
 
     private static final Logger log = Logger.getLogger(DiscIndexerISO9660.class.getName());
 
-    private ArrayList<SectorISO9660DirectoryRecords> _dirRecords =
+    private final ArrayList<SectorISO9660DirectoryRecords> _dirRecords =
             new ArrayList<SectorISO9660DirectoryRecords>();
-    private ArrayList<SectorISO9660VolumePrimaryDescriptor> _primaryDescriptors =
+    private final ArrayList<SectorISO9660VolumePrimaryDescriptor> _primaryDescriptors =
             new ArrayList<SectorISO9660VolumePrimaryDescriptor>();
 
-    private Logger _errLog;
+    private final Logger _errLog;
 
     public DiscIndexerISO9660(Logger errLog) {
         _errLog = errLog;
@@ -99,15 +99,21 @@ public class DiscIndexerISO9660 extends DiscIndexer {
                 log.warning(pd.toString());
             }
         } else if (_primaryDescriptors.size() == 1) {
-            SectorISO9660VolumePrimaryDescriptor oPriDesc = _primaryDescriptors.get(0);
-            CdSector oCDSect = oPriDesc.getCDSector();
-            _iSectorOffset = oCDSect.getHeaderSectorNumber() - oCDSect.getSectorNumberFromStart();
-            
-            getFileList(oPriDesc.getVPD().root_directory_record, null);
+            SectorISO9660VolumePrimaryDescriptor priDesc = _primaryDescriptors.get(0);
+            CdSector cdSector = priDesc.getCDSector();
+            if (cdSector.hasHeaderSectorNumber())
+                _iSectorNumberDiff = cdSector.getHeaderSectorNumber() - cdSector.getSectorNumberFromStart();
+            else
+                _iSectorNumberDiff = 0;
+            getFileList(priDesc.getVPD().root_directory_record, null);
         }
     }
 
-    private int _iSectorOffset = 0;
+    /** The difference between the sector number in raw sector headers
+     * and the sector number from the start of the file.
+     * This is always 0 if there is no raw sector header, and if an entire
+     * disc image is used. */
+    private int _iSectorNumberDiff = 0;
     
     private void getFileList(DirectoryRecord rec, File parentDir) {
 
@@ -118,7 +124,7 @@ public class DiscIndexerISO9660 extends DiscIndexer {
 
         for (int iSect = 0; iSect < rec.size / 2048; iSect++) {
 
-            SectorISO9660DirectoryRecords dirRecSect = getDirRecSect((int)(rec.extent + _iSectorOffset + iSect));
+            SectorISO9660DirectoryRecords dirRecSect = getDirRecSect((int)(rec.extent + _iSectorNumberDiff + iSect));
             if (dirRecSect == null) return;
 
             for (DirectoryRecord childDr : dirRecSect.getRecords()) {

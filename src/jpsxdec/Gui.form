@@ -217,12 +217,13 @@
                 <Component class="javax.swing.JComboBox" name="_guiSelectAllType">
                   <Properties>
                     <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.editors2.ComboBoxModelEditor">
-                      <StringArray count="5">
+                      <StringArray count="6">
                         <StringItem index="0" value="none"/>
                         <StringItem index="1" value="all Video"/>
                         <StringItem index="2" value="all Audio (excluding video audio)"/>
                         <StringItem index="3" value="all Audio (including video audio)"/>
                         <StringItem index="4" value="all Files"/>
+                        <StringItem index="5" value="all Images"/>
                       </StringArray>
                     </Property>
                   </Properties>

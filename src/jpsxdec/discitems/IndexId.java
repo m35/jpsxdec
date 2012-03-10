@@ -97,6 +97,7 @@ public class IndexId extends AbstractList<IndexId> {
         return _item;
     }
 
+    // TODO:this is pretty ugly
     public int recursiveSetTreeIndex(File file, int[] aiParentIndex, int iChildInc) {
         if (_sourceFile == null) {
             _sourceFile = file;
@@ -172,18 +173,18 @@ public class IndexId extends AbstractList<IndexId> {
         return serialize();
     }
 
-    public void findAndAddChildren(ArrayList<DiscItem> LIST) {
+    public void findAndAddChildren(ArrayList<DiscItem> nonRootItems) {
         Outside:
-        for (DiscItem item : LIST) {
+        for (DiscItem item : nonRootItems) {
 
-            // make sure they are part of the same file
+            // check if the other item is part of the same file
             File otherBaseFile = item.getIndexId()._sourceFile;
             if (_sourceFile == null) {
                 if (otherBaseFile != null)
-                    continue;
+                    continue; // nope
             } else {
                 if (otherBaseFile == null || !_sourceFile.equals(otherBaseFile)) {
-                    continue;
+                    continue; // nope
                 }
             }
 
@@ -191,7 +192,7 @@ public class IndexId extends AbstractList<IndexId> {
             int[] aiOtherTreeIndexes = item.getIndexId()._aiTreeIndexes;
             if (aiOtherTreeIndexes == null)
                 continue;
-            if (_aiTreeIndexes == null) {
+            if (this._aiTreeIndexes == null) {
                 if (aiOtherTreeIndexes.length == 1) {
                     _kids.add(item.getIndexId());
                 }

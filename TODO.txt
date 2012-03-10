@@ -10,48 +10,108 @@
 
 .....................
 
-// Change encoder to encode frames up to quantization
-//  Then polymorph the rest of the process to:
-//   - Iteratively quantize and compress each block
-//    - Check if it fits
-//    - If not, increase the quantization somehow and repeat
-
-? Create my own smaller/simpler arg parser
-
-! Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates with no
-  greatest-common-rate and make them 75 or 150 fps
-! Improve Lunar 2 20 fps
-
-! Make tutorial on ripping a game and using jpsxdec
+* Try changing Alice to split audio at previous sector
+* Add selected count on Save All Selected button
+* Bug: Save Log files not printing source disc image from cmdline
+* Use reflection to call 1.6 JFrame method to set multiple icon sizes
+* Add /doc folder to put most stuff for release
+* Show output file(s) in TIM panel
+* Rename FF7 video format to STRv1
+// Check warnings/errors in last batch test
+// Investigate: Alice finds 1 extra sector if the header is not checked 
+//    -> the previous sector data was duplicated in what seems to be a dummy audio sector, 
+//       so without the XA header, it would seem like Alice video
+// Bug: FF7 sampler has been identifying Lain sectors
+    // Investigate: detailed analysis of FF7+sampler and Lain sector headers
+//* Bug:Indexer is quite broken -> Reverted
+    // Bug: Loading FF7 index, the audio disappears from list, but videos have it :P
+    // Bug: Disc item tree builder doesn't handle strange input very well
+* Cleanup the whole ConsoleProgressListenerLogger mess
+? Indexing overhaul:
+  Remove all traces of random access and only assume forward access
+  Introduce contextual information to help identify sector types
+    CD audio sectors will benefit
+    Identifying video sectors by combining the frame data along the way and checking if its valid (FF7, Lain, Dredd)
+  Removes the need for frame number dependence
+? Change the way video items split audio items: do it after indexing. 
+  It's conceptually better, and removes Audio indexer from having to know about video frames.
+  However, different movie types split movies slightly differently
+  And right now its the sectors that are the only game specific logic
+  I would need to add game specific indexers and disc items
+* Rename "Precise audio/video sync" -> "Emulate PSX audio/video sync"
+* Cleanup the mess that is STRv3
+* Bug: Player automatically plays video-only content when it is very short
+* Bug: video player repeats prior frames and audio when frame type is not detected
+* Bug: Using start and end frames to calculate anything may not work if frame numbering skips
+x Add .ecm file support -> Not random access friendly
+// Add unit test to compare the list that is generated from indexing vs the list 
+// generated from loading index file
+// Tim saving: add Tim format
+! Add doxygen and unit tests to build.xml
+    * Make doxygen config
+    * Unit tests require Java 6 while jPSXdec is built with Java 5 ...
+      can use 2 different Javas in ant?
+// Fix javadoc build
+! Try to automate the release process
+! Finish manual
 ! Update manual to cover the gui and game ripping
-! Wield the power of Java: Multi-thread decoding (essentially use the player model)
+! Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates
+  make them 75 or 150 fps - by checking how much variance there is between frame lengths
+! Make tutorial on ripping a game and using jpsxdec
 ! Command-line selection of parallel audio?
 ! Add handling for "Unnamed" file names colliding with disc file names
 ! Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player
-
-// Remove EOFException from MdecInputStream and change DecodingException to MdecException
-
-* change xa to properly handle static (adjacent sector) streaming
-// double check 8bit XA really generates same amount of samples - nope
-* Bug: Save dialog overwrite prompt doesn't consider auto extention
-
 ! Start Lain process
     // Encoding redesign
-    * AVI parsing
-* Run unit tests against older versions
+    ? AVI parsing
 // Add bicubic and lanczos chroma upsampling interpolation
     // Change video saving settings to include interpolation option
     // Recompare ffmpeg and jPSXdec
     ? Even when not upsampling, utilize it for PsxYuv->JpgYuv matrix conversion
         ! Test how much difference there is between the two color sets
-    * Compare ffmpeg ycbcr->rgb to PSX ycbcr->rgb
-// Re-add command-line decoding of bitstream and mdec files
-    // Include debugging flags
-    * Update manual
+    ! Compare ffmpeg ycbcr->rgb to PSX ycbcr->rgb
 
-? Replace much of IO and some of Misc with Apache Commons IO
-
+* Run unit tests against older versions
+* Clean up all the TODOs
+* change xa playback to properly handle static (adjacent sector) streaming
+* Bug: Save dialog overwrite prompt doesn't consider auto extention
+* List minimum sys req: 1ghz, 512mb
 * Expose logger options
+* Bug: Play tab remains enabled after opening or something
+* Add jpsxdec id to AVI such that K-Lite Media Info displays it
+* Bug: audio streams are being shared by multiple video streams somehow
+* Retest all PSX games
+* Bug: Tree music icon is hard to see on blue background
+* Bug: Player doesn't let you play movie with 1 frame
+* Bug: Ubuntu: only tree column is white, but text boxes have gray background
+* Clarify that Rec601YCbCrImage class is also used for full range ycbcr
+* Figure out how to better organize all the RGB and YCbCr pixel formats
+* Clean up creating directory tree for saving
+* Clean up tree hierarchy building code
+* check what the EOF and Audio-end flags mean
+* Rotate pdf visualization
+* When displaying progress, setup a timer to only update the display at most every second
+* Add -precisefps
+* write code documentation
+* Start code coverage/unit testing
+    * Make unit tests for the various layers of decoding:
+        1) Opening/identifying various disc images
+      // 2) Identification of the various sector types
+        3) Indexing of the various item types
+      /  1) Uncompression of various bitstreams
+      /  2) Various ways to decode MDEC streams
+        ... etc
+
+* Replicate exact PSX color conversion
+    * Reverse engineer IDCT
+        Create test movies with -0.5 identity IDCT
+            Place single values at various locations in the matrix
+            Place two values at various locations in the matrix
+    * Reverse engineer YCbCr->RGB
+        Create test movies with -0.5 identity IDCT that generate predictable DC coefficients
+            Convert newLISP script to Java and combine with FF9 experiment class
+            Add remaining Cb and Cr values
+            Figure out why Y comes out so strange
 
 .....................
 User test feedback
@@ -69,50 +129,33 @@ User test feedback
 * More clearly associate list with right-hand panel
 * "Label and io part" ??
 .....................
-
-
-* Bug: Play tab remains enabled after opening or something
-
 ! User test gui. Brainstorm new designs.
     * Add option to save just 1 item allowing to specify name and location
+    * Add tooltips for everything
     * Translate/localize the GUI and CL text
     ! Bug: slow scrolling when treetable has hundreds of items (Windows)
         ? Change Treetable library
     ? Is there a better Saving dialog design?
-    * Add tooltips for everything
-* List minimum sys req: 1ghz, 512mb
+.....................
 
-* Add jpsxdec id to AVI such that K-Lite Media Info displays it
-? Change sector reading to start by only reading the header, then read remaining as needed
-
-* Bug: audio streams are being shared by multiple video streams somehow
-* Replicate exact PSX color conversion
-    * Reverse engineer IDCT
-        Create test movies with -0.5 identity IDCT
-            Place single values at various locations in the matrix
-            Place two values at various locations in the matrix
-    * Reverse engineer YCbCr->RGB
-        Create test movies with -0.5 identity IDCT that generate predictable DC coefficients
-            Convert newLISP script to Java and combine with FF9 experiment class
-            Add remaining Cb and Cr values
-            Figure out why Y comes out so strange
-
-* Retest all PSX games
-
+			
+? Wield the power of Java: Multi-thread decoding (essentially use the player model)
+? Create my own smaller/simpler arg parser
+? Replace much of IO and some of Misc with Apache Commons IO
 ? Highlight tree items that are checked for saving
+? Change sector reading to start by only reading the header, then read remaining as needed
+? Add hex viewer for files
+? Introduce option to ignore errors: specifically for CD sector reading and frame uncompression
+? Visualize disc items location in the gui
+? Add CD audio detection/extraction
+    ? Add CUE/TOC file parsing so the tracks can be identified
+? add DiscItemVideo.decodeFrame(int) for quick thumbnailing
+? Finish function "identifySector()" in DiscItem
+  to more quickly figure out what type of sectors are read (since it won't
+  have to go through the whole list of like 10 types).
+? Change package structure to <hosting site>.jpsxdec.*
 
-* Bug: Tree music icon is hard to see on blue background
-* Bug: Player doesn't let you play movie with 1 frame
-* Bug: Ubuntu: only tree column is white, but text boxes have gray background
-
-* Clarify that Rec601YCbCrImage class is also used for full range ycbcr
-* Figure out how to better organize all the RGB and YCbCr pixel formats
-
-* Clean up creating directory tree for saving
-* Clean up tree hierarchy building code
-
-* check what the EOF and Audio-end flags mean
-
+// Improve Lunar 2 20 fps
 // Change sector identification method to use ratings
    then pick the one with the highest probability
    and report on errors
@@ -122,21 +165,9 @@ User test feedback
       probability match. As soon as a 100% probability is found, stop testing.
       If no 100% is found, continue until all types are checked, then compare
       the probability.
-
-
-* Rotate pdf visualization
-* When displaying progress, setup a timer to only update the display at most every second
-* Add -precisefps
-* write code documentation
-* Start code coverage/unit testing
-    * Make unit tests for the various layers of decoding:
-        1) Opening/identifying various disc images
-      // 2) Identification of the various sector types
-        3) Indexing of the various item types
-      /  1) Uncompression of various bitstreams
-      /  2) Various ways to decode MDEC streams
-        ... etc
-
+// Re-add command-line decoding of bitstream and mdec files
+    // Include debugging flags
+    // Update manual
 // Change sector and frame reading/decoding errors to be printed to files
 //  then just report in the interface how many errors were encountered,
 //  and to check the error file
@@ -147,25 +178,16 @@ User test feedback
 // Inform user if corrupted data is found while reading sectors
     ? Don't show an error on every sector (try to group them)
 
-? Add hex viewer for files
-? Introduce option to ignore errors: specifically for CD sector reading and frame uncompression
-? Visualize disc items location in the gui
-? Add CD audio detection/extraction
-    ? Add CUE/TOC file parsing so the tracks can be identified
-? add DiscItemVideo.decodeFrame(int) for quick thumbnailing
-? Finish function "identifySector()" in DiscItem
-  to more quickly figure out what type of sectors are read (since it won't
-  have to go through the whole list of like 10 types).
-? Make things simpler/smaller...somehow
-   ? Simplify and standardize the few video decoding qualities
-   ? Only provide all the saving options on the command-line. The GUI only gets 1 or 2
+// Make things simpler/smaller...somehow
+   x Simplify and standardize the few video decoding qualities
+   x Only provide all the saving options on the command-line. The GUI only gets 1 or 2
 
 Indexing
     * Static data handling
         // Re-add TIM search
         / Searching for static MDEC data
         ? Searching for static bitstream data
-        ? Finding and uncompressing lhz data, often used in PSX games
+        x Finding and uncompressing lhz data, often used in PSX games
     * STR indexing: add serialized value: Precise fps:Y/N. When there's no rate variance, then it can be used for -precisefps
     ? ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
       When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
@@ -173,7 +195,7 @@ Indexing
     ? Add list box when indexing that will show the items as they are discovered
     ? Add in a comment what sector types were found during indexing (for debugging)
 ! Video encoder
-    * Add frame (quantization) format descriptors to compare for compatability, print details, and use for encoder
+	* Finish .iki encoder
     // replace existing movie frames
         * remove/merge redundant MDEC codes with AC=0 (FF7)
         ! test sector and bitstream format handling
@@ -181,12 +203,13 @@ Indexing
         * Split up the partial diff detection from the actual replacing. Helpful for
           . Generating an xml with frames without changes removed
           . GUI preview would be useful to expose this info
-    ? Add ECE/ECC recalculation
+    // Add ECE/ECC recalculation
     ? add built-in sub-title rendering (ala Jubler)
     ? create movies from scratch
     ? Include Cb/Cr un-swap correction option
       so videos decoded with other programs can be re-encoded with consistent coloring
-    ? Alternatively create an mpeg2 parser and converter
+    x Alternatively create an mpeg2 parser and converter
+    x Add frame (quantization) format descriptors to compare for compatability, print details, and use for encoder
     x Fancy encoding algorithms
         x Smart chrominance sub-sampling calculation
         x Pre-anti-aliasing and Pre-blockiness reduction
@@ -196,8 +219,9 @@ Indexing
         x Context-adaptive variable-length coding (or is this h.264 only?)
 * Real-time media playback/preview
     * Pause video-only playback when reading is delayed
-    * Add seeking
+    ? Add seeking
     ? change to use Java 2D
+	* Bug: pausing race condition
     * Bug: when audio doesn't start for a prolonged period, video frame queue fills and blocks
     * Skip audio in the rare case it is behind sector reading
         - Need to address static (sequential sector) audio
@@ -210,12 +234,13 @@ Indexing
         x Implement my own low-latency audio position tracking
     ? Register listeners with the SourceDataLine and let those events pause the
       other components indirectly
-    - Reduce amount of object creation/destruction so GC delays aren't a problem
+    // Reduce amount of object creation/destruction so GC delays aren't a problem
         Current process:
             byte[] for sector data
                 CDSector to wrap that + CDXAHeader + CodingInfo + SubMode
                     IdentifiedSector to wrap that
                     // All the NotThisTypeExceptions thrown during identification
+						DemuxedFrame to wrap those
             AudioFormats created along the way?
 GAME SPECIFIC:
     * Pop at end of 429:XA (FF Chron?) disc 1. Test with PsxMC
@@ -223,15 +248,14 @@ GAME SPECIFIC:
     * Castlevania seems to have movies with lots of extra frames at the end?
     * Soul Reaver 009:TIM is extra wide and saved as jpg looks weird (transparency?)
     * FF Chronicles has a tim file being saved as blank
-    * Legend of Mana has 000:TIM with 64 palettes! One being saved all transparent?
-    ? Lain Disc 2 048:STR - End of movie has 2 audio sectors next to each other
+    // Legend of Mana ANA\EFFECT\BAT_EF\JYO_TIM.TIM has 64 palettes. One being saved all transparent. -> Correct
+    // Lain Disc 2 048:STR - End of movie has 2 audio sectors next to each other -> one is silent, so ignored
     // Simpsons Wrestling movie has a crazy fps
     // Tekken 3 has lots of 20 fps
     // Chrono Cross final movie - need to add handling for it
     // Figure out how the heck to REALLY handle variable frame rates (Alice in cyberland)
     // Super Puzzle Fighter 2: First movie, last frame is split because audio sector changes format
     // Spyro indexing isn't doing XA right -> due to bad sectors
-? Change package structure to <hosting site>.jpsxdec.*
 
 ------------------------------------------
 
@@ -292,7 +316,6 @@ Indexing
 // Update copyright year
 // Real-time media playback/preview
     // Make sure I'm not reusing the same buffer for all my audio streaming
-    // Bug: Player automatically plays video-only content when it is very short
     // Player doesn't release all resources when closed
     // Abstract out the media player
 	// Change thread syncing to use PipedIOStream approach
@@ -338,6 +361,13 @@ x Bug XXX: The YV12 format seems to use MPEG2 chroma placement :(
     // Remove extra IDCTs
     // FF8 get rid of ShortOutputBuffer like normal XA audio decoding
     // Remove abstraction for raw cd sector reading
+// Change encoder to encode frames up to quantization
+//  Then polymorph the rest of the process to:
+//   - Iteratively quantize and compress each block
+//    - Check if it fits
+//    - If not, increase the quantization somehow and repeat
+// Remove EOFException from MdecInputStream and change DecodingException to MdecException
+// double check 8bit XA really generates same amount of samples - nope
 // Add license for Dropdown code
 // Save current index and disc image directories to ini file
     // Add toolbar buttons dropdown with recent disc and index files

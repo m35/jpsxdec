@@ -44,19 +44,17 @@ import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 
-// FIXME: this is dangerously close to FF7 video sectors
-// checking for this type of sector first would be one solution to prevent false-positives
 public class SectorLainVideo extends SectorAbstractVideo {
 
     // Magic 0x80010160                     //  0    [4 bytes]
     private int  _iChunkNumber;             //  4    [2 bytes]
     private int  _iChunksInThisFrame;       //  6    [2 bytes]
     private int  _iFrameNumber;             //  8    [4 bytes]
-    private long _lngUsedDemuxedSize;       //  12   [4 bytes]
+    private long _lngTotalDemuxedSize;      //  12   [4 bytes]
     // Width                                //  16   [2 bytes]
-    // Height                               //  18   [2 bytes]
-    private byte _bQuantizationScaleLumin;  //  20   [1 byte]
-    private byte _bQuantizationScaleChrom;  //  21   [1 byte]
+    // Height                               //  18   [2 bytes]    
+    private byte _bQuantizationScaleLuma;   //  20   [1 byte]
+    private byte _bQuantizationScaleChroma; //  21   [1 byte]
     private int  _iMagic3800;               //  22   [2 bytes]
     private int  _iRunLengthCodeCount;      //  24   [2 bytes]
     // Version 0                            //  26   [2 bytes]
@@ -71,7 +69,7 @@ public class SectorLainVideo extends SectorAbstractVideo {
         if (isSuperInvalidElseReset()) return;
 
         // only if it has a sector header should we check if it reports DATA or VIDEO
-        if (cdSector.hasRawSectorHeader() &&
+        if (cdSector.hasSubHeader() &&
             cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
         {
             return;
@@ -83,21 +81,21 @@ public class SectorLainVideo extends SectorAbstractVideo {
         _iChunkNumber = cdSector.readSInt16LE(4);
         if (_iChunkNumber < 0) return;
         _iChunksInThisFrame = cdSector.readSInt16LE(6);
-        if (_iChunksInThisFrame < 1) return;
+        if (_iChunksInThisFrame != 9 && _iChunksInThisFrame != 10) return;
         _iFrameNumber = cdSector.readSInt32LE(8);
         if (_iFrameNumber < 1) return;
-        _lngUsedDemuxedSize = cdSector.readSInt32LE(12);
-        if (_lngUsedDemuxedSize < 0) return;
+        _lngTotalDemuxedSize = cdSector.readSInt32LE(12);
+        if (_lngTotalDemuxedSize != 18144 && _lngTotalDemuxedSize != 20160) return;
         int iWidth = cdSector.readSInt16LE(16);
         if (iWidth != 320) return;
         int iHeight = cdSector.readSInt16LE(18);
         if (iHeight != 240) return;
 
-        _bQuantizationScaleLumin = cdSector.readUserDataByte(20);
-        if (_bQuantizationScaleLumin < 0) // 1 movie has 0 qscale in header
+        _bQuantizationScaleLuma = cdSector.readUserDataByte(20);
+        if (_bQuantizationScaleLuma < 0) // 1 movie has 0 qscale in header
             return;
-        _bQuantizationScaleChrom = cdSector.readUserDataByte(21);
-        if (_bQuantizationScaleChrom < 0) // 1 movie has 0 qscale in header
+        _bQuantizationScaleChroma = cdSector.readUserDataByte(21);
+        if (_bQuantizationScaleChroma < 0) // 1 movie has 0 qscale in header
             return;
 
         _iMagic3800 = cdSector.readUInt16LE(22);
@@ -110,27 +108,25 @@ public class SectorLainVideo extends SectorAbstractVideo {
 
         int iVersion = cdSector.readUInt16LE(26);
         if (iVersion != 0) return;
-        long lngFourZeros = cdSector.readUInt32LE(28);
-        if (lngFourZeros != 0) return;
+        int iFourZeros = cdSector.readSInt32LE(28);
+        if (iFourZeros != 0) return;
 
-        // still possible it's a FF7 header
-        // TODO: figure out probability with more details
         setProbability(90);
     }
 
     public String toString() {
         return String.format("%s %s frame:%d chunk:%d/%d " +
-            "{demux frame size=%d rlc=%d 3800=%04x qscaleL=%d qscaleC=%d}",
+            "{demux size=%d rlc=%d 3800=%04x qscaleL=%d qscaleC=%d}",
             getTypeName(),
             super.cdToString(),
             _iFrameNumber,
             _iChunkNumber,
             _iChunksInThisFrame,
-            _lngUsedDemuxedSize,
+            _lngTotalDemuxedSize,
             _iRunLengthCodeCount,
             _iMagic3800,
-            _bQuantizationScaleLumin,
-            _bQuantizationScaleChrom
+            _bQuantizationScaleLuma,
+            _bQuantizationScaleChroma
             );
     }
 
@@ -191,7 +187,8 @@ public class SectorLainVideo extends SectorAbstractVideo {
         return 320;
     }
 
-    public boolean splitAudio() {
-        return (getFrameNumber() == 1 && getChunkNumber() == 0);
+    public int splitXaAudio() {
+        return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
+            SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
     }
 }

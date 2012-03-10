@@ -65,8 +65,8 @@ public class SquareAKAOstruct {
     
     public String toString() {
         return String.format(
-            "AKAO:%08x frame-1:%d ?:%04x Size:%d",
-            AKAO,
+            "AKAO:%s frame-1:%d ?:%04x Size:%d",
+            AKAO == AKAO_ID ? "'AKAO'" : String.format("%08x", AKAO),
             FrameNumSub1,
             Unknown,
             BytesOfData

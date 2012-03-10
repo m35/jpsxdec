@@ -73,7 +73,7 @@ public class DiscIndexerXaAudio extends DiscIndexer {
     private class AudioStreamIndex {
 
         /** First sector of the audio stream. */
-        private final int _iStartSector;
+        private int _iStartSector;
 
         /** Last sector before _currentXA that was a part of this stream. */
         private SectorXAAudio _previousXA;
@@ -104,7 +104,7 @@ public class DiscIndexerXaAudio extends DiscIndexer {
          */
         public boolean sectorRead(SectorXAAudio newCurrent) {
             // if the previous ('current') sector's EOF bit was set, this stream is closed
-            // this is important for Silent Hill and R4 Ridge Racer
+            // this is important for Silent Hill, R4 Ridge Racer, and probably others
             if (_currentXA.getCDSector().getSubMode().getEofMarker())
                 return false;
 
@@ -148,14 +148,20 @@ public class DiscIndexerXaAudio extends DiscIndexer {
                     log.warning("Trying to create XA item from non-existant previous sector! Current sector is " + _iStartSector);
                 return null;
             } else {
-                return new DiscItemXAAudioStream(
-                    _iStartSector, _currentXA.getSectorNumber(),
+                DiscItemXAAudioStream ret = new DiscItemXAAudioStream(
+                    _iStartSector, _previousXA.getSectorNumber(),
                     _currentXA.getChannel(),
                     _lngSampleCount,
                     _currentXA.getSamplesPerSecond(),
                     _currentXA.isStereo(), _currentXA.getBitsPerSample(),
                     _iAudioStride);
+                _previousXA = null;
+                _iStartSector = _currentXA.getSectorNumber();
+                _iAudioStride = -1;
+                _lngSampleCount = 0;
+                return ret;
             }
+
         }
 
         public boolean ended(int iSectorNum) {
@@ -199,8 +205,22 @@ public class DiscIndexerXaAudio extends DiscIndexer {
             // Alice in Cyberland, FF7, and probably others need to split
             // audio at the start of movies because there's no other
             // indicator of audio splitting
-            if (sector instanceof IVideoSector && ((IVideoSector)sector).splitAudio()) {
-                indexingEndOfDisc();
+            if (sector instanceof IVideoSector) {
+                switch (((IVideoSector)sector).splitXaAudio()) {
+                    case IVideoSector.SPLIT_XA_AUDIO_CURRENT:
+                        indexingEndOfDisc();
+                        break;
+                    case IVideoSector.SPLIT_XA_AUDIO_PREVIOUS:
+                        for (int i = 0; i < _aoChannels.length; i++) {
+                            AudioStreamIndex audStream = _aoChannels[i];
+                            if (audStream != null) {
+                                DiscItem item = audStream.createMediaItemFromPrevious();
+                                if (item != null)
+                                    super.addDiscItem(item);
+                            }
+                        }
+                        break;
+                }
             }
             // check for streams that are beyond their stride
 

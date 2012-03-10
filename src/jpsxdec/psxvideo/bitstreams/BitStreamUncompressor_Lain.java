@@ -340,17 +340,21 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
 
     @Override
-    public BitStreamCompressor makeCompressor() {
+    public BitstreamCompressor_Lain makeCompressor() {
         return new BitstreamCompressor_Lain();
     }
+
+    /** Lain videos luma:chroma ratio varies between 0.06 and 5.0.
+     * Most are around the 1.0-2.0 range. */
+    private static final double LUMA_TO_CHROMA_RATIO = 2.0;
 
     public Iterator<int[]> qscaleIterator(final boolean blnStartAt1) {
         return new Iterator<int[]>() {
             int __iLQscale = blnStartAt1 ? 1 : _iQscaleLuma;
             int __iCQscale = blnStartAt1 ? 1 : _iQscaleChroma;
             final double __dblRatio = blnStartAt1 ?
-                    5.0 :
-                    (__iCQscale / (double)__iLQscale);
+                    LUMA_TO_CHROMA_RATIO :
+                    (__iLQscale / (double)__iCQscale);
 
             public boolean hasNext() { return __iLQscale < 64 && __iCQscale < 64; }
 
@@ -364,11 +368,10 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                     ab[i++] = __iLQscale;
                     ab[i++] = __iLQscale;
                 }
-                // TODO: Maintain the ratio
-                if ((__iCQscale / (double)__iLQscale) < __dblRatio)
-                    __iCQscale++;
-                else
+                if ((__iLQscale / (double)__iCQscale) < __dblRatio)
                     __iLQscale++;
+                else
+                    __iCQscale++;
                 return ab;
             }
 

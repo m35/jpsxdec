@@ -99,9 +99,9 @@ public abstract class MdecInputStream {
      *  the block's quantization scale, and the bottom 10 bits indicate
      *  the "direct current" (DC) coefficient.
      *  If the MDEC code is not the first of a block, and it is
-     *  not an END_OF_DATA code (0xFE00), then the top 6 bits indicate
+     *  not a {@link #MDEC_END_OF_DATA} code (0xFE00), then the top 6 bits indicate
      *  the number of zeros preceeding an AC code, with the bottom 10 bits
-     *  indicating the "alternating current" (AC) code.  */
+     *  indicating the "alternating current" (AC) coefficient.  */
     public static class MdecCode implements Cloneable {
 
         private int _iTop6Bits;

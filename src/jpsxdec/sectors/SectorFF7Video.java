@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,7 +45,7 @@ import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.IO;
 
 
-/** This is the header for FF7 (v1) video sectors. */
+/** Represents an FF7 video sector. */
 public class SectorFF7Video extends SectorAbstractVideo {
     
     private static final Logger log = Logger.getLogger(SectorFF7Video.class.getName());
@@ -79,7 +79,7 @@ public class SectorFF7Video extends SectorAbstractVideo {
         if (isSuperInvalidElseReset()) return;
 
         // at least 1 movie doesn't have audio, video, or data flags set
-        if (cdSector.hasRawSectorHeader() && cdSector.subModeMask(SUB_MODE_MASK) != 0) {
+        if (cdSector.hasSubHeader() && cdSector.subModeMask(SUB_MODE_MASK) != 0) {
             return;
         }
 
@@ -98,21 +98,21 @@ public class SectorFF7Video extends SectorAbstractVideo {
         _iHeight = cdSector.readSInt16LE(18);
         if (_iHeight != 224 && _iHeight != 192 && _iHeight != 240) return;
         _lngUnknown8bytes = cdSector.readSInt64BE(20);
-
         
-        if (_iHeight == 240) {
+        if (_iHeight == 240) { // FF7 sampler has videos with 240 height
             // this block is unfortunately necessary to prevent false-positives with Lain sectors
-
+            
             // if movie height is 240, then the unknown data must all be 0
             if (_lngUnknown8bytes != 0) return;
 
-            // and there can only be 10 chunks for frames that are really high
-            if (_iChunksInThisFrame == 10 && _iFrameNumber < 900) return;
+            // and no 10 chunk frames before frame 100
+            if (_iChunksInThisFrame == 10 && _iFrameNumber < 100) return;
         }
+        
+        long iFourZeros = cdSector.readSInt32LE(28);
+        if (iFourZeros != 0) return;
 
-        long lngFourZeros = cdSector.readUInt32LE(28);
-        if (lngFourZeros != 0) return;
-
+        // check for camera data
         if (_iChunkNumber == 0) {
             if (cdSector.readUInt16LE(32+2) != 0x3800) {
                 if (cdSector.readUInt16LE(32+40+2) != 0x3800)
@@ -125,8 +125,8 @@ public class SectorFF7Video extends SectorAbstractVideo {
             _iUserDataStart = FRAME_SECTOR_HEADER_SIZE;
         }
 
-        // still could be Lain or some other types of video sectors
-        setProbability(85);
+        // that 8 bytes of unknown data makes the confidence suspect
+        setProbability(90);
     }
 
     // .. Public functions .................................................
@@ -206,8 +206,9 @@ public class SectorFF7Video extends SectorAbstractVideo {
         return _iWidth;
     }
 
-    public boolean splitAudio() {
-        return (getFrameNumber() == 1 && getChunkNumber() == 0);
+    public int splitXaAudio() {
+        return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
+            SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
     }
 }
 

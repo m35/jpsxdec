@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -128,7 +128,6 @@ public class FeedbackStream extends PrintStream {
         if (_iVerboseLevel >= _iPrintDefault) {
             printIndentIfAny();
             super.print(obj);
-            _blnNewLine = true;
         }
     }
     @Override
@@ -229,58 +228,58 @@ public class FeedbackStream extends PrintStream {
     */
     //.........................................................................
     @Override
-    public PrintStream printf(String format, Object... args) {
+    public FeedbackStream printf(String format, Object... args) {
         if (_iVerboseLevel >= _iPrintDefault) {
             printIndentIfAny();
-            return super.printf(format, args);
+            return (FeedbackStream) super.printf(format, args);
         }
         return this;
     }
     @Override
-    public PrintStream printf(Locale l, String format, Object... args) {
+    public FeedbackStream printf(Locale l, String format, Object... args) {
         if (_iVerboseLevel >= _iPrintDefault) {
             printIndentIfAny();
-            return super.printf(l, format, args);
+            return (FeedbackStream) super.printf(l, format, args);
         }
         return this;
     }
     @Override
-    public PrintStream append(CharSequence csq) {
+    public FeedbackStream append(CharSequence csq) {
         if (_iVerboseLevel >= _iPrintDefault) {
             printIndentIfAny();
-            return super.append(csq);
+            return (FeedbackStream) super.append(csq);
         }
         return this;
     }
     @Override
-    public PrintStream append(CharSequence csq, int start, int end) {
+    public FeedbackStream append(CharSequence csq, int start, int end) {
         if (_iVerboseLevel >= _iPrintDefault) {
             printIndentIfAny();
-            return super.append(csq, start, end);
+            return (FeedbackStream) super.append(csq, start, end);
         }
         return this;
     }
     @Override
-    public PrintStream append(char c) {
+    public FeedbackStream append(char c) {
         if (_iVerboseLevel >= _iPrintDefault) {
             printIndentIfAny();
-            return super.append(c);
+            return (FeedbackStream) super.append(c);
         }
         return this;
     }
     @Override
-    public PrintStream format(String format, Object... args) {
+    public FeedbackStream format(String format, Object... args) {
         if (_iVerboseLevel >= _iPrintDefault) {
             printIndentIfAny();
-            return super.format(format, args);
+            return (FeedbackStream) super.format(format, args);
         }
         return this;
     }
     @Override
-    public PrintStream format(Locale l, String format, Object... args) {
+    public FeedbackStream format(Locale l, String format, Object... args) {
         if (_iVerboseLevel >= _iPrintDefault) {
             printIndentIfAny();
-            return super.format(l, format, args);
+            return (FeedbackStream) super.format(l, format, args);
         }
         return this;
     }

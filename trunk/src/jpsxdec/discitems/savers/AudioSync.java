@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,25 +47,18 @@ public class AudioSync {
     private final int _iFirstPresentationSector;
 
     private final int _iSectorsPerSecond;
-    private final Fraction _samplesPerSecond;
+    private int _iSamplesPerSecond;
     
     private final Fraction _samplesPerSector;
 
-    /**
-     *
-     * @param fltSamplesPerSecond  A float because that's what
-     *                             {@link javax.sound.sampled.AudioFormat}
-     *                             uses, but in the case of PSX audio writing,
-     *                             it's assumed to be a whole number.
-     */
     public AudioSync(int iFirstPresentationSector,
                      int iSectorsPerSecond,
-                     float fltSamplesPerSecond)
+                     int iSamplesPerSecond)
     {
         _iSectorsPerSecond = iSectorsPerSecond;
-        _samplesPerSecond = new Fraction(Math.round(fltSamplesPerSecond * 1000), 1000);
+        _iSamplesPerSecond = iSamplesPerSecond;
         // samples/sector = samples/second / sectors/second
-        _samplesPerSector = _samplesPerSecond.divide(_iSectorsPerSecond);
+        _samplesPerSector = new Fraction(_iSamplesPerSecond, _iSectorsPerSecond);
 
         _iFirstPresentationSector = iFirstPresentationSector;
     }
@@ -74,8 +67,8 @@ public class AudioSync {
         return _iSectorsPerSecond;
     }
 
-    public Fraction getSamplesPerSecond() {
-        return _samplesPerSecond;
+    public int getSamplesPerSecond() {
+        return _iSamplesPerSecond;
     }
 
     public Fraction getSamplesPerSector() {
@@ -86,9 +79,9 @@ public class AudioSync {
                                        long lngSamplesWritten)
     {
         Fraction presentationTime = new Fraction(iAudioPresentationSector - _iFirstPresentationSector, _iSectorsPerSecond);
-        Fraction movieTime = Fraction.divide(lngSamplesWritten, _samplesPerSecond);
+        Fraction movieTime = new Fraction(lngSamplesWritten, _iSamplesPerSecond);
         Fraction timeDiff = presentationTime.subtract(movieTime);
-        Fraction sampleDiff = timeDiff.multiply(_samplesPerSecond);
+        Fraction sampleDiff = timeDiff.multiply(_iSamplesPerSecond);
 
         long lngSampleDifference = Math.round(sampleDiff.asDouble());
 

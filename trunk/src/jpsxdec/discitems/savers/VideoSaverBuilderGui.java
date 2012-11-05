@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,40 +44,32 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
 import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.table.AbstractTableModel;
-import jpsxdec.SavingGuiTable;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.savers.VideoSaverBuilder.DecodeQualities;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
 import jpsxdec.util.Fraction;
 
 /** Gui for {@link VideoSaverBuilder} options. */
-public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuilder> {
+public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends DiscItemSaverBuilderGui<T> {
 
     private JPanel _topPanel = new JPanel(new ParagraphLayout());
 
-    public VideoSaverBuilderGui(VideoSaverBuilder writerBuilder) {
+    public VideoSaverBuilderGui(T writerBuilder) {
         super(writerBuilder, new BorderLayout());
         setParagraphLayoutPanel(_topPanel);
 
-        addControls(
+        addListeners(
             new FileName(),
             new VideoFormat(),
             new Crop(),
             new DiscSpeed(),
             new DecodeQuality(),
             new ChromaUpsampling(),
-            new JpgCompression(),
-            new PreciseFps(),
+            new JpgCompression()
             //new Volume(),
-            new PreciseAv(),
-            new ParallelAudio()
         );
 
         add(_topPanel, BorderLayout.NORTH);
@@ -93,7 +85,7 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuil
             return _writerBuilder.getVideoFormat_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
-            _writerBuilder.setVideoFormat((VideoSaverBuilder.VideoFormat) anItem);
+            _writerBuilder.setVideoFormat((jpsxdec.discitems.savers.VideoFormat) anItem);
         }
         public Object getSelectedItem() {
             return _writerBuilder.getVideoFormat();
@@ -110,7 +102,7 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuil
             return _writerBuilder.getDecodeQuality_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
-            _writerBuilder.setDecodeQuality((DecodeQualities) anItem);
+            _writerBuilder.setDecodeQuality((MdecDecodeQuality) anItem);
         }
         public Object getSelectedItem() {
             return _writerBuilder.getDecodeQuality();
@@ -182,11 +174,11 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuil
         public void stateChanged(ChangeEvent e) {
             if (isSelected() != __cur) {
                 __cur = isSelected();
-                __dims.setText(_writerBuilder.getWidth() + " x " + _writerBuilder.getHeight());
                 fireStateChanged();
                 fireItemStateChanged(new ItemEvent(this, ItemEvent.ITEM_STATE_CHANGED, this,
                         isSelected() ? ItemEvent.SELECTED : ItemEvent.DESELECTED));
             }
+            __dims.setText(_writerBuilder.getWidth() + " x " + _writerBuilder.getHeight());
         }
         public boolean isSelected() {
             return _writerBuilder.getCrop();
@@ -196,32 +188,6 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuil
         }
         public boolean isEnabled() {
             return _writerBuilder.getCrop_enabled();
-        }
-    }
-
-    private class PreciseFps extends AbstractCheck {
-        public PreciseFps() { super("Precise fps:"); }
-        public boolean isSelected() {
-            return _writerBuilder.getPreciseFrameTiming();
-        }
-        public void setSelected(boolean b) {
-            _writerBuilder.setPreciseFrameTiming(b);
-        }
-        public boolean isEnabled() {
-            return _writerBuilder.getPreciseFrameTiming_enabled();
-        }
-    }
-
-    private class PreciseAv extends AbstractCheck {
-        public PreciseAv() { super("Precise audio/video sync:"); }
-        public boolean isSelected() {
-            return _writerBuilder.getPreciseAVSync();
-        }
-        public void setSelected(boolean b) {
-            _writerBuilder.setPreciseAVSync(b);
-        }
-        public boolean isEnabled() {
-            return _writerBuilder.getPreciseAVSync_enabled();
         }
     }
 
@@ -332,86 +298,5 @@ public class VideoSaverBuilderGui extends DiscItemSaverBuilderGui<VideoSaverBuil
         }
     }
 
-    private enum COLUMNS {
-        Save() {
-            public Class type() { return Boolean.class; }
-            public boolean editable() { return true; }
-            public Object get(VideoSaverBuilder bldr, int i) {
-                return bldr.getParallelAudio_selected(i);
-            }
-            public void set(VideoSaverBuilder bldr, int i, Object val) {
-                bldr.setParallelAudio(i, (Boolean)val);
-            }
-        },
-        Num() {
-            public Class type() { return Integer.class; }
-            public Object get(VideoSaverBuilder bldr, int i) {
-                return bldr.getParallelAudio(i).getIndexId().getListIndex();
-            }
-            public String toString() { return "#"; }
-        },
-        Id() {
-            public Class type() { return String.class; }
-            public Object get(VideoSaverBuilder bldr, int i) {
-                return bldr.getParallelAudio(i).getIndexId().getTopLevel();
-            }
-            public String toString() { return ""; }
-        },
-        Details() {
-            public Class type() { return String.class; }
-            public Object get(VideoSaverBuilder bldr, int i) {
-                return bldr.getParallelAudio(i).getInterestingDescription();
-            }
-        };
-        abstract public Class type();
-        public boolean editable() { return false; }
-        abstract public Object get(VideoSaverBuilder bldr, int i);
-        public void set(VideoSaverBuilder bldr, int i, Object val) {}
-    }
-    private class ParallelAudio extends AbstractTableModel implements ChangeListener {
-
-        JTable __tbl;
-
-        public ParallelAudio() {
-            __tbl = new JTable(this);
-            __tbl.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-            add(new JScrollPane(__tbl), BorderLayout.CENTER);
-            SavingGuiTable.autoResizeColWidth(__tbl);
-        }
-
-        public int getRowCount() {
-            return _writerBuilder.getParallelAudioCount();
-        }
-
-        public int getColumnCount() {
-            return COLUMNS.values().length;
-        }
-
-        public String getColumnName(int columnIndex) {
-            return COLUMNS.values()[columnIndex].toString();
-        }
-
-        public Class<?> getColumnClass(int columnIndex) {
-            return COLUMNS.values()[columnIndex].type();
-        }
-
-        public boolean isCellEditable(int rowIndex, int columnIndex) {
-            return COLUMNS.values()[columnIndex].editable();
-        }
-
-        public Object getValueAt(int rowIndex, int columnIndex) {
-            return COLUMNS.values()[columnIndex].get(_writerBuilder, rowIndex);
-        }
-
-        public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
-            COLUMNS.values()[columnIndex].set(_writerBuilder, rowIndex, aValue);
-        }
-
-        public void stateChanged(ChangeEvent e) {
-            __tbl.setEnabled(_writerBuilder.getParallelAudio_enabled());
-            this.fireTableDataChanged();
-        }
-
-    }
 
 }

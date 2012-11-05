@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -90,10 +90,6 @@ public class SectorChronoXVideoNull extends IdentifiedSector {
 
     public String getTypeName() {
         return "CX Video Null";
-    }
-
-    public int getSectorType() {
-        return SECTOR_UNKNOWN;
     }
 
     public int getIdentifiedUserDataSize() {

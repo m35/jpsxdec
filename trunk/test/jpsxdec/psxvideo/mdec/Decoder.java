@@ -38,7 +38,7 @@
 package jpsxdec.psxvideo.mdec;
 
 import java.io.InputStream;
-import jpsxdec.formats.Rec601YCbCrImage;
+import jpsxdec.formats.YCbCrImage;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_int;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
@@ -76,7 +76,7 @@ public class Decoder {
     private final MdecInputStreamReader reader =
             new MdecInputStreamReader(Decoder.class.getResourceAsStream("FMV056[0]_320x224[133].mdec"));
     private final int[] aiRgb = new int[W*H];
-    private final Rec601YCbCrImage ycbcr = new Rec601YCbCrImage(W, H);
+    private final YCbCrImage ycbcr = new YCbCrImage(W, H);
     
     @Test
     public void double_psxIDCT_rgb() throws Exception {
@@ -100,7 +100,7 @@ public class Decoder {
     public void double_psxIDCT_ycbcr() throws Exception {
         MdecDecoder_double mdec = new MdecDecoder_double(new PsxMdecIDCT_double(), W, H);
         mdec.decode(reader);
-        mdec.readDecodedRec601YCbCr420(ycbcr);
+        mdec.readDecoded_Rec601_YCbCr420(ycbcr);
         InputStream is = Decoder.class.getResourceAsStream("dbl_psx.yuv");
         byte[] abExpected;
         abExpected = new byte[ycbcr.getY().length];
@@ -119,7 +119,7 @@ public class Decoder {
     public void double_stephenIDCT_ycbcr() throws Exception {
         MdecDecoder_double mdec = new MdecDecoder_double(new StephensIDCT(), W, H);
         mdec.decode(reader);
-        mdec.readDecodedRec601YCbCr420(ycbcr);
+        mdec.readDecoded_Rec601_YCbCr420(ycbcr);
         InputStream is = Decoder.class.getResourceAsStream("dbl_stephen.yuv");
         byte[] abExpected;
         abExpected = new byte[ycbcr.getY().length];

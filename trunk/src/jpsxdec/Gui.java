@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,16 +39,18 @@ package jpsxdec;
 
 import com.l2fprod.common.swing.JDirectoryChooser;
 import java.awt.Cursor;
+import java.awt.Image;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import javax.imageio.ImageIO;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JMenuItem;
@@ -100,7 +102,7 @@ public class Gui extends javax.swing.JFrame {
         setTitle(Main.VerStringNonCommercial);
 
         initComponents();
-
+        
         _guiTab.setEnabledAt(1, false);
 
         // center the gui
@@ -113,11 +115,24 @@ public class Gui extends javax.swing.JFrame {
 
         convertToolbar();
 
+        // TODO: how to check for failure?
+        Image icon16 = Toolkit.getDefaultToolkit().createImage(getClass().getResource("icon16.png"));
         try {
-            setIconImage(ImageIO.read(Gui.class.getResource("jpsxdec16.png")));
-        } catch (IOException ex) {
-            log.log(Level.SEVERE, null, ex);
+            // setIconImages() is only available in Java 6+, but jPSXdec is targetted for Java 5
+            // we optionally take advantage of it using reflection
+            Method setIconImages = this.getClass().getMethod("setIconImages", List.class);
+            ArrayList<Image> icons = new ArrayList<Image>(3);
+            Image icon32 = Toolkit.getDefaultToolkit().createImage(getClass().getResource("icon32.png"));
+            Image icon48 = Toolkit.getDefaultToolkit().createImage(getClass().getResource("icon48.png"));
+            icons.add(icon16);
+            icons.add(icon32);
+            icons.add(icon48);
+            setIconImages.invoke(this, icons);
+        } catch (Exception ex) {
+            log.log(Level.INFO, "Unable to set multiple icons", ex);
+            setIconImage(icon16);
         }
+
     }
 
 
@@ -213,15 +228,16 @@ public class Gui extends javax.swing.JFrame {
             _settings.setIndexDir(dir.getAbsolutePath());
 
         Logger log = Logger.getLogger("index");
+        final int[] aiWarnErr = new int[2];
         UserFriendlyHandler handler = new UserFriendlyHandler("index") {
             protected void onWarn(LogRecord record) {
-                // TODO
+                aiWarnErr[0]++;
             }
             protected void onErr(LogRecord record) {
-                // TODO
+                aiWarnErr[1]++;
             }
         };
-        handler.setSubheader("Opening index " + dir.toString());
+        handler.setHeader("Opening index " + dir.toString());
         log.addHandler(handler);
         try {
             // TODO: prompt to save current index if not saved
@@ -229,6 +245,30 @@ public class Gui extends javax.swing.JFrame {
             setIndex(new DiscIndex(indexFile.getPath(), log), indexFile.getName());
             _settings.addPreviousIndex(indexFile.getAbsolutePath());
             _guiSaveIndex.setEnabled(false);
+            if (aiWarnErr[0] > 0 || aiWarnErr[1] > 0) {
+                final String[][] asMessages = {
+                    {null,              "was 1 warning.",               "were %d warnings."},
+                    {"was 1 error.",    "was 1 error and 1 warning.",   "was 1 error and %d warnings."},
+                    {"were %d errors.", "were %d error and 1 warning.", "were %d errors and %d warnings."},
+                };
+                Object[] aoArgs = new Object[2];
+                int i = 0, iWarn, iErr;
+                iWarn = aiWarnErr[0] == 0 ? 0 : aiWarnErr[0] == 1 ? 1 : 2;
+                iErr = aiWarnErr[1] == 0 ? 0 : aiWarnErr[1] == 1 ? 1 : 2;
+                
+                if (iWarn > 0) {
+                    aoArgs[0] = aiWarnErr[0];
+                    i = 1;
+                }
+                if (iErr > 0)
+                    aoArgs[i] = aiWarnErr[1];
+                
+                String sMsg = "Loaded " + _index.size() + " items, but there " +
+                        String.format(asMessages[iErr][iWarn], aoArgs) + 
+                        " See " + handler.getFileName() + " for details.";
+                
+                JOptionPane.showMessageDialog(this, sMsg, "Issues loading index", JOptionPane.WARNING_MESSAGE);
+            }
         } catch (NotThisTypeException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Error loading index file", JOptionPane.ERROR_MESSAGE);
         } catch (Throwable ex) {
@@ -758,8 +798,9 @@ public class Gui extends javax.swing.JFrame {
             }
         }
         if (_settings != null) {
+            _settings.setSavingDir(_guiDirectory.getText());
             try {
-            _settings.save();
+                _settings.save();
             } catch (Throwable ex) {
                 log.log(Level.WARNING, "Error saving ini file", ex);
             }

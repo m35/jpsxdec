@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.discitems;
 
-import java.io.PrintStream;
 import java.util.WeakHashMap;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -86,7 +85,7 @@ public abstract class DiscItemSaverBuilder {
     /** Parse command-line options from an array of command-line arguments. */
     abstract public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs);
     abstract public void resetToDefaults();
-    abstract public boolean copySettings(DiscItemSaverBuilder other);
+    abstract public boolean copySettingsTo(DiscItemSaverBuilder other);
     /** Creates the saver using a snapshot of current options. */
     abstract public IDiscItemSaver makeSaver();
     

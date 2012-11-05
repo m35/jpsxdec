@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -58,7 +58,7 @@ public interface ISquareAudioSector extends IIdentifiedSector {
     /** Frame number that this sector belongs to. */
     int getFrameNumber();
     /** Number of chunks of audio data in this frame (should always be 2). */
-    int getAudioChunksInFrame();
+    int getAudioChunksInFrame(); // TODO: why even have this?
     /** The chunk number of this audio sector (either 0 or 1). */
     int getAudioChunkNumber();
     

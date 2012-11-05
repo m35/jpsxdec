@@ -99,7 +99,9 @@ public abstract class DiscItemSaverBuilderGui<T extends DiscItemSaverBuilder> ex
         }
     }
 
-    protected void addControls(ChangeListener ... aoControls) {
+    /** Add controls to list of listeners.
+     * Also keeps a reference to the controls to prevent unintended garbage collection. */
+    protected void addListeners(ChangeListener ... aoControls) {
         _aoControls.addAll(Arrays.asList(aoControls));
     }
 

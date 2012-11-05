@@ -47,14 +47,15 @@ public abstract class MdecInputStream {
     public abstract boolean readMdecCode(MdecCode code)
             throws MdecException;
 
-    /** 16-bit MDEC code indicating the end of a block. */
+    /** 16-bit MDEC code indicating the end of a block. 
+     * The equivalent MDEC value is (63, -512). */
     public final static int MDEC_END_OF_DATA = 0xFE00;
     /** Top 6 bits of MDEC_END_OF_DATA. */
     public final static int MDEC_END_OF_DATA_TOP6 = (MDEC_END_OF_DATA >> 10) & 63;
     /** Bottom 10 bits of MDEC_END_OF_DATA. */
     public final static int MDEC_END_OF_DATA_BOTTOM10 = (short)(MDEC_END_OF_DATA | 0xFC00);
 
-    /** Standard qunatization matrix for MDEC frames. */
+    /** Standard quantization matrix for MDEC frames. */
     private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
     {
          2, 16, 19, 22, 26, 27, 29, 34,

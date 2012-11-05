@@ -45,7 +45,7 @@ import jpsxdec.util.NotThisTypeException;
  *<p>
  * The Volume Primary Descriptor should appear in sector 16 of a CD.
  */
-public class VolumePrimaryDescriptor extends ISOstruct {
+public class VolumePrimaryDescriptor extends ISO9660Struct {
     
     /*                             type                   */
     /*                             id                     */

@@ -37,27 +37,24 @@
 
 package jpsxdec.discitems.psxvideoencode;
 
-import testutil.Util;
 import java.io.File;
 import java.io.IOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.savers.DemuxedFrame;
-import jpsxdec.discitems.savers.FrameDemuxer;
+import jpsxdec.discitems.DiscItemStrVideoStream;
+import jpsxdec.discitems.FrameDemuxer;
+import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.SimpleConsoleProgressListener;
 import jpsxdec.util.TaskCanceledException;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
-import static testutil.Util.*;
+import static org.junit.Assert.assertArrayEquals;
+import org.junit.*;
+import testutil.Util;
+import static testutil.Util.resourceAsFile;
+import static testutil.Util.resourceAsTempFile;
 
 public class Replace {
 
@@ -178,10 +175,10 @@ public class Replace {
     {
         final CdFileSectorReader cd = new CdFileSectorReader(strFile, true);
         DiscIndex index = new DiscIndex(cd, new SimpleConsoleProgressListener());
-        DiscItemVideoStream vid = (DiscItemVideoStream) index.getByIndex(0);
-        final FrameDemuxer demuxer = new FrameDemuxer(vid.getWidth(), vid.getHeight(), vid.getStartSector(), vid.getEndSector()) {
-            @Override
-            protected void frameComplete(DemuxedFrame frame) throws IOException {
+        DiscItemStrVideoStream vid = (DiscItemStrVideoStream) index.getByIndex(0);
+        final FrameDemuxer demuxer = new FrameDemuxer(vid.getWidth(), vid.getHeight(), vid.getStartSector(), vid.getEndSector());
+        demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
+            public void frameComplete(IDemuxedFrame frame) throws IOException {
                 try {
                     if (frame.getFrame() == rf.getFrame())
                         rf.replace(frame, cd, new FeedbackStream());
@@ -189,12 +186,12 @@ public class Replace {
                     throw new RuntimeException(ex);
                 }
             }
-        };
+        });
 
         for (int i = 0; i < vid.getSectorLength(); i++) {
             IdentifiedSector sect = vid.getRelativeIdentifiedSector(i);
-            if (sect instanceof IVideoSector)
-                demuxer.feedSector((IVideoSector) sect);
+            if (sect != null)
+                demuxer.feedSector(sect);
         }
         demuxer.flush();
 

@@ -41,7 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /** ECMA119: 8.4.26.1 */
-public class DateAndTimeFormat extends ISOstruct {
+public class DateAndTimeFormat extends ISO9660Struct {
 
     final public String Year;
     final public String Month;

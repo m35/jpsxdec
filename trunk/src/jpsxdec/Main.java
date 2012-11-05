@@ -66,37 +66,22 @@ import javax.swing.JLabel;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaRiffHeader;
+import jpsxdec.discitems.*;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.discitems.DiscItem;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.DiscItemAudioStream;
-import jpsxdec.discitems.DiscItemSaverBuilder;
-import jpsxdec.discitems.DiscItemTIM;
-import jpsxdec.discitems.IDiscItemSaver;
-import jpsxdec.discitems.savers.VideoSaverBuilder.DecodeQualities;
+import jpsxdec.discitems.savers.MdecDecodeQuality;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
-import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
-import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
-import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
-import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_int;
-import jpsxdec.psxvideo.mdec.idct.simple_idct;
 import jpsxdec.sectors.UnidentifiedSector;
 import jpsxdec.tim.Tim;
-import jpsxdec.util.TaskCanceledException;
+import jpsxdec.util.*;
 import jpsxdec.util.player.PlayController;
-import jpsxdec.util.ConsoleProgressListenerLogger;
-import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IO;
-import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 
 public class Main {
 
@@ -105,7 +90,7 @@ public class Main {
 
     private static FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
 
-    public final static String Version = "0.98.0 (beta)";
+    public final static String Version = "0.99.0 (beta)";
     public final static String VerString = "jPSXdec: PSX media decoder v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial) v" + Version;
 
@@ -244,9 +229,6 @@ public class Main {
     // -------------------------------------------------------------
 
     private static void createAndSaveIndex(String sDiscFile, String sIndexFile) throws IOException {
-        if (new File(sIndexFile).exists()) {
-            throw new IllegalArgumentException("Index file already exists.");
-        }
         CdFileSectorReader cd = loadDisc(sDiscFile);
         DiscIndex index = buildIndex(cd);
         saveIndex(index, sIndexFile);
@@ -285,7 +267,7 @@ public class Main {
         DiscIndex index = null;
         try {
             ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger("index", Feedback);
-            cpll.setSubheader("Indexing " + cd.toString());
+            cpll.setHeader("Indexing " + cd.toString());
             index = new DiscIndex(cd, cpll);
         } catch (TaskCanceledException ex) {
             log.severe("SHOULD NEVER HAPPEN");
@@ -671,40 +653,27 @@ public class Main {
                                 return -1;
                             }
 
-                            MdecDecoder vidDecoder;
-                            switch (DecodeQualities.fromCmdLine(quality.value)) {
-                                case HIGH_PLUS:
-                                    vidDecoder = new MdecDecoder_double_interpolate(new PsxMdecIDCT_double(), iWidth, iHeight);
-                                    MdecDecoder_double_interpolate.Upsampler up = null;
-                                    if (upsample.value == null) {
-                                        up = MdecDecoder_double_interpolate.Upsampler.Bicubic;
-                                    } else {
-                                        for (MdecDecoder_double_interpolate.Upsampler upsampler : MdecDecoder_double_interpolate.Upsampler.values()) {
-                                            if (upsampler.name().equalsIgnoreCase(upsample.value)) {
-                                                up = upsampler;
-                                                break;
-                                            }
-                                        }
-                                        if (up == null) {
-                                            Feedback.printlnErr("Invalid upsampling " + upsample.value);
-                                            return -1;
-                                        }
+                            MdecDecodeQuality decQuality = MdecDecodeQuality.fromCmdLine(quality.value);
+                            if (decQuality == null)
+                                throw new RuntimeException("Invalid quality " + quality.value);
+
+                            MdecDecoder vidDecoder = decQuality.makeDecoder(iWidth, iHeight);
+
+                            if (vidDecoder instanceof MdecDecoder_double_interpolate) {
+                                MdecDecoder_double_interpolate.Upsampler up;
+                                if (upsample.value == null) {
+                                    up = MdecDecoder_double_interpolate.Upsampler.Bicubic;
+                                } else {
+                                    up = MdecDecoder_double_interpolate.Upsampler.fromCmdLine(upsample.value);
+                                    if (up == null) {
+                                        Feedback.printlnErr("Invalid upsampling " + upsample.value);
+                                        return -1;
                                     }
-                                    Feedback.println("Using upsampling " + up.name());
-                                    ((MdecDecoder_double_interpolate)vidDecoder).setResampler(up);
-                                    break;
-                                case HIGH:
-                                    vidDecoder = new MdecDecoder_double(new PsxMdecIDCT_double(), iWidth, iHeight);
-                                    break;
-                                case LOW:
-                                    vidDecoder = new MdecDecoder_int(new simple_idct(), iWidth, iHeight);
-                                    break;
-                                case PSX:
-                                    vidDecoder = new MdecDecoder_int(new PsxMdecIDCT_int(), iWidth, iHeight);
-                                    break;
-                                default:
-                                    throw new RuntimeException("Invalid quality " + quality.value);
+                                }
+                                Feedback.println("Using upsampling " + up.name());
+                                ((MdecDecoder_double_interpolate)vidDecoder).setResampler(up);
                             }
+
                             Feedback.println("Using quality " + quality.value);
 
                             try {
@@ -732,10 +701,13 @@ public class Main {
                             String sOutBaseName = Misc.getBaseName(inFile.getName());
 
                             Tim tim = Tim.read(is);
+                            
+                            Feedback.println(tim);
 
+                            int iDigitCount = String.valueOf(tim.getPaletteCount()).length();
                             for (int i = 0; i < tim.getPaletteCount(); i++) {
                                 BufferedImage bi = tim.toBufferedImage(i);
-                                String sFileName = String.format("%s_p%02d.png", sOutBaseName, i);
+                                String sFileName = String.format("%s_p%0"+iDigitCount+"d.png", sOutBaseName, i);
                                 File file = new File(sFileName);
                                 Feedback.println("Writing " + file.getPath());
                                 ImageIO.write(bi, "png", file);
@@ -943,7 +915,7 @@ public class Main {
             boolean blnFound = false;
 
             for (DiscItem item : discIndex) {
-                if (item.getSerializationTypeId().equalsIgnoreCase(_sType)) {
+                if (item.getType().name().equalsIgnoreCase(_sType)) {
                     blnFound = true;
                     int iRet = handleItem(item, asRemainingArgs);
                     if (iRet != 0)
@@ -979,20 +951,30 @@ public class Main {
         ap.addOption("-replaceframes %s", replaceFrames);
         StringHolder replaceTim = new StringHolder();
         ap.addOption("-replacetim %s", replaceTim);
+        StringHolder replaceXa = new StringHolder();
+        ap.addOption("-replacexa %s", replaceXa);
+        StringHolder xaNum = new StringHolder();
+        ap.addOption("-xa %s", xaNum);
         StringHolder directory = new StringHolder();
         ap.addOption("-dir %s", directory);
 
-        if (asRemainingArgs !=  null)
+        if (asRemainingArgs != null)
             asRemainingArgs = ap.matchAllArgs(asRemainingArgs, 0, 0);
 
         try {
             if (fpsDumpArg.value) {
 
-                if (!(item instanceof DiscItemVideoStream)) {
+                if (!(item instanceof DiscItemStrVideoStream)) {
                     Feedback.printlnErr("Disc item isn't a video.");
                     return -1;
                 } else {
-                    ((DiscItemVideoStream)item).fpsDump(Feedback);
+                    Feedback.println("Generating fps dump.");
+                    PrintStream ps = new PrintStream("fps.txt");
+                    try {
+                        ((DiscItemStrVideoStream)item).fpsDump(ps);
+                    } finally {
+                        ps.close();
+                    }
                 }
 
             } else if (itemHelpArg.value) {
@@ -1025,15 +1007,15 @@ public class Main {
                 } else {
                     Feedback.printlnWarn("Hope your disc image is backed up because this is irreversable.");
                     Feedback.printlnWarn("Reopening disc image with write access.");
-                    item.getSourceCD().reopenForWriting();
+                    item.getSourceCd().reopenForWriting();
                     ((DiscItemVideoStream)item).replaceFrames(Feedback, replaceFrames.value);
                 }
             } else if (replaceTim.value != null) {
-                if (!(item instanceof DiscItemTIM)) {
+                if (!(item instanceof DiscItemTim)) {
                     Feedback.printlnErr("Disc item isn't a TIM image.");
                     return -1;
                 } else {
-                    DiscItemTIM timItem = (DiscItemTIM)item;
+                    DiscItemTim timItem = (DiscItemTim)item;
                     if (timItem.getPaletteCount() != 1) {
                         Feedback.printlnErr("Unable to replace a TIM image that has multiple palettes.");
                         return -1;
@@ -1041,8 +1023,36 @@ public class Main {
                     BufferedImage bi = ImageIO.read(new File(replaceTim.value));
                     Feedback.printlnWarn("Hope your disc image is backed up because this is irreversable.");
                     Feedback.printlnWarn("Reopening disc image with write access.");
-                    item.getSourceCD().reopenForWriting();
+                    item.getSourceCd().reopenForWriting();
                     timItem.replace(Feedback, bi);
+                }
+            } else if (replaceXa.value != null) {
+                if (!(item instanceof DiscItemXaAudioStream)) {
+                    Feedback.printlnErr("Disc item isn't a XA stream.");
+                    return -1;
+                } else {
+                    DiscItemXaAudioStream xaItem = (DiscItemXaAudioStream)item;
+                    Feedback.printlnWarn("Hope your disc image is backed up because this is irreversable.");
+                    Feedback.println("Opening patch index " + replaceXa.value);
+                    DiscIndex patchIndex;
+                    try {
+                        patchIndex = new DiscIndex(replaceXa.value, log);
+                    } catch (IOException ex) {
+                        Feedback.printlnErr(ex);
+                        return -1;
+                    }                    
+                    
+                    DiscItemXaAudioStream patchXa;
+                    try {
+                        int iPatchXaIndex = Integer.parseInt(xaNum.value);
+                        patchXa = (DiscItemXaAudioStream) patchIndex.getByIndex(iPatchXaIndex);
+                    } catch (Throwable ex) {
+                        Feedback.printlnErr("Invalid or missing XA item number " + xaNum.value);
+                        return -1;
+                    }
+                    Feedback.printlnWarn("Reopening disc image with write access.");
+                    item.getSourceCd().reopenForWriting();
+                    xaItem.replaceXa(Feedback, patchXa);
                 }
             } else {
                 File dir;
@@ -1082,7 +1092,8 @@ public class Main {
         lngStart = System.currentTimeMillis();
         try {
             ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger("save", Feedback);
-            cpll.setSubheader(dir.toString());
+            cpll.setHeader(item.getSourceCd().toString());
+            cpll.setSubheader(item.toString());
             saver.startSave(cpll, dir);
         } catch (TaskCanceledException ex) {
             log.severe("SHOULD NEVER HAPPEN");

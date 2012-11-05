@@ -81,7 +81,7 @@ public class AudioOutputFileWriter implements Runnable {
         _threadAudioStream = new AudioInputStream(_threadStream, format, AudioSystem.NOT_SPECIFIED);
 
         // start the writing thread
-        _writingThread = new Thread(this);
+        _writingThread = new Thread(this, AudioOutputFileWriter.class.getSimpleName() + " " + _outFile);
         _writingThread.start();
         try {
             // wait until the thread has started

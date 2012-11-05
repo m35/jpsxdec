@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,49 +35,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.discitems.savers;
+package jpsxdec.util.player;
 
-import java.io.IOException;
-import javax.sound.sampled.AudioFormat;
-import jpsxdec.discitems.ISectorAudioDecoder;
-import jpsxdec.discitems.ISectorAudioDecoder.ISectorTimedAudioWriter;
-import jpsxdec.util.player.AudioPlayer;
+public interface IDecodableFrame {
 
-/** Wraps {@link AudioPlayer} with a 
- * {@link ISectorTimedAudioWriter} interface
- * and keeps the audio in sync with its presentation sector. */
-public class AudPlayerSectorTimedAudioWriter implements ISectorAudioDecoder.ISectorTimedAudioWriter {
+    void decodeVideo(int[] aiDrawHere);
 
-    private final AudioPlayer _player;
-    private AudioSync _audioSync;
+    /** Returns the time the frame should be displayed, in milliseconds
+     *  from the beginning of the movie. */
+    long getPresentationTime();
 
-    private final int _iFrameSize;
-
-    private long _lngSamplesWritten = 0;
-
-    public AudPlayerSectorTimedAudioWriter(AudioPlayer dataLine, int iSectorsPerSecond, int iMovieStartSector) {
-        _player = dataLine;
-        _iFrameSize = _player.getFormat().getFrameSize();
-
-        _audioSync = new AudioSync(iMovieStartSector, iSectorsPerSecond, _player.getFormat().getSampleRate());
-    }
-
-    public void write(AudioFormat inFormat, byte[] abData, int iOffset, int iLength, int iPresentationSector) throws IOException {
-        if (!inFormat.matches(_player.getFormat()))
-            throw new IllegalArgumentException("Incompatable audio format.");
-
-        int iSampleLength = iLength / _iFrameSize;
-
-        long lngSampleDiff = _audioSync.calculateAudioToCatchUp(iPresentationSector, _lngSamplesWritten);
-
-        if (lngSampleDiff > 0) {
-            System.out.println("Audio out of sync " + lngSampleDiff + " samples, adding silence.");
-            _player.writeSilence(lngSampleDiff);
-            _lngSamplesWritten += lngSampleDiff;
-        }
-
-        _lngSamplesWritten += iSampleLength;
-
-        _player.write(abData, iOffset, iLength);
-    }
+    /** Optional */
+    void returnToPool();
 }

@@ -47,6 +47,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map.Entry;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jpsxdec.util.ExposedBAOS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -71,6 +73,7 @@ public class Tim {
         private final int _iClutY;
         private final int _iClutWidth;
         private final int _iClutHeight;
+        /** Array of unsigned 16-bit values. */
         private final int[] _aiColorData;
         
         /** Read a CLUT from an InputStream. */
@@ -129,8 +132,9 @@ public class Tim {
             return bi;
         }
         
-        private int[] getColorData() {
-            return _aiColorData;
+        /** Returns unsigned 16-bit color value. */
+        public int getColor(int iIndex) {
+            return _aiColorData[iIndex];
         }
 
         private int getPaletteSize() {
@@ -145,6 +149,10 @@ public class Tim {
                     _iClutY,
                     _iClutWidth,
                     _iClutHeight);
+        }
+
+        public int getWidth() {
+            return _iClutWidth;
         }
     }
     
@@ -331,37 +339,25 @@ public class Tim {
     
     public final static int HEADER_SIZE = 12;
     
-    /** The 0x10 tag at the start of every TIM file. */
-    private final int _iTag;
-    /** Version of the TIM file. The only known version is 0. */
-    private final int _iVersion;
-    private final int _iUnknown1;
-    /** 16-bit value specifying the bits-per-pixel and if it has a CLUT. */
-    private final int _iBpp_HasColorLookupTbl;
-    private final int _iUnknown2;
+    public static final int TAG_MAGIC = 0x10;
+    public static final int VERSION_0 = 0;
     
     /** The color lookup table for the TIM.  */
     private final CLUT _clut;
     
-    /** Size of the data to follow. */
-    private final long _lngImageLength;
     /** X position of the TIM file (often 0). */
     private final int _iImageX;
     /** Y position of the TIM file (often 0). */
     private final int _iImageY;
-    /** Width of the image data in 16-bit values. */
-    private final int _iImageWordWidth;
     /** Height of the image in pixels. */
-    private final int _iImageHeight;
+    private final int _iPixelHeight;
     /** The raw image data of the TIM. */
     private final byte[] _abImageData;
     
-    /** Extracted and converted from @code _lngBpp_HasColorLookupTbl. */
+    /** 4, 8, 16, or 24. */
     private final int _iBitsPerPixel;
-    /** Extracted and converted from @code _lngBpp_HasColorLookupTbl. */
-    private final boolean _blnHasColorLookupTable;
     /** Height of the image in pixels.
-     * Calculated based on {@link #_iImageWordWidth} and {@link #_iBitsPerPixel}. */
+     * Calculated based on ImageWordWidth and {@link #_iBitsPerPixel}. */
     private final int _iPixelWidth;
     
     //--------------------------------------------------------------------------
@@ -371,62 +367,89 @@ public class Tim {
     /** Parse and deserialize a TIM file from a stream. */
     private Tim(InputStream inStream) throws IOException, NotThisTypeException {
         
-        _iTag = IO.readUInt8(inStream);
+        int iTag = IO.readUInt8(inStream);
         //System.err.println(String.format("%02x", _iTag));
-        if (_iTag != 0x10)
+        if (iTag != TAG_MAGIC) // 0x10
             throw new NotThisTypeException();
         
-        _iVersion = IO.readUInt8(inStream);
+        int iVersion = IO.readUInt8(inStream);
         //System.err.println(String.format("%02x", _iVersion));
-        if (_iVersion != 0)
+        if (iVersion != VERSION_0)
             throw new NotThisTypeException();
         
-        _iUnknown1 = IO.readUInt16LE(inStream);
+        int iUnknown1 = IO.readUInt16LE(inStream);
         //System.err.println(String.format("%04x", _lngUnknown1));
-        if (_iUnknown1 != 0)
+        if (iUnknown1 != 0)
             throw new NotThisTypeException();
         
-        _iBpp_HasColorLookupTbl = IO.readUInt16LE(inStream);
+        int iBpp_blnHasColorLookupTbl = IO.readUInt16LE(inStream);
         //System.err.println(String.format("%04x", _lngBpp_HasColorLookupTbl));
-        if ((_iBpp_HasColorLookupTbl & 0xFFF4) != 0)
+        if ((iBpp_blnHasColorLookupTbl & 0xFFF4) != 0)
             throw new NotThisTypeException();
         
-        _iUnknown2 = IO.readUInt16LE(inStream);
+        int iUnknown2 = IO.readUInt16LE(inStream);
         //System.err.println(String.format("%04x", _lngUnknown2));
-        if (_iUnknown2 != 0)
+        if (iUnknown2 != 0)
             throw new NotThisTypeException();
         
         //-------------------------------------------------
         
-        _iBitsPerPixel =
-                BITS_PER_PIX[_iBpp_HasColorLookupTbl & 3];
-        _blnHasColorLookupTable = (_iBpp_HasColorLookupTbl & 0x8) != 0;
+        boolean blnHasColorLookupTable = (iBpp_blnHasColorLookupTbl & 0x8) != 0;
         
-        if (_blnHasColorLookupTable)
+        if (blnHasColorLookupTable) {
             _clut = new CLUT(inStream);
-        else
+            int iBpp = BITS_PER_PIX[iBpp_blnHasColorLookupTbl & 3];
+            // User CUE reported an issue with some strange TIM images from
+            // "Guardian's Crusade" that report 16 bits-per-pixel, but also 
+            // have a CLUT (bug "JPSXDEC-4").
+            // Turns out the image data was actually 4 or 8 bits-per-pixels.
+            // The CLUT width seemed to correlate with the bits-per-pixel
+            // (width < 256 : 4 bits/pixel, width >= 256 : 8 bits/pixel)
+            // No clear way to handle this case, so we'll change the code
+            // to at least handle these unique images the best we can.
+            switch (iBpp) {
+                case 16:
+                    if (_clut.getWidth() < 256)
+                        _iBitsPerPixel = 4;
+                    else
+                        _iBitsPerPixel = 8;
+                    Logger.getLogger(Tim.class.getName()).log(Level.WARNING, "TIM reports 16 bits/pixel, but it also has a CLUT. Assuming " + _iBitsPerPixel + " bits/pixel");
+                    break;
+                case 24:
+                    Logger.getLogger(Tim.class.getName()).log(Level.WARNING, "TIM reports 24 bits/pixel, but it also has a CLUT. Assuming 8 bits/pixel");
+                    _iBitsPerPixel = 8;
+                    break;
+                default: // 4 or 8
+                    _iBitsPerPixel = iBpp;
+                    break;
+            }
+        } else {
             _clut = null;
+            _iBitsPerPixel = BITS_PER_PIX[iBpp_blnHasColorLookupTbl & 3];
+        } 
         
-        _lngImageLength = IO.readUInt32LE(inStream);
-        if (_lngImageLength <= 0) throw new NotThisTypeException();
+        
+        
+        long lngImageLength = IO.readUInt32LE(inStream);
+        if (lngImageLength == 0) throw new NotThisTypeException();
         _iImageX = IO.readUInt16LE(inStream);
         _iImageY = IO.readUInt16LE(inStream);
-        _iImageWordWidth = IO.readUInt16LE(inStream);
-        if (_iImageWordWidth == 0) throw new NotThisTypeException();
-        _iImageHeight = IO.readUInt16LE(inStream);
-        if (_iImageHeight == 0) throw new NotThisTypeException();
+        int iImageWordWidth = IO.readUInt16LE(inStream);
+        if (iImageWordWidth == 0) throw new NotThisTypeException();
+        _iPixelHeight = IO.readUInt16LE(inStream);
+        if (_iPixelHeight == 0) throw new NotThisTypeException();
         
-        if (_lngImageLength != _iImageWordWidth * _iImageHeight * 2 + HEADER_SIZE)
+        if (lngImageLength != iImageWordWidth * _iPixelHeight * 2 + HEADER_SIZE)
             throw new NotThisTypeException();
         
         _abImageData = IO.readByteArray(inStream,
-                (_iImageWordWidth * _iImageHeight) * 2);
+                (iImageWordWidth * _iPixelHeight) * 2);
         
         switch (_iBitsPerPixel) {
-            case 4:  _iPixelWidth = (int)(_iImageWordWidth * 2 * 2); break;
-            case 8:  _iPixelWidth = (int)(_iImageWordWidth * 2    ); break;
-            case 16: _iPixelWidth = (int)(_iImageWordWidth        ); break;
-            case 24: _iPixelWidth = (int)(_iImageWordWidth * 2 / 3); break;
+            case 4:  _iPixelWidth = (int)(iImageWordWidth * 2 * 2); break;
+            case 8:  _iPixelWidth = (int)(iImageWordWidth * 2    ); break;
+            case 16: _iPixelWidth = (int)(iImageWordWidth        ); break;
+            case 24: _iPixelWidth = (int)(iImageWordWidth * 2 / 3); break;
             default: throw new RuntimeException("Impossible Tim BPP " + _iBitsPerPixel);
         }
     }
@@ -442,64 +465,84 @@ public class Tim {
             throw new IllegalArgumentException("Dimensions do not match data.");
         
         _iPixelWidth   = iWidth;
-        _iImageHeight  = iHeight;
+        _iPixelHeight  = iHeight;
         _iBitsPerPixel = iBitsPerPixel;
         
-        int iBitsPerPixReverseLookup;
+        int iImageWordWidth;
+        boolean _blnHasColorLookupTable;
         switch (iBitsPerPixel) {
             case  4: 
                 if (iWidth % 4 != 0)
                     throw new IllegalArgumentException("Currently unable to handle width not divisible by 4");
-                _iImageWordWidth = iWidth / 2 / 2;
+                iImageWordWidth = _iPixelWidth / 2 / 2;
                 _blnHasColorLookupTable = true;
-                iBitsPerPixReverseLookup = 0; 
                 break;
             case  8: 
                 if (iWidth % 2 != 0)
                     throw new IllegalArgumentException("Currently unable to handle width not divisible by 2");
-                _iImageWordWidth = iWidth / 2;
+                iImageWordWidth = _iPixelWidth / 2;
                 _blnHasColorLookupTable = true;
-                iBitsPerPixReverseLookup = 1; 
                 break;
             case 16: 
-                _iImageWordWidth = iWidth;
+                iImageWordWidth = _iPixelWidth;
                 _blnHasColorLookupTable = false;
-                iBitsPerPixReverseLookup = 2; 
                 break;
             case 24: 
                 if (iWidth % 2 != 0)
                     throw new IllegalArgumentException("Currently unable to handle width not divisible by 2");
-                _iImageWordWidth = iWidth * 3 / 2;
+                iImageWordWidth = _iPixelWidth * 3 / 2;
                 _blnHasColorLookupTable = false;
-                iBitsPerPixReverseLookup = 3; 
                 break;
             default:
                 throw new IllegalArgumentException("Not a valid bits/pixel");
         }
         
         
-        ExposedBAOS baos = new ExposedBAOS(_iImageWordWidth * _iImageHeight * 2);
+        ExposedBAOS baos = new ExposedBAOS(iImageWordWidth * _iPixelHeight * 2);
         
         if (_blnHasColorLookupTable) {
             int[] aiPalette = convertToPalettedTim(aiBuffImg, _iBitsPerPixel, baos);
-            _iBpp_HasColorLookupTbl = iBitsPerPixReverseLookup | 0x08;
             _clut = new CLUT(aiPalette, 0, 0, aiPalette.length);
         } else {
             // convert the image data to TIM colors and write it using proper BPP
             convertToTim(aiBuffImg, iBitsPerPixel, baos);
-            _iBpp_HasColorLookupTbl = iBitsPerPixReverseLookup | 0x00;
             _clut = null;
         }
         
-        _iTag = 0x10;
-        _iVersion = 0;
-        _iUnknown1 = 0;
-        _iUnknown2 = 0;
         _iImageX = 0;
         _iImageY = 0;
-        _lngImageLength = _iImageWordWidth * _iImageHeight * 2 + 12;
         
         _abImageData = baos.getBuffer();
+    }
+    
+    private long calculateImageLength() {
+        return calculateImageWordWidth() * _iPixelHeight * 2 + HEADER_SIZE;
+    }
+    
+    private int calculateBpp_HasCLUT() {
+        int iBitsPerPixReverseLookup;
+        switch (_iBitsPerPixel) {
+            case 4: iBitsPerPixReverseLookup = 0; break;
+            case 8: iBitsPerPixReverseLookup = 1; break;
+            case 16:iBitsPerPixReverseLookup = 2; break;
+            case 24:iBitsPerPixReverseLookup = 3; break;
+            default: throw new RuntimeException("Unpossible!");
+        }
+        
+        if (_clut != null)
+            return iBitsPerPixReverseLookup | 0x08;
+        else
+            return iBitsPerPixReverseLookup | 0x00;
+    }
+    
+    private int calculateImageWordWidth() {
+        switch (_iBitsPerPixel) {
+            case 4: return _iPixelWidth / 2 / 2;
+            case 8: return _iPixelWidth / 2;    
+            case 16:return _iPixelWidth;        
+            case 24:return _iPixelWidth *3 / 2; 
+            default: throw new RuntimeException("Unpossible!");
+        }
     }
     
     private static void convertToTim(
@@ -604,37 +647,11 @@ public class Tim {
         
         _iPixelWidth = iWidth;
         
-        _blnHasColorLookupTable = true;
-
         _iBitsPerPixel = iBitsPerPixel;
-        
-        int iBitsPerPixReverseLookup;
-        switch (_iBitsPerPixel) {
-            case  4: 
-                if (_iPixelWidth % 4 != 0)
-                    throw new UnsupportedOperationException("Currently unable to handle width not divisible by 4");
-                _iImageWordWidth = _iPixelWidth / 2 / 2;
-                iBitsPerPixReverseLookup = 0; 
-                break;
-            case  8: 
-                if (_iPixelWidth % 2 != 0)
-                    throw new IllegalArgumentException("Currently unable to handle width not divisible by 2");
-                _iImageWordWidth = _iPixelWidth / 2;
-                iBitsPerPixReverseLookup = 1; 
-                break;
-            default:
-                throw new RuntimeException("Not a valid bits/pixel");
-        }
-        _iImageHeight = iHeight;
-        
-        
-        // set all the header data
-        _iTag = 0x10;
-        _iVersion = 0;
-        _iUnknown1 = 0;
+
+        _iPixelHeight = iHeight;
         
         // has CLUT
-        _iBpp_HasColorLookupTbl = iBitsPerPixReverseLookup | 0x08;
         // convert the 32bit palette into TIM 16bit
         for (int i = 0; i < aiPalette.length; i++) {
             aiPalette[i] = color32toColor16(aiPalette[i]);
@@ -642,13 +659,11 @@ public class Tim {
 
         _clut = new CLUT(aiPalette, iClutX, iClutY, iPaletteWidth);
         
-        _iUnknown2 = 0;
         _iImageX = iImageX;
         _iImageY = iImageY;
-        _lngImageLength = _iImageWordWidth * _iImageHeight * 2 + 12;
         
         // finally create the image data with the proper bits per pixel
-        ExposedBAOS baos = new ExposedBAOS(_iImageWordWidth * _iImageHeight * 2);
+        ExposedBAOS baos = new ExposedBAOS(calculateImageWordWidth() * _iPixelHeight * 2);
         
         int iClr;
         switch (_iBitsPerPixel) {
@@ -688,10 +703,12 @@ public class Tim {
      * Each TIM file can have multiple palettes. The TIM data doesn't even
      * have to use these palettes for drawing, but they usually do. */
     public int getPaletteCount() {
-        if (_clut == null)
+        if ((_iBitsPerPixel == 4 || _iBitsPerPixel == 8) && _clut != null) {
+            int iColorsForBitsPerPixel = (1 << _iBitsPerPixel);
+            return _clut.getPaletteSize() / iColorsForBitsPerPixel;
+        } else {
             return 1;
-        else
-            return _clut.getPaletteSize() / (1 << _iBitsPerPixel);
+        }
     }
 
     /** Width of TIM in pixels. */
@@ -701,35 +718,9 @@ public class Tim {
     
     /** Height of TIM in pixels. */
     public int getHeight() {
-        return (int)_iImageHeight;
+        return _iPixelHeight;
     }
 
-    public void setPixelClutIndex(int iX, int iY, int iClutIndex) {
-        switch (_iBitsPerPixel) {
-            case 4:
-                if (iClutIndex < 0 || iClutIndex > 15)
-                    throw new IllegalArgumentException("Invalid CLUT index " + iClutIndex);
-                int iOffset = iY * _iPixelWidth / 2 + iX / 2;
-                int iVal = _abImageData[iOffset];
-                if ((iX & 1) == 0)
-                    iVal = (iVal & 0xf0) | iClutIndex;
-                else
-                    iVal = (iVal & 0x0f) | (iClutIndex << 4);
-                _abImageData[iOffset] = (byte)iVal;
-                break;
-            case 8:
-                if (iClutIndex < 0 || iClutIndex > 255)
-                    throw new IllegalArgumentException("Invalid CLUT index " + iClutIndex);
-                _abImageData[iY * _iPixelWidth + iX] = (byte)iClutIndex;
-                break;
-            case 16:
-                throw new IllegalArgumentException("Cannot set CLUT index on non CLUT image");
-            case 24:
-                throw new IllegalArgumentException("Cannot set CLUT index on non CLUT image");
-        }
-
-    }
-    
     /** Unfortunately the palette order and indexes may be changed when
      *  saving the BufferedImage to a file.
      * @param iPalette  Which palette to use for the decoded image.
@@ -759,9 +750,8 @@ public class Tim {
                                 baos.write(0);
                         }
                     } else {
-                        int[] aiColorData = _clut.getColorData();
                         for (int i = 0; i < 16; i++) {
-                            baos.write(color16toColor4B(aiColorData[iPalette * 16 + i]));
+                            baos.write(color16toColor4B(_clut.getColor(iPalette * 16 + i)));
                         }
                     }
                     colorModel = new IndexColorModel(4, 16, baos.getBuffer(), 0, true);
@@ -780,9 +770,8 @@ public class Tim {
                                 baos.write(0);
                         }
                     } else {
-                        int[] aiColorData = _clut.getColorData();
                         for (int i = 0; i < 256; i++) {
-                            baos.write(color16toColor4B(aiColorData[iPalette * 256 + i]));
+                            baos.write(color16toColor4B(_clut.getColor(iPalette * 256 + i)));
                         }
                     }
                     colorModel = new IndexColorModel(8, 256, baos.getBuffer(), 0, true);
@@ -796,13 +785,12 @@ public class Tim {
             BufferedImage bi;
             WritableRaster raster;
 
-            //bi = new BufferedImage(m_iPixelWidth, m_iPixelHeight, BufferedImage.TYPE_INT_ARGB);
             int iByte, iColor16, iColor32;
             switch (_iBitsPerPixel) {
                 case 4:
-                    bi = new BufferedImage(_iPixelWidth, (int)_iImageHeight, BufferedImage.TYPE_BYTE_INDEXED, colorModel);
+                    bi = new BufferedImage(_iPixelWidth, _iPixelHeight, BufferedImage.TYPE_BYTE_INDEXED, colorModel);
                     raster = bi.getRaster();
-                    for (int y = 0; y < _iImageHeight; y++) {
+                    for (int y = 0; y < _iPixelHeight; y++) {
                         for (int x = 0; x < _iPixelWidth; x++) {
                             iByte = IO.readUInt8(bais);
                             int iNibble = iByte & 0xF;
@@ -817,9 +805,9 @@ public class Tim {
                     }
                     break;
                 case 8:
-                    bi = new BufferedImage(_iPixelWidth, (int)_iImageHeight, BufferedImage.TYPE_BYTE_INDEXED, colorModel);
+                    bi = new BufferedImage(_iPixelWidth, _iPixelHeight, BufferedImage.TYPE_BYTE_INDEXED, colorModel);
                     raster = bi.getRaster();
-                    for (int y = 0; y < _iImageHeight; y++) {
+                    for (int y = 0; y < _iPixelHeight; y++) {
                         for (int x = 0; x < _iPixelWidth; x++) {
                             iByte = IO.readUInt8(bais);
                             raster.setSample(x, y, 0, iByte);
@@ -827,8 +815,8 @@ public class Tim {
                     }
                     break;
                 case 16:
-                    bi = new BufferedImage(_iPixelWidth, (int)_iImageHeight, BufferedImage.TYPE_INT_ARGB);
-                    for (int y = 0; y < _iImageHeight; y++) {
+                    bi = new BufferedImage(_iPixelWidth, _iPixelHeight, BufferedImage.TYPE_INT_ARGB);
+                    for (int y = 0; y < _iPixelHeight; y++) {
                         for (int x = 0; x < _iPixelWidth; x++) {
                             iColor16 = (int)IO.readUInt16LE(bais);
                             iColor32 = color16toColor32(iColor16);
@@ -837,8 +825,8 @@ public class Tim {
                     }
                     break;
                 case 24:
-                    bi = new BufferedImage(_iPixelWidth, (int)_iImageHeight, BufferedImage.TYPE_INT_ARGB);
-                    for (int y = 0; y < _iImageHeight; y++) {
+                    bi = new BufferedImage(_iPixelWidth, _iPixelHeight, BufferedImage.TYPE_INT_ARGB);
+                    for (int y = 0; y < _iPixelHeight; y++) {
                         for (int x = 0; x < _iPixelWidth; x++) {
                             int r = IO.readUInt8(bais);
                             int g = IO.readUInt8(bais);
@@ -870,7 +858,7 @@ public class Tim {
     
     public int[] getColorData() {
         if (_clut != null)
-            return _clut.getColorData().clone();
+            return _clut._aiColorData.clone();
         else
             return null;
     }
@@ -879,7 +867,7 @@ public class Tim {
         return _abImageData.clone();
     }
     
-    /** Tries to replace this TIM's image data and palette data (if it has a clut)
+    /** Tries to replace this TIM's image data and palette data (if it has a CLUT)
      * with the image data of the buffered image.
      * @throws IllegalArgumentException if the BufferedImage data is incompatible.
      */
@@ -890,41 +878,50 @@ public class Tim {
             System.arraycopy(newTim._clut._aiColorData, 0, _clut._aiColorData, 0, _clut._aiColorData.length);
     }
 
+    /** Tries to replace this TIM's image data and palette data
+     * with the image data of the buffered image and CLUT.
+     * @throws IllegalArgumentException if the BufferedImage data is incompatible
+     *                                  or there is no CLUT.
+     */
+    public void replaceImageData(BufferedImage bi, BufferedImage clut) {
+        if (_clut == null)
+            throw new IllegalArgumentException("Can't change the CLUT when Tim doesn't have a CLUT");
+        Tim newTim = create(bi, _iImageX, _iImageY, clut, _clut._iClutX, _clut._iClutY, _iBitsPerPixel);
+        System.arraycopy(newTim._abImageData, 0, _abImageData, 0, _abImageData.length);
+        System.arraycopy(newTim._clut._aiColorData, 0, _clut._aiColorData, 0, _clut._aiColorData.length);
+    }
+
     /** Writes TIM image to the stream. */
     public void write(OutputStream os) throws IOException {
-        os.write(_iTag);
-        os.write(_iVersion);
-        IO.writeInt16LE(os, _iUnknown1);
-        IO.writeInt16LE(os, _iBpp_HasColorLookupTbl);
-        IO.writeInt16LE(os, _iUnknown2);
+        os.write(TAG_MAGIC);
+        os.write(VERSION_0);
+        IO.writeInt16LE(os, 0); // Unknown 1
+        IO.writeInt16LE(os, calculateBpp_HasCLUT());
+        IO.writeInt16LE(os, 0); // Unknown 2
         
-        if (_blnHasColorLookupTable)
+        if (_clut != null)
             _clut.write(os);
         
-        IO.writeInt32LE(os, _lngImageLength);
+        IO.writeInt32LE(os, calculateImageLength());
         IO.writeInt16LE(os, _iImageX);
         IO.writeInt16LE(os, _iImageY);
-        IO.writeInt16LE(os, _iImageWordWidth);
-        IO.writeInt16LE(os, _iImageHeight);
+        IO.writeInt16LE(os, calculateImageWordWidth());
+        IO.writeInt16LE(os, _iPixelHeight);
         
         os.write(_abImageData);
     }
     
     public String toString() {
         return String.format(
-            "Tag:%x Ver:%d Unkn1:%d Unkn2:%d BPP:%d HasCLUT:%s [%s] Len:%d X:%d Y:%d %dx%d",
-            _iTag,
-            _iVersion,
-            _iUnknown1,
-            _iUnknown2,
+            "%dx%d BPP:%d%sX:%d Y:%d WWidth:%d Len:%d",
+            _iPixelWidth,
+            _iPixelHeight,
             _iBitsPerPixel,
-            _blnHasColorLookupTable ? "Yes" : "No",
-            _clut != null ? _clut.toString() : "",
-            _lngImageLength,
+            _clut != null ? " ["+_clut.toString()+"] " : " ",
             _iImageX,
             _iImageY,
-            _iImageWordWidth,
-            _iImageHeight);
+            calculateImageWordWidth(),
+            calculateImageLength());
     }
     
     //--------------------------------------------------------------------------

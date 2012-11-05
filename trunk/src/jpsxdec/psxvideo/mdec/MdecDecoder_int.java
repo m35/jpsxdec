@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -88,11 +88,14 @@ public class MdecDecoder_int extends MdecDecoder {
                 for (int iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY ++)
                 {
                     // debug
-                    assert DEBUG ? debugPrintln(String.format("Decoding macro block %d (%d, %d)", iMacBlk, iMacBlkX, iMacBlkY)) : true;
-
-                    //System.out.println(String.format("Uncompressing macro block %d (%d, %d)", iMacBlk, iMacBlkX, iMacBlkY));
+                    assert DEBUG ? debugPrintln(String.format("############### Decoding macro block %d (%d, %d) ###############", 
+                                                iMacBlk, iMacBlkX, iMacBlkY)) : true;
 
                     for (iBlock = 0; iBlock < 6; iBlock++) {
+
+                        assert DEBUG ? debugPrintln(String.format("=========== Decoding block %s ===========", 
+                                                    BLOCK_NAMES[iBlock])) : true;
+                        
                         Arrays.fill(_CurrentBlock, 0);
                         mdecInStream.readMdecCode(_code);
 
@@ -107,6 +110,7 @@ public class MdecDecoder_int extends MdecDecoder {
                             iCurrentBlockNonZeroCount = 0;
                             iCurrentBlockLastNonZeroPosition = -1;
                         }
+                        assert DEBUG ? setPrequantValue(0, _code.getBottom10Bits()) : true;
                         iCurrentBlockQscale = _code.getTop6Bits();
                         iCurrentBlockVectorPosition = 0;
 
@@ -123,10 +127,11 @@ public class MdecDecoder_int extends MdecDecoder {
                                 iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                             } catch (ArrayIndexOutOfBoundsException ex) {
                                 throw new MdecException.Decode(String.format(
-                                        "[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d",
+                                        "[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d (%s)",
                                         iCurrentBlockVectorPosition,
-                                        iMacBlk, iMacBlkX, iMacBlkY, iBlock));
+                                        iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]));
                             }
+                            assert DEBUG ? setPrequantValue(iRevZigZagPos, _code.getBottom10Bits()) : true;
                             // Dequantize
                             _CurrentBlock[iRevZigZagPos] =
                                         (_code.getBottom10Bits()
@@ -184,6 +189,7 @@ public class MdecDecoder_int extends MdecDecoder {
     private void writeEndOfBlock(int iMacroBlock, int iBlock,
                                  int iNonZeroCount, int iNonZeroPos)
     {
+        assert DEBUG ? debugPrintPrequantBlock() : true;
         assert DEBUG ? debugPrintBlock("Pre-IDCT block") : true;
         
         int[] outputBuffer;
@@ -242,6 +248,7 @@ public class MdecDecoder_int extends MdecDecoder {
              iLumaLineOfsStart+=W_x2, iChromaLineOfsStart+=CW,
              iDestLineOfsStart+=iOutStride_x2)
         {
+            // writes 2 lines at a time
             int iSrcLumaOfs1 = iLumaLineOfsStart,
                 iSrcLumaOfs2 = iLumaLineOfsStart + W,
                 iSrcChromaOfs = iChromaLineOfsStart,

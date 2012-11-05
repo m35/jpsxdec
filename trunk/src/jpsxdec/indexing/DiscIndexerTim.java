@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,7 @@
 package jpsxdec.indexing;
 
 import java.io.EOFException;
-import jpsxdec.discitems.DiscItemTIM;
+import jpsxdec.discitems.DiscItemTim;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -59,8 +59,8 @@ public class DiscIndexerTim extends DiscIndexer {
     @Override
     public DiscItem deserializeLineRead(DiscItemSerialization serial) {
         try {
-            if (DiscItemTIM.TYPE_ID.equals(serial.getType())) {
-                return new DiscItemTIM(serial);
+            if (DiscItemTim.TYPE_ID.equals(serial.getType())) {
+                return new DiscItemTim(serial);
             }
         } catch (NotThisTypeException ex) {}
         return null;
@@ -82,19 +82,19 @@ public class DiscIndexerTim extends DiscIndexer {
 
         try {
             // tag
-            if (IO.readUInt8(inStream) != 0x10)
+            if (IO.readUInt8(inStream) != Tim.TAG_MAGIC)
                 return;
 
             // version
-            if (IO.readUInt8(inStream) != 0)
+            if (IO.readUInt8(inStream) != Tim.VERSION_0)
                 return;
 
             // unkn 1
             if (IO.readUInt16LE(inStream) != 0)
                 return;
 
-            int iBpp_HasColorLookupTbl = IO.readUInt16LE(inStream);
-            if ((iBpp_HasColorLookupTbl & 0xFFF4) != 0)
+            int iBpp_blnHasColorLookupTbl = IO.readUInt16LE(inStream);
+            if ((iBpp_blnHasColorLookupTbl & 0xFFF4) != 0)
                 return;
 
             // unkn 2
@@ -103,11 +103,11 @@ public class DiscIndexerTim extends DiscIndexer {
 
             //-------------------------------------------------
 
-            int iBitsPerPixel = Tim.BITS_PER_PIX[iBpp_HasColorLookupTbl & 3];
+            int iBitsPerPixel = Tim.BITS_PER_PIX[iBpp_blnHasColorLookupTbl & 3];
 
             final int iPaletteCount;
             // has CLUT
-            if ((iBpp_HasColorLookupTbl & 8) != 0) {
+            if ((iBpp_blnHasColorLookupTbl & 8) != 0) {
 
                 long lngLength = IO.readUInt32LE(inStream);
                 if (lngLength <= 0)
@@ -163,7 +163,7 @@ public class DiscIndexerTim extends DiscIndexer {
                 default: throw new RuntimeException("Impossible Tim BPP " + iBitsPerPixel);
             }
 
-            super.addDiscItem(new DiscItemTIM(
+            super.addDiscItem(new DiscItemTim(
                     iStartSector, inStream.getCurrentSector(),
                     iStartOffset, iPaletteCount, iBitsPerPixel,
                     iPixelWidth, iImageHeight));

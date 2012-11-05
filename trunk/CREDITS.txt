@@ -30,9 +30,6 @@ Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error,
 verifying that jPSXdec is doing things right, and for
 pointing how the quantization table is uploaded to the MDEC.
 
-Andrew Z for pursuing high quality ADPCM decoding, and verifying jPSXdec
-is doing an impeccable job.
-
 Jonathan Atkins for his open source cdxa code and documentation.
 (http://freshmeat.net/projects/cdxa/ 
 http://jcatki.no-ip.org:8080/cdxa/ 
@@ -40,8 +37,6 @@ http://jonatkins.org:8080/cdxa/)
 
 The PCSX Team, creators of one of the two open source PlayStation
 emulators (http://www.pcsx.net/).
-One version of its mdec.c file is particularly useful 
-(http://www.google.com/codesearch?q=%22blk_zig+value%22) 
 
 The MAME emulator team for their efforts to document and accurately
 emulate hardware, and for their license (http://mamedev.org/).
@@ -56,11 +51,6 @@ FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
 T_chan for sharing a bit of his knowledge about the FF9 format 
 (http://www.network54.com/Forum/119865/thread/1196268797). 
 
-Jen (a.k.a. punistation) for her (formally) long standing PlayStation Serial
-Experiments Lain page (http://www.geocities.com/punistation10/).
-
-Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating anime.
-
 The most excellent folks at IRCNet #lain :D
 
 cclh12 at romhacking.net for generously providing some actual PlayStation 1
@@ -68,6 +58,17 @@ hardware RAM dumps.
 
 Mezmorize at gshi.org for helping me get an old PlayStation and GameShark
 working to make my own RAM dumps.
+
+Jen (a.k.a. punistation) for her (formally) long standing PlayStation Serial
+Experiments Lain page (http://www.geocities.com/punistation10/).
+
+Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating anime.
+
+Andrew Z for pursuing high quality ADPCM decoding, and verifying jPSXdec
+is doing an impeccable job.
+
+John O. for verifying that jPSXdec video encoder is at least as good as
+Sony's official SDK movconv tool.
 
 ................................................................................
 Thanks to those who wrote code that I've used at some point during development:
@@ -113,4 +114,3 @@ thought it was a good idea to keep their decoders/emulators/hacking
 tools closed source, then completely stop working on them. Extra thanks 
 to those who now provide a 404 page for a web site. You sirs are real 
 men of genius. 
-

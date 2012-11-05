@@ -156,6 +156,7 @@ public class IndexId extends AbstractList<IndexId> {
         }
     }
 
+    // TODO: return string and have separate method to get suggested path
     public File getSuggestedBaseName() {
         if (_sourceFile == null)
             return null;

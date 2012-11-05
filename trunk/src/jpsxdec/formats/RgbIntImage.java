@@ -38,6 +38,12 @@
 package jpsxdec.formats;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
+import java.awt.image.WritableRaster;
+import java.io.File;
+import java.io.IOException;
+import java.util.Random;
+import javax.imageio.ImageIO;
 
 /** Simplest image format containing a buffer and dimensions. */
 public class RgbIntImage {
@@ -80,10 +86,51 @@ public class RgbIntImage {
     }
 
     public BufferedImage toBufferedImage() {
-        // TODO: I'm still uncertain about colormode/colormodel stuff
         BufferedImage bi = new BufferedImage(_iWidth, _iHeight, BufferedImage.TYPE_INT_RGB);
-        bi.setRGB(0, 0, _iWidth, _iHeight, _aiData, 0, _iWidth);
+        WritableRaster raster = bi.getRaster();
+        raster.setDataElements(0, 0, _iWidth, _iHeight, _aiData);
         return bi;
     }
+
+    /* Results show Raster.setDataElements() is nearly identical to
+     * System.arraycopy(DataBufferInt), and are both about 20 times
+     * faster than BufferedImage.setRGB()
+     *
+    public static void main(String[] args) throws IOException {
+        final int WIDTH = 500, HEIGHT = 500, ITERATIONS = 1000;
+        int[] aiData = new int[WIDTH * HEIGHT];
+        Random rand = new Random();
+        for (int i = 0; i < aiData.length; i++) {
+            aiData[i] = rand.nextInt();
+        }
+        
+        BufferedImage bi = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+        long lngStart, lngEnd;
+        lngStart = System.currentTimeMillis();
+        for (int i = 0; i < ITERATIONS; i++) {
+            bi.setRGB(0, 0, WIDTH, HEIGHT, aiData, 0, WIDTH);
+        }
+        lngEnd = System.currentTimeMillis();
+        System.out.println("BufferedImage.setRGB(): " + (lngEnd - lngStart));
+        ImageIO.write(bi, "png", new File("test-bi-setrgb.png"));
+        
+        lngStart = System.currentTimeMillis();
+        for (int i = 0; i < ITERATIONS; i++) {
+            bi.getRaster().setDataElements(0, 0, WIDTH, HEIGHT, aiData);
+        }
+        lngEnd = System.currentTimeMillis();
+        System.out.println("Raster.setDataElements(): " + (lngEnd - lngStart));
+        ImageIO.write(bi, "png", new File("test-ras-setelm.png"));
+        
+        lngStart = System.currentTimeMillis();
+        for (int i = 0; i < ITERATIONS; i++) {
+            int[] aiBi = ((DataBufferInt)bi.getRaster().getDataBuffer()).getData();
+            System.arraycopy(aiData, 0, aiBi, 0, WIDTH*HEIGHT);
+        }
+        lngEnd = System.currentTimeMillis();
+        System.out.println("System.arraycopy(DataBufferInt): " + (lngEnd - lngStart));
+        ImageIO.write(bi, "png", new File("test-ras-arycpy.png"));
+    }
+    //*/
 
 }

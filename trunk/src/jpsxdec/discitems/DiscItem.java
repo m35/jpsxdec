@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,10 +38,10 @@
 package jpsxdec.discitems;
 
 import java.io.File;
-import jpsxdec.sectors.IdentifiedSector;
 import java.io.IOException;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -59,6 +59,11 @@ import jpsxdec.util.NotThisTypeException;
  * saving (e.g. if it's part of a file on a disc, use that file name).
  */
 public abstract class DiscItem {
+
+    public static enum GeneralType {
+        Audio, Video, Image, File
+    }
+
 
     private final int _iStartSector;
     private final int _iEndSector;
@@ -89,7 +94,7 @@ public abstract class DiscItem {
      *  the first sector of the media item). */
     public CdSector getRelativeSector(int iIndex) throws IOException {
         if (iIndex > getSectorLength())
-            throw new IllegalArgumentException("Sector index out of bounds of this media item");
+            throw new IllegalArgumentException("Sector index out of bounds of this disc item");
         return _cdReader.getSector(getStartSector() + iIndex);
     }
 
@@ -140,7 +145,7 @@ public abstract class DiscItem {
         _cdReader = cd;
     }
 
-    public CdFileSectorReader getSourceCD() {
+    public CdFileSectorReader getSourceCd() {
         return _cdReader;
     }
 
@@ -174,6 +179,8 @@ public abstract class DiscItem {
 
     /** String of the 'Type:' value in the serialization string. */
     abstract public String getSerializationTypeId();
+
+    abstract public GeneralType getType();
 
     /** Description of various details about the disc item. */
     abstract public String getInterestingDescription();

@@ -38,7 +38,6 @@
 package jpsxdec.discitems.savers;
 
 
-import jpsxdec.discitems.*;
 import argparser.ArgParser;
 import argparser.StringHolder;
 import java.awt.image.BufferedImage;
@@ -54,6 +53,10 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
+import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemSaverBuilderGui;
+import jpsxdec.discitems.DiscItemTim;
+import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.FeedbackStream;
@@ -130,13 +133,13 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
     // -----------------------------------------------------------------------
 
-    private final DiscItemTIM _timItem;
+    private final DiscItemTim _timItem;
     private final List<TimSaveFormat> _validFormats;
 
     private final boolean[] _ablnSavePalette;
     private TimSaveFormat _imageFormat;
 
-    public TimSaverBuilder(DiscItemTIM timItem) {
+    public TimSaverBuilder(DiscItemTim timItem) {
         _timItem = timItem;
         _ablnSavePalette = new boolean[_timItem.getPaletteCount()];
         boolean blnTimIsTrueColor = _timItem.getBitsPerPixel() == 16 ||
@@ -157,7 +160,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     }
 
     @Override
-    public boolean copySettings(DiscItemSaverBuilder other) {
+    public boolean copySettingsTo(DiscItemSaverBuilder other) {
         if (other instanceof TimSaverBuilder) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
@@ -307,10 +310,10 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
     private static class TimRawSaver implements IDiscItemSaver {
 
-        private final DiscItemTIM _timItem;
+        private final DiscItemTim _timItem;
         private final File _outputFile;
 
-        public TimRawSaver(DiscItemTIM tim) {
+        public TimRawSaver(DiscItemTim tim) {
             _timItem = tim;
             _outputFile = new File(_timItem.getSuggestedBaseName() + ".tim");
         }
@@ -344,6 +347,10 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             return _timItem.getIndexId().serialize();
         }
 
+        public DiscItemTim getDiscItem() {
+            return _timItem;
+        }
+
         public String getOutputSummary() {
             return _outputFile.getName();
         }
@@ -366,10 +373,10 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     private static class TimImageSaver implements IDiscItemSaver {
 
         private final JavaImageFormat _imageFormat;
-        private final DiscItemTIM _timItem;
+        private final DiscItemTim _timItem;
         private final boolean[] _ablnPalettes;
 
-        public TimImageSaver(JavaImageFormat imageFormat, DiscItemTIM timItem, boolean[] ablnPalettes) {
+        public TimImageSaver(JavaImageFormat imageFormat, DiscItemTim timItem, boolean[] ablnPalettes) {
             _imageFormat = imageFormat;
             _timItem = timItem;
             _ablnPalettes = ablnPalettes;
@@ -377,6 +384,10 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
         public String getInput() {
             return _timItem.getIndexId().serialize();
+        }
+
+        public DiscItemTim getDiscItem() {
+            return _timItem;
         }
 
         public String getOutputSummary() {

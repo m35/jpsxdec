@@ -51,9 +51,9 @@ import jpsxdec.util.NotThisTypeException;
 
 /** Represents a TIM file found on a PlayStation disc. TIM images could be found
  * anywhere in a sector. */
-public class DiscItemTIM extends DiscItem {
+public class DiscItemTim extends DiscItem {
 
-    private static final Logger log = Logger.getLogger(DiscItemTIM.class.getName());
+    private static final Logger log = Logger.getLogger(DiscItemTim.class.getName());
 
     public static final String TYPE_ID = "Tim";
 
@@ -66,7 +66,7 @@ public class DiscItemTIM extends DiscItem {
     private static final String DIMENSIONS_KEY = "Dimensions";
     private final int _iWidth, _iHeight;
     
-    public DiscItemTIM(int iStartSector, int iEndSector, 
+    public DiscItemTim(int iStartSector, int iEndSector, 
                        int iStartOffset, int iPaletteCount, int iBitsPerPixel,
                        int iWidth, int iHeight)
     {
@@ -78,7 +78,7 @@ public class DiscItemTIM extends DiscItem {
         _iHeight = iHeight;
     }
     
-    public DiscItemTIM(DiscItemSerialization fields) throws NotThisTypeException {
+    public DiscItemTim(DiscItemSerialization fields) throws NotThisTypeException {
         super(fields);
         _iStartOffset = fields.getInt(START_OFFSET_KEY);
         _iPaletteCount = fields.getInt(PALETTE_COUNT_KEY);
@@ -110,6 +110,11 @@ public class DiscItemTIM extends DiscItem {
         return new TimSaverBuilder(this);
     }
 
+    @Override
+    public GeneralType getType() {
+        return GeneralType.Image;
+    }
+
     public int getStartOffset() {
         return _iStartOffset;
     }
@@ -128,7 +133,7 @@ public class DiscItemTIM extends DiscItem {
 
     public Tim readTim() throws IOException, NotThisTypeException {
         DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
-                getSourceCD(), getStartSector(), getStartOffset());
+                getSourceCd(), getStartSector(), getStartOffset());
         return Tim.read(stream);
     }
 
@@ -153,7 +158,7 @@ public class DiscItemTIM extends DiscItem {
             throw new IllegalArgumentException("Unable to replace a multi-paletted TIM with a simple image.");
         
         DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
-                getSourceCD(), getStartSector(), getStartOffset());
+                getSourceCd(), getStartSector(), getStartOffset());
         Tim tim = Tim.read(stream);
         tim.replaceImageData(bi);
         
@@ -167,7 +172,7 @@ public class DiscItemTIM extends DiscItem {
     
     private void writeNewTimData(byte[] abNewTim, FeedbackStream Feedback) throws IOException {
         // write to the first sector
-        CdFileSectorReader cd = getSourceCD();
+        CdFileSectorReader cd = getSourceCd();
         int iSector = getStartSector();
         byte[] abUserData = cd.getSector(iSector).getCdUserDataCopy();
         int iBytesToWrite = abNewTim.length;

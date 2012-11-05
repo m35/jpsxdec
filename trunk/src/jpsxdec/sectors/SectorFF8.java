@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,7 @@
 
 package jpsxdec.sectors;
 
-import jpsxdec.audio.SquareADPCMDecoder;
+import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
 
@@ -140,17 +140,17 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
         public int getIdentifiedUserDataSize() {
-            return super.getCDSector().getCdUserDataSize() -
+            return super.getCdSector().getCdUserDataSize() -
                    SectorFF8.SHARED_HEADER_SIZE;
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
-            return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+            return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     SHARED_HEADER_SIZE, getIdentifiedUserDataSize());
         }
 
         public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
-            super.getCDSector().getCdUserDataCopy(SHARED_HEADER_SIZE, abOut,
+            super.getCdSector().getCdUserDataCopy(SHARED_HEADER_SIZE, abOut,
                     iOutPos, getIdentifiedUserDataSize());
         }
 
@@ -158,10 +158,6 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return String.format("VideoFF8 %s 320x224", super.toString());
         }
 
-        public int getSectorType() {
-            return SECTOR_VIDEO;
-        }
-        
         public String getTypeName() {
             return "FF8Video";
         }
@@ -193,6 +189,9 @@ public abstract class SectorFF8 extends IdentifiedSector {
         public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                     int iMdecCodeCount, byte[] abSectUserData)
         {
+            // none of the FF8 video sector headers need to be modified
+            // so just return the size of the header so the caller
+            // can replace the frame data
             return SectorFF8.SHARED_HEADER_SIZE;
         }
 
@@ -263,7 +262,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
-            return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+            return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     SectorFF8.SHARED_HEADER_SIZE + AUDIO_ADDITIONAL_HEADER_SIZE,
                     getIdentifiedUserDataSize());
         }
@@ -287,10 +286,6 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return 2;
         }
 
-        public int getSectorType() {
-            return SECTOR_AUDIO;
-        }
-        
         public String getTypeName() {
             return "FF8Audio";
         }
@@ -305,14 +300,14 @@ public abstract class SectorFF8 extends IdentifiedSector {
 
         public long getLeftSampleCount() {
             if (getAudioChunkNumber() == 0)
-                return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
+                return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
             else
                 return 0;
         }
 
         public long getRightSampleCount() {
             if (getAudioChunkNumber() == 1)
-                return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
+                return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
             else
                 return 0;
         }

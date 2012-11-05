@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,20 +38,19 @@
 package jpsxdec.discitems.psxvideoencode;
 
 
-import java.util.Iterator;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Iterator;
 import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.discitems.savers.DemuxedFrame;
-import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.PsxYCbCrImage;
+import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
+import jpsxdec.psxvideo.encode.ParsedMdecImage;
+import jpsxdec.psxvideo.encode.PsxYCbCrImage;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
@@ -112,7 +111,7 @@ public class ReplaceFrame {
         _sFormat = sFormat;
     }
 
-    public void replace(DemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
+    public void replace(IDemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
         // identify existing frame bs format
         byte[] abExistingFrame = frame.copyDemuxData(null);
         BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abExistingFrame);
@@ -154,9 +153,11 @@ public class ReplaceFrame {
         frame.writeToSectors(newFrame, bsu.getStreamPosition()+2, bsu.getMdecCodeCount(), cd, fbs);
     }
 
-    private byte[] compressReplacement(DemuxedFrame frame, BitStreamUncompressor uncompressor, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
+    private byte[] compressReplacement(IDemuxedFrame frame, BitStreamUncompressor uncompressor, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
 
         BufferedImage bi = ImageIO.read(_imageFile);
+        if (bi == null)
+            throw new RuntimeException("Unable to read " + _imageFile + " as an image. Did you forget 'format'?");
         
         if (bi.getWidth()  != ((frame.getWidth() +15)& ~15) ||
             bi.getHeight() != ((frame.getHeight()+15)& ~15))
@@ -175,22 +176,20 @@ public class ReplaceFrame {
         uncompressor.readToEnd(frame.getWidth(), frame.getHeight());
         Iterator<int[]> qscales = uncompressor.qscaleIterator(true);
         while (qscales.hasNext()) {
-            int[] qs = qscales.next();
-            fbs.println("Trying " + Arrays.toString(qs));
-
+            fbs.println("Trying " + qscales);
             parsedNew = new ParsedMdecImage(frame.getWidth(), frame.getHeight());
-            parsedNew.readFrom(encoded.getStream(qs));
+            parsedNew.readFrom(encoded.getStream(qscales.next()));
 
             try {
                 abNewDemux = compressor.compress(parsedNew.getStream(), parsedNew.getMdecCodeCount());
                 int iNewDemuxSize = abNewDemux.length;
                 if (iNewDemuxSize <= frame.getDemuxSize()) {
-                    fbs.println(String.format("  New frame %d demux size %d <= max source %d ",
-                                    frame.getFrame(), iNewDemuxSize, frame.getDemuxSize()));
+                    fbs.indent().format("New frame %d demux size %d <= max source %d ",
+                                    frame.getFrame(), iNewDemuxSize, frame.getDemuxSize()).outdent().println();
                     break;
                 } else {
-                    fbs.println(String.format("  >>> New frame %d demux size %d > max source %d <<<",
-                                    frame.getFrame(), iNewDemuxSize, frame.getDemuxSize()));
+                    fbs.indent().format("!!! New frame %d demux size %d > max source %d !!!",
+                                    frame.getFrame(), iNewDemuxSize, frame.getDemuxSize()).outdent().println();
                 }
             } catch (MdecException.TooMuchEnergyToCompress ex) {
                 fbs.printlnWarn(ex.getMessage());

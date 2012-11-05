@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,8 +40,7 @@ package jpsxdec.discitems.savers;
 import java.io.File;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.ISectorAudioDecoder;
-import jpsxdec.discitems.savers.VideoSaverBuilder.DecodeQualities;
-import jpsxdec.discitems.savers.VideoSaverBuilder.VideoFormat;
+import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 
 /** A snapshot of the current {@link VideoSaverBuilder} options. */
@@ -52,33 +51,34 @@ public class VideoSaverBuilderSnapshot {
     public final int saveEndFrame;
     public final boolean crop;
     public final int saveStartFrame;
-    public final boolean preciseFrameTiming;
-    public final DecodeQualities decodeQuality;
+    public final MdecDecodeQuality decodeQuality;
     public final float jpgCompression;
-    public final boolean saveAudio;
-    public final boolean preciseAvSync;
+    public final boolean emulateAvSync;
     public final MdecDecoder videoDecoder;
     public final File baseName;
+    public final ISectorFrameDemuxer videoDemuxer;
     public final ISectorAudioDecoder audioDecoder;
 
     VideoSaverBuilderSnapshot(DiscItemVideoStream vidItem, File name,
-                              MdecDecoder vidDecoder, ISectorAudioDecoder audDecoder,
+                              MdecDecoder vidDecoder,
+                              ISectorFrameDemuxer demuxer,
+                              ISectorAudioDecoder audDecoder,
                               VideoSaverBuilder builder)
     {
         videoItem = vidItem;
         baseName = name;
         audioDecoder = audDecoder;
         videoDecoder = vidDecoder;
+        videoDemuxer = demuxer;
+
         singleSpeed = builder.getSingleSpeed();
         videoFormat = builder.getVideoFormat();
         saveStartFrame = builder.getSaveStartFrame();
         saveEndFrame = builder.getSaveEndFrame();
         crop = builder.getCrop();
-        preciseFrameTiming = builder.getPreciseFrameTiming();
         decodeQuality = builder.getDecodeQuality();
         jpgCompression = builder.getJpgCompression();
-        saveAudio = builder.getSavingAudio();
-        preciseAvSync = builder.getPreciseAVSync();
+        emulateAvSync = builder.getEmulatePsxAvSync();
     }
 
 }

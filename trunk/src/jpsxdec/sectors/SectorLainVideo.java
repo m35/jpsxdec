@@ -130,7 +130,6 @@ public class SectorLainVideo extends SectorAbstractVideo {
             );
     }
 
-    @Override
     public String getTypeName() {
         return "Lain Video";
     }

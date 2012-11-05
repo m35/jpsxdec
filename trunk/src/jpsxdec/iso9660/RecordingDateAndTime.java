@@ -41,7 +41,7 @@ import java.io.InputStream;
 import java.io.IOException;
 
 /** ECMA119: 9.1.5 */
-public class RecordingDateAndTime extends ISOstruct {
+public class RecordingDateAndTime extends ISO9660Struct {
     public final int YearsSince1900;
     public final int Month;
     public final int Day;

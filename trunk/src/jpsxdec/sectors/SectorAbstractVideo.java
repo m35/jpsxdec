@@ -63,35 +63,31 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
 
     // .. Abstract methods .................................................
 
+    // force subclasses to implement this for themselves
     abstract public String toString();
 
-    abstract public String getTypeName();
-
+    /** Returns the size of any headers in the identified data that should not
+     * be copied when demuxing the video data. */
     abstract protected int getSectorHeaderSize();
 
     // .. Public methods ...................................................
 
 
     final public int getIdentifiedUserDataSize() {
-            return super.getCDSector().getCdUserDataSize() -
+            return super.getCdSector().getCdUserDataSize() -
                 getSectorHeaderSize();
     }
 
     final public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+        return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                 getSectorHeaderSize(), getIdentifiedUserDataSize());
     }
 
     final public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
-        super.getCDSector().getCdUserDataCopy(getSectorHeaderSize(), abOut,
+        super.getCdSector().getCdUserDataCopy(getSectorHeaderSize(), abOut,
                 iOutPos, getIdentifiedUserDataSize());
     }
 
-    final public int getSectorType() {
-        return SECTOR_VIDEO;
-    }
-
-    /** Checks if this sector is part of the same stream as the previous video sector. */
     final public boolean matchesPrevious(IVideoSector prevSector) {
         if (!(getClass().equals(prevSector.getClass())))
             return false;
@@ -130,6 +126,7 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                 int iMdecCodeCount, byte[] abSectUserData)
     {
+        // create a bitstream uncompressor just to get the qscale
         BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(abDemuxData);
         if (!(bsu instanceof BitStreamUncompressor_STRv2))
             throw new IllegalArgumentException("Incompatable frame type " + bsu);
@@ -149,7 +146,7 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
                 BitStreamUncompressor_STRv2.calculateHalfCeiling32(iMdecCodeCount));
         IO.writeInt16LE(abSectUserData, 24, (short)(iQscale));
 
-        return 32;
+        return getSectorHeaderSize();
     }
 
 }

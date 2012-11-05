@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -57,15 +57,11 @@ public class UnidentifiedSector extends IdentifiedSector {
     }
 
     public int getIdentifiedUserDataSize() {
-        return super.getCDSector().getCdUserDataSize();
+        return super.getCdSector().getCdUserDataSize();
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return super.getCDSector().getCdUserDataStream();
-    }
-    
-    public int getSectorType() {
-        return SECTOR_UNKNOWN;
+        return super.getCdSector().getCdUserDataStream();
     }
     
     public String getTypeName() {

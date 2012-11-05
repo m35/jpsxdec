@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,20 +35,49 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.util.player;
+package jpsxdec.discitems.savers;
 
-public abstract class AbstractDecodableFrame {
+import java.io.IOException;
+import javax.sound.sampled.AudioFormat;
+import jpsxdec.discitems.ISectorAudioDecoder;
+import jpsxdec.discitems.ISectorAudioDecoder.ISectorTimedAudioWriter;
+import jpsxdec.util.player.AudioPlayer;
 
-    abstract public void decodeVideo(int[] aiDrawHere);
+/** Wraps {@link AudioPlayer} with a 
+ * {@link ISectorTimedAudioWriter} interface
+ * and keeps the audio in sync with its presentation sector. */
+public class AudioPlayerSectorTimedWriter implements ISectorAudioDecoder.ISectorTimedAudioWriter {
 
-    /** Returns the time the frame should be displayed, in milliseconds
-     *  from the beginning of the movie. */
-    abstract public long getPresentationTime();
+    private final AudioPlayer _player;
+    private AudioSync _audioSync;
 
-    private long _lngContiguousId;
-    final void setContiguiousId(long lngId) { _lngContiguousId = lngId; }
-    final long getContigiousId() { return _lngContiguousId; }
+    private final int _iFrameSize;
 
+    private long _lngSamplesWritten = 0;
 
-    public void returnToPool() {}
+    public AudioPlayerSectorTimedWriter(AudioPlayer dataLine, int iMovieStartSector, int iSectorsPerSecond, int iSamplesPerSecond) {
+        _player = dataLine;
+        _iFrameSize = _player.getFormat().getFrameSize();
+
+        _audioSync = new AudioSync(iMovieStartSector, iSectorsPerSecond, iSamplesPerSecond);
+    }
+
+    public void write(AudioFormat inFormat, byte[] abData, int iOffset, int iLength, int iPresentationSector) throws IOException {
+        if (!inFormat.matches(_player.getFormat()))
+            throw new IllegalArgumentException("Incompatable audio format.");
+        if (iLength % _iFrameSize != 0)
+            throw new IllegalArgumentException("Data length is not a multiple of frame size.");
+
+        long lngSampleDiff = _audioSync.calculateAudioToCatchUp(iPresentationSector, _lngSamplesWritten);
+        if (lngSampleDiff > 0) {
+            System.out.println("Audio out of sync " + lngSampleDiff + " samples, adding silence.");
+            _player.writeSilence(lngSampleDiff);
+            _lngSamplesWritten += lngSampleDiff;
+        }
+
+        int iSampleLength = iLength / _iFrameSize;
+        _lngSamplesWritten += iSampleLength;
+
+        _player.write(abData, iOffset, iLength);
+    }
 }

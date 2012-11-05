@@ -143,14 +143,14 @@ import jpsxdec.util.Fraction;
  * If the movie deviates from that assumption, then try the next assumption.
  */
 
-public class STRFrameRateCalc {
+public class StrFrameRateCalc {
 
-    private static final Logger log = Logger.getLogger(STRFrameRateCalc.class.getName());
+    private static final Logger log = Logger.getLogger(StrFrameRateCalc.class.getName());
 
     private WholeNumberSectorsPerFrame _wholeFrameRate;
     private LinkedList<InconsistentFrameSequence> _inconsistentFrameRate;
 
-    public STRFrameRateCalc(int iSector, int iFirstFrame, int iFirstChunk, int iFirstChunkCount) {
+    public StrFrameRateCalc(int iSector, int iFirstFrame, int iFirstChunk, int iFirstChunkCount) {
         _wholeFrameRate = new WholeNumberSectorsPerFrame(iSector, iFirstFrame);
         _inconsistentFrameRate = InconsistentFrameSequence.generate(iFirstFrame, iFirstChunk, iFirstChunkCount);
     }

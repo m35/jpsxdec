@@ -37,9 +37,7 @@
 
 package jpsxdec.sectors;
 
-import java.io.IOException;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.IO;
@@ -56,7 +54,7 @@ public class SectorFF7Video extends SectorAbstractVideo {
     private int  _iChunkNumber;         //  4    [2 bytes]
     private int  _iChunksInThisFrame;   //  6    [2 bytes]
     private int  _iFrameNumber;         //  8    [4 bytes]
-    private long _lngUsedDemuxedSize;   //  12   [4 bytes]
+    private int  _iUsedDemuxedSize;     //  12   [4 bytes]
     private int  _iWidth;               //  16   [2 bytes]
     private int  _iHeight;              //  18   [2 bytes]
     private long _lngUnknown8bytes;     //  20   [8 bytes]
@@ -91,8 +89,8 @@ public class SectorFF7Video extends SectorAbstractVideo {
         if (_iChunksInThisFrame < 6 || _iChunksInThisFrame > 10) return;
         _iFrameNumber = cdSector.readSInt32LE(8);
         if (_iFrameNumber < 0) return;
-        _lngUsedDemuxedSize = cdSector.readSInt32LE(12);
-        if (_lngUsedDemuxedSize < 2500 || _lngUsedDemuxedSize > 21000) return;
+        _iUsedDemuxedSize = cdSector.readSInt32LE(12);
+        if (_iUsedDemuxedSize < 2500 || _iUsedDemuxedSize > 21000) return;
         _iWidth = cdSector.readSInt16LE(16);
         if (_iWidth != 320 && _iWidth != 640) return;
         _iHeight = cdSector.readSInt16LE(18);
@@ -112,11 +110,11 @@ public class SectorFF7Video extends SectorAbstractVideo {
         long iFourZeros = cdSector.readSInt32LE(28);
         if (iFourZeros != 0) return;
 
-        // check for camera data
+        // check for camera data which should always exist in chunk 0
         if (_iChunkNumber == 0) {
             if (cdSector.readUInt16LE(32+2) != 0x3800) {
                 if (cdSector.readUInt16LE(32+40+2) != 0x3800)
-                    return;
+                    return; // failure
                 _iUserDataStart = FRAME_SECTOR_HEADER_SIZE + 40;
             } else {
                 _iUserDataStart = FRAME_SECTOR_HEADER_SIZE;
@@ -141,7 +139,7 @@ public class SectorFF7Video extends SectorAbstractVideo {
             _iChunksInThisFrame,
             _iWidth,
             _iHeight,
-            _lngUsedDemuxedSize,
+            _iUsedDemuxedSize,
             _lngUnknown8bytes
             );
 
@@ -156,36 +154,16 @@ public class SectorFF7Video extends SectorAbstractVideo {
         return "FF7 Video";
     }
 
-    public int replaceFrameData(CdFileSectorReader cd,
-                                byte[] abDemuxData, int iDemuxOfs,
-                                int iLuminQscale, int iChromQscale,
-                                int iMdecCodeCount)
-            throws IOException
-    {
-        if (iLuminQscale != iChromQscale)
-            throw new IllegalArgumentException();
-
-        // TODO: Only frames with camera data need the +40
-        // so how do I let this sector know that the frame started with camera data?
-        int iDemuxSizeForHeader = ((abDemuxData.length + 3) & ~3) + 40;
-
-        byte[] abSectUserData = getCDSector().getCdUserDataCopy();
+    @Override
+    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize, int iMdecCodeCount, byte[] abSectUserData) {
+        // all frames need the additional camera data in the demux size
+        int iDemuxSizeForHeader = ((iUsedSize + 3) & ~3) + 40;
 
         IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader);
 
-        int iBytesToCopy = getIdentifiedUserDataSize();
-        if (iDemuxOfs + iBytesToCopy > abDemuxData.length)
-            iBytesToCopy = abDemuxData.length - iDemuxOfs;
-
-        // bytes to copy might be 0, which is ok because we
-        // still need to write the updated headers
-        System.arraycopy(abDemuxData, iDemuxOfs, abSectUserData, _iUserDataStart, iBytesToCopy);
-
-        cd.writeSector(getSectorNumber(), abSectUserData);
-
-        return iBytesToCopy;
+        return getSectorHeaderSize();
     }
-
+    
     public int getChunkNumber() {
         return _iChunkNumber;
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,11 +40,10 @@ package jpsxdec.formats;
 import java.awt.image.BufferedImage;
 
 /** Basic YCbCr image format with 4:2:0 chroma subsampling.
+ * That means there are 4 luma pixels for each chroma blue and chroma red pixel.
  *<p>
- * This image data is intended to be used to AVI files using the YV12 codec.
- *<p>
- * The image data is internally treated as unsigned bytes
- * in the Rec BT 601 "color space", with the range of
+ * This class does not interpret the data, so it can hold either the Rec.601
+ * "color space"...
  *<pre>
  * Y : 16 to 235
  * Cb: 16 to 240
@@ -57,12 +56,21 @@ import java.awt.image.BufferedImage;
  *  value 128 to encode a zero value, as used when encoding a white,
  *  grey or black area."
  *</blockquote>
- *      -http://en.wikipedia.org/wiki/CCIR_601
- *<p>
- * Any reading or writing to this class should follow this format.
- *<p>
+ *      -http://en.wikipedia.org/wiki/Rec._601
+ * <p>
+ * ...or it can handle the PSX "color space", or the JPEG/JFIF "color space":
+ *<pre>
+ * Y : 0 to 255
+ * Cb: 0 to 255
+ * Cr: 0 to 255
+ *</pre>
+ * Internally however, the values are stored as unsigned bytes, so shift
+ * the values by -128.
+ * <p>
+ * This is intended as the final step in the decoding process, to store the
+ * data before sending it to an AVI writer.
  */
-public class Rec601YCbCrImage {
+public class YCbCrImage {
 
     private int _iLumaWidth;
     private int _iLumaHeight;
@@ -77,9 +85,9 @@ public class Rec601YCbCrImage {
     private byte[] _abCr;
     
     /** Creates a new instance of Rec601YCbCrImage
-     * @param iWidth   Width of image (in Luminance values)
-     * @param iHeight  Height of image (in Luminance values) */
-    public Rec601YCbCrImage(int iWidth, int iHeight) {
+     * @param iWidth   Width of image (in luma pixels)
+     * @param iHeight  Height of image (in luma pixels) */
+    public YCbCrImage(int iWidth, int iHeight) {
         if (iWidth < 2 || iHeight < 2 ||
                (iWidth % 2) != 0 ||
                (iHeight % 2) != 0) {
@@ -95,7 +103,7 @@ public class Rec601YCbCrImage {
     }
 
     /** Very slow and wasteful conversion. */
-    public Rec601YCbCrImage(BufferedImage rgb) {
+    public YCbCrImage(BufferedImage rgb) {
         this(rgb.getWidth(), rgb.getHeight());
         
         for (int x = 0; x < _iLumaWidth; x+=2) {
@@ -115,6 +123,7 @@ public class Rec601YCbCrImage {
         }
     }
 
+    /** Clamp & Round */
     private static byte rc(double dbl) {
         if (dbl < 0)
             return 0;

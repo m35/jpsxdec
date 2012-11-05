@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,20 +50,20 @@ import jpsxdec.util.IO;
  *  and Chrono Cross. This is the simplest and most straight-forward
  *  implementation I could think of. A fixed point implementation
  *  would of course be faster. */
-public final class SquareADPCMDecoder {
+public final class SquareAdpcmDecoder {
 
-    private static final Logger log = Logger.getLogger(SquareADPCMDecoder.class.getName());
+    private static final Logger log = Logger.getLogger(SquareAdpcmDecoder.class.getName());
 
     private final SoundUnit _leftSoundUnit;
     private final SoundUnit _rightSoundUnit;
 
-    public SquareADPCMDecoder(double dblVolume) {
+    public SquareAdpcmDecoder(double dblVolume) {
         _leftSoundUnit = new SoundUnit(dblVolume);
         _rightSoundUnit = new SoundUnit(dblVolume);
     }
 
     public static int calculateSamplesGenerated(int iInputBytes) {
-        if ((iInputBytes % SoundUnit.SIZE_IN_BYTES) > 0)
+        if ((iInputBytes % SoundUnit.SIZE_IN_BYTES) != 0)
             throw new IllegalArgumentException("iInputBytes must be divisible by " + SoundUnit.SIZE_IN_BYTES);
 
         // each sound unit takes 16 bytes
@@ -132,11 +132,11 @@ public final class SquareADPCMDecoder {
         
         private byte _bParameter_Range;
         private byte _bParameter_FilterIndex;
-        private final ADPCMContext _adpcmContext;
+        private final AdpcmContext _adpcmContext;
         private final short[] _asiPcmSampleBuffer = new short[SAMPLES_PER_SOUND_UNIT];
 
         public SoundUnit(double dblVolume) {
-            _adpcmContext = new ADPCMContext(dblVolume);
+            _adpcmContext = new AdpcmContext(dblVolume);
         }
 
         private void readSoundParamter(InputStream inStream) throws IOException

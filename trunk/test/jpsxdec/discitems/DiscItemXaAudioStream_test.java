@@ -37,17 +37,21 @@
 
 package jpsxdec.discitems;
 
-import jpsxdec.audio.XAADPCMDecoder;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import java.io.File;
+import java.io.IOException;
+import jpsxdec.audio.XaAdpcmDecoder;
+import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.indexing.DiscIndex;
+import jpsxdec.util.IO;
+import jpsxdec.util.SimpleConsoleProgressListener;
+import jpsxdec.util.TaskCanceledException;
 import static org.junit.Assert.*;
+import org.junit.*;
+import static testutil.Util.*;
 
-public class DiscItemXAAudioStream_test {
+public class DiscItemXaAudioStream_test {
     
-    public DiscItemXAAudioStream_test() {
+    public DiscItemXaAudioStream_test() {
     }
 
     @BeforeClass
@@ -69,10 +73,10 @@ public class DiscItemXAAudioStream_test {
     @Test
     public void sectorStride1() {
         final int BITS_PER_SAMPLE = 4;
-        DiscItemXAAudioStream item = new DiscItemXAAudioStream(
+        DiscItemXaAudioStream item = new DiscItemXaAudioStream(
                 0, 1, // 2 sectors long
                 0, // channel
-                XAADPCMDecoder.pcmSamplesGeneratedFromXAADPCMSector(BITS_PER_SAMPLE) * 2, 
+                XaAdpcmDecoder.pcmSamplesGeneratedFromXAADPCMSector(BITS_PER_SAMPLE) * 2, 
                 37800, // samples/second
                 false, // mono
                 BITS_PER_SAMPLE, // bits/sample
@@ -80,4 +84,27 @@ public class DiscItemXAAudioStream_test {
         
         assertTrue(true);
     }
+    
+    @Test
+    public void replaceXa() throws IOException, TaskCanceledException {
+        //final File EXPECTED = resourceAsTempFile(getClass(), "ORIGINALlain+REPLACE-PNG.STR");
+        final File SAMPLES = new File("Worms126918-126950.bin");
+        resourceAsFile(getClass(), "Worms126918-126950.bin", SAMPLES);
+        final File EXPECTED = resourceAsTempFile(getClass(), "Worms126918-126950-replaced.bin");
+        CdFileSectorReader cd = new CdFileSectorReader(SAMPLES, true);
+        DiscIndex index = new DiscIndex(cd, new SimpleConsoleProgressListener());
+        DiscItemXaAudioStream xa1 = (DiscItemXaAudioStream) index.getByIndex(0);
+        DiscItemXaAudioStream xa2 = (DiscItemXaAudioStream) index.getByIndex(1);
+        try {
+            xa1.replaceXa(System.out, xa2);
+            assertTrue("Expected exception", false);
+        } catch (IllegalArgumentException ex) {
+            ex.printStackTrace();
+            assertEquals(ex.getMessage(), "Sector index out of bounds of this disc item");
+        }
+        cd.close();
+        assertArrayEquals(IO.readFile(EXPECTED), IO.readFile(SAMPLES));
+        SAMPLES.delete();
+    }
+    
 }

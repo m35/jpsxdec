@@ -37,32 +37,17 @@
 
 package jpsxdec.indexing;
 
-import jpsxdec.discitems.IndexId;
-import jpsxdec.util.ProgressListener;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.io.*;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.Main;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemSerialization;
-import jpsxdec.discitems.DiscItemAudioStream;
-import jpsxdec.discitems.DiscItemISO9660File;
-import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.discitems.*;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.ProgressListener;
 import jpsxdec.util.TaskCanceledException;
 
 /** Searches for, and manages the collection of DiscItems in a file.
@@ -113,6 +98,8 @@ public class DiscIndex implements Iterable<DiscItem> {
 
         sectIter.setListener(new DiscriminatingSectorIterator.SectorReadListener() {
             int iCurrentSectorNumber = -1;
+            int iMode1Count = 0;
+            int iMode2Count = 0;
             public void sectorRead(CdSector sect) {
                 sect.printErrors(pl.getLog());
                 if (sect.hasHeaderSectorNumber()) {
@@ -120,12 +107,18 @@ public class DiscIndex implements Iterable<DiscItem> {
                     if (iCurrentSectorNumber >= 0) {
                         if (iCurrentSectorNumber + 1 != iNewSectNumber)
                             pl.getLog().warning("Non-continuous sector header number: " +
-                                    iCurrentSectorNumber + " -> " + iNewSectNumber);
+                                                iCurrentSectorNumber + " -> " + iNewSectNumber);
                     }
                     iCurrentSectorNumber = iNewSectNumber;
                 } else {
                     iCurrentSectorNumber = -1;
                 }
+                if (sect.isMode1()) {
+                    if (iMode1Count < iMode2Count)
+                        pl.getLog().warning("Sector " + sect.getSectorNumberFromStart() + " is Mode 1 found among Mode 2 sectors");
+                    iMode1Count++;
+                } else if (!sect.isCdAudioSector())
+                    iMode2Count++;
 
                 int iSector = sect.getSectorNumberFromStart();
                 try {
@@ -183,7 +176,6 @@ public class DiscIndex implements Iterable<DiscItem> {
                     
                 }
 
-
             }
 
         } catch (IOException ex) {
@@ -238,7 +230,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                 // don't give it a path yet, we'll figure that out soon
                 IndexId itemId = new IndexId(item, iIndex);
                 // otherwise keep special list of videos for quick reference
-                if (item instanceof DiscItemVideoStream)
+                if (item instanceof DiscItemStrVideoStream)
                     videos.add(itemId);
                 // add them to the default pool
                 nonFiles.add(itemId);
@@ -252,7 +244,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             // if it's audio, first check if it can be a child of a video
             if (nonFileId.getItem() instanceof DiscItemAudioStream) {
                 for (IndexId videoId : videos) {
-                    if (((DiscItemVideoStream)videoId.getItem()).isAudioAlignedWithThis(nonFileId.getItem())) {
+                    if (((DiscItemStrVideoStream)videoId.getItem()).isAudioAlignedWithThis(nonFileId.getItem())) {
                         videoId.add(nonFileId);
                         continue EachNonFile;
                     }
@@ -331,7 +323,7 @@ public class DiscIndex implements Iterable<DiscItem> {
     private static int typeHierarchyLevel(DiscItem item) {
         if (item instanceof DiscItemISO9660File)
             return 1;
-        else if (item instanceof DiscItemVideoStream)
+        else if (item instanceof DiscItemStrVideoStream)
             return 2;
         else if (item instanceof DiscItemAudioStream)
             return 3;
@@ -382,72 +374,98 @@ public class DiscIndex implements Iterable<DiscItem> {
     private DiscIndex(String sIndexFile, CdFileSectorReader cdReader, boolean blnAllowWrites, Logger errLog)
             throws IOException, NotThisTypeException
     {
-        _sourceCD = cdReader;
-
         File indexFile = new File(sIndexFile);
 
-        BufferedReader reader = new BufferedReader(new FileReader(indexFile));
-        
-        _iterate = new ArrayList<DiscItem>();
-
         ArrayList<DiscIndexer> indexers = new ArrayList<DiscIndexer>();
-        indexers.addAll(Arrays.asList(DiscIndexer.createIndexers(errLog)));
-        indexers.add(new DiscIndexerTim());
+        BufferedReader reader = new BufferedReader(new FileReader(indexFile));
+        boolean blnExceptionThrown = true;
+        try {
+            _iterate = new ArrayList<DiscItem>();
 
-        for (DiscIndexer indexer : indexers) {
-            indexer.putYourCompletedMediaItemsHere(_iterate);
-        }
+            indexers.addAll(Arrays.asList(DiscIndexer.createIndexers(errLog)));
+            indexers.add(new DiscIndexerTim());
 
-        // make sure the first line matches the current version
-        String sLine = reader.readLine();
-        if (!INDEX_HEADER.equals(sLine)) {
-            reader.close();
-            throw new NotThisTypeException("Missing proper index header.");
-        }
-
-        while ((sLine = reader.readLine()) != null) {
-            
-            // comments
-            if (sLine.startsWith(COMMENT_LINE_START))
-              continue;
-
-            // source file
-            if (sLine.startsWith(CdFileSectorReader.SERIALIZATION_START)) {
-                if (cdReader != null) {
-                    if (!cdReader.matchesSerialization(sLine)) {
-                        errLog.warning("Disc format does not match what index says.");
-                    }
-                } else {
-                    _sourceCD = new CdFileSectorReader(sLine, blnAllowWrites);
-                }
-                continue;
+            for (DiscIndexer indexer : indexers) {
+                indexer.putYourCompletedMediaItemsHere(_iterate);
             }
 
-            String[] asParts = sLine.split("\\|", 2);
-            String sIndexId = asParts[0];
-            String sItem = asParts[1];
+            // make sure the first line matches the current version
+            String sLine = reader.readLine();
+            if (!INDEX_HEADER.equals(sLine)) {
+                reader.close();
+                throw new NotThisTypeException("Missing proper index header.");
+            }
+
+            while ((sLine = reader.readLine()) != null) {
+
+                // comments
+                if (sLine.startsWith(COMMENT_LINE_START))
+                continue;
+
+                // source file
+                if (sLine.startsWith(CdFileSectorReader.SERIALIZATION_START)) {
+                    if (cdReader != null) {
+                        // verify that the source file matches
+                        if (!cdReader.matchesSerialization(sLine)) {
+                            errLog.warning("Disc format does not match what index says.");
+                        }
+                    } else {
+                        _sourceCD = new CdFileSectorReader(sLine, blnAllowWrites);
+                    }
+                    continue;
+                }
+
+                String[] asParts = sLine.split("\\|", 2);
+                String sIndexId = asParts[0];
+                String sItem = asParts[1];
+
+                try {
+                    DiscItemSerialization deserializedLine = new DiscItemSerialization(sItem);
+
+                    boolean blnLineHandled = false;
+                    for (DiscIndexer indexer : indexers) {
+                        // first parse the indexid
+                        DiscItem item = indexer.deserializeLineRead(deserializedLine);
+                        if (item != null) {
+                            blnLineHandled = true;
+                            item.setIndexId(new IndexId(sIndexId, item));
+                            _iterate.add(item);
+                        }
+                    }
+                    if (!blnLineHandled)
+                        errLog.warning("Failed to do anything with " + sLine);
+                } catch (NotThisTypeException e) {
+                    errLog.warning("Failed to parse line: " + sLine);
+                }
+            }
+            
+            blnExceptionThrown = false;
+            
+        } finally {
+            // something bad happened? close CD reader only if we opened it
+            if (blnExceptionThrown && cdReader == null && _sourceCD != null) {
+                try {
+                    _sourceCD.close();
+                } catch (IOException ex) {
+                    errLog.log(Level.SEVERE, null, ex);
+                    log.log(Level.SEVERE, null, ex);
+                }
+            }
             
             try {
-                DiscItemSerialization deserializedLine = new DiscItemSerialization(sItem);
-
-                boolean blnLineHandled = false;
-                for (DiscIndexer indexer : indexers) {
-                    // first parse the indexid
-                    DiscItem item = indexer.deserializeLineRead(deserializedLine);
-                    if (item != null) {
-                        blnLineHandled = true;
-                        item.setIndexId(new IndexId(sIndexId, item));
-                        _iterate.add(item);
-                    }
-                }
-                if (!blnLineHandled)
-                    errLog.warning("Failed to do anything with " + sLine);
-            } catch (NotThisTypeException e) {
-                errLog.warning("Failed to parse line: " + sLine);
+                reader.close();
+            } catch (IOException ex) {
+                errLog.log(Level.SEVERE, null, ex);
+                log.log(Level.SEVERE, null, ex);
             }
         }
-        reader.close();
-
+        
+        if (_sourceCD == null) {
+            if (cdReader == null)
+                throw new IllegalArgumentException("Index is missing source CD file and no source file was supplied.");
+            _sourceCD = cdReader;
+        }
+        
         _root = recreateTree(_iterate);
 
         // copy the items to this class

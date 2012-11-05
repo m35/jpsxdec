@@ -47,7 +47,7 @@ import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 /** A full Java, double-precision, floating point implementation of the
  *  PlayStation 1 MDEC chip with interpolation used in chroma upsampling. 
  *<p>
- *  Default upsampling method is Bilinear.
+ *  Default upsampling method is Bicubic.
  *<p>
  * To understand how that is helpful, read up on how 4:2:0 YCbCr format
  * works, and how it is then converted to RGB.
@@ -60,7 +60,7 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
     private final double[] _adblUpCb;
 
     private final ResampleOp _resampler;
-    private Upsampler _upsampler = Upsampler.Bilinear;
+    private Upsampler _upsampler = Upsampler.Bicubic;
 
     public enum Upsampler {
         /** i.e. Box */ NearestNeighbor(null),
@@ -75,6 +75,17 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
         private final ResampleFilter _filter;
         private Upsampler(ResampleFilter filter) {
             _filter = filter;
+        }
+
+        public static Upsampler fromCmdLine(String sCmdLine) {
+            Upsampler up = null;
+            for (Upsampler upsampler : values()) {
+                if (upsampler.name().equalsIgnoreCase(sCmdLine)) {
+                    up = upsampler;
+                    break;
+                }
+            }
+            return up;
         }
     }
 

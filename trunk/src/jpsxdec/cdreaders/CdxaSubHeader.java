@@ -118,7 +118,7 @@ public class CdxaSubHeader {
         }
     }
 
-    private int _iChannel1 = -1;                // [1 byte] 0-31 for ADPCM audio
+    private int _iChannel1 = -1;         // [1 byte] 0-31 for ADPCM audio
     private int _iChannel2;
     private final IssueType _eChannelIssue;
     public int getChannel() { 

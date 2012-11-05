@@ -50,7 +50,6 @@ public class PlayController {
 
     private DemuxReader _demuxReader;
 
-    private AudioProcessor _audProcessor;
     private AudioPlayer _audPlayer;
 
     private VideoProcessor _vidProcessor;
@@ -72,9 +71,6 @@ public class PlayController {
             _audPlayer = new AudioPlayer(format, this);
             _vidTimer = _audPlayer;
 
-            _audProcessor = new AudioProcessor(_audPlayer, _vidProcessor);
-
-            _audProcessor.play();
             _audPlayer.pause(); // audio will start playing once it has data in the buffer
         }
         if (reader.hasVideo()) {
@@ -83,12 +79,13 @@ public class PlayController {
             } else {
                 _vidPlayer = new VideoPlayer(_vidTimer, this, reader.getVideoWidth(), reader.getVideoHeight());
             }
-            _vidProcessor = new VideoProcessor(_vidTimer, _vidPlayer);
-            _vidProcessor.play();
             _vidPlayer.pause();
+
+            _vidProcessor = new VideoProcessor(_vidTimer, _vidPlayer);
+            _vidProcessor.play(); // start decoding as soon as data is available
         }
 
-        _demuxReader = new DemuxReader(reader, _audProcessor, _vidProcessor, this);
+        _demuxReader = new DemuxReader(reader, _audPlayer, _vidProcessor, this);
         _demuxReader.play(); // start buffering
 
     }
@@ -97,8 +94,6 @@ public class PlayController {
 
     public void play() throws LineUnavailableException {
         _demuxReader.play();
-        if (_audProcessor != null)
-            _audProcessor.play();
         if (_audPlayer != null)
             _audPlayer.play();
         if (_vidProcessor != null)
@@ -132,8 +127,6 @@ public class PlayController {
                 // must stop the player first so processor won't block
                 _audPlayer.stop();
             }
-            if (_audProcessor != null)
-                _audProcessor.stop();
 
             if (_vidPlayer != null)
                 // must stop the player first so processor won't block
@@ -146,12 +139,12 @@ public class PlayController {
 
     void endOfPlay() {
         synchronized (_playSync) {
-            if (_audProcessor != null)
-                _audProcessor.stopWhenEmpty();
             if (_vidProcessor != null)
                 _vidProcessor.stopWhenEmpty();
             if (_vidPlayer != null)
                 _vidPlayer.stopWhenEmpty();
+            if (_audPlayer != null)
+                _audPlayer.blockUntilEndThenStop();
         }
     }
     
@@ -225,7 +218,7 @@ public class PlayController {
         synchronized (_playSync) {
             try {
                 if (java.awt.EventQueue.isDispatchThread())
-                    new NotifyLater(Event.Stop).run();
+                    new NotifyLater(Event.Stop).run(); // run event directly
                 else
                     java.awt.EventQueue.invokeAndWait(new NotifyLater(Event.Stop));
             } catch (InterruptedException ex) {

@@ -44,18 +44,18 @@ class DemuxReader implements Runnable {
 
     IAudioVideoReader _reader;
 
-    private AudioProcessor _audioProcessor;
-    private VideoProcessor _videoProcessor;
-    private PlayController _controller;
+    private final AudioPlayer _audioPlayer;
+    private final VideoProcessor _videoProcessor;
+    private final PlayController _controller;
     
     private Thread _thread;
 
 
     private final PlayingState _state = new PlayingState(PlayingState.State.STOPPED);
 
-    public DemuxReader(IAudioVideoReader reader, AudioProcessor audProc, VideoProcessor vidProc, PlayController controller) {
+    public DemuxReader(IAudioVideoReader reader, AudioPlayer audPlay, VideoProcessor vidProc, PlayController controller) {
         _reader = reader;
-        _audioProcessor = audProc;
+        _audioPlayer = audPlay;
         _videoProcessor = vidProc;
         _controller = controller;
     }
@@ -74,7 +74,7 @@ class DemuxReader implements Runnable {
                 // now playing
                 
                 // XXX: how can demuxer be told to stop when it's blocking for more to read?
-                int iProgress = _reader.readNext(_videoProcessor, _audioProcessor);
+                int iProgress = _reader.readNext(_videoProcessor, _audioPlayer);
                 if (DEBUG) System.out.println("Progress " + iProgress);
                 if (iProgress < 0) {
                     System.out.println("Reader says it is the end. Telling everyone to stop when empty.");

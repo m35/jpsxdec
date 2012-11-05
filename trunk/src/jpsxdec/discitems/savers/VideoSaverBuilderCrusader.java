@@ -1,0 +1,168 @@
+/*
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2012  Michael Sabin
+ * All rights reserved.
+ *
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
+ *
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package jpsxdec.discitems.savers;
+
+import argparser.ArgParser;
+import argparser.BooleanHolder;
+import java.util.logging.Logger;
+import jpsxdec.discitems.*;
+import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.TabularFeedback;
+
+
+public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
+
+    private static final Logger log = Logger.getLogger(VideoSaverBuilderCrusader.class.getName());
+
+    /** Hacky workaround to prevent constructor superclass resetting defaults. */
+    private boolean _blnAudioInit = false;
+    private final DiscItemCrusader _sourceVidItem;
+
+    public VideoSaverBuilderCrusader(DiscItemCrusader vidItem) {
+        super(vidItem);
+        _sourceVidItem = vidItem;
+        _blnAudioInit = true;
+        resetToDefaults();
+    }
+
+    @Override
+    public void resetToDefaults() {
+        if (!_blnAudioInit) // wait until this class is constructed to reset
+            return;
+        super.resetToDefaults();
+
+        setSavingAudio(true);
+    }
+
+    @Override
+    public boolean copySettingsTo(DiscItemSaverBuilder otherBuilder) {
+        if (super.copySettingsTo(otherBuilder)) {
+            if (otherBuilder instanceof VideoSaverBuilderCrusader){
+                VideoSaverBuilderCrusader other = (VideoSaverBuilderCrusader) otherBuilder;
+                other.setSavingAudio(getSavingAudio());
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public DiscItemSaverBuilderGui getOptionPane() {
+        return new VideoSaverBuilderCrusaderGui(this);
+    }
+
+    // .........................................................................
+
+
+    public boolean getAudioVolume_enabled() {
+        return getSavingAudio();
+    }
+
+    // .........................................................................
+
+    public boolean hasAudio() {
+        return true;
+    }
+
+    private boolean _blnSavingAudio = true;
+    public boolean getSavingAudio() {
+        if (!getVideoFormat().canSaveAudio())
+            return false;
+        return _blnSavingAudio;
+    }
+    public void setSavingAudio(boolean val) {
+        _blnSavingAudio = val;
+        firePossibleChange();
+    }
+
+    // .........................................................................
+
+    public boolean getEmulatePsxAvSync() {
+        return false;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
+        asArgs = super.commandLineOptions(asArgs, fbs);
+        if (asArgs == null) return null;
+        
+        ArgParser parser = new ArgParser("", false);
+
+        //...........
+
+        BooleanHolder noaud = new BooleanHolder(false);
+        parser.addOption("-noaud %v", noaud); // Only with AVI & audio
+
+        // -------------------------
+        String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
+        // -------------------------
+
+        setSavingAudio(!noaud.value);
+
+        return asRemain;
+    }
+
+    protected void makeHelpTable(TabularFeedback tfb) {
+        super.makeHelpTable(tfb);
+
+        tfb.print("-noaud").tab().print("Don't save audio.");
+        tfb.newRow();
+    }
+
+    @Override
+    protected VideoSaverBuilderSnapshot makeSnapshot() {
+        CrusaderDemuxer av = _sourceVidItem.makeDemuxer();
+        ISectorAudioDecoder ad;
+        if (getSavingAudio()) {
+            ad = av;
+            ad.setVolume(getAudioVolume());
+        } else {
+            ad = null;
+        }
+
+        VideoSaverBuilderSnapshot snap = new VideoSaverBuilderSnapshot(
+                _sourceVidItem,
+                _sourceVidItem.getSuggestedBaseName(),
+                makeVideoDecoder(),
+                av,
+                ad, this);
+        return snap;
+    }
+
+}

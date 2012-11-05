@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,6 @@
 
 package jpsxdec.discitems.savers;
 
-import jpsxdec.discitems.IDiscItemSaver;
-import jpsxdec.discitems.ISectorAudioDecoder;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -46,6 +44,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.discitems.DiscItemAudioStream;
+import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.formats.JavaAudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.AudioOutputFileWriter;
@@ -74,6 +74,10 @@ public class AudioSaver implements IDiscItemSaver  {
 
     public String getInput() {
         return _audItem.getIndexId().toString();
+    }
+
+    public DiscItemAudioStream getDiscItem() {
+        return _audItem;
     }
 
     public String getOutputSummary() {
@@ -108,27 +112,27 @@ public class AudioSaver implements IDiscItemSaver  {
         }
 
         AudioFormat audioFmt = _decoder.getOutputFormat();
-        final AudioOutputFileWriter _audioWriter;
-        _audioWriter = new AudioOutputFileWriter(outputFile,
+        final AudioOutputFileWriter audioWriter;
+        audioWriter = new AudioOutputFileWriter(outputFile,
                             audioFmt, _containerFormat.getJavaType());
 
         _decoder.setAudioListener(new ISectorAudioDecoder.ISectorTimedAudioWriter() {
             public void write(AudioFormat format, byte[] abData, int iStart, int iLen, int iPresentationSector) throws IOException {
-                _audioWriter.write(format, abData, iStart, iLen);
+                audioWriter.write(format, abData, iStart, iLen);
             }
         });
 
         try {
-            final double SECTOR_LENGTH = _audItem.getSectorLength();
-            for (int iSector = 0; iSector <= SECTOR_LENGTH; iSector++) {
+            final int SECTOR_LENGTH = _audItem.getSectorLength();
+            for (int iSector = 0; iSector < SECTOR_LENGTH; iSector++) {
                 IdentifiedSector identifiedSect = _audItem.getRelativeIdentifiedSector(iSector);
                 _decoder.feedSector(identifiedSect);
-                pl.progressUpdate(iSector / SECTOR_LENGTH);
+                pl.progressUpdate(iSector / (double)SECTOR_LENGTH);
             }
             pl.progressEnd();
         } finally {
             try {
-                _audioWriter.close();
+                audioWriter.close();
             } catch (Throwable ex) {
                 pl.getLog().log(Level.SEVERE, "Error closing audio writer", ex);
             }

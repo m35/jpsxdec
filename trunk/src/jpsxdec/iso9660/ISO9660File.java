@@ -39,12 +39,12 @@ package jpsxdec.iso9660;
 
 import java.io.File;
 
-public class ISOFile extends File {
+public class ISO9660File extends File {
 
     private final long _lngStartSector;
     private final long _lngSize;
     
-    public ISOFile(File directory, String sFileName, long lngStartSector, long lngSize) {
+    public ISO9660File(File directory, String sFileName, long lngStartSector, long lngSize) {
         super(directory, sFileName);
         _lngStartSector = lngStartSector;
         _lngSize = lngSize;

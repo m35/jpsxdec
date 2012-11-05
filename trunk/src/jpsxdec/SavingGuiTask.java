@@ -84,7 +84,8 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         for (Row row : _rows) {
             _currentRow = row;
             try {
-                _handler.setSubheader(row._saver.getInput());
+                _handler.setHeader(row._saver.getDiscItem().getSourceCd().toString());
+                _handler.setSubheader(row._saver.getDiscItem().toString());
                 row._saver.startSave(this, _dir);
             } catch (TaskCanceledException ex) {
                 // cool

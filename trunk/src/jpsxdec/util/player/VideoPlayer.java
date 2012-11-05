@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -287,9 +287,8 @@ class VideoPlayer implements Runnable, IVideoTimer {
         private Image Img;
 
         public long PresentationTime;
-        public long ContigusPlayUniqueId;
 
-        public void init(AbstractDecodableFrame decodeFrame) {
+        public void init(IDecodableFrame decodeFrame) {
             if (Memory == null) {
                 Memory = new int[_iWidth * _iHeight];
                 MemImgSrc = new MemoryImageSource(_iWidth, _iHeight, Memory, 0, _iWidth);
@@ -299,7 +298,6 @@ class VideoPlayer implements Runnable, IVideoTimer {
                 Img.setAccelerationPriority(1.0f);
             }
             PresentationTime = decodeFrame.getPresentationTime();
-            ContigusPlayUniqueId = decodeFrame.getContigiousId();
         }
 
         public void returnToPool() {
@@ -310,17 +308,9 @@ class VideoPlayer implements Runnable, IVideoTimer {
     // ----------------------------------------------------------------------
 
 
-    private long _lngTimerContiguousPlayId;
     private long _lngTimerStartTime;
     private long _lngTimerPausedTime;
     private boolean _blnTimerStarting;
-
-    public long getContiguousPlayId() {
-        synchronized (_frameDisplayQueue.getSyncObject()) {
-            return _lngTimerContiguousPlayId;
-        }
-    }
-
 
     private long getPlayTime() {
         synchronized (_frameDisplayQueue.getSyncObject()) {
@@ -337,11 +327,8 @@ class VideoPlayer implements Runnable, IVideoTimer {
         }
     }
 
-    public boolean shouldBeProcessed(long lngContiguousPlayId, long lngPresentationTime) {
+    public boolean shouldBeProcessed(long lngPresentationTime) {
         synchronized (_frameDisplayQueue.getSyncObject()) {
-            if (lngContiguousPlayId != _lngTimerContiguousPlayId)
-                return false;
-
             if (_frameDisplayQueue.isPaused()) {
                 return true;
             } else if (_frameDisplayQueue.isPlaying()) {
@@ -359,9 +346,6 @@ class VideoPlayer implements Runnable, IVideoTimer {
         try {
             synchronized (_frameDisplayQueue.getSyncObject()) {
                 while (true) {
-                    if (frame.ContigusPlayUniqueId != _lngTimerContiguousPlayId)
-                        return false;
-
                     if (_frameDisplayQueue.isPaused()) {
                         _frameDisplayQueue.getSyncObject().wait();
                         // now loop again to see the new state or Contiguous Id

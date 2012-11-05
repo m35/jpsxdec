@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,12 +43,9 @@ import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDiscItemSaver;
-import jpsxdec.discitems.savers.VideoSaverBuilder.VideoFormat;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.sectors.IVideoSector;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.ProgressListener;
 import jpsxdec.util.TaskCanceledException;
@@ -70,6 +67,10 @@ public abstract class VideoSaver implements IDiscItemSaver {
 
     public String getInput() {
         return _snap.videoItem.getIndexId().serialize();
+    }
+
+    public DiscItemVideoStream getDiscItem() {
+        return _snap.videoItem;
     }
 
     public String getOutputSummary() {
@@ -118,10 +119,6 @@ public abstract class VideoSaver implements IDiscItemSaver {
         {
             ps.println("Cropping: " + (_snap.crop ? "Yes" : "No"));
         }
-        /*
-        if (getPreciseFrameTiming_enabled())
-            ps.println("Precise FPS: " + (_snap.preciseFrameTiming ? "Yes" : "No"));
-        */
         if (_snap.videoFormat != VideoFormat.IMGSEQ_DEMUX &&
             _snap.videoFormat != VideoFormat.IMGSEQ_MDEC)
         {
@@ -129,10 +126,8 @@ public abstract class VideoSaver implements IDiscItemSaver {
         }
         if (_snap.audioDecoder != null) {
             ps.println("With audio item(s):");
-            for (DiscItemAudioStream item : _snap.audioDecoder.getSourceItems()) {
-                ps.println(item);
-            }
-            ps.println("Precise audio/video sync: " + (_snap.preciseAvSync ? "Yes" : "No"));
+            _snap.audioDecoder.printAudioDetails(ps);
+            ps.println("Emulate PSX audio/video sync: " + (_snap.emulateAvSync ? "Yes" : "No"));
         }
 
         String sStartFile = _snap.videoFormat.formatPostfix(_snap.videoItem, getStartFrame());
@@ -165,34 +160,31 @@ public abstract class VideoSaver implements IDiscItemSaver {
     private void startVideoOnly(ProgressListener pl)
             throws IOException, TaskCanceledException
     {
-        int iSector = getMovieStartSector();
+        final int iStartSector = getMovieStartSector();
+        int iSector = iStartSector;
+        final int iEndSector = getMovieEndSector();
+        final double SECTOR_LENGTH = iEndSector - iSector + 1;
+        
+        pl.progressStart();
 
-        final double SECTOR_LENGTH = getMovieEndSector() - iSector + 1;
-
-        int iCurrentFrame = getStartFrame();
         try {
-            for (; iSector <= getMovieEndSector(); iSector++) {
+            for (; iSector <= iEndSector; iSector++) {
 
-                CdSector cdSector = _snap.videoItem.getSourceCD().getSector(iSector);
+                CdSector cdSector = _snap.videoItem.getSourceCd().getSector(iSector);
                 IdentifiedSector identifiedSector = _snap.videoItem.identifySector(cdSector);
-                if (identifiedSector instanceof IVideoSector) {
-                    IVideoSector vidSector = (IVideoSector) identifiedSector;
-                    int iSectorFrame = vidSector.getFrameNumber();
-                    if (iSectorFrame < getStartFrame())
-                        continue;
-                    else if (iSectorFrame > getEndFrame())
-                        break;
-                    
-                    if (pl.seekingEvent())
-                        pl.event("Frame " + iCurrentFrame);
-
-                    if (iSectorFrame != iCurrentFrame) {
-                        pl.progressUpdate((iSector - _snap.videoItem.getStartSector()) / SECTOR_LENGTH);
-                        iCurrentFrame = iSectorFrame;
-                    }
-
-                    feedSectorForVideo(vidSector);
+                if (identifiedSector != null) {
+                    feedSector(identifiedSector);
                 }
+                
+                if (pl.seekingEvent())
+                    pl.event("Frame " + getCurrentFrame());
+
+                pl.progressUpdate((iSector - iStartSector) / SECTOR_LENGTH);
+
+                // if we've already handled the frames we want to save
+                // break early
+                if (getCurrentFrame() > getEndFrame())
+                    break;
             }
             pl.progressEnd();
         } finally {
@@ -211,30 +203,22 @@ public abstract class VideoSaver implements IDiscItemSaver {
         final int iStartSector = getMovieStartSector();
         int iSector = iStartSector;
         final int iEndSector = getMovieEndSector();
-        double SECTOR_LENGTH = iEndSector - iStartSector;
+        final double SECTOR_LENGTH = iEndSector - iStartSector + 1;
 
+        pl.progressStart();
+        
         try {
-            int iCurrentFrame = getStartFrame();
             for (; iSector <= iEndSector; iSector++) {
                 
-                if (pl.seekingEvent())
-                    pl.event("Frame " + iCurrentFrame);
-
-                CdSector cdSector = _snap.videoItem.getSourceCD().getSector(iSector);
+                CdSector cdSector = _snap.videoItem.getSourceCd().getSector(iSector);
                 IdentifiedSector identifiedSector = IdentifiedSector.identifySector(cdSector);
-                if (identifiedSector instanceof IVideoSector) {
-                    if (_snap.videoItem.getStartSector() <= iSector &&
-                        iSector <= _snap.videoItem.getEndSector()   &&
-                        iCurrentFrame <= getEndFrame())
-                    {
-                        IVideoSector vidSector = (IVideoSector) identifiedSector;
-                        feedSectorForVideo(vidSector);
-
-                        iCurrentFrame = vidSector.getFrameNumber();
-                    }
-                } else if (identifiedSector != null) {
-                    feedSectorForAudio(identifiedSector);
+                if (identifiedSector != null) {
+                    feedSector(identifiedSector);
                 }
+                
+                if (pl.seekingEvent())
+                    pl.event("Frame " + getCurrentFrame());
+
                 pl.progressUpdate((iSector - iStartSector) / SECTOR_LENGTH);
             }
 
@@ -253,20 +237,20 @@ public abstract class VideoSaver implements IDiscItemSaver {
         return _progress;
     }
 
+    public int getStartFrame() { return _snap.saveStartFrame; }
+    public int getEndFrame() { return _snap.saveEndFrame; }
+    public int getWidth() { return _snap.videoItem.getWidth(); }
+    public int getHeight() { return _snap.videoItem.getHeight(); }
+
     abstract protected void initialize() throws IOException;
 
     abstract protected void close() throws IOException;
 
-    abstract protected void feedSectorForVideo(IVideoSector sector) throws IOException;
+    abstract protected void feedSector(IdentifiedSector sector) throws IOException;
 
-    abstract protected void feedSectorForAudio(IdentifiedSector sector) throws IOException;
-
-    abstract public int getStartFrame();
-
-    abstract public int getEndFrame();
+    abstract protected int getCurrentFrame();
 
     abstract public int getMovieStartSector();
-
     abstract public int getMovieEndSector();
 
 }

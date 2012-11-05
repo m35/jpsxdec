@@ -10,58 +10,64 @@
 
 .....................
 
-* Try changing Alice to split audio at previous sector
+* Bug: GUI doesn't close old files after opening new ones
+* Bug: 4bit tim saved as bmp appears stretched with interleaved black lines - since at least 0.96
+* Bug: Cmdline multi processing overwrites save.log file for each item
+// Bug: Lemmings 3D ANIMATO/ANIMATO.004 (no audio) playback is choppy v0.99 Java 5
+? Index doesn't indicate generic type
+* Change current fps fallback calc to actually count the frames
+// Change everything to just: video, audio, image
+// Finish XA copy
+* XA check sound parameters during decoding, log errors, and pick most reliable values
+? Make XA encoder
+! Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates
+  make them 75 or 150 fps - by checking how much variance there is between frame lengths
+* Crusader tests
+    . only audio
+    . starts near end
+    . missing audio chunk
+    . missing audio sectors
+    . missing video sectors
+    . missing video chunk
+* Compare against PSound
+* Fix vid duration display in DDR
+// Mode 1 sector handling
+    * Figure out what's wrong with DDR
+* Remove need for frame numbers, and Dredd prebuilt index
+* Just store the frame start sectors for Dredd
+? Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
 * Add selected count on Save All Selected button
-* Bug: Save Log files not printing source disc image from cmdline
-* Use reflection to call 1.6 JFrame method to set multiple icon sizes
 * Add /doc folder to put most stuff for release
 * Show output file(s) in TIM panel
-* Rename FF7 video format to STRv1
-// Check warnings/errors in last batch test
-// Investigate: Alice finds 1 extra sector if the header is not checked 
-//    -> the previous sector data was duplicated in what seems to be a dummy audio sector, 
-//       so without the XA header, it would seem like Alice video
-// Bug: FF7 sampler has been identifying Lain sectors
-    // Investigate: detailed analysis of FF7+sampler and Lain sector headers
-//* Bug:Indexer is quite broken -> Reverted
-    // Bug: Loading FF7 index, the audio disappears from list, but videos have it :P
-    // Bug: Disc item tree builder doesn't handle strange input very well
+* Optimize index file loader
 * Cleanup the whole ConsoleProgressListenerLogger mess
+* Cleanup the mess that is STRv3
 ? Indexing overhaul:
   Remove all traces of random access and only assume forward access
   Introduce contextual information to help identify sector types
     CD audio sectors will benefit
     Identifying video sectors by combining the frame data along the way and checking if its valid (FF7, Lain, Dredd)
-  Removes the need for frame number dependence
 ? Change the way video items split audio items: do it after indexing. 
   It's conceptually better, and removes Audio indexer from having to know about video frames.
   However, different movie types split movies slightly differently
   And right now its the sectors that are the only game specific logic
-  I would need to add game specific indexers and disc items
-* Rename "Precise audio/video sync" -> "Emulate PSX audio/video sync"
-* Cleanup the mess that is STRv3
-* Bug: Player automatically plays video-only content when it is very short
-* Bug: video player repeats prior frames and audio when frame type is not detected
-* Bug: Using start and end frames to calculate anything may not work if frame numbering skips
-x Add .ecm file support -> Not random access friendly
-// Add unit test to compare the list that is generated from indexing vs the list 
-// generated from loading index file
-// Tim saving: add Tim format
-! Add doxygen and unit tests to build.xml
+  I would need to add game specific indexers
+* Add doxygen and unit tests to build.xml
     * Make doxygen config
     * Unit tests require Java 6 while jPSXdec is built with Java 5 ...
       can use 2 different Javas in ant?
-// Fix javadoc build
-! Try to automate the release process
-! Finish manual
-! Update manual to cover the gui and game ripping
-! Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates
-  make them 75 or 150 fps - by checking how much variance there is between frame lengths
+* Try to automate the release process
+* Improve manual
+* Update manual to cover the gui and game ripping
 ! Make tutorial on ripping a game and using jpsxdec
-! Command-line selection of parallel audio?
+* Command-line selection of parallel audio?
 ! Add handling for "Unnamed" file names colliding with disc file names
 ! Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player
-! Start Lain process
+// Bug: Save Log files not printing source disc image from cmdline
+* Bug: Player automatically plays video-only content when it is very short
+* Bug: video player repeats prior frames and audio when frame type is not detected
+* Bug: Using start and end frames to calculate anything may not work if frame numbering skips
+* Start Lain process
     // Encoding redesign
     ? AVI parsing
 // Add bicubic and lanczos chroma upsampling interpolation
@@ -74,16 +80,16 @@ x Add .ecm file support -> Not random access friendly
 * Run unit tests against older versions
 * Clean up all the TODOs
 * change xa playback to properly handle static (adjacent sector) streaming
-* Bug: Save dialog overwrite prompt doesn't consider auto extention
-* List minimum sys req: 1ghz, 512mb
 * Expose logger options
-* Bug: Play tab remains enabled after opening or something
 * Add jpsxdec id to AVI such that K-Lite Media Info displays it
+* Bug: Lemmings 3D ANIMATO/ANIMATO.* videos saved with same name, overwrites itself
+* Bug: Save dialog overwrite prompt doesn't consider auto extention
+* Bug: Play tab remains enabled after opening or something
 * Bug: audio streams are being shared by multiple video streams somehow
-* Retest all PSX games
 * Bug: Tree music icon is hard to see on blue background
 * Bug: Player doesn't let you play movie with 1 frame
 * Bug: Ubuntu: only tree column is white, but text boxes have gray background
+* Retest all PSX games
 * Clarify that Rec601YCbCrImage class is also used for full range ycbcr
 * Figure out how to better organize all the RGB and YCbCr pixel formats
 * Clean up creating directory tree for saving
@@ -91,7 +97,7 @@ x Add .ecm file support -> Not random access friendly
 * check what the EOF and Audio-end flags mean
 * Rotate pdf visualization
 * When displaying progress, setup a timer to only update the display at most every second
-* Add -precisefps
+* Add -psxfps
 * write code documentation
 * Start code coverage/unit testing
     * Make unit tests for the various layers of decoding:
@@ -123,11 +129,29 @@ User test feedback
 * Saving dialog title weird
 * Exit program button/menu
 * Fix apply to all Tim
-* Surprised when started analyzing after opening image
+// Surprised when started analyzing after opening image
 * [Save] button not really associated with selection
 * Make it clearer on googlecode page that project moved
 * More clearly associate list with right-hand panel
 * "Label and io part" ??
+.....................
+
+? Wield the power of Java: Multi-thread decoding (essentially use the player model)
+? Create my own smaller/simpler arg parser
+? Replace much of IO and some of Misc with Apache Commons IO
+? Highlight tree items that are checked for saving
+? Change sector reading to start by only reading the header, then read remaining as needed
+? Add hex viewer for files
+/x/ Introduce option to ignore errors: specifically for CD sector reading and frame uncompression
+? Visualize disc items location in the gui
+? Add CD audio detection/extraction
+    ? Add CUE/TOC file parsing so the tracks can be identified
+? add DiscItemVideo.decodeFrame(int) for quick thumbnailing
+? Finish function "identifySector()" in DiscItem
+  to more quickly figure out what type of sectors are read (since it won't
+  have to go through the whole list of like 10 types).
+? Change package structure to <hosting site>.jpsxdec.*
+
 .....................
 ! User test gui. Brainstorm new designs.
     * Add option to save just 1 item allowing to specify name and location
@@ -138,23 +162,28 @@ User test feedback
     ? Is there a better Saving dialog design?
 .....................
 
-			
-? Wield the power of Java: Multi-thread decoding (essentially use the player model)
-? Create my own smaller/simpler arg parser
-? Replace much of IO and some of Misc with Apache Commons IO
-? Highlight tree items that are checked for saving
-? Change sector reading to start by only reading the header, then read remaining as needed
-? Add hex viewer for files
-? Introduce option to ignore errors: specifically for CD sector reading and frame uncompression
-? Visualize disc items location in the gui
-? Add CD audio detection/extraction
-    ? Add CUE/TOC file parsing so the tracks can be identified
-? add DiscItemVideo.decodeFrame(int) for quick thumbnailing
-? Finish function "identifySector()" in DiscItem
-  to more quickly figure out what type of sectors are read (since it won't
-  have to go through the whole list of like 10 types).
-? Change package structure to <hosting site>.jpsxdec.*
+// Figure out why playback of river1.str ends differently now vs. 0.98
+// Crusader a/v handling
+// Document Crusader
+// Try changing Alice to split audio at previous sector - no dice, audio EOF messes things up
+// Use reflection to call 1.6 JFrame method to set multiple icon sizes
+// Rename "Precise audio/video sync" -> "Emulate PSX audio/video sync"
+// Add unit test to compare the list that is generated from indexing vs the list
+// generated from loading index file
+// Tim saving: add Tim format
+// Fix javadoc build
+// List minimum sys req: 1ghz, 512mb
 
+// Rename FF7 video format to STRv1
+// Check warnings/errors in last batch test
+// Investigate: Alice finds 1 extra sector if the header is not checked
+//    -> the previous sector data was duplicated in what seems to be a dummy audio sector,
+//       so without the XA header, it would seem like Alice video
+// Bug: FF7 sampler has been identifying Lain sectors
+    // Investigate: detailed analysis of FF7+sampler and Lain sector headers
+// Bug:Indexer is quite broken -> Reverted
+    // Bug: Loading FF7 index, the audio disappears from list, but videos have it :P
+    // Bug: Disc item tree builder doesn't handle strange input very well
 // Improve Lunar 2 20 fps
 // Change sector identification method to use ratings
    then pick the one with the highest probability
@@ -398,6 +427,7 @@ x Bug XXX: The YV12 format seems to use MPEG2 chroma placement :(
     x Make a simpler audio format normalization for parallel audio streams in videos
         x Just normalize mono/stereo and sample rate
 // Have handling when parallel audio items don't overlap, but have different disc speed
+x Add .ecm file support -> Not random access friendly
 x Remove all efforts to combine multiple parallel audio. Video shall
 x  only be savable/playable with one audio track at a time
 x Add -vol option to video saving

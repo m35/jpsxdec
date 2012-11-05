@@ -37,7 +37,7 @@
 
 package jpsxdec.psxvideo.mdec.idct;
 
-/** Interface for all double-precision Inverse Discrete Cosine Transform clases. */
+/** Interface for all double-precision Inverse Discrete Cosine Transform classes. */
 public interface IDCT_double {
     void IDCT(double[] idctMatrix,
               int iOutputOffset, double[] output);

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,13 +35,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.psxvideo;
+package jpsxdec.psxvideo.encode;
 
 
 import java.awt.image.BufferedImage;
 import java.util.logging.Logger;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.formats.RGB;
+import jpsxdec.psxvideo.PsxYCbCr;
 
 /** 
  * Handles YCbCr image data of the PSX MDEC chip, which

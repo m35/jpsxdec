@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,9 +49,9 @@ import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.UserFriendlyHandler;
 import jpsxdec.util.ProgressListener;
 import jpsxdec.util.TaskCanceledException;
+import jpsxdec.util.UserFriendlyHandler;
 import org.jdesktop.swingworker.SwingWorker;
 
 
@@ -368,7 +368,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         @Override
         final protected Void doInBackground() {
             _errLog.addHandler(_handler);
-            _handler.setSubheader("Indexing " + _cd.getSourceFile().toString());
+            _handler.setHeader("Indexing " + _cd.getSourceFile().toString());
             try {
                 _index = new DiscIndex(_cd, this);
             } catch (TaskCanceledException ex) {

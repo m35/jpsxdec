@@ -37,10 +37,16 @@
 
 package jpsxdec.psxvideo.mdec;
 
+import java.util.Arrays;
+
 /** Super class of the two different MDEC decoders: int and double. */
 public abstract class MdecDecoder {
 
     public static boolean DEBUG = false;
+    
+    protected static final String[] BLOCK_NAMES = {
+        "Cr", "Cb", "Y1", "Y2", "Y3", "Y4"
+    };
     
     protected static boolean debugPrintln(String s) {
         System.out.println(s);
@@ -62,6 +68,8 @@ public abstract class MdecDecoder {
 
     protected final int[] _aiQuantizationTable =
             MdecInputStream.getDefaultPsxQuantMatrixCopy();
+    
+    protected final int[] _aiDebugPreqantBlock;
 
     protected MdecDecoder(int iWidth, int iHeight) {
         _iMacBlockWidth = (iWidth + 15) / 16;
@@ -74,6 +82,8 @@ public abstract class MdecDecoder {
         _aiChromaMacBlkOfsLookup = new int[_iMacBlockWidth * _iMacBlockHeight];
         _aiLumaBlkOfsLookup = new int[_iMacBlockWidth * _iMacBlockHeight * 4];
 
+        // build a table that holds the starting index of every (macro)block
+        // in the output buffer so we don't have to do this calculation during decoding
         int iMbIdx = 0;
         for (int iMbX=0; iMbX < _iMacBlockWidth; iMbX++) {
             for (int iMbY=0; iMbY < _iMacBlockHeight; iMbY++) {
@@ -89,6 +99,37 @@ public abstract class MdecDecoder {
                 iMbIdx++;
             }
         }
+        
+        boolean blnAssert = false;
+        assert blnAssert = true;
+        
+        if (blnAssert && DEBUG)
+            _aiDebugPreqantBlock = new int[64];
+        else
+            _aiDebugPreqantBlock = null;
+    }
+    
+    protected boolean clearPrequantTable() {
+        Arrays.fill(_aiDebugPreqantBlock, 0);
+        return true;
+    }
+    
+    protected boolean setPrequantValue(int iPos, int iVal) {
+        _aiDebugPreqantBlock[iPos] = iVal;
+        return true;
+    }
+    
+    protected boolean debugPrintPrequantBlock() {
+        System.out.println("Pre-dequantization block");
+        for (int i = 0; i < 8; i++) {
+            System.out.print("[ ");
+            for (int j = 0; j < 8; j++) {
+                System.out.format( "%d, ", _aiDebugPreqantBlock[j+i*8]);
+            }
+            System.out.print("]");
+            System.out.println();
+        }
+        return true;
     }
 
     /** Reads an image from the MdecInputStream and decodes it to an internal

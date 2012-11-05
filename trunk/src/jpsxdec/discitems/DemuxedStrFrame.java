@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,21 +35,20 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.discitems.savers;
+package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.util.FeedbackStream;
 
 /** Demuxes a series of frame chunk sectors into a solid stream.
  *  This is surprisingly more complicated that it seems. */
-public class DemuxedFrame {
+public class DemuxedStrFrame implements IDemuxedFrame {
 
-    private static final Logger log = Logger.getLogger(DemuxedFrame.class.getName());
+    private static final Logger log = Logger.getLogger(DemuxedStrFrame.class.getName());
 
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
@@ -77,7 +76,7 @@ public class DemuxedFrame {
     /* ---------------------------------------------------------------------- */
 
     /** Initialize the frame with an initial sector. */
-    DemuxedFrame(IVideoSector firstChunk)
+    DemuxedStrFrame(IVideoSector firstChunk)
     {
         _iFrame = firstChunk.getFrameNumber();
         _iWidth = firstChunk.getWidth();
@@ -145,17 +144,14 @@ public class DemuxedFrame {
         return _iHeight;
     }
 
-    /** Size of the demuxed frame. */
     public int getDemuxSize() {
         return _iDemuxFrameSize;
     }
 
-    /** The last sector of the frame. */
     public int getPresentationSector() {
         return _iPresentationSector;
     }
 
-    /** The frame number of the demuxed frame. */
     public int getFrame() {
         return _iFrame;
     }
@@ -172,10 +168,6 @@ public class DemuxedFrame {
     }
 
 
-    /** Returns the contiguous demux copied into a buffer. If the supplied
-     * buffer is not null and is big enough to fit the demuxed data, it is used,
-     * otherwise a new buffer is created and returned.
-     * @param abBuffer Optional buffer to copy the demuxed data into. */
     public byte[] copyDemuxData(byte[] abBuffer) {
         if (abBuffer == null || abBuffer.length < getDemuxSize())
             abBuffer = new byte[getDemuxSize()];
@@ -196,12 +188,12 @@ public class DemuxedFrame {
 
     public void printStats(FeedbackStream fbs) {
         try {
-            ParsedMdecImage parsed = new ParsedMdecImage(getWidth(), getHeight());
             byte[] abBitStream = new byte[getDemuxSize()];
             copyDemuxData(abBitStream);
             BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream);
             uncompressor.reset(abBitStream);
-            parsed.readFrom(uncompressor);
+            uncompressor.readToEnd(getWidth(), getHeight());
+            uncompressor.skipPaddingBits();
             fbs.println("Bitstream info: " + uncompressor);
             fbs.println("Available demux size: " + getDemuxSize());
             fbs.indent();
@@ -227,7 +219,7 @@ public class DemuxedFrame {
                 continue;
             }
 
-            byte[] abSectUserData = vidSector.getCDSector().getCdUserDataCopy();
+            byte[] abSectUserData = vidSector.getCdSector().getCdUserDataCopy();
             int iSectorHeaderSize = vidSector.checkAndPrepBitstreamForReplace(abNewDemux,
                     iUsedSize, iMdecCodeCount, abSectUserData);
 

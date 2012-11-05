@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,7 @@
 
 package jpsxdec.discitems.savers;
 
-import javax.sound.sampled.AudioFormat;
+import java.util.logging.Logger;
 import jpsxdec.util.Fraction;
 
 /** Used to ensure the writing of both audio samples and video frames
@@ -45,36 +45,30 @@ import jpsxdec.util.Fraction;
  * if the audio or video is behind the other, and by how much. */
 public class AudioVideoSync extends VideoSync {
 
-    private AudioSync _audSync;
+    private final AudioSync _audSync;
     private final Fraction _samplesPerFrame;
     private final int _iInitialFrameDelay;
     private final long _lngInitialSampleDelay;
 
-    /**
-     *
-     * @param fltSamplesPerSecond  A float because that's what {@link AudioFormat}
-     *                             uses, but in the case of PSX audio writing,
-     *                             it's assumed to be a whole number.
-     */
     public AudioVideoSync(int iFirstVideoPresentationSector,
                           int iSectorsPerSecond,
                           Fraction sectorsPerFrame,
                           int iFirstAudioPresentationSector,
-                          float fltSamplesPerSecond,
+                          int iSamplesPerSecond,
                           boolean blnPreciseAv)
     {
         super(iFirstVideoPresentationSector,
-                iSectorsPerSecond, sectorsPerFrame);
+              iSectorsPerSecond, sectorsPerFrame);
         _audSync = new AudioSync(iFirstAudioPresentationSector,
-                iSectorsPerSecond, fltSamplesPerSecond);
+                                 iSectorsPerSecond, iSamplesPerSecond);
 
-        _samplesPerFrame = _audSync.getSamplesPerSecond().multiply(super.getSecondsPerFrame());
+        _samplesPerFrame = super.getSecondsPerFrame().multiply(_audSync.getSamplesPerSecond());
 
         if (blnPreciseAv) {
 
             int iPresentationSectorDiff = iFirstAudioPresentationSector - iFirstVideoPresentationSector;
 
-            Fraction initialSampleDelay = _audSync.getSamplesPerSecond().divide(getSectorsPerSecond()).multiply(iPresentationSectorDiff);
+            Fraction initialSampleDelay = new Fraction(_audSync.getSamplesPerSecond(), getSectorsPerSecond()).multiply(iPresentationSectorDiff);
             if (initialSampleDelay.compareTo(0) < 0) {
                 _iInitialFrameDelay = -(int) Math.floor(initialSampleDelay.divide(_samplesPerFrame).asDouble());
                 _lngInitialSampleDelay = Math.round(initialSampleDelay.add(_samplesPerFrame.multiply(_iInitialFrameDelay)).asDouble());
@@ -108,7 +102,7 @@ public class AudioVideoSync extends VideoSync {
         return _audSync.getSamplesPerSector();
     }
 
-    public Fraction getSamplesPerSecond() {
+    public int getSamplesPerSecond() {
         return _audSync.getSamplesPerSecond();
     }
 

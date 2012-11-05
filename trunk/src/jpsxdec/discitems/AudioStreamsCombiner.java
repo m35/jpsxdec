@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.List;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
@@ -49,9 +50,11 @@ import jpsxdec.sectors.IdentifiedSector;
 public class AudioStreamsCombiner implements ISectorAudioDecoder {
 
     private final AudioFormat _outFormat;
+    private final int _iSampleRate;
     private int _iStartSector;
     private int _iEndSector;
     private int _iPresStartSector;
+    private final int _iDiscSpeed;
 
     private final ISectorAudioDecoder[] _aoDecoders;
     private final DiscItemAudioStream[] _aoSrcItems;
@@ -66,19 +69,23 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
         _aoDecoders = new ISectorAudioDecoder[_aoSrcItems.length];
 
         final boolean blnIsStereo;
-        final int iSampleRate;
 
         blnIsStereo = audStreams.get(0).isStereo();
-        iSampleRate = audStreams.get(0).getSampleRate();
+        _iSampleRate = audStreams.get(0).getSampleRate();
         _iStartSector = audStreams.get(0).getStartSector();
         _iEndSector = audStreams.get(0).getEndSector();
         _iPresStartSector = audStreams.get(0).getPresentationStartSector();
+        _iDiscSpeed = audStreams.get(0).getDiscSpeed();
         _aoDecoders[0] = audStreams.get(0).makeDecoder(dblVolume);
         for (int i = 1; i < _aoDecoders.length; i++) {
             DiscItemAudioStream aud = audStreams.get(i);
 
             if (!aud.hasSameFormat(audStreams.get(0)))
                 throw new IllegalArgumentException("Different format audio.");
+            // make sure to accept unknown disc speeds
+            if ((_iDiscSpeed == 1 && aud.getDiscSpeed() != 1) ||
+                (_iDiscSpeed == 2 && aud.getDiscSpeed() != 2))
+                throw new IllegalArgumentException("Different disc speeds.");
 
             _iStartSector = Math.min(_iStartSector, aud.getStartSector());
             _iEndSector = Math.max(_iEndSector, aud.getEndSector());
@@ -87,7 +94,7 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
             _aoDecoders[i] = aud.makeDecoder(dblVolume);
         }
 
-         _outFormat = new AudioFormat(iSampleRate, 16, blnIsStereo ? 2 : 1,
+         _outFormat = new AudioFormat(_iSampleRate, 16, blnIsStereo ? 2 : 1,
                                       true, false);
     }
 
@@ -122,6 +129,14 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
         return _outFormat;
     }
 
+    public int getSamplesPerSecond() {
+        return _iSampleRate;
+    }
+
+    public int getDiscSpeed() {
+        return _iDiscSpeed;
+    }
+
     public void reset() {
         for (ISectorAudioDecoder decoder : _aoDecoders) {
             decoder.reset();
@@ -152,7 +167,9 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
         }
     }
 
-    public DiscItemAudioStream[] getSourceItems() {
-        return _aoSrcItems.clone();
+    public void printAudioDetails(PrintStream ps) {
+        for (DiscItemAudioStream item : _aoSrcItems) {
+            ps.println(item);
+        }
     }
 }

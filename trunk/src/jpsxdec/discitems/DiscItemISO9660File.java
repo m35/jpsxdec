@@ -128,6 +128,11 @@ public class DiscItemISO9660File extends DiscItem {
         return new ISO9660SaverBuilder();
     }
 
+    @Override
+    public GeneralType getType() {
+        return GeneralType.File;
+    }
+
     /** Stream of user data (not raw). 
      * Because a file could contain Form 2 sectors, that may make the number of
      * bytes readable from the stream different from the reported file size.
@@ -135,7 +140,7 @@ public class DiscItemISO9660File extends DiscItem {
      * since it may be impossible to determine exactly how many bytes should be
      * read from the final sector.  */
     public InputStream getUserDataStream() {
-        return new DemuxedSectorInputStream(getSourceCD(), getStartSector(), 0, getEndSector());
+        return new DemuxedSectorInputStream(getSourceCd(), getStartSector(), 0, getEndSector());
     }
 
     public String getSerializationTypeId() {
@@ -158,7 +163,7 @@ public class DiscItemISO9660File extends DiscItem {
         }
 
         @Override
-        public boolean copySettings(DiscItemSaverBuilder other) {
+        public boolean copySettingsTo(DiscItemSaverBuilder other) {
             if (other instanceof ISO9660SaverBuilder) {
                 ISO9660SaverBuilder o = (ISO9660SaverBuilder) other;
                 o.setSaveRaw(getSaveRaw());
@@ -184,7 +189,7 @@ public class DiscItemISO9660File extends DiscItem {
             firePossibleChange();
         }
         public boolean getSaveRaw_enabled() {
-            return getSourceCD().hasSectorHeader();
+            return getSourceCd().hasSectorHeader();
         }
 
         // ............................................
@@ -215,7 +220,7 @@ public class DiscItemISO9660File extends DiscItem {
 
         public void printHelp(FeedbackStream fbs) {
             fbs.indent();
-            if (getSourceCD().hasSectorHeader())
+            if (getSourceCd().hasSectorHeader())
                 fbs.println("-iso   save as 2048 sectors (default raw 2352 sectors)");
             else
                 fbs.println("[no options available]");
@@ -229,7 +234,7 @@ public class DiscItemISO9660File extends DiscItem {
         public ISO9660FileSaverBuilderGui(ISO9660SaverBuilder sourceBldr) {
             super(sourceBldr, new ParagraphLayout());
             setParagraphLayoutPanel(this);
-            addControls(
+            addListeners(
                 new FileName(),
                 new SaveRaw()
             );
@@ -271,6 +276,10 @@ public class DiscItemISO9660File extends DiscItem {
             return getIndexId().toString();
         }
 
+        public DiscItemISO9660File getDiscItem() {
+            return DiscItemISO9660File.this;
+        }
+
         public String getOutputSummary() {
             return getPath().getPath();
         }
@@ -294,18 +303,18 @@ public class DiscItemISO9660File extends DiscItem {
                 }
             }
 
-            final double iSectLen = getSectorLength();
+            final double dblSectLen = getSectorLength();
             final int iStartSect = getStartSector();
             final int iEndSect = getEndSector();
             FileOutputStream fos = new FileOutputStream(outputFile);
             pl.progressStart();
             for (int iSector = iStartSect; iSector <= iEndSect; iSector++) {
-                CdSector cdSector = getSourceCD().getSector(iSector);
+                CdSector cdSector = getSourceCd().getSector(iSector);
                 if (_blnSaveRaw)
                     fos.write(cdSector.getRawSectorDataCopy());
                 else
                     fos.write(cdSector.getCdUserDataCopy());
-                pl.progressUpdate((iSector - iStartSect) / iSectLen);
+                pl.progressUpdate((iSector - iStartSect) / dblSectLen);
             }
             fos.close();
             pl.progressEnd();

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,10 +44,12 @@ import jpsxdec.cdreaders.CdSector;
  *  with special meaning. */
 public abstract class IdentifiedSector implements IIdentifiedSector {
 
+    /** Attempts to identify the sector.
+     * @return null if sector could not be identified. */
     public static IdentifiedSector identifySector(CdSector cdSector) {
         IdentifiedSector s;
         // sorted in order of likelyhood of encountering (my best guess)
-        if ((s = new SectorXAAudio(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorXaAudio(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorXANull(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorStrVideo(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorISO9660DirectoryRecords(cdSector)).getProbability() > 0) return s;
@@ -57,15 +59,19 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         if ((s = new SectorFF8.SectorFF8Audio(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorFF9.SectorFF9Video(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorFF9.SectorFF9Audio(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorIkiVideo(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorChronoXAudio(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorChronoXVideo(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorChronoXVideoNull(cdSector)).getProbability() > 0) return s;
-        if ((s = new SectorIkiVideo(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorAceCombat3Video(cdSector)).getProbability() > 0) return s;
-        if ((s = new SectorFF7Video(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorLainVideo(cdSector)).getProbability() > 0) return s;
         if ((s = new SectorDreddVideo(cdSector)).getProbability() > 0) return s;
+        if ((s = new SectorCrusader(cdSector)).getProbability() > 0) return s;
 
+        // FF7 has such a vague header, it can easily be falsely identified
+        // when it should be one of the headers above
+        if ((s = new SectorFF7Video(cdSector)).getProbability() > 0) return s;
+        
         // special handling for Alice
         SectorAliceNullVideo nullAlice = new SectorAliceNullVideo(cdSector);
         if (nullAlice.getProbability() > 0) {
@@ -121,7 +127,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         return _sourceCdSector.getSectorNumberFromStart();
     }
     
-    public CdSector getCDSector() {
+    public CdSector getCdSector() {
         return _sourceCdSector;
     }
 

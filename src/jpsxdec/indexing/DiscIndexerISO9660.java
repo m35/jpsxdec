@@ -100,7 +100,7 @@ public class DiscIndexerISO9660 extends DiscIndexer {
             }
         } else if (_primaryDescriptors.size() == 1) {
             SectorISO9660VolumePrimaryDescriptor priDesc = _primaryDescriptors.get(0);
-            CdSector cdSector = priDesc.getCDSector();
+            CdSector cdSector = priDesc.getCdSector();
             if (cdSector.hasHeaderSectorNumber())
                 _iSectorNumberDiff = cdSector.getHeaderSectorNumber() - cdSector.getSectorNumberFromStart();
             else

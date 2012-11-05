@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
 
@@ -45,14 +46,11 @@ import jpsxdec.sectors.IdentifiedSector;
  *  Hides the decoder implementation, but also allows it to be passed around. */
 public interface ISectorAudioDecoder {
 
-    // TODO: figure out some other way that doesn't require this icky method
-    /** Opens the decoder for writing to the supplied AudioOutputStream. */
-    void setAudioListener(ISectorTimedAudioWriter audioFeeder);
-
-    // TODO: figure out a way to not need this interface
     public interface ISectorTimedAudioWriter {
         void write(AudioFormat format, byte[] abData, int iStart, int iLen, int iPresentationSector) throws IOException;
     }
+
+    void setAudioListener(ISectorTimedAudioWriter audioFeeder);
 
     /** The format of the audio data that will be fed to the
      * {@link ISectorTimedAudioWriter} listener. */
@@ -68,10 +66,15 @@ public interface ISectorAudioDecoder {
     /** Resets the decoding context. */
     void reset();
 
+    /** Sector where the audio begins to play. */
     int getPresentationStartSector();
 
     int getStartSector();
     int getEndSector();
 
-    DiscItemAudioStream[] getSourceItems();
+    void printAudioDetails(PrintStream ps);
+    
+    int getSamplesPerSecond();
+
+    int getDiscSpeed();
 }

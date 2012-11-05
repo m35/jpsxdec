@@ -38,25 +38,25 @@
 package jpsxdec.sectors;
 
 import java.io.PrintStream;
-import jpsxdec.audio.XAADPCMDecoder;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.audio.XaAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
 
 
 /** Standard audio sector for XA. */
-public class SectorXAAudio extends IdentifiedSector {
+public class SectorXaAudio extends IdentifiedSector {
 
-    private static final Logger log = Logger.getLogger(SectorXAAudio.class.getName());
+    private static final Logger log = Logger.getLogger(SectorXaAudio.class.getName());
 
     private int _iSamplesPerSecond;
     private int _iBitsPerSample;
     private boolean _blnStereo;
     private int _iErrors;
 
-    public SectorXAAudio(CdSector cdSector) {
+    public SectorXaAudio(CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -78,10 +78,10 @@ public class SectorXAAudio extends IdentifiedSector {
         int iErrors = 0;
         int iMaxErrors;
         if (_iBitsPerSample == 4) {
-            iMaxErrors = XAADPCMDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 2;
+            iMaxErrors = XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 2;
             for (int iOfs = 0; 
-                 iOfs < cdSector.getCdUserDataSize() - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
-                 iOfs+=XAADPCMDecoder.SIZE_OF_SOUND_GROUP)
+                 iOfs < cdSector.getCdUserDataSize() - XaAdpcmDecoder.SIZE_OF_SOUND_GROUP;
+                 iOfs+=XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)
             {
                 // the 8 sound parameters (one for each sound unit)
                 // are repeated twice, and are ordered like this:
@@ -94,10 +94,10 @@ public class SectorXAAudio extends IdentifiedSector {
                 }
             }
         } else {
-            iMaxErrors = XAADPCMDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 3;
+            iMaxErrors = XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 3;
             for (int iOfs = 0;
-                 iOfs < cdSector.getCdUserDataSize() - XAADPCMDecoder.SIZE_OF_SOUND_GROUP;
-                 iOfs+=XAADPCMDecoder.SIZE_OF_SOUND_GROUP)
+                 iOfs < cdSector.getCdUserDataSize() - XaAdpcmDecoder.SIZE_OF_SOUND_GROUP;
+                 iOfs+=XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)
             {
                 // the 4 sound parameters (one for each sound unit)
                 // are repeated four times and are ordered like this:
@@ -139,18 +139,14 @@ public class SectorXAAudio extends IdentifiedSector {
     /** The last 20 bytes of the sector are unused. */
     // [extends IdentifiedSector]
     public int getIdentifiedUserDataSize() {
-            return super.getCDSector().getCdUserDataSize() - 20;
+            return super.getCdSector().getCdUserDataSize() - 20;
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+        return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                 0, getIdentifiedUserDataSize());
     }
 
-    
-    public int getSectorType() {
-        return SECTOR_AUDIO;
-    }
     
     public String getTypeName() {
         return "XA";
@@ -158,9 +154,9 @@ public class SectorXAAudio extends IdentifiedSector {
 
     public long getSampleCount() {
         if (_blnStereo)
-            return XAADPCMDecoder.pcmSamplesGeneratedFromXAADPCMSector(_iBitsPerSample) / 2;
+            return XaAdpcmDecoder.pcmSamplesGeneratedFromXAADPCMSector(_iBitsPerSample) / 2;
         else
-            return XAADPCMDecoder.pcmSamplesGeneratedFromXAADPCMSector(_iBitsPerSample);
+            return XaAdpcmDecoder.pcmSamplesGeneratedFromXAADPCMSector(_iBitsPerSample);
     }
 
     public String toString() {
@@ -177,10 +173,10 @@ public class SectorXAAudio extends IdentifiedSector {
     }
 
     public boolean matchesPrevious(IdentifiedSector prevSect) {
-        if (!(prevSect instanceof SectorXAAudio))
+        if (!(prevSect instanceof SectorXaAudio))
             return false;
 
-        SectorXAAudio prevXA = (SectorXAAudio)prevSect;
+        SectorXaAudio prevXA = (SectorXaAudio)prevSect;
 
         if (getChannel() != prevXA.getChannel() ||
             getBitsPerSample() != prevXA.getBitsPerSample() ||
@@ -206,12 +202,12 @@ public class SectorXAAudio extends IdentifiedSector {
      *  */
     public boolean isAllQuiet() {
         for(int iSndGrp = 0, i = 0;
-            iSndGrp < XAADPCMDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR;
-            iSndGrp++, i += XAADPCMDecoder.SIZE_OF_SOUND_GROUP)
+            iSndGrp < XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR;
+            iSndGrp++, i += XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)
         {
             // just check if all ADPCM values are 0
-            for (int j = 16; j < XAADPCMDecoder.SIZE_OF_SOUND_GROUP; j++) {
-                if (getCDSector().readUserDataByte(i+j) != 0)
+            for (int j = 16; j < XaAdpcmDecoder.SIZE_OF_SOUND_GROUP; j++) {
+                if (getCdSector().readUserDataByte(i+j) != 0)
                     return false;
             }
         }

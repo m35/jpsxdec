@@ -102,6 +102,11 @@ public class CdSector2048 extends CdSector {
         return false;
     }
 
+    @Override
+    public boolean isMode1() {
+        return true;
+    }
+
     /** Returns the actual offset in bytes from the start of the file/CD
      *  to the start of the sector userdata.
      *  [implements IGetFilePointer] */
@@ -124,7 +129,7 @@ public class CdSector2048 extends CdSector {
     }
     
     public String toString() {
-        return String.format("[Sector:%d]", _iSectorIndex);
+        return String.format("[Sector:%d M1]", _iSectorIndex);
     }
 
 }

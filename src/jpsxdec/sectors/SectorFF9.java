@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,7 @@
 
 package jpsxdec.sectors;
 
-import jpsxdec.audio.SquareADPCMDecoder;
+import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
@@ -202,22 +202,18 @@ public abstract class SectorFF9 extends IdentifiedSector {
         }
 
         public int getIdentifiedUserDataSize() {
-            return super.getCDSector().getCdUserDataSize() -
+            return super.getCdSector().getCdUserDataSize() -
                     FRAME_CHUNK_HEADER_SIZE;
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
-            return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+            return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     FRAME_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
         }
 
         public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
-            super.getCDSector().getCdUserDataCopy(FRAME_CHUNK_HEADER_SIZE, abOut,
+            super.getCdSector().getCdUserDataCopy(FRAME_CHUNK_HEADER_SIZE, abOut,
                     iOutPos, getIdentifiedUserDataSize());
-        }
-        
-        public int getSectorType() {
-            return SECTOR_VIDEO;
         }
         
         public String getTypeName() {
@@ -255,6 +251,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                     int iMdecCodeCount, byte[] abSectUserData)
         {
+            // create a bitstream uncompressor just to get the qscale
             BitStreamUncompressor_STRv2 bsu = new BitStreamUncompressor_STRv2();
             try {
                 bsu.reset(abDemuxData);
@@ -264,7 +261,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
 
             int iQscale = bsu.getQscale();
 
-            int iDemuxSizeForHeader = (bsu.getStreamPosition() + 3) & ~3;
+            int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
 
             IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader / 4);
             IO.writeInt16LE(abSectUserData, 20,
@@ -352,12 +349,12 @@ public abstract class SectorFF9 extends IdentifiedSector {
         }
 
         public int getIdentifiedUserDataSize() {
-            return super.getCDSector().getCdUserDataSize() -
+            return super.getCdSector().getCdUserDataSize() -
                     FRAME_AUDIO_CHUNK_HEADER_SIZE;
         }
 
         public ByteArrayFPIS getIdentifiedUserDataStream() {
-            return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+            return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     FRAME_AUDIO_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
         }
 
@@ -373,10 +370,6 @@ public abstract class SectorFF9 extends IdentifiedSector {
             return 2; // there are always only 2
         }
         
-        public int getSectorType() {
-            return SECTOR_AUDIO;
-        }
-        
         public String getTypeName() {
             return "FF9Audio";
         }
@@ -388,7 +381,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         public long getLeftSampleCount() {
             // if it's the 0th chunk, then it holds the left audio
             if (getAudioChunkNumber() == 0) 
-                return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
+                return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
             else
                 return 0;
         }
@@ -396,7 +389,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         public long getRightSampleCount() {
             // if it's the 1st chunk, then it holds the right audio
             if (getAudioChunkNumber() == 1) 
-                return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
+                return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
             else
                 return 0;
         }

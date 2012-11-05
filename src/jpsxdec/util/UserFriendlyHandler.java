@@ -95,6 +95,10 @@ public abstract class UserFriendlyHandler extends StreamHandler {
     public String getFileName() {
         return _file == null ? null : _file.toString();
     }
+    
+    public void setHeader(String s) {
+        _formatter._sHeaderLine = s;
+    }
 
     /** Inserts a sub-header in the log file, but only if something gets logged. 
      * This prevents log files being written with no useful info. */
@@ -142,6 +146,7 @@ public abstract class UserFriendlyHandler extends StreamHandler {
     private static class CustomFormatter extends Formatter {
 
         private String _sSubHeaderLine;
+        private String _sHeaderLine;
 
         public CustomFormatter() {
         }
@@ -154,6 +159,10 @@ public abstract class UserFriendlyHandler extends StreamHandler {
             ps.print(System.getProperty("os.name")); ps.print(' '); ps.println(System.getProperty("os.version"));
             ps.print("Java "); ps.println(System.getProperty("java.version"));
             ps.println(FORMAT.format(Calendar.getInstance().getTime()));
+            if (_sHeaderLine != null) {
+                ps.println(_sHeaderLine);
+                _sHeaderLine = null;
+            }
             ps.close();
             return baos.toString();
         }

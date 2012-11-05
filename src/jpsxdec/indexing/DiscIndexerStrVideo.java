@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,46 +37,44 @@
 
 package jpsxdec.indexing;
 
-import jpsxdec.sectors.IVideoSector;
-import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.indexing.psxvideofps.STRFrameRateCalc;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.discitems.DiscItem;
+import jpsxdec.discitems.DiscItemSerialization;
+import jpsxdec.discitems.DiscItemStrVideoStream;
+import jpsxdec.indexing.psxvideofps.StrFrameRateCalc;
+import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.Fraction;
+import jpsxdec.util.NotThisTypeException;
 
 /**
- * Searches for video sectors
+ * Searches for video sectors.
  *
  *  Theoretically it might be possible for there to be multiple video
  *  streams interleaved, but I've yet to see a case of it.
- *  Plus, if logo.iki is ever figured out, its video chunks claim to
- *  each be on a different channel.
  */
-public class DiscIndexerVideo extends DiscIndexer {
+public class DiscIndexerStrVideo extends DiscIndexer {
 
-    private static final Logger log = Logger.getLogger(DiscIndexerVideo.class.getName());
+    private static final Logger log = Logger.getLogger(DiscIndexerStrVideo.class.getName());
 
     private IVideoSector _prevSector;
     private int _iStartSector;
     private int _iStartFrame;
     private int _iFrame1LastSector = -1;
-    private STRFrameRateCalc _fpsCalc;
-    private Logger _errLog;
+    private StrFrameRateCalc _fpsCalc;
+    private final Logger _errLog;
 
-    public DiscIndexerVideo(Logger errLog) {
+    public DiscIndexerStrVideo(Logger errLog) {
         _errLog = errLog;
     }
 
     @Override
-    public DiscItem deserializeLineRead(DiscItemSerialization oSerial) {
+    public DiscItem deserializeLineRead(DiscItemSerialization deserializedLine) {
         try {
-            if (DiscItemVideoStream.TYPE_ID.equals(oSerial.getType())) {
-                return new DiscItemVideoStream(oSerial);
+            if (DiscItemStrVideoStream.TYPE_ID.equals(deserializedLine.getType())) {
+                return new DiscItemStrVideoStream(deserializedLine);
             }
         } catch (NotThisTypeException ex) {}
         return null;
@@ -101,7 +99,7 @@ public class DiscIndexerVideo extends DiscIndexer {
         }
 
         if (_fpsCalc == null) {
-            _fpsCalc = new STRFrameRateCalc(_prevSector.getSectorNumber() - _iStartSector,
+            _fpsCalc = new StrFrameRateCalc(_prevSector.getSectorNumber() - _iStartSector,
                                             _prevSector.getFrameNumber(),
                                             _prevSector.getChunkNumber(),
                                             _prevSector.getChunksInFrame());
@@ -124,23 +122,23 @@ public class DiscIndexerVideo extends DiscIndexer {
     }
 
     private void endOfMovie() {
-        Fraction oSectorsPerFrame;
-        if (_fpsCalc != null && (oSectorsPerFrame = _fpsCalc.getSectorsPerFrame()) != null) {
+        Fraction sectorsPerFrame;
+        if (_fpsCalc != null && (sectorsPerFrame = _fpsCalc.getSectorsPerFrame()) != null) {
             if (log.isLoggable(Level.INFO))
                 log.info(_fpsCalc.toString());
             if (_iStartFrame > 1 && log.isLoggable(Level.WARNING)) {
                 log.warning("Video stream first frame is not 0 or 1: " + _iStartFrame);
             }
 
-            super.addDiscItem(new DiscItemVideoStream(
+            super.addDiscItem(new DiscItemStrVideoStream(
                     _iStartSector, _prevSector.getSectorNumber(),
                     _iStartFrame, _prevSector.getFrameNumber(),
                     _prevSector.getWidth(), _prevSector.getHeight(),
-                    (int)oSectorsPerFrame.getNumerator(),
-                    (int)oSectorsPerFrame.getDenominator(),
+                    (int)sectorsPerFrame.getNumerator(),
+                    (int)sectorsPerFrame.getDenominator(),
                     _iFrame1LastSector));
         } else {
-            super.addDiscItem(new DiscItemVideoStream(
+            super.addDiscItem(new DiscItemStrVideoStream(
                     _iStartSector, _prevSector.getSectorNumber(),
                     _iStartFrame, _prevSector.getFrameNumber(),
                     _prevSector.getWidth(), _prevSector.getHeight(),
@@ -168,8 +166,8 @@ public class DiscIndexerVideo extends DiscIndexer {
     public void mediaListGenerated(DiscIndex index) {
 
         for (DiscItem item : index) {
-            if (item instanceof DiscItemVideoStream)
-                ((DiscItemVideoStream)item).collectParallelAudio(index);
+            if (item instanceof DiscItemStrVideoStream)
+                ((DiscItemStrVideoStream)item).collectParallelAudio(index);
         }
 
     }

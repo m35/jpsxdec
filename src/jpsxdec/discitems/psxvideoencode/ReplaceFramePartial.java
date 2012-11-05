@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,16 +47,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.discitems.savers.DemuxedFrame;
+import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.formats.RgbIntImage;
-import jpsxdec.discitems.savers.FrameDemuxer;
-import jpsxdec.psxvideo.PsxYCbCrImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.encode.ParsedMdecImage.Block;
 import jpsxdec.psxvideo.encode.ParsedMdecImage.MacroBlock;
+import jpsxdec.psxvideo.encode.PsxYCbCrImage;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
@@ -152,7 +151,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
     }
 
     @Override
-    public void replace(DemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
+    public void replace(IDemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
         final int WIDTH = frame.getWidth();
         final int HEIGHT = frame.getHeight();
 
@@ -186,8 +185,16 @@ public class ReplaceFramePartial extends ReplaceFrame {
         }
 
         fbs.println("Found " + diffMacblks.size() + " different macroblocks (16x16):");
+        int iY = -1;
         for (Point macblk : diffMacblks) {
-            fbs.println(String.format("(%d, %d) ", macblk.x, macblk.y));
+            if (iY < 0) 
+                iY = macblk.y;
+            else if (macblk.y != iY) {
+                iY = macblk.y;
+                fbs.println();
+            }
+                
+            fbs.print(String.format("(%d, %d) ", macblk.x, macblk.y));
         }
         fbs.println();
 
@@ -216,14 +223,12 @@ public class ReplaceFramePartial extends ReplaceFrame {
 
                 // 7. Check if it will fit
                 if (abNewDemux.length <= frame.getDemuxSize()) {
-                    System.out.format("  New demux size %d <= max source %d ",
-                            abNewDemux.length, frame.getDemuxSize());
-                    System.out.println();
+                    fbs.indent().format("New demux size %d <= max source %d ",
+                            abNewDemux.length, frame.getDemuxSize()).outdent().println();
                     break;
                 } else {
-                    System.out.format("  >>> New demux size %d > max source %d <<<",
-                            abNewDemux.length, frame.getDemuxSize());
-                    System.out.println();
+                    fbs.indent().format("!!! New demux size %d > max source %d !!!",
+                            abNewDemux.length, frame.getDemuxSize()).outdent().println();
                 }
 
             } catch (MdecException.TooMuchEnergyToCompress ex) {

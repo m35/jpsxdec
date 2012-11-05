@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,7 @@
 
 package jpsxdec.sectors;
 
-import jpsxdec.audio.SquareADPCMDecoder;
+import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
@@ -146,18 +146,13 @@ public class SectorChronoXAudio extends IdentifiedSector
     }
 
     public int getIdentifiedUserDataSize() {
-        return super.getCDSector().getCdUserDataSize() -
+        return super.getCdSector().getCdUserDataSize() -
                 FRAME_AUDIO_CHUNK_HEADER_SIZE;
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+        return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                 FRAME_AUDIO_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
-    }
-
-    /** [implements IPSXSector] */
-    public int getSectorType() {
-        return SECTOR_AUDIO;
     }
 
     public String getTypeName() {
@@ -171,7 +166,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     public long getLeftSampleCount() {
         // if it's the 1st (0) chunk, then it holds the left audio
         if (getAudioChunkNumber() == 0) 
-            return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
+            return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
         else
             return 0;
     }
@@ -179,24 +174,24 @@ public class SectorChronoXAudio extends IdentifiedSector
     public long getRightSampleCount() {
         // if it's the 2nd (1) chunk, then it holds the right audio
         if (getAudioChunkNumber() == 1) 
-            return SquareADPCMDecoder.calculateSamplesGenerated(getAudioDataSize());
+            return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
         else
             return 0;
     }
 
-    public boolean matchesPrevious(ISquareAudioSector oPrevSect) {
-        if (!(oPrevSect instanceof SectorChronoXAudio))
+    public boolean matchesPrevious(ISquareAudioSector prevSect) {
+        if (!(prevSect instanceof SectorChronoXAudio))
             return false;
 
-        if (oPrevSect.getAudioChunkNumber() == 0) {
+        if (prevSect.getAudioChunkNumber() == 0) {
             if (getAudioChunkNumber() != 1 ||
-                oPrevSect.getFrameNumber() != getFrameNumber() ||
-                oPrevSect.getSectorNumber() + 1 != getSectorNumber())
+                prevSect.getFrameNumber() != getFrameNumber() ||
+                prevSect.getSectorNumber() + 1 != getSectorNumber())
                 return false;
-        } else if (oPrevSect.getAudioChunkNumber() == 1) {
+        } else if (prevSect.getAudioChunkNumber() == 1) {
             if (getAudioChunkNumber() != 0)
                 return false;
-            if (oPrevSect.getFrameNumber() > getFrameNumber())
+            if (prevSect.getFrameNumber() > getFrameNumber())
                 return false;
         }
 

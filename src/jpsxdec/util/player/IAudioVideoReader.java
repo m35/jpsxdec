@@ -43,9 +43,7 @@ import javax.sound.sampled.AudioFormat;
  * Also indicates the format of the chucks being read.  */
 public interface IAudioVideoReader {
     /** Return number between 1-100 indicating player progress, or -1 if done. */
-    int readNext(VideoProcessor vidProc, AudioProcessor audProc);
-    void seekToTime(long lngTime);
-    void seekToFrame(int iFrame);
+    int readNext(VideoProcessor vidProc, AudioPlayer audPlay);
     /** Return null if no audio. */
     AudioFormat getAudioFormat();
     boolean hasVideo();

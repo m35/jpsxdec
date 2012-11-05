@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,10 +37,9 @@
 
 package jpsxdec.psxvideo.encode;
 
-import jpsxdec.psxvideo.PsxYCbCrImage;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 import static jpsxdec.psxvideo.mdec.MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST;
+import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 
 /** Encodes a {@link PsxYCbCrImage} into an {@link MdecInputStream} at the
  *  specified quantization scale. After encoding, the MdecInputStream
@@ -57,7 +56,7 @@ public class MdecEncoder {
     // TODO: Change to use a Forward DCT more closely resembling the PSX
     private StephensIDCT _DCT = new StephensIDCT();
 
-    private static int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
+    private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
             MdecInputStream.getDefaultPsxQuantMatrixCopy();
 
 
@@ -179,10 +178,12 @@ public class MdecEncoder {
             __aiBlockQscales = aiBlockQscales;
         }
 
-        private void nextQscale() {
-            __iQscale = __aiBlockQscales[__iQscaleIndex];
-            if (__iQscale < 1 || __iQscale > 63)
-                throw new RuntimeException();
+        private int nextQscale() {
+            int iNextQscale = __aiBlockQscales[__iQscaleIndex];
+            if (iNextQscale < 1 || iNextQscale > 63)
+                throw new RuntimeException("Invalid qscale " + iNextQscale);
+            __iQscaleIndex++;
+            return iNextQscale;
         }
 
         public boolean readMdecCode(MdecCode code) {
@@ -190,15 +191,15 @@ public class MdecEncoder {
             switch (__iBlock) {
                 case 0: adblVector = _aadblCrBlockVectors[ __iMacroBlockX +  __iMacroBlockY * _iMacBlockWidth]; break;
                 case 1: adblVector = _aadblCbBlockVectors[ __iMacroBlockX +  __iMacroBlockY * _iMacBlockWidth]; break;
-                case 2: adblVector = _aadblYBlockVectors[__iMacroBlockX * 2    +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
-                case 3: adblVector = _aadblYBlockVectors[__iMacroBlockX * 2 +1 +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
-                case 4: adblVector = _aadblYBlockVectors[__iMacroBlockX * 2    + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
-                case 5: adblVector = _aadblYBlockVectors[__iMacroBlockX * 2 +1 + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
+                case 2: adblVector = _aadblYBlockVectors[(__iMacroBlockX * 2   ) +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
+                case 3: adblVector = _aadblYBlockVectors[(__iMacroBlockX * 2 +1) +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
+                case 4: adblVector = _aadblYBlockVectors[ __iMacroBlockX * 2     + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
+                case 5: adblVector = _aadblYBlockVectors[ __iMacroBlockX * 2 +1  + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
                 default: throw new IllegalStateException();
             }
 
             if (__iVectorPos == 0) { // qscale & dc
-                nextQscale();
+                __iQscale = nextQscale();
                 code.setTop6Bits(__iQscale);
                 code.setBottom10Bits((int)Math.round(adblVector[0]));
                 __iVectorPos++;

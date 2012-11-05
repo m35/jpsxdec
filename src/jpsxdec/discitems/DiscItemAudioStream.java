@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,14 +37,14 @@
 
 package jpsxdec.discitems;
 
-import jpsxdec.discitems.savers.MediaPlayer;
 import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.discitems.savers.AudioSaverBuilder;
-import jpsxdec.util.player.PlayController;
+import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.player.PlayController;
 
 /** Interface for all DiscItems that represent an audio stream.
  * This is necessary for the video items to utilize any audio stream that
@@ -78,6 +78,11 @@ public abstract class DiscItemAudioStream extends DiscItem {
         _blnIsPartOfVideo = bln;
     }
 
+    @Override
+    public GeneralType getType() {
+        return GeneralType.Audio;
+    }
+
     abstract public int getSampleRate();
 
     abstract public boolean isStereo();
@@ -99,6 +104,7 @@ public abstract class DiscItemAudioStream extends DiscItem {
         return new PlayController(new MediaPlayer(this));
     }
 
+    @Override
     public AudioSaverBuilder makeSaverBuilder() {
         return new AudioSaverBuilder(this);
     }

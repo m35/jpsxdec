@@ -37,23 +37,17 @@
 
 package jpsxdec.sectors;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
-import jpsxdec.discitems.savers.DemuxedFrame;
-import jpsxdec.discitems.savers.FrameDemuxer;
+import jpsxdec.discitems.DemuxedStrFrame;
+import jpsxdec.discitems.FrameDemuxer;
+import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Lain;
 import jpsxdec.psxvideo.mdec.MdecException.Read;
@@ -142,7 +136,7 @@ public class SectorDreddVideo extends SectorAbstractVideo {
                 FRAME_LIST = null;
                 CHUNK_LIST = null;
             } else {
-                DataInputStream dis = new DataInputStream(is);
+                DataInputStream dis = new DataInputStream(new BufferedInputStream(is));
                 try {
                     final int iSize = dis.readInt();
                     SECTOR_LIST = new int[iSize];
@@ -247,7 +241,6 @@ public class SectorDreddVideo extends SectorAbstractVideo {
         setProbability(50);
     }
 
-    @Override
     public String getTypeName() {
         return "Dredd";
     }
@@ -336,7 +329,6 @@ public class SectorDreddVideo extends SectorAbstractVideo {
         @Override
         public String toString() { return super.cdToString(); }
 
-        @Override
         public String getTypeName() { return "DreddDummy"; }
 
         @Override
@@ -410,18 +402,19 @@ public class SectorDreddVideo extends SectorAbstractVideo {
         for (int iVideo = 0; iVideo < VIDEO_SECTORS.length; iVideo+=2) {
             final boolean blnIsTypeA = VIDEO_SECTORS[iVideo] < FIRST_SECTOR_TYPE_B;
             
-            FrameDemuxer demux = new FrameDemuxer(320, blnIsTypeA ? 352 : 240, 0, cd.getLength()) {
-                protected void frameComplete(DemuxedFrame f) throws IOException {
+            FrameDemuxer demux = new FrameDemuxer(320, blnIsTypeA ? 352 : 240, 0, cd.getLength());
+            demux.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
+                public void frameComplete(IDemuxedFrame f) throws IOException {
                     String ok = validateFrame(f.copyDemuxData(null), blnIsTypeA);
                     if (ok != null) {
                         for (int j = 0; j < (blnIsTypeA ? 9 : 10); j++) {
-                            IVideoSector vid = f.getChunk(j);
+                            IVideoSector vid = ((DemuxedStrFrame)f).getChunk(j);
                             if (vid == null)
                                 continue;
                             if (ok.length() > 0)
                                 aiSkippedPossibleVidSectors[1]++;
                             out.println(String.format(ok + "%d\t%d\t%d",
-                                    vid.getCDSector().getHeaderSectorNumber(),
+                                    vid.getCdSector().getHeaderSectorNumber(),
                                     vid.getFrameNumber(),
                                     j));
                         }
@@ -429,14 +422,14 @@ public class SectorDreddVideo extends SectorAbstractVideo {
                         aiSkippedPossibleVidSectors[0]++;
                     }
                 }
-            };
+            });
 
             int iFrame = -1, iLastChunk = 99;
             for (int iSector = VIDEO_SECTORS[iVideo]; iSector <= VIDEO_SECTORS[iVideo+1]; iSector++) {
                 CdSector sect = cd.getSector(iSector);
                 if (sect.getHeaderSectorNumber() != iSector)
                     throw new RuntimeException();
-                SectorXAAudio xa = new SectorXAAudio(sect);
+                SectorXaAudio xa = new SectorXaAudio(sect);
                 if (xa.getProbability() == 100)
                     continue;
                 if (xa.getProbability() > 0)

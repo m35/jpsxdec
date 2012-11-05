@@ -41,7 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import jpsxdec.util.NotThisTypeException;
 
-public class PathTableRecordBE extends ISOstruct {
+public class PathTableRecordBE extends ISO9660Struct {
     /** Valid characters include
      * uppercase A-Z,
      * digits 0-9,

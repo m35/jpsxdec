@@ -1,6 +1,44 @@
+/*
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007-2012  Michael Sabin
+ * All rights reserved.
+ *
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
+ *
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 package jpsxdec.util.player;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -9,9 +47,13 @@ import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
 import jpsxdec.util.player.VideoPlayer.VideoFrame;
 
+/** Manages writing audio data to the final SourceDataLine. */
 public class AudioPlayer implements IVideoTimer {
 
+    private static final Logger log = Logger.getLogger(AudioPlayer.class.getName());
     private static final boolean DEBUG = false;
+
+    private static final int SECONDS_OF_BUFFER = 5;
 
     private SourceDataLine _dataLine;
     private final PlayingState _state = new PlayingState(PlayingState.State.STOPPED);
@@ -35,9 +77,9 @@ public class AudioPlayer implements IVideoTimer {
         } else {
             DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
             Mixer.Info[] aoMixerInfos = AudioSystem.getMixerInfo();
-            System.out.println("Available mixers:");
+            System.out.println("[AudioPlayer] Available mixers:");
             for (Mixer.Info mixerInfo : aoMixerInfos) {
-                System.out.println(mixerInfo.getName());
+                System.out.println("[AudioPlayer] " + mixerInfo.getName());
             }
 
             Mixer mixer = AudioSystem.getMixer(aoMixerInfos[0]);
@@ -52,31 +94,38 @@ public class AudioPlayer implements IVideoTimer {
         });
         */
 
-        dataLine.open(format);
+        dataLine.open(format, format.getFrameSize() * (int)format.getSampleRate() * SECONDS_OF_BUFFER);
         return dataLine;
     }
 
+    /** Will block until all audio was written or there is a player state change. */
     public void write(byte[] abData, int iStart, int iLength) {
         try {
-            int i = 0;
-            while (i < iLength) {
-                synchronized (_state) {
-                    if (_state.get() == PlayingState.State.PAUSED)
-                        _state.waitForChange();
-                    if (_state.get() == PlayingState.State.STOPPED) {
-                        _dataLine.close();
-                        return;
+            int iTotalWritten = 0;
+            while (iTotalWritten < iLength) {
+                if (_state.get() == PlayingState.State.STOPPED) {
+                    _dataLine.close();
+                    return;
+                }
+                int iWritten = _dataLine.write(abData, iTotalWritten, iLength - iTotalWritten);
+                iTotalWritten += iWritten;
+                if (iTotalWritten < iLength) {
+                    System.out.println("[AudioPlayer] Only " + iWritten + " bytes of audio was written, "
+                                      + "progress " + iTotalWritten + "/" + iLength);
+                    synchronized (_state) {
+                        if (_state.get() == PlayingState.State.PAUSED)
+                            _state.waitForChange();
                     }
                 }
-                i += _dataLine.write(abData, i, iLength - i);
-                if (i < iLength) System.out.println("Not all audio data was written");
             }
         } catch (Throwable ex) {
+            log.log(Level.SEVERE, null, ex);
             ex.printStackTrace();
             _state.set(PlayingState.State.STOPPED);
         }
     }
 
+    /** Buffer of zeros for writing lots of zeros. */
     private byte[] _abZeroBuff;
 
     public void writeSilence(long lngSamples) {
@@ -84,25 +133,38 @@ public class AudioPlayer implements IVideoTimer {
             if (_abZeroBuff == null) {
                 _abZeroBuff = new byte[_format.getFrameSize() * 2048];
             }
-            long lngBytesToWrite = lngSamples * _format.getFrameSize();
-            while (lngBytesToWrite > 0) {
+            long lngBytesLeft = lngSamples * _format.getFrameSize();
+            final long lngBytesToWrite = lngBytesLeft;
+            while (lngBytesLeft > 0) {
                 synchronized (_state) {
-                    if (_state.get() == PlayingState.State.PAUSED)
-                        _state.waitForChange();
                     if (_state.get() == PlayingState.State.STOPPED) {
                         _dataLine.close();
                         return;
                     }
                 }
-                lngBytesToWrite -= _dataLine.write(_abZeroBuff, 0, (int)Math.min(lngBytesToWrite, _abZeroBuff.length));
-                if (lngBytesToWrite > 0) System.out.println("Not all audio data was written");
+                int iWritten = _dataLine.write(_abZeroBuff, 0, (int)Math.min(lngBytesLeft, _abZeroBuff.length));
+                lngBytesLeft -= iWritten;
+                if (lngBytesLeft > 0) {
+                    System.out.println("[AudioPlayer] Only " + iWritten + " bytes of silence was written, "
+                                      + "progress " + (lngBytesToWrite - lngBytesLeft) + "/" + lngBytesToWrite);
+                    synchronized (_state) {
+                        if (_state.get() == PlayingState.State.PAUSED)
+                            _state.waitForChange();
+                    }
+                }
             }
         } catch (Throwable ex) {
+            log.log(Level.SEVERE, null, ex);
             ex.printStackTrace();
             _state.set(PlayingState.State.STOPPED);
         }
     }
 
+    void blockUntilEndThenStop() {
+        _dataLine.drain();
+        stop();
+    }
+    
     void play() throws LineUnavailableException {
         synchronized (_state) {
             switch (_state.get()) {
@@ -155,24 +217,14 @@ public class AudioPlayer implements IVideoTimer {
         return _format;
     }
 
-    private long _lngContiguousPlayId;
-
-    public long getContiguousPlayId() {
+    public boolean shouldBeProcessed(long lngPresentationTime) {
         synchronized (_state) {
-            return _lngContiguousPlayId;
-        }
-    }
-
-    public boolean shouldBeProcessed(long lngContiguousPlayId, long lngPresentationTime) {
-        synchronized (_state) {
-            if (lngContiguousPlayId != _lngContiguousPlayId)
-                return false;
             switch (_state.get()) {
                 case PAUSED:
                 case PLAYING:
                     long lngPlayTime = getPlayTime();
-                    if (DEBUG) System.out.println("Play time = " + lngPlayTime + " vs. Pres time = " + lngPresentationTime);
-                    return lngPresentationTime > lngPlayTime;
+                    if (DEBUG) System.out.println("[AudioPlayer] Play time = " + lngPlayTime + " vs. Pres time = " + lngPresentationTime);
+                    return lngPresentationTime >= lngPlayTime;
                 case STOPPED:
                     return false;
                 default:
@@ -185,14 +237,14 @@ public class AudioPlayer implements IVideoTimer {
         try {
             synchronized (_state) {
                 while (true) {
-                    if (frame.ContigusPlayUniqueId != _lngContiguousPlayId)
-                        return false;
                     switch (_state.get()) {
                         case PAUSED:
-                            if (DEBUG) System.out.println("AudioPlayer timer, waiting to present");
+                            if (DEBUG) System.out.println("[AudioPlayer] AudioPlayer timer, waiting to present");
                             _state.waitForChange();
-                            if (DEBUG) System.out.println("AudioPlayer timer, not waiting anymore");
-                            break; // loop again to see the new state, or new contiguous id
+                            if (DEBUG) System.out.println("[AudioPlayer] AudioPlayer timer, not waiting anymore");
+                            break; // loop again to see the new state
+                        case STOPPED:
+                            return false;
                         case PLAYING:
                             long lngPos = getPlayTime();
                             long lngSleepTime;
@@ -203,14 +255,13 @@ public class AudioPlayer implements IVideoTimer {
                             } else {
                                 return true;
                             }
-                        case STOPPED:
-                            return false;
                         default:
                             throw new RuntimeException("Should never happen");
                     }
                 }
             }
         } catch (Throwable ex) {
+            log.log(Level.SEVERE, null, ex);
             ex.printStackTrace();
             return false;
         }

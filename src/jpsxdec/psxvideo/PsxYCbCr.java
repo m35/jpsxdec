@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,8 +44,8 @@ import jpsxdec.formats.Rec601YCbCr;
 /** Holds YCbCr image color from the PSX MDEC chip.
  *<p>
  * The MDEC chip sub-samples the image data 4:2:0, which is the same way MPEG1
- * and JPEG sample the color information. To keep things simplier,
- * four liminance samples, and one chrominance sub-sample are stored in this
+ * and JPEG sample the color information. To keep things simpler,
+ * four luma samples, and one chroma sub-sample are stored in this
  * class.
  *<p>
  * Technically YCbCr does not have a "color space," but I will use the term
@@ -112,6 +112,8 @@ public class PsxYCbCr {
         return y;
     }
 
+    /** Legacy decoders of the past did the conversion incorrectly.
+     * If you want jPSXdec to also do it wrong, set this value to true. */
     private static final boolean INCORRECTLY_SWAP_CB_CR_LIKE_PSXMC = false;
     static {
         if (INCORRECTLY_SWAP_CB_CR_LIKE_PSXMC) {
@@ -185,8 +187,10 @@ public class PsxYCbCr {
      * [       ->      ]    * [     ->     ] = [ 0           4014411/4571165        164/4571165 ]
      * [   RGB Matrix  ]      [ RGB Matrix ]   [ 0             3673/27426990    8031459/9142330 ]
      * </pre>
+     * Unfortunately this conversion doesn't take into account chroma
+     * upsampling interpolation.
      */
-    public void toRec601YCbCr(Rec601YCbCr ycc) {
+    public void toRec_601_YCbCr(Rec601YCbCr ycc) {
         double dblYChroma = cb * (-488509./2660418030.) + cr * (-82738./1330209015.) + 16;
 
         ycc.y1 = (y1+128)*(250./291.) + dblYChroma;
@@ -198,7 +202,7 @@ public class PsxYCbCr {
         ycc.cr = cb *   (3673./27426990.) + cr * (8031459./9142330.) + 128;
     }
 
-    public void toRecJfifYCbCr(Rec601YCbCr ycc) {
+    public void toRec_JFIF_YCbCr(Rec601YCbCr ycc) {
         double dblYChroma = cb * -3415973./13224846875. + cr * 1242172./13224846875.;
         
         ycc.y1 = y1+128 + dblYChroma;

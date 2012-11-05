@@ -64,8 +64,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             return new BitStreamUncompressor_STRv2();
         else if(BitStreamUncompressor_STRv3.checkHeader(abHeaderBytes))
             return new BitStreamUncompressor_STRv3();
-        else if(BitStreamUncompressor_FF7.checkHeader(abHeaderBytes))
-            return new BitStreamUncompressor_FF7();
+        else if(BitStreamUncompressor_STRv1.checkHeader(abHeaderBytes))
+            return new BitStreamUncompressor_STRv1();
         else if(BitStreamUncompressor_Iki.checkHeader(abHeaderBytes))
             return new BitStreamUncompressor_Iki();
         else if(BitStreamUncompressor_Lain.checkHeader(abHeaderBytes))

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,9 +37,9 @@
 
 package jpsxdec.audio;
 
-import java.io.InputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.util.IO;
@@ -47,6 +47,9 @@ import jpsxdec.util.IO;
 /** The ultimate PlayStation (and CD-i) XA ADPCM decoder. Based on the code
  * and documentation by Jonathan Atkins and Jac Goudsmit
  * (http://freshmeat.net/projects/cdxa/).
+ *<p>
+ * Audio data on the PSX is encoded using
+ * Adaptive Differential Pulse Code Modulation (ADPCM).
  *<p>
  * You cannot decode while reading the data because the data is interleaved.
  * You have to read and decode all of SoundUnit #1 before you can start
@@ -59,23 +62,23 @@ import jpsxdec.util.IO;
  * be inaccurate, but it may be better than nothing.
  *
  *<hr>
- * This could be designed in one of 4 ways:
+ * This could be designed in one of 5 ways:
  *<ol>
- *<li>The decoder is minimal and just returns an array of shorts:
+ *<li>The decoder is minimal and writes an array of shorts:
  * (still interleaved stereo because that shouldn't change, but
  * the return of shorts eliminates the need to know about endian-ness)
  * That array of shorts could then be converted to an AudioInputStream
  * either by first copying to a byte[] array and wrapping with
  * AudioInputStream.
- *<li>Minimal decoder, but returns an array of bytes in the chosen endian order
- *<li>Minimal decoder, but returns an array of bytes in a predetermined endian order
+ *<li>Minimal decoder, but writes an array of bytes in the chosen endian order
+ *<li>Minimal decoder, but writes an array of bytes in a predetermined endian order
  *<li>Decoder does everything and returns an AudioInputStream
  *<li>Make it work like the rest of the Java audio system and have the class
  *    implement TargetDataLine
  *</ol>
- * This has been implemented using the 3nd method.
+ * This has been implemented using the 3rd method.
  */
-public abstract class XAADPCMDecoder {
+public abstract class XaAdpcmDecoder {
 
     /**
      * Creates a XA ADPCM decoder for the supplied input format
@@ -86,7 +89,7 @@ public abstract class XAADPCMDecoder {
      * @param blnIsStereo     true for stereo, false for mono.
      * @param dblVolume       Audio scaled by this amount.
      */
-    public static XAADPCMDecoder create(int iBitsPerSample, boolean blnIsStereo,
+    public static XaAdpcmDecoder create(int iBitsPerSample, boolean blnIsStereo,
                                         double dblVolume)
     {
         // create one sound group to handle the decoding process
@@ -134,18 +137,12 @@ public abstract class XAADPCMDecoder {
     /** Sound group used to decode all the sound groups per sector. */
     protected final ADPCMSoundGroupReader _soundGroupReader;
 
-    private XAADPCMDecoder(ADPCMSoundGroupReader soundGroupReader) {
+    private XaAdpcmDecoder(ADPCMSoundGroupReader soundGroupReader) {
         _soundGroupReader = soundGroupReader;
     }
 
     /** Decodes a sector's worth of ADPCM data.
-     *
-     * Audio data on the PSX is encoded using
-     * Adaptive Differential Pulse Code Modulation (ADPCM).
-     *
-     * A full sector of 2304 bytes will convert to 4032/channels samples (or 8064 bytes).
-     * Returns 4032 samples/channels shorts (or 8064 bytes).
-     */
+     * Reads 2304 bytes and writes either 4032 or 8064 bytes. */
     public void decode(InputStream inStream, OutputStream out) throws IOException {
         /* There are 18 sound groups,
          * each having  16 bytes of interleaved sound parameters,
@@ -179,15 +176,15 @@ public abstract class XAADPCMDecoder {
     //########################################################################//
 
     /** Mono implementation. */
-    private static class XAADPCMDecoder_Mono extends XAADPCMDecoder {
+    private static class XAADPCMDecoder_Mono extends XaAdpcmDecoder {
 
-        private final ADPCMContext _monoContext;
+        private final AdpcmContext _monoContext;
 
         public XAADPCMDecoder_Mono(ADPCMSoundGroupReader soundGroupReader, 
                                    double dblVolume)
         {
             super(soundGroupReader);
-            _monoContext = new ADPCMContext(dblVolume);
+            _monoContext = new AdpcmContext(dblVolume);
         }
 
         public void resetContext() {
@@ -225,17 +222,17 @@ public abstract class XAADPCMDecoder {
     //########################################################################//
 
     /** Stereo implementation. */
-    private static class XAADPCMDecoder_Stereo extends XAADPCMDecoder {
+    private static class XAADPCMDecoder_Stereo extends XaAdpcmDecoder {
 
-        private final ADPCMContext _leftContext;
-        private final ADPCMContext _rightContext;
+        private final AdpcmContext _leftContext;
+        private final AdpcmContext _rightContext;
 
         public XAADPCMDecoder_Stereo(ADPCMSoundGroupReader soundGroupReader,
                                      double dblVolume)
         {
             super(soundGroupReader);
-            _leftContext = new ADPCMContext(dblVolume);
-            _rightContext = new ADPCMContext(dblVolume);
+            _leftContext = new AdpcmContext(dblVolume);
+            _rightContext = new AdpcmContext(dblVolume);
         }
 
         public void resetContext() {
@@ -486,7 +483,7 @@ public abstract class XAADPCMDecoder {
         /** The 'filter' index parameter. Which K0 and K1 table index to
          *  multiply the previous two ADPCM samples by. */
         private byte _bParameter_FilterIndex;
-        /** Buffer index. */
+        /** Buffer index. Reused for both writing and reading. */
         private int _iPos = 0;
 
         /** @param iSoundParameter  An unsigned byte value holding the range and
@@ -509,7 +506,7 @@ public abstract class XAADPCMDecoder {
          *  unit, and the decoding context (for the previous 2 samples read),
          *  we can convert an entire sound unit.
          * Converts sound samples as they are read. */
-        public short readPCMSample(ADPCMContext context) {
+        public short readPCMSample(AdpcmContext context) {
             short siADPCM_sample = _asiAdpcmSamples[_iPos];
             _iPos++;
 

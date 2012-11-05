@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,8 +38,6 @@
 package jpsxdec.sectors;
 
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.util.IO;
 
 // sector 233609 is flagged as an audio sector in the header
@@ -57,7 +55,7 @@ public class SectorAliceVideo extends SectorAliceNullVideo
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
-        // ingnore null frames between movies
+        // ignore null frames between movies
         if (_iFrameNumber == 0xFFFF) return;
 
         setProbability(100);
@@ -71,11 +69,6 @@ public class SectorAliceVideo extends SectorAliceNullVideo
 
     public int getHeight() {
         return 224;
-    }
-
-    @Override
-    public int getSectorType() {
-        return SECTOR_VIDEO;
     }
 
     @Override
@@ -102,23 +95,6 @@ public class SectorAliceVideo extends SectorAliceNullVideo
                 lngNextFrameNum == getFrameNumber());
     }
 
-    public DiscItem createMedia(int iStartSector, int iStartFrame, int iFrame1LastSector)
-    {
-        int iSectors = getSectorNumber() - iStartSector + 1;
-        int iFrames = getFrameNumber() - iStartFrame + 1;
-        return createMedia(iStartSector, iStartFrame, iFrame1LastSector, iSectors, iFrames);
-    }
-    public DiscItem createMedia(int iStartSector, int iStartFrame,
-                                int iFrame1LastSector,
-                                int iSectors, int iPerFrame)
-    {
-        return new DiscItemVideoStream(iStartSector, getSectorNumber(),
-                                    iStartFrame, getFrameNumber(),
-                                    getWidth(), getHeight(),
-                                    iSectors, iPerFrame,
-                                    iFrame1LastSector);
-    }
-
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                 int iMdecCodeCount, byte[] abSectUserData)
     {
@@ -126,12 +102,14 @@ public class SectorAliceVideo extends SectorAliceNullVideo
 
         IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader);
 
-        return 32;
+        return ALICE_VIDEO_SECTOR_HEADER_SIZE;
     }
 
     public int splitXaAudio() {
         return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
             SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
+        // it would be nice to split the audio at previous sector
+        // but there are EOF audio indicators that are messing things up
     }
 
 

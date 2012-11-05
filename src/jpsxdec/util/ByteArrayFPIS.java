@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-201  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -81,11 +81,12 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
     }
 
     public ByteArrayFPIS(ByteArrayFPIS bafp) {
-        this(bafp, 0, bafp.size());
+        this(bafp, 0, bafp.available());
     }
     
+    /** Returns the position in the original file that the stream is pointing to. */
     public long getFilePointer() {
-        return _lngFP + super.pos;
+        return _lngFP + super.pos - _iBufStart;
     }
 
     /** Returns the number of bytes that have been read from the stream. */
@@ -97,10 +98,6 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
         return new ByteArrayFPIS(super.buf, super.pos, super.count, _lngFP);
     }
     
-    public int size() {
-        return super.count - super.pos;
-    }
-
     public String toString() {
         return "FP:" + getFilePointer() + " BufOfs:" + getOffset() + " Pos:" + super.pos;
     }

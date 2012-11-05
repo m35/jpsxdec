@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -84,7 +84,9 @@ public class VideoSync {
     private final static Fraction NegPoint5 = new Fraction(-5, 10);
     private final static Fraction NegPoint8 = new Fraction(-8, 10);
 
-
+    /** Returns if the frame's presentation time is behind (negative value) or ahead (positive value) of the movie time.
+     * The FPS is known, so the number of frames written tells us the movie time.
+     * We compare that to the presentation time of the frame that is about to be written. */
     public int calculateFramesToCatchUp(int iFramePresentationSector, long lngFramesWritten) {
 
         Fraction presentationTime = new Fraction(iFramePresentationSector - _iFirstPresentationSector, _iSectorsPerSecond);
@@ -94,20 +96,25 @@ public class VideoSync {
 
         int iFrameCatchupNeeded = 0;
 
-        if (framesDiff.compareTo(NegPoint5) > 0) { // presentation time is equal, or ahead of movie time
+        // [0.5, infinity) -> write frames to catch up
+        // (-0.5, 0.5) -> Movie time == presentation time
+        // (-infinity, -0.5] -> skip frames?
+        
+        if (framesDiff.compareTo(NegPoint5) > 0) { // movie time is (more or less) equal to, or behind presentation time
+            // return 0, or positive number of frames to have movie time catchup to presentation time
             iFrameCatchupNeeded = (int)Math.round(framesDiff.asDouble());
-        } else if (framesDiff.compareTo(NegPoint8) > 0) {
-            // movie time is technically more than 1/2 a frame ahead
-            // however, this is bound to happen with 1001/100 sectors/frame movies
-            // when the frame count breaks 3000. So in that case, this provides
-            // a bit of leeway to save the user lots of warnings that can't be helped
-            log.warning(String.format("Frame is written %1.3f seconds ahead.", -timeDiff.asDouble()));
-            iFrameCatchupNeeded = 0;
-        } else { // movie time is definitely ahead of disc time
-            double dblTimeDiff = timeDiff.asDouble();
-            log.warning(String.format("Frame is written %1.3f seconds ahead.", -dblTimeDiff));
-            // return the negative number
-            iFrameCatchupNeeded = (int)Math.round(dblTimeDiff);
+        } else {
+            // movie time is more than 1/2 a frame ahead
+            if (framesDiff.compareTo(NegPoint8) > 0) {
+                // movie time is technically more than 1/2 a frame ahead
+                // however, this is bound to happen with 1001/100 sectors/frame movies
+                // when the frame count breaks 3000. So in that case, this provides
+                // a bit of leeway to save the user lots of warnings that can't be helped
+                iFrameCatchupNeeded = 0;
+            } else { // movie time is definitely ahead of disc time
+                // return the negative number
+                iFrameCatchupNeeded = (int)Math.round(framesDiff.asDouble());
+            }
         }
 
         return iFrameCatchupNeeded;

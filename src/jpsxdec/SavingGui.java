@@ -141,6 +141,8 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
             }
         ));
         jTable1.setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_OFF);
+        jTable1.setFocusable(false);
+        jTable1.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);		
         jTable1.setShowHorizontalLines(false);
         jTable1.setShowVerticalLines(false);
         jScrollPane1.setViewportView(jTable1);

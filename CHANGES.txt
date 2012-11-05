@@ -1,3 +1,25 @@
+v0.99.0 rev2494 (3 Nov 2012)
+    - Added support for Crusader: No Remorse
+    - Added -replacexa command-line option
+    - Added handling for some strange Tim formats (thanks to bug report by CUE)
+    - Renames all items in gui to just image, audio, video
+    - Command-line indexing now overwrites an existing file
+    - Sped up jpg and img writing
+    - Sped up init time (Dredd init)
+    - Added multiple gui icon sizes
+    - Fixed mode 1 disc reading
+    - Fixed FF7 and FF9 frame replacing
+    - Fixed Lain encoder
+    Internals:
+    - Tim cleanup
+    - Adjusted names of many classes
+    - Added MDEC debugging info
+    - Removed audio decode thread from player
+    - Removed various unused stuff
+    Known Problems:
+    - Audio + Video playback on Linux might be choppy
+    - Massive lists of items might scroll slowly on Windows
+    - UmJammer Lammy frame rate detection is wrong
 v0.98.0 rev2318 (9 Mar 2012)
     - Added handling for Lunar 2 unique 24fps
     - Added saving Tim images as Tim files

@@ -51,7 +51,7 @@ import org.junit.runners.Suite;
     jpsxdec.discitems.psxvideoencode.Replace.class,
     jpsxdec.tim.TimTest.class,
     jpsxdec.cdreaders.Cd.class,
-    jpsxdec.discitems.DiscItemXAAudioStream_test.class
+    jpsxdec.discitems.DiscItemXaAudioStream_test.class
 })
 public class AllTestsSuite {
 

@@ -120,6 +120,11 @@ public class CdSector2336 extends CdSector {
         return false;
     }
 
+    @Override
+    public boolean isMode1() {
+        return false;
+    }
+
     //..........................................................................
     
     public int getSubHeaderChannel() {
@@ -167,7 +172,7 @@ public class CdSector2336 extends CdSector {
     }
     
     public String toString() {
-        return String.format("[Sector:%d %s]", _iSectorIndex, _subHeader.toString());
+        return String.format("[Sector:%d M2 %s]", _iSectorIndex, _subHeader.toString());
     }
 
     @Override

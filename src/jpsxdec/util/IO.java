@@ -181,8 +181,7 @@ public final class IO {
 
     //== 32-bit ================================================================
 
-    public static int readSInt32BE(InputStream is) throws IOException
-    {
+    public static int readSInt32BE(InputStream is) throws IOException {
         int b1 = is.read();
         int b2 = is.read();
         int b3 = is.read();
@@ -245,10 +244,28 @@ public final class IO {
     }
     
     public static long readUInt32LE(byte[] ab, int i) {
-        int b1 = ab[i] & 0xFF;
+        int b1 = ab[i+0] & 0xFF;
         int b2 = ab[i+1] & 0xFF;
         int b3 = ab[i+2] & 0xFF;
         long b4 = ab[i+3] & 0xFF;
+        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+        return total;
+    }
+    
+    public static int readSInt32BE(byte[] ab, int i) {
+        int b4 = ab[i+0] & 0xFF;
+        int b3 = ab[i+1] & 0xFF;
+        int b2 = ab[i+2] & 0xFF;
+        int b1 = ab[i+3] & 0xFF;
+        int total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+        return total;
+    }
+
+    public static long readUInt32BE(byte[] ab, int i) {
+        int b4 = ab[i+0] & 0xFF;
+        int b3 = ab[i+1] & 0xFF;
+        int b2 = ab[i+2] & 0xFF;
+        long b1 = ab[i+3] & 0xFF;
         long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
         return total;
     }
@@ -413,9 +430,13 @@ public final class IO {
     }
     
     public static void writeFile(File file, byte[] ab) throws IOException {
+        writeFile(file, ab, 0, ab.length);
+    }
+    
+    public static void writeFile(File file, byte[] ab, int iStart, int iLen) throws IOException {
         FileOutputStream fos = new FileOutputStream(file);
         try {
-            fos.write(ab);
+            fos.write(ab, iStart, iLen);
         } finally {
             fos.close();
         }
@@ -537,5 +558,17 @@ public final class IO {
         }
     }
 
+    private static final byte[] ZEROS = new byte[1024];
+    public static void writeZeros(OutputStream os, int iCount)
+            throws IOException
+    {
+        while (iCount > 0) {
+            int iToWrite = ZEROS.length;
+            if (iToWrite > iCount)
+                iToWrite = iCount;
+            os.write(ZEROS, 0, iToWrite);
+            iCount -= iToWrite;
+        }
+    }
 
 }

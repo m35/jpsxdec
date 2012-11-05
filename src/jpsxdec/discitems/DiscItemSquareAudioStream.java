@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,12 +37,13 @@
 
 package jpsxdec.discitems;
 
-import jpsxdec.audio.SquareADPCMDecoder;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.sectors.ISquareAudioSector;
+import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.ExposedBAOS;
 import jpsxdec.util.NotThisTypeException;
 
@@ -122,7 +123,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         long lngSampleCount = _lngLeftSampleCount > _lngRightSampleCount ?
                               _lngLeftSampleCount : _lngRightSampleCount;
         return String.format("%s, %d Hz Stereo",
-                DiscItemVideoStream.formatTime(lngSampleCount / _iSamplesPerSecond),
+                DiscItemStrVideoStream.formatTime(lngSampleCount / _iSamplesPerSecond),
                 _iSamplesPerSecond);
     }
 
@@ -144,23 +145,24 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     }
 
     public ISectorAudioDecoder makeDecoder(double dblVolume) {
-        return new SquareConverter(new SquareADPCMDecoder(dblVolume));
+        return new SquareConverter(new SquareAdpcmDecoder(dblVolume));
     }
 
     // -------------------------------------------------------------------------
 
     private class SquareConverter implements ISectorAudioDecoder {
 
-        private final SquareADPCMDecoder __decoder;
+        private final SquareAdpcmDecoder __decoder;
+        private final AudioFormat __format;
+        private final ExposedBAOS __tempBuffer;
         private ISectorTimedAudioWriter __audioWriter;
         private ISquareAudioSector __leftAudioSector, __rightAudioSector;
-        private final ExposedBAOS __abTempBuffer;
-        private AudioFormat __format;
 
-        public SquareConverter(SquareADPCMDecoder decoder) {
+        public SquareConverter(SquareAdpcmDecoder decoder) {
             __decoder = decoder;
             // 1840 is the most # of ADPCM bytes found in any Square game sector (FF9)
-            __abTempBuffer = new ExposedBAOS(SquareADPCMDecoder.calculateOutputBufferSize(1840));
+            __tempBuffer = new ExposedBAOS(SquareAdpcmDecoder.calculateOutputBufferSize(1840));
+            __format = __decoder.getOutputFormat(_iSamplesPerSecond);
         }
 
         public void setAudioListener(ISectorTimedAudioWriter audioOut) {
@@ -181,13 +183,11 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
                     __leftAudioSector.getSamplesPerSecond() != __rightAudioSector.getSamplesPerSecond())
                     throw new RuntimeException("Left/Right audio does not match.");
 
-                __abTempBuffer.reset();
+                __tempBuffer.reset();
                 int iSize = __decoder.decode(__leftAudioSector.getIdentifiedUserDataStream(),
                         __rightAudioSector.getIdentifiedUserDataStream(),
-                        __rightAudioSector.getAudioDataSize(), __abTempBuffer);
-                if (__format == null)
-                    __format = __decoder.getOutputFormat(__rightAudioSector.getSamplesPerSecond());
-                __audioWriter.write(__format, __abTempBuffer.getBuffer(), 0, __abTempBuffer.size(), __rightAudioSector.getSectorNumber());
+                        __rightAudioSector.getAudioDataSize(), __tempBuffer);
+                __audioWriter.write(__format, __tempBuffer.getBuffer(), 0, __tempBuffer.size(), __rightAudioSector.getSectorNumber());
             } else {
                 throw new RuntimeException("Invalid audio channel " + audSector.getAudioChannel());
             }
@@ -202,7 +202,15 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         }
 
         public AudioFormat getOutputFormat() {
-            return __decoder.getOutputFormat(_iSamplesPerSecond);
+            return __format;
+        }
+
+        public int getSamplesPerSecond() {
+            return _iSamplesPerSecond;
+        }
+
+        public int getDiscSpeed() {
+            return 2;
         }
 
         public void reset() {
@@ -221,8 +229,8 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             return DiscItemSquareAudioStream.this.getPresentationStartSector();
         }
 
-        public DiscItemAudioStream[] getSourceItems() {
-            return new DiscItemAudioStream[] {DiscItemSquareAudioStream.this};
+        public void printAudioDetails(PrintStream ps) {
+            ps.println(DiscItemSquareAudioStream.this);
         }
     }
 

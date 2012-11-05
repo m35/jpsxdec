@@ -40,9 +40,9 @@ package jpsxdec.psxvideo.bitstreams;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
-/** Final Fantasy 7 video uncompressor.
- * Makes use of most of STR v2 code.
- * Just uses a different version (0) in the header.
+/** Rather uncommon STR "version 1" video frame format.
+ * Identical to STRv2, but has a version of 1.
+ * Used in FF7, FF Tactics, and Tekken 2 (and probably others).
  *<p>
  * FF7 video also contains run-length codes where AC is 0.
  * This case obviously works with PlayStation hardware, so is already
@@ -51,9 +51,9 @@ import jpsxdec.util.NotThisTypeException;
  *<p>
  * I suspect the reason for this AC=0 waste is because they compressed the
  * frames further to fit camera data. This led to AC values being reduces,
- * some falling to 0, but they didn't merge those codes in to save space.
+ * some falling to 0, but they didn't merge those codes to save space.
  */
-public class BitStreamUncompressor_FF7 extends BitStreamUncompressor_STRv2 {
+public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
 
     @Override
     protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
@@ -83,7 +83,7 @@ public class BitStreamUncompressor_FF7 extends BitStreamUncompressor_STRv2 {
 
     @Override
     public String getName() {
-        return "FF7";
+        return "STRv1";
     }
 
     @Override

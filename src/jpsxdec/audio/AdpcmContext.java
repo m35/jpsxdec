@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,7 @@ package jpsxdec.audio;
  *  decoding. Also scales the volume prior to clamping.
  *  One instance of a context is needed for each audio channel
  *  (one for mono, two for stereo).  */
-public class ADPCMContext {
+public class AdpcmContext {
 
     /* -- Fields ------------------------------------------------------------ */
 
@@ -57,12 +57,12 @@ public class ADPCMContext {
 
     /** Create new ADPCMDecodingContext.
      * @param dblVolumeScale  Scale the decoded audio before clamping. */
-    public ADPCMContext(double dblVolumeScale) {
+    public AdpcmContext(double dblVolumeScale) {
         _dblVolumeScale = dblVolumeScale;
     }
 
     /** Create new ADPCMDecodingContext with a 1.0 audio scale. */
-    public ADPCMContext() {
+    public AdpcmContext() {
         this(1.0);
     }
 

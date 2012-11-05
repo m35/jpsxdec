@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,8 +45,8 @@ public class VideoProcessor implements Runnable {
 
     private static final int CAPACITY = 50;
 
-    private final MultiStateBlockingQueue<AbstractDecodableFrame> _framesProcessingQueue =
-            new MultiStateBlockingQueue<AbstractDecodableFrame>(CAPACITY);
+    private final MultiStateBlockingQueue<IDecodableFrame> _framesProcessingQueue =
+            new MultiStateBlockingQueue<IDecodableFrame>(CAPACITY);
     private Thread _thread;
     
     private IVideoTimer _vidTimer;
@@ -59,12 +59,12 @@ public class VideoProcessor implements Runnable {
     }
 
     public void run() {
-        AbstractDecodableFrame decodeFrame;
+        IDecodableFrame decodeFrame;
         try {
             while ((decodeFrame = _framesProcessingQueue.take()) != null) {
                 // check if this frame is part of current play sequence
                 // and if we haven't passed presentation time
-                if (_vidTimer.shouldBeProcessed(decodeFrame.getContigiousId(), decodeFrame.getPresentationTime()))
+                if (_vidTimer.shouldBeProcessed(decodeFrame.getPresentationTime()))
                 {
                     if (DEBUG) System.out.println("Processor processing frame :)");
                     VideoPlayer.VideoFrame frame = _vidPlayer._videoFramePool.borrow();
@@ -86,9 +86,8 @@ public class VideoProcessor implements Runnable {
         }
     }
 
-    public void addFrame(AbstractDecodableFrame frame) {
+    public void addFrame(IDecodableFrame frame) {
         try {
-            frame.setContiguiousId(_vidTimer.getContiguousPlayId());
             _framesProcessingQueue.add(frame);
         } catch (InterruptedException ex) {
             ex.printStackTrace();

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -63,17 +63,26 @@ public class CdSector2352 extends CdSector {
         super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);
         _header = new CdxaHeader(abSectorBytes, iByteStartOffset);
         // TODO: if the sync header is imperfect (but passable), but the subheader is all errors -> it's cd audio
-        if (_header.isCdAudioSector()) {
-            _subHeader = null;
-            _iUserDataOffset = _iByteStartOffset;
-            _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_CD_AUDIO;
-        } else {
-            _subHeader = new CdxaSubHeader(abSectorBytes, _iByteStartOffset + CdxaHeader.SIZE);
-            _iUserDataOffset = _iByteStartOffset + _header.getSize() + _subHeader.getSize();
-            if (_subHeader.getSubMode().getForm() == 1)
+        switch (_header.getType()) {
+            case CD_AUDIO:
+                _subHeader = null;
+                _iUserDataOffset = _iByteStartOffset;
+                _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_CD_AUDIO;
+                break;
+            case MODE1:
+                // mode 1 sectors & tracks
+                _subHeader = null;
+                _iUserDataOffset = _iByteStartOffset + _header.getSize();
                 _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1;
-            else
-                _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM2;
+                break;
+            default: // mode 2
+                _subHeader = new CdxaSubHeader(abSectorBytes, _iByteStartOffset + CdxaHeader.SIZE);
+                _iUserDataOffset = _iByteStartOffset + _header.getSize() + _subHeader.getSize();
+                if (_subHeader.getSubMode().getForm() == 1)
+                    _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1;
+                else
+                    _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM2;
+                break;
         }
     }
 
@@ -114,23 +123,33 @@ public class CdSector2352 extends CdSector {
     }
 
     //..........................................................................
-    
+
     @Override
     public boolean isCdAudioSector() {
-        return _header.isCdAudioSector();
+        return _header.getType() == CdxaHeader.Type.CD_AUDIO;
+    }
+
+    public boolean isMode1() {
+        return _header.getType() == CdxaHeader.Type.MODE1;
     }
 
     @Override
     public boolean hasHeaderSectorNumber() {
-        return !_header.isCdAudioSector();
+        return _header.getType() != CdxaHeader.Type.CD_AUDIO;
     }
 
+    @Override
     public int getHeaderSectorNumber() {
         return _header.calculateSectorNumber();
     }
-
+    
     //..........................................................................
     
+    @Override
+    public boolean hasSubHeader() {
+        return _subHeader != null;
+    }
+
     public int getSubHeaderChannel() {
         if (_subHeader == null)
             return super.getSubHeaderChannel();
@@ -143,15 +162,6 @@ public class CdSector2352 extends CdSector {
             return super.getSubHeaderFile();
         else
             return _subHeader.getFileNumber();
-    }
-
-
-
-    //..........................................................................
-
-    @Override
-    public boolean hasSubHeader() {
-        return _subHeader != null;
     }
 
     @Override
@@ -203,19 +213,37 @@ public class CdSector2352 extends CdSector {
     }
     
     public String toString() {
-        if (_header.isCdAudioSector())
-            return String.format("[Sector:%d CD Audio]", _iSectorIndex);
-        else
-            return String.format("[Sector:%d (%d) %s]", _iSectorIndex, _header.calculateSectorNumber(), _subHeader);
+        switch (_header.getType()) {
+            case CD_AUDIO:
+                return String.format("[Sector:%d CD Audio]", _iSectorIndex);
+            case MODE1:
+                return String.format("[Sector:%d (%d) M1]", 
+                        _iSectorIndex, 
+                        _header.calculateSectorNumber());
+            default:
+                return String.format("[Sector:%d (%d) M2 %s]", 
+                        _iSectorIndex, 
+                        _header.calculateSectorNumber(), 
+                        _subHeader.toString());
+        }
     }
 
     @Override
-    public byte[] rebuildRawSector(byte[] abUserData) {
-        if (isCdAudioSector())
-            return abUserData.clone();
+    public byte[] rebuildRawSector(byte[] abNewUserData) {
+        CdxaHeader.Type eType = _header.getType();
         
+        if (eType == CdxaHeader.Type.MODE1)
+            throw new UnsupportedOperationException("Rebuilding error correction for mode 1 not supported.");
+
+        if (abNewUserData.length != _iUserDataSize)
+            throw new IllegalArgumentException();
+
+        if (eType == CdxaHeader.Type.CD_AUDIO)
+            return abNewUserData.clone();
+
+        // MODE2 form 1 & 2
         byte[] abRawData = getRawSectorDataCopy();
-        System.arraycopy(abUserData, 0, abRawData, _header.getSize() + _subHeader.getSize(), abUserData.length);
+        System.arraycopy(abNewUserData, 0, abRawData, _header.getSize() + _subHeader.getSize(), _iUserDataSize);
         CdSector2352.rebuildErrorCorrection(abRawData, getSubMode().getForm());
         
         return abRawData;

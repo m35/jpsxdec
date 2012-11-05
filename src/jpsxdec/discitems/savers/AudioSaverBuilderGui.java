@@ -53,7 +53,7 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuil
         super(builder, new ParagraphLayout());
         setParagraphLayoutPanel(this);
 
-        addControls(
+        addListeners(
             new AudioFormat(),
             new Volume()
         );

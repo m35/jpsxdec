@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -137,24 +137,20 @@ public class SectorAliceNullVideo extends IdentifiedSector {
     }
 
     public int getIdentifiedUserDataSize() {
-        return super.getCDSector().getCdUserDataSize() -
+        return super.getCdSector().getCdUserDataSize() -
             ALICE_VIDEO_SECTOR_HEADER_SIZE;
     }
 
     public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return new ByteArrayFPIS(super.getCDSector().getCdUserDataStream(),
+        return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                 ALICE_VIDEO_SECTOR_HEADER_SIZE, getIdentifiedUserDataSize());
     }
 
     public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
-        super.getCDSector().getCdUserDataCopy(ALICE_VIDEO_SECTOR_HEADER_SIZE, abOut,
+        super.getCdSector().getCdUserDataCopy(ALICE_VIDEO_SECTOR_HEADER_SIZE, abOut,
                 iOutPos, getIdentifiedUserDataSize());
     }
     
-    public int getSectorType() {
-        return -1;
-    }
-
     public String getTypeName() {
         return "AliceNull";
     }

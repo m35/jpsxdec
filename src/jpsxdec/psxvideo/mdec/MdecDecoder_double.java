@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,7 @@ package jpsxdec.psxvideo.mdec;
 
 import java.util.Arrays;
 import jpsxdec.formats.RGB;
-import jpsxdec.formats.Rec601YCbCrImage;
+import jpsxdec.formats.YCbCrImage;
 import jpsxdec.formats.Rec601YCbCr;
 import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
@@ -89,11 +89,14 @@ public class MdecDecoder_double extends MdecDecoder {
                 for (int iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY ++)
                 {
                     // debug
-                    assert DEBUG ? debugPrintln(String.format("Decoding macro block %d (%d, %d)", iMacBlk, iMacBlkX, iMacBlkY)) : true;
-
-                    //System.out.println(String.format("Uncompressing macro block %d (%d, %d)", iMacBlk, iMacBlkX, iMacBlkY));
+                    assert DEBUG ? debugPrintln(String.format("############### Decoding macro block %d (%d, %d) ###############", 
+                                                iMacBlk, iMacBlkX, iMacBlkY)) : true;
 
                     for (iBlock = 0; iBlock < 6; iBlock++) {
+
+                        assert DEBUG ? debugPrintln(String.format("=========== Decoding block %s ===========", 
+                                                    BLOCK_NAMES[iBlock])) : true;
+                        
                         Arrays.fill(_CurrentBlock, 0);
                         mdecInStream.readMdecCode(_code);
 
@@ -108,6 +111,7 @@ public class MdecDecoder_double extends MdecDecoder {
                             iCurrentBlockNonZeroCount = 0;
                             iCurrentBlockLastNonZeroPosition = -1;
                         }
+                        assert DEBUG ? setPrequantValue(0, _code.getBottom10Bits()) : true;
                         iCurrentBlockQscale = _code.getTop6Bits();
                         iCurrentBlockVectorPosition = 0;
 
@@ -124,10 +128,11 @@ public class MdecDecoder_double extends MdecDecoder {
                                 iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                             } catch (ArrayIndexOutOfBoundsException ex) {
                                 throw new MdecException.Decode(String.format(
-                                        "[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d",
+                                        "[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d (%s)",
                                         iCurrentBlockVectorPosition,
-                                        iMacBlk, iMacBlkX, iMacBlkY, iBlock));
+                                        iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]));
                             }
+                            assert DEBUG ? setPrequantValue(iRevZigZagPos, _code.getBottom10Bits()) : true;
                             // Dequantize
                             _CurrentBlock[iRevZigZagPos] =
                                         (_code.getBottom10Bits()
@@ -183,6 +188,7 @@ public class MdecDecoder_double extends MdecDecoder {
     private void writeEndOfBlock(int iMacroBlock, int iBlock,
                                  int iNonZeroCount, int iNonZeroPos)
     {
+        assert DEBUG ? debugPrintPrequantBlock() : true;
         assert DEBUG ? debugPrintBlock("Pre-IDCT block") : true;
 
         double[] outputBuffer;
@@ -244,6 +250,7 @@ public class MdecDecoder_double extends MdecDecoder {
              iLumaLineOfsStart+=W_x2, iChromaLineOfsStart+=CW,
              iDestLineOfsStart+=iOutStride_x2)
         {
+            // writes 2 lines at a time
             int iSrcLumaOfs1 = iLumaLineOfsStart,
                 iSrcLumaOfs2 = iLumaLineOfsStart + W,
                 iSrcChromaOfs = iChromaLineOfsStart,
@@ -263,7 +270,7 @@ public class MdecDecoder_double extends MdecDecoder {
 
                 if (YUV_TESTS) {
                     System.err.println("###>>!! YUV_TEST CONVERTING TO Rec601 THEN TO RGB !!<<###");
-                    psxycc.toRec601YCbCr(rec601ycc);
+                    psxycc.toRec_601_YCbCr(rec601ycc);
                     rec601ycc.toRgb(rgb1, rgb2, rgb3, rgb4);
                 } else {
                     psxycc.toRgb(rgb1, rgb2, rgb3, rgb4);
@@ -277,7 +284,7 @@ public class MdecDecoder_double extends MdecDecoder {
         }
     }
 
-    public void readDecodedRec601YCbCr420(Rec601YCbCrImage ycc) {
+    public void readDecoded_Rec601_YCbCr420(YCbCrImage ycc) {
 
         final int WIDTH = ycc.getWidth(), HEIGHT = ycc.getHeight();
 
@@ -305,7 +312,7 @@ public class MdecDecoder_double extends MdecDecoder {
                 psxycc.y2 = _LumaBuffer[iSrcLumaOfs1++];
                 psxycc.y4 = _LumaBuffer[iSrcLumaOfs2++];
 
-                psxycc.toRec601YCbCr(recycc);
+                psxycc.toRec_601_YCbCr(recycc);
 
                 ycc.setY( iX+0 , iY+0 , clamp(recycc.y1));
                 ycc.setY( iX+1 , iY+0 , clamp(recycc.y2));
@@ -319,7 +326,10 @@ public class MdecDecoder_double extends MdecDecoder {
     }
 
 
-    public void readDecodedJfifYCbCr420(Rec601YCbCrImage ycc) {
+    /**
+     * @see PsxYCbCr#toRecJfifYCbCr(Rec601YCbCr)
+     */
+    public void readDecoded_JFIF_YCbCr420(YCbCrImage ycc) {
 
         final int WIDTH = ycc.getWidth(), HEIGHT = ycc.getHeight();
 
@@ -347,7 +357,7 @@ public class MdecDecoder_double extends MdecDecoder {
                 psxycc.y2 = _LumaBuffer[iSrcLumaOfs1++];
                 psxycc.y4 = _LumaBuffer[iSrcLumaOfs2++];
 
-                psxycc.toRecJfifYCbCr(recycc);
+                psxycc.toRec_JFIF_YCbCr(recycc);
 
                 ycc.setY( iX+0 , iY+0 , clamp(recycc.y1));
                 ycc.setY( iX+1 , iY+0 , clamp(recycc.y2));

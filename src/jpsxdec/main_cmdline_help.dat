@@ -13,7 +13,7 @@ java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
   and perform one of the following <main_command_and_options>
 
     -item/-i <#, id> <item_command_and_options>
-    -all/-a <video, audio, file> <item_command_and_options>
+    -all/-a <video, audio, image, file> <item_command_and_options>
       Perform <item_command_and_options> on one index item,
       or all index items of a type
 

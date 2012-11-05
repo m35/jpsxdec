@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,9 +39,11 @@ package jpsxdec.tim;
 
 import java.io.InputStream;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import javax.imageio.ImageIO;
+import jpsxdec.util.ByteArrayFPIS;
+import jpsxdec.util.IO;
+import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -72,10 +74,11 @@ public class TimTest {
     }
 
     @Test
-    public void readWrite16() throws IOException, NotThisTypeException {
+    public void recreate16bpp() throws IOException, NotThisTypeException {
         InputStream is = TimTest.class.getResourceAsStream("16BPP.TIM");
-        Tim expected = Tim.read(is);
+        byte[] abExpected = IO.readEntireStream(is);
         is.close();
+        Tim expected = Tim.read(new ByteArrayInputStream(abExpected));
 
         File temp = File.createTempFile("timtest", ".png");
         ImageIO.write(expected.toBufferedImage(0), "png", temp);
@@ -92,5 +95,74 @@ public class TimTest {
         assertArrayEquals(expected.getColorData(), actual.getColorData());
         assertArrayEquals(expected.getImageData(), actual.getImageData());
     }
+    
+    @Test
+    public void rewrite16bpp() throws IOException, NotThisTypeException {
+        InputStream is = TimTest.class.getResourceAsStream("16BPP.TIM");
+        byte[] abTim = IO.readEntireStream(is);
+        is.close();
+        
+        ByteArrayFPIS bais = new ByteArrayFPIS(abTim);
+        Tim expectedTim = Tim.read(bais);
+        System.out.println("Read " + bais.getOffset() + " bytes of " + abTim.length);
+        ByteArrayOutputStream actual = new ByteArrayOutputStream(abTim.length);
+        expectedTim.write(actual);
 
+        byte[] abExpected = Misc.copyOfRange(abTim, 0, bais.getOffset());
+        assertArrayEquals(abExpected, actual.toByteArray());
+    }
+    
+
+    @Test
+    public void readStrange16_4bpp() throws IOException, NotThisTypeException {
+        InputStream is = TimTest.class.getResourceAsStream("00015063_.tim");
+        byte[] abTim = IO.readEntireStream(is);
+        is.close();
+
+        ByteArrayFPIS bais = new ByteArrayFPIS(abTim);
+        Tim tim = Tim.read(bais);
+        int iBytesRead = bais.getOffset();
+        System.out.println("Read " + bais.getOffset() + " bytes of " + abTim.length);
+        assertEquals(66592, iBytesRead);
+
+        assertEquals(4, tim.getBitsPerPixel());
+        assertEquals(512, tim.getWidth());
+        assertEquals(256, tim.getHeight());
+        assertEquals(32, tim.getPaletteCount());
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        tim.write(baos);
+        
+        byte[] abExpected = Misc.copyOfRange(abTim, 0, iBytesRead);
+        byte[] abActual = baos.toByteArray();
+        abActual[4] = 0x0a; // set it to 16bpp + CLUT
+        assertArrayEquals(abExpected, abActual);
+    }
+    
+    @Test
+    public void readStrange16_8bpp() throws IOException, NotThisTypeException {
+        InputStream is = TimTest.class.getResourceAsStream("00015289_.tim");
+        byte[] abTim = IO.readEntireStream(is);
+        is.close();
+
+        ByteArrayFPIS bais = new ByteArrayFPIS(abTim);
+        Tim tim = Tim.read(bais);
+        int iBytesRead = bais.getOffset();
+        System.out.println("Read " + bais.getOffset() + " bytes of " + abTim.length);
+        assertEquals(247328, iBytesRead);
+
+        assertEquals(8, tim.getBitsPerPixel());
+        assertEquals(512, tim.getWidth());
+        assertEquals(480, tim.getHeight());
+        assertEquals(3, tim.getPaletteCount());
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        tim.write(baos);
+        
+        byte[] abExpected = Misc.copyOfRange(abTim, 0, iBytesRead);
+        byte[] abActual = baos.toByteArray();
+        abActual[4] = 0x0a; // set it to 16bpp + CLUT
+        assertArrayEquals(abExpected, abActual);
+    }
+    
 }

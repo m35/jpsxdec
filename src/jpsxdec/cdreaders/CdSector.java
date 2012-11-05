@@ -97,7 +97,11 @@ public abstract class  CdSector {
 
     abstract public boolean isCdAudioSector();
 
-    abstract public byte[] rebuildRawSector(byte[] abUserData);
+    abstract public boolean isMode1();
+
+    /** Given this sector and the new user data provided, regenerates the 
+     * sector header and error correction data and returns the result. */
+    abstract public byte[] rebuildRawSector(byte[] abNewUserData);
 
     /**
      * @throws UnsupportedOperationException when the sector doesn't have a header.
@@ -152,6 +156,12 @@ public abstract class  CdSector {
         return (short)((b2 << 8) + b1);
     }
 
+    public short readSInt16BE(int i) {
+        int b1 = readUserDataByte(i  ) & 0xFF;
+        int b2 = readUserDataByte(i+1) & 0xFF;
+        return (short)((b1 << 8) + b2);
+    }
+
     public int readUInt16LE(int i) {
         int b1 = readUserDataByte(i  ) & 0xFF;
         int b2 = readUserDataByte(i+1) & 0xFF;
@@ -167,11 +177,29 @@ public abstract class  CdSector {
         return total;
     }
 
+    public long readUInt32BE(int i) {
+        long b4 = readUserDataByte(i) & 0xFF;
+        int b3 = readUserDataByte(i+1) & 0xFF;
+        int b2 = readUserDataByte(i+2) & 0xFF;
+        int b1 = readUserDataByte(i+3) & 0xFF;
+        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+        return total;
+    }
+
     public int readSInt32LE(int i) {
         int b1 = readUserDataByte(i) & 0xFF;
         int b2 = readUserDataByte(i+1) & 0xFF;
         int b3 = readUserDataByte(i+2) & 0xFF;
         int b4 = readUserDataByte(i+3) & 0xFF;
+        int total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+        return total;
+    }
+
+    public int readSInt32BE(int i) {
+        int b4 = readUserDataByte(i) & 0xFF;
+        int b3 = readUserDataByte(i+1) & 0xFF;
+        int b2 = readUserDataByte(i+2) & 0xFF;
+        int b1 = readUserDataByte(i+3) & 0xFF;
         int total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
         return total;
     }

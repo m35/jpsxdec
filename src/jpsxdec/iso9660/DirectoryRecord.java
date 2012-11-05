@@ -42,7 +42,7 @@ import java.io.IOException;
 import jpsxdec.util.NotThisTypeException;
 
 /** ECMA119: 9.1 */
-public class DirectoryRecord extends ISOstruct {
+public class DirectoryRecord extends ISO9660Struct {
     
     // TODO: Look up what this flag is really called
     static final public int FLAG_IS_DIRECTORY = 0x2;

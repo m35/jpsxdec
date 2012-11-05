@@ -253,10 +253,10 @@ Example:
 
 Audio is also intermixed every so many sectors (4, 8, 16, or 32). Since video frame data doesn't (always? usually? ever?) need all the sectors allocated to it, an audio sector can quickly be squeezed in.
 
-Each audio sector generates 4032 samples of decoded audio. If the audio is in stereo, then the samples are split for the left/right channels, to 2016. As shown above, the raw CD-XA Sector Header explains how the data is stored, the sample rate, and if it is mono or stereo.
+Each audio sector generates either 2016 or 4032 samples of decoded audio. If the audio is in stereo, then the samples are split for the left/right channels, to 1008 or 2016. As shown above, the raw CD-XA Sector Header explains how the data is stored, the sample rate, and if it is mono or stereo.
 
 Example:
-    A movie in the game has mono audio running at 37800 samples per second. If the PlayStation is set to read at 75 sectors per second, an audio sector needs to appear every 8 sectors (4032 samples per sector * 75 sectors per second / 37800 samples per second = 8 sectors between audio sector).
+    A movie in the game has mono audio running at 37800 samples per second. If the PlayStation is set to read at 75 sectors per second, and audio sectors generate 4032 samples, then an audio sector needs to appear every 8 sectors (4032 samples per sector * 75 sectors per second / 37800 samples per second = 8 sectors between audio sector).
 
     Sector 1:  Video frame 1, sector #0 (of 5)
     Sector 2:  Video frame 1, sector #1 (of 5)
@@ -1495,7 +1495,7 @@ Offset
    28 +--             --+-----------------------------------------------------+
       |                 |  Unknown (4 bytes)
       |                 |    Usually 0x00000000, but the 2nd sector in some
-      |                 |    movie's frames have different values
+      |                 |    movies' frames have different values
    32 +-----------------+-----------------------------------------------------+
       |    Multiplexed frame bitstream data (2292 bytes)
  2324 +-----------------------------------------------------------------------+
@@ -1898,9 +1898,9 @@ The bitstream is identical to the standard v2 bitstream, except at the start of 
 
 Continuing in its long tradition of giving PlayStation hackers headaches, this is the most difficult video sector to uniquely identify.
 
-There are two types of frames which I will just refer to type A and type B
-    A. 320x352 dimensions held in 9 chunks
-    B. 320x240 dimensions held in 10 chunks
+There are two types of frames which I will just refer to as type A and type B
+    A. 320x352 dimensions, held in 9 chunks
+    B. 320x240 dimensions, held in 10 chunks
 
 Unfortunately, there's no indication in the sectors of which type it is.
 
@@ -1917,39 +1917,107 @@ Type B frames follow the standard v3 demultiplexed frame format. Type A starts w
 Most video frames are normal v3 format, but some are full of 0xff.
 
 ################################################################################
+## 3.11. Crusader: No Remorse
+################################################################################
+
+Crusader: No Remorse is the only gave I've seen that doesn't stream its movies using the standard 'real-time' sector method.
+
+:: Crusader Sector Header ::
+
+Offset   Size   Endian --------------------------------------------------------
+  0 . . . 4 . .  big . . Always 0xAABBCCDD
+  4 . . . 4 . .  big . . Sector number of this multiplexed stream
+  8 ---------------------------------------------------------------------------
+
+The sectors are demultiplexed into a continuous stream. The data is broken up into 'chunks' that are either audio or video. When one chunk ends, the next one immediately begins.
+
+:: Crusader Demultiplexed Video Chunk ::
+
+Offset   Size   Endian --------------------------------------------------------
+  0 . . . 4 . .  big . . Chunk identifier: MDEC
+  4 . . . 4 . .  big . . Size of the chunk in bytes, including the header
+  8 . . . 2 . .  big . . Video frame width in pixels
+  10  . . 2 . .  big . . Video frame height in pixels
+  12  . . 4 . .  big . . Video frame number
+  16  (Size-16)  n/a . . STR v2 bitstream
+  Size ------------------------------------------------------------------------
+
+:: Crusader Demultiplexed Audio Chunk ::
+
+Offset   Size   Endian --------------------------------------------------------
+  0 . . . 4 . .  big . . Chunk identifier: ad20 or ad21
+  4 . . . 4 . .  big . . Size of the chunk in bytes, including the header
+  8 . . . 4 . .  big . . The number of samples already written to the stream
+  12  . . 4 . .  big . . Always 0x08000200
+  16  (Size-16)  n/a . . Square audio data
+  Size ------------------------------------------------------------------------
+
+Video frames are standard v2.
+The audio is stereo and plays at 22050Hz. The left channel is in the first half of the payload, and the right channel is in the second half. Audio is encoded using Square's special format found in section 3.3. The 'ad21' identifier indicates the last audio chunk in the stream.
+TODO: verify sample rate
+
+################################################################################
 ## 4. Thanks, credits, etc.
 ################################################################################
 
-Mike Melanson and Stuart Caie for adding STR decoding support to xine, including the documentation in the source. (http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html) Also for archiving some example STR files (http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html).
+Mike Melanson and Stuart Caie for adding STR decoding support to xine, 
+including the documentation in the source. 
+(http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html)
+Also for archiving some example STR files.
+(http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html)
 
-The q-gears development team and forum members for their source code and documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). Their STR decoding source code PSXMDECDecoder.cpp was invaluable (http://q-gears.svn.sourceforge.net/viewvc/q-gears/branches/old_sources/src/common/movie/decoders/).
+The q-gears development team and forum members for their source code and 
+documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). 
+Their STR decoding source code PSXMDECDecoder.cpp was invaluable 
+(http://q-gears.svn.sourceforge.net/viewvc/q-gears/branches/old_sources/src/common/movie/decoders/). 
+Their TIM format documentation is awesome (http://wiki.qhimm.com/PSX/TIM_file)
 
-"Everything You Have Always Wanted to Know about the PlayStation But Were Afraid to Ask." compiled / edited by Joshua Walker. Perhaps the most valuable reference for any kind of PSX hacking, especially the PSX assembly instruction set (note that it has the Cr/Cb reversal error mentioned in ch 2.2).
+"Everything You Have Always Wanted to Know about the Playstation But 
+Were Afraid to Ask." Compiled / edited by Joshua Walker.
+Perhaps the most valuable reference for any kind of PSX hacking, 
+especially the PSX assembly instruction set. 
 
-smf, developer for MAME, for figuring out that everyone was getting the order of Cr/Cb wrong (http://smf.mameworld.info/?p=12).
+smf, developer for MAME, for figuring out that everyone was getting the 
+order of CrCb wrong (http://smf.mameworld.info/?p=12).
 
-Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error, and pointing out that the quantization table is uploaded to the MDEC chip in zig-zag order.
+Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error,
+verifying that jPSXdec is doing things right, and for
+pointing how the quantization table is uploaded to the MDEC.
 
-Jonathan Atkins for his open source cdxa code and documentation (http://freshmeat.net/projects/cdxa/  http://jcatki.no-ip.org:8080/cdxa/  http://jonatkins.org:8080/cdxa/).
+Jonathan Atkins for his open source cdxa code and documentation.
+(http://freshmeat.net/projects/cdxa/ 
+http://jcatki.no-ip.org:8080/cdxa/ 
+http://jonatkins.org:8080/cdxa/)
 
-The PCSX Team, creators of one of the two open source PlayStation emulators (http://www.pcsx.net/), and all the variants. One version of its mdec.c file is particularly useful (http://www.google.com/codesearch?q=%22blk_zig+value%22)
+The PCSX Team, creators of one of the two open source PlayStation
+emulators (http://www.pcsx.net/).
 
-The MAME emulator team for their efforts to document and accurately emulate hardware (http://mamedev.org/).
+The MAME emulator team for their efforts to document and accurately
+emulate hardware (http://mamedev.org/).
 
-Developers of the pSX emulator. While not open source, at least it is still under development and provides a very nice debugger for reverse engineering games (http://psxemulator.gazaxian.com/).
+Developers of the pSX emulator. While not open source, at least it is 
+still under development and provides a very nice debugger for reverse 
+engineering games (http://psxemulator.gazaxian.com/). 
 
-cclh12 at romhacking.net for generously providing some actual PlayStation 1 hardware RAM dumps.
+"Fyiro", the Japanese fellow that wrote the source code for the PsxMC 
+FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/). 
 
-Mezmorize at GameHacking.org (formally GSHI) forums for helping me get my own hardware RAM dumps working.
-
-"Fyiro", the Japanese fellow that wrote the source code for the PsxMC FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/).
-
-T_chan for sharing a bit of his knowledge about the FF9 format (http://www.network54.com/Forum/119865/thread/1196268797).
+T_chan for sharing a bit of his knowledge about the FF9 format 
+(http://www.network54.com/Forum/119865/thread/1196268797). 
 
 The most excellent folks at IRCNet #lain :D
 
+cclh12 at romhacking.net for generously providing some actual PlayStation 1
+hardware RAM dumps.
 
-Finally, a very special thanks to all the PlayStation hackers who thought it was a good idea to keep their decoders/emulators/hacking tools closed source, then completely stop working on them. Extra thanks to those who now provide a 404 page for a web site. You sirs are real men of genius.
+Mezmorize at gshi.org for helping me get an old PlayStation and GameShark
+working to make my own RAM dumps.
+
+Finally, a very special thanks to all the PlayStation hackers who
+thought it was a good idea to keep their decoders/emulators/hacking 
+tools closed source, then completely stop working on them. Extra thanks 
+to those who now provide a 404 page for a web site. You sirs are real 
+men of genius. 
 
 --------------------------------------------------------------------------------
 Copyright (c) 2008-2012 Michael Sabin

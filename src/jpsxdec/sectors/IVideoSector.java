@@ -59,7 +59,7 @@ public interface IVideoSector extends IIdentifiedSector {
 
     /** Used primarily (exclusively?) during indexing to determine if
      *  this sectors is part of the same video as the previous sector. */
-    boolean matchesPrevious(IVideoSector oPrevSect);
+    boolean matchesPrevious(IVideoSector prevVidSect);
 
     /** Copies the identified user data portion of the sector data to the
      *  output buffer. */

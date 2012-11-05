@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -60,6 +60,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
      * Conveniently identical to MPEG1. */
     private static final AcLookup AC_VARIABLE_LENGTH_CODES_MPEG1 = new AcLookup()
                  //  Code        "Run" "Level"
+                 // Table 1
                 ._11s              (0 ,  1)
                 ._011s             (1 ,  1)
                 ._0100s            (0 ,  2)
@@ -83,6 +84,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                 ._00100101s        (1 ,  3)
                 ._00100110s        (0 ,  5)
                 ._00100111s        (10,  1)
+                // Table 2
                 ._0000001000s      (16,  1)
                 ._0000001001s      (5 ,  2)
                 ._0000001010s      (0 ,  7)
@@ -289,10 +291,14 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         }
 
         public void remove() { throw new UnsupportedOperationException(); }
+
+        public String toString() {
+            return "Qscale " + _iQscale;
+        }
     }
 
     public String toString() {
-        return String.format("%s Qscale=%d Offset=%d MB=%d.%d Mdec count=%d",
+        return String.format("%s Qscale=%d, Current Offset=%d, Current MB.Blk=%d.%d, MDEC count=%d",
                 getName(), getQscale(),
                 getStreamPosition(),
                 getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),

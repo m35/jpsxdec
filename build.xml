@@ -92,6 +92,7 @@
             <fileset refid="release.include.files" />
         </copy>
         
+        <echo message="TODO: Manually create PDF of manual using Libre/OpenOffice"/>
     </target>
 
     <target name="test" depends="release">

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,8 @@
 
 package jpsxdec.indexing;
 
-import jpsxdec.discitems.DiscItemXAAudioStream;
-import jpsxdec.sectors.SectorXAAudio;
+import jpsxdec.discitems.DiscItemXaAudioStream;
+import jpsxdec.sectors.SectorXaAudio;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -76,14 +76,14 @@ public class DiscIndexerXaAudio extends DiscIndexer {
         private int _iStartSector;
 
         /** Last sector before _currentXA that was a part of this stream. */
-        private SectorXAAudio _previousXA;
+        private SectorXaAudio _previousXA;
         /** Last sector (or 'current' sector, if you will) that was a part of this stream.
          Is never null. */
-        private SectorXAAudio _currentXA;
+        private SectorXaAudio _currentXA;
 
         /** Get the last (or 'current') sector that was part of this stream.
          May be null. */
-        public SectorXAAudio getCurrent() { return _currentXA; }
+        public SectorXaAudio getCurrent() { return _currentXA; }
 
         /** Count of how many sample are found in the stream. */
         private long _lngSampleCount = 0;
@@ -94,7 +94,7 @@ public class DiscIndexerXaAudio extends DiscIndexer {
          * Is -1 until 2nd sector is discovered. */
         private int _iAudioStride = -1;
 
-        public AudioStreamIndex(SectorXAAudio first) {
+        public AudioStreamIndex(SectorXaAudio first) {
             _currentXA = first;
             _iStartSector = first.getSectorNumber();
         }
@@ -102,10 +102,10 @@ public class DiscIndexerXaAudio extends DiscIndexer {
         /**
          * @return true if the sector was accepted as part of this stream.
          */
-        public boolean sectorRead(SectorXAAudio newCurrent) {
+        public boolean sectorRead(SectorXaAudio newCurrent) {
             // if the previous ('current') sector's EOF bit was set, this stream is closed
             // this is important for Silent Hill, R4 Ridge Racer, and probably others
-            if (_currentXA.getCDSector().getSubMode().getEofMarker())
+            if (_currentXA.getCdSector().getSubMode().getEofMarker())
                 return false;
 
             if (!newCurrent.matchesPrevious(_currentXA))
@@ -133,7 +133,7 @@ public class DiscIndexerXaAudio extends DiscIndexer {
                 return null;
             }
             _lngSampleCount += _currentXA.getSampleCount();
-            return new DiscItemXAAudioStream(
+            return new DiscItemXaAudioStream(
                 _iStartSector, _currentXA.getSectorNumber(),
                 _currentXA.getChannel(),
                 _lngSampleCount,
@@ -148,7 +148,7 @@ public class DiscIndexerXaAudio extends DiscIndexer {
                     log.warning("Trying to create XA item from non-existant previous sector! Current sector is " + _iStartSector);
                 return null;
             } else {
-                DiscItemXAAudioStream ret = new DiscItemXAAudioStream(
+                DiscItemXaAudioStream ret = new DiscItemXaAudioStream(
                     _iStartSector, _previousXA.getSectorNumber(),
                     _currentXA.getChannel(),
                     _lngSampleCount,
@@ -176,8 +176,8 @@ public class DiscIndexerXaAudio extends DiscIndexer {
     @Override
     public DiscItem deserializeLineRead(DiscItemSerialization oSerial) {
         try {
-            if (DiscItemXAAudioStream.TYPE_ID.equals(oSerial.getType())) {
-                return new DiscItemXAAudioStream(oSerial);
+            if (DiscItemXaAudioStream.TYPE_ID.equals(oSerial.getType())) {
+                return new DiscItemXaAudioStream(oSerial);
             }
         } catch (NotThisTypeException ex) {}
         return null;
@@ -185,9 +185,9 @@ public class DiscIndexerXaAudio extends DiscIndexer {
 
     @Override
     public void indexingSectorRead(IdentifiedSector sector) {
-        if (sector instanceof SectorXAAudio) {
+        if (sector instanceof SectorXaAudio) {
 
-            SectorXAAudio audSect = (SectorXAAudio)sector;
+            SectorXaAudio audSect = (SectorXaAudio)sector;
 
             AudioStreamIndex audStream = _aoChannels[audSect.getChannel()];
             if (audStream == null) {

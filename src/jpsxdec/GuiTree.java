@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,25 +43,12 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.JLabel;
-import javax.swing.JTable;
-import javax.swing.JTree;
-import javax.swing.ListSelectionModel;
-import javax.swing.UIManager;
+import javax.swing.*;
 import javax.swing.event.TreeModelListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
-import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemAudioStream;
-import jpsxdec.discitems.DiscItemISO9660File;
-import jpsxdec.discitems.DiscItemSaverBuilder;
-import jpsxdec.discitems.DiscItemTIM;
-import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.IDiscItemSaver;
-import jpsxdec.discitems.IndexId;
+import jpsxdec.discitems.*;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.player.PlayController;
 import org.jdesktop.swingx.JXTreeTable;
@@ -76,9 +63,7 @@ public class GuiTree extends JXTreeTable {
             new ImageIcon(GuiTree.class.getResource("layer-new-3.png"));
             //UIManager.getIcon("FileChooser.fileIcon");
             //UIManager.getIcon("Tree.leafIcon");
-    public static final Icon FOLDER_ICON =
-            //new ImageIcon(GuiTree.class.getResource("folder.png"));
-            UIManager.getIcon("FileView.folderIcon");
+    public static final Icon FOLDER_ICON = UIManager.getIcon("FileView.folderIcon");
     public static final ImageIcon VIDEO_ICON = new ImageIcon(GuiTree.class.getResource("film.png"));
     public static final ImageIcon AUDIO_ICON = new ImageIcon(GuiTree.class.getResource("knotify.png"));
     public static final ImageIcon IMAGE_ICON = new ImageIcon(GuiTree.class.getResource("image-x-generic.png"));
@@ -230,7 +215,7 @@ public class GuiTree extends JXTreeTable {
             int iCount = 0;
             DiscItemSaverBuilder thisBuilder = getBuilder();
             if (thisBuilder != null) {
-                if (otherBuilder.copySettings(thisBuilder))
+                if (otherBuilder.copySettingsTo(thisBuilder))
                     iCount++;
             }
             for (int i = 0; i < kidCount(); i++)
@@ -334,7 +319,7 @@ public class GuiTree extends JXTreeTable {
                 return FILE_ICON;
             } else if (_item instanceof DiscItemAudioStream) {
                 return AUDIO_ICON;
-            } else if (_item instanceof DiscItemTIM) {
+            } else if (_item instanceof DiscItemTim) {
                 return IMAGE_ICON;
             } else
                 return null;
@@ -351,7 +336,7 @@ public class GuiTree extends JXTreeTable {
 
         @Override
         public String getType() {
-            return _item.getSerializationTypeId();
+            return _item.getType().name();
         }
 
         @Override
@@ -407,7 +392,7 @@ public class GuiTree extends JXTreeTable {
             } else if (sCmd.equals("all Files")) {
                 _blnSave = _blnSave || getItem() instanceof DiscItemISO9660File;
             } else if (sCmd.equals("all Images")) {
-                _blnSave = _blnSave || getItem() instanceof DiscItemTIM;
+                _blnSave = _blnSave || getItem() instanceof DiscItemTim;
             }
             super.selectAllType(sCmd);
         }

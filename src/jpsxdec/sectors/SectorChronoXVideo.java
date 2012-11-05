@@ -112,7 +112,6 @@ public class SectorChronoXVideo extends SectorAbstractVideo {
 
     // .. Public methods ...................................................
 
-    @Override
     public String getTypeName() {
         return "CX Video";
     }

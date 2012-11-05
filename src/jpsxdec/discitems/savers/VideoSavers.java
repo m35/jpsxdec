@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,9 +37,9 @@
 
 package jpsxdec.discitems.savers;
 
-import jpsxdec.sectors.IdentifiedSector;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -48,19 +48,21 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.ISectorAudioDecoder;
+import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.formats.RgbIntImage;
-import jpsxdec.formats.Rec601YCbCrImage;
-import jpsxdec.sectors.IVideoSector;
-import jpsxdec.util.NotThisTypeException;
-import jpsxdec.util.aviwriter.AviWriter;
+import jpsxdec.formats.YCbCrImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
+import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.aviwriter.AviWriter;
 import jpsxdec.util.aviwriter.AviWriterDIB;
 import jpsxdec.util.aviwriter.AviWriterMJPG;
 import jpsxdec.util.aviwriter.AviWriterYV12;
@@ -73,21 +75,21 @@ class VideoSavers  {
 
     public static class BitstreamSequenceWriter extends VideoSaver {
 
-        private final FrameDemuxer _demuxer;
+        private int _iCurrentFrame;
 
         public BitstreamSequenceWriter(VideoSaverBuilderSnapshot snap)
         {
             super(snap);
 
-            _demuxer = new FrameDemuxer(_snap.videoItem.getWidth(), _snap.videoItem.getHeight(),
-                                        _snap.videoItem.getStartSector(), _snap.videoItem.getEndSector())
-            {
+            _iCurrentFrame = _snap.saveStartFrame;
+            _snap.videoDemuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
                 private byte[] __abBuf;
-                protected void frameComplete(DemuxedFrame frame) throws IOException {
+                public void frameComplete(IDemuxedFrame frame) throws IOException {
                     __abBuf = frame.copyDemuxData(__abBuf);
-                    receive(__abBuf, frame.getDemuxSize(), frame.getFrame(), frame.getPresentationSector());
+                    _iCurrentFrame = frame.getFrame();
+                    writeDemux(__abBuf, frame.getDemuxSize(), frame.getFrame(), frame.getPresentationSector());
                 }
-            };
+            });
         }
 
         @Override
@@ -96,14 +98,10 @@ class VideoSavers  {
         }
 
         protected void close() throws IOException {
-            _demuxer.flush();
+            _snap.videoDemuxer.flush();
         }
         public int getMovieEndSector() { return _snap.videoItem.getEndSector(); }
         public int getMovieStartSector() { return _snap.videoItem.getStartSector(); }
-        public int getStartFrame() { return _snap.saveStartFrame; }
-        public int getEndFrame() { return _snap.saveEndFrame; }
-        public int getWidth() { return _snap.videoItem.getWidth(); }
-        public int getHeight() { return _snap.videoItem.getHeight(); }
 
         private void makeDir() throws IOException {
             String baseParent = _snap.baseName.getParent();
@@ -126,16 +124,16 @@ class VideoSavers  {
                    );
         }
 
-        protected void feedSectorForVideo(IVideoSector sector) throws IOException {
-            _demuxer.feedSector(sector);
+        protected void feedSector(IdentifiedSector sector) throws IOException {
+            _snap.videoDemuxer.feedSector(sector);
         }
 
-        protected void feedSectorForAudio(IdentifiedSector sector) throws IOException {
-            throw new UnsupportedOperationException("Cannot write audio with image sequence.");
+        protected int getCurrentFrame() {
+            return _iCurrentFrame;
         }
-
-        protected void receive(byte[] abDemux, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException {
-            if (iFrameNumber < _snap.saveStartFrame || iFrameNumber > _snap.saveEndFrame)
+        
+        protected void writeDemux(byte[] abDemux, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException {
+            if (iFrameNumber < getStartFrame() || iFrameNumber > getEndFrame())
                 return;
             
             File f = makeFileName(iFrameNumber);
@@ -189,17 +187,17 @@ class VideoSavers  {
 
 
         @Override
-        public void receive(byte[] abDemux, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException {
+        public void writeDemux(byte[] abDemux, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException {
             try {
                 BitStreamUncompressor uncompressor = resetUncompressor(abDemux, iFrameNumber);
-                receiveUncompressor(uncompressor, iFrameNumber, iFrameEndSector);
+                writeUncompressed(uncompressor, iFrameNumber, iFrameEndSector);
             } catch (NotThisTypeException ex) {
                 log.log(Level.WARNING, null, ex);
                 getListener().getLog().log(Level.WARNING, null, ex);
             }
         }
 
-        protected void receiveUncompressor(BitStreamUncompressor uncompressor, int iFrameNumber, int iFrameEndSector) throws IOException {
+        protected void writeUncompressed(BitStreamUncompressor uncompressor, int iFrameNumber, int iFrameEndSector) throws IOException {
             File f = makeFileName(iFrameNumber);
             BufferedOutputStream bos = null;
             try {
@@ -231,7 +229,6 @@ class VideoSavers  {
 
     public abstract static class AbstractDecodedWriter extends MdecSequenceWriter {
 
-        protected MdecDecoder _decoder;
         private final int _iCroppedWidth, _iCroppedHeight;
 
         public AbstractDecodedWriter(VideoSaverBuilderSnapshot snap)
@@ -244,18 +241,17 @@ class VideoSavers  {
                 _iCroppedWidth = (_snap.videoItem.getWidth() + 15) & ~15;
                 _iCroppedHeight = (_snap.videoItem.getHeight() + 15) & ~15;
             }
-            _decoder = _snap.videoDecoder; // may be null for now, but set in subclass constructors
         }
 
         @Override
-        final protected void receiveUncompressor(BitStreamUncompressor uncompressor, int iFrameNumber, int iFrameEndSector) throws IOException {
+        final protected void writeUncompressed(BitStreamUncompressor uncompressor, int iFrameNumber, int iFrameEndSector) throws IOException {
             try {
-                _decoder.decode(uncompressor);
+                _snap.videoDecoder.decode(uncompressor);
             } catch (MdecException.Decode ex) {
                 log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
                 getListener().getLog().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
             }
-            receiveDecoded(_decoder, iFrameNumber, iFrameEndSector);
+            writeDecoded(_snap.videoDecoder, iFrameNumber, iFrameEndSector);
         }
 
         protected int getCroppedHeight() {
@@ -266,8 +262,8 @@ class VideoSavers  {
             return _iCroppedWidth;
         }
 
-        abstract protected void receiveDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector) throws IOException;
-        abstract protected void receiveError(Throwable ex, int iFrame) throws IOException;
+        abstract protected void writeDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector) throws IOException;
+        abstract protected void writeError(Throwable ex, int iFrame) throws IOException;
     }
 
     //..........................................................................
@@ -275,22 +271,21 @@ class VideoSavers  {
     public static class DecodedJavaImageSequenceWriter extends AbstractDecodedWriter {
 
         private final JavaImageFormat _eFmt;
-        private final RgbIntImage _rgbBuff;
+        private final BufferedImage _rgbImg;
 
         public DecodedJavaImageSequenceWriter(VideoSaverBuilderSnapshot snap) {
             super(snap);
-
-            _rgbBuff = new RgbIntImage(getCroppedWidth(), getCroppedHeight());
+            _rgbImg = new BufferedImage(getCroppedWidth(), getCroppedHeight(), BufferedImage.TYPE_INT_RGB);
             _eFmt = _snap.videoFormat.getImgFmt();
         }
 
         @Override
-        protected void receiveDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector) {
-            decoder.readDecodedRgb(_rgbBuff.getWidth(), _rgbBuff.getHeight(), _rgbBuff.getData());
-            BufferedImage bi = _rgbBuff.toBufferedImage();
+        protected void writeDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector) {
+            decoder.readDecodedRgb(_rgbImg.getWidth(), _rgbImg.getHeight(), 
+                    ((DataBufferInt)_rgbImg.getRaster().getDataBuffer()).getData());
             File f = makeFileName(iFrame);
             try {
-                if (!ImageIO.write(bi, _eFmt.getId(), f)) {
+                if (!ImageIO.write(_rgbImg, _eFmt.getId(), f)) {
                     log.log(Level.WARNING, "Unable to write frame file " + f);
                     getListener().getLog().log(Level.WARNING, "Unable to write frame file " + f);
                 }
@@ -301,9 +296,9 @@ class VideoSavers  {
         }
 
         @Override
-        protected void receiveError(Throwable thrown, int iFrame) {
+        protected void writeError(Throwable thrown, int iFrame) {
             log.log(Level.WARNING, "Error with frame " + iFrame, thrown);
-            BufferedImage bi = makeErrorImage(thrown, _rgbBuff.getWidth(), _rgbBuff.getHeight());
+            BufferedImage bi = makeErrorImage(thrown, _rgbImg.getWidth(), _rgbImg.getHeight());
             File f = makeFileName(iFrame);
             try {
                 if (!ImageIO.write(bi, _eFmt.getId(), f)) {
@@ -320,8 +315,8 @@ class VideoSavers  {
 
     //..........................................................................
 
+    /** Draw the error onto a blank image */
     protected static BufferedImage makeErrorImage(Throwable ex, int iWidth, int iHeight) {
-        // draw the error onto a blank image
         BufferedImage bi = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = bi.createGraphics();
         g.drawString(ex.getMessage(), 5, 20);
@@ -336,8 +331,6 @@ class VideoSavers  {
         private final int _iStartSector, _iEndSector;
 
         protected final VideoSync _vidSync;
-
-        private double _volume = 1.0;
 
         protected AviWriter _aviWriter;
 
@@ -358,8 +351,8 @@ class VideoSavers  {
                         iSectorsPerSecond,
                         _snap.videoItem.getSectorsPerFrame(),
                         _snap.audioDecoder.getPresentationStartSector(),
-                        fmt.getSampleRate(),
-                        _snap.preciseAvSync);
+                        _snap.audioDecoder.getSamplesPerSecond(),
+                        _snap.emulateAvSync);
 
                 _snap.audioDecoder.setAudioListener(new AviAudioWriter(avSync));
 
@@ -377,7 +370,6 @@ class VideoSavers  {
 
                 _iStartSector = _snap.videoItem.getStartSector();
                 _iEndSector = _snap.videoItem.getEndSector();
-
 
             }
 
@@ -408,11 +400,11 @@ class VideoSavers  {
             }
         }
         @Override
-        protected void feedSectorForAudio(IdentifiedSector sector) throws IOException {
-            if (_snap.audioDecoder == null)
-                return;
-            
-            _snap.audioDecoder.feedSector(sector);
+        protected void feedSector(IdentifiedSector sector) throws IOException {
+            _snap.videoDemuxer.feedSector(sector);
+            // for Crusader, audio and video are the same object
+            if (_snap.videoDemuxer != _snap.audioDecoder && _snap.audioDecoder != null)
+                _snap.audioDecoder.feedSector(sector);
         }
 
         @Override
@@ -444,7 +436,7 @@ class VideoSavers  {
         }
 
         @Override
-        protected void receiveDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector)
+        protected void writeDecoded(MdecDecoder decoder, int iFrame, int iFrameEndSector)
                 throws IOException
         {
 
@@ -463,12 +455,15 @@ class VideoSavers  {
                                         iFrameEndSector,
                                         _aviWriter.getVideoFramesWritten());
 
-            if (iDupCount < 0)
+            if (iDupCount < 0) {
                 // hopefully this will never happen because the frame rate
                 // calculated during indexing should prevent it
                 getListener().getLog().log(Level.WARNING, "Frame "+iFrame+" is ahead of reading by " + (-iDupCount) + " frame(s).");
-            else while (iDupCount > 0) { // will never happen with first frame
-                _aviWriter.repeatPreviousFrame();
+            } else while (iDupCount > 0) { // could happen with first frame
+                if (_aviWriter.getVideoFramesWritten() < 1) // TODO: fix design so this isn't needed
+                    _aviWriter.writeBlankFrame();
+                else
+                    _aviWriter.repeatPreviousFrame();
                 iDupCount--;
             }
 
@@ -477,7 +472,7 @@ class VideoSavers  {
 
 
         @Override
-        final protected void receiveError(Throwable ex, int iFrame) {
+        final protected void writeError(Throwable ex, int iFrame) {
             try {
                 writeError(ex);
             } catch (IOException ex1) {
@@ -493,13 +488,13 @@ class VideoSavers  {
 
     public static class DecodedAviWriter_MJPG extends AbstractDecodedAviWriter {
 
-        private final RgbIntImage _rgbBuff;
+        private final BufferedImage _rgbImg;
         private AviWriterMJPG _writerMjpg;
 
         public DecodedAviWriter_MJPG(VideoSaverBuilderSnapshot snap) {
             super(snap);
 
-            _rgbBuff = new RgbIntImage(getCroppedWidth(), getCroppedHeight());
+            _rgbImg = new BufferedImage(getCroppedWidth(), getCroppedHeight(), BufferedImage.TYPE_INT_RGB);
         }
 
         @Override
@@ -517,8 +512,9 @@ class VideoSavers  {
 
         @Override
         protected void actuallyWrite(MdecDecoder decoder, int iFrame) throws IOException {
-            decoder.readDecodedRgb(_rgbBuff.getWidth(), _rgbBuff.getHeight(), _rgbBuff.getData());
-            _writerMjpg.writeFrame(_rgbBuff.toBufferedImage());
+            decoder.readDecodedRgb(_rgbImg.getWidth(), _rgbImg.getHeight(), 
+                    ((DataBufferInt)_rgbImg.getRaster().getDataBuffer()).getData());
+            _writerMjpg.writeFrame(_rgbImg);
         }
 
         @Override
@@ -570,16 +566,16 @@ class VideoSavers  {
 
     public static class DecodedAviWriter_YV12 extends AbstractDecodedAviWriter {
 
-        protected final Rec601YCbCrImage _yuvImgBuff;
+        protected final YCbCrImage _yuvImgBuff;
         protected final MdecDecoder_double _decoderDbl;
         protected AviWriterYV12 _writerYuv;
 
         public DecodedAviWriter_YV12(VideoSaverBuilderSnapshot snap) {
             super(snap);
 
-            _decoder = _decoderDbl = new MdecDecoder_double(new PsxMdecIDCT_double(), getCroppedWidth(), getCroppedHeight());
+            _decoderDbl = (MdecDecoder_double) _snap.videoDecoder;
 
-            _yuvImgBuff = new Rec601YCbCrImage(getCroppedWidth(), getCroppedHeight());
+            _yuvImgBuff = new YCbCrImage(getCroppedWidth(), getCroppedHeight());
         }
 
         @Override
@@ -596,14 +592,14 @@ class VideoSavers  {
 
         @Override
         protected void actuallyWrite(MdecDecoder decoder, int iFrame) throws IOException {
-            _decoderDbl.readDecodedRec601YCbCr420(_yuvImgBuff);
+            _decoderDbl.readDecoded_Rec601_YCbCr420(_yuvImgBuff);
             _writerYuv.write(_yuvImgBuff.getY(), _yuvImgBuff.getCb(), _yuvImgBuff.getCr());
         }
 
         @Override
         protected void writeError(Throwable ex) throws IOException {
             BufferedImage bi = makeErrorImage(ex, _writerYuv.getWidth(), _writerYuv.getHeight());
-            Rec601YCbCrImage yuv = new Rec601YCbCrImage(bi);
+            YCbCrImage yuv = new YCbCrImage(bi);
             _writerYuv.write(yuv.getY(), yuv.getCb(), yuv.getCr());
         }
 
@@ -617,7 +613,7 @@ class VideoSavers  {
 
         @Override
         protected void actuallyWrite(MdecDecoder decoder, int iFrame) throws IOException {
-            _decoderDbl.readDecodedJfifYCbCr420(_yuvImgBuff);
+            _decoderDbl.readDecoded_JFIF_YCbCr420(_yuvImgBuff);
             _writerYuv.write(_yuvImgBuff.getY(), _yuvImgBuff.getCb(), _yuvImgBuff.getCr());
         }
 

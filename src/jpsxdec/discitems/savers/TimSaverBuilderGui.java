@@ -64,7 +64,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
         super(builder, new BorderLayout());
         setParagraphLayoutPanel(_topParagraphPanel);
 
-        addControls(this, new Format());
+        addListeners(this, new Format());
 
         updatePreviews();
 

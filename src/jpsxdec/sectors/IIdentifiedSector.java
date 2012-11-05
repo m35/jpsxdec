@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,17 +44,6 @@ import jpsxdec.util.ByteArrayFPIS;
 /** Interface implemented by all identified CD sectors. */
 public interface IIdentifiedSector {
     
-    public static final int SECTOR_UNKNOWN = 0;
-    public static final int SECTOR_VIDEO = 1;
-    public static final int SECTOR_AUDIO = 2;
-    public static final int SECTOR_ISO9660_VPD = 8;
-    public static final int SECTOR_ISO9660_DR = 16;
-    public static final int SECTOR_ISO9660_PT = 32;
-    
-    /** Returns the sector type of the sector ({@code SECOTR_*}),
-     *  or -1 if of some other type. */
-    public int getSectorType();
-    
     /** @return Human readable sector type (used for reference and debugging).*/
     public String getTypeName();
     
@@ -72,7 +61,7 @@ public interface IIdentifiedSector {
     /** Returns the sector offset from the start of the file. */
     public int getSectorNumber();
 
-    public CdSector getCDSector();
+    public CdSector getCdSector();
 
     /** Returns the number of errors found in the underlying {@link CdSector}. */
     public int getErrorCount();

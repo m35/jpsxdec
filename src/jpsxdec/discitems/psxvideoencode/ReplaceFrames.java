@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2012  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,15 +51,11 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.util.ConsoleProgressListenerLogger;
+import jpsxdec.discitems.*;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.savers.FrameDemuxer;
-import jpsxdec.discitems.DiscItemSaverBuilder;
-import jpsxdec.discitems.savers.DemuxedFrame;
-import jpsxdec.sectors.IVideoSector;
 import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IOException6;
 import jpsxdec.util.NotThisTypeException;
@@ -171,11 +167,11 @@ public class ReplaceFrames {
     {
         final Throwable[] exception = new Throwable[1];
         
-        FrameDemuxer demuxer;
-        demuxer = new FrameDemuxer(vidItem.getWidth(), vidItem.getHeight(),
-                                   vidItem.getStartSector(), vidItem.getEndSector())
-        {
-            protected void frameComplete(DemuxedFrame frame) throws IOException {
+        ISectorFrameDemuxer demuxer;
+        demuxer = vidItem.makeDemuxer();
+        demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
+
+            public void frameComplete(IDemuxedFrame frame) throws IOException {
 
                 ReplaceFrame replacer = getFrameToReplace(frame.getFrame());
                 if (replacer != null) {
@@ -195,15 +191,15 @@ public class ReplaceFrames {
                 }
 
             }
-        };
+        });
 
         for (int iSector = 0;
              iSector < vidItem.getSectorLength();
              iSector++)
         {
             IdentifiedSector sector = vidItem.getRelativeIdentifiedSector(iSector);
-            if (sector instanceof IVideoSector)
-                demuxer.feedSector((IVideoSector) sector);
+            if (sector != null)
+                demuxer.feedSector(sector);
 
             if (exception[0] != null) {
                 if (exception[0] instanceof MdecException)
@@ -219,6 +215,7 @@ public class ReplaceFrames {
     }
 
 
+    // TODO: remove this
     public static void main(String[] args) throws Throwable {
         if (args.length != 3) {
             System.out.println("arguments: <disc> <item> <mdec filename format>");

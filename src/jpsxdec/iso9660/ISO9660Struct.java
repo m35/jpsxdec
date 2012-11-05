@@ -44,7 +44,7 @@ import jpsxdec.util.NotThisTypeException;
 
 /** Abstract class inherited by all ISO9660 related structures. Provides handy 
  *  functions for reading the structure data. */
-public abstract class ISOstruct {
+public abstract class ISO9660Struct {
     
     /** ECMA119: 7.2.3 */
     protected static void magic4_bothendian(InputStream is, int i) 

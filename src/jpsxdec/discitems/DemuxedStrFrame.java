@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,7 +48,7 @@ import jpsxdec.util.FeedbackStream;
  *  This is surprisingly more complicated that it seems. */
 public class DemuxedStrFrame implements IDemuxedFrame {
 
-    private static final Logger log = Logger.getLogger(DemuxedStrFrame.class.getName());
+    private static final Logger LOG = Logger.getLogger(DemuxedStrFrame.class.getName());
 
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
@@ -179,7 +179,7 @@ public class DemuxedStrFrame implements IDemuxedFrame {
                 chunk.copyIdentifiedUserData(abBuffer, iPos);
                 iPos += chunk.getIdentifiedUserDataSize();
             } else {
-                log.warning("Frame " + _iFrame + " chunk " + iChunk + " missing.");
+                LOG.warning("Frame " + _iFrame + " chunk " + iChunk + " missing.");
             }
         }
         return abBuffer;

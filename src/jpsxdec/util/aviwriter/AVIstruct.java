@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,10 @@
 
 package jpsxdec.util.aviwriter;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
+
 
 /** Super-class of the C structures used in the AVI file format. This provides
  *  helper functions, some required interface of the sub-classes, and the

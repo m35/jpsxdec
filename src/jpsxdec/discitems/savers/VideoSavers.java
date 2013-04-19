@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -55,12 +55,13 @@ import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.formats.YCbCrImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
-import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.aviwriter.AviWriter;
 import jpsxdec.util.aviwriter.AviWriterDIB;
@@ -71,7 +72,7 @@ import jpsxdec.util.aviwriter.AviWriterYV12;
  * because they all depend so much on each other. */
 class VideoSavers  {
 
-    private static final Logger log = Logger.getLogger(VideoSavers.class.getName());
+    private static final Logger LOG = Logger.getLogger(VideoSavers.class.getName());
 
     public static class BitstreamSequenceWriter extends VideoSaver {
 
@@ -98,23 +99,13 @@ class VideoSavers  {
         }
 
         protected void close() throws IOException {
-            _snap.videoDemuxer.flush();
+            _snap.videoDemuxer.flush(getListener());
         }
         public int getMovieEndSector() { return _snap.videoItem.getEndSector(); }
         public int getMovieStartSector() { return _snap.videoItem.getStartSector(); }
 
         private void makeDir() throws IOException {
-            String baseParent = _snap.baseName.getParent();
-            File dir;
-            if (baseParent == null)
-                dir = _directory;
-            else
-                dir = new File(_directory, baseParent);
-            if (!dir.exists() && !dir.mkdirs()) {
-                throw new IOException("Unable to create directory " + dir);
-            } else if (!dir.isDirectory()) {
-                throw new IOException("Cannot create directory over a file " + dir);
-            }
+            IO.makeDirs(new File(_directory, _snap.baseName.getPath()).getParentFile());
         }
 
         protected File makeFileName(int iFrame) {
@@ -125,7 +116,7 @@ class VideoSavers  {
         }
 
         protected void feedSector(IdentifiedSector sector) throws IOException {
-            _snap.videoDemuxer.feedSector(sector);
+            _snap.videoDemuxer.feedSector(sector, getListener());
         }
 
         protected int getCurrentFrame() {
@@ -165,8 +156,8 @@ class VideoSavers  {
                 throw new NotThisTypeException("Error with frame " + iFrame + ": Unable to determine frame type.");
             } else {
                 String s = "Video format identified as " + uncompressor.getName();
-                log.info(s);
-                getListener().info(s);
+                LOG.info(s);
+                getListener().progressInfo(s);
             }
             return uncompressor;
         }
@@ -192,8 +183,8 @@ class VideoSavers  {
                 BitStreamUncompressor uncompressor = resetUncompressor(abDemux, iFrameNumber);
                 writeUncompressed(uncompressor, iFrameNumber, iFrameEndSector);
             } catch (NotThisTypeException ex) {
-                log.log(Level.WARNING, null, ex);
-                getListener().getLog().log(Level.WARNING, null, ex);
+                LOG.log(Level.WARNING, null, ex);
+                getListener().log(Level.WARNING, null, ex);
             }
         }
 
@@ -203,21 +194,21 @@ class VideoSavers  {
             try {
                 bos = new BufferedOutputStream(new FileOutputStream(f));
                 try {
-                    final int TOTAL_BLOCKS = ((getHeight() + 15)) / 16 * ((getWidth() + 15) / 16) * 6;
+                    final int TOTAL_BLOCKS = Calc.blocks(getWidth(), getHeight());
                     MdecInputStreamReader.writeMdecBlocks(uncompressor, bos, TOTAL_BLOCKS);
                 } catch (MdecException ex) {
-                    log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
-                    getListener().getLog().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                    LOG.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                    getListener().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
                 }
             } catch (IOException ex) {
-                log.log(Level.SEVERE, "Error writing frame " + iFrameNumber, ex);
-                getListener().getLog().log(Level.WARNING, "Error writing frame " + iFrameNumber, ex);
+                LOG.log(Level.SEVERE, "Error writing frame " + iFrameNumber, ex);
+                getListener().log(Level.WARNING, "Error writing frame " + iFrameNumber, ex);
             } finally {
                 try {
                     bos.close();
                 } catch (IOException ex) {
-                    log.log(Level.SEVERE, "Error closing file for frame " + iFrameNumber, ex);
-                    getListener().getLog().log(Level.WARNING, "Error closing file for frame " + iFrameNumber, ex);
+                    LOG.log(Level.SEVERE, "Error closing file for frame " + iFrameNumber, ex);
+                    getListener().log(Level.WARNING, "Error closing file for frame " + iFrameNumber, ex);
                 }
             }
         }
@@ -238,8 +229,8 @@ class VideoSavers  {
                 _iCroppedWidth = _snap.videoItem.getWidth();
                 _iCroppedHeight = _snap.videoItem.getHeight();
             } else {
-                _iCroppedWidth = (_snap.videoItem.getWidth() + 15) & ~15;
-                _iCroppedHeight = (_snap.videoItem.getHeight() + 15) & ~15;
+                _iCroppedWidth = Calc.fullDimension(_snap.videoItem.getWidth());
+                _iCroppedHeight = Calc.fullDimension(_snap.videoItem.getHeight());
             }
         }
 
@@ -248,8 +239,8 @@ class VideoSavers  {
             try {
                 _snap.videoDecoder.decode(uncompressor);
             } catch (MdecException.Decode ex) {
-                log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
-                getListener().getLog().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                LOG.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                getListener().log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
             }
             writeDecoded(_snap.videoDecoder, iFrameNumber, iFrameEndSector);
         }
@@ -286,28 +277,28 @@ class VideoSavers  {
             File f = makeFileName(iFrame);
             try {
                 if (!ImageIO.write(_rgbImg, _eFmt.getId(), f)) {
-                    log.log(Level.WARNING, "Unable to write frame file " + f);
-                    getListener().getLog().log(Level.WARNING, "Unable to write frame file " + f);
+                    LOG.log(Level.WARNING, "Unable to write frame file " + f);
+                    getListener().log(Level.WARNING, "Unable to write frame file " + f);
                 }
             } catch (IOException ex) {
-                log.log(Level.WARNING, "Error writing frame file " + f, ex);
-                getListener().getLog().log(Level.WARNING, "Error writing frame file " + f, ex);
+                LOG.log(Level.WARNING, "Error writing frame file " + f, ex);
+                getListener().log(Level.WARNING, "Error writing frame file " + f, ex);
             }
         }
 
         @Override
         protected void writeError(Throwable thrown, int iFrame) {
-            log.log(Level.WARNING, "Error with frame " + iFrame, thrown);
+            LOG.log(Level.WARNING, "Error with frame " + iFrame, thrown);
             BufferedImage bi = makeErrorImage(thrown, _rgbImg.getWidth(), _rgbImg.getHeight());
             File f = makeFileName(iFrame);
             try {
                 if (!ImageIO.write(bi, _eFmt.getId(), f)) {
-                    log.log(Level.WARNING, "Unable to write error frame file " + f);
-                    getListener().getLog().log(Level.WARNING, "Unable to write error frame file " + f);
+                    LOG.log(Level.WARNING, "Unable to write error frame file " + f);
+                    getListener().log(Level.WARNING, "Unable to write error frame file " + f);
                 }
             } catch (IOException ex) {
-                log.log(Level.WARNING, "Error writing error frame file " + f, ex);
-                getListener().getLog().log(Level.WARNING, "Error writing error frame file " + f, ex);
+                LOG.log(Level.WARNING, "Error writing error frame file " + f, ex);
+                getListener().log(Level.WARNING, "Error writing error frame file " + f, ex);
             }
         }
 
@@ -387,12 +378,12 @@ class VideoSavers  {
                 if (_aviWriter.getAudioSamplesWritten() < 1 &&
                     _avSync.getInitialAudio() > 0)
                 {
-                    getListener().getLog().log(Level.INFO, "Writing " + _avSync.getInitialAudio() + " samples of silence to align audio/video playback.");
+                    getListener().log(Level.INFO, "Writing " + _avSync.getInitialAudio() + " samples of silence to align audio/video playback.");
                     _aviWriter.writeSilentSamples(_avSync.getInitialAudio());
                 }
                 long lngNeededSilence = _avSync.calculateAudioToCatchUp(iPresentationSector, _aviWriter.getAudioSamplesWritten());
                 if (lngNeededSilence > 0) {
-                    getListener().getLog().log(Level.INFO, "Adding " + lngNeededSilence + " samples to keep audio in sync.");
+                    getListener().log(Level.INFO, "Adding " + lngNeededSilence + " samples to keep audio in sync.");
                     _aviWriter.writeSilentSamples(lngNeededSilence);
                 }
 
@@ -401,10 +392,10 @@ class VideoSavers  {
         }
         @Override
         protected void feedSector(IdentifiedSector sector) throws IOException {
-            _snap.videoDemuxer.feedSector(sector);
+            _snap.videoDemuxer.feedSector(sector, getListener());
             // for Crusader, audio and video are the same object
             if (_snap.videoDemuxer != _snap.audioDecoder && _snap.audioDecoder != null)
-                _snap.audioDecoder.feedSector(sector);
+                _snap.audioDecoder.feedSector(sector, getListener());
         }
 
         @Override
@@ -418,13 +409,7 @@ class VideoSavers  {
         }
 
         protected File getOutputFile() {
-            String baseParent = _snap.baseName.getParent();
-            File dir;
-            if (baseParent == null)
-                dir = _directory;
-            else
-                dir = new File(_directory, baseParent);
-            return new File(dir, _snap.baseName.getName() + ".avi");
+            return new File(_directory, _snap.baseName.getPath() + ".avi");
         }
 
         @Override
@@ -443,7 +428,7 @@ class VideoSavers  {
             // if first frame
             if (_aviWriter.getVideoFramesWritten() < 1 && _vidSync.getInitialVideo() > 0) {
 
-                getListener().getLog().log(Level.INFO, "Writing " + _vidSync.getInitialVideo() + " blank frame(s) to align audio/video playback.");
+                getListener().log(Level.INFO, "Writing " + _vidSync.getInitialVideo() + " blank frame(s) to align audio/video playback.");
                 _aviWriter.writeBlankFrame();
                 for (int i = _vidSync.getInitialVideo()-1; i > 0; i--) {
                     _aviWriter.repeatPreviousFrame();
@@ -458,7 +443,7 @@ class VideoSavers  {
             if (iDupCount < 0) {
                 // hopefully this will never happen because the frame rate
                 // calculated during indexing should prevent it
-                getListener().getLog().log(Level.WARNING, "Frame "+iFrame+" is ahead of reading by " + (-iDupCount) + " frame(s).");
+                getListener().log(Level.WARNING, "Frame "+iFrame+" is ahead of reading by " + (-iDupCount) + " frame(s).");
             } else while (iDupCount > 0) { // could happen with first frame
                 if (_aviWriter.getVideoFramesWritten() < 1) // TODO: fix design so this isn't needed
                     _aviWriter.writeBlankFrame();
@@ -476,8 +461,8 @@ class VideoSavers  {
             try {
                 writeError(ex);
             } catch (IOException ex1) {
-                log.log(Level.SEVERE, "Error writing error frame " + iFrame, ex);
-                getListener().getLog().log(Level.SEVERE, "Error writing error frame " + iFrame, ex);
+                LOG.log(Level.SEVERE, "Error writing error frame " + iFrame, ex);
+                getListener().log(Level.SEVERE, "Error writing error frame " + iFrame, ex);
             }
         }
 

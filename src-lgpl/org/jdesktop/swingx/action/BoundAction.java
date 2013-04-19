@@ -1,5 +1,5 @@
 /*
- * $Id: BoundAction.java,v 1.7 2008/12/05 14:34:56 kschaefe Exp $
+ * $Id: BoundAction.java 3972 2011-03-17 20:31:58Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -21,17 +21,24 @@
 
 package org.jdesktop.swingx.action;
 
-import javax.swing.*;
-import javax.swing.event.EventListenerList;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.beans.EventHandler;
 import java.beans.Statement;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.util.EventListener;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.swing.Icon;
+import javax.swing.event.EventListenerList;
 
 /**
  * A class that represents the many type of actions that this framework supports.
@@ -41,12 +48,13 @@ import java.util.logging.Logger;
  * the TargetManager.
  *
  * @author Mark Davidson
+ * @author Karl Schaefer (serialization support)
  */
 public class BoundAction extends AbstractActionExt {
-    private static final Logger LOG = Logger.getLogger(BoundAction.class
-            .getName());
+    private static final Logger LOG = Logger.getLogger(BoundAction.class .getName());
+    
     // Holds the listeners
-    private EventListenerList listeners;
+    private transient EventListenerList listeners;
 
     public BoundAction() {
         this("BoundAction");
@@ -123,11 +131,11 @@ public class BoundAction extends AbstractActionExt {
      */
     public void registerCallback(Object handler, String method) {
         if (isStateAction()) {
-            // Create a handler for toogle type actions.
+            // Create a handler for toggle type actions.
             addItemListener(new BooleanInvocationHandler(handler, method));
         } else {
-            // Create a new ActionListener using the dynamic proxy api.
-            addActionListener((ActionListener)EventHandler.create(ActionListener.class,
+            // Create a new ActionListener using the dynamic proxy API.
+            addActionListener(EventHandler.create(ActionListener.class,
                                                                   handler, method));
         }
     }
@@ -235,6 +243,7 @@ public class BoundAction extends AbstractActionExt {
     /**
      * Callback for toggle actions.
      */
+    @Override
     public void itemStateChanged(ItemEvent evt) {
         // Update all objects that share this item
         boolean newValue;
@@ -255,4 +264,65 @@ public class BoundAction extends AbstractActionExt {
         }
     }
 
+    private void writeObject(ObjectOutputStream s) throws IOException {
+        s.defaultWriteObject();
+
+        if (listeners != null) {
+            Object[] list = listeners.getListenerList();
+            
+            for (int i = 1; i < list.length; i += 2) {
+                if (Proxy.isProxyClass(list[i].getClass())) {
+                    InvocationHandler h = Proxy.getInvocationHandler(list[i]);
+                    
+                    if (h instanceof EventHandler && ((EventHandler) h).getTarget() instanceof Serializable) {
+                        EventHandler eh = (EventHandler) h;
+                        
+                        s.writeObject("callback");
+                        s.writeObject(eh.getTarget());
+                        s.writeObject(eh.getAction());
+                    }
+                } else if (list[i] instanceof BooleanInvocationHandler) {
+                    BooleanInvocationHandler bih = (BooleanInvocationHandler) list[i];
+                    Object target = bih.trueStatement.getTarget();
+                    
+                    if (target instanceof Serializable) {
+                        s.writeObject(BooleanInvocationHandler.class.getName());
+                        s.writeObject(target);
+                        s.writeObject(bih.trueStatement.getMethodName());
+                    }
+                } else if (list[i] instanceof Serializable) {
+                    s.writeObject(((Class<?>) list[i - 1]).getName());
+                    s.writeObject(list[i]);
+                }
+            }
+        }
+
+        s.writeObject(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void readObject(ObjectInputStream s) throws ClassNotFoundException,
+            IOException {
+        s.defaultReadObject();
+
+        Object typeOrNull;
+        
+        while (null != (typeOrNull = s.readObject())) {
+            if ("callback".equals(typeOrNull)) {
+                Object handler = s.readObject();
+                String method = (String) s.readObject();
+                
+                addActionListener(EventHandler.create(ActionListener.class, handler, method));
+            } else if (BooleanInvocationHandler.class.getName().equals(typeOrNull)) {
+                Object handler = s.readObject();
+                String method = (String) s.readObject();
+                
+                addItemListener(new BooleanInvocationHandler(handler, method));
+            } else {
+                ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                EventListener l = (EventListener) s.readObject();
+                addListener((Class<EventListener>)Class.forName((String)typeOrNull, true, cl), l);
+            }
+        }
+    }
 }

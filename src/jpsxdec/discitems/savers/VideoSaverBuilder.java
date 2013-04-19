@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,11 +42,11 @@ import argparser.BooleanHolder;
 import argparser.IntHolder;
 import argparser.StringHolder;
 import java.util.List;
-import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.formats.JavaImageFormat;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
@@ -57,8 +57,6 @@ import jpsxdec.util.TabularFeedback;
 
 /** Manages all possible options for saving PSX video. */
 public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
-
-    private static final Logger log = Logger.getLogger(VideoSaverBuilder.class.getName());
 
     private final DiscItemVideoStream _sourceVidItem;
 
@@ -201,14 +199,14 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         if (getCrop())
             return _sourceVidItem.getWidth();
         else
-            return (_sourceVidItem.getWidth() + 15) & ~15;
+            return Calc.fullDimension(_sourceVidItem.getWidth());
     }
 
     public int getHeight() {
         if (getCrop())
             return _sourceVidItem.getHeight();
         else
-            return (_sourceVidItem.getHeight() + 15) & ~15;
+            return Calc.fullDimension(_sourceVidItem.getHeight());
     }
 
     // .........................................................................
@@ -252,7 +250,10 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public Upsampler getChromaInterpolation() {
-        return _mdecUpsampler;
+        if (getChromaInterpolation_enabled())
+            return _mdecUpsampler;
+        else
+            return Upsampler.NearestNeighbor;
     }
 
     public void setChromaInterpolation(Upsampler val) {

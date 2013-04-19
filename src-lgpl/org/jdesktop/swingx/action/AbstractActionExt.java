@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractActionExt.java,v 1.10 2009/01/21 17:54:30 kschaefe Exp $
+ * $Id: AbstractActionExt.java 4158 2012-02-03 18:29:40Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -32,7 +32,12 @@ import javax.swing.KeyStroke;
 
 /**
  * Extends the concept of the Action to include toggle or group states.
- *
+ * <p>
+ * SwingX 1.6.3 updates {@code AbstractActionExt} to use new features of {@link Action} that were
+ * added in {@code Java 1.6}. The selection is now managed with {@link Action#SELECTED_KEY}, which
+ * allows the action to correctly configured Swing buttons. The {@link #LARGE_ICON} has also been
+ * changed to correspond to {@link Action#LARGE_ICON_KEY}.
+ * 
  */
 public abstract class AbstractActionExt extends AbstractAction
     implements ItemListener {
@@ -40,7 +45,7 @@ public abstract class AbstractActionExt extends AbstractAction
     /**
      * The key for the large icon
      */
-    public static final String LARGE_ICON = "__LargeIcon__";
+    public static final String LARGE_ICON = "__LargeIcon__";;
 
     /**
      * The key for the button group
@@ -52,18 +57,16 @@ public abstract class AbstractActionExt extends AbstractAction
      */
     public static final String IS_STATE = "__State__";
 
-    /**
-     * Specified whether the action is selected; the default is false
-     */
-    private boolean selected = false;
+
+    public static final String SELECTED_KEY = "__Selected__";
 
     /**
      * Default constructor, does nothing.
-     *
      */
     public AbstractActionExt() {
-        // default constructor
+        this((String) null);
     }
+    
     /**
      * Copy constructor copies the state.
      */
@@ -72,7 +75,6 @@ public abstract class AbstractActionExt extends AbstractAction
         for (int i = 0; i < keys.length; i++) {
             putValue((String)keys[i], action.getValue((String)keys[i]));
         }
-        this.selected = action.selected;
         this.enabled = action.enabled;
 
         // Copy change listeners.
@@ -270,7 +272,7 @@ public abstract class AbstractActionExt extends AbstractAction
         }
         return '\0';
     }
-
+    
     /**
      * Sets the action command key. The action command key
      * is used to identify the action.
@@ -282,17 +284,17 @@ public abstract class AbstractActionExt extends AbstractAction
      * @see Action#ACTION_COMMAND_KEY
      * @see Action#putValue
      */
-    public void setActionCommand(Object key) {
+    public void setActionCommand(String key) {
         putValue(Action.ACTION_COMMAND_KEY, key);
     }
 
     /**
      * Returns the action command.
-     *
+     * 
      * @return the action command or null
      */
-    public Object getActionCommand() {
-        return getValue(Action.ACTION_COMMAND_KEY);
+    public String getActionCommand() {
+        return (String) getValue(Action.ACTION_COMMAND_KEY);
     }
 
     /**
@@ -381,21 +383,26 @@ public abstract class AbstractActionExt extends AbstractAction
     /**
      * @return true if the action is in the selected state
      */
-    public boolean isSelected()  {
-        return selected;
+    public boolean isSelected() {
+        Boolean selected = (Boolean) getValue(SELECTED_KEY);
+        
+        if (selected == null) {
+            return false;
+        }
+        
+        return selected.booleanValue();
     }
 
     /**
-     * Changes the state of the action
-     * @param newValue true to set the action as selected of the action.
+     * Changes the state of the action. This is a convenience method for updating the Action via the
+     * value map.
+     * 
+     * @param newValue
+     *            true to set the action as selected of the action.
+     * @see Action#SELECTED_KEY
      */
-    public synchronized void setSelected(boolean newValue) {
-        boolean oldValue = this.selected;
-        if (oldValue != newValue) {
-            this.selected = newValue;
-            firePropertyChange("selected", Boolean.valueOf(oldValue),
-                               Boolean.valueOf(newValue));
-        }
+    public void setSelected(boolean newValue) {
+        putValue(SELECTED_KEY, newValue);
     }
 
     @Override
@@ -422,13 +429,6 @@ public abstract class AbstractActionExt extends AbstractAction
         }
         return buffer.toString();
     }
-
-    // /**
-    // * @inheritDoc
-    // * Default to no-op
-    // */
-    // public void itemStateChanged(ItemEvent e) {
-    // }
     
     /**
      * Callback method as <code>ItemListener</code>. Updates internal state based
@@ -444,6 +444,4 @@ public abstract class AbstractActionExt extends AbstractAction
             setSelected(ItemEvent.SELECTED == e.getStateChange());
         }
     }
-
-
 }

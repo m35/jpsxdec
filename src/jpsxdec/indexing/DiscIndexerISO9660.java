@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,18 +37,18 @@
 
 package jpsxdec.indexing;
 
-import jpsxdec.sectors.SectorISO9660DirectoryRecords;
-import jpsxdec.sectors.SectorISO9660VolumePrimaryDescriptor;
-import jpsxdec.discitems.DiscItemISO9660File;
-import jpsxdec.iso9660.DirectoryRecord;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemSerialization;
+import jpsxdec.discitems.DiscItemISO9660File;
+import jpsxdec.discitems.SerializedDiscItem;
+import jpsxdec.iso9660.DirectoryRecord;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.SectorISO9660DirectoryRecords;
+import jpsxdec.sectors.SectorISO9660VolumePrimaryDescriptor;
 import jpsxdec.util.NotThisTypeException;
 
 /**
@@ -56,7 +56,7 @@ import jpsxdec.util.NotThisTypeException;
  */
 public class DiscIndexerISO9660 extends DiscIndexer {
 
-    private static final Logger log = Logger.getLogger(DiscIndexerISO9660.class.getName());
+    private static final Logger LOG = Logger.getLogger(DiscIndexerISO9660.class.getName());
 
     private final ArrayList<SectorISO9660DirectoryRecords> _dirRecords =
             new ArrayList<SectorISO9660DirectoryRecords>();
@@ -94,9 +94,9 @@ public class DiscIndexerISO9660 extends DiscIndexer {
         
         
         if (_primaryDescriptors.size() > 1) {
-            log.warning("Disc has more than 1 primary descriptors??");
+            LOG.warning("Disc has more than 1 primary descriptors??");
             for (SectorISO9660VolumePrimaryDescriptor pd : _primaryDescriptors) {
-                log.warning(pd.toString());
+                LOG.warning(pd.toString());
             }
         } else if (_primaryDescriptors.size() == 1) {
             SectorISO9660VolumePrimaryDescriptor priDesc = _primaryDescriptors.get(0);
@@ -151,7 +151,7 @@ public class DiscIndexerISO9660 extends DiscIndexer {
     }
     
     @Override
-    public DiscItem deserializeLineRead(DiscItemSerialization fields) {
+    public DiscItem deserializeLineRead(SerializedDiscItem fields) {
         try {
             if (DiscItemISO9660File.TYPE_ID.equals(fields.getType())) {
                 return new DiscItemISO9660File(fields);
@@ -174,7 +174,7 @@ public class DiscIndexerISO9660 extends DiscIndexer {
     }
 
     @Override
-    public void mediaListGenerated(DiscIndex discIndex) {
+    public void indexGenerated(DiscIndex discIndex) {
 
         if (_primaryDescriptors.size() > 0)
             discIndex.setDiscName(_primaryDescriptors.get(0).getVPD().volume_id.trim());

@@ -1,5 +1,5 @@
 /*
- * $Id: HighlightPredicate.java,v 1.27 2009/01/02 13:26:06 rah003 Exp $
+ * $Id: HighlightPredicate.java 3935 2011-03-02 19:06:41Z kschaefe $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -21,12 +21,21 @@
 package org.jdesktop.swingx.decorator;
 
 import java.awt.Component;
+import java.awt.Insets;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+
+import javax.swing.AbstractButton;
+import javax.swing.Icon;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 
 import org.jdesktop.swingx.rollover.RolloverProducer;
 import org.jdesktop.swingx.util.Contract;
@@ -121,6 +130,49 @@ public interface HighlightPredicate {
     };
     
     /**
+     * Rollover  Column.
+     */
+    public static final HighlightPredicate ROLLOVER_COLUMN = new HighlightPredicate() {
+        
+        /**
+         * @inheritDoc
+         * Implemented to return true if the adapter's component is enabled and
+         * the column of its rollover property equals the adapter's columns, returns
+         * false otherwise.
+         * 
+         * @see org.jdesktop.swingx.rollover.RolloverProducer
+         */
+        public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
+            if (!adapter.getComponent().isEnabled()) return false;
+            Point p = (Point) adapter.getComponent().getClientProperty(
+                    RolloverProducer.ROLLOVER_KEY);
+            return p != null &&  p.x == adapter.column;
+        }
+        
+    };
+    /**
+     * Rollover  Cell.
+     */
+    public static final HighlightPredicate ROLLOVER_CELL = new HighlightPredicate() {
+        
+        /**
+         * @inheritDoc
+         * Implemented to return true if the adapter's component is enabled and
+         * the column of its rollover property equals the adapter's columns, returns
+         * false otherwise.
+         * 
+         * @see org.jdesktop.swingx.rollover.RolloverProducer
+         */
+        public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
+            if (!adapter.getComponent().isEnabled()) return false;
+            Point p = (Point) adapter.getComponent().getClientProperty(
+                    RolloverProducer.ROLLOVER_KEY);
+            return p != null  && p.y == adapter.row &&  p.x == adapter.column;
+        }
+        
+    };
+    
+    /**
      * Is editable.
      */
     public static final HighlightPredicate EDITABLE = new HighlightPredicate() {
@@ -173,6 +225,59 @@ public interface HighlightPredicate {
          */
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return !adapter.isLeaf();
+        }
+    };
+    
+    /**
+     * Selected predicate.
+     */
+    public static final HighlightPredicate IS_SELECTED = new HighlightPredicate() {
+
+        public boolean isHighlighted(Component renderer,
+                ComponentAdapter adapter) {
+            return adapter.isSelected();
+        }
+        
+    };
+    
+    /**
+     * Determines if the displayed text is truncated.
+     *
+     * @author Karl Schaefer
+     */
+    public static final HighlightPredicate IS_TEXT_TRUNCATED = new HighlightPredicate() {
+        public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
+            JComponent c = renderer instanceof JComponent ? (JComponent) renderer : null;
+            String text = adapter.getString();
+            Icon icon = null;
+            //defaults from JLabel
+            int verticalAlignment = SwingConstants.CENTER;
+            int horizontalAlignment = SwingConstants.LEADING;
+            int verticalTextPosition = SwingConstants.CENTER;
+            int horizontalTextPosition = SwingConstants.TRAILING;
+            int gap = 0;
+            
+            if (renderer instanceof JLabel) {
+                icon = ((JLabel) renderer).getIcon();
+                gap = ((JLabel) renderer).getIconTextGap();
+            } else if (renderer instanceof AbstractButton) {
+                icon = ((AbstractButton) renderer).getIcon();
+                gap = ((AbstractButton) renderer).getIconTextGap();
+            }
+            
+            Rectangle cellBounds = adapter.getCellBounds();
+            if (c != null && c.getBorder() != null) {
+                Insets insets = c.getBorder().getBorderInsets(c);
+                cellBounds.width -= insets.left + insets.right;
+                cellBounds.height -= insets.top + insets.bottom;
+            }
+            
+            String result = SwingUtilities.layoutCompoundLabel(c, renderer
+                    .getFontMetrics(renderer.getFont()), text, icon, verticalAlignment,
+                    horizontalAlignment, verticalTextPosition, horizontalTextPosition, cellBounds,
+                    new Rectangle(), new Rectangle(), gap);
+            
+            return !text.equals(result);
         }
     };
     
@@ -429,7 +534,7 @@ public interface HighlightPredicate {
         
         /**
          * Instantiates a predicate which returns true for the
-         * given columns in model coodinates.
+         * given columns in model coordinates.
          * 
          * @param columns the columns to highlight in model coordinates.
          */
@@ -448,7 +553,7 @@ public interface HighlightPredicate {
          * 
          */
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
-            int modelIndex = adapter.viewToModel(adapter.column);
+            int modelIndex = adapter.convertColumnIndexToModel(adapter.column);
             return columnList.contains(modelIndex);
         }
 
@@ -493,7 +598,7 @@ public interface HighlightPredicate {
          * 
          */
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
-            int modelIndex = adapter.viewToModel(adapter.column);
+            int modelIndex = adapter.convertColumnIndexToModel(adapter.column);
             Object identifier = adapter.getColumnIdentifierAt(modelIndex);
             return identifier != null ? columnList.contains(identifier) : false;
         }
@@ -572,7 +677,7 @@ public interface HighlightPredicate {
             this(null);
         }
         /**
-         * Instantitates a predicate with the given compare value.
+         * Instantiates a predicate with the given compare value.
          * PENDING JW: support array? 
          * @param compareValue the fixed value to compare the 
          *   adapter against.
@@ -582,7 +687,7 @@ public interface HighlightPredicate {
         }
         
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          * 
          * Implemented to return true if the adapter value equals the 
          * this predicate's compare value.
@@ -603,34 +708,37 @@ public interface HighlightPredicate {
 
     /**
      * Predicate testing the componentAdapter value type against a given
-     * Clazz. 
+     * Class. 
      */
     public static class TypeHighlightPredicate implements HighlightPredicate {
 
         private Class<?> clazz;
         
         /**
-         * Instantitates a predicate with Object.clazz. This is essentially the
-         * same as testing against null.
+         * Instantiates a predicate with Object.clazz. This is essentially the
+         * same as testing the adapter's value against null.
          *
          */
         public TypeHighlightPredicate() {
             this(Object.class);
         }
+        
         /**
-         * Instantitates a predicate with the given compare class.<p>
+         * Instantiates a predicate with the given compare class.<p>
          * 
          * PENDING JW: support array? 
          * 
          * @param compareValue the fixed class to compare the 
-         *   adapter value against.
+         *   adapter value against, must not be null
+         *   
+         * @throws NullPointerException if the class is null.
          */
-        public TypeHighlightPredicate(Class compareValue) {
-            this.clazz = compareValue;
+        public TypeHighlightPredicate(Class<?> compareValue) {
+            this.clazz = Contract.asNotNull(compareValue, "compare class must not be null");
         }
         
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          * 
          * Implemented to return true if the adapter value is an instance
          * of this predicate's class type.
@@ -639,6 +747,7 @@ public interface HighlightPredicate {
             return adapter.getValue() != null ? 
                     clazz.isAssignableFrom(adapter.getValue().getClass()) : false;
         }
+        
         /**
          * @return type of predicate compare class
          */
@@ -650,41 +759,50 @@ public interface HighlightPredicate {
 
     /**
      * Predicate testing the componentAdapter column type against a given
-     * Clazz. Would be nice-to-have - but can't because the ComponentAdapter doesn't
-     * expose the columnClass. Should it?
+     * Class. 
      */
-    // @KEEP
-//    public static class ColumnTypeHighlightPredicate implements HighlightPredicate {
-//
-//        private Class clazz;
-//        
-//        /**
-//         * Instantitates a predicate with Object.clazz. This is essentially the
-//         * same as testing against null.
-//         *
-//         */
-//        public ColumnTypeHighlightPredicate() {
-//            this(Object.class);
-//        }
-//        /**
-//         * Instantitates a predicate with the given compare class.
-//         * @param compareValue the fixed class to compare the 
-//         *   adapter value against.
-//         */
-//        public ColumnTypeHighlightPredicate(Class compareValue) {
-//            this.clazz = compareValue;
-//        }
-//        
-//        /**
-//         * @inheritDoc
-//         * 
-//         * Implemented to return true if the adapter value is an instance
-//         * of this predicate's class type.
-//         */
-//        public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
-//            int modelColumn = adapter.viewToModel(columnIndex)
-//            return clazz.isAssignableFrom(adapter.getColumnClass(columnIndex));
-//        }
-//        
-//    }
+    public static class ColumnTypeHighlightPredicate implements HighlightPredicate {
+
+        private Class<?> clazz;
+        
+        /**
+         * Instantitates a predicate with Object.class. <p>
+         * 
+         * PENDING JW: this constructor is not very useful ... concrete implementations of 
+         * ComponentAdapter are required  to return a not-null from their 
+         * getColumnClass() methods). 
+         *
+         */
+        public ColumnTypeHighlightPredicate() {
+            this(Object.class);
+        }
+        
+        /**
+         * Instantitates a predicate with the given compare class.
+         * 
+         * @param compareValue the fixed class to compare the 
+         *   adapter's column class against, must not be null
+         *   
+         * @throws NullPointerException if the class is null.
+         *   
+         */
+        public ColumnTypeHighlightPredicate(Class<?> compareValue) {
+            this.clazz = Contract.asNotNull(compareValue, "compare class must not be null");
+        }
+        
+        /**
+         * @inheritDoc
+         * 
+         * Implemented to return true if the adapter value is an instance
+         * of this predicate's class type.
+         */
+        public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
+            return clazz.isAssignableFrom(adapter.getColumnClass());
+        }
+        
+        public Class<?> getType() {
+            return clazz;
+        }
+        
+    }
 }

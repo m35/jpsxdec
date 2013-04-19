@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.sectors;
 
-import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.IO;
@@ -46,8 +45,6 @@ import jpsxdec.util.IO;
 /** Represents an FF7 video sector. */
 public class SectorFF7Video extends SectorAbstractVideo {
     
-    private static final Logger log = Logger.getLogger(SectorFF7Video.class.getName());
-
     public static final int FRAME_SECTOR_HEADER_SIZE = 32;
     
     // Magic 0x80010160                 //  0    [4 bytes]

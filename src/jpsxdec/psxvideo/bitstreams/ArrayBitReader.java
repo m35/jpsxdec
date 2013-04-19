@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -90,7 +90,7 @@ public class ArrayBitReader {
     /** Re-constructs this ArrayBitReader. Allows for re-using the object
      *  so there is no need to create a new one.
      *  @param iReadStart  Position in array to start reading. Must be an even number. */
-    public void reset(byte[] abDemux, boolean blnLittleEndian, int iReadStart) {
+    public final void reset(byte[] abDemux, boolean blnLittleEndian, int iReadStart) {
         if ((iReadStart & 1) != 0)
             throw new IllegalArgumentException("Data start must be on word boundary.");
         _iByteOffset = iReadStart;
@@ -101,25 +101,33 @@ public class ArrayBitReader {
     }
 
     /** Reads 16-bits at the requested offset in the proper endian order. 
-     * @throws ArrayIndexOutOfBoundsException
-     */
+     * @throws ArrayIndexOutOfBoundsException */
     private short readWord(int i) throws ArrayIndexOutOfBoundsException {
+        int b1, b2;
         if (_blnLittleEndian) {
-            int b1 = _abData[i  ] & 0xFF;
-            int b2 = _abData[i+1] & 0xFF;
-            return (short)((b2 << 8) + b1);
+            b1 = _abData[i  ] & 0xFF;
+            b2 = _abData[i+1] & 0xFF;
         } else {
-            int b1 = _abData[i+1] & 0xFF;
-            int b2 = _abData[i  ] & 0xFF;
-            return (short)((b2 << 8) + b1);
+            b1 = _abData[i+1] & 0xFF;
+            b2 = _abData[i  ] & 0xFF;
         }
+        return (short)((b2 << 8) + b1);
     }
 
     /** Returns the offset to the current word that the bit reader is reading. */
-    public int getPosition() {
+    public int getWordPosition() {
         return _iByteOffset;
     }
     
+    public int getBitsRead() {
+        return _iByteOffset * 8 - _iBitsLeft;
+    }
+
+    /** Returns the number of bits remaining in the source data. */
+    public int getBitsRemaining() {
+        return (_abData.length - _iByteOffset) * 8 - (16 - _iBitsLeft);
+    }
+
     /** Reads the requested number of bits.
      * @param iCount  expected to be from 1 to 31  */
     public int readUnsignedBits(int iCount) throws EOFException {
@@ -218,7 +226,7 @@ public class ArrayBitReader {
     /** Returns a String of 1 and 0 unless at the end of the stream, then
      * returns only the remaining bits. */
     public String peekBitsToString(int iCount) throws EOFException {
-        int iBitsRemaining = bitsRemaining();
+        int iBitsRemaining = getBitsRemaining();
         if (iBitsRemaining < iCount)
             return Misc.bitsToString(peekUnsignedBits(iBitsRemaining), iBitsRemaining);
         else
@@ -228,16 +236,11 @@ public class ArrayBitReader {
     /** Returns a String of 1 and 0 unless at the end of the stream, then
      * returns only the remaining bits. */
     public String readBitsToString(int iCount) throws EOFException {
-        int iBitsRemaining = bitsRemaining();
+        int iBitsRemaining = getBitsRemaining();
         if (iBitsRemaining < iCount)
             return Misc.bitsToString(readUnsignedBits(iBitsRemaining), iBitsRemaining);
         else
             return Misc.bitsToString(readUnsignedBits(iCount), iCount);
-    }
-
-    /** Returns the number of bits remaining in the source data. */
-    public int bitsRemaining() {
-        return (_abData.length - _iByteOffset) * 8 - (16 - _iBitsLeft);
     }
 
 }

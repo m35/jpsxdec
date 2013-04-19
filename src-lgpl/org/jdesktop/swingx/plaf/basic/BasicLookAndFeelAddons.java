@@ -1,5 +1,5 @@
 /*
- * $Id: BasicLookAndFeelAddons.java,v 1.5 2007/11/20 14:53:08 kschaefe Exp $
+ * $Id: BasicLookAndFeelAddons.java 4034 2011-07-19 17:18:03Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -28,14 +28,14 @@ import org.jdesktop.swingx.plaf.UIManagerExt;
  * preferred as this addon may not provide complete implementation of the
  * additional pluggable UIs.
  */
-public class BasicLookAndFeelAddons extends LookAndFeelAddons {
+public abstract class BasicLookAndFeelAddons extends LookAndFeelAddons {
     /**
      * {@inheritDoc}
      */
     @Override
     public void initialize() {
         super.initialize();
-        //must add resource bundle before adding component values
+        //must add resource bundle after adding component values
         UIManagerExt.addResourceBundle(
                 "org.jdesktop.swingx.plaf.basic.resources.swingx");
     }
@@ -50,5 +50,4 @@ public class BasicLookAndFeelAddons extends LookAndFeelAddons {
                 "org.jdesktop.swingx.plaf.basic.resources.swingx");
         super.uninitialize();
     }
-    
 }

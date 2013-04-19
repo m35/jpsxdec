@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -84,7 +84,7 @@ public class BitStreamWriter {
     }
 
     public void write(long lngValue, int iBits) throws IOException {
-        if (iBits == 0) throw new IllegalArgumentException(iBits + " == " + 0);
+        if (iBits == 0) throw new IllegalArgumentException("Bit length cannot be zero");
         for (long lngMask = 1L << (iBits-1); lngMask != 0; lngMask >>= 1) {
             write((lngValue & lngMask) != 0);
         }

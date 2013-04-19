@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,6 @@ import jpsxdec.util.ByteArrayFPIS;
 
 /** 2048 sectors are standard .iso size that excludes any raw header info. */
 public class CdSector2048 extends CdSector {
-
-    private static final Logger log = Logger.getLogger(CdSector2048.class.getName());
 
     public CdSector2048(byte[] abSectorBytes, int iByteStartOffset, int iSectorIndex, long lngFilePointer) {
         super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);

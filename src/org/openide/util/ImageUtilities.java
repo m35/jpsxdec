@@ -58,13 +58,17 @@ import java.awt.image.ImageObserver;
 import java.awt.image.ImageProducer;
 import java.awt.image.RGBImageFilter;
 import java.awt.image.WritableRaster;
+import java.io.IOException;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
@@ -83,8 +87,6 @@ public final class ImageUtilities {
      * @see "#20072"
      */
     private static final Set<String> extraInitialSlashes = new HashSet<String>();
-    private static volatile Object currentLoader;
-    private static boolean noLoaderWarned = false;
     private static final Component component = new Component() {
     };
 
@@ -105,7 +107,54 @@ public final class ImageUtilities {
 //        GIF_READER = ImageIO.getImageReadersByMIMEType("image/gif").next();
     }
 
+    /**
+     * Loads an image from the specified resource ID. The image is loaded using the "system" classloader registered in
+     * Lookup.
+     * @param resourceID resource path of the icon (no initial slash)
+     * @return icon's Image, or null, if the icon cannot be loaded.     
+     */
+    public static final Image loadImage(String resourceID) {
+        return getIcon(resourceID);
+    }
+    
+    /**
+     * Loads an image based on resource path.
+     * Exactly like {@link #loadImage(String)} but may do a localized search.
+     * For example, requesting <samp>org/netbeans/modules/foo/resources/foo.gif</samp>
+     * might actually find <samp>org/netbeans/modules/foo/resources/foo_ja.gif</samp>
+     * or <samp>org/netbeans/modules/foo/resources/foo_mybranding.gif</samp>.
+     * 
+     * <p>Caching of loaded images can be used internally to improve performance.
+     * <p> Since version 8.12 the returned image object responds to call
+     * <code>image.getProperty("url", null)</code> by returning the internal
+     * {@link URL} of the found and loaded <code>resource</code>.
+     * 
+     * @param resource resource path of the image (no initial slash)
+     * @param localized true for localized search
+     * @return icon's Image or null if the icon cannot be loaded
+     */
+    public static final Image loadImage(String resource, boolean localized) {
+        return getIcon(resource);
+    }
 
+    /**
+     * Loads an icon based on resource path.
+     * Similar to {@link #loadImage(String, boolean)}, returns ImageIcon instead of Image.
+     * @param resource resource path of the icon (no initial slash)
+     * @param localized localized resource should be used
+     * @return ImageIcon or null, if the icon cannot be loaded.
+     * @since 7.22
+     */
+    public static final ImageIcon loadImageIcon(String resource, boolean localized) {
+        Image image = getIcon(resource);
+        return image == null ? null : (ImageIcon) image2Icon(image);
+    }
+
+    /**
+     * Converts given image to an icon.
+     * @param image to be converted
+     * @return icon corresponding icon
+     */    
     public static final Icon image2Icon(Image image) {
         if (image instanceof ToolTipImage) {
             return ((ToolTipImage) image).getIcon();
@@ -144,6 +193,97 @@ public final class ImageUtilities {
         return new LazyDisabledIcon(icon2Image(icon));
     }
 
+    /**
+     * Creates disabled (color saturation lowered) image.
+     * @param image original image used for conversion
+     * @return less saturated Image
+     * @since 7.28
+     */
+    public static Image createDisabledImage(Image image)  {
+        Parameters.notNull("image", image);
+        return LazyDisabledIcon.createDisabledImage(image);
+    }
+
+    /** Finds image for given resource.
+    * @param name name of the resource
+    * @param loader classloader to use for locating it, or null to use classpath
+    * @param localizedQuery whether the name contains some localization suffix
+    *  and is not optimized/interned
+    */
+    private static Image getIcon(String name) {
+
+            // path for bug in classloader
+            String n;
+            boolean warn;
+
+            if (name.startsWith("/")) { // NOI18N
+                warn = true;
+                n = name.substring(1);
+            } else {
+                warn = false;
+                n = name;
+            }
+
+            // we have to load it
+            java.net.URL url = ImageUtilities.class.getClassLoader().getResource(n);
+
+//            img = (url == null) ? null : Toolkit.getDefaultToolkit().createImage(url);
+            Image result = null;
+            try {
+                if (url != null) {
+                    if (name.endsWith(".png")) {
+                        ImageInputStream stream = ImageIO.createImageInputStream(url.openStream());
+                        ImageReadParam param = PNG_READER.getDefaultReadParam();
+                        try {
+                            PNG_READER.setInput(stream, true, true);
+                            result = PNG_READER.read(0, param);
+                        }
+                        catch (IOException ioe1) {
+                            ERR.log(Level.INFO, "Image "+name+" is not PNG", ioe1);
+                        }
+                        stream.close();
+                    } 
+                    /*
+                    else if (name.endsWith(".gif")) {
+                        ImageInputStream stream = ImageIO.createImageInputStream(url.openStream());
+                        ImageReadParam param = GIF_READER.getDefaultReadParam();
+                        try {
+                            GIF_READER.setInput(stream, true, true);
+                            result = GIF_READER.read(0, param);
+                        }
+                        catch (IOException ioe1) {
+                            ERR.log(Level.INFO, "Image "+name+" is not GIF", ioe1);
+                        }
+                        stream.close();
+                    }
+                     */
+
+                    if (result == null) {
+                        result = ImageIO.read(url);
+                    }
+                }
+            } catch (IOException ioe) {
+                ERR.log(Level.WARNING, "Cannot load " + name + " image", ioe);
+            }
+
+            if (result != null) {
+                if (warn && extraInitialSlashes.add(name)) {
+                    ERR.warning(
+                        "Initial slashes in Utilities.loadImage deprecated (cf. #20072): " +
+                        name
+                    ); // NOI18N
+                }
+
+//                Image img2 = toBufferedImage(result);
+
+                ERR.log(Level.FINE, "loading icon {0} = {1}", new Object[] {n, result});
+                name = new String(name).intern(); // NOPMD
+                result = ToolTipImage.createNew("", result, url);
+                return result;
+            } else { // no icon found
+                return null;
+            }
+    }
 
     private static void ensureLoaded(Image image) {
         if (

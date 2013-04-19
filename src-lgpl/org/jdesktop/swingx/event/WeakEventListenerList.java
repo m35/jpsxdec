@@ -1,5 +1,5 @@
 /*
- * $Id: WeakEventListenerList.java,v 1.3 2009/01/20 17:47:52 kschaefe Exp $
+ * $Id: WeakEventListenerList.java 3190 2009-01-20 17:47:52Z kschaefe $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

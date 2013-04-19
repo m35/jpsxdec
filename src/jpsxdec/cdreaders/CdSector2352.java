@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,17 +47,22 @@ import jpsxdec.util.Misc;
  *  full raw header with {@link CdxaHeader} and {@link CdxaSubHeader}. */
 public class CdSector2352 extends CdSector {
 
-    private static final Logger log = Logger.getLogger(CdSector2352.class.getName());
-    
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
     private final CdxaHeader _header;
     private final CdxaSubHeader _subHeader;
+    
+    // Following the header are either [2324 bytes]
+    // or [2048 bytes] of user data (depending on the mode/form).
+    // Following that are [4 bytes] Error Detection Code (EDC)
+    // or just 0x00000000.
+    // If the user data was 2048, then final [276 bytes] are error correction
+
     private final int _iUserDataOffset;
     private final int _iUserDataSize;
-
+    
     public CdSector2352(byte[] abSectorBytes, int iByteStartOffset, int iSectorIndex, long lngFilePointer)
     {
         super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);

@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractTreeTableModel.java,v 1.8 2008/10/14 22:31:37 rah003 Exp $
+ * $Id: AbstractTreeTableModel.java 3780 2010-09-09 16:17:41Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,41 +39,41 @@ package jpsxdec.util;
 
 import java.io.PrintStream;
 import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 
-public class ConsoleProgressListenerLogger extends UserFriendlyHandler implements ProgressListener {
+public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
 
     private static final int BAR_WIDTH = 30;
 
     private String _sLastEvent = "";
     private double _dblNextProgressMark = 0;
-    private PrintStream _ps;
     private int _iWarnCount = 0;
     private int _iErrCount = 0;
-    private Logger _errLog;
+    private final PrintStream _ps;
 
-    public ConsoleProgressListenerLogger(String sLogFileBaseName) {
-        this(sLogFileBaseName, System.out);
-    }
-    public ConsoleProgressListenerLogger(String sLogFileBaseName, PrintStream ps) {
-        super(sLogFileBaseName);
+    public ConsoleProgressListenerLogger(String sBaseName, PrintStream ps) {
+        super(sBaseName);
         _ps = ps;
-        _errLog = Logger.getLogger(sLogFileBaseName);
-        _errLog.addHandler(this);
+        setListener(new OnWarnErr() {
+            public void onErr(LogRecord record) {
+                _iErrCount++;
+            }
+            public void onWarn(LogRecord record) {
+                _iWarnCount++;
+            }
+        });
     }
 
     public void event(String sDescription) {
         _sLastEvent = sDescription;
     }
 
-    public void info(String s) {
+    public void progressInfo(String s) {
         _ps.println(s);
     }
 
     public void progressEnd() {
         _ps.println(buildProgress(1));
         _dblNextProgressMark = 0;
-        _errLog.removeHandler(this);
         close();
     }
 
@@ -124,20 +124,6 @@ public class ConsoleProgressListenerLogger extends UserFriendlyHandler implement
         return strBuild.toString();
     }
 
-    @Override
-    protected void onErr(LogRecord record) {
-        _iErrCount++;
-    }
-
-    @Override
-    protected void onWarn(LogRecord record) {
-        _iWarnCount++;
-    }
-
     public boolean seekingEvent() { return true; }
-
-    public Logger getLog() {
-        return _errLog;
-    }
 
 }

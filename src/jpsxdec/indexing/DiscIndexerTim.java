@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,15 +38,15 @@
 package jpsxdec.indexing;
 
 import java.io.EOFException;
-import jpsxdec.discitems.DiscItemTim;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemSerialization;
+import jpsxdec.discitems.SerializedDiscItem;
+import jpsxdec.discitems.DiscItemTim;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.tim.Tim;
-import jpsxdec.util.IO;
+import jpsxdec.tim.TimInfo;
 import jpsxdec.util.NotThisTypeException;
 
 /**
@@ -54,10 +54,10 @@ import jpsxdec.util.NotThisTypeException;
  */
 public class DiscIndexerTim extends DiscIndexer {
 
-    private static final Logger log = Logger.getLogger(DiscIndexerTim.class.getName());
+    private static final Logger LOG = Logger.getLogger(DiscIndexerTim.class.getName());
 
     @Override
-    public DiscItem deserializeLineRead(DiscItemSerialization serial) {
+    public DiscItem deserializeLineRead(SerializedDiscItem serial) {
         try {
             if (DiscItemTim.TYPE_ID.equals(serial.getType())) {
                 return new DiscItemTim(serial);
@@ -81,99 +81,20 @@ public class DiscIndexerTim extends DiscIndexer {
         final int iStartOffset = inStream.getCurrentSectorOffset();
 
         try {
-            // tag
-            if (IO.readUInt8(inStream) != Tim.TAG_MAGIC)
-                return;
-
-            // version
-            if (IO.readUInt8(inStream) != Tim.VERSION_0)
-                return;
-
-            // unkn 1
-            if (IO.readUInt16LE(inStream) != 0)
-                return;
-
-            int iBpp_blnHasColorLookupTbl = IO.readUInt16LE(inStream);
-            if ((iBpp_blnHasColorLookupTbl & 0xFFF4) != 0)
-                return;
-
-            // unkn 2
-            if (IO.readUInt16LE(inStream) != 0)
-                return;
-
-            //-------------------------------------------------
-
-            int iBitsPerPixel = Tim.BITS_PER_PIX[iBpp_blnHasColorLookupTbl & 3];
-
-            final int iPaletteCount;
-            // has CLUT
-            if ((iBpp_blnHasColorLookupTbl & 8) != 0) {
-
-                long lngLength = IO.readUInt32LE(inStream);
-                if (lngLength <= 0)
-                    return;
-
-                // clut x,y
-                IO.skip(inStream, 4);
-
-                int iClutWidth = IO.readUInt16LE(inStream);
-                if (iClutWidth == 0)
-                    return;
-
-                int iClutHeight = IO.readUInt16LE(inStream);
-                if (iClutHeight == 0)
-                    return;
-
-                if (lngLength != (iClutWidth * iClutHeight * 2 + 12))
-                    return;
-
-                iPaletteCount = (iClutWidth * iClutHeight) / (1 << iBitsPerPixel);
-
-                IO.skip(inStream, iClutWidth * iClutHeight * 2);
-            } else {
-                iPaletteCount = 1;
+            TimInfo info;
+            if ((info = Tim.isTim(inStream)) != null) {
+                super.addDiscItem(new DiscItemTim(
+                        iStartSector, inStream.getCurrentSector(),
+                        iStartOffset, info.iPaletteCount, info.iBitsPerPixel,
+                        info.iPixelWidth, info.iPixelHeight));
             }
-
-            long lngImageLength = IO.readUInt32LE(inStream);
-            if (lngImageLength == 0)
-                return;
-
-            // image x,y
-            IO.skip(inStream, 4);
-
-            int iImageWordWidth = IO.readUInt16LE(inStream);
-            if (iImageWordWidth == 0)
-                return;
-
-            int iImageHeight = IO.readUInt16LE(inStream);
-            if (iImageHeight == 0)
-                return;
-
-            if (lngImageLength != iImageWordWidth * iImageHeight * 2 + 12)
-                return;
-
-            IO.skip(inStream, (iImageWordWidth * iImageHeight) * 2);
-
-            int iPixelWidth;
-            switch (iBitsPerPixel) {
-                case 4:  iPixelWidth = (int)(iImageWordWidth * 2 * 2); break;
-                case 8:  iPixelWidth = (int)(iImageWordWidth * 2    ); break;
-                case 16: iPixelWidth = (int)(iImageWordWidth        ); break;
-                case 24: iPixelWidth = (int)(iImageWordWidth * 2 / 3); break;
-                default: throw new RuntimeException("Impossible Tim BPP " + iBitsPerPixel);
-            }
-
-            super.addDiscItem(new DiscItemTim(
-                    iStartSector, inStream.getCurrentSector(),
-                    iStartOffset, iPaletteCount, iBitsPerPixel,
-                    iPixelWidth, iImageHeight));
         } catch (EOFException ex) {
-            log.log(Level.INFO, "Stream ended in the middle of possible Tim", ex);
+            LOG.log(Level.INFO, "Stream ended in the middle of possible Tim", ex);
         }
     }
 
     @Override
-    public void mediaListGenerated(DiscIndex index) {
+    public void indexGenerated(DiscIndex index) {
     }
 
 }

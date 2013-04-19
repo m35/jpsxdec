@@ -1,5 +1,5 @@
 /*
- * $Id: NimbusLookAndFeelAddons.java,v 1.1 2007/09/13 20:37:53 rbair Exp $
+ * $Id: NimbusLookAndFeelAddons.java 4092 2011-11-30 18:04:36Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -20,6 +20,17 @@
  */
 package org.jdesktop.swingx.plaf.nimbus;
 
+import javax.swing.UIManager;
+
+import org.jdesktop.swingx.plaf.LookAndFeelAddons;
 import org.jdesktop.swingx.plaf.basic.BasicLookAndFeelAddons;
 
-public class NimbusLookAndFeelAddons extends BasicLookAndFeelAddons {}
+public class NimbusLookAndFeelAddons extends BasicLookAndFeelAddons {
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean matches() {
+        return UIManager.getLookAndFeel().getID().equals("Nimbus");
+    }
+}

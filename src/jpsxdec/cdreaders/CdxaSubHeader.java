@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,8 +42,6 @@ import java.util.logging.Logger;
     
 /** Represents a raw CD header without a sync header and sector header. */
 public class CdxaSubHeader {
-
-    private static final Logger log = Logger.getLogger(CdxaSubHeader.class.getName());
 
     private static enum IssueType {
         EQUAL_BOTH_GOOD(0) {public String log(String s1, String s2, int c) {return null;}},
@@ -162,11 +160,6 @@ public class CdxaSubHeader {
                 return _codingInfo1;
         }
     }
-    // Following the header are either [2324 bytes]
-    // or [2048 bytes] of user data (depending on the mode/form).
-    // Following that are [4 bytes] Error Detection Code (EDC)
-    // or just 0x00000000.
-    // If the user data was 2048, then final [276 bytes] are error correction
 
     private final int _iConfidenceBalance;
 
@@ -175,6 +168,9 @@ public class CdxaSubHeader {
         return iFileNumber == 0 || iFileNumber == 1;
     }
     private static boolean isChannelValid(int iChannelNumber) {
+        // my understanding is channel is technically supposed to be
+        // between 0 and 31, but PSX seems to allow for any byte value.
+        // still warn anyway
         return iChannelNumber >= 0 && iChannelNumber < 32;
     }
 
@@ -290,7 +286,7 @@ public class CdxaSubHeader {
         public boolean getEofMarker() { return (_iSubmode & 0x80) != 0; }
         /** bit 6:  1 for real time mode. */
         public boolean getRealTime() { return (_iSubmode & 0x40) != 0; }
-        /** Form 1 or Form 2. */
+        /** bit 5: 1 for Form 1, 2 for Form 2. */
         public int getForm() { return ((_iSubmode >> 5) & 1) + 1; }
         /** bit 4:  used for application. */
         public boolean getTrigger() { return (_iSubmode & 0x10) != 0; }

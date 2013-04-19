@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.cdreaders;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
@@ -61,26 +62,26 @@ import jpsxdec.util.NotThisTypeException;
  */
 public class CdFileSectorReader {
 
-    private static final Logger log = Logger.getLogger(CdFileSectorReader.class.getName());
+    private static final Logger LOG = Logger.getLogger(CdFileSectorReader.class.getName());
 
     /** Normal iso sector data size: 2048. */
-    public final static int SECTOR_SIZE_2048_ISO         = 2048;
+    public final static int SECTOR_SIZE_2048_ISO            = 2048;
     /** Raw sector without sync header: 2336. */
-    public final static int SECTOR_SIZE_2336_BIN_NOSYNC  = 2336;
+    public final static int SECTOR_SIZE_2336_BIN_NOSYNC     = 2336;
     /** Full raw sector: 2352. */
-    public final static int SECTOR_SIZE_2352_BIN         = 2352;
+    public final static int SECTOR_SIZE_2352_BIN            = 2352;
     /** Full raw sector with sub-channel data: 2442. */
-    public final static int SECTOR_SIZE_2448_BIN_SUBCHANNEL  = 2448;
+    public final static int SECTOR_SIZE_2448_BIN_SUBCHANNEL = 2448;
 
 
     /** Data sector payload size for and Mode 2 Form 1: 2048. */
-    public final static int SECTOR_USER_DATA_SIZE_FORM1   = 2048;
+    public final static int SECTOR_USER_DATA_SIZE_FORM1    = 2048;
     /** Payload size for and Mode 2 Form 2 (usually XA audio): 2324. */
-    public final static int SECTOR_USER_DATA_SIZE_FORM2   = 2324;
+    public final static int SECTOR_USER_DATA_SIZE_FORM2    = 2324;
     /** CD audio sector payload size: 2352. */
-    public final static int SECTOR_USER_DATA_SIZE_CD_AUDIO   = 2352;
+    public final static int SECTOR_USER_DATA_SIZE_CD_AUDIO = 2352;
     
-    private static final int DEFAULT_SECTOR_BUFFER_COUNT = 16;
+    private static final int DEFAULT_SECTOR_BUFFER_COUNT   = 16;
 
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
@@ -102,43 +103,54 @@ public class CdFileSectorReader {
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public CdFileSectorReader(File inputFile) throws IOException {
+    public CdFileSectorReader(File inputFile)
+        throws IOException, CdFileNotFoundException
+    {
         this(inputFile, false, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    public CdFileSectorReader(File inputFile, boolean blnAllowWrites) throws IOException {
+    public CdFileSectorReader(File inputFile, boolean blnAllowWrites)
+        throws IOException, CdFileNotFoundException
+    {
+
         this(inputFile, blnAllowWrites, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    public CdFileSectorReader(File inputFile, int iSectorSize) throws IOException {
+    public CdFileSectorReader(File inputFile, int iSectorSize) 
+            throws IOException, CdFileNotFoundException
+    {
         this(inputFile, iSectorSize, false, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
     /** Opens a CD file for reading. Tries to guess the CD size. */
     public CdFileSectorReader(File sourceFile,
             boolean blnAllowWrites, int iSectorsToBuffer)
-            throws IOException
+            throws IOException, CdFileNotFoundException
     {
-        log.info(sourceFile.getPath());
+        LOG.info(sourceFile.getPath());
 
         _sourceFile = sourceFile;
         _iSectorsToCache = iSectorsToBuffer;
 
-        _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
+        try {
+            _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
+        } catch (FileNotFoundException ex) {
+            throw new CdFileNotFoundException(sourceFile);
+        }
 
         SectorFactory factory;
 
         try {
             factory = new Cd2352or2448Factory(_inputFile, true /*2352*/, true /*2448*/);
-            log.info("Disc type identified as " + factory.getTypeDescription());
+            LOG.info("Disc type identified as " + factory.getTypeDescription());
         } catch (NotThisTypeException ex) {
             try {
                 factory = new Cd2336Factory(_inputFile);
-                log.info("Disc type identified as " + factory.getTypeDescription());
+                LOG.info("Disc type identified as " + factory.getTypeDescription());
             } catch (NotThisTypeException ex1) {
                 // we couldn't figure out what it is, assuming ISO style
                 factory = new Cd2048Factory();
-                log.info("Unknown disc type, assuming " + factory.getTypeDescription());
+                LOG.info("Unknown disc type, assuming " + factory.getTypeDescription());
             }
         }
         
@@ -154,7 +166,7 @@ public class CdFileSectorReader {
             int iSectorSize, boolean blnAllowWrites, int iSectorsToBuffer)
             throws IOException
     {
-        log.info(sourceFile.getPath());
+        LOG.info(sourceFile.getPath());
 
         _sourceFile = sourceFile;
         _iSectorsToCache = iSectorsToBuffer;
@@ -316,7 +328,7 @@ public class CdFileSectorReader {
 
     public CdSector getSector(int iSector) throws IOException {
         if (iSector < 0 || iSector >= _iSectorCount)
-            throw new IndexOutOfBoundsException("Sector not in bounds of CD");
+            throw new IndexOutOfBoundsException("Sector "+iSector+" not in bounds of CD");
 
 
         if (iSector >= _iCachedSectorStart + _iSectorsToCache || iSector < _iCachedSectorStart || _abBulkReadCache == null) {
@@ -427,7 +439,7 @@ public class CdFileSectorReader {
             if (cdFile.length() < SECTOR_SIZE_2336_BIN_NOSYNC)
                 throw new NotThisTypeException();
 
-            // TODO: With the new api I can read the whole test block at once
+            // Optimization TODO: With the new api I can read the whole test block at once
             byte[] abTestSectorData = new byte[SECTOR_SIZE_2336_BIN_NOSYNC];
 
             // only search up to 33 sectors into the file
@@ -527,7 +539,7 @@ public class CdFileSectorReader {
                 cdFile.seek(lngSectStart);
                 IO.readByteArray(cdFile, abSyncHeader);
                 if (Arrays.equals(abSyncHeader, CdxaHeader.SECTOR_SYNC_HEADER)) {
-                    log.fine("Possible sync header at " + lngSectStart);
+                    LOG.fine("Possible sync header at " + lngSectStart);
                     // we think we found a sync header
                     if (blnCheck2352 && checkMore(SECTOR_SIZE_2352_BIN, cdFile, lngSectStart, abSyncHeader)) {
                         _bln2352 = true;

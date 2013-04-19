@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,8 @@
 
 package jpsxdec.iso9660;
 
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import jpsxdec.util.NotThisTypeException;
 
 /** ECMA119: 8.4 

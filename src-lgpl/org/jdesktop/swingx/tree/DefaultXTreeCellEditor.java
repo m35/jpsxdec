@@ -1,5 +1,5 @@
 /*
- * $Id: DefaultXTreeCellEditor.java,v 1.7 2009/03/26 10:25:23 kleopatra Exp $
+ * $Id: DefaultXTreeCellEditor.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -32,7 +32,7 @@ import javax.swing.tree.DefaultTreeCellEditor;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreeCellEditor;
 
-import org.jdesktop.swingx.decorator.UIDependent;
+import org.jdesktop.swingx.plaf.UIDependent;
 
 /**
  * Subclassed to hack around core bug with RtoL editing (#4980473).

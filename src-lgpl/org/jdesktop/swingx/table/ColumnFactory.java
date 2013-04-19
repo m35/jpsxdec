@@ -1,5 +1,5 @@
 /*
- * $Id: ColumnFactory.java,v 1.20 2008/02/20 20:06:37 kleopatra Exp $
+ * $Id: ColumnFactory.java 3554 2009-11-06 09:07:55Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -388,11 +388,16 @@ public class ColumnFactory {
             Component comp = headerRenderer.getTableCellRendererComponent(table,
                     columnExt.getHeaderValue(), false, false, 0, column);
             width = comp.getPreferredSize().width;
-        }      
+        }   
+        // PENDING JW: slightly inconsistent - the getCellRenderer here
+        // returns a (guessed) renderer for invisible columns which must not
+        // be used in the loop. For now that's okay, as we back out early anyway
         TableCellRenderer renderer = getCellRenderer(table, columnExt);
         for (int r = 0; r < getRowCount(table); r++) {
-            Component comp = renderer.getTableCellRendererComponent(table, table
-                    .getValueAt(r, column), false, false, r, column);
+            // JW: fix for #1215-swing as suggested by the reporter adrienclerc
+            Component comp = table.prepareRenderer(renderer, r, column);
+//            Component comp = renderer.getTableCellRendererComponent(table, table
+//                    .getValueAt(r, column), false, false, r, column);
             width = Math.max(width, comp.getPreferredSize().width);
         }
         if (margin < 0) {

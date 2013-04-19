@@ -1,5 +1,5 @@
 /*
- * $Id: SwingXUtilities.java,v 1.11 2009/04/02 20:35:54 kschaefe Exp $
+ * $Id: SwingXUtilities.java 3886 2010-11-16 16:28:58Z kschaefe $
  *
  * Copyright 2008 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -20,28 +20,35 @@
  */
 package org.jdesktop.swingx;
 
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Container;
-import java.awt.Font;
-import java.awt.Frame;
-import java.awt.Window;
+import java.awt.*;
 import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.StringReader;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Locale;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 
 import javax.swing.InputMap;
 import javax.swing.JComponent;
+import javax.swing.JList;
 import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
+import javax.swing.ListModel;
+import javax.swing.ListSelectionModel;
 import javax.swing.MenuElement;
 import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
 import javax.swing.plaf.ComponentInputMapUIResource;
 import javax.swing.plaf.UIResource;
 import javax.swing.text.html.HTMLDocument;
+
+import org.jdesktop.swingx.painter.Painter;
+import org.jdesktop.swingx.plaf.PainterUIResource;
 
 /**
  * A collection of utility methods for Swing(X) classes.
@@ -132,7 +139,7 @@ public final class SwingXUtilities {
             map.clear();
             
             //TODO is ALT_MASK right for all platforms?
-            map.put(KeyStroke.getKeyStroke(m, InputEvent.ALT_MASK, false),
+            map.put(KeyStroke.getKeyStroke(m,  InputEvent.ALT_MASK, false),
                     pressed);
             map.put(KeyStroke.getKeyStroke(m, InputEvent.ALT_MASK, true),
                     released);
@@ -140,6 +147,38 @@ public final class SwingXUtilities {
         } else {
             if (map != null) {
                 map.clear();
+            }
+        }
+    }
+    
+    static <C extends JComponent & BackgroundPaintable> void installBackground(C comp, Color color) {
+        if (isUIInstallable(color)) {
+            //only handle UIResource, if null then painter isn't painted; this allows optimized code paths
+            if (comp.getBackgroundPainter() instanceof UIResource) {
+                comp.setBackgroundPainter(new PainterUIResource<JComponent>(new BackgroundPainter(color)));
+            }
+            //does nothing otherwise; do not install UIResource Color over a non-UIResource Painter
+        } else {
+            comp.setBackgroundPainter(new BackgroundPainter(color));
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    static <C extends JComponent & BackgroundPaintable> void paintBackground(C comp, Graphics2D g) {
+        Painter<? super C> painter = comp.getBackgroundPainter();
+        
+        if (painter instanceof BackgroundPainter) {
+            //ignore paintBorderInsets for BackgroundPainter
+            painter.paint(g, comp, comp.getWidth(), comp.getHeight());
+        } else if (painter != null) {
+            if (comp.isPaintBorderInsets()) {
+                painter.paint(g, comp, comp.getWidth(), comp.getHeight());
+            } else {
+                Insets insets = comp.getInsets();
+                g.translate(insets.left, insets.top);
+                painter.paint(g, comp, comp.getWidth() - insets.left - insets.right,
+                        comp.getHeight() - insets.top - insets.bottom);
+                g.translate(-insets.left, -insets.top);
             }
         }
     }
@@ -305,7 +344,6 @@ public final class SwingXUtilities {
         for (Frame frame : Frame.getFrames()) {
             updateAllComponentTreeUIs(frame);
         }
-        
     }
 
 
@@ -321,6 +359,57 @@ public final class SwingXUtilities {
         SwingUtilities.updateComponentTreeUI(window);
         for (Window owned : window.getOwnedWindows()) {
             updateAllComponentTreeUIs(owned);
+        }
+    }
+
+    /**
+     * A version of {@link SwingUtilities#invokeLater(Runnable)} that supports return values.
+     * 
+     * @param <T>
+     *            the return type of the callable
+     * @param callable
+     *            the callable to execute
+     * @return a future task for accessing the return value
+     * @see Callable
+     */
+    public static <T> FutureTask<T> invokeLater(Callable<T> callable) {
+        FutureTask<T> task = new FutureTask<T>(callable);
+        
+        SwingUtilities.invokeLater(task);
+        
+        return task;
+    }
+
+    /**
+     * A version of {@link SwingUtilities#invokeAndWait(Runnable)} that supports return values.
+     * 
+     * @param <T>
+     *            the return type of the callable
+     * @param callable
+     *            the callable to execute
+     * @return the value returned by the callable
+     * @throws InterruptedException
+     *             if we're interrupted while waiting for the event dispatching thread to finish
+     *             executing {@code callable.call()}
+     * @throws InvocationTargetException
+     *                if an exception is thrown while running {@code callable}
+     * @see Callable
+     */
+    public static <T> T invokeAndWait(Callable<T> callable) throws InterruptedException,
+            InvocationTargetException {
+        try {
+            //blocks until future returns
+            return invokeLater(callable).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            
+            if (t instanceof RuntimeException) {
+                throw (RuntimeException) t;
+            } else if (t instanceof InvocationTargetException) {
+                throw (InvocationTargetException) t;
+            } else {
+                throw new InvocationTargetException(t);
+            }
         }
     }
 
@@ -349,8 +438,8 @@ public final class SwingXUtilities {
         Component parent = c.getParent();
 
         while (parent != null && !(clazz.isInstance(parent))) {
-            parent = c instanceof JPopupMenu
-                    ? ((JPopupMenu) c).getInvoker() : c.getParent();
+            parent = parent instanceof JPopupMenu
+                    ? ((JPopupMenu) parent).getInvoker() : parent.getParent();
         }
         
         return (T) parent;
@@ -392,6 +481,117 @@ public final class SwingXUtilities {
      */
     public static boolean isUIInstallable(Object property) {
        return (property == null) || (property instanceof UIResource);
+    }
+
+//---- methods c&p'ed from SwingUtilities2 to reduce dependencies on sun packages
+    
+    /**
+     * Updates lead and anchor selection index without changing the selection.
+     * 
+     * Note: this is c&p'ed from SwingUtilities2 to not have any direct
+     * dependency.
+     * 
+     * @param selectionModel the selection model to change lead/anchor
+     * @param lead the lead selection index
+     * @param anchor the anchor selection index
+     */
+    public static void setLeadAnchorWithoutSelection(
+            ListSelectionModel selectionModel, int lead, int anchor) {
+        if (anchor == -1) {
+            anchor = lead;
+        }
+        if (lead == -1) {
+            selectionModel.setAnchorSelectionIndex(-1);
+            selectionModel.setLeadSelectionIndex(-1);
+        } else {
+            if (selectionModel.isSelectedIndex(lead))
+                selectionModel.addSelectionInterval(lead, lead);
+            else {
+                selectionModel.removeSelectionInterval(lead, lead);
+            }
+            selectionModel.setAnchorSelectionIndex(anchor);
+        }
+    }
+
+    public static boolean shouldIgnore(MouseEvent mouseEvent,
+            JComponent component) {
+        return ((component == null) || (!(component.isEnabled()))
+                || (!(SwingUtilities.isLeftMouseButton(mouseEvent))) 
+                || (mouseEvent.isConsumed()));
+    }
+
+    
+    public static int loc2IndexFileList(JList list, Point point) {
+        int i = list.locationToIndex(point);
+        if (i != -1) {
+            Object localObject = list
+                    .getClientProperty("List.isFileList");
+            if ((localObject instanceof Boolean)
+                    && (((Boolean) localObject).booleanValue())
+    // PENDING JW: this isn't aware of sorting/filtering - fix!
+                    && (!(pointIsInActualBounds(list, i, point)))) {
+                i = -1;
+            }
+        }
+        return i;
+    }
+
+    // PENDING JW: this isn't aware of sorting/filtering - fix!
+    private static boolean pointIsInActualBounds(JList list, int index,
+            Point point) {
+        ListCellRenderer renderer = list.getCellRenderer();
+        ListModel model = list.getModel();
+        Object element = model.getElementAt(index);
+        Component comp = renderer.getListCellRendererComponent(list, element,
+                index, false, false);
+
+        Dimension prefSize = comp.getPreferredSize();
+        Rectangle cellBounds = list.getCellBounds(index, index);
+        if (!(comp.getComponentOrientation().isLeftToRight())) {
+            cellBounds.x += cellBounds.width - prefSize.width;
+        }
+        cellBounds.width = prefSize.width;
+
+        return cellBounds.contains(point);
+    }
+
+    public static void adjustFocus(JComponent component) {
+        if ((!(component.hasFocus())) && (component.isRequestFocusEnabled()))
+            component.requestFocus();
+    }
+
+    public static int convertModifiersToDropAction(int modifiers,
+            int sourcActions) {
+        // PENDING JW: c'p from a decompiled SunDragSourceContextPeer
+        // PENDING JW: haha ... completely readable, right ;-)
+        int i = 0;
+
+        switch (modifiers & 0xC0) {
+        case 192:
+            i = 1073741824;
+            break;
+        case 128:
+            i = 1;
+            break;
+        case 64:
+            i = 2;
+            break;
+        default:
+            if ((sourcActions & 0x2) != 0) {
+                i = 2;
+                break;
+            }
+            if ((sourcActions & 0x1) != 0) {
+                i = 1;
+                break;
+            }
+            if ((sourcActions & 0x40000000) == 0)
+                break;
+            i = 1073741824;
+        }
+
+        // label88:
+        return (i & sourcActions);
     }
 
 }

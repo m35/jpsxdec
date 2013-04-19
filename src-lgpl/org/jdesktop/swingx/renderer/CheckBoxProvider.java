@@ -1,5 +1,5 @@
 /*
- * $Id: CheckBoxProvider.java,v 1.5 2008/12/23 18:12:35 kschaefe Exp $
+ * $Id: CheckBoxProvider.java 3152 2008-12-23 18:12:39Z kschaefe $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

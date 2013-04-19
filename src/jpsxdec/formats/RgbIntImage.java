@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,11 +37,8 @@
 
 package jpsxdec.formats;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferInt;
-import java.awt.image.WritableRaster;
-import java.io.File;
-import java.io.IOException;
+import java.awt.image.*;
+import java.io.*;
 import java.util.Random;
 import javax.imageio.ImageIO;
 
@@ -98,6 +95,7 @@ public class RgbIntImage {
      *
     public static void main(String[] args) throws IOException {
         final int WIDTH = 500, HEIGHT = 500, ITERATIONS = 1000;
+        final String FMT = "png";
         int[] aiData = new int[WIDTH * HEIGHT];
         Random rand = new Random();
         for (int i = 0; i < aiData.length; i++) {
@@ -112,7 +110,8 @@ public class RgbIntImage {
         }
         lngEnd = System.currentTimeMillis();
         System.out.println("BufferedImage.setRGB(): " + (lngEnd - lngStart));
-        ImageIO.write(bi, "png", new File("test-bi-setrgb.png"));
+        if (!ImageIO.write(bi, "png", new File("test-bi-setrgb."+FMT)))
+            System.out.println("Failed to write test-bi-setrgb."+FMT);
         
         lngStart = System.currentTimeMillis();
         for (int i = 0; i < ITERATIONS; i++) {
@@ -120,7 +119,8 @@ public class RgbIntImage {
         }
         lngEnd = System.currentTimeMillis();
         System.out.println("Raster.setDataElements(): " + (lngEnd - lngStart));
-        ImageIO.write(bi, "png", new File("test-ras-setelm.png"));
+        if (!ImageIO.write(bi, "png", new File("test-ras-setelm."+FMT)))
+            System.out.println("Failed to write test-ras-setelm."+FMT);
         
         lngStart = System.currentTimeMillis();
         for (int i = 0; i < ITERATIONS; i++) {
@@ -129,7 +129,8 @@ public class RgbIntImage {
         }
         lngEnd = System.currentTimeMillis();
         System.out.println("System.arraycopy(DataBufferInt): " + (lngEnd - lngStart));
-        ImageIO.write(bi, "png", new File("test-ras-arycpy.png"));
+        if (!ImageIO.write(bi, "png", new File("test-ras-arycpy."+FMT)))
+            System.out.println("Failed to write test-ras-arycpy."+FMT);
     }
     //*/
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.sectors;
 
-import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 
@@ -45,8 +44,6 @@ import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 /** This is the header for standard v2 and v3 video frame chunk sectors. */
 public class SectorIkiVideo extends SectorAbstractVideo {
     
-    private static final Logger log = Logger.getLogger(SectorIkiVideo.class.getName());
-
     // .. Fields ..........................................................
 
     // Magic 0x80010160                  //  0    [4 bytes]

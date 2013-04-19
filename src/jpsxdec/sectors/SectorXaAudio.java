@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,7 +49,14 @@ import jpsxdec.util.ByteArrayFPIS;
 /** Standard audio sector for XA. */
 public class SectorXaAudio extends IdentifiedSector {
 
-    private static final Logger log = Logger.getLogger(SectorXaAudio.class.getName());
+    /** Maximum channel number (inclusive) that will be considered for
+     * XA sector.
+     * My understanding is channel is technically supposed to be
+     * between 0 and 31. Some games seem to use values outside of that range 
+     * for both valid and null XA audio sectors. */
+    public static final int MAX_VALID_CHANNEL = 254;
+    
+    private static final Logger LOG = Logger.getLogger(SectorXaAudio.class.getName());
 
     private int _iSamplesPerSecond;
     private int _iBitsPerSample;
@@ -67,7 +74,7 @@ public class SectorXaAudio extends IdentifiedSector {
                                 (SubMode.MASK_FORM | SubMode.MASK_AUDIO)) return;
         // Ace Combat 3 has several sectors with channel 255
         // They seem to be "null" sectors
-        if (cdSector.getSubHeaderChannel() < 0 || cdSector.getSubHeaderChannel() >= 32) return;
+        if (cdSector.getSubHeaderChannel() < 0 || cdSector.getSubHeaderChannel() > MAX_VALID_CHANNEL) return;
 
         _blnStereo = cdSector.getCodingInfo().isStereo();
         _iSamplesPerSecond = cdSector.getCodingInfo().getSampleRate();
@@ -119,7 +126,7 @@ public class SectorXaAudio extends IdentifiedSector {
         setProbability(100 - iErrors * 100 / iMaxErrors);
         
         if (iErrors > 0) {
-            log.log(Level.WARNING, "{0} errors out of {1} in XA sound parameters for {2}", 
+            LOG.log(Level.WARNING, "{0} errors out of {1} in XA sound parameters for {2}",
                     new Object[]{iErrors, iMaxErrors, this.toString()});
         }
     }
@@ -154,9 +161,9 @@ public class SectorXaAudio extends IdentifiedSector {
 
     public long getSampleCount() {
         if (_blnStereo)
-            return XaAdpcmDecoder.pcmSamplesGeneratedFromXAADPCMSector(_iBitsPerSample) / 2;
+            return XaAdpcmDecoder.pcmSamplesGeneratedFromXaAdpcmSector(_iBitsPerSample) / 2;
         else
-            return XaAdpcmDecoder.pcmSamplesGeneratedFromXAADPCMSector(_iBitsPerSample);
+            return XaAdpcmDecoder.pcmSamplesGeneratedFromXaAdpcmSector(_iBitsPerSample);
     }
 
     public String toString() {

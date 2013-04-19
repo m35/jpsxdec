@@ -1,5 +1,5 @@
 /*
- * $Id: DefaultsList.java,v 1.4 2008/02/06 04:19:27 kschaefe Exp $
+ * $Id: DefaultsList.java 4047 2011-07-19 18:51:12Z kschaefe $
  * 
  * Copyright 2007 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -34,6 +34,7 @@ import javax.swing.border.Border;
 import javax.swing.plaf.UIResource;
 
 import org.jdesktop.swingx.painter.Painter;
+//import org.jdesktop.swingx.renderer.StringValue;
 import org.jdesktop.swingx.util.Contract;
 
 /**
@@ -43,6 +44,7 @@ import org.jdesktop.swingx.util.Contract;
  * 
  * @author Karl George Schaefer
  */
+@SuppressWarnings("nls")
 public final class DefaultsList {
     private List<Object> delegate;
 
@@ -124,7 +126,9 @@ public final class DefaultsList {
             shouldThrow |= value instanceof Icon;
             shouldThrow |= value instanceof InputMap;
             shouldThrow |= value instanceof Insets;
-            shouldThrow |= value instanceof Painter;
+            shouldThrow |= value instanceof Painter<?>;
+            //FIXME how to handle UIResource testing
+//            shouldThrow |= value instanceof StringValue;
             
             if (shouldThrow) {
                 throw new IllegalArgumentException(message);

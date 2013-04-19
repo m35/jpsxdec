@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractRenderer.java,v 1.4 2009/01/02 13:27:18 rah003 Exp $
+ * $Id: AbstractRenderer.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2007 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -23,19 +23,28 @@ package org.jdesktop.swingx.renderer;
 import java.awt.Color;
 import java.io.Serializable;
 
+import org.jdesktop.swingx.plaf.UIDependent;
 import org.jdesktop.swingx.rollover.RolloverRenderer;
 
 /**
- * Convience common ancestor for SwingX renderers.
+ * Convenience common ancestor for SwingX renderers. Concrete subclasses
+ * should 
+ * 
+ *  <ul>
+ *  <li> provide a bunch of convenience constructors as appropriate for the type of 
+ *      collection component
+ *  <li> create a reasonable default ComponentProvider if none is given  
+ *  <li> implement the getXXCellRenderer by delegating to the ComponentProvider
+ *  </ul>
  * 
  * @author Jeanette Winzenburg
  */
 public abstract class AbstractRenderer 
-    implements  RolloverRenderer, StringValue, Serializable {
+    implements  RolloverRenderer, StringValue, Serializable, UIDependent {
 
-    protected ComponentProvider componentController;
+    protected ComponentProvider<?> componentController;
 
-    public AbstractRenderer(ComponentProvider provider) {
+    public AbstractRenderer(ComponentProvider<?> provider) {
         if (provider ==  null) {
             provider = createDefaultComponentProvider();
         }
@@ -47,7 +56,7 @@ public abstract class AbstractRenderer
      * 
      * @return the ComponentProvider used by this renderer
      */
-    public ComponentProvider getComponentProvider() {
+    public ComponentProvider<?> getComponentProvider() {
         return componentController;
     }
 
@@ -56,7 +65,7 @@ public abstract class AbstractRenderer
      * 
      * @return the default <code>ComponentProvider</code>
      */
-    protected abstract ComponentProvider createDefaultComponentProvider();
+    protected abstract ComponentProvider<?> createDefaultComponentProvider();
     
 // --------------- implement StringValue    
     
@@ -86,6 +95,12 @@ public abstract class AbstractRenderer
                 && ((RolloverRenderer) componentController).isEnabled();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public void updateUI() {
+        componentController.updateUI();
+    }
 
 //-------------------- legacy: configure arbitrary visuals    
     /**

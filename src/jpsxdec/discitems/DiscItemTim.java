@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,6 @@ package jpsxdec.discitems;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.TimSaverBuilder;
 import jpsxdec.tim.Tim;
@@ -52,8 +51,6 @@ import jpsxdec.util.NotThisTypeException;
 /** Represents a TIM file found on a PlayStation disc. TIM images could be found
  * anywhere in a sector. */
 public class DiscItemTim extends DiscItem {
-
-    private static final Logger log = Logger.getLogger(DiscItemTim.class.getName());
 
     public static final String TYPE_ID = "Tim";
 
@@ -78,7 +75,7 @@ public class DiscItemTim extends DiscItem {
         _iHeight = iHeight;
     }
     
-    public DiscItemTim(DiscItemSerialization fields) throws NotThisTypeException {
+    public DiscItemTim(SerializedDiscItem fields) throws NotThisTypeException {
         super(fields);
         _iStartOffset = fields.getInt(START_OFFSET_KEY);
         _iPaletteCount = fields.getInt(PALETTE_COUNT_KEY);
@@ -88,8 +85,8 @@ public class DiscItemTim extends DiscItem {
         _iHeight = aiDims[1];
     }
     
-    public DiscItemSerialization serialize() {
-        DiscItemSerialization fields = super.superSerial(TYPE_ID);
+    public SerializedDiscItem serialize() {
+        SerializedDiscItem fields = super.serialize();
         fields.addNumber(START_OFFSET_KEY, _iStartOffset);
         fields.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
         fields.addNumber(PALETTE_COUNT_KEY, _iPaletteCount);
@@ -143,6 +140,18 @@ public class DiscItemTim extends DiscItem {
     
     public int getHeight() {
         return _iHeight;
+    }
+
+    @Override
+    public int compareTo(DiscItem other) {
+        int i = super.compareTo(other);
+        if (i == 0 && other instanceof DiscItemTim) {
+            DiscItemTim otherTim = (DiscItemTim) other;
+            return _iStartOffset > otherTim._iStartOffset ? 1
+                 : _iStartOffset < otherTim._iStartOffset ? -1
+                 : 0;
+        }
+        return i;
     }
 
     /** Attempts to replace the TIM image on the disc with the a new TIM created

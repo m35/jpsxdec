@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractHighlighter.java,v 1.10 2008/10/14 22:31:38 rah003 Exp $
+ * $Id: AbstractHighlighter.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -256,8 +256,7 @@ public abstract class AbstractHighlighter implements Highlighter {
      * @since 1.4
      */
     public final ChangeListener[] getChangeListeners() {
-        return (ChangeListener[]) listenerList
-                .getListeners(ChangeListener.class);
+        return listenerList.getListeners(ChangeListener.class);
     }
 
     /** 

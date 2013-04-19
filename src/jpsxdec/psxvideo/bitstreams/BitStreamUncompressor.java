@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,8 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.logging.Logger;
-import jpsxdec.Main;
+import jpsxdec.Version;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
@@ -54,7 +55,7 @@ import jpsxdec.util.NotThisTypeException;
  * that can then be fed into an MDEC decoder to produce an image. */
 public abstract class BitStreamUncompressor extends MdecInputStream {
     
-    protected static final Logger log = Logger.getLogger(BitStreamUncompressor.class.getName());
+    protected static final Logger LOG = Logger.getLogger(BitStreamUncompressor.class.getName());
 
     /** Enable to print the detailed decoding process. */
     public static boolean DEBUG = false;
@@ -378,16 +379,16 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
          */
         private AcBitCode lookup(final int i17bits) throws MdecException.Uncompress {
             if        ((i17bits & b10000000000000000) != 0) {
-                assert DEBUG ? debugPrintln("Table 0 offset " + ((i17bits >> 14) & 3)) : true;
+                assert !DEBUG || debugPrintln("Table 0 offset " + ((i17bits >> 14) & 3));
                 return       Table_1xx[(i17bits >> 14) & 3];
             } else if ((i17bits & b01111100000000000) != 0) {
-                assert DEBUG ? debugPrintln("Table 1 offset " + ((i17bits >> 8) & 0xff)) : true;
+                assert !DEBUG || debugPrintln("Table 1 offset " + ((i17bits >> 8) & 0xff));
                 return       Table_0xxxxxxx[(i17bits >> 8) & 0xff];
             } else if ((i17bits & b00000011100000000) != 0) {
-                assert DEBUG ? debugPrintln("Table 2 offset " + ((i17bits >> 3) & 0xff)) : true;
+                assert !DEBUG || debugPrintln("Table 2 offset " + ((i17bits >> 3) & 0xff));
                 return       Table_000000xxxxxxxx[(i17bits >> 3) & 0xff];
             } else if ((i17bits & b00000000011100000) != 0) {
-                assert DEBUG ? debugPrintln("Table 3 offset " + (i17bits & 0xff)) : true;
+                assert !DEBUG || debugPrintln("Table 3 offset " + (i17bits & 0xff));
                 return       Table_000000000xxxxxxxx[i17bits & 0xff];
             } else {
                 throw new MdecException.Uncompress(
@@ -674,7 +675,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** @throws NullPointerException if {@link #reset(byte[])} has not been called. */
     final public boolean readMdecCode(MdecCode code) throws MdecException.Uncompress {
 
-        assert DEBUG ? _debug.setPosition(_bitReader.getPosition()) : true;
+        assert !DEBUG || _debug.setPosition(_bitReader.getWordPosition());
 
         try {
 
@@ -696,10 +697,10 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                         _iCurrentMacroBlockSubBlock = 0;
                         _iCurrentMacroBlock++;
                     }
-                    assert DEBUG ? _debug.append(AcLookup.END_OF_BLOCK.BitString) : true;
+                    assert !DEBUG || _debug.append(AcLookup.END_OF_BLOCK.BitString);
                 } else {
                     // block continues
-                    assert DEBUG ? _debug.append(bitCode.BitString) : true;
+                    assert !DEBUG || _debug.append(bitCode.BitString);
                     if (bitCode == AcLookup.ESCAPE_CODE) {
                         readEscapeAcCode(code);
                     } else {
@@ -719,7 +720,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             throw new MdecException.Uncompress(ex);
         }
 
-        assert DEBUG ? _debug.print(code) : true;
+        assert !DEBUG || _debug.print(code);
 
         // _blnBlockStart will be set to true if an EOB code was read
         _iMdecCodeCount++;
@@ -727,13 +728,16 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     }
 
     /** Byte position in the source data, rounded down to multiples of 2. */
-    final public int getStreamPosition() {
-        return _bitReader.getPosition();
+    final public int getWordPosition() {
+        return _bitReader.getWordPosition();
     }
 
+    final public int getBitPosition() {
+        return _bitReader.getBitsRead();
+    }
+    
     public void readToEnd(int iWidth, int iHeight) throws MdecException.Read {
-        int iBlockCount = ((iWidth +15) / 16) *
-                          ((iHeight+15) / 16) * 6;
+        int iBlockCount = Calc.blocks(iWidth, iHeight);
 
         MdecCode code = new MdecCode();
         for (int i = 0; i < iBlockCount; i++) {
@@ -775,7 +779,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     public static class SpeedTest {
         /** Speed test. */
         public static void main(String[] args) throws Exception {
-            System.out.println(Main.Version);
+            System.out.println(Version.Version);
             byte[] abBits = IO.readFile("ff9media021[1]_320x224[1].demux");
             BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
             final MdecCode code = new MdecCode();
@@ -805,9 +809,9 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                 AcBitCode c1 = lkup.Table_0xxxxxxx[i], c2 = lkup.Table_000000xxxxxxxx[i],  c3 = lkup.Table_000000000xxxxxxxx[i];
 
                 int iBitLen = (c1 == AcLookup.ESCAPE_CODE ? 31 : c1 == null ? 0 : c1.BitLength) |
-                        (c2 == null ? 0 : c2.BitLength << 5) |
-                        (c3 == null ? 0 : c3.BitLength << 10)
-                        ;
+                              (c2 == null ? 0 : c2.BitLength << 5) |
+                              (c3 == null ? 0 : c3.BitLength << 10)
+                              ;
 
                 System.err.format("{0x%04x, 0x%04x, 0x%04x, 0x%04x}, // %s, %s, %s",
                         (c1 == null || c1 == AcLookup.ESCAPE_CODE) ? 0 : new MdecCode(c1.ZeroRun, c1.AcCoefficient).toMdecWord(),

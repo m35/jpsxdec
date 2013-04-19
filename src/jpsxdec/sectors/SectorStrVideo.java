@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.sectors;
 
-import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 
@@ -45,8 +44,6 @@ import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 /** This is the header for standard v2 and v3 video frame chunk sectors. */
 public class SectorStrVideo extends SectorAbstractVideo {
     
-    private static final Logger log = Logger.getLogger(SectorStrVideo.class.getName());
-
     // .. Static stuff .....................................................
 
     public static final long VIDEO_SECTOR_MAGIC = 0x80010160L;
@@ -61,6 +58,7 @@ public class SectorStrVideo extends SectorAbstractVideo {
     private int  _iWidth;                //  16   [2 bytes]
     private int  _iHeight;               //  18   [2 bytes]
     private int  _iRunLengthCodeCount;   //  20   [2 bytes]
+    // 0x3800                            //  22   [2 bytes]
     private int  _iQuantizationScale;    //  24   [2 bytes]
     private int  _iVersion;              //  26   [2 bytes]
     private long _lngUnknown;            //  28   [4 bytes]
@@ -74,12 +72,13 @@ public class SectorStrVideo extends SectorAbstractVideo {
         if (isSuperInvalidElseReset()) return;
         
         // only if it has a sector header should we check if it reports DATA or VIDEO
-        if (cdSector.hasSubHeader() &&
-            cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
-        {
-            return;
+        if (cdSector.hasSubHeader()) {
+            if (cdSector.subModeMask(SubMode.MASK_DATA | SubMode.MASK_VIDEO) == 0)
+                return;
+            if (cdSector.subModeMask(SubMode.MASK_FORM) != 0)
+                return;
         }
-
+        
         long lngMagic = cdSector.readUInt32LE(0);
         if (lngMagic != VIDEO_SECTOR_MAGIC) return;
         _iChunkNumber = cdSector.readSInt16LE(4);

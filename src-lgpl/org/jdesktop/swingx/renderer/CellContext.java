@@ -1,5 +1,5 @@
 /*
- * $Id: CellContext.java,v 1.17 2009/03/10 12:39:40 kleopatra Exp $
+ * $Id: CellContext.java 3778 2010-09-07 10:10:49Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -21,6 +21,7 @@
 package org.jdesktop.swingx.renderer;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.io.Serializable;
 
 import javax.swing.Icon;
@@ -65,13 +66,10 @@ import javax.swing.border.EmptyBorder;
  *
  * For a backdoor, the cell location (in horizontal and vertical view coordinates) 
  * and the originating component is accessible as well. Note that they are not necessarily
- * valid for the "life" component. It's not recommened to actually use them. If needed,
+ * valid for the "life" component. It's not recommended to actually use them. If needed,
  * that's probably a sign the api is lacking :-)
  * <p>
  * 
- * PENDING JW: the generic parameterization is useful to have a type-safe
- * installContext but introduces a bunch of generic warnings. Not enough reason to
- * go for, so will be removed in future versions (see Issue 1042-swingx)
  * 
  * <ul>
  * 
@@ -124,6 +122,8 @@ public class CellContext implements Serializable {
 
     protected transient boolean leaf;
 
+    protected transient boolean dropOn;
+    
     // --------------------------- install context
 
 
@@ -266,6 +266,20 @@ public class CellContext implements Serializable {
     }
 
     /**
+     * Returns a boolean indicating if the cell is a drop location with any of the dropOn
+     * modes. It's up to subclasses to implement.
+     * <p>
+     * 
+     * Here: false.
+     * 
+     * @return true if the current cell is a drop location with any of the dropOn modes,
+     *    false otherwise
+     */
+    protected boolean isDropOn() {
+        return dropOn;
+    }
+    
+    /**
      * Returns the foreground color of the renderered component or null if the
      * component is null
      * <p>
@@ -275,6 +289,9 @@ public class CellContext implements Serializable {
      * @return the foreground color of the rendered component.
      */
     protected Color getForeground() {
+        if (isDropOn()) {
+            return getSelectionForeground();
+        }
         return getComponent() != null ? getComponent().getForeground() : null;
     }
 
@@ -288,6 +305,9 @@ public class CellContext implements Serializable {
      * @return the background color of the rendered component.
      */
     protected Color getBackground() {
+        if (isDropOn()) {
+            return getSelectionBackground();
+        }
         return getComponent() != null ? getComponent().getBackground() : null;
     }
 
@@ -351,7 +371,8 @@ public class CellContext implements Serializable {
         if (isFocused()) {
             return getFocusBorder();
         }
-        return getNoFocusBorder();
+        Border border = UIManager.getBorder(getUIKey("cellNoFocusBorder"));
+        return border != null ? border : getNoFocusBorder();
     }
 
     /**
@@ -374,6 +395,13 @@ public class CellContext implements Serializable {
         return UIManager.getColor(getUIKey("focusCellBackground"));
     }
 
+    protected Color getDropCellForeground() {
+        return UIManager.getColor(getUIKey("dropCellForeground"));
+    }
+    
+    protected Color getDropCellBackground() {
+        return UIManager.getColor(getUIKey("dropCellBackground"));
+    }
     // ----------------------- convenience
 
     /**
@@ -395,6 +423,18 @@ public class CellContext implements Serializable {
      */
     protected String getUIPrefix() {
         return "";
+    }
+
+    /**
+     * Returns the Font of the target component or null if no component installed.
+     * @return
+     */
+    protected Font getFont() {
+        return getComponent() != null ? getComponent().getFont() : null;
+    }
+
+    public String getCellRendererName() {
+        return getUIPrefix() + "cellRenderer";
     }
 
 }

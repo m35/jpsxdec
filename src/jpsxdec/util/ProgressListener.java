@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,6 @@
 
 package jpsxdec.util;
 
-import java.util.logging.Logger;
-
 public interface ProgressListener {
 
     public void progressStart(String s) throws TaskCanceledException;
@@ -49,10 +47,10 @@ public interface ProgressListener {
 
     public void progressUpdate(double dblPercentComplete) throws TaskCanceledException;
 
+    /** Report progress event. */
     public void event(String sDescription);
+    /** If the progress listener is wanting an event. */
     public boolean seekingEvent();
 
-    public void info(String s);
-
-    public Logger getLog();
+    public void progressInfo(String s);
 }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,25 +44,27 @@ import javax.imageio.ImageIO;
 /** Keeps track of Java framework's image formats. */
 public enum JavaImageFormat {
 
-    JPG("jpg", true, false) {
+    JPG("jpg", true, false, false) {
         @Override
         public boolean hasCompression() {
             return true;
         }
     },
-    PNG("png", true, true),
-    BMP("bmp", true, true),
-    GIF("gif", false, true);
+    PNG("png", true, true, true),
+    BMP("bmp", true, true, false),
+    GIF("gif", false, true, false);
 
     private final String _sExtension;
     private final boolean _blnTrueColor;
     private final boolean _blnPaletted;
+    private final boolean _blnAlpha;
     private final boolean _blnAvailable;
 
-    JavaImageFormat(String id, boolean blnTrueColor, boolean blnPaletted) {
-        this._sExtension = id;
+    JavaImageFormat(String id, boolean blnTrueColor, boolean blnPaletted, boolean blnAlpha) {
+        _sExtension = id;
         _blnPaletted = blnPaletted;
         _blnTrueColor = blnTrueColor;
+        _blnAlpha = blnAlpha;
 
         String[] asValues = ImageIO.getWriterFormatNames();
 
@@ -96,6 +98,10 @@ public enum JavaImageFormat {
 
     public boolean paletted() {
         return _blnPaletted;
+    }
+
+    public boolean hasAlpha() {
+        return _blnAlpha;
     }
 
     public boolean hasCompression() {

@@ -64,19 +64,8 @@ class IconWithArrow implements Icon {
     
     private static final String ARROW_IMAGE_NAME = "org/openide/awt/resources/arrow.png"; //NOI18N
 
-    private static Icon loadImageIcon(String name) {
-        java.net.URL url = IconWithArrow.class.getClassLoader().getResource(name);
-        if (url == null)
-            return null;
-        try {
-            return ImageUtilities.image2Icon(ImageIO.read(url));
-        } catch (IOException ex) {
-            return null;
-        }
-    }
-
     private Icon orig;
-    private Icon arrow = loadImageIcon(ARROW_IMAGE_NAME);
+    private Icon arrow = ImageUtilities.loadImageIcon(ARROW_IMAGE_NAME, false);
     private boolean paintRollOver;
     
     private static final int GAP = 6;

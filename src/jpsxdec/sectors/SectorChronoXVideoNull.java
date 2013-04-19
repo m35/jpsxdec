@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,8 +46,8 @@ import jpsxdec.util.ByteArrayFPIS;
 /** This is the header for Chrono Cross 'null' video sectors. */
 public class SectorChronoXVideoNull extends IdentifiedSector {
     
-    private static final Logger log = Logger.getLogger(SectorChronoXVideoNull.class.getName());
-    protected Logger log() { return log; }
+    private static final Logger LOG = Logger.getLogger(SectorChronoXVideoNull.class.getName());
+    protected Logger log() { return LOG; }
 
     private long _lngMagic;
     private int _iChunkNumber;

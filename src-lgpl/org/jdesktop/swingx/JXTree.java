@@ -1,5 +1,5 @@
 /*
- * $Id: JXTree.java,v 1.72 2009/05/07 09:21:23 kleopatra Exp $
+ * $Id: JXTree.java 4166 2012-02-15 15:21:04Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -25,6 +25,7 @@ import java.applet.Applet;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.KeyboardFocusManager;
+import java.awt.Rectangle;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeEvent;
@@ -32,6 +33,7 @@ import java.beans.PropertyChangeListener;
 import java.util.Hashtable;
 import java.util.Vector;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import javax.swing.Action;
 import javax.swing.ActionMap;
@@ -49,6 +51,7 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.plaf.basic.BasicTreeUI;
+import javax.swing.text.Position.Bias;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreeCellRenderer;
 import javax.swing.tree.TreeModel;
@@ -58,7 +61,8 @@ import javax.swing.tree.TreePath;
 import org.jdesktop.swingx.decorator.ComponentAdapter;
 import org.jdesktop.swingx.decorator.CompoundHighlighter;
 import org.jdesktop.swingx.decorator.Highlighter;
-import org.jdesktop.swingx.decorator.UIDependent;
+import org.jdesktop.swingx.plaf.UIAction;
+import org.jdesktop.swingx.plaf.UIDependent;
 import org.jdesktop.swingx.renderer.StringValue;
 import org.jdesktop.swingx.renderer.StringValues;
 import org.jdesktop.swingx.rollover.RolloverProducer;
@@ -249,7 +253,7 @@ public class JXTree extends JTree {
      *
      * @param value an Vector of objects that are children of the root.
      */
-    public JXTree(Vector value) {
+    public JXTree(Vector<?> value) {
         super(value);
         init();
     }
@@ -265,7 +269,7 @@ public class JXTree extends JTree {
      *
      * @param value a Hashtable containing objects that are children of the root.
      */
-    public JXTree(Hashtable value) {
+    public JXTree(Hashtable<?, ?> value) {
         super(value);
         init();
     }
@@ -319,7 +323,7 @@ public class JXTree extends JTree {
     }
 
     /**
-     * Instantiats JXTree state which is new compared to super. Installs the
+     * Instantiates JXTree state which is new compared to super. Installs the
      * Delegating renderer and editor, registers actions and keybindings.
      * 
      * This must be called from each constructor.
@@ -404,9 +408,6 @@ public class JXTree extends JTree {
     }
 
 
-//-------------------- search support
-    
-    
     /**
      * Returns the string representation of the cell value at the given position. 
      * 
@@ -436,7 +437,6 @@ public class JXTree extends JTree {
 
     
 //--------------------- misc. new api and super overrides
-    
     /**
      * Collapses all nodes in this tree.
      */
@@ -447,7 +447,10 @@ public class JXTree extends JTree {
     }
 
     /**
-     * Expands all nodes in this tree.
+     * Expands all nodes in this tree.<p>
+     * 
+     * Note: it's not recommended to use this method on the EDT for large/deep trees
+     * because expansion can take a considerable amount of time. 
      */
     public void expandAll() {
         if (getRowCount() == 0) {
@@ -591,6 +594,7 @@ public class JXTree extends JTree {
         installSelectionColors();
         updateHighlighterUI();
         updateRendererEditorUI();
+        invalidateCellSizeCache();
     }
 
     
@@ -642,7 +646,7 @@ public class JXTree extends JTree {
     /**
      * Updates highlighter after <code>updateUI</code> changes.
      * 
-     * @see org.jdesktop.swingx.decorator.UIDependent
+     * @see org.jdesktop.swingx.plaf.UIDependent
      */
     protected void updateHighlighterUI() {
         if (compoundHighlighter == null) return;
@@ -676,12 +680,10 @@ public class JXTree extends JTree {
         if (rolloverEnabled == old) return;
         if (rolloverEnabled) {
             rolloverProducer = createRolloverProducer();
-            addMouseListener(rolloverProducer);
-            addMouseMotionListener(rolloverProducer);
+            rolloverProducer.install(this);
             getLinkController().install(this);
         } else {
-            removeMouseListener(rolloverProducer);
-            removeMouseMotionListener(rolloverProducer);
+            rolloverProducer.release(this);
             rolloverProducer = null;
             getLinkController().release();
         }
@@ -1053,6 +1055,7 @@ public class JXTree extends JTree {
                 (getCellEditor() instanceof DefaultXTreeCellEditor)) {
            ((DefaultXTreeCellEditor) getCellEditor()).setRenderer((DefaultTreeCellRenderer) renderer); 
         }
+        firePropertyChange("cellRenderer", null, delegatingRenderer);
     }
 
     
@@ -1188,8 +1191,8 @@ public class JXTree extends JTree {
                     && (row >= 0)) {
                 result = compoundHighlighter.highlight(result,
                         getComponentAdapter(row));
-            }
-
+            } 
+            
             return result;
         }
             
@@ -1208,6 +1211,22 @@ public class JXTree extends JTree {
 
     }
 
+    /**
+     * Invalidates cell size caching in the ui delegate. May do nothing if there's no
+     * safe (i.e. without reflection) way to message the delegate. <p>
+     * 
+     * This implementation calls BasicTreeUI setLeftChildIndent with the old indent if available. 
+     * Beware: clearing the cache is an undocumented implementation side-effect of the 
+     * method. Revisit if we ever should have a custom ui delegate.
+     * 
+     * 
+     */
+    public void invalidateCellSizeCache() {
+        if (getUI() instanceof BasicTreeUI) {
+            BasicTreeUI ui = (BasicTreeUI) getUI();
+            ui.setLeftChildIndent(ui.getLeftChildIndent());
+        }
+    }
     
 //----------------------- edit
     
@@ -1489,58 +1508,21 @@ public class JXTree extends JTree {
             TreePath path = tree.getPathForRow(row);
             return path.getLastPathComponent();
         }
-
-        /**
-         * {@inheritDoc} <p>
-         * 
-         * JXTree doesn't support filtering/sorting. This implies that
-         * model and view coordinates are the same. So this method is
-         * implemented to call getValueAt(row, column).
-         * 
-         */
-        @Override
-        public Object getFilteredValueAt(int row, int column) {
-            /** TODO: Implement filtering */
-            return getValueAt(row, column);
-        }
         
-        
-        /**
-         * {@inheritDoc} <p>
-         * 
-         * JXTree doesn't support filtering/sorting. This implies that
-         * model and view coordinates are the same. So this method is
-         * implemented to call getValueAt(row, column).
-         * 
-         */
-        @Override
-        public Object getValue() {
-            return getValueAt(row, column);
-        }
-        
-        
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public String getFilteredStringAt(int row, int column) {
-            return tree.getStringAt(row);
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public String getString() {
-            return tree.getStringAt(row);
-        }
-
         /**
          * {@inheritDoc}
          */
         @Override
         public String getStringAt(int row, int column) {
             return tree.getStringAt(row);
+        }
+        
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Rectangle getCellBounds() {
+            return tree.getRowBounds(row);
         }
         
         /**
@@ -1599,15 +1581,6 @@ public class JXTree extends JTree {
         public boolean isCellEditable(int row, int column) {
             return false;        /** TODO:  */
         }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public void setValueAt(Object aValue, int row, int column) {
-            /** TODO:  */
-        }
-        
     }
 
 

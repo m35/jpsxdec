@@ -30,7 +30,7 @@ import java.util.logging.Logger;
  */
 public class StephensIDCT implements IDCT_double {
 
-    private static final Logger log = Logger.getLogger(StephensIDCT.class.getName());
+    private static final Logger LOG = Logger.getLogger(StephensIDCT.class.getName());
 
     /** DCT Block Size */
     private final static int N  = 8;
@@ -78,7 +78,7 @@ public class StephensIDCT implements IDCT_double {
             }
         }
 
-        if (log.isLoggable(Level.FINEST)) {
+        if (LOG.isLoggable(Level.FINEST)) {
             StringBuilder sb = new StringBuilder();
             for (int x = 0; x < N; x++) {
                 sb.setLength(0);
@@ -86,7 +86,7 @@ public class StephensIDCT implements IDCT_double {
                     sb.append(c[x][y]);
                     sb.append(' ');
                 }
-                log.finest(sb.toString());
+                LOG.finest(sb.toString());
             }
         }
 

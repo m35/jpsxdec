@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,8 +46,6 @@ import jpsxdec.sectors.IdentifiedSector;
  *  This is surprisingly more complicated that it seems. */
 public class FrameDemuxer implements ISectorFrameDemuxer {
 
-    private static final Logger log = Logger.getLogger(FrameDemuxer.class.getName());
-
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -91,7 +89,7 @@ public class FrameDemuxer implements ISectorFrameDemuxer {
         return _iHeight;
     }
 
-    public void feedSector(IdentifiedSector sector) throws IOException {
+    public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
         if (sector.getSectorNumber() < _iVideoStartSector ||
             sector.getSectorNumber() > _iVideoEndSector)
             return;
@@ -125,7 +123,7 @@ public class FrameDemuxer implements ISectorFrameDemuxer {
 
     }
 
-    public void flush() throws IOException {
+    public void flush(Logger log) throws IOException {
         if (_current != null) {
             _listener.frameComplete(_current);
             _current = null;

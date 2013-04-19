@@ -1,5 +1,5 @@
 /*
- * $Id: MacOSXLookAndFeelAddons.java,v 1.1 2006/09/27 01:55:07 dmouse Exp $
+ * $Id: MacOSXLookAndFeelAddons.java 4092 2011-11-30 18:04:36Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -20,6 +20,27 @@
  */
 package org.jdesktop.swingx.plaf.macosx;
 
-import org.jdesktop.swingx.plaf.basic.BasicLookAndFeelAddons;
+import static javax.swing.UIManager.getLookAndFeel;
+import static javax.swing.UIManager.getSystemLookAndFeelClassName;
 
-public class MacOSXLookAndFeelAddons extends BasicLookAndFeelAddons {}
+import org.jdesktop.swingx.plaf.LookAndFeelAddons;
+import org.jdesktop.swingx.plaf.basic.BasicLookAndFeelAddons;
+import org.jdesktop.swingx.util.OS;
+
+public class MacOSXLookAndFeelAddons extends BasicLookAndFeelAddons {
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean matches() {
+        return isSystemAddon() && getSystemLookAndFeelClassName().equals(getLookAndFeel().getClass().getName());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean isSystemAddon() {
+        return OS.isMacOSX();
+    }
+}

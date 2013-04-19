@@ -1,5 +1,5 @@
 /*
- * $Id: JRendererCheckBox.java,v 1.13 2009/02/01 15:01:03 rah003 Exp $
+ * $Id: JRendererCheckBox.java 3512 2009-09-22 07:54:02Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -25,6 +25,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 
 import javax.swing.JCheckBox;
+import javax.swing.UIManager;
 
 import org.jdesktop.swingx.painter.Painter;
 
@@ -81,6 +82,25 @@ public class JRendererCheckBox extends JCheckBox implements PainterAware {
     }
 
     /**
+     * Overridden for performance reasons.<p>
+     * PENDING: Think about Painters and opaqueness?
+     * 
+     */
+//    @Override
+//    public boolean isOpaque() { 
+//        Color back = getBackground();
+//        Component p = getParent(); 
+//        if (p != null) { 
+//            p = p.getParent(); 
+//        }
+//        // p should now be the JTable. 
+//        boolean colorMatch = (back != null) && (p != null) && 
+//            back.equals(p.getBackground()) && 
+//                        p.isOpaque();
+//        return !colorMatch && super.isOpaque(); 
+//    }
+
+    /**
      * {@inheritDoc} <p>
      * 
      * Overridden to not automatically de/register itself from/to the ToolTipManager.
@@ -95,7 +115,9 @@ public class JRendererCheckBox extends JCheckBox implements PainterAware {
     
     @Override
     protected void paintComponent(Graphics g) {
-        if (painter != null) {
+        // JW: hack around for #1178-swingx (core issue) 
+        // grab painting if Nimbus detected
+        if ((painter != null) || isNimbus()) {
             // we have a custom (background) painter
             // try to inject if possible
             // there's no guarantee - some LFs have their own background 
@@ -108,6 +130,17 @@ public class JRendererCheckBox extends JCheckBox implements PainterAware {
     }
 
     /**
+     * Hack around Nimbus not respecting background colors if UIResource.
+     * So by-pass ... 
+     * 
+     * @return
+     */
+    private boolean isNimbus() {
+        return UIManager.getLookAndFeel().getName().contains("Nimbus");
+    }
+
+
+    /**
      * 
      * Hack around AbstractPainter.paint bug which disposes the Graphics.
      * So here we give it a scratch to paint on. <p>
@@ -116,6 +149,7 @@ public class JRendererCheckBox extends JCheckBox implements PainterAware {
      * @param g the graphics to paint on
      */
     private void paintPainter(Graphics g) {
+        if (painter == null) return;
         // fail fast: we assume that g must not be null
         // which throws an NPE here instead deeper down the bowels
         // this differs from corresponding core implementation!
@@ -129,7 +163,7 @@ public class JRendererCheckBox extends JCheckBox implements PainterAware {
     }
 
     /**
-     * PRE: painter != null
+     * 
      * @param g
      */
     protected void paintComponentWithPainter(Graphics2D g) {

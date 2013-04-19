@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -226,7 +226,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     @Override
     protected void readQscaleAndDC(MdecCode code) throws EOFException {
         code.setBottom10Bits( _bitReader.readSignedBits(10) );
-        assert DEBUG ? _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10)) : true;
+        assert !DEBUG || _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10));
         if (getCurrentMacroBlockSubBlock() < 2)
             code.setTop6Bits(_iQscaleChroma);
         else
@@ -243,7 +243,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         // Get the (6 bit) run of zeros from the bits already read
         // 17 bits: eeeeeezzzzzz_____ : e = escape code, z = run of zeros
         code.setTop6Bits( (iBits >>> 8) & 63 );
-        assert DEBUG ? _debug.append(Misc.bitsToString(code.getTop6Bits(), 6)) : true;
+        assert !DEBUG || _debug.append(Misc.bitsToString(code.getTop6Bits(), 6));
 
         // Lain
             
@@ -278,26 +278,26 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         if (iBits == 0x00) {
             // If it's the special 00000000
             // Positive
-            assert DEBUG ? _debug.append("00000000") : true;
+            assert !DEBUG || _debug.append("00000000");
 
             iACCoefficient = _bitReader.readUnsignedBits(8);
 
-            assert DEBUG ? _debug.append(Misc.bitsToString(iACCoefficient, 8)) : true;
+            assert !DEBUG || _debug.append(Misc.bitsToString(iACCoefficient, 8));
 
             code.setBottom10Bits(iACCoefficient);
         } else if (iBits  == 0x80) {
             // If it's the special 10000000
             // Negative
-            assert DEBUG ? _debug.append("10000000") : true;
+            assert !DEBUG || _debug.append("10000000");
 
             iACCoefficient = -256 + _bitReader.readUnsignedBits(8);
 
-            assert DEBUG ? _debug.append(Misc.bitsToString(iACCoefficient, 8)) : true;
+            assert !DEBUG || _debug.append(Misc.bitsToString(iACCoefficient, 8));
 
             code.setBottom10Bits(iACCoefficient);
         } else {
             // Otherwise we already have the value
-            assert DEBUG ? _debug.append(Misc.bitsToString(iBits, 8)) : true;
+            assert !DEBUG || _debug.append(Misc.bitsToString(iBits, 8));
 
             // changed to signed
             iACCoefficient = (byte)iBits;
@@ -333,7 +333,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         return String.format("%s Qscale L=%d C=%d 3800=%x Offset=%d MB=%d.%d Mdec count=%d",
                 getName(), getLumaQscale(), getChromaQscale(),
                 getMagic3800orFrame(),
-                getStreamPosition(),
+                getWordPosition(),
                 getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
                 getMdecCodeCount());
     }

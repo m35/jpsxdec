@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,16 +47,16 @@ import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.Fraction;
-import jpsxdec.util.ProgressListener;
+import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
 
 /** Superclass of all the {@link VideoSavers}.
  * Takes care of the sector reading and passing to the subclass handling. */
 public abstract class VideoSaver implements IDiscItemSaver {
 
-    private static final Logger log = Logger.getLogger(VideoSaver.class.getName());
+    private static final Logger LOG = Logger.getLogger(VideoSaver.class.getName());
 
-    private ProgressListener _progress;
+    private ProgressListenerLogger _progress;
     protected File _directory;
     protected final VideoSaverBuilderSnapshot _snap;
 
@@ -140,7 +140,7 @@ public abstract class VideoSaver implements IDiscItemSaver {
     }
 
 
-    public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException {
+    public void startSave(ProgressListenerLogger pl, File dir) throws IOException, TaskCanceledException {
         try {
             _progress = pl;
             _directory = dir;
@@ -157,7 +157,7 @@ public abstract class VideoSaver implements IDiscItemSaver {
         }
     }
 
-    private void startVideoOnly(ProgressListener pl)
+    private void startVideoOnly(ProgressListenerLogger pl)
             throws IOException, TaskCanceledException
     {
         final int iStartSector = getMovieStartSector();
@@ -191,13 +191,13 @@ public abstract class VideoSaver implements IDiscItemSaver {
             try {
                 close();
             } catch (Throwable ex) {
-                log.log(Level.SEVERE, "Error closing saving process", ex);
-                pl.getLog().log(Level.SEVERE, "Error closing saving process", ex);
+                LOG.log(Level.SEVERE, "Error closing saving process", ex);
+                pl.log(Level.SEVERE, "Error closing saving process", ex);
             }
         }
     }
 
-    private void startVideoAndAudio(ProgressListener pl)
+    private void startVideoAndAudio(ProgressListenerLogger pl)
             throws IOException, TaskCanceledException
     {
         final int iStartSector = getMovieStartSector();
@@ -227,13 +227,13 @@ public abstract class VideoSaver implements IDiscItemSaver {
             try {
                 close();
             } catch (Throwable ex) {
-                log.log(Level.SEVERE, "Error closing saving process", ex);
-                pl.getLog().log(Level.SEVERE, "Error closing saving process", ex);
+                LOG.log(Level.SEVERE, "Error closing saving process", ex);
+                pl.log(Level.SEVERE, "Error closing saving process", ex);
             }
         }
     }
 
-    protected ProgressListener getListener() {
+    protected ProgressListenerLogger getListener() {
         return _progress;
     }
 

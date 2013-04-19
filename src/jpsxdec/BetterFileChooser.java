@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,16 +41,21 @@ import java.io.File;
 import java.text.MessageFormat;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileSystemView;
 
-/** The JFileChooser is pretty crappy, so this sub-class attempts to fix
+/** The JFileChooser is pretty lame, so this sub-class attempts to fix
  *  some of the problems with it. */
 public class BetterFileChooser extends JFileChooser {
-    
-    /** My own 'All files' filter as a workaround for Linux bug. */
+
+    /**
+     * Special filter for saving so we can consider auto extension before saving.
+     */
+    public abstract static class SaveFileFilter extends FileFilter {
+        abstract public String getExtension();
+    }
+
+    /** My own 'All files' filter as a workaround for Java 5 Linux bug. */
     public static final FileFilter ALL_FILE_FILTER = new FileFilter() {
         @Override
         public boolean accept(File f) {
@@ -64,7 +69,7 @@ public class BetterFileChooser extends JFileChooser {
 
         @Override
         public String toString() {
-            // Java is so awesome that the Linux version uses toString() instead of
+            // Java 5 on Linux uses toString() instead of
             // getDescription() in the list of file extention filters.
             return getDescription();
         }
@@ -102,16 +107,7 @@ public class BetterFileChooser extends JFileChooser {
     }
 
     private void init() {
-        // Set the look and feel for the platform
-        /*
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            SwingUtilities.updateComponentTreeUI(this);
-        } catch (Exception ex) {
-        }
-         *
-         */
-        // and fix the stupid 'all' file filter for Linux by using my own
+        // fix the broken 'all' file filter for Linux by using my own
         super.removeChoosableFileFilter(super.getAcceptAllFileFilter());
         super.addChoosableFileFilter(ALL_FILE_FILTER);
     }
@@ -123,28 +119,37 @@ public class BetterFileChooser extends JFileChooser {
         // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6372808
         /*
         putClientProperty("FileChooser.useShellFolder", Boolean.FALSE);
-         * 
-         */
+        */
         super.updateUI();
     }
 
     @Override
     public void approveSelection() {
-        // confirm overwrite
+        if (getDialogType() == SAVE_DIALOG) {
+            File f = getSelectedFile();
 
-        File f = getSelectedFile();
-
-        if (f.exists() && getDialogType() == SAVE_DIALOG) {
-            String sMsg = "The file \"{0}\" already exists!\nDo you want to replace it?";
-            sMsg = MessageFormat.format(sMsg, new Object[]{f.getName()});
-            String sTitle = getDialogTitle();
-            int iOption = JOptionPane.showConfirmDialog(this, sMsg, sTitle, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-            if (iOption != JOptionPane.YES_OPTION) {
-                return;
+            // ensure file name has extension
+            FileFilter filter = getFileFilter();
+            if (filter instanceof SaveFileFilter) {
+                SaveFileFilter saveFilter = (SaveFileFilter) filter;
+                if (!f.getName().toLowerCase().endsWith(saveFilter.getExtension().toLowerCase())) {
+                    f = new File(f.getParentFile(), f.getName()+saveFilter.getExtension());
+                    setSelectedFile(f);
+                }
             }
-        } 
+
+            // confirm overwrite
+            if (f.exists()) {
+                String sMsg = "The file \"{0}\" already exists!\nDo you want to replace it?";
+                sMsg = MessageFormat.format(sMsg, new Object[]{f.getName()});
+                String sTitle = getDialogTitle();
+                int iOption = JOptionPane.showConfirmDialog(this, sMsg, sTitle, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (iOption != JOptionPane.YES_OPTION) {
+                    return;
+                }
+            }
+        }
 
         super.approveSelection();
-
     }
 }

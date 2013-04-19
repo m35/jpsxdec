@@ -1,5 +1,5 @@
 /*
- * $Id: TableCellContext.java,v 1.5 2009/03/10 12:13:42 kleopatra Exp $
+ * $Id: TableCellContext.java 3783 2010-09-15 13:13:23Z kleopatra $
  *
  * Copyright 2008 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -23,12 +23,20 @@ package org.jdesktop.swingx.renderer;
 import java.awt.Color;
 
 import javax.swing.JTable;
+import javax.swing.UIManager;
+
+import org.jdesktop.swingx.plaf.UIManagerExt;
 
 /**
  * Table specific <code>CellContext</code>.
+ * 
+ * This implementation optionally can handle LAF provide alternateRowColor. The default 
+ * is not doing it. To enable, client code must set a UI-Property with key 
+ * HANDLE_ALTERNATE_ROW_BACKGROUND to Boolean.TRUE.
  */
 public class TableCellContext extends CellContext {
 
+    public static final String HANDLE_ALTERNATE_ROW_BACKGROUND = "TableCellContext.handleAlternateRowBackground";
     /**
      * Sets state of the cell's context. Note that the component might be null
      * to indicate a cell without a concrete context. All accessors must cope
@@ -69,11 +77,50 @@ public class TableCellContext extends CellContext {
         return getComponent().isCellEditable(getRow(), getColumn());
     }
 
+    /** 
+     * @inherited <p>
+     * Overridden to respect UI alternating row colors.
+     * 
+     */
+    @Override
+    protected Color getBackground() {
+        if (isDropOn()) {
+            return getSelectionBackground();
+        }
+        if (getComponent() == null) return null;
+        Color color = getAlternateRowColor();
+        // JW: this is fixing a core bug - alternate color (aka: different 
+        // from default table background) should be the odd row
+        if ((color != null) && getRow() >= 0 && getRow() % 2 == 1) {
+            return color;
+        }
+        return getComponent().getBackground();
+    }
+    
+    /**
+     * Returns a Color to for odd row background if this context should handle the
+     * alternating row color AND the UIManager has the alternateRowColor property set.
+     * Returns null otherwise.
+     * 
+     * @return the color to use for odd row background, or null if either this context
+     *    does not handle or no alternate row color is set.
+     */
+    protected Color getAlternateRowColor() {
+        if (!Boolean.TRUE.equals(UIManager.get(HANDLE_ALTERNATE_ROW_BACKGROUND))) return null;
+        return UIManagerExt.getColor(getUIPrefix() + "alternateRowColor");
+        
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     protected Color getSelectionBackground() {
+        Color selection = null;
+        if (isDropOn()) {
+            selection = getDropCellBackground();
+            if (selection != null) return selection;
+        }
         return getComponent() != null ? getComponent()
                 .getSelectionBackground() : null;
     }
@@ -83,6 +130,11 @@ public class TableCellContext extends CellContext {
      */
     @Override
     protected Color getSelectionForeground() {
+        Color selection = null;
+        if (isDropOn()) {
+            selection = getDropCellForeground();
+            if (selection != null) return selection;
+        }
         return getComponent() != null ? getComponent()
                 .getSelectionForeground() : null;
     }

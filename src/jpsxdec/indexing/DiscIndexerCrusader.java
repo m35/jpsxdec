@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012  Michael Sabin
+ * Copyright (C) 2012-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,12 @@ package jpsxdec.indexing;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.discitems.*;
+import jpsxdec.discitems.CrusaderDemuxer;
+import jpsxdec.discitems.DiscItem;
+import jpsxdec.discitems.DiscItemCrusader;
+import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.ISectorFrameDemuxer;
+import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorCrusader;
 import jpsxdec.util.NotThisTypeException;
@@ -70,7 +75,7 @@ public class DiscIndexerCrusader extends DiscIndexer
             return;
 
         try {
-            boolean blnAccepted = _demuxer.indexFeedSector(identifiedSector);
+            boolean blnAccepted = _demuxer.indexFeedSector(identifiedSector, _errLog);
             while (!blnAccepted) {
                 addDiscItem(new DiscItemCrusader(_demuxer.getStartSector(), _demuxer.getEndSector(), 
                         _demuxer.getWidth(), _demuxer.getHeight(), 
@@ -78,7 +83,7 @@ public class DiscIndexerCrusader extends DiscIndexer
                 _iStartFrame = _iEndFrame = -1;
                 _demuxer = new CrusaderDemuxer();
                 _demuxer.setFrameListener(this);
-                blnAccepted = _demuxer.indexFeedSector(identifiedSector);
+                blnAccepted = _demuxer.indexFeedSector(identifiedSector, _errLog);
             }
         } catch (IOException ex) {
             throw new RuntimeException("Should never happen", ex);
@@ -94,7 +99,7 @@ public class DiscIndexerCrusader extends DiscIndexer
     @Override
     public void indexingEndOfDisc() {
         try {
-            _demuxer.flush();
+            _demuxer.flush(_errLog);
             if (_demuxer.foundAPayload()) {
                 addDiscItem(new DiscItemCrusader(_demuxer.getStartSector(), _demuxer.getEndSector(), 
                                                  _demuxer.getWidth(), _demuxer.getHeight(), 
@@ -107,11 +112,11 @@ public class DiscIndexerCrusader extends DiscIndexer
     }
 
     @Override
-    public void mediaListGenerated(DiscIndex index) {
+    public void indexGenerated(DiscIndex index) {
     }
     
     @Override
-    public DiscItem deserializeLineRead(DiscItemSerialization deserializedLine) {
+    public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine) {
         try {
             if (DiscItemCrusader.TYPE_ID.equals(deserializedLine.getType())) {
                 return new DiscItemCrusader(deserializedLine);

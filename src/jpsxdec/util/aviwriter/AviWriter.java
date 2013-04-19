@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,15 +37,16 @@
 
 package jpsxdec.util.aviwriter;
 
-import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import jpsxdec.Version;
 import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
 
 /**
@@ -83,6 +84,8 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * Works with Java 1.5 or higher.
  */
 public abstract class AviWriter {
+
+    public static final String AVI_WRITER_ID = Version.VerString;
 
     // -------------------------------------------------------------------------
     // -- Fields ---------------------------------------------------------------
@@ -181,8 +184,9 @@ public abstract class AviWriter {
                         //strf_aud
                     //LIST_strl_aud
                 //LIST_hdr1
+                    //JUNK_writerId;
     private     Chunk LIST_movi;
-                  /* image and audio chunk data */
+                    /* image and audio chunk data go here */
                 //LIST_movi
     private     AVIOLDINDEX avioldidx;
             //RIFF_chunk
@@ -196,10 +200,10 @@ public abstract class AviWriter {
     // -------------------------------------------------------------------------
     
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    protected AviWriter(final File oOutputfile,
+    protected AviWriter(final File outputfile,
                      final int iWidth, final int iHeight,
                      final long lngFrames, final long lngPerSecond,
-                     final AudioFormat oAudioFormat,
+                     final AudioFormat audioFormat,
                      final boolean blnCompressedVideo,
                      final String sFourCCcodec,
                      final int iBytes)
@@ -221,26 +225,26 @@ public abstract class AviWriter {
             throw new IllegalArgumentException("Frames/Second must be greater than 0 " +
                                                "(and less than infinity).");
 
-        if (oAudioFormat != null) {
-            if (oAudioFormat.getChannels() == AudioSystem.NOT_SPECIFIED)
+        if (audioFormat != null) {
+            if (audioFormat.getChannels() == AudioSystem.NOT_SPECIFIED)
                 throw new IllegalArgumentException("Audio channels cannot be NOT_SPECIFIED.");
-            if (oAudioFormat.getFrameRate() == AudioSystem.NOT_SPECIFIED)
+            if (audioFormat.getFrameRate() == AudioSystem.NOT_SPECIFIED)
                 throw new IllegalArgumentException("Audio frame rate cannot be NOT_SPECIFIED.");
-            if (oAudioFormat.getFrameSize() == AudioSystem.NOT_SPECIFIED)
+            if (audioFormat.getFrameSize() == AudioSystem.NOT_SPECIFIED)
                 throw new IllegalArgumentException("Audio frame size cannot be NOT_SPECIFIED.");
-            if (oAudioFormat.getSampleRate() == AudioSystem.NOT_SPECIFIED)
+            if (audioFormat.getSampleRate() == AudioSystem.NOT_SPECIFIED)
                 throw new IllegalArgumentException("Audio sample rate cannot be NOT_SPECIFIED.");
-            if (oAudioFormat.getSampleSizeInBits() == AudioSystem.NOT_SPECIFIED)
+            if (audioFormat.getSampleSizeInBits() == AudioSystem.NOT_SPECIFIED)
                 throw new IllegalArgumentException("Audio sample size cannot be NOT_SPECIFIED.");
-            if (oAudioFormat.isBigEndian())
+            if (audioFormat.isBigEndian())
                 throw new IllegalArgumentException("Audio must be little-endian.");
-            if (oAudioFormat.getEncoding() != AudioFormat.Encoding.PCM_SIGNED)
+            if (audioFormat.getEncoding() != AudioFormat.Encoding.PCM_SIGNED)
                 throw new IllegalArgumentException("Audio encoding needs to be PCM_SIGNED.");
             // TODO: Are there any more checks to perform?
         }
-        _audioFormat = oAudioFormat;
+        _audioFormat = audioFormat;
 
-        _aviFile = new RandomAccessFile(oOutputfile, "rw");
+        _aviFile = new RandomAccessFile(outputfile, "rw");
         _aviFile.setLength(0); // trim the file to 0
 
         //----------------------------------------------------------------------
@@ -248,7 +252,7 @@ public abstract class AviWriter {
         // Actual values will be filled in when avi is closed.
         
         _RIFF_chunk = new Chunk(_aviFile, "RIFF", "AVI ");
-        
+
             _LIST_hdr1 = new Chunk(_aviFile, "LIST", "hdrl");
         
                 _avih = new AVIMAINHEADER();
@@ -290,6 +294,12 @@ public abstract class AviWriter {
 
             _LIST_hdr1.endChunk(_aviFile);
             
+            // some programs will use this to identify the program that wrote the avi
+            Chunk JUNK_writerId = new Chunk(_aviFile, "JUNK");
+                _aviFile.writeBytes(AVI_WRITER_ID);
+                _aviFile.write(0);
+            JUNK_writerId.endChunk(_aviFile);
+
             LIST_movi = new Chunk(_aviFile, "LIST", "movi");
 
             // now we're ready to start accepting video/audio data
@@ -359,13 +369,11 @@ public abstract class AviWriter {
             if (iTotal % _audioFormat.getFrameSize() != 0)
                 throw new RuntimeException("Read and wrote partial sample.");
 
-            padTo4ByteBoundary((int)(_aviFile.getFilePointer() - (data_size.getStart()+4)));
-
         // end the chunk
         data_size.endChunk(_aviFile);
         
         // add this item to the index
-        idxentry.dwSize = (int)data_size.getSize();
+        idxentry.dwSize = data_size.getSize();
         _indexList.add(idxentry);
     }
 
@@ -391,9 +399,8 @@ public abstract class AviWriter {
 
         Chunk data_size = new Chunk(_aviFile, "01wb");
 
-            // write the data, then pad to 4 byte boundary
+            // write the data
             _aviFile.write(abData, iOfs, iLen);
-            padTo4ByteBoundary(iLen);
 
         // end the chunk
         data_size.endChunk(_aviFile);
@@ -401,7 +408,7 @@ public abstract class AviWriter {
         _lngSampleCount += iLen / _audioFormat.getFrameSize();
 
         // add the index to the list
-        idxentry.dwSize = (int)data_size.getSize();
+        idxentry.dwSize = data_size.getSize();
         _indexList.add(idxentry);
     }
 
@@ -442,9 +449,8 @@ public abstract class AviWriter {
                                                        // The flag indicates key frames in the video sequence.
         Chunk data_size = new Chunk(_aviFile, sChunkId);
 
-            // write the data, then pad to 4 byte boundary
+            // write the data
             _aviFile.write(abData, iOfs, iLen);
-            padTo4ByteBoundary(iLen);
 
         // end the chunk
         data_size.endChunk(_aviFile);
@@ -452,18 +458,12 @@ public abstract class AviWriter {
         _lngFrameCount++;
 
         // add the index to the list
-        idxentry.dwSize = (int)data_size.getSize();
+        idxentry.dwSize = data_size.getSize();
         _indexList.add(idxentry);
     }
 
     /** Subclasses should implement writing of a simple blank frame. */
     abstract public void writeBlankFrame() throws IOException;
-
-    /** Helper function to pad zeros to ensure each chunk ends at 32-bit boundaries. */
-    private void padTo4ByteBoundary(int iBytesWritten) throws IOException {
-        int remaint = (4 - (iBytesWritten % 4)) % 4;
-        while (remaint > 0) { _aviFile.write(0); remaint--; }
-    }
 
     // -------------------------------------------------------------------------
     // -- Close ----------------------------------------------------------------
@@ -531,16 +531,16 @@ public abstract class AviWriter {
         _strh_vid.dwInitialFrames        = 0;
         _strh_vid.dwScale                = _lngFpsDenominator;
         _strh_vid.dwRate                 = _lngFpsNumerator; // frame rate for video streams
-        _strh_vid.dwStart                = 0;         // this field is usually set to zero
-        _strh_vid.dwLength               = _lngFrameCount; // playing time of AVI file as defined by scale and rate
-                                                           // Set equal to the number of frames
+        _strh_vid.dwStart                = 0;                // this field is usually set to zero
+        _strh_vid.dwLength               = _lngFrameCount;   // playing time of AVI file as defined by scale and rate
+                                                             // Set equal to the number of frames
         // TODO: Add a sugested buffer size
         _strh_vid.dwSuggestedBufferSize  = 0;  // Suggested buffer size for reading the stream.
                                                // Typically, this contains a value corresponding to the largest chunk
                                                // in a stream.
-        _strh_vid.dwQuality              = -1;  // encoding quality given by an integer between
-                                                // 0 and 10,000.  If set to -1, drivers use the default
-                                                // quality value.
+        _strh_vid.dwQuality              = -1; // encoding quality given by an integer between
+                                               // 0 and 10,000.  If set to -1, drivers use the default
+                                               // quality value.
         _strh_vid.dwSampleSize           = 0;
         _strh_vid.left                   = 0;
         _strh_vid.top                    = 0;
@@ -550,33 +550,32 @@ public abstract class AviWriter {
         //######################################################################
         // BITMAPINFOHEADER
         
-        //_bif.biSize        = 40;      // Write header size of BITMAPINFO header structure
-                                       // Applications should use this size to determine which BITMAPINFO header structure is 
-                                       // being used.  This size includes this biSize field.                                 
+        //_bif.biSize        = 40;       // Write header size of BITMAPINFO header structure
+                                         // Applications should use this size to determine which BITMAPINFO header structure is
+                                         // being used.  This size includes this biSize field.
         _bif.biWidth         = _iWidth;  // BITMAP width in pixels
         _bif.biHeight        = _iHeight; // image height in pixels.  If height is positive,
-                                       // the bitmap is a bottom up DIB and its origin is in the lower left corner.  If 
-                                       // height is negative, the bitmap is a top-down DIB and its origin is the upper
-                                       // left corner.  This negative sign feature is supported by the Windows Media Player, but it is not
-                                       // supported by PowerPoint.                                                                        
-        //_bif.biPlanes      = 1;       // biPlanes - number of color planes in which the data is stored
-                                       // This must be set to 1.
-        _bif.biBitCount      = 24;      // biBitCount - number of bits per pixel #
-
-                                        // 0L for BI_RGB, uncompressed data as bitmap
-                                        // or type of compression used
+                                         // the bitmap is a bottom up DIB and its origin is in the lower left corner.  If
+                                         // height is negative, the bitmap is a top-down DIB and its origin is the upper
+                                         // left corner.  This negative sign feature is supported by the Windows Media Player, but it is not
+                                         // supported by PowerPoint.
+        //_bif.biPlanes      = 1;        // biPlanes - number of color planes in which the data is stored
+                                         // This must be set to 1.
+        _bif.biBitCount      = 24;       // biBitCount - number of bits per pixel #
+                                         // 0L for BI_RGB, uncompressed data as bitmap
+                                         // or type of compression used
         _bif.biCompression   = _iCompression;
 
         _bif.biSizeImage     = 0;
-        _bif.biXPelsPerMeter = 0;       // horizontal resolution in pixels
-        _bif.biYPelsPerMeter = 0;       // vertical resolution in pixels
-                                       // per meter
-        _bif.biClrUsed       = 0;       //
-        _bif.biClrImportant  = 0;       // biClrImportant - specifies that the first x colors of the color table
-                                       // are important to the DIB.  If the rest of the colors are not available,
-                                       // the image still retains its meaning in an acceptable manner.  When this
-                                       // field is set to zero, all the colors are important, or, rather, their
-                                       // relative importance has not been computed.
+        _bif.biXPelsPerMeter = 0;        // horizontal resolution in pixels
+        _bif.biYPelsPerMeter = 0;        // vertical resolution in pixels
+                                         // per meter
+        _bif.biClrUsed       = 0;        //
+        _bif.biClrImportant  = 0;        // biClrImportant - specifies that the first x colors of the color table
+                                         // are important to the DIB.  If the rest of the colors are not available,
+                                         // the image still retains its meaning in an acceptable manner.  When this
+                                         // field is set to zero, all the colors are important, or, rather, their
+                                         // relative importance has not been computed.
         
         //######################################################################
         // AVISTREAMHEADER for audio
@@ -665,8 +664,11 @@ public abstract class AviWriter {
      *  it temporarily jumps back to the start of the chunk and records how 
      *  many bytes have been written. */
     private static class Chunk {
+
+        private static byte[] ZEROES3 = new byte[3];
+
         final private long _lngPos;
-        private long _lngSize = -1;
+        private int _iSize = -1;
         
         Chunk(RandomAccessFile raf, String sChunkName) throws IOException {
             AVIstruct.write32LE(raf, AVIstruct.string2int(sChunkName));
@@ -681,19 +683,29 @@ public abstract class AviWriter {
         
         /** Jumps back to saved position in the RandomAccessFile and writes
          *  how many bytes have passed since the position was saved, then
-         *  returns to the current position again. */
+         *  returns to the current position again. Pads to a 4 byte boundary. */
         public void endChunk(RandomAccessFile raf) throws IOException {
             long lngCurPos = raf.getFilePointer(); // save this pos
+            _iSize = (int)(lngCurPos - (_lngPos + 4)); // calculate number of bytes since start of chunk
+
+            // pad to 4 byte boundary
+            int iNon4bytes = (int)(_iSize % 4);
+            if (iNon4bytes > 0) {
+                int iBytesToPad = 4 - iNon4bytes;
+                raf.write(ZEROES3, 0, iBytesToPad);
+                _iSize += iBytesToPad;
+                lngCurPos += iBytesToPad;
+            }
+
             raf.seek(_lngPos); // go back to where the header is
-            _lngSize = (lngCurPos - (_lngPos + 4)); // calculate number of bytes since start of chunk
-            AVIstruct.write32LE(raf, (int)_lngSize); // write the header size
+            AVIstruct.write32LE(raf, _iSize); // write the header size
             raf.seek(lngCurPos); // return to current position
         }
 
         /** After endChunk() has been called, returns the size that was
          *  written. */
-        private long getSize() {
-            return _lngSize;
+        private int getSize() {
+            return _iSize;
         }
         
         /** Returns the position where the size will be written when

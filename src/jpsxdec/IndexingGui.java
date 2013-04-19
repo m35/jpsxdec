@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,15 +49,15 @@ import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.ProgressListener;
+import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
-import jpsxdec.util.UserFriendlyHandler;
+import jpsxdec.util.UserFriendlyLogger;
 import org.jdesktop.swingworker.SwingWorker;
 
 
 public class IndexingGui extends javax.swing.JDialog implements PropertyChangeListener {
 
-    private static final Logger log = Logger.getLogger(IndexingGui.class.getName());
+    private static final Logger LOG = Logger.getLogger(IndexingGui.class.getName());
 
     /** The task to perform. */
     private ProgresGuiTask _task;
@@ -96,8 +96,6 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     private void sharedConstructor(java.awt.Window parent, CdFileSectorReader cd)
     {
         initComponents();
-
-        // TODO: put CD details in a label the user can see
 
         // lock the current dialog size before we change anything
         setMinimumSize(new Dimension(getWidth(), getHeight()));
@@ -139,10 +137,10 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
             _guiResultLbl.setText("Canceled");
             _guiResultLbl.setForeground(Color.orange);
         } else if (getException() != null) {
-            _guiResultLbl.setText("Failure - See " + _task._handler.getFileName() + " for details");
+            _guiResultLbl.setText("Failure - See " + _task.__progressLog.getFileName() + " for details");
             _guiResultLbl.setForeground(Color.red);
         } else if (_iWarningCount > 0 || _iErrorCount > 0) {
-            _guiResultLbl.setText("Success with messages - See " + _task._handler.getFileName() + " for details");
+            _guiResultLbl.setText("Success with messages - See " + _task.__progressLog.getFileName() + " for details");
         } else {
             _guiResultLbl.setText("Success!");
         }
@@ -339,25 +337,60 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     // run in separate thread
 
     private class ProgresGuiTask extends SwingWorker<Void, String>
-            implements ProgressListener
     {
 
         public static final String PROGRESS_VALUE = "progress";
         public static final String EXCEPTION = "exception";
         public static final String DONE = "done";
 
-        private final Logger _errLog;
-        private final UserFriendlyHandler _handler = new UserFriendlyHandler("index") {
-            protected void onWarn(LogRecord record) {
-                EventQueue.invokeLater(new ExceptionLater(true));
+        private final ProgressListenerLogger __progressLog = new ProgressListenerLogger("index") {
+            public void progressStart(String s) throws TaskCanceledException {
+                if (isCancelled())
+                    throw new TaskCanceledException();
+                publish(s);
+                setProgress(0);
             }
-            protected void onErr(LogRecord record) {
-                EventQueue.invokeLater(new ExceptionLater(false));
+
+            public void progressStart() throws TaskCanceledException {
+                if (isCancelled())
+                    throw new TaskCanceledException();
+                setProgress(0);
+            }
+
+            public void progressEnd() throws TaskCanceledException {
+                setProgress(100);
+            }
+
+            public void progressUpdate(double dblPercentComplete) throws TaskCanceledException {
+                if (isCancelled())
+                    throw new TaskCanceledException();
+                setProgress((int)Math.round(dblPercentComplete * 100));
+            }
+
+            public void event(String sDescription) {
+                publish(sDescription);
+            }
+
+            public boolean seekingEvent() {
+                // TODO: only seek event after so many seconds
+                return true;
+            }
+
+            public void progressInfo(String s) {
             }
         };
 
         public ProgresGuiTask() {
-            _errLog = Logger.getLogger("index");
+            __progressLog.setListener(new UserFriendlyLogger.OnWarnErr() {
+                public void onWarn(LogRecord record) {
+                    EventQueue.invokeLater(new ExceptionLater(true));
+                }
+                public void onErr(LogRecord record) {
+                    EventQueue.invokeLater(new ExceptionLater(false));
+                }
+            });
+            
+            __progressLog.setHeader(1, "Indexing " + _cd.getSourceFile().toString());
         }
 
         @Override
@@ -367,64 +400,24 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
         @Override
         final protected Void doInBackground() {
-            _errLog.addHandler(_handler);
-            _handler.setHeader("Indexing " + _cd.getSourceFile().toString());
             try {
-                _index = new DiscIndex(_cd, this);
+                _index = new DiscIndex(_cd, __progressLog);
             } catch (TaskCanceledException ex) {
                 // cool
             } catch (Throwable ex) {
                 // uncool
                 _exception = ex;
                 firePropertyChange(EXCEPTION, null, ex); // calls IndexingGui#propertyChange()
-                log.log(Level.SEVERE, "Unhandled error", ex);
-                _errLog.log(Level.SEVERE, "Unhandled error", ex);
+                LOG.log(Level.SEVERE, "Unhandled error", ex);
+                __progressLog.log(Level.SEVERE, "Unhandled error", ex);
                 return null;
             }
             firePropertyChange(DONE, null, null); // calls IndexingGui#propertyChange()
-            _errLog.removeHandler(_handler);
-            _handler.close();
+            __progressLog.close();
             return null;
         }
 
-        public void progressStart(String s) throws TaskCanceledException {
-            if (isCancelled())
-                throw new TaskCanceledException();
-            publish(s);
-            setProgress(0);
-        }
 
-        public void progressStart() throws TaskCanceledException {
-            if (isCancelled())
-                throw new TaskCanceledException();
-            setProgress(0);
-        }
-
-        public void progressEnd() throws TaskCanceledException {
-            setProgress(100);
-        }
-
-        public void progressUpdate(double dblPercentComplete) throws TaskCanceledException {
-            if (isCancelled())
-                throw new TaskCanceledException();
-            setProgress((int)Math.round(dblPercentComplete * 100));
-        }
-
-        public void event(String sDescription) {
-            publish(sDescription);
-        }
-
-        public boolean seekingEvent() {
-            // TODO: only seek event after so many seconds
-            return true;
-        }
-
-        public void info(String s) {
-        }
-
-        public Logger getLog() {
-            return _errLog;
-        }
 
         private class ExceptionLater implements Runnable {
             private final boolean __blnWarn;
@@ -437,7 +430,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                     _guiWarningsCount.setText(String.valueOf(_iWarningCount));
                     _guiWarningsCount.setForeground(Color.red);
                 } else {
-                    _iErrorCount ++;
+                    _iErrorCount++;
                     _guiErrorsCount.setText(String.valueOf(_iErrorCount));
                     _guiErrorsCount.setForeground(Color.red);
                 }

@@ -1,5 +1,5 @@
 /*
- * $Id: StatusBarUI.java,v 1.5 2009/02/04 15:43:14 kschaefe Exp $
+ * $Id: StatusBarUI.java 3246 2009-02-04 15:43:14Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

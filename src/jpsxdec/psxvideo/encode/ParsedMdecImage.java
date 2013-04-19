@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
@@ -51,7 +52,7 @@ import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
  *  tweak individual macro-blocks, which is also useful for recompression. */
 public class ParsedMdecImage  {
     
-    private static final Logger log = Logger.getLogger(ParsedMdecImage.class.getName());
+    private static final Logger LOG = Logger.getLogger(ParsedMdecImage.class.getName());
 
     public static class MacroBlock implements Iterable<Block> {
         public Block Cr;
@@ -314,37 +315,18 @@ public class ParsedMdecImage  {
         _iHeight = iHeight;
 
         // Calculate number of macro-blocks in the frame
-        int iMacroBlockCount = calculateMacroBlocks(iWidth, iHeight);
+        int iMacroBlockCount = Calc.macroblocks(iWidth, iHeight);
 
         // Set the array to match
         _mdecList = new MacroBlock[iMacroBlockCount];
 
-        if (log.isLoggable(Level.FINE))
-            log.fine("Expecting " + iMacroBlockCount + " macroblocks");
+        if (LOG.isLoggable(Level.FINE))
+            LOG.fine("Expecting " + iMacroBlockCount + " macroblocks");
 
     }
     
     public int getBlockCount() {
-        return calculateMacroBlocks(_iWidth, _iHeight) * 6;
-    }
-
-    public static int calculateMacroBlocks(int iWidth, int iHeight) {
-        // Actual width/height in macroblocks 
-        // (since you can't have a partial macroblock)
-        int iActualWidth, iActualHeight;
-        
-        if ((iWidth % 16) > 0)
-            iActualWidth = (iWidth / 16 + 1) * 16;
-        else
-            iActualWidth = iWidth;
-        
-        if ((iHeight % 16) > 0)
-            iActualHeight = (iHeight / 16 + 1) * 16;
-        else
-            iActualHeight = iHeight;
-        
-        // Calculate number of macro-blocks in the frame
-        return (iActualWidth / 16) * (iActualHeight / 16);
+        return Calc.blocks(_iWidth, _iHeight);
     }
 
     /* ---------------------------------------------------------------------- */
@@ -396,8 +378,8 @@ public class ParsedMdecImage  {
         {
             for (int iMacBlkY = 0; iMacBlkY < iMacBlockHeight; iMacBlkY ++)
             {
-                if (log.isLoggable(Level.FINE))
-                    log.fine("Reading macroblock " + iMacroBlockIndex);
+                if (LOG.isLoggable(Level.FINE))
+                    LOG.fine("Reading macroblock " + iMacroBlockIndex);
 
                 MacroBlock thisMacBlk;
                 _mdecList[iMacroBlockIndex] = thisMacBlk = new MacroBlock();
@@ -436,7 +418,7 @@ public class ParsedMdecImage  {
 
                     thisBlk.EndOfBlock = code;
 
-                    log.finest("EOB");
+                    LOG.finest("EOB");
                 }
 
                 iMacroBlockIndex++;

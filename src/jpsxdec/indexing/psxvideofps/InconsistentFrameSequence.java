@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,7 +53,7 @@ import jpsxdec.util.NotThisTypeException;
  * specified. */
 public class InconsistentFrameSequence {
 
-    private static final Logger log = Logger.getLogger(InconsistentFrameSequence.class.getName());
+    private static final Logger LOG = Logger.getLogger(InconsistentFrameSequence.class.getName());
 
     // -------------------------------------------------------------------------
     // --  Static stuff  -------------------------------------------------------
@@ -225,7 +225,7 @@ public class InconsistentFrameSequence {
                 // we can probably assume it's a match, but this code
                 // TODO: should be changed to handle that and report.
                 // as for now, we'll fail
-                log.warning("Movie is longer than sequence " + _sSourceResource);
+                LOG.warning("Movie is longer than sequence " + _sSourceResource);
                 return false;
             }
             LineParse line = new LineParse(sLine);

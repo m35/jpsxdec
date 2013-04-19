@@ -1,5 +1,5 @@
 /*
- * $Id: ColumnControlButton.java,v 1.40 2008/02/20 20:06:37 kleopatra Exp $
+ * $Id: ColumnControlButton.java 4065 2011-08-19 13:28:26Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -55,6 +55,8 @@ import org.jdesktop.swingx.action.AbstractActionExt;
 import org.jdesktop.swingx.action.ActionContainerFactory;
 import org.jdesktop.swingx.plaf.ColumnControlButtonAddon;
 import org.jdesktop.swingx.plaf.LookAndFeelAddons;
+import org.jdesktop.swingx.table.ColumnControlPopup.ActionGrouper;
+import org.jdesktop.swingx.table.ColumnControlPopup.ActionGroupable;
 
 /**
  * A component to allow interactive customization of <code>JXTable</code>'s
@@ -75,9 +77,22 @@ import org.jdesktop.swingx.plaf.LookAndFeelAddons;
  * interaction. <p>
  * 
  * This class is responsible for handling/providing/updating the lists of
- * actions and to keep all action's state in synch with Table-/Column state. 
+ * actions and to keep each Action's state in synch with Table-/Column state. 
  * The visible behaviour of the popup is delegated to a
  * <code>ColumnControlPopup</code>. <p>
+ * 
+ * Default support for adding table (configuration or other) <code>Action</code>s is 
+ * informal, driven by convention: 
+ * <ul>
+ * <li> the JXTable's actionMap is scanned for candidate actions, the default marker
+ *   is a key of type String which starts with {@link ColumnControlButton.COLUMN_CONTROL_MARKER} 
+ * <li> the actions are sorted by that key and then handed over to the ColumnControlPopup
+ *   for binding and addition of appropriate menu items
+ * <li> the addition as such is control by additionalActionsVisible property, its 
+ *   default value is true  
+ * </ul> 
+ * 
+ * 
  * 
  * @see TableColumnExt
  * @see TableColumnModelExt
@@ -95,6 +110,7 @@ public class ColumnControlButton extends JButton {
     
     /** the key for looking up the control's margin in the UIManager. Typically, it's LAF dependent. */
     public static final String COLUMN_CONTROL_BUTTON_MARGIN_KEY = "ColumnControlButton.margin";
+
     static {
         LookAndFeelAddons.contribute(new ColumnControlButtonAddon());
     }
@@ -110,6 +126,8 @@ public class ColumnControlButton extends JButton {
     TableColumnModelListener columnModelListener;
     /** the list of actions for column menuitems.*/
     private List<ColumnVisibilityAction> columnVisibilityActions;
+
+    private boolean additionalActionsVisible;
 
     
     /**
@@ -184,6 +202,48 @@ public class ColumnControlButton extends JButton {
         getColumnControlPopup().toggleVisibility(this);
     }
 
+    /**
+     * Returns the actionsVisible property which controls whether or not
+     * additional table Actions should be included into the popup.
+     * 
+     * @return a boolean indicating whether or not additional table Actions
+     *    are visible
+     */
+    public boolean getAdditionalActionsVisible() {
+        return additionalActionsVisible;
+    }
+    
+    
+    /**
+     * Sets the additonalActionsVisible property. It controls whether or
+     * not additional table actions should be included into the popup. <p>
+     * 
+     * The default value is <code>true</code>.
+     * 
+     * @param additionalActionsVisible the additionalActionsVisible to set
+     */
+    public void setAdditionalActionsVisible(boolean additionalActionsVisible) {
+        if (additionalActionsVisible == getAdditionalActionsVisible()) return;
+        boolean old = getAdditionalActionsVisible();
+        this.additionalActionsVisible = additionalActionsVisible;
+        populatePopup();
+        firePropertyChange("additionalActionsVisible", old, getAdditionalActionsVisible());
+    }
+
+    /**
+     * Sets the grouper to use for grouping the additional actions. Maybe null to 
+     * have no additional grouping. Has no effect
+     * if the ColumnControlPopup doesn't implement Groupable. The default 
+     * ColumnControlPopup supports Groupable, but is instantiated without a Grouper.
+     * 
+     * @param grouper
+     */
+    public void setActionGrouper(ActionGrouper grouper) {
+        if (!(getColumnControlPopup() instanceof ActionGroupable)) return;
+        ((ActionGroupable) getColumnControlPopup()).setActionGrouper(grouper);
+        populatePopup();
+    }
+    
     @Override
     public void applyComponentOrientation(ComponentOrientation o) {
         super.applyComponentOrientation(o);
@@ -286,6 +346,7 @@ public class ColumnControlButton extends JButton {
         public synchronized void setSelected(boolean newValue) {
             super.setSelected(newValue);
             if (canControlColumn()) {
+                if (!fromColumn)
                 ((TableColumnExt) column).setVisible(newValue);
             }
         }
@@ -313,7 +374,12 @@ public class ColumnControlButton extends JButton {
             setSelected(visible);
             fromColumn = false;
         }
-        
+
+
+        protected void updateFromColumnHideable(boolean hideable) {
+            setEnabled(hideable);
+        }
+
         /**
          * Synchs name property to value. This is called on change of 
          * tableColumn's <code>headerValue</code> property.
@@ -380,6 +446,8 @@ public class ColumnControlButton extends JButton {
                         updateFromColumnVisible((Boolean) evt.getNewValue());
                     } else if ("headerValue".equals(evt.getPropertyName())) {
                         updateFromColumnHeader(evt.getNewValue());
+                    } else if ("hideable".equals(evt.getPropertyName())) {
+                        updateFromColumnHideable((Boolean) evt.getNewValue());
                     }
                 }
             };
@@ -396,11 +464,20 @@ public class ColumnControlButton extends JButton {
      * 
      * 
      */
-    public class DefaultColumnControlPopup implements ColumnControlPopup {
+    public class DefaultColumnControlPopup implements ColumnControlPopup, ActionGroupable {
         private JPopupMenu popupMenu;
+        private ActionGrouper grouper;
 
+        public DefaultColumnControlPopup() {
+            this(null);
+        }
+        
         //------------------ public methods to control visibility status
         
+        public DefaultColumnControlPopup(ActionGrouper grouper) {
+            this.grouper = grouper;
+        }
+
         /** 
          * @inheritDoc
          * 
@@ -475,7 +552,19 @@ public class ColumnControlButton extends JButton {
             if (canControl()) {
                 addSeparator();
             }
-            addItems(actions);
+            
+            if (getGrouper() == null) {
+                addItems(actions);
+                return;
+            }
+            List<? extends List<? extends Action>> groups = grouper.group(actions);
+            for (List<? extends Action> group : groups) {
+                addItems(group);
+                if (group != groups.get(groups.size()- 1))
+                    addSeparator();
+                
+            }
+            
         }
         
         //--------------------------- internal helpers to manipulate popups content
@@ -496,7 +585,6 @@ public class ColumnControlButton extends JButton {
             for (Action action : actions) {
                 addItem(factory.createMenuItem(action));
             }
-
         }
         
         /**
@@ -526,9 +614,17 @@ public class ColumnControlButton extends JButton {
             return popupMenu;
         }
 
+        // --------------- implement Groupable
+        
+        public void setActionGrouper(ActionGrouper grouper) {
+            this.grouper = grouper;
+        }
+        
+        protected ActionGrouper getGrouper() {
+            return grouper;
+        }
+
     }
-
-
     /**
      * Returns to popup component for user interaction. Lazily 
      * creates the component if necessary.
@@ -650,13 +746,16 @@ public class ColumnControlButton extends JButton {
     }
 
     /**
-     * Adds additional actions to the popup.
+     * Adds additional actions to the popup, if additionalActionsVisible is true,
+     * does nothing otherwise.<p>
+     * 
      * Here: delegates the list of actions as returned by #getAdditionalActions() 
      *   to the DefaultColumnControlPopup. 
      * Does nothing if #getColumnActions() is empty.
      * 
      */
     protected void addAdditionalActionItems() {
+        if (!getAdditionalActionsVisible()) return;
         getColumnControlPopup().addAdditionalActionItems(
                 Collections.unmodifiableList(getAdditionalActions()));
     }
@@ -720,7 +819,7 @@ public class ColumnControlButton extends JButton {
      * @return a list containing all additional actions to include into the popup.
      */
     protected List<Action> getAdditionalActions() {
-        List actionKeys = getColumnControlActionKeys();
+        List<?> actionKeys = getColumnControlActionKeys();
         List<Action> actions = new ArrayList<Action>();
         for (Object key : actionKeys) {
           actions.add(table.getActionMap().get(key));
@@ -738,7 +837,7 @@ public class ColumnControlButton extends JButton {
      * @return the action keys of table's actionMap entries whose
      *   action should be included into the popup.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     protected List getColumnControlActionKeys() {
         Object[] allKeys = table.getActionMap().allKeys();
         List columnKeys = new ArrayList();
@@ -789,6 +888,7 @@ public class ColumnControlButton extends JButton {
         JComboBox box = new JComboBox();
         Object preventHide = box.getClientProperty("doNotCancelPopup");
         putClientProperty("doNotCancelPopup", preventHide);
+        additionalActionsVisible = true;
     }
 
 
@@ -931,7 +1031,6 @@ public class ColumnControlButton extends JButton {
             }
         };
     }
-
 
 
 } // end class ColumnControlButton

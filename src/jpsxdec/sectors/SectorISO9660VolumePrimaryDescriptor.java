@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,9 +37,9 @@
 
 package jpsxdec.sectors;
 
-import jpsxdec.iso9660.VolumePrimaryDescriptor;
 import java.io.IOException;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.iso9660.VolumePrimaryDescriptor;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.NotThisTypeException;
 

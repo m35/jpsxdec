@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,12 @@
 
 package jpsxdec.psxvideo.mdec;
 
+import java.util.logging.Logger;
+
 /** Read MDEC codes one at a time from a stream. */
 public abstract class MdecInputStream {
+
+    private static final Logger LOG = Logger.getLogger(MdecInputStream.class.getName());
 
     /** Reads the next MDEC code from the stream into the provided
      * {@link MdecCode} object.
@@ -50,14 +54,13 @@ public abstract class MdecInputStream {
     /** 16-bit MDEC code indicating the end of a block. 
      * The equivalent MDEC value is (63, -512). */
     public final static int MDEC_END_OF_DATA = 0xFE00;
-    /** Top 6 bits of MDEC_END_OF_DATA. */
+    /** Top 6 bits of {@link MDEC_END_OF_DATA}. */
     public final static int MDEC_END_OF_DATA_TOP6 = (MDEC_END_OF_DATA >> 10) & 63;
-    /** Bottom 10 bits of MDEC_END_OF_DATA. */
+    /** Bottom 10 bits of {@link MDEC_END_OF_DATA}. */
     public final static int MDEC_END_OF_DATA_BOTTOM10 = (short)(MDEC_END_OF_DATA | 0xFC00);
 
     /** Standard quantization matrix for MDEC frames. */
-    private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
-    {
+    private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX = {
          2, 16, 19, 22, 26, 27, 29, 34,
         16, 16, 22, 24, 27, 29, 34, 37,
         19, 22, 26, 27, 29, 34, 34, 38,
@@ -87,8 +90,7 @@ public abstract class MdecInputStream {
 
     /** List of vector indexes indicating the order that vector values
      * are reverse-zig-zagged into a matrix. */
-    public static final int[] REVERSE_ZIG_ZAG_LOOKUP_LIST =
-    {
+    public static final int[] REVERSE_ZIG_ZAG_LOOKUP_LIST = {
          0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18, 11,  4,  5,
         12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13,  6,  7, 14, 21, 28,
         35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51,
@@ -101,45 +103,28 @@ public abstract class MdecInputStream {
      *  the "direct current" (DC) coefficient.
      *  If the MDEC code is not the first of a block, and it is
      *  not a {@link #MDEC_END_OF_DATA} code (0xFE00), then the top 6 bits indicate
-     *  the number of zeros preceeding an AC code, with the bottom 10 bits
-     *  indicating the "alternating current" (AC) coefficient.  */
+     *  the number of zeros preceeding an "alternating current" (AC) coefficient,
+     *  with the bottom 10 bits indicating a (usually) non-zero AC coefficient.  */
     public static class MdecCode implements Cloneable {
 
+        /** Most significant 6 bits of the 16-bit MDEC code.
+         * Holds either a block's quantization scale or the
+         * count of zero AC coefficients leading up to a non-zero
+         * AC coefficient. */
         private int _iTop6Bits;
+
+        /** Least significant 10 bits of the 16-bit MDEC code.
+         * Holds either the DC coefficient of a block or
+         * a non-zero AC coefficient. */
         private int _iBottom10Bits;
-
-        public int getBottom10Bits() {
-            return _iBottom10Bits;
-        }
-
-        public void setBottom10Bits(int iBottom10Bits) {
-            assert iBottom10Bits >= -512 && iBottom10Bits <= 511;
-            _iBottom10Bits = iBottom10Bits;
-        }
-
-        public int getTop6Bits() {
-            return _iTop6Bits;
-        }
-
-        public void setTop6Bits(int iTop6Bits) {
-            assert iTop6Bits >= 0 && iTop6Bits <= 63;
-            _iTop6Bits = iTop6Bits;
-        }
-
-        public void setBits(int iTop6, int iBottom10) {
-            assert iTop6 >= 0 && iTop6 <= 63;
-            assert iBottom10 >= -512 && iBottom10 <= 511;
-            _iTop6Bits = iTop6;
-            _iBottom10Bits = iBottom10;
-        }
 
         /** Generic constructor */
         public MdecCode() {}
 
         public MdecCode(int iTop6Bits, int iBottom10Bits) {
-            if (iTop6Bits < 0 || iTop6Bits > 63)
+            if (!validTop(iTop6Bits))
                 throw new IllegalArgumentException("Invalid top 6 bits " + iTop6Bits);
-            if (iBottom10Bits < -512 || iBottom10Bits > 511)
+            if (!validBottom(iBottom10Bits))
                 throw new IllegalArgumentException("Invalid bottom 10 bits " + iBottom10Bits);
             _iTop6Bits = iTop6Bits;
             _iBottom10Bits = iBottom10Bits;
@@ -148,6 +133,35 @@ public abstract class MdecInputStream {
         /** Extract the top 6 bit and bottom 10 bit values from 16 bits */
         public MdecCode(int iMdecWord) {
             set(iMdecWord);
+        }
+
+        public void set(MdecCode other) {
+            _iTop6Bits = other._iTop6Bits;
+            _iBottom10Bits = other._iBottom10Bits;
+        }
+
+        public int getBottom10Bits() {
+            return _iBottom10Bits;
+        }
+
+        public void setBottom10Bits(int iBottom10Bits) {
+            assert validBottom(iBottom10Bits);
+            _iBottom10Bits = iBottom10Bits;
+        }
+
+        public int getTop6Bits() {
+            return _iTop6Bits;
+        }
+
+        public void setTop6Bits(int iTop6Bits) {
+            assert validTop(iTop6Bits);
+            _iTop6Bits = iTop6Bits;
+        }
+
+        public void setBits(int iTop6, int iBottom10) {
+            assert validTop(_iTop6Bits) && validBottom(_iBottom10Bits);
+            _iTop6Bits = iTop6;
+            _iBottom10Bits = iBottom10;
         }
 
         public void set(int iMdecWord) {
@@ -160,7 +174,52 @@ public abstract class MdecInputStream {
 
         /** Combines the top 6 bits and bottom 10 bits into an unsigned 16 bit value. */
         public int toMdecWord() {
+            if (!validTop(_iTop6Bits))
+                throw new IllegalStateException("MDEC code has invalid top 6 bits " + _iTop6Bits);
+            if (!validBottom(_iBottom10Bits))
+                throw new IllegalStateException("MDEC code has invalid bottom 10 bits " + _iBottom10Bits);
             return ((_iTop6Bits & 63) << 10) | (_iBottom10Bits & 0x3FF);
+        }
+
+        /** Set the MDEC code to the special "End of Data" (EOD) value,
+         * indicating the end of a block.
+         * @see MdecInputStream#MDEC_END_OF_DATA */
+        public void setToEndOfData() {
+            _iTop6Bits = MDEC_END_OF_DATA_TOP6;
+            _iBottom10Bits = MDEC_END_OF_DATA_BOTTOM10;
+        }
+
+        /** Returns if this MDEC code is set to the special "End of Data" (EOD)
+         * value.
+         * @see MdecInputStream#MDEC_END_OF_DATA */
+        public boolean isEOD() {
+            return (_iTop6Bits == MDEC_END_OF_DATA_TOP6 &&
+                    _iBottom10Bits == MDEC_END_OF_DATA_BOTTOM10);
+        }
+
+        /** Returns if this MDEC code has valid values.
+         * As an optimization, many parameter checks are disabled, so
+         * this MDEC code could hold values that are be invalid. */
+        public boolean isValid() {
+            return validTop(_iTop6Bits) && validBottom(_iBottom10Bits);
+        }
+
+        /** Checks if the top 6 bits of an MDEC code are valid. */
+        private static boolean validTop(int iTop6Bits) {
+            return iTop6Bits >= 0 && iTop6Bits <= 63;
+        }
+        /** Checks if the bottom 10 bits of an MDEC code are valid. */
+        private static boolean validBottom(int iBottom10Bits) {
+            if (iBottom10Bits == 0) {
+                LOG.warning("MDEC code with bottom 10 bits == 0");
+                return true;
+            }
+            return iBottom10Bits >= -512 && iBottom10Bits <= 511;
+        }
+
+        @Override
+        public MdecCode clone() {
+            return new MdecCode(_iTop6Bits, _iBottom10Bits);
         }
 
         public String toString() {
@@ -171,13 +230,11 @@ public abstract class MdecInputStream {
         }
 
         @Override
-        public MdecCode clone() {
-            return new MdecCode(_iTop6Bits, _iBottom10Bits);
-        }
-
-        public boolean isEOD() {
-            return (_iTop6Bits == MDEC_END_OF_DATA_TOP6 &&
-                    _iBottom10Bits == MDEC_END_OF_DATA_BOTTOM10);
+        public int hashCode() {
+            int hash = 5;
+            hash = 97 * hash + this._iTop6Bits;
+            hash = 97 * hash + this._iBottom10Bits;
+            return hash;
         }
 
         @Override
@@ -191,24 +248,6 @@ public abstract class MdecInputStream {
             final MdecCode other = (MdecCode) obj;
             return _iTop6Bits == other._iTop6Bits &&
                    _iBottom10Bits == other._iBottom10Bits;
-        }
-
-        @Override
-        public int hashCode() {
-            int hash = 5;
-            hash = 97 * hash + this._iTop6Bits;
-            hash = 97 * hash + this._iBottom10Bits;
-            return hash;
-        }
-
-        public void setToEndOfData() {
-            _iTop6Bits = MDEC_END_OF_DATA_TOP6;
-            _iBottom10Bits = MDEC_END_OF_DATA_BOTTOM10;
-        }
-
-        public void set(MdecCode other) {
-            _iTop6Bits = other._iTop6Bits;
-            _iBottom10Bits = other._iBottom10Bits;
         }
 
     }

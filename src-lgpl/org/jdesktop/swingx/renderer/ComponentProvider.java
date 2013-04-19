@@ -1,5 +1,5 @@
 /*
- * $Id: ComponentProvider.java,v 1.22 2008/12/23 18:12:35 kschaefe Exp $
+ * $Id: ComponentProvider.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -25,6 +25,9 @@ import java.io.Serializable;
 import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+
+import org.jdesktop.swingx.plaf.UIDependent;
 
 /**
  * Abstract base class of a provider for a cell rendering component. Configures
@@ -32,6 +35,15 @@ import javax.swing.JLabel;
  * as captured in a <code>CellContext</code>. It's basically re-usable across
  * all types of renderees (JTable, JList, JTree).
  * <p>
+ * 
+ * <h2> Content </h2>
+ * 
+ * A provider guarantees to configure the "content" properties completely
+ * for any given object. The most frequent mappings are to text and/or icon
+ * properties of the rendering components. The former is controlled by a 
+ * StringValue (see below), the latter by an IconValue. Subclasses which
+ * hand out component of type IconAware guarantee to reset its icon property
+ * always. <p>
  * 
  * To ease content configuration, it supports a pluggable
  * <code>StringValue</code> which purpose is to create and return a string
@@ -79,6 +91,9 @@ import javax.swing.JLabel;
  * 
  * <p>
  * 
+ * 
+ * <h2> Default Visuals </h2>
+ * 
  * Guarantees to completely configure the visual properties listed below. As a
  * consequence, client code (f.i. in <code>Highlighter</code>s) can safely
  * change them without long-lasting visual artefacts.
@@ -112,7 +127,7 @@ import javax.swing.JLabel;
  * @see DefaultVisuals
  */
 public abstract class ComponentProvider<T extends JComponent> 
-    implements Serializable {
+    implements Serializable, UIDependent {
     /** component to render with. */
     protected T rendererComponent;
     /** configurator of default visuals. */
@@ -328,7 +343,7 @@ public abstract class ComponentProvider<T extends JComponent>
     protected abstract void format(CellContext context);
 
     /**
-     * Configures the renderering component's state from the
+     * Configures the rendering component's state from the
      * given cell context.
      * @param context the cell context to configure from, must not be null.
      */
@@ -362,5 +377,10 @@ public abstract class ComponentProvider<T extends JComponent>
         return defaultVisuals;
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
+    public void updateUI() {
+        SwingUtilities.updateComponentTreeUI(rendererComponent);
+    }
 }

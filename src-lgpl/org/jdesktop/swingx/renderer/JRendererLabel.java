@@ -1,5 +1,5 @@
 /*
- * $Id: JRendererLabel.java,v 1.15 2009/02/01 15:01:03 rah003 Exp $
+ * $Id: JRendererLabel.java 3884 2010-11-05 10:39:28Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -27,6 +27,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 
 import javax.swing.JLabel;
+import javax.swing.UIManager;
 
 import org.jdesktop.swingx.painter.Painter;
 
@@ -60,17 +61,16 @@ import org.jdesktop.swingx.painter.Painter;
  * 
  * @author Jeanette Winzenburg
  */
-public class JRendererLabel extends JLabel implements PainterAware {
+public class JRendererLabel extends JLabel implements PainterAware, IconAware {
 
     protected Painter painter;
-    private boolean strict;
 
     /**
      * 
      */
     public JRendererLabel() {
         super();
-      setOpaque(true);
+        setOpaque(true);
     }
 
     /**
@@ -90,6 +90,11 @@ public class JRendererLabel extends JLabel implements PainterAware {
             back.equals(p.getBackground()) && 
                         p.isOpaque();
         return !colorMatch && super.isOpaque(); 
+        // PENDING JW: Issue #1188-swingx: problems with background in Synth
+        // basically a core issue - nevertheless, evaluate implications of
+        // a simple straight-forward implemenation - return the property
+        // no tricks
+//        return super.isOpaque();
     }
 
     /**
@@ -116,7 +121,9 @@ public class JRendererLabel extends JLabel implements PainterAware {
      */
     @Override
     protected void paintComponent(Graphics g) {
-        if (painter != null) {
+        // JW: hack around for #1178-swingx (core issue) 
+        // grab painting if Nimbus detected
+        if ((painter != null) || isNimbus()) {
             // we have a custom (background) painter
             // try to inject if possible
             // there's no guarantee - some LFs have their own background 
@@ -136,6 +143,17 @@ public class JRendererLabel extends JLabel implements PainterAware {
     }
 
     /**
+     * Hack around Nimbus not respecting background colors if UIResource.
+     * So by-pass ... 
+     * 
+     * @return
+     */
+    private boolean isNimbus() {
+        return UIManager.getLookAndFeel().getName().contains("Nimbus");
+    }
+
+
+    /**
      * 
      * Hack around AbstractPainter.paint bug which disposes the Graphics.
      * So here we give it a scratch to paint on. <p>
@@ -144,6 +162,7 @@ public class JRendererLabel extends JLabel implements PainterAware {
      * @param g the graphics to paint on
      */
     private void paintPainter(Graphics g) {
+        if (painter == null) return;
         // fail fast: we assume that g must not be null
         // which throws an NPE here instead deeper down the bowels
         // this differs from corresponding core implementation!

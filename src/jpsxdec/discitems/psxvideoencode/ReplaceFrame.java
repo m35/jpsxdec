@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,6 +50,7 @@ import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.util.FeedbackStream;
@@ -150,17 +151,18 @@ public class ReplaceFrame {
         bsu.skipPaddingBits();
 
         // +2 because getStreamPosition() returns the active word, not the next word to be read
-        frame.writeToSectors(newFrame, bsu.getStreamPosition()+2, bsu.getMdecCodeCount(), cd, fbs);
+        frame.writeToSectors(newFrame, bsu.getWordPosition()+2, bsu.getMdecCodeCount(), cd, fbs);
     }
 
+    // TODO: clean this up
     private byte[] compressReplacement(IDemuxedFrame frame, BitStreamUncompressor uncompressor, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
 
         BufferedImage bi = ImageIO.read(_imageFile);
         if (bi == null)
-            throw new RuntimeException("Unable to read " + _imageFile + " as an image. Did you forget 'format'?");
+            throw new IllegalStateException("Unable to read " + _imageFile + " as an image. Did you forget 'format'?");
         
-        if (bi.getWidth()  != ((frame.getWidth() +15)& ~15) ||
-            bi.getHeight() != ((frame.getHeight()+15)& ~15))
+        if (bi.getWidth()  != Calc.fullDimension(frame.getWidth()) ||
+            bi.getHeight() != Calc.fullDimension(frame.getHeight()))
             throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace: " +
                     bi.getWidth() + "x" + bi.getHeight() + " != " + frame.getWidth() + "x" + frame.getHeight());
         
@@ -170,8 +172,7 @@ public class ReplaceFrame {
         byte[] abNewDemux = null;
         MdecEncoder encoded = new MdecEncoder(psxImage);
         BitStreamCompressor compressor = uncompressor.makeCompressor();
-        byte[] abOriginal = new byte[frame.getDemuxSize()];
-        frame.copyDemuxData(abOriginal);
+        byte[] abOriginal = frame.copyDemuxData(null);        
         uncompressor.reset(abOriginal);
         uncompressor.readToEnd(frame.getWidth(), frame.getHeight());
         Iterator<int[]> qscales = uncompressor.qscaleIterator(true);

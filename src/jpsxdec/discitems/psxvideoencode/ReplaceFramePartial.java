@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,6 +56,7 @@ import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.encode.ParsedMdecImage.Block;
 import jpsxdec.psxvideo.encode.ParsedMdecImage.MacroBlock;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
@@ -180,7 +181,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
         if (diffMacblks.isEmpty()) {
             fbs.println("No differences found, skipping.");
             return;
-        } else if (diffMacblks.size() == ParsedMdecImage.calculateMacroBlocks(WIDTH, HEIGHT)) {
+        } else if (diffMacblks.size() == Calc.macroblocks(WIDTH, HEIGHT)) {
             fbs.printlnWarn("Warning: Entire frame has is different.");
         }
 
@@ -244,8 +245,8 @@ public class ReplaceFramePartial extends ReplaceFrame {
     private ArrayList<Point> findDiffMacroblocks(BufferedImage origImg, BufferedImage newImg)
               throws IOException
     {
-        int iMacblkWidth  = (origImg.getWidth()  + 15) / 16;
-        int iMacblkHeight = (origImg.getHeight() + 15) / 16;
+        int iMacblkWidth  = Calc.macroblockDim(origImg.getWidth());
+        int iMacblkHeight = Calc.macroblockDim(origImg.getHeight());
 
         ArrayList<Point> diffMacblks = new ArrayList<Point>(iMacblkWidth * iMacblkHeight);
 
@@ -271,7 +272,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
     
     private boolean blockIsDifferent(Point macblk, BufferedImage bi1, BufferedImage bi2, BufferedImage maskImg) {
 
-        // 2. filter out macroblocks that aren't touched by the bounding box
+        // 1. filter out macroblocks that aren't touched by the bounding box
         if (_rectMask != null) {
             if (macblk.x * 16+15 < _rectMask.getMinX() ||
                 macblk.x * 16    > _rectMask.getMaxX() ||

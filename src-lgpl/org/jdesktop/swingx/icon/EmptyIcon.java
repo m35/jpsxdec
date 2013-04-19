@@ -1,5 +1,5 @@
 /*
- * $Id: EmptyIcon.java,v 1.3 2007/05/20 21:17:52 kschaefe Exp $
+ * $Id: EmptyIcon.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -31,27 +31,28 @@ import javax.swing.Icon;
  */
 public final class EmptyIcon implements Icon, Serializable {
 
-  private int width;
-  private int height;
-  
-  public EmptyIcon() {
-    this(0, 0);
-  }
-  
-  public EmptyIcon(int width, int height) {
-    this.width = width;
-    this.height = height;
-  }
+    private int width;
 
-  public int getIconHeight() {
-    return height;
-  }
+    private int height;
 
-  public int getIconWidth() {
-    return width;
-  }
+    public EmptyIcon() {
+        this(0, 0);
+    }
 
-  public void paintIcon(Component c, Graphics g, int x, int y) {
-  }
+    public EmptyIcon(int width, int height) {
+        this.width = width;
+        this.height = height;
+    }
+
+    public int getIconHeight() {
+        return height;
+    }
+
+    public int getIconWidth() {
+        return width;
+    }
+
+    public void paintIcon(Component c, Graphics g, int x, int y) {
+    }
 
 }

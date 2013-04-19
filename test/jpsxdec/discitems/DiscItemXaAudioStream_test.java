@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,12 +42,13 @@ import java.io.IOException;
 import jpsxdec.audio.XaAdpcmDecoder;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.indexing.DiscIndex;
+import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.IO;
-import jpsxdec.util.SimpleConsoleProgressListener;
 import jpsxdec.util.TaskCanceledException;
 import static org.junit.Assert.*;
 import org.junit.*;
-import static testutil.Util.*;
+import static testutil.Util.resourceAsFile;
+import static testutil.Util.resourceAsTempFile;
 
 public class DiscItemXaAudioStream_test {
     
@@ -76,7 +77,7 @@ public class DiscItemXaAudioStream_test {
         DiscItemXaAudioStream item = new DiscItemXaAudioStream(
                 0, 1, // 2 sectors long
                 0, // channel
-                XaAdpcmDecoder.pcmSamplesGeneratedFromXAADPCMSector(BITS_PER_SAMPLE) * 2, 
+                XaAdpcmDecoder.pcmSamplesGeneratedFromXaAdpcmSector(BITS_PER_SAMPLE) * 2,
                 37800, // samples/second
                 false, // mono
                 BITS_PER_SAMPLE, // bits/sample
@@ -92,7 +93,7 @@ public class DiscItemXaAudioStream_test {
         resourceAsFile(getClass(), "Worms126918-126950.bin", SAMPLES);
         final File EXPECTED = resourceAsTempFile(getClass(), "Worms126918-126950-replaced.bin");
         CdFileSectorReader cd = new CdFileSectorReader(SAMPLES, true);
-        DiscIndex index = new DiscIndex(cd, new SimpleConsoleProgressListener());
+        DiscIndex index = new DiscIndex(cd, new ConsoleProgressListenerLogger("test", System.out));
         DiscItemXaAudioStream xa1 = (DiscItemXaAudioStream) index.getByIndex(0);
         DiscItemXaAudioStream xa2 = (DiscItemXaAudioStream) index.getByIndex(1);
         try {

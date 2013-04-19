@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,13 +42,13 @@ import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemSerialization;
+import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 
 /** Superclass of all disc indexers. */
 public abstract class DiscIndexer {
 
-    private static final Logger log = Logger.getLogger(DiscIndexer.class.getName());
+    private static final Logger LOG = Logger.getLogger(DiscIndexer.class.getName());
 
     public static DiscIndexer[] createIndexers(Logger log) {
         return new DiscIndexer[] {
@@ -64,7 +64,7 @@ public abstract class DiscIndexer {
     private Collection<DiscItem> _mediaList;
 
     /** The indexer needs a place to put the created disc items. */
-    final public void putYourCompletedMediaItemsHere(Collection<DiscItem> items) {
+    final public void putYourCompletedItemsHere(Collection<DiscItem> items) {
         _mediaList = items;
     }
 
@@ -72,11 +72,11 @@ public abstract class DiscIndexer {
     /** Subclasses should call this method when an item is ready to be added. */
     protected void addDiscItem(DiscItem discItem) {
         if (discItem == null) {
-            log.log(Level.WARNING, "Something tried to add a null disc item.", new Exception());
+            LOG.log(Level.WARNING, "Something tried to add a null disc item.", new Exception());
             return;
         }
-        if (log.isLoggable(Level.INFO))
-            log.info("Adding media item " + discItem.toString());
+        if (LOG.isLoggable(Level.INFO))
+            LOG.info("Adding media item " + discItem.toString());
         _mediaList.add(discItem);
     }
 
@@ -90,12 +90,12 @@ public abstract class DiscIndexer {
 
     /** Lines from the index file as passed to be handled by the indexers.
      * @return  if the line successfully created a disc item. */
-    abstract public DiscItem deserializeLineRead(DiscItemSerialization deserializedLine);
+    abstract public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine);
 
     abstract public void staticRead(DemuxedUnidentifiedDataStream is) throws IOException;
 
     /** Called after the entire indexing process is complete. The DiscIndex
      * will not be changing any further, but indexers can tweak individual items
      * as necessary. */
-    abstract public void mediaListGenerated(DiscIndex index);
+    abstract public void indexGenerated(DiscIndex index);
 }

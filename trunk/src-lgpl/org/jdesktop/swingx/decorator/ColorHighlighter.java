@@ -1,5 +1,5 @@
 /*
- * $Id: ColorHighlighter.java,v 1.11 2008/10/14 22:31:37 rah003 Exp $
+ * $Id: ColorHighlighter.java 4082 2011-11-15 18:39:43Z kschaefe $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -20,13 +20,22 @@
  */
 package org.jdesktop.swingx.decorator;
 
+
+import static org.jdesktop.swingx.util.PaintUtils.blend;
+
 import java.awt.Color;
 import java.awt.Component;
 
 /**
- * A Highlighter to modify component colors. <p>
+ * A Highlighter to modify component colors.
+ * <p>
+ * As of SwingX 1.6.1, {@code ColorHighlighter} now blends non-opaque colors.
+ * This will have little effect on previous users, who were likely to be 
+ * using fully-opaque colors. If you are, however, supplying a non-opaque color 
+ * and need it to be considered opaque, use {@link org.jdesktop.swingx.util.PaintUtils#removeAlpha(Color)}.
  * 
  * @author Jeanette Winzenburg
+ * @author Karl Schaefer
  */
 public class ColorHighlighter extends AbstractHighlighter {
     
@@ -141,11 +150,10 @@ public class ColorHighlighter extends AbstractHighlighter {
     */
     protected void applyBackground(Component renderer, ComponentAdapter adapter) {
         Color color = adapter.isSelected() ? getSelectedBackground() : getBackground();
-        if (color != null) {
-            renderer.setBackground(color);
-        }
 
+        renderer.setBackground(blend(renderer.getBackground(), color));
     }
+    
     /**
     * Applies a suitable foreground for the renderer component within the
     * specified adapter. <p>
@@ -159,9 +167,8 @@ public class ColorHighlighter extends AbstractHighlighter {
      */
     protected void applyForeground(Component renderer, ComponentAdapter adapter) {
         Color color = adapter.isSelected() ? getSelectedForeground() : getForeground();
-        if (color != null) {
-            renderer.setForeground(color);
-        }
+
+        renderer.setForeground(blend(renderer.getForeground(), color));
     }
 
 
@@ -258,7 +265,4 @@ public class ColorHighlighter extends AbstractHighlighter {
         selectedForeground = color;
         fireStateChanged();
     }
-
-
-
 }

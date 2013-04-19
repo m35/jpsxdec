@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -114,7 +114,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
 
 
     private class ChromaUpsampling extends AbstractCombo {
-        public ChromaUpsampling() { super("Chroma Upsampling:"); }
+        public ChromaUpsampling() { super("Chroma upsampling:"); }
         public int getSize() {
             return _writerBuilder.getChromaInterpolation_listSize();
         }

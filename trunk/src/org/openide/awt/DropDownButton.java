@@ -289,6 +289,7 @@ class DropDownButton extends JButton {
         arrowIcons.remove( ICON_ROLLOVER );
         arrowIcons.remove( ICON_ROLLOVER_SELECTED );
         super.setIcon( hasPopupMenu() ? arrow : icon );
+        updateRollover( _getRolloverIcon(), _getRolloverSelectedIcon() );
     }
 
     private Icon updateIcons( Icon orig, String iconType ) {
@@ -303,7 +304,7 @@ class DropDownButton extends JButton {
         }
         return arrow;
     }
-
+    
     @Override
     public void setPressedIcon(Icon icon) {
         Icon arrow = updateIcons( icon, ICON_PRESSED );

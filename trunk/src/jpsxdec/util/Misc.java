@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,12 +43,8 @@ import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.swing.JTextField;
 
 /** Miscellaneous helper functions. */
 public final class Misc {
@@ -88,39 +84,14 @@ public final class Misc {
     }
     
     
-    public static Vector<String> append(Vector<String> v, String[] as) {
-        for (String s : as) {
-            v.add(s);
-        }
-        return v;
-    }
-    
-    public static Vector<String> append(String[] as, Vector<String> v) {
-        for (int i = 0; i < as.length; i++) {
-            v.insertElementAt(as[i], i);
-        }
-        return v;
-    }
-    
-    public static Vector join(Vector v1, Vector v2) {
-        Vector v = new Vector(v1.size() + v2.size());
-        for (Object i : v1) {
-            v.add(i);
-        }
-        for (Object i : v2) {
-            v.add(i);
-        }
-        return v;
-    }
-    
     public static String dup(String s, int count) {
         if (count == 0)
             return "";
-        StringBuilder oSB = new StringBuilder(s.length() * count);
+        StringBuilder sb = new StringBuilder(s.length() * count);
         for (int i = 0; i < count; i++) {
-            oSB.append(s);
+            sb.append(s);
         }
-        return oSB.toString();
+        return sb.toString();
     }
 
     public static String dup(char c, int count) {
@@ -147,20 +118,12 @@ public final class Misc {
     }
 
     
-    public static String getBaseName(JTextField tf) {
-        return getBaseName(tf.getText());
-    }
-    
     public static String getBaseName(String txt) {
         int i = txt.lastIndexOf('.');
         if (i >= 0)
             return txt.substring(0, i);
         else
             return txt;
-    }
-    
-    public static String getExt(JTextField tf) {
-        return getExt(tf.getText());
     }
     
     public static String getExt(String txt) {
@@ -281,25 +244,6 @@ public final class Misc {
             return sBin.substring(len - iCount);
         else
             return sBin;
-    }
-
-    public static boolean listsEqual(List a, List b) {
-        if (a == b) return true;
-
-        if (a == null || b == null)
-            return false;
-
-        if (a.size() != b.size()) return false;
-
-        Iterator ai = a.iterator();
-        Iterator bi = b.iterator();
-
-        while (ai.hasNext() && bi.hasNext()) {
-            if (!ai.next().equals(bi.next()))
-                return false;
-        }
-
-        return true;
     }
 
     private static final URI CURRENT_URI = new File(".").toURI();

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -555,6 +555,19 @@ public final class IO {
             writeIStoFile(in, dest);
         } finally {
             in.close();
+        }
+    }
+
+    /** Creates the directory or throws IOException if anything goes wrong. */
+    public static void makeDirs(File dir) throws IOException {
+        if (dir == null)
+            return;
+        // create the dir if it doesn't exist
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IOException("Unable to create directory " + dir);
+        } else if (!dir.isDirectory()) {
+            // if it does exist, it better not be a file
+            throw new IOException("Cannot create directory over a file " + dir);
         }
     }
 

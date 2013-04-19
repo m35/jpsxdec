@@ -1,5 +1,5 @@
 /*
- * $Id: DefaultTableColumnModelExt.java,v 1.29 2009/01/02 13:28:03 rah003 Exp $
+ * $Id: DefaultTableColumnModelExt.java 3975 2011-03-28 14:05:29Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -55,7 +55,8 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
     /** flag to distinguish a shown/hidden column from really added/removed
      *  columns during notification. This is brittle! 
      */ 
-    private static final String IGNORE_EVENT = "TableColumnModelExt.ignoreEvent";
+//    private static final String IGNORE_EVENT = "TableColumnModelExt.ignoreEvent";
+    private boolean isVisibilityChange;
     /**
      * contains a list of all columns, in the order in which were
      * added to the model.
@@ -137,9 +138,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
      * @return true if the column was moved to invisible
      */
     public boolean isRemovedToInvisibleEvent(int oldIndex) {
-        if (oldIndex >= currentColumns.size()) return false;
-        if (!(currentColumns.get(oldIndex) instanceof TableColumnExt)) return false;
-        return Boolean.TRUE.equals(((TableColumnExt) currentColumns.get(oldIndex)).getClientProperty(IGNORE_EVENT));
+        return isVisibilityChange;
     }
 
     /**
@@ -152,8 +151,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
      * @return true if the column was moved to visible
      */
     public boolean isAddedFromInvisibleEvent(int newIndex) {
-        if (!(getColumn(newIndex) instanceof TableColumnExt)) return false;
-        return Boolean.TRUE.equals(((TableColumnExt) getColumn(newIndex)).getClientProperty(IGNORE_EVENT));
+        return isVisibilityChange;
     }
 
 //------------------------ TableColumnModel
@@ -165,14 +163,20 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
      */
     @Override
     public void removeColumn(TableColumn column) {
+        boolean oldVisible = true;
         //remove the visibility listener if appropriate
-        if (column instanceof TableColumnExt) {
+        if (column instanceof TableColumnExt) {   
+            oldVisible = ((TableColumnExt) column).isVisible();
+            ((TableColumnExt) column).setVisible(true);
             ((TableColumnExt)column).removePropertyChangeListener(visibilityListener);
         }
         currentColumns.remove(column);
         initialColumns.remove(column);
         //let the superclass handle notification etc
         super.removeColumn(column);
+        if (column instanceof TableColumnExt) {
+            ((TableColumnExt) column).setVisible(oldVisible);
+        }
     }
 
     /**
@@ -241,9 +245,9 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
      * @param col the column which was hidden.
      */    
     protected void moveToInvisible(TableColumnExt col) {
-        col.putClientProperty(IGNORE_EVENT, Boolean.TRUE);
+        isVisibilityChange = true;
         super.removeColumn(col);
-        col.putClientProperty(IGNORE_EVENT, null);
+        isVisibilityChange = false;
     }
 
 
@@ -255,7 +259,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
      * @param col the column which was made visible.
      */    
     protected void moveToVisible(TableColumnExt col) {
-        col.putClientProperty(IGNORE_EVENT, Boolean.TRUE);
+        isVisibilityChange = true;
         // two step process: first add at end of columns
         // then move to "best" position relative to where it
         // was before hiding.
@@ -271,8 +275,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
                 break;
             }
         }
-
-        col.putClientProperty(IGNORE_EVENT, null);
+        isVisibilityChange = false;
     }
 
 
@@ -328,7 +331,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
      * @see EventListenerList
      */
     protected void fireColumnPropertyChange(PropertyChangeEvent evt) {
-        if (IGNORE_EVENT.equals(evt.getPropertyName())) return;
+//        if (IGNORE_EVENT.equals(evt.getPropertyName())) return;
         // Guaranteed to return a non-null array
         Object[] listeners = listenerList.getListenerList();
         // Process the listeners last to first, notifying

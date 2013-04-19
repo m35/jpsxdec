@@ -1,5 +1,5 @@
 /*
- * $Id: IconValue.java,v 1.12 2009/03/11 13:51:25 kleopatra Exp $
+ * $Id: IconValue.java 3298 2009-03-11 13:51:25Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

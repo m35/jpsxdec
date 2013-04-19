@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012  Michael Sabin
+ * Copyright (C) 2012-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,15 +41,17 @@ import argparser.ArgParser;
 import argparser.BooleanHolder;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
-import jpsxdec.discitems.*;
+import jpsxdec.discitems.AudioStreamsCombiner;
+import jpsxdec.discitems.DiscItemAudioStream;
+import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemSaverBuilderGui;
+import jpsxdec.discitems.DiscItemStrVideoStream;
+import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.TabularFeedback;
 
 
 public class VideoSaverBuilderStr extends VideoSaverBuilder {
-
-    private static final Logger log = Logger.getLogger(VideoSaverBuilderStr.class.getName());
 
     /** Hacky workaround to prevent constructor superclass resetting defaults. */
     private boolean _blnAudioInit = false;
@@ -60,7 +62,7 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
         _sourceVidItem = vidItem;
         if (vidItem.hasAudio()) {
             _parallelAudio = vidItem.getParallelAudioStreams();
-            _ablnParallelAudio = new boolean[vidItem.getParallelAudioStreamCount()];
+            _ablnParallelAudio = new boolean[vidItem.getChildCount()];
         } else {
             _parallelAudio = new ArrayList<DiscItemAudioStream>(0);
             _ablnParallelAudio = new boolean[0];
@@ -118,7 +120,7 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
     private final boolean[] _ablnParallelAudio;
 
     public int getParallelAudioCount() {
-        return _sourceVidItem.getParallelAudioStreamCount();
+        return _sourceVidItem.getChildCount();
     }
     public DiscItemAudioStream getParallelAudio(int i) {
         return _parallelAudio.get(i);
@@ -142,7 +144,7 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
         if (!_sourceVidItem.hasAudio())
             return;
 
-        if (iIndex < 0 || iIndex >= _sourceVidItem.getParallelAudioStreamCount())
+        if (iIndex < 0 || iIndex >= _sourceVidItem.getChildCount())
             return;
 
         DiscItemAudioStream aud = _parallelAudio.get(iIndex);

@@ -1,5 +1,5 @@
 /*
- * $Id: TableColumnExt.java,v 1.31 2009/01/02 13:28:03 rah003 Exp $
+ * $Id: TableColumnExt.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -37,7 +37,7 @@ import javax.swing.table.TableColumn;
 
 import org.jdesktop.swingx.decorator.CompoundHighlighter;
 import org.jdesktop.swingx.decorator.Highlighter;
-import org.jdesktop.swingx.decorator.UIDependent;
+import org.jdesktop.swingx.plaf.UIDependent;
 import org.jdesktop.swingx.renderer.AbstractRenderer;
 
 /**
@@ -102,20 +102,22 @@ import org.jdesktop.swingx.renderer.AbstractRenderer;
  * 
  * @see TableColumnModelExt
  * @see ColumnFactory
- * @see org.jdesktop.swingx.decorator.UIDependent
+ * @see org.jdesktop.swingx.plaf.UIDependent
  * @see javax.swing.JComponent#putClientProperty
  */
 public class TableColumnExt extends TableColumn implements UIDependent {
     
     /** visible property. Initialized to <code>true</code>.*/
     protected boolean visible = true;
+    /** hideable property. Initialized to <code>true</code>.*/
+    protected boolean hideable = true;
     
     /** prototype property. */
     protected Object prototypeValue;
 
 
     /** per-column comparator  */
-    protected Comparator comparator;
+    protected Comparator<?> comparator;
     /** per-column sortable property. Initialized to <code>true</code>. */
     protected boolean sortable = true;
     /** per-column editable property. Initialized to <code>true</code>.*/
@@ -134,6 +136,7 @@ public class TableColumnExt extends TableColumn implements UIDependent {
     private ChangeListener highlighterChangeListener;
 
     private boolean ignoreHighlighterStateChange;
+
     
     /**
      * Creates new table view column with a model index = 0.
@@ -397,11 +400,11 @@ public class TableColumnExt extends TableColumn implements UIDependent {
      * @param comparator a custom comparator to use in interactive
      *    sorting.
      * @see #getComparator
-     * @see org.jdesktop.swingx.decorator.SortController
+     * @see org.jdesktop.swingx.sort.SortController
      * @see org.jdesktop.swingx.decorator.SortKey
      */
-    public void setComparator(Comparator comparator) {
-        Comparator old = getComparator();
+    public void setComparator(Comparator<?> comparator) {
+        Comparator<?> old = getComparator();
         this.comparator = comparator;
         firePropertyChange("comparator", old, getComparator());
     }
@@ -413,7 +416,7 @@ public class TableColumnExt extends TableColumn implements UIDependent {
      * @return <code>Comparator</code> to use for this column
      * @see #setComparator
      */
-    public Comparator getComparator() {
+    public Comparator<?> getComparator() {
         return comparator;
     }
 
@@ -498,15 +501,17 @@ public class TableColumnExt extends TableColumn implements UIDependent {
      * @see #setVisible
      */
     public void setVisible(boolean visible) {
-        boolean oldVisible = this.visible;
+        boolean oldVisible = isVisible();
         this.visible = visible;
-        firePropertyChange("visible",
-                           Boolean.valueOf(oldVisible),
-                           Boolean.valueOf(visible));
+        firePropertyChange("visible", oldVisible, isVisible());
     }
 
     /**
-     * Returns the visible property.
+     * Returns a boolean indicating whether or not this column is visible. 
+     * The bare property value is constrained by this column's hideable setting,
+     * that is a not hideable column is always visible, irrespective of the
+     * property setting. 
+     * <p>
      * The default is <code>true</code>.
      * 
      * @return boolean indicating whether or not this view column is
@@ -514,9 +519,39 @@ public class TableColumnExt extends TableColumn implements UIDependent {
      * @see #setVisible
      */
     public boolean isVisible() {
+        if (!isHideable()) return true;
         return visible;
     }
 
+    /**
+     * Sets the hideable property. This property controls whether the column can
+     * be hidden. This is a bound property. If the column's visibilty is affected, 
+     * listeners are notified about that change as well..
+     * <p>
+     * 
+     * The default value is true.
+     * 
+     * @param hideable
+     */
+    public void setHideable(boolean hideable) {
+        boolean old = isHideable();
+        boolean oldVisible = isVisible();
+        this.hideable = hideable;
+        firePropertyChange("visible", oldVisible, isVisible());
+        firePropertyChange("hideable", old, isHideable());
+    }
+    
+    /**
+     * Returns the hideable property.
+     * 
+     * @return the hideable property.
+     * 
+     * @see #setHideable(boolean)
+     */
+    public boolean isHideable() {
+        return hideable;
+    }
+    
     /**
      * Sets the client property "key" to <code>value</code>. 
      * If <code>value</code> is <code>null</code> this method will remove the property. 

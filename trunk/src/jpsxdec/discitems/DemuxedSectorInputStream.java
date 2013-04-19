@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,7 +51,7 @@ import jpsxdec.util.ByteArrayFPIS;
 /** Demuxes a series of CdSectors into a solid stream. */
 public class DemuxedSectorInputStream extends SequenceInputStream {
 
-    private static final Logger log = Logger.getLogger(DemuxedSectorInputStream.class.getName());
+    private static final Logger LOG = Logger.getLogger(DemuxedSectorInputStream.class.getName());
     
     private static class SectorEnumerator implements Enumeration<InputStream> {
         public final CdFileSectorReader _cd;
@@ -79,9 +79,9 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
                 // TODO: What to do with CD or form 2 sectors?
                 CdSector sector = _cd.getSector(_iSector);
                 if (sector.isCdAudioSector())
-                    log.warning("Reading CD sector intermingled with Form 1 sectors.");
+                    LOG.warning("Reading CD sector intermingled with Form 1 sectors.");
                 else if (sector.hasSubHeader() && sector.getSubMode().getForm() == 2)
-                    log.warning("Reading form 2 sector intermingled with Form 1 sectors.");
+                    LOG.warning("Reading form 2 sector intermingled with Form 1 sectors.");
                 _currentStream = sector.getCdUserDataStream();
                 if (_iSector == _iStartSector) {
                     _currentStream.skip(_iOffset);
@@ -89,7 +89,7 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
                 _iSector++;
                 return _currentStream;
             } catch (final IOException ex) {
-                log.log(Level.SEVERE, null, ex);
+                LOG.log(Level.SEVERE, null, ex);
                 _currentStream = null;
                 return new InputStream() {
                     public int read() throws IOException { throw ex; }

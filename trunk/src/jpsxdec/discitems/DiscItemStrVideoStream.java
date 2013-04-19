@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,17 +40,16 @@ package jpsxdec.discitems;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
+import java.util.Collection;
 import java.util.List;
-import java.util.logging.Level;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderStr;
-import jpsxdec.indexing.DiscIndex;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.Fraction;
@@ -61,7 +60,7 @@ import jpsxdec.util.player.PlayController;
 /** Represents all variations of PlayStation video streams. */
 public class DiscItemStrVideoStream extends DiscItemVideoStream {
 
-    private static final Logger log = Logger.getLogger(DiscItemStrVideoStream.class.getName());
+    private static final Logger LOG = Logger.getLogger(DiscItemStrVideoStream.class.getName());
 
     public static final String TYPE_ID = "Video";
     
@@ -73,11 +72,14 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
      * Important for syncing audio and video. */
     private final int _iFrame1LastSector;
     
-    
     private final int _iSectors;
     private final int _iPerFrame;
 
-    private int _iDiscSpeed;
+    private int _iDiscSpeed = -1;
+    private int _iAudioDiscSpeed = 0;
+
+    private final SortedSet<DiscItemAudioStream> _audioStreams =
+            new TreeSet<DiscItemAudioStream>();
 
     public DiscItemStrVideoStream(int iStartSector, int iEndSector,
                                   int iStartFrame, int iEndFrame,
@@ -93,11 +95,10 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
         _iSectors = iSectors / iGcd;
         _iPerFrame = iPerFrame / iGcd;
 
-        _iDiscSpeed = -1;
         _iFrame1LastSector = iFrame1LastSector;
     }
 
-    public DiscItemStrVideoStream(DiscItemSerialization fields) throws NotThisTypeException 
+    public DiscItemStrVideoStream(SerializedDiscItem fields) throws NotThisTypeException
     {
         super(fields);
         
@@ -110,13 +111,14 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     @Override
-    public DiscItemSerialization serialize() {
-        DiscItemSerialization serial = super.serialize();
+    public SerializedDiscItem serialize() {
+        SerializedDiscItem serial = super.serialize();
         serial.addFraction(SECTORSPERFRAME_KEY, _iSectors, _iPerFrame);
         serial.addNumber(FRAME1_LAST_SECTOR_KEY, _iFrame1LastSector);
 
-        if (_iDiscSpeed > 0)
-            serial.addNumber(DISC_SPEED_KEY, _iDiscSpeed);
+        int iDiscSpeed = getDiscSpeed();
+        if (iDiscSpeed > 0)
+            serial.addNumber(DISC_SPEED_KEY, iDiscSpeed);
         return serial;
     }
 
@@ -126,12 +128,101 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     @Override
+    public int getDiscSpeed() {
+        return _iDiscSpeed > 0 ? _iDiscSpeed : 
+               _iAudioDiscSpeed > 0 ? _iAudioDiscSpeed :
+                -1;
+    }
+
+    @Override
+    public int getPresentationStartSector() {
+        return getStartSector() + _iFrame1LastSector;
+    }
+    
+    @Override
+    public Fraction getSectorsPerFrame() {
+        return new Fraction(_iSectors, _iPerFrame);
+    }
+    
+
+    @Override
+    public int getParentRating(DiscItem child) {
+        if (!(child instanceof DiscItemAudioStream))
+            return 0;
+
+        int iOverlapPercent = child.getOverlap(this)*100 / child.getSectorLength();
+        if (iOverlapPercent > 0)
+            iOverlapPercent += 100;
+        return iOverlapPercent;
+    }
+
+    @Override
+    public boolean addChild(DiscItem other) {
+        if (getParentRating(other) == 0)
+            return false;
+
+        DiscItemAudioStream audItem = (DiscItemAudioStream) other;
+
+        _audioStreams.add(audItem);
+
+        // TODO: keep the list sorted in order found in disc index
+
+        // if there is only 1 disc speed used by parallel audio, then
+        // we can be confident the video should have the same speed
+        if (_iAudioDiscSpeed == 0) {
+            _iAudioDiscSpeed = audItem.getDiscSpeed();
+        } else if (_iAudioDiscSpeed != -1) {
+            if (_iAudioDiscSpeed != audItem.getDiscSpeed())
+                _iAudioDiscSpeed = -1;
+        }
+
+        audItem.setPartOfVideo(true);
+        return true;
+    }
+
+    @Override
+    public boolean setIndexId(IndexId id) {
+        IndexId childId = id.createChild();
+        super.setIndexId(id);
+        for (DiscItemAudioStream audio : _audioStreams) {
+            if (audio.setIndexId(childId)) // TODO: warn on rejection?
+                childId = childId.createNext();
+        }
+        return true;
+    }
+
+    @Override
+    public int getChildCount() {
+        return _audioStreams.size();
+    }
+
+    /** {@inheritDoc}
+     * <p>
+     * Actually returns Iterable<DiscItemAudioStream>. */
+    @Override
+    public Iterable<DiscItem> getChildren() {
+        return (Iterable)_audioStreams;
+    }
+
+    public boolean hasAudio() {
+        return !_audioStreams.isEmpty();
+    }
+
+    public List<DiscItemAudioStream> getParallelAudioStreams() {
+        if (_audioStreams.isEmpty())
+            return null;
+        else
+            return new ArrayList<DiscItemAudioStream>(_audioStreams);
+    }
+
+    @Override
     public String getInterestingDescription() {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("%dx%d, %d frames, ",
                 getWidth(), getHeight(), getEndFrame() - getStartFrame() + 1));
-        if (_iDiscSpeed > 0) {
-            formatFps(sb, _iDiscSpeed * 75);
+        int iDiscSpeed = getDiscSpeed();
+        if (iDiscSpeed > 0) {
+            formatFps(sb, iDiscSpeed * 75);
         } else {
             formatFps(sb, 150);
             sb.append(" (or ");
@@ -147,165 +238,36 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
         sb.append(formatTime(getSectorLength() / iSectorsPerSecond));
     }
 
-
-    @Override
-    public int getDiscSpeed() {
-        return _iDiscSpeed;
-    }
-
-    public void setDiscSpeed(int iSpeed) {
-        _iDiscSpeed = iSpeed;
-    }
-
-    @Override
-    public int getPresentationStartSector() {
-        return getStartSector() + _iFrame1LastSector;
-    }
-    
-    @Override
-    public Fraction getSectorsPerFrame() {
-        return new Fraction(_iSectors, _iPerFrame);
-    }
-
     @Override
     public VideoSaverBuilderStr makeSaverBuilder() {
         return new VideoSaverBuilderStr(this);
     }
 
-    private DiscItemAudioStream[] _aoAudioStreams;
 
-    /** Called by indexer after index has been created. */
-    public void collectParallelAudio(DiscIndex index) {
-        // TODO: clean this up, remove DiscIndex dependency, and make it more consistent with the disc index
-        ArrayList<DiscItemAudioStream> parallelAudio = new ArrayList<DiscItemAudioStream>();
-        for (DiscItem item : index) {
-            if (item instanceof DiscItemAudioStream) {
-                DiscItemAudioStream audItem = (DiscItemAudioStream) item;
-                if (isAudioAlignedWithThis(audItem)) {
-                    parallelAudio.add(audItem);
-                    audItem.setPartOfVideo(true);
-                    if (log.isLoggable(Level.INFO))
-                        log.fine("Parallel audio: " + item.toString());
-                }
-            }
-        }
-        if (parallelAudio.size() > 0) {
-            if (log.isLoggable(Level.INFO))
-                log.fine("Added to this media item " + this.toString());
-            _aoAudioStreams = parallelAudio.toArray(new DiscItemAudioStream[parallelAudio.size()]);
+    private static class LongestStack {
 
-            // keep the list sorted in order found in disc index
-
-            // if there is only 1 disc speed used by parallel audio, then
-            // we can be confident the video should have the same speed
-            if (_iDiscSpeed < 1) {
-                _iDiscSpeed = _aoAudioStreams[0].getDiscSpeed();
-                for (DiscItemAudioStream audio : _aoAudioStreams) {
-                    if (audio.getDiscSpeed() != _iDiscSpeed) {
-                        _iDiscSpeed = -1;
-                        break;
-                    }
-                }
-            }
-
-        }
-    }
-
-    /** Checks if another disc item (currently only audio) falls within
-     * this video in such a way as to be reasonably certain it is part of this 
-     * video. */
-    public boolean isAudioAlignedWithThis(DiscItem audioItem) {
-        int iSectorsInside = getOverlap(audioItem);
-        if (iSectorsInside == 0)
-            return false;
-        
-        // basically if the majority of audio is inside the video,
-        // then they're parallel. However, this misses the odd case where
-        // one audio stream engulfs two video streams, which can happen
-        // if an audio stream fails to be split
-        int iSecotrsOutside = audioItem.getSectorLength() - iSectorsInside;
-
-        return iSectorsInside > iSecotrsOutside;
-    }
-
-    public boolean hasAudio() {
-        return _aoAudioStreams != null && _aoAudioStreams.length > 0;
-    }
-
-    public int getParallelAudioStreamCount() {
-        return _aoAudioStreams == null ? 0 : _aoAudioStreams.length;
-    }
-
-    public List<DiscItemAudioStream> getParallelAudioStreams() {
-        if (_aoAudioStreams != null)
-            return Arrays.asList(_aoAudioStreams);
-        else
-            return null;
-    }
-
-    private static class FormatGroup {
-        private final ArrayList<DiscItemAudioStream> _items =
-                new ArrayList<DiscItemAudioStream>();
-
-        public FormatGroup(DiscItemAudioStream first) {
-            _items.add(first);
-        }
-        
-        public boolean addIfMatches(DiscItemAudioStream another) {
-            if (another.hasSameFormat(_items.get(0))) {
-                _items.add(another);
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        public void findLongest(
-                final int iIndex, LongestStack curGroup)
-        {
-            for (int i = iIndex; i < _items.size(); i++) {
-                DiscItemAudioStream potential = _items.get(i);
-                boolean blnOverlapsAny = false;
-                for (DiscItemAudioStream audItem : curGroup) {
-                    if (potential.overlaps(audItem)) {
-                        blnOverlapsAny = true;
-                        break;
-                    }
-                }
-                if (!blnOverlapsAny) {
-                    curGroup.push(potential);
-                    findLongest(i+1, curGroup);
-                    curGroup.pop();
-                }
-            }
-        }
-    }
-
-    private static class LongestStack implements Iterable<DiscItemAudioStream> {
+        private final DiscItemAudioStream[] _aoAudioStreams;
 
         private final ArrayList<DiscItemAudioStream> _stack =
                 new ArrayList<DiscItemAudioStream>();
 
         private int _iCurLen = 0;
-        
         private int _iMaxLen = 0;
         private int _iStartSector = -1;
+        
         private final ArrayList<DiscItemAudioStream> _longestCopy =
                 new ArrayList<DiscItemAudioStream>();
 
-        public int getMaxLen() {
-            return _iMaxLen;
+        public LongestStack(Collection<DiscItemAudioStream> audioStreams) {
+            _aoAudioStreams = audioStreams.toArray(
+                    new DiscItemAudioStream[audioStreams.size()]);
         }
 
-        public int getStartSector() {
-            return _iStartSector;
-        }
-
-        public ArrayList<DiscItemAudioStream> getLongestCopy() {
+        private ArrayList<DiscItemAudioStream> getLongest() {
             return _longestCopy;
         }
 
-        public void push(DiscItemAudioStream o) {
+        private void push(DiscItemAudioStream o) {
             _stack.add(o);
             _iCurLen += o.getSectorLength();
             if (_iCurLen > _iMaxLen) {
@@ -320,15 +282,34 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
             }
         }
 
-        public void pop() {
+        private void pop() {
             DiscItemAudioStream removed = _stack.remove(_stack.size() - 1);
             _iCurLen -= removed.getSectorLength();
         }
 
-        public Iterator<DiscItemAudioStream> iterator() {
-            return _stack.iterator();
+        private boolean matchesFormat(DiscItemAudioStream potential) {
+            return _stack.isEmpty() || _stack.get(0).hasSameFormat(potential);
         }
 
+        private void findLongest(final int iIndex) {
+            for (int i = iIndex; i < _aoAudioStreams.length; i++) {
+                DiscItemAudioStream potential = _aoAudioStreams[i];
+                if (!matchesFormat(potential))
+                    continue;
+                boolean blnOverlapsAny = false;
+                for (DiscItemAudioStream audItem : _stack) {
+                    if (potential.overlaps(audItem)) {
+                        blnOverlapsAny = true;
+                        break;
+                    }
+                }
+                if (!blnOverlapsAny) {
+                    push(potential);
+                    findLongest(i+1);
+                    pop();
+                }
+            }
+        }
     }
 
     private transient ArrayList<DiscItemAudioStream>
@@ -342,49 +323,21 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
             return _longestNonIntersectingAudioStreams;
 
         // I'd say maybe 99% of cases will only have 1
-        if (_aoAudioStreams.length == 1) {
+        if (_audioStreams.size() == 1) {
             _longestNonIntersectingAudioStreams = new ArrayList<DiscItemAudioStream>(1);
-            _longestNonIntersectingAudioStreams.add(_aoAudioStreams[0]);
+            _longestNonIntersectingAudioStreams.add(_audioStreams.first());
             return _longestNonIntersectingAudioStreams;
         }
 
-        // split up by format
-        ArrayList<FormatGroup> formatGroups = new ArrayList<FormatGroup>();
-        for (DiscItemAudioStream audItem : _aoAudioStreams) {
-            FormatGroup matchingGroup = null;
-            for (FormatGroup formatGroup : formatGroups) {
-                if (formatGroup.addIfMatches(audItem)) {
-                    matchingGroup = formatGroup;
-                    break;
-                }
-            }
-            if (matchingGroup == null) {
-                matchingGroup = new FormatGroup(audItem);
-                formatGroups.add(matchingGroup);
-            }
-        }
-
         // find the longest combination of parallel audio streams
-        LongestStack longest = null;
-        for (FormatGroup formatGroup : formatGroups) {
-            LongestStack stack = new LongestStack();
-            formatGroup.findLongest(0, stack);
-            if (longest == null) {
-                longest = stack;
-            } else if (stack.getMaxLen() > longest.getMaxLen()) {
-                longest = stack;
-            } else if (stack.getMaxLen() == longest.getMaxLen()) {
-                // if more than one are of equal length, pick the one that starts first
-                if (stack.getStartSector() < longest.getStartSector())
-                    longest = stack;
-            }
-        }
+        LongestStack longest = new LongestStack(_audioStreams);
+        longest.findLongest(0);
         
-        _longestNonIntersectingAudioStreams = longest.getLongestCopy();
+        _longestNonIntersectingAudioStreams = longest.getLongest();
 
         // TODO: remove this message when this code has been well tested
         System.out.println("Selected " + _longestNonIntersectingAudioStreams.size() +
-                " of the " + _aoAudioStreams.length + " audio streams:");
+                " of the " + _audioStreams.size() + " audio streams:");
         for (DiscItemAudioStream aud : _longestNonIntersectingAudioStreams) {
             System.out.println("  " + aud.toString());
         }
@@ -420,7 +373,9 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
     
     @Override
-    public PlayController makePlayController() throws LineUnavailableException, UnsupportedAudioFileException, IOException {
+    public PlayController makePlayController() 
+            throws LineUnavailableException, UnsupportedAudioFileException, IOException
+    {
 
         if (hasAudio()) {
 

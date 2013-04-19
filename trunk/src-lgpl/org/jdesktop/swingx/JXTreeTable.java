@@ -1,5 +1,5 @@
 /*
- * $Id: JXTreeTable.java,v 1.110 2009/03/20 15:41:31 kleopatra Exp $
+ * $Id: JXTreeTable.java 4147 2012-02-01 17:13:24Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -36,10 +36,10 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.EventObject;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.ActionMap;
-import javax.swing.DefaultListSelectionModel;
 import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JTable;
@@ -48,6 +48,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
+import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableModelEvent;
@@ -57,9 +58,12 @@ import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.event.TreeWillExpandListener;
+import javax.swing.plaf.TreeUI;
+import javax.swing.plaf.basic.BasicTreeUI;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
 import javax.swing.table.TableModel;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeSelectionModel;
@@ -68,8 +72,8 @@ import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 
 import org.jdesktop.swingx.decorator.ComponentAdapter;
-import org.jdesktop.swingx.decorator.FilterPipeline;
-import org.jdesktop.swingx.decorator.SelectionMapper;
+import org.jdesktop.swingx.event.TreeExpansionBroadcaster;
+import org.jdesktop.swingx.plaf.UIAction;
 import org.jdesktop.swingx.renderer.StringValue;
 import org.jdesktop.swingx.renderer.StringValues;
 import org.jdesktop.swingx.rollover.RolloverProducer;
@@ -78,6 +82,8 @@ import org.jdesktop.swingx.tree.DefaultXTreeCellRenderer;
 import org.jdesktop.swingx.treetable.DefaultTreeTableModel;
 import org.jdesktop.swingx.treetable.TreeTableCellEditor;
 import org.jdesktop.swingx.treetable.TreeTableModel;
+import org.jdesktop.swingx.treetable.TreeTableModelProvider;
+import org.jdesktop.swingx.util.Contract;
 
 /**
  * <p><code>JXTreeTable</code> is a specialized {@link javax.swing.JTable table}
@@ -143,6 +149,7 @@ public class JXTreeTable extends JXTable {
     
     private TreeTableHacker treeTableHacker;
     private boolean consumedOnPress;
+    private TreeExpansionBroadcaster treeExpansionBroadcaster;
 
     /**
      * Constructs a JXTreeTable using a
@@ -182,8 +189,6 @@ public class JXTreeTable extends JXTable {
         // renderer-related initialization
         init(renderer); // private method
         initActions();
-        // disable sorting
-        
         // no grid
         setShowGrid(false, false);
 
@@ -219,7 +224,7 @@ public class JXTreeTable extends JXTable {
         }
         // adjust the tree's rowHeight to this.rowHeight
         adjustTreeRowHeight(getRowHeight());
-
+        adjustTreeBounds();
         setSelectionModel(selectionWrapper.getListSelectionModel());
         
         // propagate the lineStyle property to the renderer
@@ -236,7 +241,6 @@ public class JXTreeTable extends JXTable {
     }
 
 
-    
     private void initActions() {
         // Register the actions that this class can handle.
         ActionMap map = getActionMap();
@@ -262,6 +266,7 @@ public class JXTreeTable extends JXTable {
             }
         }
     }
+    
 
     /**
      * {@inheritDoc} <p>
@@ -273,7 +278,6 @@ public class JXTreeTable extends JXTable {
         renderer.setEnabled(enabled);
         super.setEnabled(enabled);
     }
-    
 
     /**
      * {@inheritDoc} <p>
@@ -358,11 +362,269 @@ public class JXTreeTable extends JXTable {
         return treeTableHacker;
     }
     
+    /**
+     * Hacking around various issues. Subclass and let it return 
+     * your favourite. The current default is TreeTableHackerExt5 (latest
+     * evolution to work around #1230), the old long-standing default was
+     * TreeTableHackerExt3. If you experience problems with the latest, please
+     * let us know.
+     * 
+     * @return
+     */
     protected TreeTableHacker createTreeTableHacker() {
 //        return new TreeTableHacker();
-        return new TreeTableHackerExt();
+//        return new TreeTableHackerExt();
 //        return new TreeTableHackerExt2();
+//        return new TreeTableHackerExt3();
+//        return new TreeTableHackerExt4();
+        return new TreeTableHackerExt5();
     }
+
+    private boolean processMouseMotion = true;
+
+    @Override
+    protected void processMouseMotionEvent(MouseEvent e) {
+        if (processMouseMotion)
+                super.processMouseMotionEvent(e);
+    }
+
+    /**
+     * This class extends TreeTableHackerExt instead of TreeTableHackerExt3 so
+     * as to serve as a clue that it is a complete overhaul and looking in
+     * TreeTableHackerExt2 and TreeTableHackerExt3 for methods to change the
+     * behavior will do you no good.
+     * <p>
+     * The methods previously used are abandoned as they would be misnomers to
+     * the behavior as implemented in this class.
+     * <p>
+     * Changes:
+     * <ol>
+     * <li>
+     * According to TreeTableHackerExt3, clickCounts > 1 are not sent to the
+     * JTree so that double clicks will start edits (Issue #474). Well, mouse
+     * events are only sent to the JTree if they occur within the tree handle
+     * space - so that is not the behavior desired. Double clicks on the
+     * text/margin opposite the tree handle already started edits without that
+     * modification (I checked). The only thing that modification does is
+     * introduce bugs when one actually double clicks on a tree handle... so
+     * that idea was abandoned.</li>
+     * <li>
+     * There is no longer any discrimination between events that cause an
+     * expansion/collapse. Since the event location is check to see if it is in
+     * the tree handle margin area, this doesn't seem necessary. Plus it is more
+     * user friendly: if someone missed the tree handle by 1 pixel, then it
+     * caused a selection change instead of a node expansion/ collapse.</li>
+     * <li>
+     * The consumption of events are handled within this class itself because
+     * the behavior associated with the way that <code>processMoueEvent(MouseEvent)</code> consumed events was incompatible with the way this
+     * class does things. As a consequence,
+     * <code>hitHandleDetectionFromProcessMouse(MouseEvent)</code> 
+     * always returns false so that <code>processMoueEvent(MouseEvent)</code> will not 
+     * doing anything other than call its super
+     * method.</li>
+     * <li>
+     * All events of type MOUSE_PRESSED, MOUSE_RELEASED, and MOUSE_CLICKED, but
+     * excluding when <code>isPopupTrigger()</code> returns true, are sent to
+     * the JTree. This has the added benefit of not having to piggy back a mouse
+     * released event as we can just use the real mouse released event. This
+     * keeps the look and feel consistent for the user of UI's that
+     * expand/collapse nodes on the release of the mouse.</li>
+     * <li>
+     * The previous implementations have a spiel about avoiding events with
+     * modifiers because the UI might try to change the selection. Well that
+     * didn't occur in any of the look and feels I tested. Perhaps that was the
+     * case if events that landed within the content area of a node were sent to
+     * the JTree. If that behavior is actually necessary, then it can be added
+     * to the <code>isTreeHandleEventType(MouseEvent)</code> method. This
+     * implementation sends all events regardless of the modifiers.</li>
+     * <li>
+     * This implementation toggles the processing of mouse motion events. When
+     * events are sent to the tree, it is turned off and turned back on when an
+     * event is not sent to the tree. This fixes selection changes that occur
+     * when one drags the mouse after pressing on a tree handle.</li>
+     * </ol>
+     * 
+     * contributed by member aephyr@dev.java.net
+     */
+    public class TreeTableHackerExt4 extends TreeTableHackerExt {
+
+        /**
+         * Filter to find mouse events that are candidates for node expansion/
+         * collapse. MOUSE_PRESSED and MOUSE_RELEASED are used by default UIs.
+         * MOUSE_CLICKED is included as it may be used by a custom UI.
+         * 
+         * @param e the currently dispatching mouse event
+         * @return true if the event is a candidate for sending to the JTree
+         */
+        protected boolean isTreeHandleEventType(MouseEvent e) {
+            switch (e.getID()) {
+            case MouseEvent.MOUSE_CLICKED:
+            case MouseEvent.MOUSE_PRESSED:
+            case MouseEvent.MOUSE_RELEASED:
+                return !e.isPopupTrigger();
+            }
+            return false;
+        }
+
+        /**
+         * This method checks if the location of the event is in the tree handle
+         * margin and translates the coordinates for the JTree.
+         * 
+         * @param e the currently dispatching mouse event
+         * @return the mouse event to dispatch to the JTree or null if nothing
+         *         should be dispatched
+         */
+        protected MouseEvent getEventForTreeRenderer(MouseEvent e) {
+            Point pt = e.getPoint();
+            int col = columnAtPoint(pt);
+            if (col >= 0 && isHierarchical(col)) {
+                int row = rowAtPoint(pt);
+                if (row >= 0) {
+                    // There will not be a check to see if the y coordinate is
+                    // in range
+                    // because the use of row = rowAtPoint(pt) will only return
+                    // a row
+                    // that has the y coordinates in the range of our point.
+                    Rectangle cellBounds = getCellRect(row, col, false);
+                    int x = e.getX() - cellBounds.x;
+                    Rectangle nodeBounds = renderer.getRowBounds(row);
+                    // The renderer's component orientation is checked because
+                    // that
+                    // is the one that really matters. Though it seems to always
+                    // be
+                    // in sync with the JXTreeTable's component orientation,
+                    // maybe
+                    // someone wants them to be different for some reason.
+                    if (renderer.getComponentOrientation().isLeftToRight() ? x < nodeBounds.x
+                            : x > nodeBounds.x + nodeBounds.width) {
+                        return new MouseEvent(renderer, e.getID(), e.getWhen(),
+                                e.getModifiers(), x, e.getY(), e
+                                        .getClickCount(), false, e.getButton());
+                    }
+                }
+            }
+            return null;
+        }
+
+        /**
+         * 
+         * @return this method always returns false, so that processMouseEvent
+         *         always just simply calls its super method
+         */
+        @Override
+        public boolean hitHandleDetectionFromProcessMouse(MouseEvent e) {
+                if (!isHitDetectionFromProcessMouse())
+                        return false;
+                if (isTreeHandleEventType(e)) {
+                        MouseEvent newE = getEventForTreeRenderer(e);
+                        if (newE != null) {
+                                renderer.dispatchEvent(newE);
+                                if (processMouseMotion) {
+                                        // This fixes the issue of drags on tree handles
+                                        // (often unintentional) from selecting all nodes from the
+                                        // anchor to the node of said tree handle.
+                                        processMouseMotion = false;
+                        // part of 561-swingx: if focus elsewhere and dispatching the
+                        // mouseEvent the focus doesn't move from elsewhere
+                        // still doesn't help in very first click after startup
+                        // probably lead of row selection event not correctly updated
+                        // on synch from treeSelectionModel
+                                        requestFocusInWindow();
+                                }
+                                e.consume();
+                                // Return false to prevent JXTreeTable.processMouseEvent(MouseEvent)
+                                // from stopping the processing of the event. This allows the
+                                // listeners to see the event even though it is consumed (perhaps
+                                // useful for a user supplied listener). A proper UI listener will
+                                // ignore consumed events.
+                                return false;
+                                // alternatively, you would have to use:
+                                // return e.getID() == MouseEvent.MOUSE_PRESSED;
+                                // because JXTreeTable.processMouseEvent(MouseEvent) assumes true
+                                // will only be returned for MOUSE_PRESSED events. Also, if true 
+                                // were to be returned, then you'd have to piggy back a released
+                                // event as the previous implementation does, because the actual
+                                // released event would never reach this method.
+                        }
+                }
+                processMouseMotion = true;
+                return false;
+        }
+    }
+
+    /*
+     * Changed to calculate the area of the tree handle and only forward mouse
+     * events to the tree if the event lands within that area. This keeps the
+     * selection behavior consistent with TreeTableHackerExt3.
+     * 
+     * contributed by member aephyr@dev.java.net
+     */
+    public class TreeTableHackerExt5 extends TreeTableHackerExt4 {
+
+        /**
+         * If a negative number is returned, then all events that occur in the
+         * leading margin will be forwarded to the tree and consumed.
+         * 
+         * @return the width of the tree handle if it can be determined, else -1
+         */
+        protected int getTreeHandleWidth() {
+            if (renderer.getUI() instanceof BasicTreeUI) {
+                BasicTreeUI ui = (BasicTreeUI) renderer.getUI();
+                return ui.getLeftChildIndent() + ui.getRightChildIndent();
+            } else {
+                return -1;
+            }
+        }
+
+        @Override
+        protected MouseEvent getEventForTreeRenderer(MouseEvent e) {
+            Point pt = e.getPoint();
+            int col = columnAtPoint(pt);
+            if (col >= 0 && isHierarchical(col)) {
+                int row = rowAtPoint(pt);
+                // There will not be a check to see if the y coordinate is in
+                // range
+                // because the use of row = rowAtPoint(pt) will only return a
+                // row
+                // that has the y coordinates in the range of our point.
+                if (row >= 0) {
+                    TreePath path = getPathForRow(row);
+                    Object node = path.getLastPathComponent();
+                    // Check if the node has a tree handle and if so, check
+                    // if the event location falls over the tree handle.
+                    if (!getTreeTableModel().isLeaf(node)
+                            && (getTreeTableModel().getChildCount(node) > 0 || !renderer
+                                    .hasBeenExpanded(path))) {
+                        Rectangle cellBounds = getCellRect(row, col, false);
+                        int x = e.getX() - cellBounds.x;
+                        Rectangle nb = renderer.getRowBounds(row);
+                        int thw = getTreeHandleWidth();
+                        // The renderer's component orientation is checked
+                        // because that
+                        // is the one that really matters. Though it seems to
+                        // always be
+                        // in sync with the JXTreeTable's component orientation,
+                        // maybe
+                        // someone wants them to be different for some reason.
+                        if (renderer.getComponentOrientation().isLeftToRight() ? x < nb.x
+                                && (thw < 0 || x > nb.x - thw)
+                                : x > nb.x + nb.width
+                                        && (thw < 0 || x < nb.x + nb.width
+                                                + thw)) {
+                            return new MouseEvent(renderer, e.getID(), e
+                                    .getWhen(), e.getModifiers(), x, e.getY(), e
+                                            .getClickCount(), false, e
+                                            .getButton());
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+    }
+
+
 
     /**
      * Temporary class to have all the hacking at one place. Naturally, it will
@@ -440,7 +702,9 @@ public class JXTreeTable extends JXTable {
          * 
          */
         protected void completeEditing() {
-            if (isEditing()) {
+            // JW: fix for 1126 - ignore complete if not editing hierarchical
+            // reverted - introduced regression .... for details please see the bug report
+            if (isEditing()) { // && isHierarchical(getEditingColumn())) {
                 boolean success = getCellEditor().stopCellEditing();
                 if (!success) {
                     getCellEditor().cancelCellEditing();
@@ -567,12 +831,13 @@ public class JXTreeTable extends JXTable {
     
     /**
      * Patch for #471-swingx: no selection on click in hierarchical column
-     * outside of node-text. Mar 2007.
+     * if outside of node-text. Mar 2007.
      * <p>
      * 
-     * Note: this solves the selection issue but is not bidi-compliant - in RToL
-     * contexts the expansion/collapse handles aren't detected and consequently
-     * are disfunctional.
+     * Note: with 1.6 the expansion control was broken even with the "normal extended"
+     * TreeTableHackerExt. When fixing that (renderer must have correct width for
+     * BasicTreeUI since 1.6) took a look into why this didn't work and made it work.
+     * So, now this is bidi-compliant.
      * 
      * @author tiberiu@dev.java.net
      */
@@ -595,8 +860,8 @@ public class JXTreeTable extends JXTable {
                  */
                 me = new MouseEvent((Component) me.getSource(),
                         MouseEvent.MOUSE_PRESSED, me.getWhen(), me
-                                .getModifiers(), me.getX(), me.getY(), me
-                                .getClickCount(), me.isPopupTrigger());
+                        .getModifiers(), me.getX(), me.getY(), me
+                        .getClickCount(), me.isPopupTrigger());
             }
             // If the modifiers are not 0 (or the left mouse button),
             // tree may try and toggle the selection, and table
@@ -607,30 +872,180 @@ public class JXTreeTable extends JXTable {
             if (me.getModifiers() == 0
                     || me.getModifiers() == InputEvent.BUTTON1_MASK) {
                 // compute where the mouse point is relative to the tree
-                // renderer
+                // as renderer, that the x coordinate translated to be relative
+                // to the column x-position
                 Point treeMousePoint = getTreeMousePoint(column, me);
                 int treeRow = renderer.getRowForLocation(treeMousePoint.x,
                         treeMousePoint.y);
                 int row = 0;
+                // mouse location not inside the node content
                 if (treeRow < 0) {
+                    // get the row for mouse location
                     row = renderer.getClosestRowForLocation(treeMousePoint.x,
                             treeMousePoint.y);
+                    // check against actual bounds of the row
                     Rectangle bounds = renderer.getRowBounds(row);
                     if (bounds == null) {
                         row = -1;
                     } else {
-                        if ((bounds.y + bounds.height < treeMousePoint.y)
-                                || bounds.x > treeMousePoint.x) {
-                            row = -1;
+                        // check if the mouse location is "leading"
+                        // relative to the content box 
+                        // JW: fix issue 1168-swingx: expansion control broken in 
+                        if (getComponentOrientation().isLeftToRight()) {
+                            // this is LToR only
+                            if ((bounds.y + bounds.height < treeMousePoint.y)
+                                    || bounds.x > treeMousePoint.x) {
+                                row = -1;
+                            }
+                        } else {
+                            if ((bounds.y + bounds.height < treeMousePoint.y)
+                                    || bounds.x + bounds.width < treeMousePoint.x) {
+                                row = -1;
+                            }
+                            
                         }
                     }
                     // make sure the expansionChangedFlag is set to false for
                     // the case that up in the tree nothing happens
                     expansionChangedFlag = false;
                 }
-
-                if ((treeRow >= 0) || ((treeRow < 0) && (row < 0))) {
-                    // default selection
+                
+                if ((treeRow >= 0) // if in content box
+                        || ((treeRow < 0) && (row < 0))) {// or outside but leading
+                    if (treeRow >= 0)  { //Issue 561-swingx: in content box, update column lead to focus
+                        getColumnModel().getSelectionModel().setLeadSelectionIndex(column);
+                    }
+                    // dispatch the translated event to the tree
+                    // which either triggers a tree selection
+                    // or expands/collapses a node
+                    MouseEvent pressed = new MouseEvent(renderer, me.getID(),
+                            me.getWhen(), me.getModifiers(), treeMousePoint.x,
+                            treeMousePoint.y, me.getClickCount(), me
+                            .isPopupTrigger());
+                    renderer.dispatchEvent(pressed);
+                    // For Mac OS X, we need to dispatch a MOUSE_RELEASED as
+                    // well
+                    MouseEvent released = new MouseEvent(renderer,
+                            java.awt.event.MouseEvent.MOUSE_RELEASED, pressed
+                            .getWhen(), pressed.getModifiers(), pressed
+                            .getX(), pressed.getY(), pressed
+                            .getClickCount(), pressed.isPopupTrigger());
+                    renderer.dispatchEvent(released);
+                    // part of 561-swingx: if focus elsewhere and dispatching the
+                    // mouseEvent the focus doesn't move from elsewhere
+                    // still doesn't help in very first click after startup
+                    // probably lead of row selection event not correctly updated
+                    // on synch from treeSelectionModel
+                    requestFocusInWindow();
+                }
+                if (expansionChangedFlag) {
+                    changedExpansion = true;
+                } else {
+                }
+            }
+            expansionChangedFlag = false;
+            return changedExpansion;
+        }
+        
+        /**
+         * This is a patch provided for Issue #980-swingx which should
+         * improve the bidi-compliance. Still doesn't work in our 
+         * visual tests...<p>
+         * 
+         * Problem was not in the translation to renderer coordinate system,
+         * it was in the method itself: the check whether we are "beyond" the
+         * cell content box is bidi-dependent. Plus (since 1.6), width of
+         * renderer must be > 0.
+         * 
+         * 
+         * @param column the column index under the event, if any.
+         * @param e the event which might trigger a expand/collapse.
+         * @return the Point adjusted for bidi
+         */
+        protected Point getTreeMousePoint(int column, MouseEvent me) {
+            // could inline as it wasn't the place to fix for broken RToL
+            return new Point(me.getX()
+                    - getCellRect(0, column, false).x, me.getY());
+        }
+    }
+    /**
+     * A more (or less, depending in pov :-) aggressiv hacker. Compared
+     * to super, it dispatches less events to address open issues.<p>
+     * 
+     * Issue #474-swingx: double click should start edit (not expand/collapse)
+     *    changed mightBeExpansionTrigger to filter out clickCounts > 1
+     * <p>   
+     * Issue #875-swingx: cell selection mode
+     *    changed the dispatch to do so only if mouse event outside content
+     *    box and leading
+     * <p>
+     * Issue #1169-swingx: remove 1.5 dnd hack
+     *    removed the additional dispatch here and    
+     *    changed in the implementation of hackAroundDragEnabled
+     *    to no longer look for the system property (it's useless even if set)
+     * 
+     * @author tiberiu@dev.java.net
+     */
+    public class TreeTableHackerExt3 extends TreeTableHackerExt2 {
+        @Override
+        protected boolean expandOrCollapseNode(int column, EventObject e) {
+            if (!isHierarchical(column))
+                return false;
+            if (!mightBeExpansionTrigger(e))
+                return false;
+            boolean changedExpansion = false;
+            MouseEvent me = (MouseEvent) e;
+            // If the modifiers are not 0 (or the left mouse button),
+            // tree may try and toggle the selection, and table
+            // will then try and toggle, resulting in the
+            // selection remaining the same. To avoid this, we
+            // only dispatch when the modifiers are 0 (or the left mouse
+            // button).
+            if (me.getModifiers() == 0
+                    || me.getModifiers() == InputEvent.BUTTON1_MASK) {
+                // compute where the mouse point is relative to the tree
+                // as renderer, that the x coordinate translated to be relative
+                // to the column x-position
+                Point treeMousePoint = getTreeMousePoint(column, me);
+                int treeRow = renderer.getRowForLocation(treeMousePoint.x,
+                        treeMousePoint.y);
+                int row = 0;
+                // mouse location not inside the node content
+                if (treeRow < 0) {
+                    // get the row for mouse location
+                    row = renderer.getClosestRowForLocation(treeMousePoint.x,
+                            treeMousePoint.y);
+                    // check against actual bounds of the row
+                    Rectangle bounds = renderer.getRowBounds(row);
+                    if (bounds == null) {
+                        row = -1;
+                    } else {
+                        // check if the mouse location is "leading"
+                        // relative to the content box 
+                        // JW: fix issue 1168-swingx: expansion control broken in 
+                        if (getComponentOrientation().isLeftToRight()) {
+                            // this is LToR only
+                            if ((bounds.y + bounds.height < treeMousePoint.y)
+                                    || bounds.x > treeMousePoint.x) {
+                                row = -1;
+                            }
+                        } else {
+                            if ((bounds.y + bounds.height < treeMousePoint.y)
+                                    || bounds.x + bounds.width < treeMousePoint.x) {
+                                row = -1;
+                            }
+                            
+                        }
+                    }
+                }
+                // make sure the expansionChangedFlag is set to false for
+                // the case that up in the tree nothing happens
+                expansionChangedFlag = false;
+                
+                if  ((treeRow < 0) && (row < 0)) {// outside and leading
+                    // dispatch the translated event to the tree
+                    // which either triggers a tree selection
+                    // or expands/collapses a node
                     MouseEvent pressed = new MouseEvent(renderer, me.getID(),
                             me.getWhen(), me.getModifiers(), treeMousePoint.x,
                             treeMousePoint.y, me.getClickCount(), me
@@ -644,64 +1059,49 @@ public class JXTreeTable extends JXTable {
                                     .getX(), pressed.getY(), pressed
                                     .getClickCount(), pressed.isPopupTrigger());
                     renderer.dispatchEvent(released);
+                    // part of 561-swingx: if focus elsewhere and dispatching the
+                    // mouseEvent the focus doesn't move from elsewhere
+                    // still doesn't help in very first click after startup
+                    // probably lead of row selection event not correctly updated
+                    // on synch from treeSelectionModel
+                    requestFocusInWindow();
                 }
                 if (expansionChangedFlag) {
                     changedExpansion = true;
+                } else {
                 }
             }
             expansionChangedFlag = false;
             return changedExpansion;
         }
-
         /**
-         * This is a patch provided for Issue #980-swingx which should
-         * improve the bidi-compliance. Still doesn't work in our 
-         * visual tests...
-         * 
-         * @param column the column index under the event, if any.
-         * @param e the event which might trigger a expand/collapse.
-         * @return the Point adjusted for bidi
+         * Overridden to exclude clickcounts > 1.
          */
-        protected Point getTreeMousePoint(int column, MouseEvent me) {
-//            return new Point(me.getX()
-//                    - getCellRect(0, column, false).x, me.getY());
-            Rectangle tableCellRect = getCellRect(0, column, false);
-           
-            if( getComponentOrientation().isLeftToRight() ) {
-                return new Point(me.getX() - tableCellRect.x, me.getY());
-            }
- 
-            int x = (me.getX() - tableCellRect.x) - tableCellRect.width - 10;
-            return new Point(x, me.getY());
+        @Override
+        protected boolean mightBeExpansionTrigger(EventObject e) {
+            if (!(e instanceof MouseEvent)) return false;
+            MouseEvent me = (MouseEvent) e;
+            if (!SwingUtilities.isLeftMouseButton(me)) return false;
+            if (me.getClickCount() > 1) return false;
+            return me.getID() == MouseEvent.MOUSE_PRESSED;
         }
+
     }
     
     /**
-     * decides whether we want to apply the hack for #168-jdnc. here: returns
-     * true if dragEnabled() and the improved drag handling is not activated (or
-     * the system property is not accessible). The given mouseEvent is not
-     * analysed.
+     * Decides whether we want to apply the hack for #168-jdnc. here: returns
+     * true if dragEnabled() and a client property with key DRAG_HACK_FLAG_KEY
+     * has a value of boolean true.<p>
      * 
-     * PENDING: Mustang?
+     * Note: this is updated for 1.6, as the intermediate system property
+     * for enabled drag support is useless now (it's the default)
      * 
      * @param me the mouseEvent that triggered a editCellAt
      * @return true if the hack should be applied.
      */
     protected boolean hackAroundDragEnabled(MouseEvent me) {
         Boolean dragHackFlag = (Boolean) getClientProperty(DRAG_HACK_FLAG_KEY);
-        if (dragHackFlag == null) {
-            // access and store the system property as a client property once
-            String priority = null;
-            try {
-                priority = System.getProperty("sun.swing.enableImprovedDragGesture");
-
-            } catch (Exception ex) {
-                // found some foul expression or failed to read the property
-            }
-            dragHackFlag = (priority == null);
-            putClientProperty(DRAG_HACK_FLAG_KEY, dragHackFlag);
-        }
-        return getDragEnabled() && dragHackFlag;
+        return getDragEnabled() && Boolean.TRUE.equals(dragHackFlag);
     }
 
     /**
@@ -715,6 +1115,7 @@ public class JXTreeTable extends JXTable {
      */
     @Override
     public int getEditingRow() {
+        if (editingRow == -1) return -1;
         return isHierarchical(editingColumn) ? -1 : editingRow;
     }
 
@@ -810,70 +1211,6 @@ public class JXTreeTable extends JXTable {
     }
 
     /**
-     *  Overridden to return a do-nothing mapper.
-     *  
-     */
-    @Override
-    public SelectionMapper getSelectionMapper() {
-        if (selectionMapper == null) {
-            selectionMapper = createSelectionMapper();
-        }
-        // JW: don't want to change super assumption 
-        // (mapper != null) - the selection mapping will change 
-        // anyway in Mustang (using core functionality)
-        return selectionMapper;
-    }
-
-    /**
-     * Fix for #745-swingx: remove static selectionMaper.
-     * 
-     * @return a SelectionMapper to use with this treeTable. Implemented
-     *   with a no-op.
-     */
-    protected SelectionMapper createSelectionMapper() {
-
-        SelectionMapper mapper = new SelectionMapper() {
-
-            private ListSelectionModel viewSelectionModel = new DefaultListSelectionModel();
-
-            public ListSelectionModel getViewSelectionModel() {
-                return viewSelectionModel;
-            }
-
-            public void setViewSelectionModel(
-                    ListSelectionModel viewSelectionModel) {
-                this.viewSelectionModel = viewSelectionModel;
-            }
-
-            public void setFilters(FilterPipeline pipeline) {
-                // do nothing
-            }
-
-            public void insertIndexInterval(int start, int length,
-                    boolean before) {
-                // do nothing
-            }
-
-            public void removeIndexInterval(int start, int end) {
-                // do nothing
-            }
-
-            public void setEnabled(boolean enabled) {
-                // do nothing
-            }
-
-            public boolean isEnabled() {
-                return false;
-            }
-
-            public void clearModelSelection() {
-                // do nothing
-            }
-        };
-        return mapper;
-    }
-    
-    /**
      * Throws UnsupportedOperationException because variable height rows are
      * not supported.
      *
@@ -923,6 +1260,25 @@ public class JXTreeTable extends JXTable {
         }
     }
 
+    /**
+     * {@inheritDoc} <p>
+     * 
+     * Overridden to adjust the renderer's size.
+     */
+    @Override
+    public void columnMarginChanged(ChangeEvent e) {
+        super.columnMarginChanged(e);
+        adjustTreeBounds();
+    }
+
+    /**
+     * Forces the renderer to resize for fitting into hierarchical column.
+     */
+    private void adjustTreeBounds() {
+        if (renderer != null) {
+            renderer.setBounds(0, 0, 0, 0);
+        }
+    }
 
     /**
      * <p>Overridden to ensure that private renderer state is kept in sync with the
@@ -1057,7 +1413,7 @@ public class JXTreeTable extends JXTable {
     @Override
     public String getToolTipText(MouseEvent event) {
         int column = columnAtPoint(event.getPoint());
-        if (isHierarchical(column)) {
+        if (column >= 0 && isHierarchical(column)) {
             int row = rowAtPoint(event.getPoint());
             return renderer.getToolTipText(event, row, column);
         }
@@ -1475,19 +1831,58 @@ public class JXTreeTable extends JXTable {
         renderer.setToggleClickCount(clickCount);
     }
 
+    /**
+     * Returns true if the tree is configured for a large model.
+     * The default value is false.
+     * 
+     * @return true if a large model is suggested
+     * @see #setLargeModel
+     */
+    public boolean isLargeModel() {
+        return renderer.isLargeModel();
+    }
+
+    /**
+     * Specifies whether the UI should use a large model.
+     * (Not all UIs will implement this.) <p>
+     * 
+     * <strong>NOTE</strong>: this method is exposed for completeness - 
+     * currently it's not recommended 
+     * to use a large model because there are some issues 
+     * (not yet fully understood), namely
+     * issue #25-swingx, and probably #270-swingx. 
+     * 
+     * @param newValue true to suggest a large model to the UI
+     */
+    public void setLargeModel(boolean newValue) {
+        renderer.setLargeModel(newValue);
+        // JW: random method calling ... doesn't help
+//        renderer.treeDidChange();
+//        revalidate();
+//        repaint();
+    }
 
 //------------------------------ exposed tree listeners
     
     /**
      * Adds a listener for <code>TreeExpansion</code> events.
      * 
-     * TODO (JW): redirect event source to this. 
-     * 
      * @param tel a TreeExpansionListener that will be notified 
      * when a tree node is expanded or collapsed
      */
     public void addTreeExpansionListener(TreeExpansionListener tel) {
-        renderer.addTreeExpansionListener(tel);
+        getTreeExpansionBroadcaster().addTreeExpansionListener(tel);
+    }
+
+    /**
+     * @return
+     */
+    private TreeExpansionBroadcaster getTreeExpansionBroadcaster() {
+        if (treeExpansionBroadcaster == null) {
+            treeExpansionBroadcaster = new TreeExpansionBroadcaster(this);
+            renderer.addTreeExpansionListener(treeExpansionBroadcaster);
+        }
+        return treeExpansionBroadcaster;
     }
 
     /**
@@ -1495,7 +1890,8 @@ public class JXTreeTable extends JXTable {
      * @param tel the <code>TreeExpansionListener</code> to remove
      */
     public void removeTreeExpansionListener(TreeExpansionListener tel) {
-        renderer.removeTreeExpansionListener(tel);
+        if (treeExpansionBroadcaster == null) return;
+        treeExpansionBroadcaster.removeTreeExpansionListener(tel);
     }
 
     /**
@@ -1621,7 +2017,6 @@ public class JXTreeTable extends JXTable {
         
         return super.getCellEditor(row, column);
     }
-    
     
     @Override
     public void updateUI() {
@@ -1780,23 +2175,23 @@ public class JXTreeTable extends JXTable {
     /**
      * 
      */
-    protected static class TreeTableModelAdapter extends AbstractTableModel {
+    protected static class TreeTableModelAdapter extends AbstractTableModel 
+        implements TreeTableModelProvider {
         private TreeModelListener treeModelListener;
+        private final JTree tree; // immutable
+        private JXTreeTable treeTable; // logically immutable
         
         /**
          * Maintains a TreeTableModel and a JTree as purely implementation details.
          * Developers can plug in any type of custom TreeTableModel through a
          * JXTreeTable constructor or through setTreeTableModel().
          *
-         * @param model Underlying data model for the JXTreeTable that will ultimately
-         * be bound to this TreeTableModelAdapter
          * @param tree TreeTableCellRenderer instantiated with the same model as
-         * specified by the model parameter of this constructor
-         * @throws IllegalArgumentException if a null model argument is passed
+         * the driving JXTreeTable's TreeTableModel.
          * @throws IllegalArgumentException if a null tree argument is passed
          */
         TreeTableModelAdapter(JTree tree) {
-            assert tree != null;
+            Contract.asNotNull(tree, "tree must not be null");
 
             this.tree = tree; // need tree to implement getRowCount()
             tree.getModel().addTreeModelListener(getTreeModelListener());
@@ -1866,22 +2261,32 @@ public class JXTreeTable extends JXTable {
                 throw new IllegalArgumentException("adapter already bound");
             }
         }
+        
+        /**
+         * 
+         * @inherited <p>
+         * 
+         * Implemented to return the the underlying TreeTableModel. 
+         */
+        public TreeTableModel getTreeTableModel() {
+            return (TreeTableModel) tree.getModel();
+        }
 
         // Wrappers, implementing TableModel interface.
         // TableModelListener management provided by AbstractTableModel superclass.
 
         @Override
         public Class<?> getColumnClass(int column) {
-            return ((TreeTableModel) tree.getModel()).getColumnClass(column);
+            return getTreeTableModel().getColumnClass(column);
         }
 
         public int getColumnCount() {
-            return ((TreeTableModel) tree.getModel()).getColumnCount();
+            return getTreeTableModel().getColumnCount();
         }
 
         @Override
         public String getColumnName(int column) {
-            return ((TreeTableModel) tree.getModel()).getColumnName(column);
+            return getTreeTableModel().getColumnName(column);
         }
 
         public int getRowCount() {
@@ -1891,14 +2296,14 @@ public class JXTreeTable extends JXTable {
         public Object getValueAt(int row, int column) {
             // Issue #270-swingx: guard against invisible row
             Object node = nodeForRow(row);
-            return node != null ? ((TreeTableModel) tree.getModel()).getValueAt(node, column) : null;
+            return node != null ? getTreeTableModel().getValueAt(node, column) : null;
         }
 
         @Override
         public boolean isCellEditable(int row, int column) {
             // Issue #270-swingx: guard against invisible row
             Object node = nodeForRow(row);
-            return node != null ? ((TreeTableModel) tree.getModel()).isCellEditable(node, column) : false;
+            return node != null ? getTreeTableModel().isCellEditable(node, column) : false;
         }
 
         @Override
@@ -1906,7 +2311,7 @@ public class JXTreeTable extends JXTable {
             // Issue #270-swingx: guard against invisible row
             Object node = nodeForRow(row);
             if (node != null) {
-                ((TreeTableModel) tree.getModel()).setValueAt(value, node, column);
+                getTreeTableModel().setValueAt(value, node, column);
             }
         }
 
@@ -2112,8 +2517,6 @@ public class JXTreeTable extends JXTable {
 
         }
 
-        private final JTree tree; // immutable
-        private JXTreeTable treeTable = null; // logically immutable
     }
 
     static class TreeTableCellRenderer extends JXTree implements
@@ -2392,10 +2795,30 @@ public class JXTreeTable extends JXTable {
 
         @Override
         protected void setExpandedState(TreePath path, boolean state) {
+            // JW: fix for #1126 - CellEditors are removed immediately after starting an
+            // edit if they involve a change of selection and the 
+            // expandsOnSelection property is true
+            // back out if the selection change does not cause a change in 
+            // expansion state
+            if (isExpanded(path) == state) return;
+            // on change of expansion state, the editor's row might be changed
+            // for simplicity, it's stopped always (even if the row is not changed)
             treeTable.getTreeTableHacker().completeEditing();
             super.setExpandedState(path, state);
             treeTable.getTreeTableHacker().expansionChanged();
             
+        }
+
+        @Override
+        public void setUI(TreeUI ui) {
+            if (ui.getClass().getName().equals("com.sun.java.swing.plaf.windows.WindowsTreeUI")) {
+                try {
+                    ui = (TreeUI) Class.forName("com.sun.java.swing.plaf.windows.WindowsTreeTableUI").newInstance();
+                } catch (Exception ex) {
+                    Logger.getLogger(JXTreeTable.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+            super.setUI(ui);
         }
 
         /**
@@ -2448,19 +2871,27 @@ public class JXTreeTable extends JXTable {
 
 
         /**
-         * This is overridden to set the height to match that of the JTable.
+         * This is overridden to set the location to (0, 0) and set
+         * the dimension to exactly fill the bounds of the hierarchical
+         * column.<p>
          */
         @Override
         public void setBounds(int x, int y, int w, int h) {
+            // location is relative to the hierarchical column
+            y = 0;
+            x = 0;
             if (treeTable != null) {
-                y = 0;
+                // adjust height to table height
                 // It is not enough to set the height to treeTable.getHeight()
+                // JW: why not?
                 h = treeTable.getRowCount() * this.getRowHeight();
-//                int hierarchicalC = treeTable.getHierarchicalColumn();
-//                if (hierarchicalC >= 0) {
-//                    TableColumn column = treeTable.getColumn(hierarchicalC);
-//                    w = Math.min(w, column.getWidth());
-//                }
+                int hierarchicalC = treeTable.getHierarchicalColumn();
+                // JW: re-introduced to fix Issue 1168-swingx
+                if (hierarchicalC >= 0) {
+                    TableColumn column = treeTable.getColumn(hierarchicalC);
+                    // adjust width to width of hierarchical column
+                    w = column.getWidth();
+                }
             }
             super.setBounds(x, y, w, h);
         }
@@ -2496,6 +2927,14 @@ public class JXTreeTable extends JXTable {
             }
             
         }
+
+        
+        @Override
+        public boolean isRowSelected(int row) {
+            if ((treeTable == null) || (treeTable.getHierarchicalColumn() <0)) return false;
+            return treeTable.isCellSelected(row, treeTable.getHierarchicalColumn());
+        }
+
 
         public Component getTableCellRendererComponent(JTable table,
             Object value,
@@ -2712,18 +3151,20 @@ public class JXTreeTable extends JXTable {
          * {@inheritDoc} <p>
          * 
          * Overridden to fix #821-swingx: string rep of hierarchical column incorrect.
-         * In this case we must delegate to the tree directly if hidden, the visible
-         * is handled by the TreeTable itself.<p>
+         * In this case we must delegate to the tree directly (via treetable.getHierarchicalString).
          * 
          * PENDING JW: revisit once we switch to really using a table renderer. 
          */
         @Override
         public String getFilteredStringAt(int row, int column) {
             if (table.getTreeTableModel().getHierarchicalColumn() == column) {
-                if (modelToView(column) < 0) {
+                if (convertColumnIndexToView(column) < 0) {
                     // hidden hierarchical column, access directly
-                    return table.getHierarchicalStringAt(row);
+                    // PENDING JW: after introducing and wiring StringValueRegistry, 
+                    // had to change to query the hierarchicalString always
+                    // could probably be done more elegantly, but ...
                 }
+                return table.getHierarchicalStringAt(row);
             }
             return super.getFilteredStringAt(row, column);
         }
@@ -2732,18 +3173,20 @@ public class JXTreeTable extends JXTable {
          * {@inheritDoc} <p>
          * 
          * Overridden to fix #821-swingx: string rep of hierarchical column incorrect.
-         * In this case we must delegate to the tree directly if hidden, the visible
-         * is handled by the TreeTable itself.<p>
+         * In this case we must delegate to the tree directly (via treetable.getHierarchicalString).
          * 
          * PENDING JW: revisit once we switch to really using a table renderer. 
          */
         @Override
         public String getStringAt(int row, int column) {
             if (table.getTreeTableModel().getHierarchicalColumn() == column) {
-                if (modelToView(column) < 0) {
+                if (convertColumnIndexToView(column) < 0) {
                     // hidden hierarchical column, access directly
-                    return table.getHierarchicalStringAt(row);
+                    // PENDING JW: after introducing and wiring StringValueRegistry, 
+                    // had to change to query the hierarchicalString always
+                    // could probably be done more elegantly, but ...
                 }
+                return table.getHierarchicalStringAt(row);
             }
             return super.getStringAt(row, column);
         }

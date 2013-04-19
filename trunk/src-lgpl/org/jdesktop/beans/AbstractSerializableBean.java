@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractSerializableBean.java,v 1.2 2008/10/14 22:31:45 rah003 Exp $
+ * $Id: AbstractSerializableBean.java 4088 2011-11-17 19:53:49Z kschaefe $
  *
  * Copyright 2008 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -44,6 +44,7 @@ import java.io.Serializable;
  * @see ObjectInputStream
  * @see ObjectOutputStream
  */
+@SuppressWarnings("serial")
 public abstract class AbstractSerializableBean extends AbstractBean implements
         Serializable {
     /**

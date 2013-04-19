@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,6 @@ import java.io.IOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
 
@@ -50,16 +49,17 @@ import jpsxdec.util.NotThisTypeException;
  * or information that can be extracted from the disc and saved separately,
  * usually in better format. The information contained by DiscItems can be
  * serialized and deserialized for easy storage. DiscItems should be able to
- * generate a {@link DiscItemSaverBuilder}, which provides options on how the
- * disc item will be converted and saved.
+ * generate a {@link DiscItemSaverBuilder} which provides options on how the
+ * disc item can be converted and saved.
  * <p>
  * DiscItems also can (and usually should) hold an {@link IndexId} indicating
  * where this DiscItem falls within a list of DiscItems. This id can also
  * contain a suggested name that this DiscItem might use when extracting and
  * saving (e.g. if it's part of a file on a disc, use that file name).
  */
-public abstract class DiscItem {
+public abstract class DiscItem implements Comparable<DiscItem> {
 
+    /** Basic types of {@link DiscItem}s. */
     public static enum GeneralType {
         Audio, Video, Image, File
     }
@@ -69,26 +69,113 @@ public abstract class DiscItem {
     private final int _iEndSector;
     private CdFileSectorReader _cdReader;
 
+    /** Often sequential and hopefully unique number identifying this {@link DiscItem}. */
+    private int _iIndex;
     private IndexId _indexId;
 
-    public DiscItem(int iStartSector, int iEndSector) {
+    protected DiscItem(int iStartSector, int iEndSector) {
         _iStartSector = iStartSector;
         _iEndSector = iEndSector;
     }
 
-    /** Deserializes the start and end sectors. */
-    public DiscItem(DiscItemSerialization fields) throws NotThisTypeException
+    /** Deserializes the basic information about this {@link DiscItem}. */
+    protected DiscItem(SerializedDiscItem fields) throws NotThisTypeException
     {
         int[] aiRng = fields.getSectorRange();
         _iStartSector = aiRng[0];
         _iEndSector   = aiRng[1];
+        _iIndex = fields.getIndex();
+        _indexId = new IndexId(fields.getId());
     }
 
-    final protected DiscItemSerialization superSerial(String sType) {
-        return new DiscItemSerialization(sType, _iStartSector, _iEndSector);
+    /** Child classes should override and add their own fields. */
+    public SerializedDiscItem serialize() {
+        return new SerializedDiscItem(getSerializationTypeId(),
+                   _iIndex, _indexId == null ? null : _indexId.serialize(),
+                   _iStartSector, _iEndSector);
     }
 
-    abstract public DiscItemSerialization serialize();
+    /** String of the 'Type:' value in the serialization string. */
+    abstract public String getSerializationTypeId();
+
+    // TODO: see if this can be removed
+    public void setSourceCd(CdFileSectorReader cd) {
+        _cdReader = cd;
+    }
+
+    public CdFileSectorReader getSourceCd() {
+        return _cdReader;
+    }
+
+    public void setIndex(int iIndex) {
+        _iIndex = iIndex;
+    }
+
+    public int getIndex() {
+        return _iIndex;
+    }
+
+    /** @return if {@link IndexId} was accepted. */
+    public boolean setIndexId(IndexId id) {
+        _indexId = id;
+        return true;
+    }
+
+    public IndexId getIndexId() {
+        return _indexId;
+    }
+    
+    /** Returns how likely the supplied {@link DiscItem} 
+     * is a child of this item. */
+    public int getParentRating(DiscItem child) {
+        return 0;
+    }
+    /** Attempts to add the child item to this item.
+     * @return if the item was accepted as a child.  */
+    public boolean addChild(DiscItem child) {
+        return false;
+    }
+
+    /** Number of children. */
+    public int getChildCount() {
+        return 0;
+    }
+
+    /** Children of this item.
+     * @return null if no children. */
+    public Iterable<DiscItem> getChildren() {
+        return null;
+    }
+
+    /** Returns how many sectors this item and the supplied disc item overlap. */
+    public int getOverlap(DiscItem other) {
+        // does not overlap this file at all
+        if (other.getEndSector() < getStartSector() || other.getStartSector() > getEndSector())
+            return 0;
+
+        // there is definitely some overlap
+
+        int iOverlap;
+        if (other.getStartSector() < getStartSector()) {
+            if (other.getEndSector() > getEndSector()) {
+                // this item is totally inside other item
+                iOverlap = getSectorLength();
+            } else {
+                // other item is totall inside this item
+                iOverlap = other.getSectorLength();
+            }
+        } else {
+            if (other.getEndSector() > getEndSector()) {
+                // first part of other item is overlaps this item
+                iOverlap = getEndSector() - other.getStartSector() + 1;
+            } else {
+                // last part of other item is overlaps this item
+                iOverlap = other.getEndSector() - other.getStartSector() + 1;
+            }
+        }
+        assert(iOverlap >= 0);
+        return iOverlap;
+    }
 
     /** Returns the iIndex'th sector of this media item (beginning from
      *  the first sector of the media item). */
@@ -100,28 +187,6 @@ public abstract class DiscItem {
 
     public IdentifiedSector getRelativeIdentifiedSector(int iIndex) throws IOException {
         return identifySector(getRelativeSector(iIndex));
-    }
-
-    abstract public DiscItemSaverBuilder makeSaverBuilder();
-
-    /** Because the media items knows what sectors are used,
-     *  it can reduce the number of tests to identify a CD sector type.
-     *  @return Identified sector, or null if no match. */
-    public IdentifiedSector identifySector(CdSector sector) {
-        return IdentifiedSector.identifySector(sector);
-        /* // this is nice in theory, but I don't think I'll mess with it
-        for (Class<IdentifiedSector> oSectorType : m_aoSectorsUsed) {
-            try {
-                Constructor<IdentifiedSector> oConstruct = oSectorType.getConstructor(CDSector.class);
-                return oConstruct.newInstance(oSect);
-            }
-            catch (InstantiationException ex) {throw new RuntimeException(ex);}
-            catch (IllegalAccessException ex) {throw new RuntimeException(ex);}
-            catch (InvocationTargetException ex) {throw new RuntimeException(ex);}
-            catch (NoSuchMethodException ex) {throw new RuntimeException(ex);}
-        }
-        throw new RuntimeException("How did the program reach this line??");
-        */
     }
 
     /** First sector of the source disc that holds data related to this disc item.
@@ -141,79 +206,61 @@ public abstract class DiscItem {
         return _iEndSector - _iStartSector + 1;
     }
 
-    public void setSourceCD(CdFileSectorReader cd) {
-        _cdReader = cd;
-    }
-
-    public CdFileSectorReader getSourceCd() {
-        return _cdReader;
-    }
-
-    public File getSuggestedBaseName() {
-        if (_indexId == null) {
-            // use the source CD filename as the base name
-            return new File(Misc.getBaseName(_cdReader.getSourceFile().getName()));
-        } else if (_indexId.getSuggestedBaseName() == null) {
-            return new File(Misc.getBaseName(_cdReader.getSourceFile().getName()) + _indexId.getTreeIndex());
-        } else {
-            // use the index's base name which will be better
-            return _indexId.getSuggestedBaseName();
+    /** Because the media items knows what sectors are used,
+     *  it can reduce the number of tests to identify a CD sector type.
+     *  @return Identified sector, or null if no match. */
+    public IdentifiedSector identifySector(CdSector sector) {
+        return IdentifiedSector.identifySector(sector);
+        /* // this is nice in theory, but I don't think I'll mess with it
+        for (Class<IdentifiedSector> sectorType : _aoSectorsUsed) {
+            try {
+                Constructor<IdentifiedSector> construct = sectorType.getConstructor(CdSector.class);
+                return construct.newInstance(sector);
+            }
+            catch (InstantiationException ex) {throw new RuntimeException(ex);}
+            catch (IllegalAccessException ex) {throw new RuntimeException(ex);}
+            catch (InvocationTargetException ex) {throw new RuntimeException(ex);}
+            catch (NoSuchMethodException ex) {throw new RuntimeException(ex);}
         }
+        */
     }
 
-    public IndexId getIndexId() {
-        return _indexId;
-    }
-    public void setIndexId(IndexId id) {
-        _indexId = id;
-    }
-
-    /** Returns the serialization with the IndexId if it has one.
-     * This is what is written to the index file. */
+    /** Returns the serialization. This is what is written to the index file. */
     public String toString() {
-        if (_indexId == null)
-            return serialize().serialize();
-        else
-            return _indexId.serialize() + "|" + serialize().serialize();
+        return serialize().serialize();
     }
 
-    /** String of the 'Type:' value in the serialization string. */
-    abstract public String getSerializationTypeId();
-
+    /** General type of the disc item (audio, video, file, image, etc.) */
     abstract public GeneralType getType();
 
     /** Description of various details about the disc item. */
     abstract public String getInterestingDescription();
 
-    /** Returns how many sectors this item and the supplied disc item overlap. */
-    public int getOverlap(DiscItem other) {
-        // does not overlap this file at all
-        if (other.getEndSector() < getStartSector() || other.getStartSector() > getEndSector())
-            return 0;
+    abstract public DiscItemSaverBuilder makeSaverBuilder();
 
-        // there is definitely some overlap
-
-        int iOverlap;
-        if (other.getStartSector() < getStartSector()) {
-            if (other.getEndSector() > getEndSector()) {
-                // this file is totally inside item
-                iOverlap = getSectorLength();
-            } else {
-                // last part of item is inside this file
-                iOverlap = other.getSectorLength();
-            }
+    public File getSuggestedBaseName() {
+        File suggestedBaseName;
+        if (_indexId == null) {
+            // use the source CD filename as the base name
+            suggestedBaseName = new File(_cdReader.getSourceFile().getName());
         } else {
-            if (other.getEndSector() > getEndSector()) {
-                // first part of item is inside this file
-                iOverlap = getEndSector() - other.getStartSector() + 1;
-            } else {
-                // item is totally inside this file
-                iOverlap = other.getEndSector() - other.getStartSector() + 1;
-            }
+            // use the index's base name if we can
+            suggestedBaseName = _indexId.getSuggestedBaseName(_cdReader.getSourceFile().getName());
         }
-        assert(iOverlap >= 0);
-        return iOverlap;
+        return suggestedBaseName;
     }
 
-
+    // [implements Comparable]
+    public int compareTo(DiscItem other) {
+        if (getStartSector() < other.getStartSector())
+            return -1;
+        else if (getStartSector() > other.getStartSector())
+            return 1;
+        else if (getEndSector() > other.getEndSector())
+            return -1;
+        else if (getEndSector() < other.getEndSector())
+            return 1;
+        else
+            return 0;
+    }
 }

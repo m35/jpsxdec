@@ -1,5 +1,5 @@
 /*
- * $Id: OS.java,v 1.4 2007/01/23 18:32:03 l2fprod Exp $
+ * $Id: OS.java 4088 2011-11-17 19:53:49Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -27,6 +27,7 @@ import javax.swing.UIManager;
 /**
  * Provides methods related to the runtime environment.
  */
+@SuppressWarnings("nls")
 public class OS {
 
   private static final boolean osIsMacOsX;
@@ -36,16 +37,18 @@ public class OS {
   private static final boolean osIsWindowsVista;
   private static final boolean osIsLinux;
 
-  static {
-    String os = System.getProperty("os.name").toLowerCase();
+    static {
+        String os = System.getProperty("os.name");
+        if (os != null)
+            os = os.toLowerCase();
 
-    osIsMacOsX = "mac os x".equals(os);
-    osIsWindows = os != null && os.indexOf("windows") != -1;
-    osIsWindowsXP = "windows xp".equals(os);
-    osIsWindows2003 = "windows 2003".equals(os);
-    osIsWindowsVista = "windows vista".equals(os);
-    osIsLinux = os != null && os.indexOf("linux") != -1;
-  }
+        osIsMacOsX = "mac os x".equals(os);
+        osIsWindows = os != null && os.indexOf("windows") != -1;
+        osIsWindowsXP = "windows xp".equals(os);
+        osIsWindows2003 = "windows 2003".equals(os);
+        osIsWindowsVista = "windows vista".equals(os);
+        osIsLinux = os != null && os.indexOf("linux") != -1;
+    }
 
   /**
    * @return true if this VM is running on Mac OS X

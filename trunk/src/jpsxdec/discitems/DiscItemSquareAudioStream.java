@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,7 +51,7 @@ import jpsxdec.util.NotThisTypeException;
  * These kinds of streams are found in Final Fantasy 8, 9, and Chrono Cross.  */
 public class DiscItemSquareAudioStream extends DiscItemAudioStream {
 
-    private static final Logger log = Logger.getLogger(DiscItemSquareAudioStream.class.getName());
+    private static final Logger LOG = Logger.getLogger(DiscItemSquareAudioStream.class.getName());
 
     public static final String TYPE_ID = "SquareAudio";
 
@@ -79,11 +79,11 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         _iSectorsPastEnd = iSectorsPastEnd;
 
         if (_lngLeftSampleCount != _lngRightSampleCount)
-            log.warning("Left & right sample count does not match: " +
+            LOG.warning("Left & right sample count does not match: " +
                     _lngLeftSampleCount + " != " + _lngRightSampleCount);
     }
     
-    public DiscItemSquareAudioStream(DiscItemSerialization fields) throws NotThisTypeException
+    public DiscItemSquareAudioStream(SerializedDiscItem fields) throws NotThisTypeException
     {
         super(fields);
         
@@ -93,12 +93,12 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         _iSectorsPastEnd = fields.getInt(SECTORS_PAST_END_KEY);
 
         if (_lngLeftSampleCount != _lngRightSampleCount)
-            log.warning("Left & right sample count does not match: " +
+            LOG.warning("Left & right sample count does not match: " +
                     _lngLeftSampleCount + " != " + _lngRightSampleCount);
     }
     
-    public DiscItemSerialization serialize() {
-        DiscItemSerialization fields = super.superSerial(TYPE_ID);
+    public SerializedDiscItem serialize() {
+        SerializedDiscItem fields = super.serialize();
         fields.addNumber(SAMPLES_PER_SEC_KEY, _iSamplesPerSecond);
         fields.addNumber(SAMPLE_COUNT_LEFT_KEY, _lngLeftSampleCount);
         fields.addNumber(SAMPLE_COUNT_RIGHT_KEY, _lngRightSampleCount);
@@ -169,7 +169,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             __audioWriter = audioOut;
         }
 
-        public void feedSector(IdentifiedSector sector) throws IOException {
+        public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
             if (!(sector instanceof ISquareAudioSector))
                 return;
             
@@ -186,7 +186,8 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
                 __tempBuffer.reset();
                 int iSize = __decoder.decode(__leftAudioSector.getIdentifiedUserDataStream(),
                         __rightAudioSector.getIdentifiedUserDataStream(),
-                        __rightAudioSector.getAudioDataSize(), __tempBuffer);
+                        __rightAudioSector.getAudioDataSize(), __tempBuffer,
+                        log);
                 __audioWriter.write(__format, __tempBuffer.getBuffer(), 0, __tempBuffer.size(), __rightAudioSector.getSectorNumber());
             } else {
                 throw new RuntimeException("Invalid audio channel " + audSector.getAudioChannel());

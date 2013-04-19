@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,99 +38,60 @@
 package jpsxdec.discitems;
 
 import java.io.File;
-import java.util.AbstractList;
-import java.util.ArrayList;
+import java.util.Arrays;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
 /** Holds the index unique number, and unique string id based on a file. */
-public class IndexId extends AbstractList<IndexId> {
-    private File _sourceFile;
-    private int[] _aiTreeIndexes;
+public class IndexId {
+    private final File _sourceFile;
+    private final int[] _aiTreeIndexes;
 
-    private final DiscItem _item;
-    private final int _iListIndex;
-
-    private ArrayList<IndexId> _kids = new ArrayList<IndexId>();
-
-    public IndexId(DiscItem item, int iIndex) {
-        _item = item;
-        _iListIndex = iIndex;
+    public IndexId(int iIndex) {
+        _sourceFile = null;
+        _aiTreeIndexes = new int[] { iIndex };
     }
 
-    public IndexId(DiscItem item, int iIndex, File baseFile) {
-        this(item, iIndex);
+    public IndexId(File baseFile) {
         _sourceFile = baseFile;
+        _aiTreeIndexes = null;
     }
 
-    public IndexId(String sSerialized, DiscItem item) throws NotThisTypeException {
-        _item = item;
+    private IndexId(File baseFile, int[] aiIndex) {
+        _sourceFile = baseFile;
+        _aiTreeIndexes = aiIndex;
+    }
 
-        String[] asParts = Misc.regex("#(\\d+) ([^\\[]+)(\\[[^\\]]+\\])?", sSerialized);
-        if (asParts == null || asParts.length != 4)
+    public IndexId(String sSerialized) throws NotThisTypeException {
+
+        String[] asParts = Misc.regex("([^\\[]+)(\\[[^\\]]+\\])?", sSerialized);
+        if (asParts == null || asParts.length != 3)
             throw new NotThisTypeException("Invalid id format: " + sSerialized);
 
-        try {
-            _iListIndex = Integer.parseInt(asParts[1]);
-        } catch (NumberFormatException ex) {
-            throw new NotThisTypeException("Invalid id format: " + sSerialized);
-        }
+        if (UNNAMED.equals(asParts[1]))
+            _sourceFile = null;
+        else
+            _sourceFile = new File(asParts[1]);
 
-        if (!"Unnamed".equals(asParts[2])) {
-            _sourceFile = new File(asParts[2]);
-        }
-
-        if (asParts[3] != null) {
-            _aiTreeIndexes = Misc.parseDelimitedInts(asParts[3].substring(1, asParts[3].length()-1), "\\.");
+        if (asParts[2] == null)
+            _aiTreeIndexes = null;
+        else {
+            _aiTreeIndexes = Misc.parseDelimitedInts(asParts[2].substring(1, asParts[2].length()-1), "\\.");
             if (_aiTreeIndexes == null)
                 throw new NotThisTypeException("Invalid id format: " + sSerialized);
         }
 
-        //System.out.println(sSerialized + " -> " + this);
     }
 
-    public int getListIndex() {
-        return _iListIndex;
-    }
-
-    public DiscItem getItem() {
-        return _item;
-    }
-
-    // TODO:this is pretty ugly
-    public int recursiveSetTreeIndex(File file, int[] aiParentIndex, int iChildInc) {
-        if (_sourceFile == null) {
-            _sourceFile = file;
-
-            if (aiParentIndex == null) {
-                _aiTreeIndexes = new int[] { iChildInc };
-            } else {
-                _aiTreeIndexes = new int[aiParentIndex.length+1];
-                System.arraycopy(aiParentIndex, 0, _aiTreeIndexes, 0, aiParentIndex.length);
-                _aiTreeIndexes[_aiTreeIndexes.length-1] = iChildInc;
-            }
-
-            iChildInc++;
-        }
-        
-        if (_kids.size() > 0) {
-            int iChildIndex = 0;
-            for (IndexId child : _kids) {
-                iChildIndex = child.recursiveSetTreeIndex(_sourceFile, _aiTreeIndexes, iChildIndex);
-            }
-        }
-        _item.setIndexId(this);
-        return iChildInc;
-    }
-
-    private static final File UNNAMED = new File("Unnamed");
+    private static final String UNNAMED = "Unnamed";
+    private static final File UNNAMED_FILE = new File(UNNAMED);
     private File safePath() {
-        return _sourceFile == null ? UNNAMED : _sourceFile;
+        return _sourceFile == null ? UNNAMED_FILE : _sourceFile;
     }
 
 
     public String serialize() {
-        return "#" + _iListIndex + " " + getId();
+        return getId();
     }
 
     public String getId() {
@@ -141,7 +102,7 @@ public class IndexId extends AbstractList<IndexId> {
         return _sourceFile;
     }
 
-    public String getTreeIndex() {
+    private String getTreeIndex() {
         if (_aiTreeIndexes == null) {
             return "";
         } else {
@@ -156,14 +117,16 @@ public class IndexId extends AbstractList<IndexId> {
         }
     }
 
-    // TODO: return string and have separate method to get suggested path
-    public File getSuggestedBaseName() {
+    public File getSuggestedBaseName(String sFallback) {
+        String sFile;
         if (_sourceFile == null)
-            return null;
+            sFile = sFallback;
         else
-            return new File(Misc.getBaseName(_sourceFile.getPath()) + getTreeIndex());
+            sFile = _sourceFile.getPath();
+        return new File(sFile + getTreeIndex());
     }
 
+    /** Like {@link File#getName()}. */
     public String getTopLevel() {
         return safePath().getName() + getTreeIndex();
     }
@@ -174,39 +137,30 @@ public class IndexId extends AbstractList<IndexId> {
         return serialize();
     }
 
-    public void findAndAddChildren(ArrayList<DiscItem> nonRootItems) {
-        Outside:
-        for (DiscItem item : nonRootItems) {
+    /** Returns if the supplied id is a direct parent of this id. */
+    public boolean isParent(IndexId parentId) {
+        if (isRoot())
+            return false;
+        
+        // check if the other item is part of the same file
+        File parentFile = parentId._sourceFile;
+        if (_sourceFile != parentFile && (_sourceFile == null || !_sourceFile.equals(parentFile)))
+            return false; // nope
 
-            // check if the other item is part of the same file
-            File otherBaseFile = item.getIndexId()._sourceFile;
-            if (_sourceFile == null) {
-                if (otherBaseFile != null)
-                    continue; // nope
-            } else {
-                if (otherBaseFile == null || !_sourceFile.equals(otherBaseFile)) {
-                    continue; // nope
-                }
+        // make sure the other item is a direct parent
+        int[] aiParentTreeIndexes = parentId._aiTreeIndexes;
+        if (aiParentTreeIndexes == null) {
+            if (_aiTreeIndexes.length == 1) {
+                return true;
             }
-
-            // make sure the other item is a direct child
-            int[] aiOtherTreeIndexes = item.getIndexId()._aiTreeIndexes;
-            if (aiOtherTreeIndexes == null)
-                continue;
-            if (this._aiTreeIndexes == null) {
-                if (aiOtherTreeIndexes.length == 1) {
-                    _kids.add(item.getIndexId());
-                }
-            } else if(aiOtherTreeIndexes.length == _aiTreeIndexes.length + 1) {
-                for (int i = 0; i < _aiTreeIndexes.length; i++) {
-                    if (_aiTreeIndexes[i] != aiOtherTreeIndexes[i])
-                        continue Outside;
-                }
-
-                _kids.add(item.getIndexId());
+        } else if (_aiTreeIndexes.length - 1 == aiParentTreeIndexes.length) {
+            for (int i = 0; i < aiParentTreeIndexes.length; i++) {
+                if (_aiTreeIndexes[i] != aiParentTreeIndexes[i])
+                    return false;
             }
-
+            return true;
         }
+        return false;
     }
 
     public boolean isRoot() {
@@ -215,35 +169,45 @@ public class IndexId extends AbstractList<IndexId> {
         return (_sourceFile == null && _aiTreeIndexes.length == 1);
     }
 
+    public IndexId createNext() {
+        if (_aiTreeIndexes == null)
+            throw new IllegalStateException("Unable to create the next id from " + this);
+        int[] aiNext = _aiTreeIndexes.clone();
+        aiNext[aiNext.length-1] += 1;
+        return new IndexId(_sourceFile, aiNext);
+    }
+
+    IndexId createChild() {
+        int[] aiChild;
+        if (_aiTreeIndexes == null)
+            aiChild = new int[] {0};
+        else {
+            aiChild = new int[_aiTreeIndexes.length+1];
+            System.arraycopy(_aiTreeIndexes, 0, aiChild, 0, _aiTreeIndexes.length);
+            aiChild[aiChild.length-1] = 0;
+        }
+        return new IndexId(_sourceFile, aiChild);
+    }
+
     @Override
-    public boolean equals(Object o) {
-        return super.equals(o) && _item.equals(((IndexId)o)._item);
+    public boolean equals(Object obj) {
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        final IndexId other = (IndexId) obj;
+        if (_sourceFile != other._sourceFile && (_sourceFile == null || !_sourceFile.equals(other._sourceFile)))
+            return false;
+        if (!Arrays.equals(this._aiTreeIndexes, other._aiTreeIndexes))
+            return false;
+        return true;
     }
 
     @Override
     public int hashCode() {
-        return super.hashCode() + _item.hashCode();
+        int hash = 5;
+        hash = 89 * hash + (this._sourceFile != null ? this._sourceFile.hashCode() : 0);
+        return hash;
     }
-
-    @Override
-    public IndexId get(int index) {
-        return _kids.get(index);
-    }
-
-    @Override
-    public int size() {
-        return _kids.size();
-    }
-
-    @Override
-    public boolean add(IndexId o) {
-        return _kids.add(o);
-    }
-
-    @Override
-    public IndexId set(int index, IndexId element) {
-        return _kids.set(index, element);
-    }
-
 
 }

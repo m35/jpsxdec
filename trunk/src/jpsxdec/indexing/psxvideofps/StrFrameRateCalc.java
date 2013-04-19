@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -145,7 +145,7 @@ import jpsxdec.util.Fraction;
 
 public class StrFrameRateCalc {
 
-    private static final Logger log = Logger.getLogger(StrFrameRateCalc.class.getName());
+    private static final Logger LOG = Logger.getLogger(StrFrameRateCalc.class.getName());
 
     private WholeNumberSectorsPerFrame _wholeFrameRate;
     private LinkedList<InconsistentFrameSequence> _inconsistentFrameRate;
@@ -190,7 +190,7 @@ public class StrFrameRateCalc {
             int[] aiPossibleSectorsPerFrame = _wholeFrameRate.getPossibleSectorsPerFrame();
             if (aiPossibleSectorsPerFrame != null) {
                 if (aiPossibleSectorsPerFrame.length > 1) {
-                    log.info("All possible sectors/frame " +
+                    LOG.info("All possible sectors/frame " +
                                 Arrays.toString(aiPossibleSectorsPerFrame));
                 }
                 sectorsPerFrame = new Fraction(aiPossibleSectorsPerFrame[aiPossibleSectorsPerFrame.length-1]);

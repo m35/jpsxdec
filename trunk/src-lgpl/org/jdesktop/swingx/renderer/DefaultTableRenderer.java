@@ -1,5 +1,5 @@
 /*
- * $Id: DefaultTableRenderer.java,v 1.25 2009/04/28 10:55:29 kleopatra Exp $
+ * $Id: DefaultTableRenderer.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -77,7 +77,7 @@ public class DefaultTableRenderer extends AbstractRenderer
      * @see #DefaultTableRenderer(ComponentProvider)
      */
     public DefaultTableRenderer() {
-        this((ComponentProvider) null);
+        this((ComponentProvider<?>) null);
     }
 
     /**
@@ -88,7 +88,7 @@ public class DefaultTableRenderer extends AbstractRenderer
      * @param componentProvider the provider of the configured component to
      *        use for cell rendering
      */
-    public DefaultTableRenderer(ComponentProvider componentProvider) {
+    public DefaultTableRenderer(ComponentProvider<?> componentProvider) {
         super(componentProvider);
         this.cellContext = new TableCellContext();
     }
@@ -148,7 +148,10 @@ public class DefaultTableRenderer extends AbstractRenderer
     /**
      * 
      * Returns a configured component, appropriate to render the given
-     * list cell.  
+     * list cell. <p> 
+     * 
+     * Note: The component's name is set to "Table.cellRenderer" for the sake
+     * of Synth-based LAFs.
      * 
      * @param table the <code>JTable</code>
      * @param value the value to assign to the cell at
@@ -173,7 +176,7 @@ public class DefaultTableRenderer extends AbstractRenderer
      * {@inheritDoc}
      */ 
     @Override
-    protected ComponentProvider createDefaultComponentProvider() {
+    protected ComponentProvider<?> createDefaultComponentProvider() {
         return new LabelProvider();
     }
 

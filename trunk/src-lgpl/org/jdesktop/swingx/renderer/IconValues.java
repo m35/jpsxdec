@@ -1,5 +1,5 @@
 /*
- * $Id: IconValues.java,v 1.3 2008/12/23 18:12:35 kschaefe Exp $
+ * $Id: IconValues.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2008 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

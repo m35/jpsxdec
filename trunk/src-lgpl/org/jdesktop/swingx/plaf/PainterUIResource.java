@@ -1,5 +1,5 @@
 /*
- * $Id: PainterUIResource.java,v 1.3 2009/02/04 20:00:22 kschaefe Exp $
+ * $Id: PainterUIResource.java 4046 2011-07-19 18:45:40Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -22,8 +22,10 @@
 package org.jdesktop.swingx.plaf;
 
 import java.awt.Graphics2D;
+
 import javax.swing.JComponent;
 import javax.swing.plaf.UIResource;
+
 import org.jdesktop.swingx.painter.Painter;
 
 /**

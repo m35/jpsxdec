@@ -1,5 +1,5 @@
                       The PlayStation 1 Video (STR) Format
-                              v1.01, February 2012
+                                v1.1, March 2013
                        http://kenai.com/projects/jpsxdec/
                          http://jpsxdec.blogspot.com/
 
@@ -68,10 +68,11 @@ v1.00
     - Overall: Some unknown fields identified
                Luminance -> Luma, Chrominance -> Chroma, Subcode -> Submode
                Many minor tweaks and corrections
-v1.01
+v1.1
     - ch 3.1: Added v1 frames
     - ch 3.8: Added Ace Combat 3 Electrosphere
     - ch 3.10: Added Judge Dredd
+    - ch 3.11: Added Crusader: No Remorse
 
 Left to do:
 * Confirm Legend of Mana format
@@ -110,6 +111,7 @@ Left to do:
 ##    3.8. Ace Combat 3 Electrosphere
 ##    3.9. .iki
 ##    3.10. Judge Dredd
+##    3.11. Crusader: No Remorse
 ## 4. Credits, Thanks, etc.
 ##
 
@@ -848,8 +850,8 @@ Each value in that matrix represents an index in the list.
 
     For x = 0 to 7
         For y = 0 to 7
-			i = ZIG_ZAG_MATRIX[x, y]
-			Coefficient_Matrix[i >> 3, i & 7] = Coefficient_List[ x + y * 8 ]
+            i = ZIG_ZAG_MATRIX[x, y]
+            Coefficient_Matrix[i >> 3, i & 7] = Coefficient_List[ x + y * 8 ]
         Next
     Next
  ------------------------------------------------------------------------------
@@ -1896,7 +1898,7 @@ The bitstream is identical to the standard v2 bitstream, except at the start of 
 ## 3.10. Judge Dredd
 ################################################################################
 
-Continuing in its long tradition of giving PlayStation hackers headaches, this is the most difficult video sector to uniquely identify.
+Continuing in its tradition of giving PlayStation hackers headaches, this is the most difficult video sector to uniquely identify.
 
 There are two types of frames which I will just refer to as type A and type B
     A. 320x352 dimensions, held in 9 chunks
@@ -1922,12 +1924,13 @@ Most video frames are normal v3 format, but some are full of 0xff.
 
 Crusader: No Remorse is the only gave I've seen that doesn't stream its movies using the standard 'real-time' sector method.
 
-:: Crusader Sector Header ::
+:: Crusader Sector ::
 
 Offset   Size   Endian --------------------------------------------------------
   0 . . . 4 . .  big . . Always 0xAABBCCDD
   4 . . . 4 . .  big . . Sector number of this multiplexed stream
-  8 ---------------------------------------------------------------------------
+  8 . . 2040 . . n/a . . Multiplexed data
+2048 ---------------------------------------------------------------------------
 
 The sectors are demultiplexed into a continuous stream. The data is broken up into 'chunks' that are either audio or video. When one chunk ends, the next one immediately begins.
 
@@ -1935,7 +1938,7 @@ The sectors are demultiplexed into a continuous stream. The data is broken up in
 
 Offset   Size   Endian --------------------------------------------------------
   0 . . . 4 . .  big . . Chunk identifier: MDEC
-  4 . . . 4 . .  big . . Size of the chunk in bytes, including the header
+  4 . . . 4 . .  big . . Size of the chunk in bytes, including this header
   8 . . . 2 . .  big . . Video frame width in pixels
   10  . . 2 . .  big . . Video frame height in pixels
   12  . . 4 . .  big . . Video frame number
@@ -1946,15 +1949,14 @@ Offset   Size   Endian --------------------------------------------------------
 
 Offset   Size   Endian --------------------------------------------------------
   0 . . . 4 . .  big . . Chunk identifier: ad20 or ad21
-  4 . . . 4 . .  big . . Size of the chunk in bytes, including the header
+  4 . . . 4 . .  big . . Size of the chunk in bytes, including this header
   8 . . . 4 . .  big . . The number of samples already written to the stream
   12  . . 4 . .  big . . Always 0x08000200
   16  (Size-16)  n/a . . Square audio data
   Size ------------------------------------------------------------------------
 
 Video frames are standard v2.
-The audio is stereo and plays at 22050Hz. The left channel is in the first half of the payload, and the right channel is in the second half. Audio is encoded using Square's special format found in section 3.3. The 'ad21' identifier indicates the last audio chunk in the stream.
-TODO: verify sample rate
+Audio is encoded using Square's special format found in section 3.3. The audio plays back at 22050Hz stereo, with the left channel in the first half of the payload, and the right channel is in the second half. The 'ad21' identifier indicates the last audio chunk in the stream.
 
 ################################################################################
 ## 4. Thanks, credits, etc.
@@ -2020,7 +2022,7 @@ to those who now provide a 404 page for a web site. You sirs are real
 men of genius. 
 
 --------------------------------------------------------------------------------
-Copyright (c) 2008-2012 Michael Sabin
+Copyright (c) 2008-2013 Michael Sabin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this file (the "Document"), to deal in the Document without restriction,

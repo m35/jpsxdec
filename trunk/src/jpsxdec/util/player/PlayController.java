@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.util.player;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.WeakHashMap;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.LineUnavailableException;
@@ -216,16 +215,10 @@ public class PlayController {
 
     void fireStopped() {
         synchronized (_playSync) {
-            try {
-                if (java.awt.EventQueue.isDispatchThread())
-                    new NotifyLater(Event.Stop).run(); // run event directly
-                else
-                    java.awt.EventQueue.invokeAndWait(new NotifyLater(Event.Stop));
-            } catch (InterruptedException ex) {
-                ex.printStackTrace();
-            } catch (InvocationTargetException ex) {
-                ex.printStackTrace();
-            }
+            if (java.awt.EventQueue.isDispatchThread())
+                new NotifyLater(Event.Stop).run(); // run event directly
+            else
+                java.awt.EventQueue.invokeLater(new NotifyLater(Event.Stop));
         }
     }
 

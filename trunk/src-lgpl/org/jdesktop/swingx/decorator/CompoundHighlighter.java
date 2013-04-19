@@ -1,5 +1,5 @@
 /*
- * $Id: CompoundHighlighter.java,v 1.14 2008/08/26 09:35:43 kleopatra Exp $
+ * $Id: CompoundHighlighter.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -28,6 +28,7 @@ import java.util.List;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
+import org.jdesktop.swingx.plaf.UIDependent;
 import org.jdesktop.swingx.util.Contract;
 
 /**

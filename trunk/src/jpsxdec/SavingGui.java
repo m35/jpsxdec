@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,36 +46,37 @@ import jpsxdec.discitems.IDiscItemSaver;
 
 public class SavingGui extends javax.swing.JDialog implements PropertyChangeListener {
 
-
     private STATES _eState = STATES.NotStarted;
     private SavingGuiTask _saveAll;
 
-    public SavingGui(java.awt.Dialog parent, List<IDiscItemSaver> savers, File dir) {
+    public SavingGui(java.awt.Dialog parent, List<IDiscItemSaver> savers, File dir, String sCd) {
         super(parent, true);
-        sharedConstructor(parent, savers, dir);
+        sharedConstructor(parent, savers, dir, sCd);
     }
 
-    public SavingGui(java.awt.Frame parent, List<IDiscItemSaver> savers, File dir) {
+    public SavingGui(java.awt.Frame parent, List<IDiscItemSaver> savers, File dir, String sCd) {
         super(parent, true);
-        sharedConstructor(parent, savers, dir);
+        sharedConstructor(parent, savers, dir, sCd);
     }
 
     private void sharedConstructor(java.awt.Window parent,
                                    List<IDiscItemSaver> savers,
-                                   File dir)
+                                   File dir, String sCd)
     {
         initComponents();
 
         SavingGuiTable model = new SavingGuiTable(savers, jTable1);
+        // pack now so we can use the table dimensions for the perferred size
         validate();
         pack();
+
         jScrollPane1.setPreferredSize(new Dimension(jTable1.getWidth() + 20, jScrollPane1.getHeight()));
         validate();
         pack();
 
         setLocationRelativeTo(parent); // center on parent
 
-        _saveAll = new SavingGuiTask(model._rows, dir);
+        _saveAll = new SavingGuiTask(model._rows, dir, sCd);
         _saveAll.addPropertyChangeListener(this);
     }
 
@@ -96,10 +97,10 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
                 sResult = "Canceled";
             else
                 sResult = "Success";
-            if (_saveAll._handler.getFileName() == null) {
+            if (_saveAll._progressLog.getFileName() == null) {
                 jLabel1.setText(sResult);
             } else {
-                jLabel1.setText(sResult + " with messages - see " + _saveAll._handler.getFileName() + " for details");
+                jLabel1.setText(sResult + " with messages - see " + _saveAll._progressLog.getFileName() + " for details");
             }
         }
     }

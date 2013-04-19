@@ -1,5 +1,5 @@
 /*
- * $Id: ColumnControlPopup.java,v 1.4 2008/10/14 22:31:40 rah003 Exp $
+ * $Id: ColumnControlPopup.java 4065 2011-08-19 13:28:26Z kleopatra $
  *
  * Copyright 2008 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -27,6 +27,7 @@ import javax.swing.Action;
 import javax.swing.JComponent;
 
 import org.jdesktop.swingx.action.AbstractActionExt;
+import org.jdesktop.swingx.plaf.UIDependent;
 
 /**
  * Encapsulates the popup component which is the delegate for
@@ -36,22 +37,7 @@ import org.jdesktop.swingx.action.AbstractActionExt;
  * Usage will drive further evolution.
  * 
  */
-public interface ColumnControlPopup {
-
-    /**
-     * Updates all internal visuals after changing a UI-delegate. <p>
-     * 
-     * The method called by ColumnControlButton in it's updateUI.
-     * As there is a good probability that at the time of a
-     * ColumnControlButton is updated after a ui-delegate change the
-     * popup is not visible/part of the container hierarchy, this
-     * method must be messaged manually. 
-     * 
-     * @see javax.swing.JComponent#updateUI()
-     *
-     */
-    void updateUI();
-
+public interface ColumnControlPopup extends UIDependent {
     /**
      * Toggles the popup's visibility. This method is responsible for
      * placing itself relative to the given owner if toggled to visible.
@@ -100,5 +86,22 @@ public interface ColumnControlPopup {
      * @param actions List of <code>Action</code>s to add to the popup.
      */
     void addAdditionalActionItems(List<? extends Action> actions);
+    
+    /**
+     * Splits and returns a List of actions into sub-lists. 
+     */
+    public interface ActionGrouper {
+        <A extends Action> List<List<A>> group(List<A> actions);
+    }
+    
+    /**
+     * Interface indicating support for grouping of menu actions.
+     * Implementations of ColumnControlPopup may implement this 
+     * if they support grouping of additional action.
+     */
+    public interface ActionGroupable {
+        public void setActionGrouper(ActionGrouper grouper);
+    }
+    
 
 }

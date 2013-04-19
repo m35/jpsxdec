@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,7 +50,7 @@ import jpsxdec.util.player.VideoPlayer.VideoFrame;
 /** Manages writing audio data to the final SourceDataLine. */
 public class AudioPlayer implements IVideoTimer {
 
-    private static final Logger log = Logger.getLogger(AudioPlayer.class.getName());
+    private static final Logger LOG = Logger.getLogger(AudioPlayer.class.getName());
     private static final boolean DEBUG = false;
 
     private static final int SECONDS_OF_BUFFER = 5;
@@ -119,7 +119,7 @@ public class AudioPlayer implements IVideoTimer {
                 }
             }
         } catch (Throwable ex) {
-            log.log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, null, ex);
             ex.printStackTrace();
             _state.set(PlayingState.State.STOPPED);
         }
@@ -154,7 +154,7 @@ public class AudioPlayer implements IVideoTimer {
                 }
             }
         } catch (Throwable ex) {
-            log.log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, null, ex);
             ex.printStackTrace();
             _state.set(PlayingState.State.STOPPED);
         }
@@ -261,7 +261,7 @@ public class AudioPlayer implements IVideoTimer {
                 }
             }
         } catch (Throwable ex) {
-            log.log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, null, ex);
             ex.printStackTrace();
             return false;
         }

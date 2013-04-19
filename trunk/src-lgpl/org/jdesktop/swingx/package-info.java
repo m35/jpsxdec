@@ -1,5 +1,5 @@
 /*
- * $Id: package-info.java,v 1.5 2009/01/26 02:31:16 kschaefe Exp $
+ * $Id: package-info.java 3933 2011-03-02 19:02:29Z kschaefe $
  *
  * Copyright 2007 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -32,22 +32,17 @@
  * 
  * <h3>Auto-completion for TextFields and ComboBoxes</h3>
  * 
+ * For more information, see the
+ * <a href="autocomplete/package.html">AutoComplete</a> documentation.
+ * 
  * <h3>Enhanced Rendering Support for Collection Components</h3>
  * 
  * <h3>Built-In Search Support for Collection Components and JXEditorPane</h3>
  * 
- * <h3>Filtering/Sorting for Tables and Lists</h3>
- * 
- * <b>NOTE:</b> this is incompatible with core (table) sorting/filtering in
- * JDK 6+. Will be replaced by core functionality after switching the target
- * jdk version from 5 to 6.
- * 
  * <h3>Login/Authentication Framework</h3>
  * 
- * <h3>Painter-enabled components</h3>
+ * <h3>Painter-Enabled Components</h3>
  * 
- * Note: this feature is currently disabled (see SwingX #964)
- * <p>
  * Components that use painters for background rendering alter the functionality
  * of how {@link java.awt.Component#setBackground(java.awt.Color)} works.  
  * Setting the background color of a painter-enabled component effectively sets 
@@ -129,7 +124,6 @@
  * 
  * <li> {@link org.jdesktop.swingx.JXColorSelectionButton}
  * <li> {@link org.jdesktop.swingx.JXEditorPane}
- * <li> {@link org.jdesktop.swingx.JXGlassBox} (PENDING JW: remove?)
  * <li> {@link org.jdesktop.swingx.JXGradientChooser}
  * <li> {@link org.jdesktop.swingx.JXGraph}
  * <li>Image containers {@link org.jdesktop.swingx.JXImageView ImageView}
@@ -139,6 +133,12 @@
  * 
  * </ul>
  * 
+ * <h2>External Information Sources</h2>
+ * 
+ * <a href="http://wiki.java.net/bin/view/Javadesktop/SwingX">SwingX Twiki</a>
+ * <a href="http://wiki.java.net/bin/view/Javadesktop/SwingXChanges">Change History</a>
+ * <a href="http://forums.java.net/jive/forum.jspa?forumID=73">SwingLabs User and 
+ * Developer Discussion Forum</a>
  */
 package org.jdesktop.swingx;
 

@@ -1,5 +1,5 @@
 /*
- * $Id: ComponentAdapter.java,v 1.17 2008/12/23 18:12:39 kschaefe Exp $
+ * $Id: ComponentAdapter.java 4158 2012-02-03 18:29:40Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -21,25 +21,26 @@
 
 package org.jdesktop.swingx.decorator;
 
+import java.awt.Rectangle;
+
 import javax.swing.JComponent;
 
 import org.jdesktop.swingx.renderer.StringValues;
 
 /**
  * Abstract base class for all component data adapter classes. A
- * <code>ComponentAdapter</code> allows a {@link Filter}, {@link Sorter}, or
+ * <code>ComponentAdapter</code> allows the decoration collaborators like f.i.
  * {@link Highlighter} to interact with a {@link #target} component through a
- * common API.
+ * common API. <p>
  * 
  * It has two aspects:
  * <ul>
- * <li> interact with the view state for a given data element. The row/cloumn
+ * <li> interact with the view state for the "current" cell. The row/column
  * fields and the parameterless methods service this aspect. The coordinates are
- * in view coordinate system. Typical clients of this service are
- * HighlightPredicates and Highlighters.
+ * in view coordinate system. 
  * <li> interact with the data of the component. The methods for this are those
  * taking row/column indices as parameters. The coordinates are in model
- * coordinate system. Typical clients of this service are Filters.
+ * coordinate system. 
  * </ul>
  * 
  * Typically, application code is interested in the first aspect. An example is
@@ -67,18 +68,19 @@ import org.jdesktop.swingx.renderer.StringValues;
  * Highlighter hl = new ColorHighlighter(feverWarning, Color.RED, null);
  * </code></pre>
  * 
- * The adapter is responsible for mapping column coordinates.
+ * The adapter is responsible for mapping column and row coordinates.
  * 
  * All input column indices are in model coordinates with exactly two
  * exceptions:
  * <ul>
  * <li> {@link #column} in column view coordinates
- * <li> the mapping method {@link #viewToModel(int)} in view coordinates
+ * <li> the mapping method {@link #convertColumnIndexToModel(int)} in view coordinates
  * </ul>
  * 
- * All input row indices are in model coordinates with exactly three exceptions:
+ * All input row indices are in model coordinates with exactly four exceptions:
  * <ul>
  * <li> {@link #row} in row view coordinates
+ * <li> the mapping method {@link #convertRowIndexToModel(int)} in view coordinates
  * <li> the getter for the filtered value {@link #getFilteredValueAt(int, int)}
  * takes the row in view coordinates.
   * <li> the getter for the filtered string representation {@link #getFilteredStringAt(int, int)}
@@ -86,7 +88,6 @@ import org.jdesktop.swingx.renderer.StringValues;
 * </ul>
  * 
  * 
- * PENDING JW: add model-index based access to string rep. <p>
  * PENDING JW: anything to gain by generics here?<p>
  * PENDING JW: formally document that row/column coordinates must be valid in all methods taking
  *  model coordinates, that is 0<= row < getRowCount().
@@ -97,7 +98,6 @@ import org.jdesktop.swingx.renderer.StringValues;
  * 
  * @see org.jdesktop.swingx.decorator.HighlightPredicate
  * @see org.jdesktop.swingx.decorator.Highlighter
- * @see org.jdesktop.swingx.decorator.Filter
  */
 public abstract class ComponentAdapter {
     public static final Object DEFAULT_COLUMN_IDENTIFIER = "Column0";
@@ -126,7 +126,7 @@ public abstract class ComponentAdapter {
         return target;
     }
 
-//---------------------------- accessing the target's model
+//---------------------------- accessing the target's model: column meta data
     
     /**
      * Returns the column's display name (= headerValue) of the column
@@ -213,7 +213,52 @@ public abstract class ComponentAdapter {
         }
         return -1;
     }
+
+    /**
+     * Returns true if the column should be included in testing.<p>
+     * 
+     * Here: returns true if visible (that is modelToView gives a valid
+     * view column coordinate). 
+     * 
+     * @param column the column index in model coordinates
+     * @return true if the column should be included in testing
+     */
+    public boolean isTestable(int column) {
+        return convertColumnIndexToView(column) >= 0;
+    }
     
+    /**
+     * Returns the common class of all data column identified by the given
+     * column index in model coordinates.<p>
+     * 
+     * This implementation returns <code>Object.class</code>. Subclasses should
+     * implement as appropriate.
+     * 
+     * @return the common class of all data given column in model coordinates.
+     * 
+     * @see #getColumnClass()
+     */
+    public Class<?> getColumnClass(int column) {
+        return Object.class;
+    }
+    
+    
+    /**
+     * Returns the common class of all data in the current column.<p>
+     * 
+     * This implementation delegates to getColumnClass(int) with the current
+     * column converted to model coordinates.
+     * 
+     * @return the common class of all data in the current column.
+     * @see #getColumnClass(int)
+     */
+    public Class<?> getColumnClass() {
+        return getColumnClass(convertColumnIndexToModel(column));
+    }
+    
+    
+
+//---------------------------- accessing the target's model: meta data
     /**
      * Returns the number of columns in the target's data model.
      *
@@ -232,6 +277,7 @@ public abstract class ComponentAdapter {
         return 0;
     }
 
+//---------------------------- accessing the target's model: data
     /**
      * Returns the value of the target component's cell identified by the
      * specified row and column in model coordinates.
@@ -242,16 +288,6 @@ public abstract class ComponentAdapter {
      *          specified row and column
      */
     public abstract Object getValueAt(int row, int column);
-    
-    /**
-     * Sets the value of the target component's cell identified by the
-     * specified row and column in model coordinates.
-     * 
-     * @param aValue the value to set
-     * @param row in model coordinates
-     * @param column in model coordinates
-     */
-    public abstract void setValueAt(Object aValue, int row, int column);
 
     /**
      * Determines whether this cell is editable.
@@ -263,21 +299,6 @@ public abstract class ComponentAdapter {
      */
     public abstract boolean isCellEditable(int row, int column);
 
-    /**
-     * Returns true if the column should be included in testing.<p>
-     * 
-     * Here: returns true if visible (that is modelToView gives a valid
-     * view column coordinate). 
-     * 
-     * @param column the column index in model coordinates
-     * @return true if the column should be included in testing
-     */
-    public boolean isTestable(int column) {
-        return modelToView(column) >= 0;
-    }
-    
-
-    //----------------------- accessing the target's view state
     
     /**
      * Returns the String representation of the value of the cell identified by this adapter. That is,
@@ -289,7 +310,7 @@ public abstract class ComponentAdapter {
      * coordinate transformation. <p>
      * 
      * This implementation messages the StringValue.TO_STRING with the getValue,
-     * subclasses should re-implement and use the api appropriate for the target component type.
+     * subclasses should re-implement and use the API appropriate for the target component type.
      * 
      * @return the String representation of value of the cell identified by this adapter
      * @see #getValueAt(int, int)
@@ -297,7 +318,7 @@ public abstract class ComponentAdapter {
      * @see #getValue(int)
      */
     public String getString() {
-        return StringValues.TO_STRING.getString(getValue());
+        return getString(convertColumnIndexToModel(column));
     }
 
     /**
@@ -326,7 +347,7 @@ public abstract class ComponentAdapter {
      * query the count of visible rows.<p>
      * 
      * This implementation messages the StringValue.TO_STRING with the filteredValue,
-     * subclasses should re-implement and use the api appropriate for the target component type.<p>
+     * subclasses should re-implement and use the API appropriate for the target component type.<p>
      * 
      * PENDING JW: what about null cell values? StringValue has a contract to return a 
      * empty string then, would that be okay here as well?
@@ -334,10 +355,10 @@ public abstract class ComponentAdapter {
      * @param row the row of the cell in view coordinates
      * @param column the column of the cell in model coordinates.
      * @return the String representation of the filtered value of the cell identified by the row
-     * in view coordinate and the column in model coordiantes
+     * in view coordinate and the column in model coordinates
      */
     public String getFilteredStringAt(int row, int column) {
-        return StringValues.TO_STRING.getString(getFilteredValueAt(row, column));
+        return getStringAt(convertRowIndexToModel(row), column);
     }
     
     /**
@@ -371,7 +392,7 @@ public abstract class ComponentAdapter {
      * @see #getValue(int)
      */
     public Object getValue() {
-        return getValueAt(row, column);
+        return getValue(convertColumnIndexToModel(column));
     }
 
     
@@ -393,7 +414,7 @@ public abstract class ComponentAdapter {
      * Returns the filtered value of the cell identified by the row
      * in view coordinate and the column in model coordinates.
      * 
-     * Note: the asymetry of the coordinates is intentional - clients like
+     * Note: the asymmetry of the coordinates is intentional - clients like
      * Highlighters are interested in view values but might need to access
      * non-visible columns for testing. While it is possible to access 
      * row coordinates different from the current (that is this.row) it is not
@@ -403,9 +424,22 @@ public abstract class ComponentAdapter {
      * @param row the row of the cell in view coordinates
      * @param column the column of the cell in model coordinates.
      * @return the filtered value of the cell identified by the row
-     * in view coordinate and the column in model coordiantes
+     * in view coordinate and the column in model coordinates
      */
-    public abstract Object getFilteredValueAt(int row, int column);
+    public Object getFilteredValueAt(int row, int column) {
+        return getValueAt(convertRowIndexToModel(row), column);
+    }
+
+    //----------------------- accessing the target's view state
+
+    /**
+     * Returns the bounds of the cell identified by this adapter.<p>
+     * 
+     * @return the bounds of the cell identified by this adapter
+     */
+    public Rectangle getCellBounds() {
+        return target.getBounds();
+    }
 
     /**
      * Returns true if the cell identified by this adapter currently has focus.
@@ -481,6 +515,8 @@ public abstract class ComponentAdapter {
     public int getDepth() {
         return 1; // sensible default for JList and JTable
     }
+ 
+//-------------------- cell coordinate transformations
     
     /**
      * For target components that support multiple columns in their model,
@@ -489,33 +525,44 @@ public abstract class ComponentAdapter {
      * other types of target components, this method returns the columnIndex
      * unchanged.
      *
-     * @param columnIndex index of a column in model coordinates
+     * @param columnModelIndex index of a column in model coordinates
      * @return index of the specified column in view coordinates
      */
-    public int modelToView(int columnIndex) {
-        return columnIndex; // sensible default for JList and JTree
+    public int convertColumnIndexToView(int columnModelIndex) {
+        return columnModelIndex; // sensible default for JList and JTree
     }
-
-   /**
+    
+    /**
      * For target components that support multiple columns in their model, along
      * with column reordering in the view, this method transforms the specified
      * columnIndex from view coordinates to model coordinates. For all other
      * types of target components, this method returns the columnIndex
      * unchanged.
      * 
-     * @param columnIndex index of a column in view coordinates
+     * @param columnViewIndex index of a column in view coordinates
      * @return index of the specified column in model coordinates
      */
-    public int viewToModel(int columnIndex) {
-        return columnIndex; // sensible default for JList and JTree
+    public int convertColumnIndexToModel(int columnViewIndex) {
+        return columnViewIndex; // sensible default for JList and JTree
     }
-
+    
     /**
-     * Updates the target component on screen. This implementation revalidates and
-     * repaints. 
+     * Converts a row index in model coordinates to an index in view coordinates.
+     *
+     * @param rowModelIndex index of a row in model coordinates
+     * @return index of the specified row in view coordinates
      */
-    public void refresh() {
-        target.revalidate();
-        target.repaint();
+    public int convertRowIndexToView(int rowModelIndex) {
+        return rowModelIndex; // sensible default for JTree
+    }
+    
+    /**
+     * Converts a row index in view coordinates to an index in model coordinates.
+     * 
+     * @param rowViewIndex index of a row in view coordinates
+     * @return index of the specified row in model coordinates
+     */
+    public int convertRowIndexToModel(int rowViewIndex) {
+        return rowViewIndex; // sensible default for JTree
     }
 }

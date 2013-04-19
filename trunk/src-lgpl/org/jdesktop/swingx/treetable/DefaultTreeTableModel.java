@@ -1,5 +1,5 @@
 /*
- * $Id: DefaultTreeTableModel.java,v 1.16 2009/01/20 16:19:08 kschaefe Exp $
+ * $Id: DefaultTreeTableModel.java 3780 2010-09-09 16:17:41Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -27,8 +27,9 @@ import javax.swing.tree.TreePath;
 
 /**
  * {@code DefaultTreeTableModel} is a concrete implementation of
- * {@code AbstractTreeTableModel} and is provided purely as a convenience.
- * Applications that use {@code JXTreeTable} are expected to provide their own
+ * {@code AbstractTreeTableModel} and is provided purely as a convenience for 
+ * use with {@code TreeTableNode}s. Applications that use {@code JXTreeTable}
+ * without {@code TreeTableNode}s are expected to provide their own
  * implementation of a {@code TreeTableModel}.
  * <p>
  * The {@code DefaultTreeTableModel} is designed to be used with
@@ -329,7 +330,7 @@ public class DefaultTreeTableModel extends AbstractTreeTableModel {
         while (node != root) {
             path.add(0, node);
 
-            node = (TreeTableNode) node.getParent();
+            node = node.getParent();
         }
 
         if (node == root) {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,14 +41,27 @@ import java.awt.Component;
 import java.awt.FontMetrics;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JLabel;
+import javax.swing.JTable;
+import javax.swing.JTree;
+import javax.swing.ListSelectionModel;
+import javax.swing.UIManager;
 import javax.swing.event.TreeModelListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
-import jpsxdec.discitems.*;
+import jpsxdec.discitems.DiscItem;
+import jpsxdec.discitems.DiscItemAudioStream;
+import jpsxdec.discitems.DiscItemISO9660File;
+import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemTim;
+import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.player.PlayController;
 import org.jdesktop.swingx.JXTreeTable;
@@ -68,10 +81,39 @@ public class GuiTree extends JXTreeTable {
     public static final ImageIcon AUDIO_ICON = new ImageIcon(GuiTree.class.getResource("knotify.png"));
     public static final ImageIcon IMAGE_ICON = new ImageIcon(GuiTree.class.getResource("image-x-generic.png"));
 
-    RootTreeItem _root;
+    public static enum Select {
+        NONE("none"),
+        ALL_VIDEO("all Video"),
+        ALL_AUDIO("all Audio (excluding video audio)"),
+        ALL_AUDIO_VIDEO("all Audio (including video audio)"),
+        ALL_FILES("all Files"),
+        ALL_IMAGES("all Images");
+
+        private final String _str;
+
+        private Select(String str) { _str = str; }
+
+        public String toString() { return _str; }
+    }
+
+    private RootTreeItem _root;
 
     public void formatTreeTable(DiscIndex index) {
         _root = buildTree(index.getRoot());
+
+        /* If using Netbeans Outline
+        setDefaultRenderer(Boolean.class, new OptionalBooleanTableCellRenderer());
+        DiscTreeModel ttModel = new DiscTreeModel(_root);
+        OutlineModel om = DefaultOutlineModel.createOutlineModel(ttModel, ttModel);
+        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        setFillsViewportHeight(true);
+        setIntercellSpacing(new Dimension(0, 0));
+        setShowGrid(false);
+        setRootVisible(false);
+        setModel(om);
+        setRowSorter(null);
+        setRowHeight(getRowHeight() - 2);
+        /*/
 
         FontMetrics fm = getFontMetrics(getFont());
         int iSectorWidth = fm.stringWidth("999999-999999");
@@ -89,14 +131,18 @@ public class GuiTree extends JXTreeTable {
         getColumn(COLUMNS.Num.toString()).setPreferredWidth(iNumberWidth + 10);
         getColumn(COLUMNS.Sectors.toString()).setPreferredWidth(iSectorWidth + 10);
         getColumn(COLUMNS.Details.toString()).setPreferredWidth(Math.max(200, getColumn(COLUMNS.Details.toString()).getWidth()));
+        //*/
     }
+
+    //public void expandAll() {} public void collapseAll() {}
+    //public void addTreeSelectionListener(TreeSelectionListener tsl) {}
 
     public TreeItem getTreeTblSelection() {
         return (TreeItem) getValueAt(getSelectedRow(), convertColumnIndexToView(COLUMNS.Name.ordinal()));
     }
 
-    public void selectAllType(String sCmd) {
-        _root.selectAllType(sCmd);
+    public void selectAllType(Select cmd) {
+        _root.selectAllType(cmd);
         repaint();
     }
 
@@ -223,10 +269,9 @@ public class GuiTree extends JXTreeTable {
             return iCount;
         }
 
-        public void selectAllType(final String sCmd) {
-            // TODO: change this to an enum
+        public void selectAllType(Select cmd) {
             for (int i=0; i< kidCount(); i++)
-                getKid(i).selectAllType(sCmd);
+                getKid(i).selectAllType(cmd);
         }
 
     }
@@ -290,11 +335,13 @@ public class GuiTree extends JXTreeTable {
         private DiscItemSaverBuilder _builder;
         private boolean _blnSave = false;
 
-        public DiscItemTreeItem(IndexId indexId) {
-            _item = indexId.getItem();
-            // recursively add the kids
-            for (IndexId childId : indexId) {
-                _kids.add(new DiscItemTreeItem(childId));
+        public DiscItemTreeItem(DiscItem item) {
+            _item = item;
+            if (item.getChildCount() > 0) {
+                // recursively add the kids
+                for (DiscItem child : item.getChildren()) {
+                    _kids.add(new DiscItemTreeItem(child));
+                }
             }
         }
 
@@ -312,7 +359,7 @@ public class GuiTree extends JXTreeTable {
 
         @Override
         public Icon getIcon() {
-            // TODO: let the item create the icon
+            // Optional TODO: let the item create the icon
             if (_item instanceof DiscItemVideoStream) {
                 return VIDEO_ICON;
             } else if (_item instanceof DiscItemISO9660File) {
@@ -331,7 +378,7 @@ public class GuiTree extends JXTreeTable {
 
         @Override
         public String getIndexNum() {
-            return String.valueOf(_item.getIndexId().getListIndex());
+            return String.valueOf(_item.getIndex());
         }
 
         @Override
@@ -378,23 +425,22 @@ public class GuiTree extends JXTreeTable {
         }
 
         @Override
-        public void selectAllType(String sCmd) {
-            // TODO: clean this up
-            if (sCmd.equals("none")) {
+        public void selectAllType(Select cmd) {
+            // TODO: is there a better way to select by type?
+            if (cmd == Select.NONE)
                 _blnSave = false;
-            } else if (sCmd.equals("all Video")) {
-                _blnSave = _blnSave || getItem() instanceof DiscItemVideoStream;
-            } else if (sCmd.equals("all Audio (excluding video audio)")) {
+            else if (cmd == Select.ALL_VIDEO)
+                _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.Video;
+            else if (cmd == Select.ALL_AUDIO)
                 _blnSave = _blnSave || (getItem() instanceof DiscItemAudioStream
                                         && !((DiscItemAudioStream)getItem()).isPartOfVideo());
-            } else if (sCmd.equals("all Audio (including video audio)")) {
-                _blnSave = _blnSave || getItem() instanceof DiscItemAudioStream;
-            } else if (sCmd.equals("all Files")) {
-                _blnSave = _blnSave || getItem() instanceof DiscItemISO9660File;
-            } else if (sCmd.equals("all Images")) {
-                _blnSave = _blnSave || getItem() instanceof DiscItemTim;
-            }
-            super.selectAllType(sCmd);
+            else if (cmd == Select.ALL_AUDIO_VIDEO)
+                _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.Audio;
+            else if (cmd == Select.ALL_FILES)
+                _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.File;
+            else if (cmd == Select.ALL_IMAGES)
+                _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.Image;
+            super.selectAllType(cmd);
         }
 
 
@@ -402,19 +448,19 @@ public class GuiTree extends JXTreeTable {
 
     // .........................................................................
 
-    private static RootTreeItem buildTree(List<IndexId> indexIds) {
+    private static RootTreeItem buildTree(List<DiscItem> discItems) {
         RootTreeItem root = new RootTreeItem();
-        for (IndexId id : indexIds) {
-            if (id.getFile() != null) {
-                String[] asDirs = splitFileDirs(id.getFile());
+        for (DiscItem item : discItems) {
+            if (item.getIndexId().getFile() != null) {
+                String[] asDirs = splitFileDirs(item.getIndexId().getFile());
 
                 TreeItem tree = root;
                 for (String sDir : asDirs) {
                     tree = tree.getOrCreateDir(sDir);
                 }
-                tree.addKid(new DiscItemTreeItem(id));
+                tree.addKid(new DiscItemTreeItem(item));
             } else {
-                root.addKid(new DiscItemTreeItem(id));
+                root.addKid(new DiscItemTreeItem(item));
             }
         }
         return root;
@@ -428,12 +474,15 @@ public class GuiTree extends JXTreeTable {
             file = parent;
         }
 
+        Collections.reverse(dirs);
         return dirs.toArray(new String[dirs.size()]);
     }
 
     // -------------------------------------------------------------------------
 
-    private static class DiscTreeModel implements TreeTableModel {
+    private static class DiscTreeModel implements TreeTableModel
+        //, RowModel // Outline
+    {
         private TreeItem _treeRoot;
 
         public DiscTreeModel(TreeItem _treeRoot) {
@@ -490,6 +539,14 @@ public class GuiTree extends JXTreeTable {
 
         public void setValueAt(Object value, Object node, int i) {
             ((DiscItemTreeItem)node).setSave(((Boolean)value).booleanValue());
+        }
+
+        public Object getValueFor(Object node, int column) {
+            return getValueAt(node, column);
+        }
+
+        public void setValueFor(Object node, int column, Object value) {
+            setValueAt(value, node, column);
         }
     }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -83,6 +83,7 @@ public class RGB {
         return String.format("(%d, %d, %d)", r, g, b);
     }
 
+    /** 0x__RRGGBB */
     public void set(int iRgb) {
         r = (iRgb >> 16) & 0xFF;
         g = (iRgb >>  8) & 0xFF;

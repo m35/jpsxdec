@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.audio.XaAdpcmDecoder;
 import jpsxdec.sectors.IdentifiedSector;
@@ -102,8 +103,8 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
             int iStride)
     {
         super(iStartSector, iEndSector);
-        if (iChannel < 0 || iChannel >= 32) throw new IllegalArgumentException(
-                "Channel " + iChannel + " is not between 0 and 31");
+        if (iChannel < 0 || iChannel > SectorXaAudio.MAX_VALID_CHANNEL) throw new IllegalArgumentException(
+                "Channel " + iChannel + " is not between 0 and " + SectorXaAudio.MAX_VALID_CHANNEL);
         if (iBitsPerSample != 4 && iBitsPerSample != 8) throw new 
                 IllegalArgumentException("Bits/sample " + iBitsPerSample + " is not 4 or 8");
         if (iSamplesPerSecond != 37800 && iSamplesPerSecond != 18900)
@@ -136,7 +137,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         }
     }
 
-    public DiscItemXaAudioStream(DiscItemSerialization fields) throws NotThisTypeException {
+    public DiscItemXaAudioStream(SerializedDiscItem fields) throws NotThisTypeException {
         super(fields);
         
         String sStereo = fields.getString(STEREO_KEY);
@@ -167,8 +168,8 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         else throw new NotThisTypeException(DISC_SPEED_KEY + " field has invalid value: " + sDiscSpeed);
     }
     
-    public DiscItemSerialization serialize() {
-        DiscItemSerialization fields = super.superSerial(TYPE_ID);
+    public SerializedDiscItem serialize() {
+        SerializedDiscItem fields = super.serialize();
 
         fields.addNumber(CHANNEL_KEY, _iChannel);
         fields.addString(STEREO_KEY, _blnIsStereo ? "Yes" : "No");
@@ -223,7 +224,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         return _iSamplesPerSecond;
     }
 
-    public int getADPCMBitsPerSample() {
+    public int getAdpcmBitsPerSample() {
         return _iBitsPerSample;
     }
 
@@ -280,18 +281,18 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         private AudioFormat __format;
 
         public XAConverter(double dblVolume) {
-            __decoder = XaAdpcmDecoder.create(DiscItemXaAudioStream.this.getADPCMBitsPerSample(),
+            __decoder = XaAdpcmDecoder.create(DiscItemXaAudioStream.this.getAdpcmBitsPerSample(),
                                               DiscItemXaAudioStream.this.isStereo(), dblVolume);
             __tempBuffer = new ExposedBAOS(
                     XaAdpcmDecoder.bytesGeneratedFromXaAdpcmSector(
-                    DiscItemXaAudioStream.this.getADPCMBitsPerSample()));
+                    DiscItemXaAudioStream.this.getAdpcmBitsPerSample()));
         }
 
         public void setAudioListener(ISectorTimedAudioWriter audioFeed) {
             __outFeed = audioFeed;
         }
 
-        public void feedSector(IdentifiedSector sector) throws IOException {
+        public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
             if (sector == null)
                 return;
             
@@ -302,7 +303,8 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
                 return;
 
             __tempBuffer.reset();
-            __decoder.decode(xaSector.getIdentifiedUserDataStream(), __tempBuffer);
+            __decoder.decode(xaSector.getIdentifiedUserDataStream(), __tempBuffer, log,
+                    "Sector " + xaSector.getSectorNumber() + " sound parameter corrupted: ");
 
             if (__format == null)
                 __format = __decoder.getOutputFormat(xaSector.getSamplesPerSecond());
@@ -323,7 +325,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         }
 
         public AudioFormat getOutputFormat() {
-            return __decoder.getOutputFormat(getSampleRate());
+            return __decoder.getOutputFormat(DiscItemXaAudioStream.this.getSampleRate());
         }
 
         public void reset() {

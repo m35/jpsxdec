@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -100,13 +100,13 @@ public class BitReader {
         abr = new ArrayBitReader(abTest, false);
 
         int i;
-        for (i = rand.nextInt(31)+1; i < abr.bitsRemaining(); i = rand.nextInt(31)+1) {
+        for (i = rand.nextInt(31)+1; i < abr.getBitsRemaining(); i = rand.nextInt(31)+1) {
             String s = abr.peekBitsToString(i);
             System.out.println("Reading " + i + " " + s);
             sb.append(s);
             abr.skipBits(i);
         }
-        i = abr.bitsRemaining();
+        i = abr.getBitsRemaining();
         if (i > 0) {
             String s = abr.peekBitsToString(i);
             System.out.println("Reading " + i + " " + s);
@@ -122,34 +122,34 @@ public class BitReader {
 
         abr.reset(abTest, true, 0);
 
-        assertEquals("Bits remaining", abr.bitsRemaining(), 48);
+        assertEquals("Bits remaining", abr.getBitsRemaining(), 48);
         String sPeek = abr.peekBitsToString(31);
         lngPeek = abr.peekUnsignedBits(31);
         lngRead = abr.readUnsignedBits(31);
         assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
-        assertEquals("Bits remaining", abr.bitsRemaining(), 17);
+        assertEquals("Bits remaining", abr.getBitsRemaining(), 17);
         lngPeek = abr.peekUnsignedBits(3);
         lngRead = abr.readUnsignedBits(3);
         assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
-        assertEquals("Bits remaining", abr.bitsRemaining(), 14);
+        assertEquals("Bits remaining", abr.getBitsRemaining(), 14);
         lngPeek = abr.peekUnsignedBits(3);
         lngRead = abr.readUnsignedBits(3);
         assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
-        assertEquals("Bits remaining", abr.bitsRemaining(), 11);
+        assertEquals("Bits remaining", abr.getBitsRemaining(), 11);
         lngPeek = abr.peekUnsignedBits(11);
         lngRead = abr.readUnsignedBits(11);
         assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
-        assertEquals("Bits remaining", abr.bitsRemaining(), 0);
+        assertEquals("Bits remaining", abr.getBitsRemaining(), 0);
 
         abr.reset(abTest, true, 0);
         abr.skipBits(5);
-        assertEquals("Bits remaining", abr.bitsRemaining(), 43);
+        assertEquals("Bits remaining", abr.getBitsRemaining(), 43);
         abr.skipBits(30);
-        assertEquals("Bits remaining", abr.bitsRemaining(), 13);
+        assertEquals("Bits remaining", abr.getBitsRemaining(), 13);
         lngPeek = abr.peekUnsignedBits(13);
         lngRead = abr.readUnsignedBits(13);
         assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
-        assertEquals("Bits remaining", abr.bitsRemaining(), 0);
+        assertEquals("Bits remaining", abr.getBitsRemaining(), 0);
     }
 
 

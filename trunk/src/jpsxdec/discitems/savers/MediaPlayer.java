@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,14 +43,22 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.discitems.*;
+import jpsxdec.discitems.DiscItemAudioStream;
+import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.ISectorAudioDecoder;
+import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.idct.simple_idct;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
-import jpsxdec.util.player.*;
+import jpsxdec.util.player.AudioPlayer;
+import jpsxdec.util.player.IAudioVideoReader;
+import jpsxdec.util.player.IDecodableFrame;
+import jpsxdec.util.player.ObjectPool;
+import jpsxdec.util.player.VideoProcessor;
 
 /** Holds all the class implementations that the {@link jpsxdec.util.player} 
  * framework needs to playback PlayStation audio and/or video. */
@@ -180,13 +188,13 @@ public class MediaPlayer implements IAudioVideoReader {
                 // don't feed the sector twice (this is currently only for
                 // Crusader movies)
                 if (_demuxer == _audioDecoder) {
-                    _demuxer.feedSector(identifiedSector);
+                    _demuxer.feedSector(identifiedSector, null);
                 } else {
                     if (_demuxer != null) {
-                        _demuxer.feedSector(identifiedSector);
+                        _demuxer.feedSector(identifiedSector, null);
                     }
                     if (_audioDecoder != null) {
-                        _audioDecoder.feedSector(identifiedSector);
+                        _audioDecoder.feedSector(identifiedSector, null);
                     }
                 }
             }

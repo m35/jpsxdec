@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,16 @@
 
 package jpsxdec.sectors;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -75,6 +84,8 @@ import jpsxdec.util.NotThisTypeException;
  * identifying Judge Dredd sectors on other disc images (which probably has
  * happened). */
 public class SectorDreddVideo extends SectorAbstractVideo {
+
+    private static final Logger LOG = Logger.getLogger(SectorDreddVideo.class.toString());
 
     /** Firsts sector of the first video frame on the Judge Dredd disc. */
     private static final int FIRST_VID_SECTOR = 2721;
@@ -442,15 +453,15 @@ public class SectorDreddVideo extends SectorAbstractVideo {
 
                 if (iChunk < iLastChunk)
                     iFrame++;
-                else if(iChunk <= iLastChunk) {
-                    demux.flush();
+                else if(iChunk == iLastChunk) {
+                    demux.flush(LOG);
                     iFrame++;
                 }
                 iLastChunk = iChunk;
 
-                demux.feedSector(new DummyDreddVid(sect, iChunk, iFrame, blnIsTypeA));
+                demux.feedSector(new DummyDreddVid(sect, iChunk, iFrame, blnIsTypeA), LOG);
             }
-            demux.flush();
+            demux.flush(LOG);
         }
         out.close();
         System.out.println(aiSkippedPossibleVidSectors[0] + " potential video sectors failed to generate valid frames");

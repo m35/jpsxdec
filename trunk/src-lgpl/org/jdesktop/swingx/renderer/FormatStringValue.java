@@ -1,5 +1,5 @@
 /*
- * $Id: FormatStringValue.java,v 1.7 2009/03/11 13:45:10 kleopatra Exp $
+ * $Id: FormatStringValue.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

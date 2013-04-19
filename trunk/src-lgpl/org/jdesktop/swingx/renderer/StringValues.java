@@ -1,5 +1,5 @@
 /*
- * $Id: StringValues.java,v 1.4 2009/03/11 13:45:10 kleopatra Exp $
+ * $Id: StringValues.java 3927 2011-02-22 16:34:11Z kleopatra $
  *
  * Copyright 2008 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -23,8 +23,13 @@ package org.jdesktop.swingx.renderer;
 import java.io.File;
 import java.text.DateFormat;
 import java.text.NumberFormat;
+import java.util.Locale;
 
 import javax.swing.filechooser.FileSystemView;
+import javax.swing.plaf.UIResource;
+
+import org.jdesktop.swingx.util.Contract;
+
 
 /**
  * A collection of common {@code StringValue} implementations.
@@ -91,6 +96,24 @@ public final class StringValues {
         }
     };
 
+    
+    /** keep track of default locale. */
+    private static Locale defaultLocale;
+    
+    /**
+     * Returns a boolean to indicate if the default Locale has changed.
+     * Updates internal state to keep track of the default Locale. 
+     * 
+     * @return true if the default Locale has changed.
+     */
+    private static boolean localeChanged() {
+        boolean changed = !Locale.getDefault().equals(defaultLocale);
+        if (changed) {
+            defaultLocale = Locale.getDefault();
+        }
+        return changed;
+    }
+
     /**
      * Default converter for <code>Date</code> types. Uses the default format
      * as returned from <code>DateFormat</code>.
@@ -103,14 +126,14 @@ public final class StringValues {
          */
         @Override
         public String getString(Object value) {
-            if (format == null) {
+            if (format == null || localeChanged()) {
                 format = DateFormat.getDateInstance();
             }
             return super.getString(value);
         }
         
     };
-
+    
     /**
      * Default converter for <code>Number</code> types. Uses the default format
      * as returned from <code>NumberFormat</code>.
@@ -123,13 +146,38 @@ public final class StringValues {
          */
         @Override
         public String getString(Object value) {
-            if (format == null) {
+            if (format == null || localeChanged()) {
                 format = NumberFormat.getNumberInstance();
             }
             return super.getString(value);
         }
         
     };
+    
+    
+
+    public static final StringValue TO_STRING_UI = new StringValueUIResource(StringValues.TO_STRING);
+    public static final StringValue EMPTY_UI = new StringValueUIResource(StringValues.EMPTY);
+    
+    /**
+     * StringValue wrapper of type UIResource to tag LAF installed converters.
+     * 
+     * @author Jeanette Winzenburg, Berlin
+     */
+    public static class StringValueUIResource implements StringValue, UIResource {
+
+        private StringValue delegate;
+
+        public StringValueUIResource(StringValue toString) {
+            Contract.asNotNull(toString, "delegate StringValue must not be null");
+            this.delegate = toString;
+        }
+
+        public String getString(Object value) {
+            return delegate.getString(value);
+        }
+        
+    }
     
     private StringValues() {
         // does nothing

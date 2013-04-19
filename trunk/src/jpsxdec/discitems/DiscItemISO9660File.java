@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,55 +40,106 @@ package jpsxdec.discitems;
 import argparser.ArgParser;
 import argparser.BooleanHolder;
 import com.jhlabs.awt.ParagraphLayout;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.text.DecimalFormat;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.logging.Logger;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.util.ProgressListener;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
 
 /** Represents an ISO9660 file on the disc. */
 public class DiscItemISO9660File extends DiscItem {
 
-    private static final Logger log = Logger.getLogger(DiscItemISO9660File.class.getName());
+    private static final Logger LOG = Logger.getLogger(DiscItemISO9660File.class.getName());
     public static final String TYPE_ID = "File";
 
+    private final static String SIZE_KEY = "Size";
+    private final static String PATH_KEY = "Path";
     private final File _path;
     private final long _lngSize;
-    private int _iContainedItemCount;
 
+    private final SortedSet<DiscItem> _children = new TreeSet<DiscItem>();
+    
     public DiscItemISO9660File(int iStartSector, int iEndSector, File path, long lngSize) {
         super(iStartSector, iEndSector);
         _path = path;
         _lngSize = lngSize;
+        // we already know the IndexId, so set it now
+        super.setIndexId(new IndexId(path));
+    }
+
+    public DiscItemISO9660File(SerializedDiscItem fields) throws NotThisTypeException {
+        super(fields);
+        _lngSize = fields.getLong(SIZE_KEY);
+        _path = new File(fields.getString(PATH_KEY));
+    }
+
+    @Override
+    public SerializedDiscItem serialize() {
+        SerializedDiscItem fields = super.serialize();
+        fields.addNumber(SIZE_KEY, _lngSize);
+        fields.addString(PATH_KEY, Misc.forwardSlashPath(_path));
+        return fields;
+    }
+
+    @Override
+    public String getSerializationTypeId() {
+        return TYPE_ID;
     }
 
     /** {@inheritDoc}
-     * Also does special a bit of checking for items that break file boundaries.
-     */
+     * <p>
+     * Also set all the child {@link IndexId}s. */
     @Override
-    public int getOverlap(DiscItem other) {
-        int iOverlap = super.getOverlap(other);
-        if (iOverlap > 0) {
-            // if there is overlap, then the other item should technically fall
-            // entirely within this iso9660 file, except they don't always...
-            if (other.getStartSector() < getStartSector() || other.getEndSector() > getEndSector()) {
-                log.warning(other + " breaks this file boundaries " + this);
-            }
+    public boolean setIndexId(IndexId id) {
+        IndexId childId = getIndexId().createChild();
+        for (DiscItem child : _children) {
+            if (child.setIndexId(childId))
+                childId = childId.createNext();
+            else
+                LOG.info("Child rejected id " + child);
         }
-        return iOverlap;
+        return false;
     }
 
+    @Override
+    public int getParentRating(DiscItem child) {
+        if (child instanceof DiscItemISO9660File)
+            return 0;
+
+        return getOverlap(child)*100 / child.getSectorLength();
+    }
+    
+    @Override
+    public boolean addChild(DiscItem child) {
+        if (getParentRating(child) == 0)
+            return false;
+        _children.add(child);
+        return true;
+    }
+
+    @Override
+    public int getChildCount() {
+        return _children.size();
+    }
+
+    @Override
+    public Iterable<DiscItem> getChildren() {
+        return _children;
+    }
 
     public File getPath() {
         return _path;
@@ -98,39 +149,8 @@ public class DiscItemISO9660File extends DiscItem {
         return _lngSize;
     }
 
-    public String getBaseName() {
-        return Misc.getBaseName(_path.getName());
-    }
-
-    void incrementContainedItems() {
-        _iContainedItemCount++;
-    }
-
-    int getContainedItemCount() {
-        return _iContainedItemCount;
-    }
-
-    public DiscItemSerialization serialize() {
-        DiscItemSerialization fields = super.superSerial(TYPE_ID);
-        fields.addNumber("Size", _lngSize);
-        fields.addString("Path", Misc.forwardSlashPath(_path));
-        return fields;
-
-    }
-
-    public DiscItemISO9660File(DiscItemSerialization fields) throws NotThisTypeException {
-        super(fields);
-        _lngSize = fields.getLong("Size");
-        _path = new File(fields.getString("Path"));
-    }
-
     public ISO9660SaverBuilder makeSaverBuilder() {
         return new ISO9660SaverBuilder();
-    }
-
-    @Override
-    public GeneralType getType() {
-        return GeneralType.File;
     }
 
     /** Stream of user data (not raw). 
@@ -143,8 +163,26 @@ public class DiscItemISO9660File extends DiscItem {
         return new DemuxedSectorInputStream(getSourceCd(), getStartSector(), 0, getEndSector());
     }
 
-    public String getSerializationTypeId() {
-        return TYPE_ID;
+    /** {@inheritDoc}
+     * Also does special a bit of checking for items that break file boundaries.
+     */
+    @Override
+    public int getOverlap(DiscItem other) {
+        int iOverlap = super.getOverlap(other);
+        if (iOverlap > 0) {
+            // if there is overlap, then the other item should technically fall
+            // entirely within this iso9660 file, except they don't always...
+            if (other.getStartSector() < getStartSector() || other.getEndSector() > getEndSector()) {
+                LOG.warning(other + " breaks this file boundaries " + this);
+            }
+        }
+        return iOverlap;
+    }
+
+
+    @Override
+    public GeneralType getType() {
+        return GeneralType.File;
     }
 
     @Override
@@ -292,16 +330,10 @@ public class DiscItemISO9660File extends DiscItem {
             return 1;
         }
 
-        public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException {
+        public void startSave(ProgressListenerLogger pl, File dir) throws IOException, TaskCanceledException {
             File outputFile = new File(dir, _path.getPath());
 
-            if (outputFile.getParentFile() != null) {
-                if (!outputFile.getParentFile().exists() && !outputFile.getParentFile().mkdirs()) {
-                    throw new IOException("Unable to create directory " + outputFile.getParentFile());
-                } else if (!outputFile.getParentFile().isDirectory()) {
-                    throw new IOException("Cannot create directory over a file " + outputFile.getParentFile());
-                }
-            }
+            IO.makeDirs(outputFile.getParentFile());
 
             final double dblSectLen = getSectorLength();
             final int iStartSect = getStartSector();

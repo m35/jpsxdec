@@ -1,5 +1,5 @@
 /*
- * $Id: StringValue.java,v 1.8 2009/03/11 13:45:10 kleopatra Exp $
+ * $Id: StringValue.java 3297 2009-03-11 13:45:10Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

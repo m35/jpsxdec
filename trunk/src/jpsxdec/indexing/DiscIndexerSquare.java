@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,12 +37,12 @@
 
 package jpsxdec.indexing;
 
-import jpsxdec.sectors.ISquareAudioSector;
-import jpsxdec.discitems.DiscItemSquareAudioStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemSerialization;
+import jpsxdec.discitems.DiscItemSquareAudioStream;
+import jpsxdec.discitems.SerializedDiscItem;
+import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
 
@@ -66,7 +66,7 @@ public class DiscIndexerSquare extends DiscIndexer {
     }
 
     @Override
-    public DiscItem deserializeLineRead(DiscItemSerialization fields) {
+    public DiscItem deserializeLineRead(SerializedDiscItem fields) {
         try {
             if (DiscItemSquareAudioStream.TYPE_ID.equals(fields.getType())) {
                 return new DiscItemSquareAudioStream(fields);
@@ -141,7 +141,7 @@ public class DiscIndexerSquare extends DiscIndexer {
     }
 
     @Override
-    public void mediaListGenerated(DiscIndex aThis) {
+    public void indexGenerated(DiscIndex aThis) {
         
     }
 

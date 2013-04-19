@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,14 +37,11 @@
 
 package jpsxdec.discitems.savers;
 
-import java.util.logging.Logger;
 import jpsxdec.util.Fraction;
 
 /** Used to ensure the writing of video frames matches the timing of the
  * reading of video frames. */
 public class VideoSync {
-
-    private static final Logger log = Logger.getLogger(VideoSync.class.getName());
 
     /** Assuming frames are displayed after all parts are read from the disc,
      *  this is essentially the last sector of the first frame. */

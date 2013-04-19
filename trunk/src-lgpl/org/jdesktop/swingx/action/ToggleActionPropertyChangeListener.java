@@ -1,5 +1,5 @@
 /*
- * $Id: ToggleActionPropertyChangeListener.java,v 1.6 2008/10/14 22:31:38 rah003 Exp $
+ * $Id: ToggleActionPropertyChangeListener.java 3972 2011-03-17 20:31:58Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

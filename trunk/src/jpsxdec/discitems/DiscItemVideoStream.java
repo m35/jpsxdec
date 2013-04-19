@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012  Michael Sabin
+ * Copyright (C) 2012-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,6 +43,7 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.discitems.psxvideoencode.ReplaceFrames;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.NotThisTypeException;
@@ -74,7 +75,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
         _iEndFrame = iEndFrame;
     }
     
-    public DiscItemVideoStream(DiscItemSerialization fields) throws NotThisTypeException {
+    public DiscItemVideoStream(SerializedDiscItem fields) throws NotThisTypeException {
         super(fields);
         
         int[] ai = fields.getDimensions(DIMENSIONS_KEY);
@@ -87,8 +88,8 @@ public abstract class DiscItemVideoStream extends DiscItem {
     }
     
     @Override
-    public DiscItemSerialization serialize() {
-        DiscItemSerialization serial = super.superSerial(getSerializationTypeId());
+    public SerializedDiscItem serialize() {
+        SerializedDiscItem serial = super.serialize();
         serial.addRange(FRAMES_KEY, _iStartFrame, _iEndFrame);
         serial.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
         return serial;
@@ -140,30 +141,22 @@ public abstract class DiscItemVideoStream extends DiscItem {
     }
 
     public static String formatTime(long lngSeconds) {
+        if (lngSeconds == 0)
+            return "0:01";
         long lngMin = lngSeconds / 60;
-        StringBuilder sb = new StringBuilder();
-        if (lngMin > 0) {
-            sb.append(lngMin);
-            sb.append(" min");
-        }
         lngSeconds = lngSeconds % 60;
-        if (lngSeconds > 0) {
-            if (sb.length() > 0)
-                sb.append(' ');
-            sb.append(lngSeconds);
-            sb.append(" sec");
-        }
-        return sb.toString();
+        return String.format("%d:%02d", lngMin, lngSeconds);
     }
     
     
-    public void frameInfoDump(final FeedbackStream Feedback) throws IOException {
+    public void frameInfoDump(final FeedbackStream fbs) throws IOException {
         DiscItemVideoStream vidItem = this;
+        ConsoleProgressListenerLogger log = new ConsoleProgressListenerLogger("frameInfoDump", fbs);
 
         ISectorFrameDemuxer demuxer = makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
             public void frameComplete(IDemuxedFrame frame) throws IOException {
-                frame.printStats(Feedback);
+                frame.printStats(fbs);
             }
         });
 
@@ -174,13 +167,13 @@ public abstract class DiscItemVideoStream extends DiscItem {
             try {
                 IdentifiedSector sector = vidItem.getRelativeIdentifiedSector(iSector);
                 if (sector != null) {
-                    demuxer.feedSector(sector);
+                    demuxer.feedSector(sector, log);
                 }
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
         }
-        demuxer.flush();
+        demuxer.flush(log);
 
     }
 

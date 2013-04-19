@@ -1,5 +1,5 @@
 /*
- * $Id: Painter.java,v 1.9 2007/07/16 13:55:44 kschaefe Exp $
+ * $Id: Painter.java 3860 2010-10-26 01:14:53Z kschaefe $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -55,9 +55,6 @@ import java.awt.Graphics2D;
  * @author rbair
  * @see AbstractPainter
  * @see CompoundPainter
- * @see org.jdesktop.swingx.JXPanel
- * @see org.jdesktop.swingx.JXLabel
- * @see org.jdesktop.swingx.JXButton
  */
 public interface Painter<T> {
     /**

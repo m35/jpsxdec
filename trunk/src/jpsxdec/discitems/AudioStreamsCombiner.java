@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.discitems;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
+import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
 
@@ -155,13 +156,13 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
         return _iPresStartSector;
     }
 
-    public void feedSector(IdentifiedSector sector) throws IOException {
+    public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
         int iSector = sector.getSectorNumber();
         for (ISectorAudioDecoder decoder : _aoDecoders) {
             if (decoder.getStartSector() <= iSector &&
                 iSector <= decoder.getEndSector())
             {
-                decoder.feedSector(sector);
+                decoder.feedSector(sector, log);
                 break;
             }
         }

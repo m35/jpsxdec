@@ -1,5 +1,5 @@
 /*
- * $Id: ActionManager.java,v 1.8 2009/01/21 17:54:30 kschaefe Exp $
+ * $Id: ActionManager.java 3972 2011-03-17 20:31:58Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -169,6 +169,20 @@ public class ActionManager extends ActionMap {
     }
 
     /**
+     * Convenience method for returning the TargetableAction
+     *
+     * @param id value of the action id
+     * @return the TargetableAction referenced by the named id or null
+     */
+    public TargetableAction getTargetableAction(Object id) {
+        Action a = getAction(id);
+        if (a instanceof TargetableAction) {
+            return (TargetableAction)a;
+        }
+        return null;
+    }
+
+    /**
      * Convenience method for returning the BoundAction
      *
      * @param id value of the action id
@@ -178,6 +192,34 @@ public class ActionManager extends ActionMap {
         Action a = getAction(id);
         if (a instanceof BoundAction) {
             return (BoundAction)a;
+        }
+        return null;
+    }
+
+    /**
+     * Convenience method for returning the ServerAction
+     *
+     * @param id value of the action id
+     * @return the TargetableAction referenced by the named id or null
+     */
+    public ServerAction getServerAction(Object id) {
+        Action a = getAction(id);
+        if (a instanceof ServerAction) {
+            return (ServerAction)a;
+        }
+        return null;
+    }
+
+    /**
+     * Convenience method for returning the CompositeAction
+     *
+     * @param id value of the action id
+     * @return the TargetableAction referenced by the named id or null
+     */
+    public CompositeAction getCompositeAction(Object id) {
+        Action a = getAction(id);
+        if (a instanceof CompositeAction) {
+            return (CompositeAction)a;
         }
         return null;
     }
@@ -315,10 +357,30 @@ public class ActionManager extends ActionMap {
     }
 
     /**
+     * Test to determine if the action is a <code>TargetableAction</code>
+     */
+    public boolean isTargetableAction(Object id) {
+        return (getTargetableAction(id) != null);
+    }
+
+    /**
      * Test to determine if the action is a <code>BoundAction</code>
      */
     public boolean isBoundAction(Object id) {
         return (getBoundAction(id) != null);
     }
 
+    /**
+     * Test to determine if the action is a <code>BoundAction</code>
+     */
+    public boolean isCompositeAction(Object id) {
+        return (getCompositeAction(id) != null);
+    }
+
+    /**
+     * Test to determine if the action is a <code>ServerAction</code>
+     */
+    public boolean isServerAction(Object id) {
+        return (getServerAction(id) != null);
+    }
 }

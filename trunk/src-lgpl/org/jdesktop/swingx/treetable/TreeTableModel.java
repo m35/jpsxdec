@@ -1,5 +1,5 @@
 /*
- * $Id: TreeTableModel.java,v 1.4 2007/11/25 15:52:58 kschaefe Exp $
+ * $Id: TreeTableModel.java 2476 2007-11-25 15:52:59Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

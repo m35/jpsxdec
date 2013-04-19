@@ -1,5 +1,5 @@
 /*
- * $Id: TreeRolloverProducer.java,v 1.1 2009/03/11 12:06:01 kleopatra Exp $
+ * $Id: TreeRolloverProducer.java 4190 2012-06-27 19:01:06Z kschaefe $
  *
  * Copyright 2007 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -26,8 +26,7 @@ import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 
 import javax.swing.JComponent;
-
-import org.jdesktop.swingx.JXTree;
+import javax.swing.JTree;
 
 /**
  * Tree-specific implementation of RolloverProducer.
@@ -46,7 +45,7 @@ public class TreeRolloverProducer extends RolloverProducer {
 
     @Override
     public void mousePressed(MouseEvent e) {
-        JXTree tree = (JXTree) e.getComponent();
+        JTree tree = (JTree) e.getComponent();
         Point mousePoint = e.getPoint();
         int labelRow = tree.getRowForLocation(mousePoint.x, mousePoint.y);
         // default selection
@@ -72,7 +71,7 @@ public class TreeRolloverProducer extends RolloverProducer {
 
     @Override
     protected void updateRolloverPoint(JComponent component, Point mousePoint) {
-        JXTree tree = (JXTree) component;
+        JTree tree = (JTree) component;
         int row = tree.getClosestRowForLocation(mousePoint.x, mousePoint.y);
         Rectangle bounds = tree.getRowBounds(row);
         if (bounds == null) {

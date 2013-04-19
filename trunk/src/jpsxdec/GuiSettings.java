@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,7 +51,7 @@ import java.util.logging.Logger;
 /** Maintains GUI settings persistent between program runs. */
 public class GuiSettings {
 
-    private static final Logger log = Logger.getLogger(GuiSettings.class.getName());
+    private static final Logger LOG = Logger.getLogger(GuiSettings.class.getName());
 
     private static final String INI_FILE_NAME = "jpsxdec.ini";
 
@@ -81,9 +81,9 @@ public class GuiSettings {
         try {
             prop.load(new FileInputStream(INI_FILE_NAME));
         } catch (FileNotFoundException ex) {
-            log.info("ini file not found");
+            LOG.info("ini file not found");
         } catch (Throwable ex) {
-            log.log(Level.WARNING, "Error loading ini file", ex);
+            LOG.log(Level.WARNING, "Error loading ini file", ex);
         }
         _sSavingDir = prop.getProperty(SAVING_DIR_KEY, new File("").getAbsolutePath());
         _sImageDir = prop.getProperty(IMAGE_DIR_KEY, new File("").getAbsolutePath());
@@ -129,7 +129,7 @@ public class GuiSettings {
         }
         FileOutputStream fos = new FileOutputStream(INI_FILE_NAME);
         try {
-            prop.store(fos, Main.VerString);
+            prop.store(fos, Version.VerString);
         } finally {
             fos.close();
         }
@@ -162,6 +162,10 @@ public class GuiSettings {
             _previousImages.removeLast();
     }
 
+    public void removePreviousImage(String sImagePath) {
+        _previousImages.remove(sImagePath);
+    }
+
     public List<String> getPreviousIndexes() {
         return _previousIndexes;
     }
@@ -171,6 +175,10 @@ public class GuiSettings {
         _previousIndexes.addFirst(sIndexPath);
         while (_previousIndexes.size() >= _iPreviousIndexCount)
             _previousIndexes.removeLast();
+    }
+
+    public void removePreviousIndex(String sIndexPath) {
+        _previousIndexes.remove(sIndexPath);
     }
 
     public String getImageDir() {

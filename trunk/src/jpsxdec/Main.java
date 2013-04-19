@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec;
 
+import jpsxdec.util.ConsoleProgressListenerLogger;
 import argparser.ArgParser;
 import argparser.BooleanHolder;
 import argparser.StringHolder;
@@ -44,16 +45,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.TreeSet;
@@ -66,7 +58,14 @@ import javax.swing.JLabel;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaRiffHeader;
-import jpsxdec.discitems.*;
+import jpsxdec.discitems.DiscItem;
+import jpsxdec.discitems.DiscItemAudioStream;
+import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemStrVideoStream;
+import jpsxdec.discitems.DiscItemTim;
+import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.discitems.DiscItemXaAudioStream;
+import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.discitems.savers.MdecDecodeQuality;
@@ -80,19 +79,19 @@ import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.sectors.UnidentifiedSector;
 import jpsxdec.tim.Tim;
-import jpsxdec.util.*;
+import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IO;
+import jpsxdec.util.Misc;
+import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
 
 public class Main {
 
 
-    private static final Logger log = Logger.getLogger(Main.class.getName());
+    private static final Logger LOG = Logger.getLogger(Main.class.getName());
 
     private static FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
-
-    public final static String Version = "0.99.0 (beta)";
-    public final static String VerString = "jPSXdec: PSX media decoder v" + Version;
-    public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial) v" + Version;
 
     public static void loadDefaultLogger() {
         loadLogger("LogToFile.properties");
@@ -104,7 +103,7 @@ public class Main {
             if (is != null)
                 java.util.logging.LogManager.getLogManager().readConfiguration(is);
         } catch (IOException ex) {
-            log.log(Level.WARNING, null, ex);
+            LOG.log(Level.WARNING, null, ex);
         }
     }
 
@@ -124,7 +123,7 @@ public class Main {
 
         asArgs = checkVerbosity(asArgs, Feedback);
 
-        Feedback.println(VerStringNonCommercial);
+        Feedback.println(Version.VerStringNonCommercial);
 
         Command[] aoCommands = {
             new Command_CopySect(),
@@ -214,7 +213,7 @@ public class Main {
             }
         } catch (Throwable ex) {
             Feedback.printlnErr("Error: " + ex.toString() + " (" + ex.getClass().getSimpleName() + ")");
-            log.log(Level.SEVERE, "Unhandled exception", ex);
+            LOG.log(Level.SEVERE, "Unhandled exception", ex);
             System.exit(1);
         }
         System.exit(0);
@@ -254,10 +253,8 @@ public class Main {
 
     private static DiscIndex loadIndex(String sIndexFile) throws IOException, NotThisTypeException {
         Feedback.println("Reading index file " + sIndexFile);
-        // TODO: When FileNotFoundException occurs, try to find a way to
-        // distringuish between the index file and the cd file
         DiscIndex index = new DiscIndex(sIndexFile, false, Logger.getLogger("index"));
-        Feedback.println("Opening source file " + index.getSourceCD().getSourceFile());
+        Feedback.println("Opening source file " + index.getSourceCd().getSourceFile());
         Feedback.println(index.size() + " items loaded");
         return index;
     }
@@ -267,10 +264,11 @@ public class Main {
         DiscIndex index = null;
         try {
             ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger("index", Feedback);
-            cpll.setHeader("Indexing " + cd.toString());
+            cpll.setHeader(1, "Indexing " + cd.toString());
             index = new DiscIndex(cd, cpll);
+            cpll.close();
         } catch (TaskCanceledException ex) {
-            log.severe("SHOULD NEVER HAPPEN");
+            LOG.severe("SHOULD NEVER HAPPEN");
         }
         Feedback.println(index.size() + " items found.");
         return index;
@@ -362,12 +360,12 @@ public class Main {
         if (verbose.value != null) {
             try {
                 int iValue = Integer.parseInt(verbose.value);
-                if (iValue < FeedbackStream.NONE || iValue > FeedbackStream.MORE) {
-                    // TODO: error
-                }
-                fbs.setLevel(iValue);
+                if (iValue >= FeedbackStream.NONE && iValue <= FeedbackStream.MORE)
+                    fbs.setLevel(iValue);
+                else
+                    fbs.printlnWarn("Invalid verbosity level " + iValue);
             } catch (NumberFormatException ex) {
-                // TODO: error
+                fbs.printlnWarn("Invalid verbosity level " + verbose.value);
             }
         }
 
@@ -485,7 +483,7 @@ public class Main {
 
                 Feedback.printlnErr("Copying sectors " + _aiStartEndSectors[0] + " - " + _aiStartEndSectors[1] + " to " + sOutputFile);
 
-                FileOutputStream fos = new FileOutputStream(sOutputFile);
+                OutputStream os = new BufferedOutputStream(new FileOutputStream(sOutputFile));
 
                 if (cdReader.getSectorSize() == CdFileSectorReader.SECTOR_SIZE_2352_BIN && asRemainingArgs != null) {
                     ArgParser parser = new ArgParser("", false);
@@ -494,7 +492,7 @@ public class Main {
                     parser.matchAllArgs(asRemainingArgs, 0, 0);
                     if (!noCdxaHeader.value) {
                         long lngFileSize = (_aiStartEndSectors[1] - _aiStartEndSectors[0] + 1) * (long)2352;
-                        CdxaRiffHeader.write(fos, lngFileSize);
+                        CdxaRiffHeader.write(os, lngFileSize);
                     }
                 }
 
@@ -503,18 +501,17 @@ public class Main {
                     if (sector == null) {
                         Feedback.printlnErr("Error reading sector " + i);
                         return -1;
-                        // TODO: err
                     } else {
-                        fos.write(sector.getRawSectorDataCopy());
+                        os.write(sector.getRawSectorDataCopy());
                     }
                 }
 
-                fos.close();
+                os.close();
 
                 return 0;
 
             } catch (IOException ex) {
-                log.log(Level.SEVERE, "Error copying sectors.", ex);
+                LOG.log(Level.SEVERE, "Error copying sectors.", ex);
                 Feedback.printlnErr(ex);
                 return -1;
             }
@@ -729,15 +726,15 @@ public class Main {
 
 
             } catch (IOException ex) {
-                log.log(Level.SEVERE, "IO error", ex);
+                LOG.log(Level.SEVERE, "IO error", ex);
                 Feedback.printlnErr(ex);
                 return -1;
             } catch (NotThisTypeException ex) {
-                log.log(Level.SEVERE, null, ex);
+                LOG.log(Level.SEVERE, null, ex);
                 Feedback.printlnErr(ex);
                 return -1;
             } catch (MdecException ex) {
-                log.log(Level.SEVERE, null, ex);
+                LOG.log(Level.SEVERE, null, ex);
                 Feedback.printlnErr(ex);
                 return -1;
             }
@@ -787,7 +784,7 @@ public class Main {
                 return 0;
 
             } catch (IOException ex) {
-                log.log(Level.SEVERE, "IO error", ex);
+                LOG.log(Level.SEVERE, "IO error", ex);
                 Feedback.printlnErr(ex);
                 return -1;
             }
@@ -839,7 +836,7 @@ public class Main {
 
     private static void player(final PlayController controller, DiscItem item) throws InterruptedException {
 
-        final JFrame window = new JFrame(Main.VerStringNonCommercial + " - Player");
+        final JFrame window = new JFrame(Version.VerStringNonCommercial + " - Player");
 
         window.addWindowListener(new java.awt.event.WindowAdapter() {
 
@@ -1036,7 +1033,7 @@ public class Main {
                     Feedback.println("Opening patch index " + replaceXa.value);
                     DiscIndex patchIndex;
                     try {
-                        patchIndex = new DiscIndex(replaceXa.value, log);
+                        patchIndex = new DiscIndex(replaceXa.value, LOG);
                     } catch (IOException ex) {
                         Feedback.printlnErr(ex);
                         return -1;
@@ -1066,7 +1063,7 @@ public class Main {
             }
 
         } catch (Throwable ex) {
-            log.log(Level.SEVERE, "Item error", ex);
+            LOG.log(Level.SEVERE, "Item error", ex);
             Feedback.printlnErr(ex);
             return -1;
         }
@@ -1092,11 +1089,12 @@ public class Main {
         lngStart = System.currentTimeMillis();
         try {
             ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger("save", Feedback);
-            cpll.setHeader(item.getSourceCd().toString());
-            cpll.setSubheader(item.toString());
+            cpll.setHeader(1, item.getSourceCd().toString());
+            cpll.setHeader(2, item.toString());
             saver.startSave(cpll, dir);
+            cpll.close();
         } catch (TaskCanceledException ex) {
-            log.severe("SHOULD NEVER HAPPEN");
+            LOG.severe("SHOULD NEVER HAPPEN");
         }
         lngEnd = System.currentTimeMillis();
         Feedback.format("Time: %1.2f sec", (lngEnd - lngStart) / 1000.0);
@@ -1121,18 +1119,17 @@ public class Main {
         }
         public int execute(String[] asRemainingArgs) {
             DiscIndex index = getIndex();
-            CdFileSectorReader cd = index.getSourceCD();
+            CdFileSectorReader cd = index.getSourceCd();
 
             try {
 
-            
             final int SECTOR_SECTION_SIZE = 32;
             final int TEXT_LINE_HEIGHT = 16;
-            final int BOX_AREA_HEIGHT = 16;
-            final int BOX_MARGIN_TOP = 2;
-            final int BOX_MARGIN_BOTTOM = 2;
-            final int BOX_HEIGHT = BOX_AREA_HEIGHT - (BOX_MARGIN_BOTTOM + BOX_MARGIN_TOP);
-            final double SCALE = (200.0*72.0 - 18.0) / cd.getLength();
+            final int BOX_AREA_WIDTH = 16;
+            final int BOX_MARGIN_LEFT = 2;
+            final int BOX_MARGIN_RIGHT = 2;
+            final int BOX_WIDTH = BOX_AREA_WIDTH - (BOX_MARGIN_RIGHT + BOX_MARGIN_LEFT);
+            final double MAX_PDF_SIZE = 200.0*72.0 - 18.0;
 
             /* priority:
              * ISO file
@@ -1143,7 +1140,7 @@ public class Main {
              * summarize to just the important data-points
              */
 
-            Feedback.println("Generating visualization.");
+            Feedback.println("Generating visualization");
 
             int[] aiDataPoints = extractDataPoints(index);
 
@@ -1152,11 +1149,16 @@ public class Main {
 
             //########################################################
 
-            int iWidth = cd.getLength();
-            int iHeight = SECTOR_SECTION_SIZE
+            int iWidth = SECTOR_SECTION_SIZE
                     + iMaxOverlap * TEXT_LINE_HEIGHT
-                    + iMaxOverlap * BOX_AREA_HEIGHT;
+                    + iMaxOverlap * BOX_AREA_WIDTH;
+            int iHeight = cd.getLength()+1;
 
+            final double SCALE;
+            if (iHeight < MAX_PDF_SIZE)
+                SCALE = 1;
+            else
+                SCALE = MAX_PDF_SIZE / iHeight;
 
             FileOutputStream pdfStream = new FileOutputStream(_sOutfile);
 
@@ -1181,7 +1183,7 @@ public class Main {
                     } else {
                         c = classToColor(sector.getClass());
                     }
-                    com.pdfjet.Box pdfBox = new com.pdfjet.Box(iSector*SCALE, 0*SCALE, 1*SCALE, SECTOR_SECTION_SIZE*SCALE);
+                    com.pdfjet.Box pdfBox = new com.pdfjet.Box(0*SCALE, iSector*SCALE, SECTOR_SECTION_SIZE*SCALE, 1*SCALE);
                     int[] aiRgb = { c.getRed(), c.getGreen(), c.getBlue() };
                     pdfBox.setFillShape(true);
                     pdfBox.setLineWidth(0);
@@ -1212,10 +1214,10 @@ public class Main {
                         int i = findFree(aoRunningItems);
                         aoRunningItems[i] = item;
 
-                        double x = item.getStartSector()*SCALE,
-                               y = (SECTOR_SECTION_SIZE + i * BOX_AREA_HEIGHT + BOX_MARGIN_TOP)*SCALE,
-                               w = item.getSectorLength()*SCALE,
-                               h = BOX_HEIGHT*SCALE;
+                        double x = (SECTOR_SECTION_SIZE + i * BOX_AREA_WIDTH + BOX_MARGIN_LEFT)*SCALE,
+                               y = item.getStartSector()*SCALE,
+                               w = BOX_WIDTH*SCALE,
+                               h = item.getSectorLength()*SCALE;
 
                         // draw box
                         com.pdfjet.Box pdfBox = new com.pdfjet.Box(x, y, w, h);
@@ -1233,7 +1235,7 @@ public class Main {
                         pdfBox.drawOn(pdfPage);
 
                         com.pdfjet.TextLine pdfText = new com.pdfjet.TextLine(pdfFont, item.toString());
-                        pdfText.setPosition(x, y + (BOX_HEIGHT * 0.6) * SCALE);
+                        pdfText.setPosition(x, y);
                         pdfText.setColor(com.pdfjet.RGB.DARK_GRAY);
                         pdfText.drawOn(pdfPage);
                     }

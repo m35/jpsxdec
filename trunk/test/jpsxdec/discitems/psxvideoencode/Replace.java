@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,12 +46,12 @@ import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
-import jpsxdec.util.SimpleConsoleProgressListener;
 import jpsxdec.util.TaskCanceledException;
-import static org.junit.Assert.assertArrayEquals;
 import org.junit.*;
+import static org.junit.Assert.assertArrayEquals;
 import testutil.Util;
 import static testutil.Util.resourceAsFile;
 import static testutil.Util.resourceAsTempFile;
@@ -174,7 +174,8 @@ public class Replace {
             throws IOException, TaskCanceledException
     {
         final CdFileSectorReader cd = new CdFileSectorReader(strFile, true);
-        DiscIndex index = new DiscIndex(cd, new SimpleConsoleProgressListener());
+        ConsoleProgressListenerLogger log = new ConsoleProgressListenerLogger("test", System.out);
+        DiscIndex index = new DiscIndex(cd, log);
         DiscItemStrVideoStream vid = (DiscItemStrVideoStream) index.getByIndex(0);
         final FrameDemuxer demuxer = new FrameDemuxer(vid.getWidth(), vid.getHeight(), vid.getStartSector(), vid.getEndSector());
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
@@ -183,6 +184,7 @@ public class Replace {
                     if (frame.getFrame() == rf.getFrame())
                         rf.replace(frame, cd, new FeedbackStream());
                 } catch (Throwable ex) {
+                    ex.printStackTrace();
                     throw new RuntimeException(ex);
                 }
             }
@@ -191,9 +193,9 @@ public class Replace {
         for (int i = 0; i < vid.getSectorLength(); i++) {
             IdentifiedSector sect = vid.getRelativeIdentifiedSector(i);
             if (sect != null)
-                demuxer.feedSector(sect);
+                demuxer.feedSector(sect, log);
         }
-        demuxer.flush();
+        demuxer.flush(log);
 
         cd.close();
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012  Michael Sabin
+ * Copyright (C) 2012-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,16 +38,17 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.util.logging.Logger;
 import jpsxdec.sectors.IdentifiedSector;
 
 public interface ISectorFrameDemuxer {
 
-    void feedSector(IdentifiedSector sector) throws IOException;
+    void feedSector(IdentifiedSector sector, Logger log) throws IOException;
 
     /**
      * Finish any uncompleted frame and add it to the completed frame queue.
      */
-    void flush() throws IOException;
+    void flush(Logger log) throws IOException;
 
     int getHeight();
 

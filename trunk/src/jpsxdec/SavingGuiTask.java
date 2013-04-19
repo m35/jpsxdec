@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,15 +45,14 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import jpsxdec.SavingGuiTable.Row;
-import jpsxdec.util.UserFriendlyHandler;
-import jpsxdec.util.ProgressListener;
+import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
+import jpsxdec.util.UserFriendlyLogger;
 import org.jdesktop.swingworker.SwingWorker;
 
 public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message> 
-        implements ProgressListener
 {
-    private static final Logger log = Logger.getLogger(SavingGuiTask.class.getName());
+    private static final Logger LOG = Logger.getLogger(SavingGuiTask.class.getName());
 
     public static final String ALL_DONE = "alldone";
 
@@ -61,40 +60,77 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     private final File _dir;
     private Row _currentRow;
 
-    private Logger _errLog;
     
-    public UserFriendlyHandler _handler = new UserFriendlyHandler("save") {
-        protected void onWarn(LogRecord record) {
-            EventQueue.invokeLater(new Event_Warning(_currentRow));
+    final ProgressListenerLogger _progressLog = new ProgressListenerLogger("save")
+    {
+
+        public void progressStart(String s) throws TaskCanceledException {
+            publish(new Event_Message(_currentRow, s));
+            setProgress(0);
         }
-        protected void onErr(LogRecord record) {
-            EventQueue.invokeLater(new Event_Error(_currentRow));
+
+        public void progressStart() throws TaskCanceledException {
+            if (isCancelled())
+                throw new TaskCanceledException();
+            EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_STARTED));
+        }
+
+        public void progressEnd() throws TaskCanceledException {
+            EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_DONE));
+        }
+
+        public void progressUpdate(double dblPercentComplete) throws TaskCanceledException {
+            if (isCancelled())
+                throw new TaskCanceledException();
+            EventQueue.invokeLater(new Event_Progress(_currentRow, (int)Math.round(dblPercentComplete * 100)));
+        }
+
+        public void event(String sDescription) {
+            publish(new Event_Message(_currentRow, sDescription));
+        }
+
+        public boolean seekingEvent() {
+            // TODO: only seek event after so many seconds
+            return true;
+        }
+
+        public void progressInfo(String s) {
+            // ignored
         }
     };
 
-    public SavingGuiTask(ArrayList<Row> rows, File dir) {
+
+    public SavingGuiTask(ArrayList<Row> rows, File dir, String sCd) {
         _rows = rows;
         _dir = dir;
-        _errLog = Logger.getLogger("save");
+
+        _progressLog.setHeader(1, sCd);
+
+        _progressLog.setListener(new UserFriendlyLogger.OnWarnErr() {
+            public void onWarn(LogRecord record) {
+                EventQueue.invokeLater(new Event_Warning(_currentRow));
+            }
+            public void onErr(LogRecord record) {
+                EventQueue.invokeLater(new Event_Error(_currentRow));
+            }
+        });
     }
 
     @Override
     protected Void doInBackground() throws Exception {
-        _errLog.addHandler(_handler);
         for (Row row : _rows) {
             _currentRow = row;
             try {
-                _handler.setHeader(row._saver.getDiscItem().getSourceCd().toString());
-                _handler.setSubheader(row._saver.getDiscItem().toString());
-                row._saver.startSave(this, _dir);
+                _progressLog.setHeader(2, row._saver.getDiscItem().toString());
+                row._saver.startSave(_progressLog, _dir);
             } catch (TaskCanceledException ex) {
                 // cool
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_CANCELED));
                 break;
             } catch (Throwable ex) {
                 // uncool
-                log.log(Level.SEVERE, "Unhandled error", ex);
-                _errLog.log(Level.SEVERE, "Unhandled error", ex);
+                LOG.log(Level.SEVERE, "Unhandled error", ex);
+                _progressLog.log(Level.SEVERE, "Unhandled error", ex);
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 if (ex instanceof InterruptedException)
                     break;
@@ -104,10 +140,14 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
             EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_DONE));
         }
         firePropertyChange(ALL_DONE, null, null);
-        _handler.close();
-        _errLog.removeHandler(_handler);
+        _progressLog.close();
 
         return null;
+    }
+
+    final protected void process(List<Event_Message> events) {
+        // only process the last event
+        events.get(events.size()-1).run();
     }
 
     // -- Event types -------------------------------------------------------
@@ -134,49 +174,6 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         private final String _val;
         public Event_Message(Row row, String val) { super(row); _val = val; }
         public void run() { _row.setMessage(_val); }
-    }
-
-
-    final protected void process(List<Event_Message> chunks) {
-        chunks.get(chunks.size()-1).run();
-    }
-
-    public void progressStart(String s) throws TaskCanceledException {
-        publish(new Event_Message(_currentRow, s));
-        setProgress(0);
-    }
-
-    public void progressStart() throws TaskCanceledException {
-        if (isCancelled())
-            throw new TaskCanceledException();
-        EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_STARTED));
-    }
-
-    public void progressEnd() throws TaskCanceledException {
-        EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_DONE));
-    }
-
-    public void progressUpdate(double dblPercentComplete) throws TaskCanceledException {
-        if (isCancelled())
-            throw new TaskCanceledException();
-        EventQueue.invokeLater(new Event_Progress(_currentRow, (int)Math.round(dblPercentComplete * 100)));
-    }
-
-    public void event(String sDescription) {
-        publish(new Event_Message(_currentRow, sDescription));
-    }
-
-    public boolean seekingEvent() {
-        // TODO: only seek event after so many seconds
-        return true;
-    }
-
-    public void info(String s) {
-        // ignored
-    }
-
-    public Logger getLog() {
-        return _errLog;
     }
 
 }

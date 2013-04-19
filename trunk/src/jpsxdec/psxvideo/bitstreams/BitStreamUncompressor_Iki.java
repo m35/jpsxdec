@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -196,6 +196,12 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
             public int[] next() {
                 // TODO: finish iki encoding stuff
+                /* maybe try encoding each macblk
+                 * at different qscales
+                 * and see how much it changes
+                 * those that change a lot are weighted less than those that change a litte
+                 *
+                 */
                 throw new UnsupportedOperationException("Not implemented yet");
             }
 
@@ -219,7 +225,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         }
         return String.format("%s Qscale=%d-%d Offset=%d MB=%d.%d Mdec count=%d",
                 getName(), iMinQscale, iMaxQscale,
-                getStreamPosition(),
+                getWordPosition(),
                 getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
                 getMdecCodeCount());
     }
@@ -228,6 +234,8 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
     public BitStreamCompressor_Iki makeCompressor() {
         throw new UnsupportedOperationException();
     }
+
+    // =========================================================================
 
     public static class BitStreamCompressor_Iki extends BitstreamCompressor_STRv2 {
         private BitStreamCompressor_Iki() {}

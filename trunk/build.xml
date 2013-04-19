@@ -28,12 +28,12 @@
 
     <property name="resource.include.glob" value="**/*.dat,**/*.properties,**/*.png,**/*.gif" />
     <fileset dir="." id="release.include.files">
-        <include name="CHANGES.txt" />
-        <include name="CREDITS.txt" />
-        <include name="lgpl-2.1.txt" />
-        <include name="apache-2.0.txt" />
-        <include name="CDDL-GPL-2-CP.txt" />
-        <include name="LICENSE.txt" />
+        <include name="doc/CHANGES.txt" />
+        <include name="doc/CREDITS.txt" />
+        <include name="doc/lgpl-2.1.txt" />
+        <include name="doc/apache-2.0.txt" />
+        <include name="doc/CDDL-GPL-2-CP.txt" />
+        <include name="doc/LICENSE.txt" />
         <include name="jpsxdec.exe" />
     </fileset>
 
@@ -88,7 +88,7 @@
         <jar destfile="${dist.dir}/${jar-lgpl.file}" basedir="${build-lgpl.dir}" compress="true" />
 
         <!-- Copy over the distribution files -->
-        <copy todir="${dist.dir}" flatten="true" verbose="true">
+        <copy todir="${dist.dir}" verbose="true">
             <fileset refid="release.include.files" />
         </copy>
         
@@ -126,10 +126,6 @@
         </javadoc>
     </target>
     
-    <target name="doxygen" description="generate code documentation via doxygen">
-        <echo message="Not implemented yet"/>
-    </target>
-
     <target name="clean" description="clean up" >
         <!-- Delete the build and dist directories -->
         <delete dir="${build.dir}"/>

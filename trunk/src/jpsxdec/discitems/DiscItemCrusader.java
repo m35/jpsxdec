@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012  Michael Sabin
+ * Copyright (C) 2012-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,6 +50,8 @@ import jpsxdec.util.player.PlayController;
 public class DiscItemCrusader extends DiscItemVideoStream {
 
     public static final String TYPE_ID = "Crusader";
+    private static final Fraction SECTORS_PER_FRAME = new Fraction(10);
+    private static final int FPS = 15;
     
     
     public DiscItemCrusader(int iStartSector, int iEndSector, 
@@ -61,7 +63,7 @@ public class DiscItemCrusader extends DiscItemVideoStream {
               iStartFrame, iEndFrame);
     }
     
-    public DiscItemCrusader(DiscItemSerialization fields) throws NotThisTypeException {
+    public DiscItemCrusader(SerializedDiscItem fields) throws NotThisTypeException {
         super(fields);
     }
 
@@ -72,7 +74,10 @@ public class DiscItemCrusader extends DiscItemVideoStream {
 
     @Override
     public String getInterestingDescription() {
-        return getWidth() + "x" + getHeight() + ", " + (getEndFrame() - getStartFrame() + 1) + " frames";
+        int iFrames = getEndFrame() - getStartFrame() + 1;
+        return String.format("%dx%d, %d frames, %d fps = %s",
+                             getWidth() ,getHeight(),
+                             iFrames , FPS, formatTime(iFrames / FPS));
     }
     
     @Override
@@ -87,7 +92,7 @@ public class DiscItemCrusader extends DiscItemVideoStream {
 
     @Override
     public Fraction getSectorsPerFrame() {
-        return new Fraction(10);
+        return SECTORS_PER_FRAME;
     }
 
     @Override

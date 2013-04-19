@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.IDiscItemSaver;
@@ -49,14 +48,13 @@ import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.formats.JavaAudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.AudioOutputFileWriter;
-import jpsxdec.util.ProgressListener;
+import jpsxdec.util.IO;
+import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
 
 /** Actually performs the saving process using the options selected in
  * {@link AudioSaverBuilder}. */
 public class AudioSaver implements IDiscItemSaver  {
-
-    private static final Logger log = Logger.getLogger(AudioSaver.class.getName());
 
     private final DiscItemAudioStream _audItem;
     private final ISectorAudioDecoder _decoder;
@@ -99,17 +97,11 @@ public class AudioSaver implements IDiscItemSaver  {
     }
 
 
-    public void startSave(ProgressListener pl, File dir) throws IOException, TaskCanceledException {
+    public void startSave(ProgressListenerLogger pl, File dir) throws IOException, TaskCanceledException {
 
         File outputFile = new File(dir, _fileSubPath.getPath());
 
-        if (outputFile.getParentFile() != null) {
-            if (!outputFile.getParentFile().exists() && !outputFile.getParentFile().mkdirs()) {
-                throw new IOException("Unable to create directory " + outputFile.getParentFile());
-            } else if (!outputFile.getParentFile().isDirectory()) {
-                throw new IOException("Cannot create directory over a file " + outputFile.getParentFile());
-            }
-        }
+        IO.makeDirs(outputFile.getParentFile());
 
         AudioFormat audioFmt = _decoder.getOutputFormat();
         final AudioOutputFileWriter audioWriter;
@@ -126,7 +118,7 @@ public class AudioSaver implements IDiscItemSaver  {
             final int SECTOR_LENGTH = _audItem.getSectorLength();
             for (int iSector = 0; iSector < SECTOR_LENGTH; iSector++) {
                 IdentifiedSector identifiedSect = _audItem.getRelativeIdentifiedSector(iSector);
-                _decoder.feedSector(identifiedSect);
+                _decoder.feedSector(identifiedSect, pl);
                 pl.progressUpdate(iSector / (double)SECTOR_LENGTH);
             }
             pl.progressEnd();
@@ -134,7 +126,7 @@ public class AudioSaver implements IDiscItemSaver  {
             try {
                 audioWriter.close();
             } catch (Throwable ex) {
-                pl.getLog().log(Level.SEVERE, "Error closing audio writer", ex);
+                pl.log(Level.SEVERE, "Error closing audio writer", ex);
             }
         }
     }

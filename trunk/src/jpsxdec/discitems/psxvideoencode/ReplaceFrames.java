@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,11 +51,11 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.discitems.*;
-import jpsxdec.indexing.DiscIndex;
+import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IOException6;
 import jpsxdec.util.NotThisTypeException;
@@ -199,7 +199,7 @@ public class ReplaceFrames {
         {
             IdentifiedSector sector = vidItem.getRelativeIdentifiedSector(iSector);
             if (sector != null)
-                demuxer.feedSector(sector);
+                demuxer.feedSector(sector, null);
 
             if (exception[0] != null) {
                 if (exception[0] instanceof MdecException)
@@ -211,38 +211,7 @@ public class ReplaceFrames {
             }
         }
 
-        demuxer.flush();
-    }
-
-
-    // TODO: remove this
-    public static void main(String[] args) throws Throwable {
-        if (args.length != 3) {
-            System.out.println("arguments: <disc> <item> <mdec filename format>");
-            return;
-        }
-
-        CdFileSectorReader cd = new CdFileSectorReader(new File(args[0]), true);
-        FeedbackStream fbs = new FeedbackStream();
-        DiscIndex index = new DiscIndex(cd, new ConsoleProgressListenerLogger("index"));
-        DiscItemVideoStream vidItem = (DiscItemVideoStream) index.getByIndex(Integer.parseInt(args[1]));
-        DiscItemSaverBuilder saver = vidItem.makeSaverBuilder();
-        saver.commandLineOptions(new String[] {"-vf","mdec"}, fbs);
-        saver.makeSaver().startSave(new ConsoleProgressListenerLogger("save"), new File("."));
-
-        ReplaceFrames replacers = new ReplaceFrames();
-
-        for (int iFrame = vidItem.getStartFrame(); iFrame <= vidItem.getEndFrame(); iFrame++) {
-            File frameFile = new File(String.format(args[2], iFrame));
-            ReplaceFrame replace = new ReplaceFrame(iFrame);
-            replace.setImageFile(frameFile);
-            replace.setFormat("mdec");
-            replacers.addFrameToReplace(replace);
-        }
-        
-        replacers.replaceFrames(vidItem, cd, fbs);
-
-        cd.close();
+        demuxer.flush(null);
     }
 
 }

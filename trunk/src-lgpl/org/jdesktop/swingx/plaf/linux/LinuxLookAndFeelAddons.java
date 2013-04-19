@@ -1,5 +1,5 @@
 /*
- * $Id: LinuxLookAndFeelAddons.java,v 1.2 2008/10/14 22:31:42 rah003 Exp $
+ * $Id: LinuxLookAndFeelAddons.java 4092 2011-11-30 18:04:36Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -20,7 +20,44 @@
  */
 package org.jdesktop.swingx.plaf.linux;
 
+import static javax.swing.UIManager.getLookAndFeel;
+import static javax.swing.UIManager.getSystemLookAndFeelClassName;
+
+import org.jdesktop.swingx.plaf.LookAndFeelAddons;
 import org.jdesktop.swingx.plaf.basic.BasicLookAndFeelAddons;
+import org.jdesktop.swingx.util.OS;
 
 public class LinuxLookAndFeelAddons extends BasicLookAndFeelAddons {
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean matches() {
+        return isSystemAddon() && getSystemLookAndFeelClassName().equals(getLookAndFeel().getClass().getName());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean isSystemAddon() {
+        return OS.isLinux();
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void initialize() {
+        super.initialize();
+        
+        //Issue 1297: added border to ensure non-null insets
+        // JW: moved into Table/ListAddon
+        // 
+//        Border b = UIManagerExt.getSafeBorder("Table.focusSelectedCellHighlightBorder", BorderFactory.createEmptyBorder());
+//        
+//        if (b instanceof UIResource) {
+//            UIManager.put("Table.focusSelectedCellHighlightBorder", new BorderUIResource(b));
+//        }
+    }
 }

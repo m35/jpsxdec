@@ -1,5 +1,5 @@
 /*
- * $Id: RolloverController.java,v 1.2 2008/10/14 22:31:45 rah003 Exp $
+ * $Id: RolloverController.java 3967 2011-03-17 19:18:47Z kschaefe $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -26,10 +26,11 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.logging.Logger;
 
-import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
+
+import org.jdesktop.swingx.plaf.UIAction;
 
 /**
  * Controller for "live" behaviour of XXRenderers.
@@ -38,7 +39,7 @@ import javax.swing.KeyStroke;
  * state based on the component's rollover properties. Rollover
  * client properties are Points with cell coordinates 
  * in the view coordinate
- * system as approriate for the concrete component 
+ * system as appropriate for the concrete component 
  * (Point.x == column, Point.y == row).
  * 
  * Repaints effected component regions. Updates
@@ -139,27 +140,27 @@ public abstract class RolloverController<T extends JComponent> implements
             boolean prepare);
 
     /**
-     * checks and returns if the cell at the given location is 
-     * clickable. Here: same as isRolloverCell.
+     * Returns a boolean indicating whether or not the cell at the given 
+     * location is clickable. <p>
+     * 
+     * This implementation returns true if the target is enabled and the
+     * cell has a rollover renderer.
      * 
      * @param location in cell coordinates, p.x == column, p.y == row.
-     * 
      * @return true if the cell at the given location is clickable
+     * 
+     * @see #hasRollover(Point)
      */
     protected boolean isClickable(Point location) {
-        return hasRollover(location);
+        return component.isEnabled() && hasRollover(location);
     }
 
     /**
-     * checks and returns if the cell at the given location has  
-     * rollover effects. <p> 
-     * 
-     * Always returns false if the location
+     * Returns a boolean indicating whether the or not the cell at the 
+     * given has a rollover renderer. Always returns false if the location
      * is not valid.
      * 
-     * 
      * @param location in cell coordinates, p.x == column, p.y == row.
-     * 
      * @return true if the location is valid and has rollover effects, false
      *   otherwise.
      *    
@@ -218,13 +219,13 @@ public abstract class RolloverController<T extends JComponent> implements
      *
      */
     protected Action createExecuteButtonAction() {
-        return new AbstractAction() {
+        return new UIAction(null) {
             public void actionPerformed(ActionEvent e) {
                 click(getFocusedCell());
             }
 
             @Override
-            public boolean isEnabled() {
+            public boolean isEnabled(Object sender) {
                 if (component == null || !component.isEnabled() || !component.hasFocus())
                     return false;
                 return isClickable(getFocusedCell());

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -88,18 +88,18 @@ public class MdecDecoder_int extends MdecDecoder {
                 for (int iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY ++)
                 {
                     // debug
-                    assert DEBUG ? debugPrintln(String.format("############### Decoding macro block %d (%d, %d) ###############", 
-                                                iMacBlk, iMacBlkX, iMacBlkY)) : true;
+                    assert !DEBUG || debugPrintln(String.format("############### Decoding macro block %d (%d, %d) ###############",
+                                                  iMacBlk, iMacBlkX, iMacBlkY));
 
                     for (iBlock = 0; iBlock < 6; iBlock++) {
 
-                        assert DEBUG ? debugPrintln(String.format("=========== Decoding block %s ===========", 
-                                                    BLOCK_NAMES[iBlock])) : true;
+                        assert !DEBUG || debugPrintln(String.format("=========== Decoding block %s ===========",
+                                                      BLOCK_NAMES[iBlock]));
                         
                         Arrays.fill(_CurrentBlock, 0);
                         mdecInStream.readMdecCode(_code);
 
-                        assert DEBUG ? debugPrintln("Qscale & DC " + _code) : true;
+                        assert !DEBUG || debugPrintln("Qscale & DC " + _code);
 
                         if (_code.getBottom10Bits() != 0) {
                             _CurrentBlock[0] =
@@ -110,13 +110,13 @@ public class MdecDecoder_int extends MdecDecoder {
                             iCurrentBlockNonZeroCount = 0;
                             iCurrentBlockLastNonZeroPosition = -1;
                         }
-                        assert DEBUG ? setPrequantValue(0, _code.getBottom10Bits()) : true;
+                        assert !DEBUG || setPrequantValue(0, _code.getBottom10Bits());
                         iCurrentBlockQscale = _code.getTop6Bits();
                         iCurrentBlockVectorPosition = 0;
 
                         while (!mdecInStream.readMdecCode(_code)) {
 
-                            assert DEBUG ? debugPrintln(_code.toString()) : true;
+                            assert !DEBUG || debugPrintln(_code.toString());
 
                             ////////////////////////////////////////////////////////
                             iCurrentBlockVectorPosition += _code.getTop6Bits() + 1;
@@ -131,7 +131,7 @@ public class MdecDecoder_int extends MdecDecoder {
                                         iCurrentBlockVectorPosition,
                                         iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]));
                             }
-                            assert DEBUG ? setPrequantValue(iRevZigZagPos, _code.getBottom10Bits()) : true;
+                            assert !DEBUG || setPrequantValue(iRevZigZagPos, _code.getBottom10Bits());
                             // Dequantize
                             _CurrentBlock[iRevZigZagPos] =
                                         (_code.getBottom10Bits()
@@ -144,7 +144,7 @@ public class MdecDecoder_int extends MdecDecoder {
                             ////////////////////////////////////////////////////////
                         }
 
-                        assert DEBUG ? debugPrintln(_code.toString()) : true;
+                        assert !DEBUG || debugPrintln(_code.toString());
 
                         writeEndOfBlock(iMacBlk, iBlock,
                                 iCurrentBlockNonZeroCount,
@@ -189,8 +189,8 @@ public class MdecDecoder_int extends MdecDecoder {
     private void writeEndOfBlock(int iMacroBlock, int iBlock,
                                  int iNonZeroCount, int iNonZeroPos)
     {
-        assert DEBUG ? debugPrintPrequantBlock() : true;
-        assert DEBUG ? debugPrintBlock("Pre-IDCT block") : true;
+        assert !DEBUG || debugPrintPrequantBlock();
+        assert !DEBUG || debugPrintBlock("Pre-IDCT block");
         
         int[] outputBuffer;
         int iOutOffset, iOutWidth;
@@ -224,7 +224,7 @@ public class MdecDecoder_int extends MdecDecoder {
                 System.arraycopy(_CurrentBlock, iSrcOfs, outputBuffer, iOutOffset, 8);
         }
 
-        assert DEBUG ? debugPrintBlock("Post-IDCT block") : true;
+        assert !DEBUG || debugPrintBlock("Post-IDCT block");
         
     }
 

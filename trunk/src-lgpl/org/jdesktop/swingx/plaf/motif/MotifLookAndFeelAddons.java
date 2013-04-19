@@ -1,5 +1,5 @@
 /*
- * $Id: MotifLookAndFeelAddons.java,v 1.2 2005/10/10 18:03:01 rbair Exp $
+ * $Id: MotifLookAndFeelAddons.java 4092 2011-11-30 18:04:36Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -20,8 +20,17 @@
  */
 package org.jdesktop.swingx.plaf.motif;
 
+import javax.swing.UIManager;
+
+import org.jdesktop.swingx.plaf.LookAndFeelAddons;
 import org.jdesktop.swingx.plaf.basic.BasicLookAndFeelAddons;
 
 public class MotifLookAndFeelAddons extends BasicLookAndFeelAddons {
-
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean matches() {
+        return UIManager.getLookAndFeel().getID().equals("Motif");
+    }
 }

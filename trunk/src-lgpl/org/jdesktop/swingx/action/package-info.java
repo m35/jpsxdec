@@ -1,5 +1,5 @@
 /*
- * $Id: package-info.java,v 1.2 2009/02/02 20:11:45 kschaefe Exp $
+ * $Id: package-info.java 3972 2011-03-17 20:31:58Z kschaefe $
  *
  * Copyright 2009 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.

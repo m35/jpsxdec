@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2011  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,22 +39,31 @@ package jpsxdec.discitems.savers;
 
 
 import com.jhlabs.awt.ParagraphLayout;
-import jpsxdec.discitems.*;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Font;
 import java.awt.GridLayout;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.tim.Tim;
 
 
 /** GUI to select {@link TimSaverBuilder} options. */
 class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implements ChangeListener {
 
-    private static final Logger log = Logger.getLogger(TimSaverBuilderGui.class.getName());
+    private static final Logger LOG = Logger.getLogger(TimSaverBuilderGui.class.getName());
 
     private final JPanel _panelImages = new JPanel(new GridLayout());
 
@@ -64,7 +73,9 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
         super(builder, new BorderLayout());
         setParagraphLayoutPanel(_topParagraphPanel);
 
-        addListeners(this, new Format());
+        addListeners(this, 
+                new FileNames(),
+                new Format());
 
         updatePreviews();
 
@@ -72,17 +83,42 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
         add(_panelImages, BorderLayout.CENTER);
     }
 
+    private class FileNames implements ChangeListener {
+        JTextArea __files = new JTextArea(3, 0);
+        public FileNames() {
+            Font f = UIManager.getFont("TextField.font");
+            __files.setFont(f);
+            __files.setEditable(false);
+            __files.setWrapStyleWord(true);
+            __files.setLineWrap(true);
+            __files.setOpaque(false);
+            Color c = __files.getBackground();
+            __files.setBackground(new Color(c.getRed(), c.getGreen(), c.getBlue(), 0));
+            updateText();
+
+            JScrollPane p = new JScrollPane(__files);
+            p.setBorder(null);
+            _topParagraphPanel.add(new JLabel("Output:"), ParagraphLayout.NEW_PARAGRAPH);
+            _topParagraphPanel.add(p, ParagraphLayout.STRETCH_H);
+        }
+        public void stateChanged(ChangeEvent e) {
+            updateText();
+        }
+        private void updateText() {
+            __files.setText(_writerBuilder.getOutputFilesSummary());
+        }
+    }
+
+
     private void updatePreviews() {
+        _panelImages.removeAll();
+        GridLayout gl = (GridLayout) _panelImages.getLayout();
+
         try {
             // XXX: I don't like having to read from the disc until saving actually begins
             // or the user explicitly choses to preview the item
             Tim tim = _writerBuilder.readTim();
-
             int iPals = tim.getPaletteCount();
-
-            _panelImages.removeAll();
-
-            GridLayout gl = (GridLayout) _panelImages.getLayout();
 
             double dblPalSqrt = Math.sqrt(iPals);
             gl.setRows((int)Math.floor(dblPalSqrt));
@@ -91,15 +127,22 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
             for (int i = 0; i < iPals; i++) {
                 _panelImages.add(new TimPaletteSelector(tim, i, _writerBuilder));
             }
-        } catch (Throwable ex) {
-            log.log(Level.SEVERE, "Error reading TIM preview", ex);
-            // TODO: display an error in the picture area
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, "Error reading TIM preview", ex);
+            StringWriter sw = new StringWriter();
+            ex.printStackTrace(new PrintWriter(sw));
+            gl.setRows(1);
+            gl.setColumns(1);
+            JTextArea t = new JTextArea("Error reading TIM preview\n"+sw.toString());
+            t.setLineWrap(true);
+            _panelImages.add(new JScrollPane(t));
         }
     }
 
     public void stateChanged(ChangeEvent e) {
         for (Component c : _panelImages.getComponents()) {
-            ((TimPaletteSelector)c).stateChanged();
+            if (c instanceof TimPaletteSelector)
+                ((TimPaletteSelector)c).stateChanged();
         }
     }
 

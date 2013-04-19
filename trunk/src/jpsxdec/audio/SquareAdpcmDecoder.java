@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,9 +37,9 @@
 
 package jpsxdec.audio;
 
-import java.io.InputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
@@ -51,8 +51,6 @@ import jpsxdec.util.IO;
  *  implementation I could think of. A fixed point implementation
  *  would of course be faster. */
 public final class SquareAdpcmDecoder {
-
-    private static final Logger log = Logger.getLogger(SquareAdpcmDecoder.class.getName());
 
     private final SoundUnit _leftSoundUnit;
     private final SoundUnit _rightSoundUnit;
@@ -83,7 +81,8 @@ public final class SquareAdpcmDecoder {
      */
     public int decode(InputStream leftStream,
                       InputStream rightStream,
-                      int iNumBytes, OutputStream out)
+                      int iNumBytes, OutputStream out,
+                      Logger log)
             throws IOException
     {
         if ((iNumBytes % SoundUnit.SIZE_IN_BYTES) > 0)
@@ -96,8 +95,8 @@ public final class SquareAdpcmDecoder {
 
         for (int iSoundUnitIdx = 0; iSoundUnitIdx < iSoundUnitCount; iSoundUnitIdx++)
         {
-            short[] asiLeftSamples = _leftSoundUnit.readSoundUnit(leftStream);
-            short[] asiRightSamples = _rightSoundUnit.readSoundUnit(rightStream);
+            short[] asiLeftSamples = _leftSoundUnit.readSoundUnit(leftStream, log);
+            short[] asiRightSamples = _rightSoundUnit.readSoundUnit(rightStream, log);
 
             for (int iSampleIdx = 0; iSampleIdx < SoundUnit.SAMPLES_PER_SOUND_UNIT; iSampleIdx++) {
                 IO.writeInt16LE(out, asiLeftSamples[iSampleIdx]);
@@ -139,35 +138,6 @@ public final class SquareAdpcmDecoder {
             _adpcmContext = new AdpcmContext(dblVolume);
         }
 
-        private void readSoundParamter(InputStream inStream) throws IOException
-        {
-            int iSoundParameter = inStream.read();
-            if (iSoundParameter < 0)
-                throw new EOFException("Unexpected end of audio data");
-            
-            _bParameter_Range       = (byte)(iSoundParameter & 0xF);
-            _bParameter_FilterIndex = (byte)((iSoundParameter >>> 4) & 0xF);
-
-            if (_bParameter_FilterIndex > 4) {
-                // TODO: show some kind of user visible message that audio has been compromised
-                StringBuilder sb = new StringBuilder("Square ADPCM Sound Parameter Filter Index > 4 (");
-                sb.append(_bParameter_FilterIndex);
-                sb.append(") [sound parameter 0x");
-                sb.append(Integer.toHexString(iSoundParameter));
-                if (inStream instanceof ByteArrayFPIS) {
-                    sb.append(" at ");
-                    sb.append(((ByteArrayFPIS)inStream).getFilePointer()-1);
-                }
-                sb.append("]");
-                log.warning(sb.toString());
-                _bParameter_FilterIndex = (byte)(_bParameter_FilterIndex & 3);
-            }
-            
-            // for some reason this byte isn't used?
-            if (inStream.skip(1) != 1)
-                throw new EOFException("Unexpected end of audio data");
-        }
-        
         /** Square's K0 multiplier (don't ask me, it's just how it is). */
         private final static double K0[] = new double[] {
             0.0,
@@ -185,9 +155,9 @@ public final class SquareAdpcmDecoder {
             -0.9375  // one more possible value than standard XA audio
         };
 
-        public short[] readSoundUnit(InputStream inStream) throws IOException
+        public short[] readSoundUnit(InputStream inStream, Logger log) throws IOException
         {
-            readSoundParamter(inStream);
+            readSoundParamter(inStream, log);
 
             for (int i = 0; i < SAMPLES_PER_SOUND_UNIT;) {
                 // read a byte
@@ -215,6 +185,38 @@ public final class SquareAdpcmDecoder {
             
             return _asiPcmSampleBuffer;
         }
+
+
+        private void readSoundParamter(InputStream inStream, Logger log) throws IOException
+        {
+            int iSoundParameter = inStream.read();
+            if (iSoundParameter < 0)
+                throw new EOFException("Unexpected end of audio data");
+
+            _bParameter_Range       = (byte)(iSoundParameter & 0xF);
+            _bParameter_FilterIndex = (byte)((iSoundParameter >>> 4) & 0xF);
+
+            if (_bParameter_FilterIndex > 4) {
+                if (log != null) {
+                    StringBuilder sb = new StringBuilder("Square ADPCM Sound Parameter Filter Index > 4 (");
+                    sb.append(_bParameter_FilterIndex);
+                    sb.append(") [sound parameter 0x");
+                    sb.append(Integer.toHexString(iSoundParameter));
+                    if (inStream instanceof ByteArrayFPIS) {
+                        sb.append(" at ");
+                        sb.append(((ByteArrayFPIS)inStream).getFilePointer()-1);
+                    }
+                    sb.append("]");
+                    log.warning(sb.toString());
+                }
+                _bParameter_FilterIndex = (byte)(_bParameter_FilterIndex & 3);
+            }
+
+            // for some reason this byte isn't used?
+            if (inStream.skip(1) != 1)
+                throw new EOFException("Unexpected end of audio data");
+        }
+
 
         public void resetContext() {
             _adpcmContext.reset();

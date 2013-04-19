@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractBean.java,v 1.7 2008/10/14 22:31:46 rah003 Exp $
+ * $Id: AbstractBean.java 4088 2011-11-17 19:53:49Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -137,6 +137,7 @@ import java.beans.VetoableChangeSupport;
  * @status REVIEWED
  * @author rbair
  */
+@SuppressWarnings("nls")
 public abstract class AbstractBean {
     /**
      * Helper class that manages all the property change notification machinery.

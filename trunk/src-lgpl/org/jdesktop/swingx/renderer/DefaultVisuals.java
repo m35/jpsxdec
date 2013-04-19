@@ -1,5 +1,5 @@
 /*
- * $Id: DefaultVisuals.java,v 1.6 2008/10/14 22:31:40 rah003 Exp $
+ * $Id: DefaultVisuals.java 3778 2010-09-07 10:10:49Z kleopatra $
  *
  * Copyright 2006 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -45,6 +45,7 @@ import javax.swing.JComponent;
  * <li> componentOrientation
  * <li> toolTipText
  * <li> minimum-, maximum-, preferredSize
+ * <li> name
  * </ul>
  * 
  * Client code will rarely need to be aware of this class. It's the single
@@ -130,7 +131,8 @@ public class DefaultVisuals<T extends JComponent> implements Serializable {
      * 
      * Here: synch <code>Font</code>, <code>ComponentOrientation</code> and
      * <code>enabled</code> to context's component. Resets toolTipText to null.
-     * Calls configureSizes to reset xxSize if appropriate.
+     * Calls configureSizes to reset xxSize if appropriate. Resets the component's
+     * name property.
      * <p>
      * 
      * PENDING: not fully defined - "divers" means everything that's not 
@@ -141,14 +143,18 @@ public class DefaultVisuals<T extends JComponent> implements Serializable {
      * @param context the cell context to configure from, must not be null
      */
     protected void configureState(T renderingComponent, CellContext context) {
+        renderingComponent.setName(context.getCellRendererName());
         renderingComponent.setToolTipText(null);
         configureSizes(renderingComponent, context);
+        // PENDING JW: as of Issue #1269 this was changed to query the
+        // CellContext for the font - should move out off the else?
+        // context takes care of null component
+        renderingComponent.setFont(context.getFont());
         if (context.getComponent() == null) {
             // what to do?
             // we guarantee to cleanup completely - what are the defaults?
             // leave the decistion to the context?
         } else {
-            renderingComponent.setFont(context.getComponent().getFont());
             renderingComponent.setEnabled(context.getComponent().isEnabled());
             renderingComponent.applyComponentOrientation(context.getComponent()
                     .getComponentOrientation());

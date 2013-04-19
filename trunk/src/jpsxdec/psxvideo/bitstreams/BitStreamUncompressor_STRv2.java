@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -217,7 +217,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress, EOFException {
         code.setTop6Bits(_iQscale);
         code.setBottom10Bits(_bitReader.readSignedBits(10));
-        assert DEBUG ? _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10)) : true;
+        assert !DEBUG || _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10));
         assert !code.isEOD(); // a Qscale of 63 and DC of -512 would look like EOD
     }
 
@@ -226,13 +226,13 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         // 6 for run of zeros, 10 for AC Coefficient
         int iRunAndAc = _bitReader.readUnsignedBits(6 + 10);
         code.set(iRunAndAc);
-        assert DEBUG ? _debug.append(Misc.bitsToString(iRunAndAc, 16)) : true;
+        assert !DEBUG || _debug.append(Misc.bitsToString(iRunAndAc, 16));
 
         // Ignore AC == 0 coefficients.
         // (I consider this an error, but FF7 has these codes,
         // so clearly the MDEC can handle it.)
         if (code.getBottom10Bits() == 0) {
-            log.info("Escape code has 0 AC coefficient.");
+            LOG.info("Escape code has 0 AC coefficient.");
         }
     }
 
@@ -242,7 +242,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     public void skipPaddingBits() throws EOFException {
         int iPaddingBits = _bitReader.readUnsignedBits(11);
         if (iPaddingBits != b01111111110)
-            log.warning("Incorrect padding bits " + Misc.bitsToString(iPaddingBits, 11));
+            LOG.warning("Incorrect padding bits " + Misc.bitsToString(iPaddingBits, 11));
     }
 
     @Override
@@ -262,7 +262,9 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
     /** A strange value needed for video bitstreams and video sector headers.
      *  It's the number of MDEC codes, divided by two, then rounded up to the
-     *  next closest multiple of 32 (if not already a multiple of 32).  */
+     *  next closest multiple of 32 (if not already a multiple of 32).
+     *  In other words, its the number of 32-byte blocks it would take to hold
+     *  the MDEC codes. */
     public static short calculateHalfCeiling32(int iMdecCodeCount) {
         return (short) ((((iMdecCodeCount + 1) / 2) + 31) & ~31);
     }
@@ -300,7 +302,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     public String toString() {
         return String.format("%s Qscale=%d, Current Offset=%d, Current MB.Blk=%d.%d, MDEC count=%d",
                 getName(), getQscale(),
-                getStreamPosition(),
+                getWordPosition(),
                 getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
                 getMdecCodeCount());
     }

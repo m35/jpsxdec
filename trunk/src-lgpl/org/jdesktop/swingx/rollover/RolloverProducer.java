@@ -1,5 +1,5 @@
 /*
- * $Id: RolloverProducer.java,v 1.2 2009/03/11 12:06:01 kleopatra Exp $
+ * $Id: RolloverProducer.java 3982 2011-03-30 12:27:31Z kleopatra $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -21,9 +21,12 @@
 package org.jdesktop.swingx.rollover;
 
 import java.awt.Point;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.util.logging.Logger;
 
 import javax.swing.JComponent;
 
@@ -40,8 +43,13 @@ import javax.swing.JComponent;
  * 
  * @author Jeanette Winzenburg
  */
-public abstract class RolloverProducer implements MouseListener, MouseMotionListener {
+public abstract class RolloverProducer implements MouseListener, MouseMotionListener, 
+   ComponentListener {
 
+    @SuppressWarnings("unused")
+    private static final Logger LOG = Logger.getLogger(RolloverProducer.class
+            .getName());
+    
     /** 
      * Key for client property mapped from mouse-triggered action.
      * Note that the actual mouse-event which results in setting the property
@@ -54,13 +62,72 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
 
     //        public static final String PRESSED_KEY = "swingx.pressed";
 
+    private boolean isDragging;
+    
+    /**
+     * Installs all listeners, as required. 
+     * 
+     * @param component target to install required listeners on, must
+     *   not be null.
+     */
+    public void install(JComponent component) {
+        component.addMouseListener(this);
+        component.addMouseMotionListener(this);
+        component.addComponentListener(this);
+    }
+    
+    /**
+     * Removes all listeners.
+     * 
+     * @param component target component to uninstall required listeners from, 
+     *   must not be null
+     */
+    public void release(JComponent component) {
+        component.removeMouseListener(this);
+        component.removeMouseMotionListener(this);
+        component.removeComponentListener(this);
+    }
+    
     //----------------- mouseListener
 
     /**
-     * Implemented to map to client property clicked and fire always.
+     * Implemented to map to Rollover properties as needed. This implemenation calls
+     * updateRollover with both ROLLOVER_KEY and CLICKED_KEY properties. 
      */
     public void mouseReleased(MouseEvent e) {
-        updateRollover(e, CLICKED_KEY, true);
+        Point oldCell = new Point(rollover); 
+        // JW: fix for #456-swingx - rollover not updated after end of dragging
+        updateRollover(e, ROLLOVER_KEY, false);
+        // Fix Issue 1387-swingx - no click on release-after-drag
+        if (isClick(e, oldCell, isDragging)) {
+            updateRollover(e, CLICKED_KEY, true);
+        }
+        isDragging = false;
+    }
+
+    /**
+     * Returns a boolean indicating whether or not the given mouse event should
+     * be interpreted as a click. This method is called from mouseReleased
+     * after the cell coordiates were updated. While the ID of mouse event
+     * is not formally enforced, it is assumed to be a MOUSE_RELEASED. Calling
+     * for other types might or might not work as expected. <p>
+     * 
+     * This implementation returns true if the current rollover point is the same
+     * cell as the given oldRollover, that is ending a drag inside the same cell
+     * triggers the action while ending a drag somewhere does not. <p>
+     * 
+     * PENDING JW: open to more complex logic in case it clashes with existing code,
+     * see Issue #1387. 
+     * 
+     * @param e the mouseEvent which triggered calling this, assumed to be 
+     *    a mouseReleased, must not be null
+     * @param oldRollover the cell before the mouseEvent was mapped, must not be null
+     * @param wasDragging true if the release happened
+     * @return a boolean indicating whether or not the given mouseEvent should
+     *   be interpreted as a click.
+     */
+    protected boolean isClick(MouseEvent e, Point oldRollover, boolean wasDragging) {
+        return oldRollover.equals(rollover);
     }
 
     /**
@@ -68,6 +135,8 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
      * coordinate changed.
      */
     public void mouseEntered(MouseEvent e) {
+//        LOG.info("" + e);
+        isDragging = false;
         updateRollover(e, ROLLOVER_KEY, false);
     }
 
@@ -76,9 +145,17 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
      * source is a JComponent. Does nothing otherwise.
      */
     public void mouseExited(MouseEvent e) {
+        isDragging = false;
+//        screenLocation = null;
+//        LOG.info("" + e);
+//        if (((JComponent) e.getComponent()).getMousePosition(true) != null)  {
+//            updateRollover(e, ROLLOVER_KEY, false);
+//        } else {
+//        }
         ((JComponent) e.getSource()).putClientProperty(ROLLOVER_KEY, null);
         ((JComponent) e.getSource()).putClientProperty(CLICKED_KEY, null);
-    }
+            
+        }
 
     /**
      * Implemented to do nothing.
@@ -94,11 +171,10 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
 
     // ---------------- MouseMotionListener
     /**
-     * Implemented to do nothing.
-     * PENDING JW: probably should do something? Mapped coordinates will be out of synch
-     * after a drag.
+     * Implemented to set a dragging flag to true.
      */
     public void mouseDragged(MouseEvent e) {
+        isDragging = true;
     }
 
     /**
@@ -107,6 +183,36 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
      */
     public void mouseMoved(MouseEvent e) {
         updateRollover(e, ROLLOVER_KEY, false);
+    }
+
+    //---------------- ComponentListener
+    
+    
+    public void componentShown(ComponentEvent e) {
+    }
+    
+    public void componentResized(ComponentEvent e) {
+        updateRollover(e);
+    }
+    
+    public void componentMoved(ComponentEvent e) {
+        updateRollover(e);
+    }
+
+    /**
+     * @param e
+     */
+    private void updateRollover(ComponentEvent e) {
+        Point componentLocation = e.getComponent().getMousePosition();
+        if (componentLocation == null) {
+            componentLocation = new Point(-1, -1);
+        }
+//        LOG.info("" + componentLocation + " / " + e);
+        updateRolloverPoint((JComponent) e.getComponent(), componentLocation);
+        updateClientProperty((JComponent) e.getComponent(), ROLLOVER_KEY, true);
+    }
+    
+    public void componentHidden(ComponentEvent e) {
     }
 
     //---------------- mapping methods
@@ -126,7 +232,7 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
     protected void updateRollover(MouseEvent e, String property,
             boolean fireAlways) {
         updateRolloverPoint((JComponent) e.getComponent(), e.getPoint());
-        updateClientProperty((JComponent) e.getSource(), property, fireAlways);
+        updateClientProperty((JComponent) e.getComponent(), property, fireAlways);
     }
 
     /** Current mouse location in client coordinates. */

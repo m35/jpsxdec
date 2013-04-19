@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2012  Michael Sabin
+ * Copyright (C) 2007-2013  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,8 +41,8 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemSerialization;
 import jpsxdec.discitems.DiscItemStrVideoStream;
+import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.indexing.psxvideofps.StrFrameRateCalc;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
@@ -57,7 +57,7 @@ import jpsxdec.util.NotThisTypeException;
  */
 public class DiscIndexerStrVideo extends DiscIndexer {
 
-    private static final Logger log = Logger.getLogger(DiscIndexerStrVideo.class.getName());
+    private static final Logger LOG = Logger.getLogger(DiscIndexerStrVideo.class.getName());
 
     private IVideoSector _prevSector;
     private int _iStartSector;
@@ -71,7 +71,7 @@ public class DiscIndexerStrVideo extends DiscIndexer {
     }
 
     @Override
-    public DiscItem deserializeLineRead(DiscItemSerialization deserializedLine) {
+    public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine) {
         try {
             if (DiscItemStrVideoStream.TYPE_ID.equals(deserializedLine.getType())) {
                 return new DiscItemStrVideoStream(deserializedLine);
@@ -124,10 +124,10 @@ public class DiscIndexerStrVideo extends DiscIndexer {
     private void endOfMovie() {
         Fraction sectorsPerFrame;
         if (_fpsCalc != null && (sectorsPerFrame = _fpsCalc.getSectorsPerFrame()) != null) {
-            if (log.isLoggable(Level.INFO))
-                log.info(_fpsCalc.toString());
-            if (_iStartFrame > 1 && log.isLoggable(Level.WARNING)) {
-                log.warning("Video stream first frame is not 0 or 1: " + _iStartFrame);
+            if (LOG.isLoggable(Level.INFO))
+                LOG.info(_fpsCalc.toString());
+            if (_iStartFrame > 1 && LOG.isLoggable(Level.WARNING)) {
+                LOG.warning("Video stream first frame is not 0 or 1: " + _iStartFrame);
             }
 
             super.addDiscItem(new DiscItemStrVideoStream(
@@ -163,13 +163,7 @@ public class DiscIndexerStrVideo extends DiscIndexer {
     }
 
     @Override
-    public void mediaListGenerated(DiscIndex index) {
-
-        for (DiscItem item : index) {
-            if (item instanceof DiscItemStrVideoStream)
-                ((DiscItemStrVideoStream)item).collectParallelAudio(index);
-        }
-
+    public void indexGenerated(DiscIndex index) {
     }
 
 }

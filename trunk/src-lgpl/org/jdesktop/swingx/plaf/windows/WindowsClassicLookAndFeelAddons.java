@@ -1,5 +1,5 @@
 /*
- * $Id: WindowsClassicLookAndFeelAddons.java,v 1.2 2005/10/10 18:02:25 rbair Exp $
+ * $Id: WindowsClassicLookAndFeelAddons.java 4092 2011-11-30 18:04:36Z kschaefe $
  *
  * Copyright 2004 Sun Microsystems, Inc., 4150 Network Circle,
  * Santa Clara, California 95054, U.S.A. All rights reserved.
@@ -20,9 +20,40 @@
  */
 package org.jdesktop.swingx.plaf.windows;
 
+import static javax.swing.UIManager.getLookAndFeel;
+import static javax.swing.UIManager.getSystemLookAndFeelClassName;
+
+import org.jdesktop.swingx.plaf.LookAndFeelAddons;
+import org.jdesktop.swingx.util.OS;
+
 /**
  * Adds new pluggable UI following the Windows Classic look and feel. Currently
  * it extends the XP look and feel and overrides the <code>JTaskPane</code>
  * and <code>JTaskPaneGroup</code> UIs.
  */
-public class WindowsClassicLookAndFeelAddons extends WindowsLookAndFeelAddons { }
+public class WindowsClassicLookAndFeelAddons extends WindowsLookAndFeelAddons {
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean matches() {
+        String laf = getLookAndFeel().getClass().getName();
+        
+        if (isSystemAddon()) {
+            //special-case the jgoodies to ensure that we can match it
+            return getSystemLookAndFeelClassName().equals(laf)
+                    || "com.jgoodies.looks.windows.WindowsLookAndFeel".equals(laf);
+        }
+        
+        return "com.sun.java.swing.plaf.windows.WindowsClassicLookAndFeel".equals(laf);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean isSystemAddon() {
+        return OS.isWindows() && !OS.isUsingWindowsVisualStyles();
+    }
+}

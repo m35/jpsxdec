@@ -39,7 +39,6 @@ package jpsxdec.discitems;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Logger;
@@ -535,8 +534,8 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         _audDecoder.resetContext();
     }
     
-    public void printAudioDetails(PrintStream ps) {
-        ps.println("Embedded Crusader audio " + CRUSADER_SAMPLES_PER_SECOND + "Hz");
+    public String[] getAudioDetails() {
+        return new String[] {"Embedded Crusader audio " + CRUSADER_SAMPLES_PER_SECOND + "Hz"};
     }
     
 }

@@ -39,6 +39,7 @@ package jpsxdec.psxvideo.bitstreams;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.logging.Logger;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
@@ -50,6 +51,8 @@ import jpsxdec.util.NotThisTypeException;
  * Makes use of most of STR v2 code. Adds v3 handling for DC values. */
 public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
+    private static final Logger LOG = Logger.getLogger(BitStreamUncompressor_STRv3.class.getName());
+    
     // ########################################################################
     // ## Static stuff ########################################################
     // ########################################################################
@@ -261,6 +264,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         _iPreviousCr_DC = _iPreviousCb_DC = _iPreviousY_DC = 0;
     }
 
+    /** Returns if this is a v3 frame. */
     public static boolean checkHeader(byte[] abFrameData) {
         int iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
         int iMagic3800          = IO.readUInt16LE(abFrameData, 2);
@@ -271,6 +275,13 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
                  iVersion != 3  || iHalfVlcCountCeil32 < 0);
     }
 
+    public static int getQscale(byte[] abFrameData) {
+        if (checkHeader(abFrameData))
+            return IO.readSInt16LE(abFrameData, 4);
+        else
+            return -1;
+    }
+    
     @Override
     protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress, 
                                                          EOFException
@@ -379,9 +390,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         protected int getHeaderVersion() { return 3; }
 
         @Override
-        public byte[] compress(MdecInputStream inStream, int iMdecCodeCount) throws MdecException {
+        public byte[] compress(MdecInputStream inStream, int iWidth, int iHeight) throws MdecException {
             _iPreviousCr_DC4 = _iPreviousCb_DC4 = _iPreviousY_DC4 = 0;
-            return super.compress(inStream, iMdecCodeCount);
+            return super.compress(inStream, iWidth, iHeight);
         }
 
         private int _iPreviousCr_DC4, _iPreviousCb_DC4, _iPreviousY_DC4;

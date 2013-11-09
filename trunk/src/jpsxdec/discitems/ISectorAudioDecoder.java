@@ -38,7 +38,6 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.sectors.IdentifiedSector;
@@ -73,7 +72,7 @@ public interface ISectorAudioDecoder {
     int getStartSector();
     int getEndSector();
 
-    void printAudioDetails(PrintStream ps);
+    String[] getAudioDetails();
     
     int getSamplesPerSecond();
 

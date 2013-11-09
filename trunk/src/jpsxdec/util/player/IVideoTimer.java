@@ -42,5 +42,6 @@ interface IVideoTimer {
 
     boolean waitToPresent(VideoPlayer.VideoFrame frame);
     boolean shouldBeProcessed(long lngPresentationTime);
+    Object getSyncObject();
 
 }

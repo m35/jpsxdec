@@ -74,7 +74,6 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
     public void progressEnd() {
         _ps.println(buildProgress(1));
         _dblNextProgressMark = 0;
-        close();
     }
 
     public void progressStart() { progressStart(null); }
@@ -82,6 +81,8 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
         if (s != null)
             _ps.println(s);
         _dblNextProgressMark = 0;
+        _iWarnCount = 0;
+        _iErrCount = 0;
     }
 
     public void progressUpdate(double dblPercentComplete) {
@@ -118,7 +119,7 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
 
         if (_iWarnCount > 0)
             strBuild.append(" ").append(_iWarnCount).append(" warnings");
-        if (_iWarnCount > 0)
+        if (_iErrCount > 0)
             strBuild.append(" ").append(_iErrCount).append(" errors");
 
         return strBuild.toString();

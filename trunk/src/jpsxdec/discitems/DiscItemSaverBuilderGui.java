@@ -191,8 +191,8 @@ public abstract class DiscItemSaverBuilderGui<T extends DiscItemSaverBuilder> ex
             Object o;
             if (__cur != (o = getSelectedItem())) {
                 __cur = o;
-                fireContentsChanged(this, 0, getSize());
             }
+            fireContentsChanged(this, 0, getSize());
             updateEnabled();
         }
         private void updateEnabled() {

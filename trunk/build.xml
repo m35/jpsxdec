@@ -45,7 +45,7 @@
         <!-- Compile the java code in root source dirs, intermingling the .class files -->
         <!-- In order to keep the class files separate so they can be grouped 
              into separate jars, we can't specify a separate build directory -->
-        <javac srcdir="${src.dir}:${src-lgpl.dir}"
+        <javac srcdir="${src.dir}:${src-lgpl.dir}" includeantruntime="false"
             source="${javac.source.ver}" target="${javac.target.ver}"
             encoding="UTF8" debug="true" />
             
@@ -98,7 +98,7 @@
     <target name="test" depends="release">
         <mkdir dir="${testbuild.dir}"/>
         <javac srcdir="${test.dir}" destdir="${testbuild.dir}" debug="true"
-               classpath=""
+               classpath="" includeantruntime="false"
                source="1.6" target="1.6" />
         <junit printsummary="yes" haltonfailure="yes">
             <classpath>

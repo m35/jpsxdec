@@ -10,47 +10,43 @@
 
 .....................
 
+
 Self contained
-* Fix: Save as, Saved as, Output
-* Update manual screenshots
-* Add WCW to sector test
-* Update LoM sector test
+! Update manual screenshots
+* Add time log msg at end of save/index
+* Add disc opening to debug.log
+! Duplicated frame number in header messes things up (iki)
+* Not closing files if indexing is canceled
+* Rewrite manual
+* New video GUI
+* Proper handling when directory box is empty
+* Finish testing LoD iki: GOAST.IKI (end of disc 2), DENIN2.INI (middle of disc 3), DRAGON1.IKI
+* add double-click and arrow list
+* add keyboard actions on rows
+* Update dir chooser
 * Update launch4j
-* Remove 'high' quality
 * Print bs format in -static
 * Bug when saving: leftover text in Message column
 * Add About button
 * Add exit button
 * Add selected count on Save All Selected button
-* Add /doc folder to put most stuff for release
 * Find better dropdown button
-* Experiment with other tree tables (need Mac)
-* Create mac app bundle: need a Mac to test!
-* Test Tim generation width
 * double-check what the EOF and Audio-end flags mean
-* MDEC to JPEG translator
-* Finish Crusader
-    * Crusader tests
-        . only audio
-        . starts near end
-        . missing audio chunk
-        . missing audio sectors
-        . missing video sectors
-        . missing video chunk
-* Bug: Cmdline multi processing overwrites save.log file for each item
-* Expose logger options
-* Optimize AviWriter with buffers
-    - Construct audio/video chunks in ram before writing
-    - Write to buffered stream
-* Make XA encoder
+* Add WCW to sector test
+* Update LoM sector test
+* Finish Crusader tests
+    . only audio
+    . starts near end
+    . missing audio chunk
+    . missing audio sectors
+    . missing video sectors
+    . missing video chunk
+* Add partial replace tests
 * Add unit tests to build.xml
     * Unit tests require Java 6 while jPSXdec is built with Java 5 ...
       can use 2 different Javas in ant?
-* Generate javadoc and post on site
-? Add LIST:INFO:ISFT to AVI
-? Make tutorial on ripping a game and using jpsxdec
-? Change visualization to output HTML page
-? Save and load ini on every change?
+* Experiment with other tree tables (need Mac)
+* Create mac app bundle: need a Mac to test!
 
 General
 * Code coverage/unit testing
@@ -62,57 +58,56 @@ General
       /  2) Various ways to decode MDEC streams
 * Translate/localize the GUI and CL text
 * Replace all logging to use proper logging syntax
-* Mac test
 * Clean up all the TODOs
-// import cleanup
 * write code documentation
+* Mac test
 ? Run unit tests against older versions
 
 Compare
-* Compare against PSound
 ! Compare ffmpeg ycbcr->rgb to PSX ycbcr->rgb
+* Compare against PSound
 * Compare against XA audio converter http://www.romhacking.net/utilities/894/
 * Castlevania seems to have movies with lots of extra frames at the end?
 * Compare Tim against various tools out there
 
 Redesign
-* Combine VideoSaver and VideoSavers
-* Cleanup Main (again)
-    ? new parsx lib: String sFile = parser.getStringParam("-f");
-    * Add cmdline 1 arg -> start gui and open idx or img
 ! Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates
   make them 75 or 150 fps - by checking how much variance there is between frame lengths
+? Even when not upsampling chroma, utilize it for PsxYuv->JpgYuv matrix conversion
+    ! Test how much difference there is between the two color sets
+* Expose logger options
 * Log when frame rate detection fails
 * Bug: Using start and end frames to calculate anything may not work if frame numbering skips
-* Change current fps fallback calc to actually count the frames
+    * Change current fps fallback calc to actually count the frames
 * Remove need for frame numbers, and Dredd prebuilt index
 * Just store the frame start sectors for Dredd
-? Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
 * Command-line selection of parallel audio?
 * change xa playback to properly handle static (adjacent sector) streaming
 * Bug: Ubuntu: only tree column is white, but text boxes have gray background
 * Figure out how to better organize all the RGB and YCbCr pixel formats
 * Add -psxfps
-// Add bicubic and lanczos chroma upsampling interpolation
-    // Change video saving settings to include interpolation option
-    // Recompare ffmpeg and jPSXdec
-    ? Even when not upsampling, utilize it for PsxYuv->JpgYuv matrix conversion
-        ! Test how much difference there is between the two color sets
-! Add tooltips for everything
+* Add tooltips for everything
+? Combine [Open & Analyze Disc] with [Open Index]?
+? Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
 ? Try to automate the release process
 ? When displaying progress, setup a timer to only update the display at most every second
 ? Index doesn't indicate generic type
 ? More robust contextual CD sector detection
 ? Add option to save just 1 item allowing to specify name and location
 ? Is there a better Saving dialog design?
+? Cleanup Main (again)
+    ? new parsx lib: String sFile = parser.getStringParam("-f");
+    ? Remove FeedbackStream and just use a Logger
+    // Add cmdline 1 arg -> start gui and open idx or img
+    // Bug: Cmdline multi processing overwrites save.log file for each item
 
 
 User test feedback
-? Ignore completely transparent paletted Tims
 * Saving dialog title weird
 * Exit program button/menu
 * [Save] button not really associated with selection
 * More clearly associate list with right panel
+? Ignore completely transparent paletted Tims
 // Fix apply to all Tim
 // Sees disc items as "files"
 // Bug: FPS not grayed in some cases
@@ -123,66 +118,35 @@ User test feedback
 .....................
 
 Indexing
-    ? More static data handling
-        / Searching for static MDEC data
-        ? Searching for static bitstream data
-        x Finding and uncompressing lhz data, often used in PSX games
-    ? STR indexing: add serialized value: Precise fps:Y/N. When there's no rate variance, then it can be used for -psxfps
     * ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
       When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
-    ? Visually populate a list as the disc/file is being indexed
-    ? Add list box when indexing that will show the items as they are discovered
-    ? Add in a comment what sector types were found during indexing (for debugging)
-! Video encoder
-    ! Finish .iki encoder
-        1. Encode STRv2,v3 full
-        2. Encode STRv2,v3 partial
-        3. Encode Lain full
-        4. Encode Lain partial
-        5. Encode iki full -> investigate how existing movies know what blocks have higher qscale
-        6. Encode iki partial
-        Remove ParsedMdecImage
+Video encoder
     * remove/merge redundant MDEC codes with AC=0 (FF7)
-    * add handling when partial replace detects the entire frame is different
-    * Split up the partial diff detection from the actual replacing. Helpful for
-        . Generating an xml with frames without changes removed
-        . GUI preview would be useful to expose this info
-    ? add built-in sub-title rendering (ala Jubler)
-    ? create movies from scratch
-    ? Include Cb/Cr un-swap correction option
-      so videos decoded with other programs can be re-encoded with consistent coloring
-    x Alternatively create an mpeg2 parser and converter
-    x Add frame (quantization) format descriptors to compare for compatability, print details, and use for encoder
-    x Fancy encoding algorithms
-        x Smart chrominance sub-sampling calculation
-        x Pre-anti-aliasing and Pre-blockiness reduction
-        x Temporal spreading (diffusion?) of quantization error
-        x Shorter VLC substitution searching
-        x Trellis quantization
-        x Context-adaptive variable-length coding (or is this h.264 only?)
-* Real-time media playback/preview
+    * What to do when partial replace detects the entire frame is different
+Real-time media playback/preview
+    ! Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player (ff tactics FFTST.STR)
+    * Bug: when audio doesn't start for a prolonged period, video frame queue fills and blocks
     * OpenJDK Ubuntu video playback doesn't process frames
+    * Oracle Java Ubuntu VM audio auto-starts when it shouldn't
     * Add PlayingState.AT_END
     * Bug: Player doesn't let you play movie with 1 frame
-    ! Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player
-    * Bug: Player automatically plays video-only content when it is very short
+    /?/ Bug: end of playing race condition locks gui
+    /?/ Bug: Player automatically plays video-only content when it is very short
+    // change to use Java 2D
+    // Add choosing of aspect ratio to api
     * Bug: video player repeats prior frames and audio when frame type is not detected
     * Pause video-only playback when reading is delayed
-    ! Bug: end of playing race condition locks gui
-    * Bug: when audio doesn't start for a prolonged period, video frame queue fills and blocks
     * Skip audio in the rare case it is behind sector reading
         - Need to address static (sequential sector) audio
     * Change VideoPlayer into PlayerCanvas that also holds the progress bar and control buttons
     * Add choosing of video scaling interpolation option to api
-    * Add choosing of aspect ratio to api
     * [CL] Add command-line options to pick zooming, interpolation, and aspect ratio
     ? Fix it on Linux (Ubuntu) somehow
         x Figure out how to make Linux multithreading not suck
-        x Implement my own low-latency audio position tracking
-    ? change to use Java 2D
+        / Implement my own low-latency audio position tracking
+            ? Register listeners with the SourceDataLine and let those events pause the
+            other components indirectly
     x Add seeking
-    x Register listeners with the SourceDataLine and let those events pause the
-      other components indirectly
 ? Replicate exact PSX color conversion
     * Reverse engineer IDCT
         Create test movies with -0.5 identity IDCT
@@ -194,59 +158,74 @@ Indexing
             Add remaining Cb and Cr values
             // Figure out why Y comes out so strange
 
-// Update copyright year script
-// Remove doxygen
-// Cleanup STRv3
-// Clarify that Rec601YCbCrImage class is also used for full range ycbcr
-// Verify Crusader audio rate http://www.razyboard.com/system/morethread-scrambled-sound-pete_bernert-41713-427403-0.html
-// Clean up creating directory tree for saving
-// Add Uninstall wiki page
-// Pull Main.version -> Version
-// Bug: slow scrolling when treetable has hundreds of items (Windows)
-    // Change Treetable library
-// Add jpsxdec id to AVI such that K-Lite Media Info displays it
-// Bug: Save dialog overwrite prompt doesn't consider auto extention
-// Rotate pdf visualization
-// Remove non-existent files from dropdowns
-// Add handling for "Unnamed" file names colliding with disc file names
-// Show output file(s) in TIM panel
-// Optimize index file loader
-    // Clean up tree hierarchy building code
-    // Bug: audio streams are still being shared by multiple video streams somehow
-// Cleanup the whole ConsoleProgressListenerLogger mess
-    // save.log not including headers
-// Change time display 1 min 1 sec -> 1:01
-// Make Chroma Upsampling be Nearest Neighbor when quality is Fastest
-// Prompt to save index from dropdown
-// Warn if loading index child was rejected
-// Tim put static methods in Tim, MakeTim -> private CreateTim
-// Don't strip original file extension when saving
-    // Bug: Lemmings 3D ANIMATO/ANIMATO.* videos saved with same name, overwrites itself
-// Hi quality Tim 16bpp->24bpp
-// XA check sound parameters during decoding, log errors, and pick most reliable values
-    // Fix XA log warnings not having any context
-        x callback
-        x message buffer
-        // pass context
-            x using logging subheader
-            // pass it in
-    // XA decoding is outta wack
-// Implement my own logger framework
-// Bug: 4bit tim saved as bmp appears stretched with interleaved black lines - since at least 0.96
-// Bug: GUI doesn't close old files after opening new ones
-// Fix vid duration display in DDR
-// Change everything to just: video, audio, image
-// Finish XA copy
-// Mode 1 sector handling
-    // Figure out what's wrong with DDR
-// Improve manual
-// Bug: Save Log files not printing source disc image from cmdline
-// Bug: Play tab remains enabled after opening or something
-// Retest all PSX games
-// Start Lain process
-    // Encoding redesign
-    x AVI parsing
+// update manual -f
+// Have Userfriendly logger also log to debug.log
+// Enhance -frameinfodump with how many bits per block
+// Finish .iki encoding: find what blocks to decrease qscale
+// Test other video playback library https://github.com/riven8192/LibMedia
+// Add bicubic and lanczos chroma upsampling interpolation
+    // Change video saving settings to include interpolation option
+    // Recompare ffmpeg and jPSXdec
+// Combine VideoSaver and VideoSavers
+// Video encoder
+    // Finish .iki encoder
+        1. Encode STRv2,v3 full
+        2. Encode STRv2,v3 partial
+        3. Encode Lain full
+        4. Encode Lain partial
+        5. Encode iki full -> investigate how existing movies know what blocks have higher qscale
+        6. Encode iki partial
+    x Alternatively create an mpeg2 parser and converter
+    x Add frame (quantization) format descriptors to compare for compatability, print details, and use for encoder
+    x Fancy encoding algorithms
+        x Smart chrominance sub-sampling calculation
+        x Pre-anti-aliasing and Pre-blockiness reduction
+        x Temporal spreading (diffusion?) of quantization error
+        x Shorter VLC substitution searching
+        x Trellis quantization
+        x Context-adaptive variable-length coding (or is this h.264 only?)
+// Test Tim generation width
+// tim: copy to clipboard
+x Update argparser -> No updates since forever
+// Bug: Video save saving doesn't use jpg compression quality for jpeg imgseq
+// MDEC to JPEG translator
+    // Remove jpeg quality option
+//IMGSEQ_DEMUX->BITSTREAM
+//Gui save: Success -> Complete
+//Gui: "And"
+// Don't print id # before set
+// Fix: Save as, Saved as, Output
+// Remove 'high' quality
 
+
+Indexing
+    ? More static data handling
+        / Searching for static MDEC data
+        ? Searching for static bitstream data
+        x Finding and uncompressing lhz data, often used in PSX games
+    ? STR indexing: add serialized value: Precise fps:Y/N. When there's no rate variance, then it can be used for -psxfps
+    ? Visually populate a list as the disc/file is being indexed
+    ? Add list box when indexing that will show the items as they are discovered
+    ? Add in a comment what sector types were found during indexing (for debugging)
+Video encoder
+    ? Split up the partial diff detection from the actual replacing. Helpful for
+        . Generating an xml with frames without changes removed
+        . GUI preview would be useful to expose this info
+    ? add built-in sub-title rendering (ala Jubler)
+    ? create movies from scratch
+    ? Include Cb/Cr un-swap correction option
+      so videos decoded with other programs can be re-encoded with consistent coloring
+? Make XA encoder
+? Generate javadoc and post on site
+    - How does that affect wiki pages?
+    - webdav ant task
+? Optimize AviWriter with buffers
+    - Construct audio/video chunks in ram before writing
+    - Write to buffered stream
+? Add LIST:INFO:ISFT to AVI
+? Make tutorial on ripping a game and using jpsxdec
+? Change visualization to output HTML page
+? Save and load ini on every change?
 ? https://code.google.com/p/xfiledialog/
 ? Update manual to cover game ripping
 ? Indexing overhaul:

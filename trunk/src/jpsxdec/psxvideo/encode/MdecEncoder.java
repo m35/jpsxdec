@@ -37,216 +37,129 @@
 
 package jpsxdec.psxvideo.encode;
 
+import java.awt.Point;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import jpsxdec.psxvideo.mdec.Calc;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import static jpsxdec.psxvideo.mdec.MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST;
-import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
+import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 
-/** Encodes a {@link PsxYCbCrImage} into an {@link MdecInputStream} at the
- *  specified quantization scale. After encoding, the MdecInputStream
- *  will most likely be then compressed as a bitstream.  */
-public class MdecEncoder {
+/** Encodes a {@link PsxYCbCrImage} into an {@link MdecInputStream}.
+ * After encoding, the MdecInputStream will most likely be then
+ * compressed as a bitstream.  */
+public class MdecEncoder implements Iterable<MacroBlockEncoder> {
 
-    private static final boolean DEBUG = false;
-
-    private final double[][] _aadblYBlockVectors;
-    private final double[][] _aadblCbBlockVectors;
-    private final double[][] _aadblCrBlockVectors;
+    private final Iterable<MdecCode>[] _aoMacroBlocks;
+    private final ArrayList<MacroBlockEncoder> _replaceMbs = new ArrayList<MacroBlockEncoder>();
     private final int _iMacBlockWidth;
+    private final int _iPixWidth, _iPixHeight;
     private final int _iMacBlockHeight;
-    // TODO: Change to use a Forward DCT more closely resembling the PSX
-    private StephensIDCT _DCT = new StephensIDCT();
 
-    private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
-            MdecInputStream.getDefaultPsxQuantMatrixCopy();
-
-
-    /**
-     * The luma and chroma quantization scales are separate primarily for
-     * handling Lain bitstream format. All other video formats should use the
-     * same value for luma and chroma.
-     */
-    public MdecEncoder(PsxYCbCrImage ycbcr) {
+    public MdecEncoder(PsxYCbCrImage ycbcr, int iWidth, int iHeight) {
 
         if (ycbcr.getLumaWidth() % 16 != 0 || ycbcr.getLumaHeight() % 16 != 0)
             throw new IllegalArgumentException();
 
+        _iPixWidth = iWidth;
+        _iPixHeight = iHeight;
         _iMacBlockWidth = ycbcr.getLumaWidth() / 16;
         _iMacBlockHeight = ycbcr.getLumaHeight() / 16;
 
-        _aadblYBlockVectors = new double[_iMacBlockWidth * _iMacBlockHeight * 4][];
-        _aadblCbBlockVectors = new double[_iMacBlockWidth * _iMacBlockHeight][];
-        _aadblCrBlockVectors = new double[_iMacBlockWidth * _iMacBlockHeight][];
+        _aoMacroBlocks = new Iterable[_iMacBlockWidth * _iMacBlockHeight];
 
-        // encode luma
-        int iBlock = 0;
-        for (int iBlockX = 0; iBlockX < _iMacBlockWidth*2; iBlockX++) {
-            for (int iBlockY = 0; iBlockY < _iMacBlockHeight*2; iBlockY++) {
-                double[] adblBlock = ycbcr.get8x8blockY(iBlockX*8, iBlockY*8);
-                _aadblYBlockVectors[iBlockX + iBlockY * _iMacBlockWidth*2] = encodeBlock(adblBlock);
-                iBlock++;
-            }
-        }
-        // encode chroma
-        iBlock = 0;
-        for (int iBlockX = 0; iBlockX < _iMacBlockWidth; iBlockX++) {
-            for (int iBlockY = 0; iBlockY < _iMacBlockHeight; iBlockY++) {
-                double[] adblBlock = ycbcr.get8x8blockCb(iBlockX*8, iBlockY*8);
-                if (DEBUG)
-                    System.out.println("Encoding macroblock " + iBlock + " Cb");
-                _aadblCbBlockVectors[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock);
-                if (DEBUG)
-                    System.out.println("Encoding macroblock " + iBlock + " Cr");
-                adblBlock = ycbcr.get8x8blockCr(iBlockX*8, iBlockY*8);
-                _aadblCrBlockVectors[iBlockX + iBlockY * _iMacBlockWidth] = encodeBlock(adblBlock);
-                iBlock++;
+        for (int iMbX = 0; iMbX < _iMacBlockWidth; iMbX++) {
+            for (int iMbY = 0; iMbY < _iMacBlockHeight; iMbY++) {
+                MacroBlockEncoder enc = new MacroBlockEncoder(ycbcr, iMbX, iMbY);
+                _aoMacroBlocks[iMbX * _iMacBlockHeight + iMbY] = enc;
+                _replaceMbs.add(enc);
             }
         }
 
     }
 
-    private double[] encodeBlock(double[] adblBlock) {
-        if (DEBUG) {
-            System.out.println("Pre DCT");
-            for (int y = 0; y < 8; y++) {
-                System.out.print("[ ");
-                for (int x = 0; x < 8; x++) {
-                    System.out.format("%1.3f ", adblBlock[x + y * 8]);
+    public MdecEncoder(ParsedMdecImage origional, PsxYCbCrImage newYcbcr, List<Point> replaceMbs) {
+
+        if (newYcbcr.getLumaWidth() % 16 != 0 || newYcbcr.getLumaHeight() % 16 != 0)
+            throw new IllegalArgumentException();
+
+        _iPixWidth = origional.getWidth();
+        _iPixHeight = origional.getHeight();
+        _iMacBlockWidth = Calc.macroblockDim(newYcbcr.getLumaWidth());
+        _iMacBlockHeight = Calc.macroblockDim(newYcbcr.getLumaHeight());
+
+        _aoMacroBlocks = new Iterable[_iMacBlockWidth * _iMacBlockHeight];
+
+        Point p = new Point();
+        for (int iMbX = 0; iMbX < _iMacBlockWidth; iMbX++) {
+            for (int iMbY = 0; iMbY < _iMacBlockHeight; iMbY++) {
+                p.setLocation(iMbX, iMbY);
+                Iterable<MdecCode> enc;
+                if (replaceMbs.contains(p)) {
+                    MacroBlockEncoder e = new MacroBlockEncoder(newYcbcr, iMbX, iMbY);
+                    _replaceMbs.add(e);
+                    enc = e;
+                } else {
+                    enc = origional.getMacroBlockCodes(iMbX, iMbY);
                 }
-                System.out.println("]");
+                _aoMacroBlocks[iMbX * _iMacBlockHeight + iMbY] = enc;
             }
         }
 
-        // perform the discrete cosine transform
-        _DCT.forwardDCT(adblBlock);
-
-        if (DEBUG) {
-            System.out.println("Post DCT (Pre zig-zag & quant)");
-            for (int y = 0; y < 8; y++) {
-                System.out.print("[ ");
-                for (int x = 0; x < 8; x++) {
-                    System.out.format("%1.3f ", adblBlock[x + y * 8]);
-                }
-                System.out.println("]");
-            }
-        }
-
-        double[] aiBlock = preQuantizeZigZagBlock(adblBlock);
-
-        if (DEBUG) {
-            System.out.println("Final block");
-            for (int y = 0; y < 8; y++) {
-                System.out.print("[ ");
-                for (int x = 0; x < 8; x++) {
-                    System.out.print(aiBlock[x + y * 8] + " ");
-                }
-                System.out.println("]");
-            }
-        }
-
-        return aiBlock;
+    }
+    
+    public Iterator<MacroBlockEncoder> iterator() {
+        return _replaceMbs.iterator();
     }
 
-    private double[] preQuantizeZigZagBlock(double[] adblBlock) {
-        double[] adblVector = new double[8*8];
-        // partially quantize it
-        adblVector[0] = (int)Math.round(adblBlock[0]
-                     / (double)PSX_DEFAULT_QUANTIZATION_MATRIX[0]);
-        if (DEBUG)
-            System.out.println(adblVector[0]);
-        for (int i = 1; i < REVERSE_ZIG_ZAG_LOOKUP_LIST.length; i++) {
-            int iZigZagPos = REVERSE_ZIG_ZAG_LOOKUP_LIST[i];
-            adblVector[i] = adblBlock[iZigZagPos] * 8.0 / PSX_DEFAULT_QUANTIZATION_MATRIX[iZigZagPos];
-            if (DEBUG)
-                System.out.println(adblVector[i]);
-        }
-        return adblVector;
+    public MdecInputStream getStream() {
+        return new EncodedMdecInputStream();
     }
 
-    public MdecInputStream getStream(int[] aiBlockQscales) {
-        return new EncodedMdecInputStream(aiBlockQscales);
+    public int getMacroBlockCount() {
+        return _iMacBlockWidth * _iMacBlockHeight;
+    }
+    
+    public int getMacroBlockWidth() {
+        return _iMacBlockWidth;
+    }
+    
+    public int getMacroBlockHeight() {
+        return _iMacBlockHeight;
+    }
+
+    public int getPixelWidth() {
+        return _iPixWidth;
+    }
+
+    public int getPixelHeight() {
+        return _iPixHeight;
     }
 
     private class EncodedMdecInputStream extends MdecInputStream {
 
-        private int __iMacroBlockX=0, __iMacroBlockY=0, __iBlock=0, __iVectorPos=0;
-        private int __iQscale;
+        private int __iCurMacBlk = 0;
+        private Iterator<MdecCode> __curMb;
 
-        private final int[] __aiBlockQscales;
-        private int __iQscaleIndex = 0;
-
-        public EncodedMdecInputStream(int[] aiBlockQscales) {
-            __aiBlockQscales = aiBlockQscales;
+        public EncodedMdecInputStream() {
+            __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
         }
 
-        private int nextQscale() {
-            int iNextQscale = __aiBlockQscales[__iQscaleIndex];
-            if (iNextQscale < 1 || iNextQscale > 63)
-                throw new RuntimeException("Invalid qscale " + iNextQscale);
-            __iQscaleIndex++;
-            return iNextQscale;
-        }
+        public boolean readMdecCode(MdecCode code) throws MdecException.Read {
 
-        public boolean readMdecCode(MdecCode code) {
-            double[] adblVector;
-            switch (__iBlock) {
-                case 0: adblVector = _aadblCrBlockVectors[ __iMacroBlockX +  __iMacroBlockY * _iMacBlockWidth]; break;
-                case 1: adblVector = _aadblCbBlockVectors[ __iMacroBlockX +  __iMacroBlockY * _iMacBlockWidth]; break;
-                case 2: adblVector = _aadblYBlockVectors[(__iMacroBlockX * 2   ) +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
-                case 3: adblVector = _aadblYBlockVectors[(__iMacroBlockX * 2 +1) +  __iMacroBlockY * 2     * _iMacBlockWidth * 2]; break;
-                case 4: adblVector = _aadblYBlockVectors[ __iMacroBlockX * 2     + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
-                case 5: adblVector = _aadblYBlockVectors[ __iMacroBlockX * 2 +1  + (__iMacroBlockY * 2 +1) * _iMacBlockWidth * 2]; break;
-                default: throw new IllegalStateException();
-            }
-
-            if (__iVectorPos == 0) { // qscale & dc
-                __iQscale = nextQscale();
-                code.setTop6Bits(__iQscale);
-                code.setBottom10Bits((int)Math.round(adblVector[0]));
-                __iVectorPos++;
-                if (DEBUG)
-                    System.out.println(code);
-                return false;
-            } else {
-                int iZeroCount = 0;
-                int iQuantVal = -1;
-                while (__iVectorPos < adblVector.length) {
-                    iQuantVal = (int)Math.round(adblVector[__iVectorPos] / __iQscale);
-                    if (iQuantVal == 0)
-                        iZeroCount++;
-                    else
-                        break;
-                    __iVectorPos++;
-                }
-
-                if (__iVectorPos < adblVector.length) {
-                    code.setTop6Bits(iZeroCount);
-                    code.setBottom10Bits(iQuantVal);
-                    __iVectorPos++;
-                    if (DEBUG)
-                        System.out.println(code);
-                    return false;
-                } else { // end of block
-                    code.setToEndOfData();
-                    __iVectorPos = 0;
-
-                    incremntIndexes();
-                    if (DEBUG)
-                        System.out.println(code);
-                    return true;
+            if (!__curMb.hasNext()) {
+                if (__iCurMacBlk >= _aoMacroBlocks.length)
+                    throw new MdecException.Read("Read beyond EncodedMdecInputStream");
+                __iCurMacBlk++;
+                try {
+                    __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
-        }
-
-        private void incremntIndexes() {
-            __iBlock++;
-            if (__iBlock >= 6) {
-                __iBlock = 0;
-                __iMacroBlockY++;
-                if (__iMacroBlockY >= _iMacBlockHeight) {
-                    __iMacroBlockY = 0;
-                    __iMacroBlockX++;
-                }
-            }
+            code.set(__curMb.next());
+            return code.isEOD(); // hopefully no bad EOD codes are part of the list
         }
 
     }

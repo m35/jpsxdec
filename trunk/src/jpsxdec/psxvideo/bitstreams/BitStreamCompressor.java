@@ -37,14 +37,26 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
+import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
+import jpsxdec.util.FeedbackStream;
 
-/** Interface for classes that will convert an {@link MdecInputStream} into
- * a binary bit-stream. */
+/** Interface for classes that can generate a binary bit-stream compressed MDEC frame. */
 public interface BitStreamCompressor {
-    
-    byte[] compress(MdecInputStream inStream, int iMdecCodeCount)
-            throws MdecException, MdecException.TooMuchEnergyToCompress;
 
+    byte[] compress(MdecInputStream inStream, int iWidth, int iHeight)
+            throws MdecException, MdecException.TooMuchEnergyToCompress;
+    
+    byte[] compressFull(byte[] abOriginal, int iFrame,
+                        MdecEncoder encoder,
+                        FeedbackStream fbs) throws MdecException;
+    byte[] compressPartial(byte[] abOriginal, int iFrame,
+                           MdecEncoder encoder,
+                           FeedbackStream fbs) throws MdecException;
+
+    /**
+     * @return count or -1 if n/a.
+     */
+    int getMdecCodesFromLastCompress();
 }

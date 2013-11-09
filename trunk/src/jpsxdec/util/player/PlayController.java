@@ -37,17 +37,22 @@
 
 package jpsxdec.util.player;
 
+import java.awt.Canvas;
 import java.util.WeakHashMap;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.LineUnavailableException;
-import javax.swing.JComponent;
+import jpsxdec.util.Fraction;
 
 /** Interface to controlling a player. */
 public class PlayController {
 
+    public static final Fraction PAL_ASPECT_RATIO = new Fraction(59, 54);
+    public static final Fraction NTSC_ASPECT_RATIO = new Fraction(10, 11);
+    public static final Fraction SQUARE_ASPECT_RATIO = new Fraction(1, 1);
+
     private static final boolean DEBUG = false;
 
-    private DemuxReader _demuxReader;
+    private AudioVideoReader _demuxReader;
 
     private AudioPlayer _audPlayer;
 
@@ -56,12 +61,8 @@ public class PlayController {
 
     private IVideoTimer _vidTimer;
     
-    private final Object _playSync = new Object();
 
-
-    public PlayController(IAudioVideoReader reader)
-            throws LineUnavailableException
-    {
+    public PlayController(AudioVideoReader reader) {
         AudioFormat format = reader.getAudioFormat();
         if (format == null && !reader.hasVideo())
             throw new IllegalArgumentException("No audio or video?");
@@ -69,8 +70,6 @@ public class PlayController {
         if (format != null) {
             _audPlayer = new AudioPlayer(format, this);
             _vidTimer = _audPlayer;
-
-            _audPlayer.pause(); // audio will start playing once it has data in the buffer
         }
         if (reader.hasVideo()) {
             if (_vidTimer == null) {
@@ -78,52 +77,32 @@ public class PlayController {
             } else {
                 _vidPlayer = new VideoPlayer(_vidTimer, this, reader.getVideoWidth(), reader.getVideoHeight());
             }
-            _vidPlayer.pause();
 
             _vidProcessor = new VideoProcessor(_vidTimer, _vidPlayer);
-            _vidProcessor.play(); // start decoding as soon as data is available
         }
 
-        _demuxReader = new DemuxReader(reader, _audPlayer, _vidProcessor, this);
-        _demuxReader.play(); // start buffering
+        _demuxReader = reader;
+        _demuxReader.init(_audPlayer, _vidProcessor);
 
     }
 
-    private static final boolean IS_WIN = System.getProperty("os.name").toLowerCase().indexOf("windows") > -1;
-
-    public void play() throws LineUnavailableException {
-        _demuxReader.play();
+    public void start() throws LineUnavailableException {
+        _demuxReader.startBuffering();
         if (_audPlayer != null)
-            _audPlayer.play();
+            _audPlayer.startPaused();
         if (_vidProcessor != null)
-            _vidProcessor.play();
+            _vidProcessor.startBuffering();
         if (_vidPlayer != null)
-            _vidPlayer.play();
-        synchronized (_playSync) {
-            _playSync.notify();
-        }
-    }
-    
-    public void pause() throws LineUnavailableException {
-        synchronized (_playSync) {
-            if (_vidPlayer != null) {
-                _vidPlayer.pause();
-            }
-            if (_audPlayer != null) {
-                _audPlayer.pause();
-            } else {
-                // TODO: stop vidTimer
-            }
-        }
+            _vidPlayer.startPaused();
+        java.awt.EventQueue.invokeLater(new NotifyLater(Event.Start));
     }
 
-    public void stop() throws InterruptedException {
-        synchronized (_playSync) {
+    public void stop() {
+        synchronized (_vidTimer.getSyncObject()) {
             // stop feeding data for starters
             _demuxReader.stop();
 
             if (_audPlayer != null) {
-                // must stop the player first so processor won't block
                 _audPlayer.stop();
             }
 
@@ -135,19 +114,36 @@ public class PlayController {
         }
     }
 
-
-    void endOfPlay() {
-        synchronized (_playSync) {
-            if (_vidProcessor != null)
-                _vidProcessor.stopWhenEmpty();
-            if (_vidPlayer != null)
-                _vidPlayer.stopWhenEmpty();
-            if (_audPlayer != null)
-                _audPlayer.blockUntilEndThenStop();
+    public void pause() {
+        synchronized (_vidTimer.getSyncObject()) {
+            if (_vidPlayer != null) {
+                _vidPlayer.pause();
+            }
+            if (_audPlayer != null) {
+                _audPlayer.pause();
+            } else {
+                // TODO: stop vidTimer?
+            }
+            java.awt.EventQueue.invokeLater(new NotifyLater(Event.Pause));
         }
     }
-    
-    public JComponent getVideoScreen() {
+
+
+    public void unpause() {
+        synchronized (_vidTimer.getSyncObject()) {
+            if (_vidPlayer != null) {
+                _vidPlayer.unpause();
+            }
+            if (_audPlayer != null) {
+                _audPlayer.unpause();
+            } else {
+                // TODO: start vidTimer?
+            }
+            java.awt.EventQueue.invokeLater(new NotifyLater(Event.Unpause));
+        }
+    }
+
+    public Canvas getVideoScreen() {
         if (_vidPlayer != null)
             return _vidPlayer.getVideoCanvas();
         else
@@ -162,17 +158,30 @@ public class PlayController {
         return (_audPlayer != null);
     }
 
-    public int getVideoZoom() {
-        if (_vidPlayer == null)
-            return -1;
-        return _vidPlayer.getZoom();
+    /** Adjust the rendered frame with this aspect ratio. */
+    public void setAspectRatio(Fraction aspectRatio) {
+        if (_vidPlayer != null)
+            _vidPlayer.setAspectRatio(aspectRatio);
     }
 
-    public void setVideoZoom(int iZoom) {
-        if (_vidPlayer == null)
-            return;
-        _vidPlayer.setZoom(iZoom);
+    /** Squash oversized frames to fit in TV. */
+    public void setSquashWidth(boolean blnSquash) {
+        if (_vidPlayer != null)
+            _vidPlayer.setSquashWidth(blnSquash);
     }
+
+    void notifyDonePlaying() {
+        synchronized (_vidTimer.getSyncObject()) {
+            if ((_vidPlayer == null || _vidPlayer.isDone()) &&
+                (_audPlayer == null || _audPlayer.isDone()))
+            {
+                java.awt.EventQueue.invokeLater(new NotifyLater(Event.Stop));
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Listeners
 
     private WeakHashMap<PlayerListener, Boolean> _listeners;
 
@@ -189,7 +198,8 @@ public class PlayController {
     public static enum Event {
         Start,
         Stop,
-        Pause;
+        Pause,
+        Unpause
     }
     public static interface PlayerListener {
         void update(Event eEvent);
@@ -201,30 +211,12 @@ public class PlayController {
             this._eEvent = _eEvent;
         }
         public void run() {
+            if (_listeners == null)
+                return;
             for (PlayerListener listener : _listeners.keySet()) {
                 listener.update(_eEvent);
             }
         }
     }
 
-    void fireStarted() {
-        synchronized (_playSync) {
-            java.awt.EventQueue.invokeLater(new NotifyLater(Event.Start));
-        }
-    }
-
-    void fireStopped() {
-        synchronized (_playSync) {
-            if (java.awt.EventQueue.isDispatchThread())
-                new NotifyLater(Event.Stop).run(); // run event directly
-            else
-                java.awt.EventQueue.invokeLater(new NotifyLater(Event.Stop));
-        }
-    }
-
-    void firePaused() {
-        synchronized (_playSync) {
-            java.awt.EventQueue.invokeLater(new NotifyLater(Event.Pause));
-        }
-    }
 }

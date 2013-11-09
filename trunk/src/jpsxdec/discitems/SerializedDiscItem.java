@@ -66,7 +66,8 @@ public class SerializedDiscItem {
     
     /** Creates a new serialization class to accept information. */
     public SerializedDiscItem(String sType, int iIndex, String sId, int iSectorStart, int iSectorEnd) {
-        addNumber(INDEX_KEY, iIndex);
+        if (iIndex >= 0)
+            addNumber(INDEX_KEY, iIndex);
         if (sId != null)
             addString(ID_KEY, sId);
         addString(TYPE_KEY, sType);
@@ -112,11 +113,12 @@ public class SerializedDiscItem {
         if (_sSerizedString != null) return _sSerizedString;
         
         StringBuilder sb = new StringBuilder();
-        sb.append(INDEX_KEY);
-        sb.append(_fields.remove(INDEX_KEY));
+        if (_fields.containsKey(ID_KEY))
+            sb.append(INDEX_KEY).append(_fields.remove(INDEX_KEY));
         if (_fields.containsKey(ID_KEY))
             sb.append(' ').append(_fields.remove(ID_KEY));
-        sb.append(FIELD_DELIMITER);
+        if (sb.length() > 0)
+            sb.append(FIELD_DELIMITER);
 
         // want to handle the required fields first
         sb.append(SECTOR_RANGE_KEY);

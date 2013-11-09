@@ -50,6 +50,14 @@ public class ExposedBAOS extends ByteArrayOutputStream {
         super(size);
     }
 
+    /** {@inheritDoc}
+     * <p>
+     * Overridden to remove {@link java.io.IOException}. */
+    @Override
+    public void write(byte[] b) {
+	write(b, 0, b.length);
+    }
+
     /** Returns a direct reference to the underlying buffer.
      *  Can save time and memory if you know exactly where it is going. */
     public byte[] getBuffer() {

@@ -159,18 +159,8 @@ public final class Misc {
     /** Splits a string into an array of ints. 
      *  Returns null if non-int values encoutnered. */
     public static int[] splitInt(String s, String regex) {
-        String[] split = s.split(regex);
-        int[] ai = new int[split.length];
-        
-        try {
-            for (int i = 0; i < split.length; i++) {
-                ai[i] = Integer.parseInt(split[i]);
-            }
-            return ai;
-
-        } catch (NumberFormatException ex) {
-            return null;
-        }
+        String[] asSplit = s.split(regex);
+        return stringArrayToIntArray(asSplit);
     }
     
     public static long[] splitLong(String s, String regex) {
@@ -188,14 +178,6 @@ public final class Misc {
         }
     }
     
-    
-    /** Splits string s via sDelimiter and parses the resulting array
-     *  into an array of ints. If there is any error, then null is returned. */
-    public static int[] parseDelimitedInts(String s, String sDelimiter) {
-        String[] asParse = s.split(sDelimiter);
-        return stringArrayToIntArray(asParse);
-    }
-
     /** Parses an array of strings into an array of ints. If there is any
      *  error, or if any of the values are negitive, null is returned. */
     public static int[] stringArrayToIntArray(String[] as) {

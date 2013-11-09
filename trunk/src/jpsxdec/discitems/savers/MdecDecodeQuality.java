@@ -38,7 +38,6 @@
 package jpsxdec.discitems.savers;
 
 import jpsxdec.psxvideo.mdec.MdecDecoder;
-import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
@@ -52,12 +51,7 @@ public enum MdecDecodeQuality {
             return new MdecDecoder_int(new simple_idct(), iWidth, iHeight);
         }
     },
-    HIGH("High quality (slower)", "high") {
-        public MdecDecoder makeDecoder(int iWidth, int iHeight) {
-            return new MdecDecoder_double(new PsxMdecIDCT_double(), iWidth, iHeight);
-        }
-    },
-    HIGH_PLUS("High quality + interpolation (slowest)", "high+") {
+    HIGH_PLUS("High quality (slower)", "high") {
         public MdecDecoder makeDecoder(int iWidth, int iHeight) {
             return new MdecDecoder_double_interpolate(new PsxMdecIDCT_double(), iWidth, iHeight);
         }
@@ -89,16 +83,16 @@ public enum MdecDecodeQuality {
         return null;
     }
 
-    private final String _sGui;
+    private final String _sGuiDescription;
     private final String _sCmdLine;
 
     private MdecDecodeQuality(String sDescription, String sCmdLine) {
-        _sGui = sDescription;
+        _sGuiDescription = sDescription;
         _sCmdLine = sCmdLine;
     }
 
     abstract public MdecDecoder makeDecoder(int iWidth, int iHeight);
 
     public String getCmdLine() { return _sCmdLine; }
-    public String toString() { return _sGui; }
+    public String toString() { return _sGuiDescription; }
 }

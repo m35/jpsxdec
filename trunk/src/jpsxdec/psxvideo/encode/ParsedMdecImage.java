@@ -38,10 +38,11 @@
 package jpsxdec.psxvideo.encode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
@@ -54,104 +55,90 @@ public class ParsedMdecImage  {
     
     private static final Logger LOG = Logger.getLogger(ParsedMdecImage.class.getName());
 
-    public static class MacroBlock implements Iterable<Block> {
-        public Block Cr;
-        public Block Cb;
-        public Block Y1;
-        public Block Y2;
-        public Block Y3;
-        public Block Y4;
-        
-        public void replaceBlock(Block oBlk) {
-            switch (oBlk.getIndex()) {
-                case 0: Cr = oBlk; break;
-                case 1: Cb = oBlk; break;
-                case 2: Y1 = oBlk; break;
-                case 3: Y2 = oBlk; break;
-                case 4: Y3 = oBlk; break;
-                case 5: Y4 = oBlk; break;
+    private static class MacroBlock implements Iterable<Block> {
+        public final Block[] _aoBlocks = new Block[6];
+
+        public MacroBlock(MdecInputStream mdecIn) throws MdecException {
+            for (int iBlock = 0; iBlock < 6; iBlock++) {
+                _aoBlocks[iBlock] = new Block(iBlock, mdecIn);
             }
-        }
-        
-        public Block getBlockCopy(String sBlk) {
-            for (int i = 0; i < Block.BLOCK_NAMES.length; i++) {
-                if (Block.BLOCK_NAMES[i].equals(sBlk))
-                    return getBlockCopy(i);
-            }
-            throw new IllegalArgumentException("Invalid block name " + sBlk);
-        }
-        
-        public Block getBlockCopy(int iBlk) {
-            switch (iBlk) {
-                case 0: return Cr.clone();
-                case 1: return Cb.clone();
-                case 2: return Y1.clone();
-                case 3: return Y2.clone();
-                case 4: return Y3.clone();
-                case 5: return Y4.clone();
-                default: 
-                    throw new IllegalArgumentException("Invalid block number " + iBlk);
-            }
-        }
-        
-        public long getMdecCodeCount() {
-            return Cr.getMdecCodeCount() +
-                   Cb.getMdecCodeCount() +
-                   Y1.getMdecCodeCount() +
-                   Y2.getMdecCodeCount() +
-                   Y3.getMdecCodeCount() +
-                   Y4.getMdecCodeCount();
         }
 
-        @Override
-        public MacroBlock clone() {
-            MacroBlock oNew = new MacroBlock();
-            oNew.Cr = (Block)Cr.clone();
-            oNew.Cb = (Block)Cb.clone();
-            oNew.Y1 = (Block)Y1.clone();
-            oNew.Y2 = (Block)Y2.clone();
-            oNew.Y3 = (Block)Y3.clone();
-            oNew.Y4 = (Block)Y4.clone();
-            return oNew;
+        public Block getBlock(int iBlk) {
+            return _aoBlocks[iBlk];
+        }
+
+        public int getMdecCodeCount() {
+            int iCount = 0;
+            for (Block block : _aoBlocks) {
+                iCount += block.getMdecCodeCount();
+            }
+            return iCount;
+        }
+
+        public ArrayList<MdecCode> getCodes() {
+            ArrayList<MdecCode> c = new ArrayList<MdecCode>();
+            for (Block b : this) {
+                Collections.addAll(c, b._aoCodes);
+            }
+            return c;
         }
 
         public Iterator<Block> iterator() {
             return new Iterator<Block>() {
 
-                private int m_iBlk = 0;
+                private int _iBlk = 0;
                 
                 public boolean hasNext() {
-                    return m_iBlk < 6;
+                    return _iBlk < 6;
                 }
 
                 public Block next() {
                     if (!hasNext()) throw new NoSuchElementException();
-                    return getBlockCopy(m_iBlk++);
+                    return getBlock(_iBlk++);
                 }
 
                 public void remove() {
-                    throw new UnsupportedOperationException("Can't remove macroblocks from list.");
+                    throw new UnsupportedOperationException("Can't remove blocks.");
                 }
             };
         }
 
     }
     
-    public static class Block {
+    private static class Block {
 
         private static final String[] BLOCK_NAMES = {
             "Cr", "Cb", "Y1", "Y2", "Y3", "Y4"
         };
 
-        public MdecCode DCCoefficient;
-        public MdecCode[] ACCoefficients;
-        public MdecCode EndOfBlock;
-        private int _iIndex;
+        private final int _iIndex;
+        private final MdecCode[] _aoCodes;
+        private final int _iBitSize;
 
-        public Block(int iIndex) {
+        public Block(int iIndex, MdecInputStream mdecIn) throws MdecException {
             if (iIndex < 0 || iIndex >= 6)
                 throw new IllegalArgumentException("Invalid block index " + iIndex);
             _iIndex = iIndex;
+
+            ArrayList<MdecCode> codes = new ArrayList<MdecCode>();
+            int iBitStart = -1;
+            if (mdecIn instanceof BitStreamUncompressor)
+                iBitStart = ((BitStreamUncompressor)mdecIn).getBitPosition();
+
+            MdecCode code;
+            mdecIn.readMdecCode(code = new MdecCode());
+            codes.add(code);
+
+            while (!mdecIn.readMdecCode(code = new MdecCode())) {
+                codes.add(code);
+            }
+            codes.add(code);
+            _aoCodes = codes.toArray(new MdecCode[codes.size()]);
+            if (iBitStart == -1)
+                _iBitSize = -1;
+            else
+                _iBitSize = ((BitStreamUncompressor)mdecIn).getBitPosition() - iBitStart;
         }
 
         public String getName() {
@@ -159,36 +146,18 @@ public class ParsedMdecImage  {
         }
 
         public MdecCode getMdecCode(int i) {
-            if (i == 0)
-                return DCCoefficient;
-            else if (i >= 1 && i <= ACCoefficients.length)
-                return ACCoefficients[i-1];
-            else if (i == ACCoefficients.length+1)
-                return EndOfBlock;
-            else
-                throw new IllegalArgumentException("Invalid MDEC code index " + i);
+            return _aoCodes[i];
         }
         
         public int getMdecCodeCount() {
-            return ACCoefficients.length + 2;
+            return _aoCodes.length;
         }
         
-        @Override
-        public Block clone() {
-            Block oNew = new Block(_iIndex);
-            oNew.DCCoefficient = DCCoefficient.clone();
-            oNew.ACCoefficients = new MdecCode[ACCoefficients.length];
-            for (int i = 0; i < ACCoefficients.length; i++)
-                oNew.ACCoefficients[i] = ACCoefficients[i].clone();
-            oNew.EndOfBlock = EndOfBlock.clone();
-            return oNew;
-        }
-
-        public boolean isChrom() {
+        public boolean isChroma() {
             return _iIndex < 2;
         }
 
-        public boolean isLumin() {
+        public boolean isLuma() {
             return _iIndex >= 2;
         }
 
@@ -196,54 +165,27 @@ public class ParsedMdecImage  {
             return _iIndex;
         }
 
-        /** An exciting function that changes the quantization scale of a block
-         *  in a macro block. */
-        public void changeQuantizationScale(int iNewScale) {
-            final int iBlksCurScale = DCCoefficient.getTop6Bits();
-            // update the block's Qscale
-            DCCoefficient.setTop6Bits(iNewScale);
-
-            // we don't need to scale the DC too because it's not multiplied by the qscale
-            // DCCoefficient.Bottom10Bits = (int)
-            //         Math.round(DCCoefficient.Bottom10Bits * iBlksCurScale / (double)iNewScale);
-
-            // copy array into arraylist
-            ArrayList<MdecCode> acCodes =
-                    new ArrayList<MdecCode>(ACCoefficients.length);
-            for (MdecCode oMdec : ACCoefficients) {
-                acCodes.add(oMdec);
-            }
-
-            int i = 0;
-            while (i < acCodes.size()) {
-                MdecCode code = acCodes.get(i);
-
-                // scale the AC coefficient
-                code.setBottom10Bits( (int)( Math.round(
-                        code.getBottom10Bits() * iBlksCurScale / (double)iNewScale
-                        )) );
-
-                // if the AC coefficient becomes zero
-                // (i.e. if code becomes (#, 0) ), we should remove this code
-                if (code.getBottom10Bits() == 0) {
-                    acCodes.remove(i);
-                    // update the next code (if any) with the removed code's run + 1
-                    if (i < acCodes.size()) {
-                        MdecCode nextCode = acCodes.get(i);
-                        nextCode.setTop6Bits(nextCode.getTop6Bits() + code.getTop6Bits() + 1);
-                    }
-                } else {
-                    // next code
-                    i++;
-                }
-            }
-
-            // update the AC coefficients in the block
-            ACCoefficients = acCodes.toArray(new MdecCode[acCodes.size()]);
+        public int getQscale() {
+            return _aoCodes[0].getTop6Bits();
         }
 
-        public int getQscale() {
-            return DCCoefficient.getTop6Bits();
+        public int getBitSize() {
+            return _iBitSize;
+        }
+
+        public ArrayList<MdecCode> getCodes() {
+            ArrayList<MdecCode> c = new ArrayList<MdecCode>(_aoCodes.length);
+            Collections.addAll(c, _aoCodes);
+            return c;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(getName()).append(" Q:").append(getQscale());
+            if (_iBitSize != -1)
+                sb.append(" Size=").append(_iBitSize);
+            return sb.toString();
         }
 
     }
@@ -251,40 +193,41 @@ public class ParsedMdecImage  {
 
     private class MdecReader extends MdecInputStream {
 
-        int _iCurrentMacroBlock;
-        int _iCurrentBlock = 0;
-        int _iCurrentMdecCode = 0;
+        // TODO: convert to use iterator?
+        private int __iCurrentMacroBlock;
+        private int __iCurrentBlock = 0;
+        private int __iCurrentMdecCode = 0;
 
         private MdecReader(int iStartMacroBlock) {
-            _iCurrentMacroBlock = iStartMacroBlock;
+            __iCurrentMacroBlock = iStartMacroBlock;
         }
 
         public boolean readMdecCode(MdecCode code) throws MdecException.Read  {
 
             MacroBlock currentMacBlk;
             try {
-                currentMacBlk = _mdecList[_iCurrentMacroBlock];
+                currentMacBlk = _aoMacroBlocks[__iCurrentMacroBlock];
             } catch (ArrayIndexOutOfBoundsException ex) {
                 throw new MdecException.Read("End of stream");
             }
 
-            Block currentBlk = currentMacBlk.getBlockCopy(_iCurrentBlock);
+            Block currentBlk = currentMacBlk.getBlock(__iCurrentBlock);
 
-            MdecCode c = currentBlk.getMdecCode(_iCurrentMdecCode);
+            MdecCode c = currentBlk.getMdecCode(__iCurrentMdecCode);
             code.set(c);
 
-            _iCurrentMdecCode++;
+            __iCurrentMdecCode++;
 
             // end of block?
             boolean eob = false;
-            if (_iCurrentMdecCode == currentBlk.getMdecCodeCount()) {
-                _iCurrentMdecCode = 0;
-                _iCurrentBlock++;
+            if (__iCurrentMdecCode == currentBlk.getMdecCodeCount()) {
+                __iCurrentMdecCode = 0;
+                __iCurrentBlock++;
                 eob = true;
                 // end of macroblock?
-                if (_iCurrentBlock == 6) {
-                    _iCurrentBlock = 0;
-                    _iCurrentMacroBlock++;
+                if (__iCurrentBlock == 6) {
+                    __iCurrentBlock = 0;
+                    __iCurrentMacroBlock++;
                 }
             }
             return eob;
@@ -297,12 +240,12 @@ public class ParsedMdecImage  {
     /*########################################################################*/
     
     /** An array to store the uncompressed data as MacroBlock structures. */
-    protected MacroBlock[] _mdecList;
+    private final MacroBlock[] _aoMacroBlocks;
     
     /** Width of the frame in pixels */
-    protected int _iWidth;
+    private final int _iWidth;
     /** Height of the frame in pixels */
-    protected int _iHeight;
+    private final int _iHeight;
 
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
@@ -318,20 +261,9 @@ public class ParsedMdecImage  {
         int iMacroBlockCount = Calc.macroblocks(iWidth, iHeight);
 
         // Set the array to match
-        _mdecList = new MacroBlock[iMacroBlockCount];
-
-        if (LOG.isLoggable(Level.FINE))
-            LOG.fine("Expecting " + iMacroBlockCount + " macroblocks");
+        _aoMacroBlocks = new MacroBlock[iMacroBlockCount];
 
     }
-    
-    public int getBlockCount() {
-        return Calc.blocks(_iWidth, _iHeight);
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* Properties ----------------------------------------------------------- */
-    /* ---------------------------------------------------------------------- */
     
     public int getWidth() {
         return _iWidth;
@@ -340,87 +272,63 @@ public class ParsedMdecImage  {
     public int getHeight() {
         return _iHeight;
     }
-        
-    public MacroBlock getMacroBlock(int x, int y) {
-        int iMacBlkHeight = (_iHeight + 15) / 16;
-        return _mdecList[y + x * iMacBlkHeight];
-    }
 
+    public int getMacroBlockCount() {
+        return _aoMacroBlocks.length;
+    }
+        
     public MdecInputStream getStream() {
         return new MdecReader(0);
     }
-    public MdecInputStream getStream(int iMacBlkX, int iMaxBlkY) {
-        int iMacBlkHeight = (_iHeight + 15) / 16;
-        return new MdecReader(iMaxBlkY + iMacBlkX * iMacBlkHeight);
+    public MdecInputStream getStream(int iMacBlkX, int iMacBlkY) {
+        int iMacBlkHeight = Calc.macroblockDim(_iHeight);
+        return new MdecReader(iMacBlkY + iMacBlkX * iMacBlkHeight);
+    }
+
+    public ArrayList<MdecCode> getMacroBlockCodes(int iMacBlkX, int iMacBlkY) {
+        int iMacBlkHeight = Calc.macroblockDim(_iHeight);
+        return _aoMacroBlocks[iMacBlkY + iMacBlkX * iMacBlkHeight].getCodes();
+    }
+
+    public ArrayList<MdecCode> getBlockCodes(int iMacBlkX, int iMacBlkY, int iBlock) {
+        int iMacBlkHeight = Calc.macroblockDim(_iHeight);
+        return _aoMacroBlocks[iMacBlkY + iMacBlkX * iMacBlkHeight].getBlock(iBlock).getCodes();
     }
     
     public int getMdecCodeCount() {
         int iMdecCodeCount = 0;
-        for (int i=0; i < _mdecList.length; i++) {
-            iMdecCodeCount += _mdecList[i].getMdecCodeCount();
+        for (MacroBlock mb : _aoMacroBlocks) {
+            iMdecCodeCount += mb.getMdecCodeCount();
         }
         return iMdecCodeCount;
     }
 
-    public void readFrom(MdecInputStream mdecIn) throws MdecException
-    {
-        int iChromQscale = -1;
-        int iLuminQscale = -1;
+    public String getBlockInfo(int iMacBlkX, int iMacBlkY, int iBlock) {
+        int iMacBlkHeight = Calc.macroblockDim(_iHeight);
+        return _aoMacroBlocks[iMacBlkY + iMacBlkX * iMacBlkHeight].getBlock(iBlock).toString();
+    }
 
-        ArrayList<MdecCode> acCoefficients = new ArrayList<MdecCode>();
+    public int[] getMacroBlockQscales(int iMacBlkX, int iMacBlkY) {
+        int[] aiQscales = new int[6];
+        int iMacBlkHeight = Calc.macroblockDim(_iHeight);
+        MacroBlock mb = _aoMacroBlocks[iMacBlkY + iMacBlkX * iMacBlkHeight];
+        for (int i = 0; i < aiQscales.length; i++) {
+            aiQscales[i] = mb.getBlock(i).getQscale();
+        }
+        return aiQscales;
+    }
 
-        int iMacBlockWidth = (_iWidth + 15) / 16;
-        int iMacBlockHeight = (_iHeight + 15) / 16;
+    public void readFrom(MdecInputStream mdecIn) throws MdecException {
+
+        int iMacBlockWidth = Calc.macroblockDim(_iWidth);
+        int iMacBlockHeight = Calc.macroblockDim(_iHeight);
 
         int iMacroBlockIndex = 0;
+        for (int iMacBlkX = 0; iMacBlkX < iMacBlockWidth; iMacBlkX ++) {
+            for (int iMacBlkY = 0; iMacBlkY < iMacBlockHeight; iMacBlkY ++) {
+                LOG.fine("Reading macroblock " + iMacroBlockIndex);
 
-        for (int iMacBlkX = 0; iMacBlkX < iMacBlockWidth; iMacBlkX ++)
-        {
-            for (int iMacBlkY = 0; iMacBlkY < iMacBlockHeight; iMacBlkY ++)
-            {
-                if (LOG.isLoggable(Level.FINE))
-                    LOG.fine("Reading macroblock " + iMacroBlockIndex);
-
-                MacroBlock thisMacBlk;
-                _mdecList[iMacroBlockIndex] = thisMacBlk = new MacroBlock();
-                
-                for (int iBlock = 0; iBlock < 6; iBlock++) {
-                    Block thisBlk;
-                    thisMacBlk.replaceBlock(thisBlk = new Block(iBlock));
-                    
-                    MdecCode qscaleDC = new MdecCode();
-                    mdecIn.readMdecCode(qscaleDC);
-                    thisBlk.DCCoefficient = qscaleDC;
-                    if (thisBlk.isChrom()) {
-                        if (iChromQscale < 0)
-                            iChromQscale = qscaleDC.getTop6Bits();
-                        else if (iChromQscale > 0) {
-                            if (iChromQscale != qscaleDC.getTop6Bits()) {
-                                iChromQscale = 0;
-                            }
-                        }
-                    } else {
-                        if (iLuminQscale < 0)
-                            iLuminQscale = qscaleDC.getTop6Bits();
-                        else if (iLuminQscale > 0) {
-                            if (iLuminQscale != qscaleDC.getTop6Bits()) {
-                                iLuminQscale = 0;
-                            }
-                        }
-                    }
-
-                    acCoefficients.clear();
-                    MdecCode code;
-                    while (!mdecIn.readMdecCode(code = new MdecCode())) {
-                        acCoefficients.add(code);
-                    }
-                    thisBlk.ACCoefficients = acCoefficients.toArray(new MdecCode[acCoefficients.size()]);
-
-                    thisBlk.EndOfBlock = code;
-
-                    LOG.finest("EOB");
-                }
-
+                _aoMacroBlocks[iMacroBlockIndex] = new MacroBlock(mdecIn);
                 iMacroBlockIndex++;
             }
         }

@@ -45,8 +45,6 @@ import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Logger;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderStr;
@@ -373,9 +371,7 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
     
     @Override
-    public PlayController makePlayController() 
-            throws LineUnavailableException, UnsupportedAudioFileException, IOException
-    {
+    public PlayController makePlayController() {
 
         if (hasAudio()) {
 

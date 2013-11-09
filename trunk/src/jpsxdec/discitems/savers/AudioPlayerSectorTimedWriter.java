@@ -41,29 +41,28 @@ import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.ISectorAudioDecoder.ISectorTimedAudioWriter;
-import jpsxdec.util.player.AudioPlayer;
 
 /** Wraps {@link AudioPlayer} with a 
  * {@link ISectorTimedAudioWriter} interface
  * and keeps the audio in sync with its presentation sector. */
 public class AudioPlayerSectorTimedWriter implements ISectorAudioDecoder.ISectorTimedAudioWriter {
 
-    private final AudioPlayer _player;
+    private final MediaPlayer _player;
     private AudioSync _audioSync;
 
     private final int _iFrameSize;
 
     private long _lngSamplesWritten = 0;
 
-    public AudioPlayerSectorTimedWriter(AudioPlayer dataLine, int iMovieStartSector, int iSectorsPerSecond, int iSamplesPerSecond) {
+    public AudioPlayerSectorTimedWriter(MediaPlayer dataLine, int iMovieStartSector, int iSectorsPerSecond, int iSamplesPerSecond) {
         _player = dataLine;
-        _iFrameSize = _player.getFormat().getFrameSize();
+        _iFrameSize = _player.getAudioFormat().getFrameSize();
 
         _audioSync = new AudioSync(iMovieStartSector, iSectorsPerSecond, iSamplesPerSecond);
     }
 
     public void write(AudioFormat inFormat, byte[] abData, int iOffset, int iLength, int iPresentationSector) throws IOException {
-        if (!inFormat.matches(_player.getFormat()))
+        if (!inFormat.matches(_player.getAudioFormat()))
             throw new IllegalArgumentException("Incompatable audio format.");
         if (iLength % _iFrameSize != 0)
             throw new IllegalArgumentException("Data length is not a multiple of frame size.");
@@ -78,6 +77,6 @@ public class AudioPlayerSectorTimedWriter implements ISectorAudioDecoder.ISector
         int iSampleLength = iLength / _iFrameSize;
         _lngSamplesWritten += iSampleLength;
 
-        _player.write(abData, iOffset, iLength);
+        _player.writeAudio(abData, iOffset, iLength);
     }
 }

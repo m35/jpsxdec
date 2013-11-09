@@ -38,7 +38,6 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.audio.SquareAdpcmDecoder;
@@ -230,8 +229,8 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             return DiscItemSquareAudioStream.this.getPresentationStartSector();
         }
 
-        public void printAudioDetails(PrintStream ps) {
-            ps.println(DiscItemSquareAudioStream.this);
+        public String[] getAudioDetails() {
+            return new String[] { DiscItemSquareAudioStream.this.toString() };
         }
     }
 

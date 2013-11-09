@@ -38,11 +38,11 @@
 package jpsxdec.util.aviwriter;
 
 import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
-import java.io.IOException;
 import java.io.File;
+import java.io.IOException;
 import java.util.Iterator;
 import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
@@ -61,13 +61,12 @@ import jpsxdec.util.ExposedBAOS;
  * use in all contexts."
  * </blockquote>
  * <p>
- * I owe my MJPG understanding to the jpegtoavi program.
- * http://sourceforge.net/projects/jpegtoavi/
- * <p>
- * Random list of codecs
- * http://www.oltenia.ro/download/pub/windows/media/video/tools/GSpot/gspot22/GSpot22.dat
- * <p>
- * http://www.alexander-noe.com/video/documentation/avi.pdf
+ * I owe much of my MJPG understanding to the 
+ * <a href="http://sourceforge.net/projects/jpegtoavi/">jpegtoavi program</a>.
+ * According to Microsoft's original MJPEG spec, every JPEG frame should use
+ * the default JPEG huffman tables, although most decoders are more lienent than
+ * that. VirtualDub's Motion JPEG decoder specifically does require default
+ * huffman tables, and also requires the frame dimensions to be multiples of 16.
  */
 public class AviWriterMJPG extends AviWriter {
 
@@ -157,7 +156,7 @@ public class AviWriterMJPG extends AviWriter {
     // -- Writing functions ----------------------------------------------------
     // -------------------------------------------------------------------------
 
-    /** Converts a BufferedImage to proper avi format and writes it. */
+    /** Converts a BufferedImage to JPEG and writes it. */
     public void writeFrame(BufferedImage bi) throws IOException {
         if (getWidth() != bi.getWidth())
             throw new IllegalArgumentException("AviWriter: Frame width doesn't match" +
@@ -172,6 +171,9 @@ public class AviWriterMJPG extends AviWriter {
         writeFrameChunk(out.getBuffer(), 0, out.size());
     }
 
+    public void writeFrame(byte[] abJpeg, int iStart, int iSize) throws IOException {
+        writeFrameChunk(abJpeg, iStart, iSize);
+    }
 
     @Override
     public void writeBlankFrame() throws IOException {

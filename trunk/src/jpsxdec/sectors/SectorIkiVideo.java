@@ -39,9 +39,11 @@ package jpsxdec.sectors;
 
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Iki;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
+import jpsxdec.util.IO;
 
 
-/** This is the header for standard v2 and v3 video frame chunk sectors. */
 public class SectorIkiVideo extends SectorAbstractVideo {
     
     // .. Fields ..........................................................
@@ -56,7 +58,7 @@ public class SectorIkiVideo extends SectorAbstractVideo {
     private int  _iRunLengthCodeCount;   //  20   [2 bytes]
     // Width again                       //  24   [2 bytes]
     // Height again                      //  26   [2 bytes]
-    private long _lngFourZeros;            //  28   [4 bytes]
+    private long _lngFourZeros;          //  28   [4 bytes]
     //   32 TOTAL
 
     @Override
@@ -147,5 +149,34 @@ public class SectorIkiVideo extends SectorAbstractVideo {
         return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
             SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
     }
+
+
+    @Override
+    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
+                                               int iMdecCodeCount, byte[] abSectUserData)
+    {
+        if (!BitStreamUncompressor_Iki.checkHeader(abDemuxData)) {
+            throw new IllegalArgumentException("Frame type is not iki");
+        }
+        int iWidth = BitStreamUncompressor_Iki.getWidth(abDemuxData);
+        int iHeight = BitStreamUncompressor_Iki.getHeight(abDemuxData);
+        if (iWidth != _iWidth || iHeight != _iHeight) {
+            //throw new IllegalArgumentException(String.format(
+            //        "Iki frame dimentions do not match sector dimensions: %dx%d != %dx%d", 
+            //        iWidth, iHeight, _iWidth, _iHeight));
+        }
+
+        IO.writeInt16LE(abDemuxData, 4, (short)_iWidth);
+        IO.writeInt16LE(abDemuxData, 6, (short)_iHeight);
+        
+        int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
+
+        IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader);
+        IO.writeInt16LE(abSectUserData, 20,
+                BitStreamUncompressor_STRv2.calculateHalfCeiling32(iMdecCodeCount));
+
+        return getSectorHeaderSize();
+    }
+
 }
 

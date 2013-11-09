@@ -44,25 +44,17 @@ import javax.imageio.ImageIO;
 /** Keeps track of Java framework's image formats. */
 public enum JavaImageFormat {
 
-    JPG("jpg", true, false, false) {
-        @Override
-        public boolean hasCompression() {
-            return true;
-        }
-    },
-    PNG("png", true, true, true),
-    BMP("bmp", true, true, false),
-    GIF("gif", false, true, false);
+    PNG("png", true, true),
+    BMP("bmp", true, false),
+    GIF("gif", false, false);
 
     private final String _sExtension;
     private final boolean _blnTrueColor;
-    private final boolean _blnPaletted;
     private final boolean _blnAlpha;
     private final boolean _blnAvailable;
 
-    JavaImageFormat(String id, boolean blnTrueColor, boolean blnPaletted, boolean blnAlpha) {
+    JavaImageFormat(String id, boolean blnTrueColor, boolean blnAlpha) {
         _sExtension = id;
-        _blnPaletted = blnPaletted;
         _blnTrueColor = blnTrueColor;
         _blnAlpha = blnAlpha;
 
@@ -96,16 +88,8 @@ public enum JavaImageFormat {
         return _blnAvailable;
     }
 
-    public boolean paletted() {
-        return _blnPaletted;
-    }
-
     public boolean hasAlpha() {
         return _blnAlpha;
-    }
-
-    public boolean hasCompression() {
-        return false;
     }
 
     @Override

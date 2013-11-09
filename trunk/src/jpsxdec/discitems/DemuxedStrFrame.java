@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.encode.ParsedMdecImage;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.util.FeedbackStream;
 
@@ -186,23 +188,9 @@ public class DemuxedStrFrame implements IDemuxedFrame {
     }
 
 
-    public void printStats(FeedbackStream fbs) {
-        try {
-            byte[] abBitStream = new byte[getDemuxSize()];
-            copyDemuxData(abBitStream);
-            BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream);
-            uncompressor.reset(abBitStream);
-            uncompressor.readToEnd(getWidth(), getHeight());
-            uncompressor.skipPaddingBits();
-            fbs.println("Bitstream info: " + uncompressor);
-            fbs.println("Available demux size: " + getDemuxSize());
-            fbs.indent();
-            for (int i=0; i < getChunksInFrame(); i++) {
-                fbs.println(getChunk(i));
-            }
-            fbs.outdent();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+    public void printSectors(FeedbackStream fbs) {
+        for (int i=0; i < getChunksInFrame(); i++) {
+            fbs.println(getChunk(i));
         }
     }
 

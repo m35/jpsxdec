@@ -37,7 +37,6 @@
 
 package jpsxdec.discitems;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import jpsxdec.util.ProgressListenerLogger;
@@ -47,13 +46,9 @@ import jpsxdec.util.TaskCanceledException;
  * the saving process when requested. */
 public interface IDiscItemSaver {
     
-    public void startSave(ProgressListenerLogger pl, File dir) throws IOException, TaskCanceledException;
+    public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException;
     public String getInput();
     public String getOutputSummary();
-    // TODO: remove this
-    public int getOutputFileCount();
-    // TODO: remove this
-    public File getOutputFile(int i);
     /** Prints the options used for saving. */
     public void printSelectedOptions(PrintStream ps);
     public DiscItem getDiscItem();

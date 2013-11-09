@@ -236,8 +236,8 @@ public class DiscItemISO9660File extends DiscItem {
             return new ISO9660FileSaverBuilderGui(this);
         }
 
-        public IDiscItemSaver makeSaver() {
-            return new ISO9660FileSaver(__blnSaveRaw);
+        public IDiscItemSaver makeSaver(File directory) {
+            return new ISO9660FileSaver(__blnSaveRaw, directory);
         }
 
         public String[] commandLineOptions(String[] asArgs, FeedbackStream infoStream) {
@@ -304,10 +304,12 @@ public class DiscItemISO9660File extends DiscItem {
     }
 
     private class ISO9660FileSaver implements IDiscItemSaver {
-        private final boolean _blnSaveRaw;
+        private final boolean __blnSaveRaw;
+        private final File __outputDir;
 
-        public ISO9660FileSaver(boolean blnSaveRaw) {
-            _blnSaveRaw = blnSaveRaw;
+        public ISO9660FileSaver(boolean blnSaveRaw, File outputDir) {
+            __blnSaveRaw = blnSaveRaw;
+            __outputDir = outputDir;
         }
 
         public String getInput() {
@@ -322,38 +324,30 @@ public class DiscItemISO9660File extends DiscItem {
             return getPath().getPath();
         }
 
-        public File getOutputFile(int i) {
-            return _path;
-        }
+        public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
+            File outputFile = new File(__outputDir, _path.getPath());
 
-        public int getOutputFileCount() {
-            return 1;
-        }
-
-        public void startSave(ProgressListenerLogger pl, File dir) throws IOException, TaskCanceledException {
-            File outputFile = new File(dir, _path.getPath());
-
-            IO.makeDirs(outputFile.getParentFile());
+            IO.makeDirsForFile(outputFile);
 
             final double dblSectLen = getSectorLength();
             final int iStartSect = getStartSector();
             final int iEndSect = getEndSector();
             FileOutputStream fos = new FileOutputStream(outputFile);
-            pl.progressStart();
+            pll.progressStart();
             for (int iSector = iStartSect; iSector <= iEndSect; iSector++) {
                 CdSector cdSector = getSourceCd().getSector(iSector);
-                if (_blnSaveRaw)
+                if (__blnSaveRaw)
                     fos.write(cdSector.getRawSectorDataCopy());
                 else
                     fos.write(cdSector.getCdUserDataCopy());
-                pl.progressUpdate((iSector - iStartSect) / dblSectLen);
+                pll.progressUpdate((iSector - iStartSect) / dblSectLen);
             }
             fos.close();
-            pl.progressEnd();
+            pll.progressEnd();
         }
 
         public void printSelectedOptions(PrintStream ps) {
-            if (_blnSaveRaw)
+            if (__blnSaveRaw)
                 ps.println("Saving with raw sectors");
             else
                 ps.println("Saving with iso sectors");

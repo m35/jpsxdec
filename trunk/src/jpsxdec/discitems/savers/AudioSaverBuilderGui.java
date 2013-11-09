@@ -67,7 +67,7 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuil
         JComboBox __combo;
 
         public AudioFormat() {
-            __label = new JLabel("Saved as:");
+            __label = new JLabel("Save as:");
             __name = new JLabel(_writerBuilder.getFileBaseName());
             __combo = new JComboBox(this);
             add(__label, ParagraphLayout.NEW_PARAGRAPH);

@@ -39,7 +39,7 @@ package jpsxdec;
 
 public class Version {
 
-    public final static String Version = "0.99.1 (beta)";
+    public final static String Version = "0.99.2 (beta)";
     public final static String VerString = "jPSXdec: PSX media decoder v" + Version;
     public final static String VerStringNonCommercial = "jPSXdec: PSX media decoder (non-commercial) v" + Version;
 

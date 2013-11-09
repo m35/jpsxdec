@@ -48,12 +48,13 @@ import javax.sound.sampled.SourceDataLine;
 import jpsxdec.util.player.VideoPlayer.VideoFrame;
 
 /** Manages writing audio data to the final SourceDataLine. */
-public class AudioPlayer implements IVideoTimer {
+class AudioPlayer implements IVideoTimer {
 
     private static final Logger LOG = Logger.getLogger(AudioPlayer.class.getName());
     private static final boolean DEBUG = false;
 
     private static final int SECONDS_OF_BUFFER = 5;
+    private static final int FRAME_DELAY_FUDGE_TIME = 50;
 
     private SourceDataLine _dataLine;
     private final PlayingState _state = new PlayingState(PlayingState.State.STOPPED);
@@ -62,7 +63,7 @@ public class AudioPlayer implements IVideoTimer {
     private final double _dblTimeConvert;
     private final PlayController _controller;
 
-    AudioPlayer(AudioFormat format, PlayController controller) throws LineUnavailableException {
+    public AudioPlayer(AudioFormat format, PlayController controller) {
         _format = format;
         _controller = controller;
         _dblTimeConvert = 1000000000. / _format.getSampleRate();
@@ -104,24 +105,25 @@ public class AudioPlayer implements IVideoTimer {
             int iTotalWritten = 0;
             while (iTotalWritten < iLength) {
                 if (_state.get() == PlayingState.State.STOPPED) {
-                    _dataLine.close();
-                    return;
+                    break;
                 }
                 int iWritten = _dataLine.write(abData, iTotalWritten, iLength - iTotalWritten);
                 iTotalWritten += iWritten;
                 if (iTotalWritten < iLength) {
-                    System.out.println("[AudioPlayer] Only " + iWritten + " bytes of audio was written, "
-                                      + "progress " + iTotalWritten + "/" + iLength);
                     synchronized (_state) {
-                        if (_state.get() == PlayingState.State.PAUSED)
+                        if (_state.get() == PlayingState.State.PAUSED) {
                             _state.waitForChange();
+                        } else {
+                            System.out.println("[AudioPlayer] Only " + iWritten + 
+                                    " bytes of audio was written. Progress: " +
+                                    iTotalWritten + "/" + iLength);
+                        }
                     }
                 }
             }
-        } catch (Throwable ex) {
+        } catch (InterruptedException ex) {
             LOG.log(Level.SEVERE, null, ex);
             ex.printStackTrace();
-            _state.set(PlayingState.State.STOPPED);
         }
     }
 
@@ -133,78 +135,75 @@ public class AudioPlayer implements IVideoTimer {
             if (_abZeroBuff == null) {
                 _abZeroBuff = new byte[_format.getFrameSize() * 2048];
             }
-            long lngBytesLeft = lngSamples * _format.getFrameSize();
-            final long lngBytesToWrite = lngBytesLeft;
+            final long lngBytesToWrite = lngSamples * _format.getFrameSize();
+            long lngBytesLeft = lngBytesToWrite;
             while (lngBytesLeft > 0) {
-                synchronized (_state) {
-                    if (_state.get() == PlayingState.State.STOPPED) {
-                        _dataLine.close();
-                        return;
-                    }
+                if (_state.get() == PlayingState.State.STOPPED) {
+                    break;
                 }
                 int iWritten = _dataLine.write(_abZeroBuff, 0, (int)Math.min(lngBytesLeft, _abZeroBuff.length));
                 lngBytesLeft -= iWritten;
                 if (lngBytesLeft > 0) {
-                    System.out.println("[AudioPlayer] Only " + iWritten + " bytes of silence was written, "
-                                      + "progress " + (lngBytesToWrite - lngBytesLeft) + "/" + lngBytesToWrite);
                     synchronized (_state) {
-                        if (_state.get() == PlayingState.State.PAUSED)
+                        if (_state.get() == PlayingState.State.PAUSED) {
                             _state.waitForChange();
+                        } else {
+                            System.out.println("[AudioPlayer] Only " + iWritten +
+                                    " bytes of silence was written. Progress: " +
+                                    (lngBytesToWrite - lngBytesLeft) + "/" + lngBytesToWrite);
+                        }
                     }
                 }
             }
-        } catch (Throwable ex) {
+        } catch (InterruptedException ex) {
             LOG.log(Level.SEVERE, null, ex);
             ex.printStackTrace();
-            _state.set(PlayingState.State.STOPPED);
         }
     }
 
-    void blockUntilEndThenStop() {
+    public void drainAndClose() {
         _dataLine.drain();
         stop();
     }
     
-    void play() throws LineUnavailableException {
+    public boolean isDone() {
+        return _state.get() == PlayingState.State.STOPPED;
+    }
+    
+    public void startPaused() throws LineUnavailableException {
         synchronized (_state) {
-            switch (_state.get()) {
-                case PAUSED:
-                    _dataLine.start();
-                    _state.set(PlayingState.State.PLAYING);
-                    break;
-                case STOPPED:
-                    _dataLine = createOpenLine(_format);
-                    _dataLine.start();
-                    _state.set(PlayingState.State.PLAYING);
-                    break;
+            if (_state.get() == PlayingState.State.STOPPED) {
+                _state.set(PlayingState.State.PAUSED);
+                _dataLine = createOpenLine(_format);
             }
         }
     }
 
-    void pause() throws LineUnavailableException {
+    public void stop() {
         synchronized (_state) {
             switch (_state.get()) {
-                case PLAYING:
-                    _dataLine.stop();
-                    _state.set(PlayingState.State.PAUSED);
-                    break;
-                case STOPPED:
-                    _dataLine = createOpenLine(_format);
-                    _state.set(PlayingState.State.PAUSED);
-                    break;
-            }
-        }
-    }
-
-    void stop() {
-        synchronized (_state) {
-            switch (_state.get()) {
-                case PLAYING:
-                case PAUSED:
+                case PLAYING: case PAUSED:
                     _dataLine.close();
                     _state.set(PlayingState.State.STOPPED);
-                    _controller.fireStopped();
-                    break;
+                    _controller.notifyDonePlaying();
+            }
+        }
+    }
+
+    public void pause() {
+        synchronized (_state) {
+            if (_state.get() == PlayingState.State.PLAYING) {
+                _state.set(PlayingState.State.PAUSED);
+                _dataLine.stop();
+            }
+        }
+    }
+
+    public void unpause() {
+        synchronized (_state) {
+            if (_state.get() == PlayingState.State.PAUSED) {
+                _state.set(PlayingState.State.PLAYING);
+                _dataLine.start();
             }
         }
     }
@@ -213,8 +212,8 @@ public class AudioPlayer implements IVideoTimer {
         return (long)(_dataLine.getLongFramePosition() * _dblTimeConvert);
     }
 
-    public AudioFormat getFormat() {
-        return _format;
+    public Object getSyncObject() {
+        return _state;
     }
 
     public boolean shouldBeProcessed(long lngPresentationTime) {
@@ -238,23 +237,22 @@ public class AudioPlayer implements IVideoTimer {
             synchronized (_state) {
                 while (true) {
                     switch (_state.get()) {
+                        case STOPPED:
+                            return false;
                         case PAUSED:
                             if (DEBUG) System.out.println("[AudioPlayer] AudioPlayer timer, waiting to present");
                             _state.waitForChange();
                             if (DEBUG) System.out.println("[AudioPlayer] AudioPlayer timer, not waiting anymore");
                             break; // loop again to see the new state
-                        case STOPPED:
-                            return false;
                         case PLAYING:
                             long lngPos = getPlayTime();
                             long lngSleepTime;
-                            if ((lngSleepTime = frame.PresentationTime - lngPos) > 10000) {
-                                lngSleepTime -= 10000;
+                            if ((lngSleepTime = frame.PresentationTime - lngPos) > FRAME_DELAY_FUDGE_TIME) {
+                                lngSleepTime -= FRAME_DELAY_FUDGE_TIME;
                                 _state.wait(lngSleepTime / 1000000, (int)(lngSleepTime % 1000000));
-                                break;
-                            } else {
-                                return true;
+                                break; // loop once more to see if the state changed
                             }
+                            return true;
                         default:
                             throw new RuntimeException("Should never happen");
                     }
@@ -266,11 +264,5 @@ public class AudioPlayer implements IVideoTimer {
             return false;
         }
     }
-
-    public void drain() {
-        if (_dataLine != null)
-            _dataLine.drain();
-    }
-
 
 }

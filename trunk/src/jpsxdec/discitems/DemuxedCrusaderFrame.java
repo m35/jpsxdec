@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.encode.ParsedMdecImage;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.sectors.SectorCrusader;
 import jpsxdec.util.FeedbackStream;
 
@@ -120,36 +122,19 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         return _iPresentationSector;
     }
 
-    public void printStats(FeedbackStream fbs) {
-        try {
-            byte[] abBitStream = new byte[getDemuxSize()];
-            copyDemuxData(abBitStream);
-            BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream);
-            uncompressor.reset(abBitStream);
-            uncompressor.readToEnd(getWidth(), getHeight());
-            uncompressor.skipPaddingBits();
-            fbs.println("Bitstream info: " + uncompressor);
-            fbs.println("Available demux size: " + getDemuxSize());
-            fbs.indent();
-            try {
-                int iDemuxOfs = getDemuxSize();
-                for (int i=0; i < getChunksInFrame(); i++) {
-                    fbs.print(_aoSectors[i]);
-                    if (i == 0) {
-                        fbs.println(" (start offset " + _iStartOffset + ")");
-                        iDemuxOfs -= SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE - _iStartOffset;
-                    } else if (i == getChunksInFrame() - 1)
-                        fbs.println(" (end offset " + iDemuxOfs + ")");
-                    else {
-                        iDemuxOfs -= SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE;
-                        fbs.println();
-                    }
-                }
-            } finally {
-                fbs.outdent();
+    public void printSectors(FeedbackStream fbs) {
+        int iDemuxOfs = getDemuxSize();
+        for (int i=0; i < getChunksInFrame(); i++) {
+            fbs.print(_aoSectors[i]);
+            if (i == 0) {
+                fbs.println(" (start offset " + _iStartOffset + ")");
+                iDemuxOfs -= SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE - _iStartOffset;
+            } else if (i == getChunksInFrame() - 1)
+                fbs.println(" (end offset " + iDemuxOfs + ")");
+            else {
+                iDemuxOfs -= SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE;
+                fbs.println();
             }
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
         }
     }
 

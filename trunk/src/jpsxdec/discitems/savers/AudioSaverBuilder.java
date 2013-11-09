@@ -170,8 +170,9 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         tfb.write(fbs);
     }
 
-    public IDiscItemSaver makeSaver() {
+    public IDiscItemSaver makeSaver(File directory) {
         return new AudioSaver(_audItem,
+                directory,
                 new File(_audItem.getSuggestedBaseName().getPath() + "." + getExtension()),
                 _containerFormat, _dblVolume);
     }

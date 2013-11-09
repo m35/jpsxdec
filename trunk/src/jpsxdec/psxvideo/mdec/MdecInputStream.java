@@ -37,12 +37,8 @@
 
 package jpsxdec.psxvideo.mdec;
 
-import java.util.logging.Logger;
-
 /** Read MDEC codes one at a time from a stream. */
 public abstract class MdecInputStream {
-
-    private static final Logger LOG = Logger.getLogger(MdecInputStream.class.getName());
 
     /** Reads the next MDEC code from the stream into the provided
      * {@link MdecCode} object.
@@ -210,10 +206,6 @@ public abstract class MdecInputStream {
         }
         /** Checks if the bottom 10 bits of an MDEC code are valid. */
         private static boolean validBottom(int iBottom10Bits) {
-            if (iBottom10Bits == 0) {
-                LOG.warning("MDEC code with bottom 10 bits == 0");
-                return true;
-            }
             return iBottom10Bits >= -512 && iBottom10Bits <= 511;
         }
 

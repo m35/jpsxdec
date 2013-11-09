@@ -64,7 +64,7 @@ public interface IDemuxedFrame {
      * @param abBuffer Optional buffer to copy the demuxed data into. */
     byte[] copyDemuxData(byte[] abBuffer);
 
-    void printStats(FeedbackStream fbs);
+    void printSectors(FeedbackStream fbs);
 
     void writeToSectors(byte[] abNewDemux,
                         int iUsedSize, int iMdecCodeCount,

@@ -41,14 +41,12 @@ package jpsxdec.discitems.psxvideoencode;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.Iterator;
 import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
@@ -112,95 +110,49 @@ public class ReplaceFrame {
         _sFormat = sFormat;
     }
 
-    public void replace(IDemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
+    public void replace(IDemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) 
+            throws IOException, NotThisTypeException, MdecException
+    {
         // identify existing frame bs format
         byte[] abExistingFrame = frame.copyDemuxData(null);
-        BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abExistingFrame);
+        BitStreamCompressor compressor = BitStreamUncompressor.identifyCompressor(abExistingFrame);
 
-        byte[] newFrame;
+        byte[] abNewFrame;
 
         if ("bs".equals(_sFormat)) {
-            // glean the necessary info from already compressed frame
-            newFrame = IO.readFile(_imageFile);
-
-            if (newFrame.length > frame.getDemuxSize()) {
-                throw new RuntimeException(String.format(
-                        "Demux data does fit in frame %d!! Available size %d, needed size %d",
-                        getFrame(), frame.getDemuxSize(), newFrame.length));
-            }
+            abNewFrame = IO.readFile(_imageFile);
         } else if ("mdec".equals(_sFormat)) {
-            // compress frame
-            ParsedMdecImage parsed = new ParsedMdecImage(frame.getWidth(), frame.getHeight());
-            parsed.readFrom(new MdecInputStreamReader(_imageFile));
-
-            BitStreamCompressor compressor = uncompressor.makeCompressor();
-            newFrame = compressor.compress(parsed.getStream(), parsed.getMdecCodeCount());
-
+            abNewFrame = compressor.compress(new MdecInputStreamReader(_imageFile),
+                                             frame.getWidth(), frame.getHeight());
         } else {
-            newFrame = compressReplacement(frame, uncompressor, fbs);
+            BufferedImage bi = ImageIO.read(_imageFile);
+            if (bi == null)
+                throw new IllegalArgumentException("Unable to read " + _imageFile + " as an image. Did you forget 'format'?");
+
+            if (bi.getWidth()  != Calc.fullDimension(frame.getWidth()) ||
+                bi.getHeight() != Calc.fullDimension(frame.getHeight()))
+                throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace: " +
+                        bi.getWidth() + "x" + bi.getHeight() + " != " + frame.getWidth() + "x" + frame.getHeight());
+
+            PsxYCbCrImage psxImage = new PsxYCbCrImage(bi);
+            MdecEncoder encoder = new MdecEncoder(psxImage, frame.getWidth(), frame.getHeight());
+            abNewFrame = compressor.compressFull(abExistingFrame, _iFrame, encoder, fbs);
         }
 
-        if (newFrame.length > frame.getDemuxSize())
-            throw new RuntimeException(String.format(
+        if (abNewFrame.length > frame.getDemuxSize())
+            throw new MdecException.Compress(String.format(
                     "Demux data does fit in frame %d!! Available size %d, needed size %d",
-                    getFrame(), frame.getDemuxSize(), newFrame.length));
+                    getFrame(), frame.getDemuxSize(), abNewFrame.length));
 
-        BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(newFrame);
-        bsu.reset(newFrame);
+        // find out how many bytes and mdec codes are used by the new frame
+        BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(abNewFrame);
+        bsu.reset(abNewFrame);
         bsu.readToEnd(frame.getWidth(), frame.getHeight());
         bsu.skipPaddingBits();
 
-        // +2 because getStreamPosition() returns the active word, not the next word to be read
-        frame.writeToSectors(newFrame, bsu.getWordPosition()+2, bsu.getMdecCodeCount(), cd, fbs);
+        // +2 because getWordPosition() returns the active word, not the next word to be read
+        frame.writeToSectors(abNewFrame, bsu.getWordPosition()+2, bsu.getMdecCodeCount(), cd, fbs);
     }
-
-    // TODO: clean this up
-    private byte[] compressReplacement(IDemuxedFrame frame, BitStreamUncompressor uncompressor, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
-
-        BufferedImage bi = ImageIO.read(_imageFile);
-        if (bi == null)
-            throw new IllegalStateException("Unable to read " + _imageFile + " as an image. Did you forget 'format'?");
-        
-        if (bi.getWidth()  != Calc.fullDimension(frame.getWidth()) ||
-            bi.getHeight() != Calc.fullDimension(frame.getHeight()))
-            throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace: " +
-                    bi.getWidth() + "x" + bi.getHeight() + " != " + frame.getWidth() + "x" + frame.getHeight());
-        
-        PsxYCbCrImage psxImage = new PsxYCbCrImage(bi);
-
-        ParsedMdecImage parsedNew;
-        byte[] abNewDemux = null;
-        MdecEncoder encoded = new MdecEncoder(psxImage);
-        BitStreamCompressor compressor = uncompressor.makeCompressor();
-        byte[] abOriginal = frame.copyDemuxData(null);        
-        uncompressor.reset(abOriginal);
-        uncompressor.readToEnd(frame.getWidth(), frame.getHeight());
-        Iterator<int[]> qscales = uncompressor.qscaleIterator(true);
-        while (qscales.hasNext()) {
-            fbs.println("Trying " + qscales);
-            parsedNew = new ParsedMdecImage(frame.getWidth(), frame.getHeight());
-            parsedNew.readFrom(encoded.getStream(qscales.next()));
-
-            try {
-                abNewDemux = compressor.compress(parsedNew.getStream(), parsedNew.getMdecCodeCount());
-                int iNewDemuxSize = abNewDemux.length;
-                if (iNewDemuxSize <= frame.getDemuxSize()) {
-                    fbs.indent().format("New frame %d demux size %d <= max source %d ",
-                                    frame.getFrame(), iNewDemuxSize, frame.getDemuxSize()).outdent().println();
-                    break;
-                } else {
-                    fbs.indent().format("!!! New frame %d demux size %d > max source %d !!!",
-                                    frame.getFrame(), iNewDemuxSize, frame.getDemuxSize()).outdent().println();
-                }
-            } catch (MdecException.TooMuchEnergyToCompress ex) {
-                fbs.printlnWarn(ex.getMessage());
-            }
-        }
-
-        return abNewDemux;
-    }
-
-
 
 }
 

@@ -40,6 +40,7 @@ package jpsxdec.sectors;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv3;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
@@ -126,18 +127,12 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                                int iMdecCodeCount, byte[] abSectUserData)
     {
-        // create a bitstream uncompressor just to get the qscale
-        BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(abDemuxData);
-        if (!(bsu instanceof BitStreamUncompressor_STRv2))
-            throw new IllegalArgumentException("Incompatable frame type " + bsu);
-        BitStreamUncompressor_STRv2 bsu2 = (BitStreamUncompressor_STRv2) bsu;
-        try {
-            bsu2.reset(abDemuxData);
-        } catch (NotThisTypeException ex) {
-            throw new RuntimeException("Shouldn't happen");
+        int iQscale;
+        if ((iQscale = BitStreamUncompressor_STRv2.getQscale(abDemuxData)) < 1 &&
+            (iQscale = BitStreamUncompressor_STRv3.getQscale(abDemuxData)) < 1)
+        {
+            throw new IllegalArgumentException("Frame type is not v2 or v3");
         }
-
-        int iQscale = bsu2.getQscale();
 
         int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
 

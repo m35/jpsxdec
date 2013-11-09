@@ -98,7 +98,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
 
             JScrollPane p = new JScrollPane(__files);
             p.setBorder(null);
-            _topParagraphPanel.add(new JLabel("Output:"), ParagraphLayout.NEW_PARAGRAPH);
+            _topParagraphPanel.add(new JLabel("Save as:"), ParagraphLayout.NEW_PARAGRAPH);
             _topParagraphPanel.add(p, ParagraphLayout.STRETCH_H);
         }
         public void stateChanged(ChangeEvent e) {

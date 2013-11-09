@@ -37,15 +37,17 @@
 
 package jpsxdec.util.player;
 
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsEnvironment;
 import java.awt.RenderingHints;
-import java.awt.image.MemoryImageSource;
-import java.util.concurrent.atomic.AtomicReference;
-import javax.swing.JComponent;
+import java.awt.Transparency;
+import java.awt.image.BufferStrategy;
+import java.awt.image.BufferedImage;
 import jpsxdec.util.Fraction;
 
 /** Video player thread manages the actual display of video frames. */
@@ -55,12 +57,10 @@ class VideoPlayer implements Runnable, IVideoTimer {
 
     private static final int CAPACITY = 50;
 
-    private final MultiStateBlockingQueue<VideoFrame> _frameDisplayQueue =
-            new MultiStateBlockingQueue<VideoFrame>(CAPACITY);
+    private final ObjectPlayStream<VideoFrame> _frameDisplayQueue =
+            new ObjectPlayStream<VideoFrame>(CAPACITY);
 
     private final int _iWidth, _iHeight;
-
-    private int _iZoom = 1;
 
     /** Only used for video only streams. */
     private Thread _thread;
@@ -78,96 +78,84 @@ class VideoPlayer implements Runnable, IVideoTimer {
         _iWidth = iWidth;
         _iHeight = iHeight;
         _screen = new VideoScreen();
-        _frameDisplayQueue.stop();
+        _frameDisplayQueue.writerClose();
+        _frameDisplayQueue.readerClose();
     }
 
     public void run() {
         try {
             VideoFrame frame;
-            while (true) {
-                
-                if ((frame = _frameDisplayQueue.take()) == null) {
-                    if (DEBUG) System.out.println("Player received no frame for display, stopping");
-                    return;
-                }
+            while ((frame = _frameDisplayQueue.read()) != null) {
                 boolean blnPresent = _vidTimer.waitToPresent(frame);
                 if (!blnPresent) {
                     System.out.println("Timer says to discard frame");
                 } else {
                     if (DEBUG) System.out.println("===Displaying frame=== @" + frame.PresentationTime);
-                    //System.out.println(frame.PresentationTime + "\t" + System.nanoTime());
                     _screen.updateImage(frame);
                 }
             }
 
+            if (DEBUG) System.out.println("Player received no frame for display, stopping");
+            
         } catch (Throwable ex) {
             ex.printStackTrace();
         } finally {
-            _frameDisplayQueue.stop();
-            _controller.fireStopped();
+            _frameDisplayQueue.readerClose();
+            _controller.notifyDonePlaying();
         }
+    }
+
+    public boolean isDone() {
+        return _frameDisplayQueue.isReaderClosed();
     }
 
     public void addFrame(VideoFrame frame) {
         try {
-            _frameDisplayQueue.add(frame);
+            _frameDisplayQueue.write(frame);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
     }
 
-    public void play() {
+    public void startPaused() {
         synchronized (_frameDisplayQueue.getSyncObject()) {
-            if (_frameDisplayQueue.isPaused()) {
-                _frameDisplayQueue.play();
-                _lngTimerStartTime += System.nanoTime() - _lngTimerPausedTime;
-            } else if (_frameDisplayQueue.isStopped()) {
+            if (_frameDisplayQueue.isReaderClosed()) {
+                _frameDisplayQueue.writerOpen();
+                _frameDisplayQueue.readerPause();
                 _thread = new Thread(this, getClass().getName());
                 _thread.start();
                 _blnTimerStarting = true;
-                _frameDisplayQueue.play();
             }
         }
     }
     
+    public void stop() {
+        _frameDisplayQueue.readerClose();
+    }
+
     public void pause() {
         synchronized (_frameDisplayQueue.getSyncObject()) {
-            if (_frameDisplayQueue.isPlaying()) {
+            if (_frameDisplayQueue.isReaderOpen()) {
                 _lngTimerPausedTime = System.nanoTime();
-                _frameDisplayQueue.pause();
-            } else if (_frameDisplayQueue.isStopped()) {
-                _thread = new Thread(this, getClass().getName());
-                _thread.start();
-                _blnTimerStarting = true;
-                _frameDisplayQueue.pause();
+                _frameDisplayQueue.readerPause();
             }
         }
     }
 
-    void stop() throws InterruptedException {
+    public void unpause() {
         synchronized (_frameDisplayQueue.getSyncObject()) {
-            if (_frameDisplayQueue.isPlaying() || _frameDisplayQueue.isPaused())
-               _frameDisplayQueue.stop();
+            if (_frameDisplayQueue.isReaderOpenPaused()) {
+                _frameDisplayQueue.readerOpen();
+                _lngTimerStartTime += System.nanoTime() - _lngTimerPausedTime;
+            }
         }
     }
 
-    void stopWhenEmpty() {
-        _frameDisplayQueue.stopWhenEmpty();
+    public void writerClose() {
+        _frameDisplayQueue.writerClose();
     }
 
-    public int getZoom() {
-        return _iZoom;
-    }
-
-    public void setZoom(int iZoom) {
-        if (iZoom < 1 || iZoom > 3) {
-            throw new IllegalArgumentException("Invalid zoom scale " + iZoom);
-        }
-        _iZoom = iZoom;
-        _screen.updateDims();
-    }
-
-    public JComponent getVideoCanvas() {
+    public Canvas getVideoCanvas() {
         return _screen;
     }
 
@@ -178,78 +166,117 @@ class VideoPlayer implements Runnable, IVideoTimer {
         return _iHeight;
     }
 
-    private static final Fraction PAL_ASPECT_RATIO = new Fraction(59, 54);
-    private static final Fraction SQUARE_ASPECT_RATIO = new Fraction(1, 1);
+    /** Adjust the rendered frame with this aspect ratio. */
+    public void setAspectRatio(Fraction aspectRatio) {
+        _screen.setAspectRatio(aspectRatio);
+    }
 
-    private class VideoScreen extends JComponent {
+    /** Squash oversized frames to fit in TV. */
+    public void setSquashWidth(boolean blnSquash) {
+        _screen.setSquashWidth(blnSquash);
+    }
 
-        private final AtomicReference<VideoFrame> _frame = new AtomicReference<VideoFrame>();
+    // ----------------------------------------------------------------------
+    
+    private class VideoScreen extends Canvas {
 
-        private Fraction __aspectRatio = PAL_ASPECT_RATIO;
+        /** Adjust the rendered frame with this aspect ratio. */
+        private Fraction __aspectRatio = PlayController.PAL_ASPECT_RATIO;
 
-        private Dimension __dims;
+        private Dimension __minDims;
 
+        /** Squash oversized frames to fit in TV. */
+        private boolean __blnSquashWidth = false;
         private Object __renderingHintInterpolation = 
                 RenderingHints.VALUE_INTERPOLATION_BILINEAR;
                 //RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+        private BufferStrategy __buffStrategy;
+        private VideoFrame __currentFrame;
 
         public VideoScreen() {
+            setBackground(Color.BLACK);
             updateDims();
-            setOpaque(true);
         }
 
-        @Override
-        public boolean isOptimizedDrawingEnabled() {
-            return true;
+        public void setAspectRatio(Fraction aspectRatio) {
+            __aspectRatio = aspectRatio;
+            updateDims();
+        }
+
+        /** Squash oversized frames to fit in TV. */
+        public void setSquashWidth(boolean blnSquash) {
+            __blnSquashWidth = blnSquash;
+            updateDims();
         }
 
         private void updateDims() {
-            __dims = new Dimension(
-                    _iWidth * _iZoom,
-                    (int)(_iHeight * _iZoom *
-                    __aspectRatio.getNumerator() / __aspectRatio.getDenominator()));
+            __minDims = new Dimension(getSrcWidth(),
+                (int)(_iHeight * __aspectRatio.getNumerator() / __aspectRatio.getDenominator()));
         }
 
         private void updateImage(VideoFrame frame) {
-            VideoFrame oldFrame = _frame.getAndSet(frame);
-            repaint();
-            if (oldFrame != null)
-                oldFrame.returnToPool();
+            synchronized (getTreeLock()) {
+                if (__currentFrame != null)
+                    __currentFrame.returnToPool();
+                __currentFrame = frame;
+                if (__currentFrame == null)
+                    return;
+                if (!isDisplayable()) {
+                    // can't use or create BufferStrategy unless it is visible
+                    System.out.println("Trying to play frame when canvas is hidden");
+                    return;
+                }
+                if (getWidth() == 0 || getHeight() == 0) {
+                    return;
+                }
+
+                if (__buffStrategy == null) {
+                    createBufferStrategy(2);
+                    System.out.println("BufferStrategy created");
+                    __buffStrategy = getBufferStrategy();
+                }
+                Graphics g = __buffStrategy.getDrawGraphics();
+                paint(g);
+                g.dispose();
+                __buffStrategy.show();
+            }
         }
 
-        @Override
-        public void update(Graphics g) {
-            paint(g);
+        private int getSrcWidth() {
+            if (__blnSquashWidth && _iWidth > 320) {
+                return 320;
+            } else {
+                return _iWidth;
+            }
         }
 
         @Override
         public void paint(Graphics g) {
-            if (g == null) {
-                System.out.println("Frame not drawn because Graphics is null");
-                return;
-            }
+            final int iWinW = getWidth();
+            final int iWinH = getHeight();
             g.setColor(Color.black);
-            // XXX: possible race condition
-            // if the event thread gets the current frame, then the
-            // VideoPlayer thread returns it to the pool, and then it is picked
-            // up again and changed before the event thread can draw it
-            VideoFrame frame = _frame.get();
-            if (frame != null) {
-                int iCW = getWidth();
-                int iCH = getHeight();
-                int iOfsX = (iCW - __dims.width) / 2;
-                int iOfsY = (iCH - __dims.height) / 2;
-                g.fillRect(0, 0, iCW, iOfsY);
-                g.fillRect(0, iOfsY + __dims.height, iCW, iCH - __dims.height - iOfsY);
-                g.fillRect(0, iOfsY, iOfsX, __dims.height);
-                g.fillRect(iOfsX+__dims.width, iOfsY, iCW - __dims.width - iOfsX, __dims.height);
-                if (g instanceof Graphics2D) {
-                    ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, __renderingHintInterpolation);
-                }
-                g.drawImage(frame.Img, iOfsX, iOfsY, __dims.width, __dims.height, null);
+            g.fillRect(0, 0, iWinW, iWinH);
+            float fltConvertAspectRatio = (getSrcWidth()  * __aspectRatio.getDenominator()  ) /
+                                   (float)(_iHeight       * __aspectRatio.getNumerator());
+            float fltWinAspectRatio = iWinW / (float)iWinH;
+            int iDispW, iDispH;
+            if (fltConvertAspectRatio > fltWinAspectRatio) {
+                iDispW = iWinW;
+                iDispH = (int) (iDispW / fltConvertAspectRatio);
             } else {
-                if (DEBUG) System.out.println("Frame not drawn because Img is null");
-                g.fillRect(0, 0, getWidth(), getHeight());
+                iDispH = iWinH;
+                iDispW = (int) (iDispH * fltConvertAspectRatio);
+            }
+            int iOfsX = (iWinW - iDispW) / 2;
+            int iOfsY = (iWinH - iDispH) / 2;
+            if (g instanceof Graphics2D) {
+                ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, __renderingHintInterpolation);
+            }
+            // if painting from Swing GUI, don't want Video thread to
+            // return frame to pool in the middle of us painting
+            synchronized (getTreeLock()) {
+                if (__currentFrame != null)
+                    g.drawImage(__currentFrame.Img, iOfsX, iOfsY, iDispW, iDispH, null);
             }
         }
 
@@ -260,16 +287,17 @@ class VideoPlayer implements Runnable, IVideoTimer {
 
         @Override
         public Dimension getMinimumSize() {
-            return __dims;
+            return __minDims;
         }
 
         @Override
         public Dimension getPreferredSize() {
-            return __dims;
+            return __minDims;
         }
 
     }
 
+    // ----------------------------------------------------------------------
 
     public final VideoFramePool _videoFramePool = new VideoFramePool();
     public class VideoFramePool extends ObjectPool<VideoFrame> {
@@ -282,22 +310,12 @@ class VideoPlayer implements Runnable, IVideoTimer {
 
 
     class VideoFrame {
-        public int[] Memory;
-        public MemoryImageSource MemImgSrc;
-        private Image Img;
-
+        public final BufferedImage Img;
         public long PresentationTime;
 
-        public void init(IDecodableFrame decodeFrame) {
-            if (Memory == null) {
-                Memory = new int[_iWidth * _iHeight];
-                MemImgSrc = new MemoryImageSource(_iWidth, _iHeight, Memory, 0, _iWidth);
-                MemImgSrc.setAnimated(true);
-                MemImgSrc.setFullBufferUpdates(true);
-                Img = _screen.createImage(MemImgSrc);
-                Img.setAccelerationPriority(1.0f);
-            }
-            PresentationTime = decodeFrame.getPresentationTime();
+        public VideoFrame() {
+            GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+            Img = gc.createCompatibleImage(_iWidth, _iHeight, Transparency.OPAQUE);
         }
 
         public void returnToPool() {
@@ -307,6 +325,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
 
     // ----------------------------------------------------------------------
 
+    private static final int FRAME_DELAY_FUDGE_TIME = 50;
 
     private long _lngTimerStartTime;
     private long _lngTimerPausedTime;
@@ -314,12 +333,12 @@ class VideoPlayer implements Runnable, IVideoTimer {
 
     private long getPlayTime() {
         synchronized (_frameDisplayQueue.getSyncObject()) {
-            if (_frameDisplayQueue.isPlaying()) {
+            if (_frameDisplayQueue.isReaderOpen()) {
                 if (_blnTimerStarting)
                     return 0;
                 else
                     return System.nanoTime() - _lngTimerStartTime;
-            } else if (_frameDisplayQueue.isPaused()) {
+            } else if (_frameDisplayQueue.isReaderOpenPaused()) {
                 return _lngTimerPausedTime - _lngTimerStartTime;
             } else /* stopped */ {
                 return -1;
@@ -327,11 +346,15 @@ class VideoPlayer implements Runnable, IVideoTimer {
         }
     }
 
+    public Object getSyncObject() {
+        return _frameDisplayQueue.getSyncObject();
+    }
+
     public boolean shouldBeProcessed(long lngPresentationTime) {
         synchronized (_frameDisplayQueue.getSyncObject()) {
-            if (_frameDisplayQueue.isPaused()) {
+            if (_frameDisplayQueue.isReaderOpenPaused()) {
                 return true;
-            } else if (_frameDisplayQueue.isPlaying()) {
+            } else if (_frameDisplayQueue.isReaderOpen()) {
                 long lngPos = getPlayTime();
                 if (DEBUG) System.out.println("Play time = " + lngPos + " vs. Pres time = " + lngPresentationTime);
                 return (lngPresentationTime > lngPos);
@@ -346,10 +369,10 @@ class VideoPlayer implements Runnable, IVideoTimer {
         try {
             synchronized (_frameDisplayQueue.getSyncObject()) {
                 while (true) {
-                    if (_frameDisplayQueue.isPaused()) {
+                    if (_frameDisplayQueue.isReaderOpenPaused()) {
                         _frameDisplayQueue.getSyncObject().wait();
-                        // now loop again to see the new state or Contiguous Id
-                    } else if (_frameDisplayQueue.isPlaying()) {
+                        // now loop again to see the new state
+                    } else if (_frameDisplayQueue.isReaderOpen()) {
                         if (_blnTimerStarting) {
                             if (DEBUG) System.out.println("Timer is started, player is now playing");
                             _blnTimerStarting = false;
@@ -358,10 +381,10 @@ class VideoPlayer implements Runnable, IVideoTimer {
                         } else {
                             long lngPos = getPlayTime();
                             long lngSleepTime;
-                            if ((lngSleepTime = frame.PresentationTime - lngPos) > 15) {
+                            if ((lngSleepTime = frame.PresentationTime - lngPos) > FRAME_DELAY_FUDGE_TIME) {
+                                lngSleepTime -= FRAME_DELAY_FUDGE_TIME;
                                 _frameDisplayQueue.getSyncObject().wait(lngSleepTime / 1000000, (int)(lngSleepTime % 1000000));
                                 // now loop again to see if the state changed while waiting
-                                // or Contiguous Id changed
                             } else {
                                 return true;
                             }
@@ -376,4 +399,5 @@ class VideoPlayer implements Runnable, IVideoTimer {
             return false;
         }
     }
+
 }

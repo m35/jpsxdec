@@ -63,9 +63,9 @@ public class MdecDecoder_int extends MdecDecoder {
         super(iWidth, iHeight);
         _idct = idct;
         
-        _CrBuffer = new int[ CW*CH];
-        _CbBuffer = new int[ _CrBuffer.length];
-        _LumaBuffer = new int[ W*H];
+        _CrBuffer = new int[CW*CH];
+        _CbBuffer = new int[_CrBuffer.length];
+        _LumaBuffer = new int[W*H];
 
     }
 

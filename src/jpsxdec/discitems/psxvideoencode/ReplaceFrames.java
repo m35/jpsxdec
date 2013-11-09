@@ -176,18 +176,17 @@ public class ReplaceFrames {
                 ReplaceFrame replacer = getFrameToReplace(frame.getFrame());
                 if (replacer != null) {
                     fbs.println("Frame " + frame.getFrame() + ":");
-                    if (fbs.printMore())
-                        frame.printStats(fbs);
                     fbs.indent();
-                    fbs.println("Replacing with " + replacer.getImageFile());
                     try {
+                        fbs.println("Replacing with " + replacer.getImageFile());
                         replacer.replace(frame, cd, fbs);
                     } catch (MdecException ex) {
                         exception[0] = ex;
                     } catch (NotThisTypeException ex) {
                         exception[0] = ex;
+                    } finally {
+                        fbs.outdent();
                     }
-                    fbs.outdent();
                 }
 
             }

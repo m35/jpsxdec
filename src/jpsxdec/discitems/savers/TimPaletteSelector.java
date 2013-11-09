@@ -38,9 +38,15 @@
 package jpsxdec.discitems.savers;
 
 import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.image.BufferedImage;
 import javax.swing.JToggleButton.ToggleButtonModel;
 import jpsxdec.tim.Tim;
+
 
 public class TimPaletteSelector extends javax.swing.JPanel {
     
@@ -130,23 +136,84 @@ public class TimPaletteSelector extends javax.swing.JPanel {
      */
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
+        java.awt.GridBagConstraints gridBagConstraints;
 
         _guiPalChk = new javax.swing.JCheckBox();
+        _guiCopyBtn = new javax.swing.JButton();
 
         setBorder(javax.swing.BorderFactory.createEtchedBorder());
-        setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
+        setLayout(new java.awt.GridBagLayout());
 
         _guiPalChk.setSelected(true);
         _guiPalChk.setText("##");
         _guiPalChk.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         _guiPalChk.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
         _guiPalChk.setMargin(new java.awt.Insets(0, 0, 0, 0));
-        add(_guiPalChk);
+        _guiPalChk.setVerticalAlignment(javax.swing.SwingConstants.TOP);
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.FIRST_LINE_END;
+        gridBagConstraints.weightx = 0.5;
+        gridBagConstraints.weighty = 0.5;
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
+        add(_guiPalChk, gridBagConstraints);
+
+        _guiCopyBtn.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jpsxdec/discitems/savers/edit-paste-4.png"))); // NOI18N
+        _guiCopyBtn.setToolTipText("Copy to clipboard");
+        _guiCopyBtn.setAlignmentY(0.0F);
+        _guiCopyBtn.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        _guiCopyBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                _guiCopyBtnActionPerformed(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 1;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.LAST_LINE_END;
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
+        add(_guiCopyBtn, gridBagConstraints);
     }// </editor-fold>//GEN-END:initComponents
+
+    private void _guiCopyBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiCopyBtnActionPerformed
+        copyToClipboard(_tim.toBufferedImage(_iPalette));
+    }//GEN-LAST:event__guiCopyBtnActionPerformed
     
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton _guiCopyBtn;
     private javax.swing.JCheckBox _guiPalChk;
     // End of variables declaration//GEN-END:variables
+    
+
+    private static void copyToClipboard(Image image) {
+        ImageTransferable transferable = new ImageTransferable( image );
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(transferable, null);
+    }
+
+    private static class ImageTransferable implements Transferable {
+        private final Image _image;
+
+        public ImageTransferable (Image image) {
+            _image = image;
+        }
+
+        public Object getTransferData(DataFlavor flavor)
+            throws UnsupportedFlavorException
+        {
+            if (isDataFlavorSupported(flavor)) {
+                return _image;
+            } else {
+                throw new UnsupportedFlavorException(flavor);
+            }
+        }
+
+        public boolean isDataFlavorSupported (DataFlavor flavor) {
+            return flavor == DataFlavor.imageFlavor;
+        }
+
+        public DataFlavor[] getTransferDataFlavors () {
+            return new DataFlavor[] { DataFlavor.imageFlavor };
+        }
+    }
     
 }

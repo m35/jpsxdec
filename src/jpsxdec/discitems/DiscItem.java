@@ -70,7 +70,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     private CdFileSectorReader _cdReader;
 
     /** Often sequential and hopefully unique number identifying this {@link DiscItem}. */
-    private int _iIndex;
+    private int _iIndex = -1;
     private IndexId _indexId;
 
     protected DiscItem(int iStartSector, int iEndSector) {
@@ -79,8 +79,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     }
 
     /** Deserializes the basic information about this {@link DiscItem}. */
-    protected DiscItem(SerializedDiscItem fields) throws NotThisTypeException
-    {
+    protected DiscItem(SerializedDiscItem fields) throws NotThisTypeException {
         int[] aiRng = fields.getSectorRange();
         _iStartSector = aiRng[0];
         _iEndSector   = aiRng[1];
@@ -173,7 +172,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
                 iOverlap = other.getEndSector() - other.getStartSector() + 1;
             }
         }
-        assert(iOverlap >= 0);
+        assert iOverlap >= 0;
         return iOverlap;
     }
 

@@ -353,6 +353,12 @@ public class FeedbackStream extends PrintStream {
         return this;
     }
 
+    public FeedbackStream indent1() {
+        super.print("  ");
+        _blnNewLine = true;
+        return this;
+    }
+
     public FeedbackStream indent(int iAmount) {
         _iIndentLevel += iAmount * INDENT_AMOUNT;
         return this;

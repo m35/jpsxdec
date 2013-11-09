@@ -37,10 +37,7 @@
 
 package jpsxdec.discitems;
 
-import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.discitems.savers.AudioSaverBuilder;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.util.NotThisTypeException;
@@ -100,7 +97,7 @@ public abstract class DiscItemAudioStream extends DiscItem {
 
     abstract public int getPresentationStartSector();
 
-    public PlayController makePlayController() throws LineUnavailableException, UnsupportedAudioFileException, IOException {
+    public PlayController makePlayController() {
         return new PlayController(new MediaPlayer(this));
     }
 

@@ -37,9 +37,6 @@
 
 package jpsxdec.discitems;
 
-import java.io.IOException;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderCrusader;
 import jpsxdec.util.Fraction;
@@ -107,7 +104,7 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     }
 
     @Override
-    public PlayController makePlayController() throws LineUnavailableException, UnsupportedAudioFileException, IOException {
+    public PlayController makePlayController() {
         CrusaderDemuxer demuxer = makeDemuxer();
         return new PlayController(new MediaPlayer(this, demuxer, demuxer, getStartSector(), getEndSector()));
     }

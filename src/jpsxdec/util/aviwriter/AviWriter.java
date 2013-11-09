@@ -70,10 +70,6 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * <a href="http://mipav.cit.nih.gov/">MIPAV</a> program, which also
  * appears to be in the public domain.
  * <p>
- * Random
- * <a href="http://www.oltenia.ro/download/pub/windows/media/video/tools/GSpot/gspot22/GSpot22.dat">
- * list of codecs</a>
- * <p>
  * An <a href="http://www.alexander-noe.com/video/documentation/avi.pdf">
  * AVI pdf document</a>
  * <p>

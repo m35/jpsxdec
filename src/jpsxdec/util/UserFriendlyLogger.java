@@ -46,6 +46,7 @@ import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.logging.Filter;
+import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -53,9 +54,11 @@ import java.util.logging.Logger;
 import jpsxdec.Version;
 
 
+/** May only be friendly to English speakers. */
 public class UserFriendlyLogger extends Logger {
 
-    private static final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final SimpleDateFormat TIME_FORMAT = 
+            new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     public static final int HEADER_LEVEL_COUNT = 4;
     
@@ -63,6 +66,36 @@ public class UserFriendlyLogger extends Logger {
         void onWarn(LogRecord record);
         void onErr(LogRecord record);
     }
+    
+    private static final class FriendlyFormatter extends Formatter {
+
+        @Override
+        public String format(LogRecord record) {
+            throw new UnsupportedOperationException("Should never be called");
+        }
+
+        public void print(LogRecord record, PrintStream ps) {
+            Level lvl = record.getLevel();
+            if (lvl == Level.WARNING) {
+                ps.print("[WARN] ");
+            } else if (lvl == Level.SEVERE) {
+                ps.print("[ERR] ");
+            } else {
+                ps.print('[');
+                ps.print(lvl.getName());
+                ps.print("] ");
+            }
+            if (record.getMessage() != null) {
+                ps.print(formatMessage(record));
+            }
+            ps.println();
+            if (record.getThrown() != null) {
+                ps.print("[^EX^] ");
+                record.getThrown().printStackTrace(ps);
+            }
+        }
+    }
+    private static final FriendlyFormatter FORMATTER = new FriendlyFormatter();
 
     private final String[] _asHeaders = new String[HEADER_LEVEL_COUNT];
     private boolean _blnHasHeader = false;
@@ -74,6 +107,8 @@ public class UserFriendlyLogger extends Logger {
     /** Name of the log. */
     private final String _sBaseName;
 
+    private final Logger _globalLogger;
+    
     /** Listener for warnings and errors. */
     private OnWarnErr _listener;
 
@@ -81,6 +116,7 @@ public class UserFriendlyLogger extends Logger {
     public UserFriendlyLogger(String sBaseName) {
         super(sBaseName, null);
         _sBaseName = sBaseName;
+        _globalLogger = Logger.getLogger(_sBaseName);
     }
 
     /** Logger will not create a file but write to supplied PrintStream. */
@@ -108,6 +144,7 @@ public class UserFriendlyLogger extends Logger {
 
     @Override
     public void log(LogRecord record) {
+        _globalLogger.log(record);
         if (_ps == null)
             openOutputFile();
 
@@ -125,23 +162,10 @@ public class UserFriendlyLogger extends Logger {
 
         if (lvl == Level.WARNING) {
             if (_listener != null) _listener.onWarn(record);
-            _ps.print("[WARN] ");
         } else if (lvl == Level.SEVERE) {
             if (_listener != null) _listener.onErr(record);
-            _ps.print("[ERR] ");
-        } else {
-            _ps.print('[');
-            _ps.print(lvl.getName());
-            _ps.print("] ");
         }
-        if (record.getMessage() != null) {
-            _ps.print(record.getMessage());
-        }
-        _ps.println();
-        if (record.getThrown() != null) {
-            _ps.print("[^EX^] ");
-            record.getThrown().printStackTrace(_ps);
-        }
+        FORMATTER.print(record, _ps);
         _ps.flush();
     }
 
@@ -172,7 +196,7 @@ public class UserFriendlyLogger extends Logger {
         ps.println(Version.VerString);
         ps.print(System.getProperty("os.name")); ps.print(' '); ps.println(System.getProperty("os.version"));
         ps.print("Java "); ps.println(System.getProperty("java.version"));
-        ps.println(FORMAT.format(Calendar.getInstance().getTime()));
+        ps.println(TIME_FORMAT.format(Calendar.getInstance().getTime()));
     }
 
     public void close() {

@@ -90,17 +90,16 @@ public class MdecInputStreamReader extends MdecInputStream {
     /** Writes a dimensions worth of macro blocks from an
      * {@link MdecInputStream} to an {@link OutputStream}. */
     public static void writeMdecDims(MdecInputStream mdecIn, OutputStream streamOut,
-            int iWidth, int iHeight)
+                                     int iWidth, int iHeight)
             throws MdecException, IOException
     {
-        int iMacroblockCount = ((iWidth + 15) / 16) * ((iHeight + 15) / 16);
-        int iBlockCount = iMacroblockCount * 6;
+        int iBlockCount = Calc.blocks(iWidth, iHeight);
         writeMdecBlocks(mdecIn, streamOut, iBlockCount);
     }
     /** Writes a number of blocks from an
      * {@link MdecInputStream} to an {@link OutputStream}. */
     public static void writeMdecBlocks(MdecInputStream mdecIn, OutputStream streamOut,
-            int iBlockCount)
+                                       int iBlockCount)
             throws MdecException, IOException
     {
         MdecCode code = new MdecCode();

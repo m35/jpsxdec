@@ -39,11 +39,15 @@ package jpsxdec.discitems.savers;
 
 import argparser.ArgParser;
 import argparser.BooleanHolder;
+import java.io.IOException;
+import java.util.logging.Logger;
 import jpsxdec.discitems.CrusaderDemuxer;
 import jpsxdec.discitems.DiscItemCrusader;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.ISectorAudioDecoder;
+import jpsxdec.discitems.ISectorFrameDemuxer;
+import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.TabularFeedback;
 
@@ -102,7 +106,7 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
 
     private boolean _blnSavingAudio = true;
     public boolean getSavingAudio() {
-        if (!getVideoFormat().canSaveAudio())
+        if (!getVideoFormat().isAvi())
             return false;
         return _blnSavingAudio;
     }
@@ -119,6 +123,7 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
 
     ////////////////////////////////////////////////////////////////////////////
 
+    @Override
     public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
         asArgs = super.commandLineOptions(asArgs, fbs);
         if (asArgs == null) return null;
@@ -139,17 +144,18 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
         return asRemain;
     }
 
+    @Override
     protected void makeHelpTable(TabularFeedback tfb) {
         super.makeHelpTable(tfb);
 
-        tfb.print("-noaud").tab().print("Don't save audio.");
         tfb.newRow();
+        tfb.print("-noaud").tab().print("Don't save audio.");
     }
 
     @Override
-    protected VideoSaverBuilderSnapshot makeSnapshot() {
+    protected SectorFeeder makeFeeder() {
         CrusaderDemuxer av = _sourceVidItem.makeDemuxer();
-        ISectorAudioDecoder ad;
+        CrusaderDemuxer ad;
         if (getSavingAudio()) {
             ad = av;
             ad.setVolume(getAudioVolume());
@@ -157,13 +163,20 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
             ad = null;
         }
 
-        VideoSaverBuilderSnapshot snap = new VideoSaverBuilderSnapshot(
-                _sourceVidItem,
-                _sourceVidItem.getSuggestedBaseName(),
-                makeVideoDecoder(),
-                av,
-                ad, this);
-        return snap;
+        return new CrusaderSectorFeeder(av, ad);
     }
+    private static class CrusaderSectorFeeder extends SectorFeeder {
+
+        public CrusaderSectorFeeder(CrusaderDemuxer av, CrusaderDemuxer ad) {
+            videoDemuxer = av;
+            audioDecoder = ad;
+        }
+
+        @Override
+        public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
+            videoDemuxer.feedSector(sector, log);
+        }
+    }
+
 
 }

@@ -165,9 +165,11 @@ public class TabularFeedback {
                     if (iLine < cell.size()) {
                         String sLine = cell.get(iLine).toString();
                         ps.print(sLine);
-                        ps.print(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
+                        if (j < row.size()-1)
+                            ps.print(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
                     } else {
-                        ps.print(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
+                        if (j < row.size()-1)
+                            ps.print(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
                     }
                 }
                 ps.println();

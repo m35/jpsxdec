@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems;
 
+import java.io.File;
 import java.util.WeakHashMap;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -87,6 +88,6 @@ public abstract class DiscItemSaverBuilder {
     abstract public void resetToDefaults();
     abstract public boolean copySettingsTo(DiscItemSaverBuilder other);
     /** Creates the saver using a snapshot of current options. */
-    abstract public IDiscItemSaver makeSaver();
+    abstract public IDiscItemSaver makeSaver(File directory);
     
 }

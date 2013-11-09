@@ -43,7 +43,7 @@ import javax.swing.JTable;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.table.AbstractTableModel;
-import jpsxdec.SavingGuiTable;
+import jpsxdec.gui.SavingGuiTable;
 
 
 public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuilderStr> {
@@ -115,7 +115,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
             __tbl = new JTable(this);
             __tbl.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
             add(new JScrollPane(__tbl), BorderLayout.CENTER);
-            SavingGuiTable.autoResizeColWidth(__tbl);
+            SavingGuiTable.autoResizeColWidth(__tbl); // TODO: bad dependency
         }
 
         public int getRowCount() {

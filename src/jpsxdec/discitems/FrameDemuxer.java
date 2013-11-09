@@ -90,13 +90,13 @@ public class FrameDemuxer implements ISectorFrameDemuxer {
     }
 
     public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
+        if (!(sector instanceof IVideoSector))
+            return;
+
         if (sector.getSectorNumber() < _iVideoStartSector ||
             sector.getSectorNumber() > _iVideoEndSector)
             return;
 
-        if (!(sector instanceof IVideoSector))
-            return;
-        
         IVideoSector chunk = (IVideoSector) sector;
 
         if (chunk.getWidth() != _iWidth)

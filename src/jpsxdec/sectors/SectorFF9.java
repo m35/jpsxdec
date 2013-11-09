@@ -43,7 +43,6 @@ import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Base class for Final Fantasy 9 movie (audio/video) sectors. */
@@ -251,15 +250,9 @@ public abstract class SectorFF9 extends IdentifiedSector {
         public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                     int iMdecCodeCount, byte[] abSectUserData)
         {
-            // create a bitstream uncompressor just to get the qscale
-            BitStreamUncompressor_STRv2 bsu = new BitStreamUncompressor_STRv2();
-            try {
-                bsu.reset(abDemuxData);
-            } catch (NotThisTypeException ex) {
-                throw new IllegalArgumentException("Incompatable frame type " + bsu);
-            }
-
-            int iQscale = bsu.getQscale();
+            int iQscale;
+            if ((iQscale = BitStreamUncompressor_STRv2.getQscale(abDemuxData)) < 1)
+                throw new IllegalArgumentException("Frame type is not v2 or v3");
 
             int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
 

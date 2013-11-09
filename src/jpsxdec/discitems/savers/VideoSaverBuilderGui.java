@@ -40,6 +40,7 @@ package jpsxdec.discitems.savers;
 import com.jhlabs.awt.ParagraphLayout;
 import java.awt.BorderLayout;
 import java.awt.event.ItemEvent;
+import java.io.File;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -67,8 +68,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
             new Crop(),
             new DiscSpeed(),
             new DecodeQuality(),
-            new ChromaUpsampling(),
-            new JpgCompression()
+            new ChromaUpsampling()
             //new Volume(),
         );
 
@@ -129,19 +129,6 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
         }
         protected boolean getEnabled() {
             return _writerBuilder.getChromaInterpolation_enabled();
-        }
-    }
-
-    private class JpgCompression extends AbstractSlider {
-        public JpgCompression() { super("JPG compression quality:"); }
-        public int getValue() {
-            return (int) (_writerBuilder.getJpgCompression() * 100);
-        }
-        public void setValue(int n) {
-            _writerBuilder.setJpgCompression(n / 100.f);
-        }
-        protected boolean isEnabled() {
-            return _writerBuilder.getJpgCompression_enabled();
         }
     }
 
@@ -281,17 +268,17 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
             updateEndings();
         }
         private void updateEndings() {
-            String sStart = _writerBuilder.getOutputPostfixStart();
-            String sEnd = _writerBuilder.getOutputPostfixEnd();
-            if (sStart.equals(sEnd)) {
-                if (!sStart.equals(__postfix1.getText()))
-                    __postfix1.setText(_writerBuilder.getOutputBaseName() + sStart);
+            File[] aoFiles = _writerBuilder.getOutputFileRange();
+            if (aoFiles.length == 1) {
+                String sPath = aoFiles[0].getPath();
+                if (!sPath.equals(__postfix1.getText()))
+                    __postfix1.setText(sPath);
                 if (!" ".equals(__postfix2.getText()))
                     __postfix2.setText(" ");
             } else {
+                String sStart = aoFiles[0].getPath(), sEnd = "to: "+aoFiles[1].getPath();
                 if (!sStart.equals(__postfix1.getText()))
-                    __postfix1.setText(_writerBuilder.getOutputBaseName() + sStart);
-                sEnd = "to: " + _writerBuilder.getOutputBaseName() + sEnd;
+                    __postfix1.setText(sStart);
                 if (!sEnd.equals(__postfix2.getText()))
                     __postfix2.setText(sEnd);
             }

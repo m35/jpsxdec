@@ -363,9 +363,9 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         tfb.write(fbs);
     }
 
-    public IDiscItemSaver makeSaver() {
+    public IDiscItemSaver makeSaver(File directory) {
         if (_saveFormat == TimSaveFormat.TIM)
-            return new TimRawSaver(_timItem, makeTimFileName());
+            return new TimRawSaver(_timItem, directory, makeTimFileName());
         else {
             String[] asOutputFiles = new String[_ablnSavePalette.length];
             for (int i = 0; i < asOutputFiles.length; i++) {
@@ -373,7 +373,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                     asOutputFiles[i] = makePaletteFileName(i, _saveFormat.getJavaFormat());
             }
             return new TimImageSaver(_saveFormat.getJavaFormat(), _timItem,
-                                     asOutputFiles, getOutputFilesSummary());
+                                     directory, asOutputFiles, getOutputFilesSummary());
         }
     }
 
@@ -382,34 +382,36 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     private static class TimRawSaver implements IDiscItemSaver {
 
         private final DiscItemTim _timItem;
+        private final File _outputDir;
         private final File _outputFile;
 
-        public TimRawSaver(DiscItemTim tim, String sOutputFile) {
+        public TimRawSaver(DiscItemTim tim, File outputDir, String sOutputFile) {
             _timItem = tim;
+            _outputDir = outputDir;
             _outputFile = new File(sOutputFile);
         }
         
-        public void startSave(ProgressListenerLogger pl, File dir) throws IOException, TaskCanceledException {
+        public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
             OutputStream os = null;
             try {
-                pl.progressStart();
+                pll.progressStart();
                 Tim tim = _timItem.readTim();
-                pl.event("Writing " + _outputFile.getName());
-                File f = new File(dir, _outputFile.getPath());
-                IO.makeDirs(f.getParentFile());
+                pll.event("Writing " + _outputFile.getName());
+                File f = new File(_outputDir, _outputFile.getPath());
+                IO.makeDirsForFile(f);
                 os = new BufferedOutputStream(new FileOutputStream(f));
                 tim.write(os);
-                pl.progressEnd();
+                pll.progressEnd();
             } catch (NotThisTypeException ex) {
-                pl.log(Level.SEVERE, null, ex);
+                pll.log(Level.SEVERE, null, ex);
             } catch (IOException ex) {
-                pl.log(Level.SEVERE, null, ex);
+                pll.log(Level.SEVERE, null, ex);
             }
             if (os != null) {
                 try {
                     os.close();
                 } catch (IOException ex) {
-                    pl.log(Level.SEVERE, null, ex);
+                    pll.log(Level.SEVERE, null, ex);
                 }
             }
         }
@@ -426,14 +428,6 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             return _outputFile.getName();
         }
 
-        public int getOutputFileCount() {
-            return 1;
-        }
-
-        public File getOutputFile(int i) {
-            return _outputFile;
-        }
-
         public void printSelectedOptions(PrintStream ps) {
             ps.println("Format: " + TimSaveFormat.TIM);
         }
@@ -445,14 +439,17 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
         private final JavaImageFormat _imageFormat;
         private final DiscItemTim _timItem;
+        private final File _outputDir;
         private final String[] _asOutputFiles;
         private final String _sOutputSummary;
 
         public TimImageSaver(JavaImageFormat imageFormat, DiscItemTim timItem, 
-                             String[] asOutputFiles, String sOutputSummary)
+                             File outputDir, String[] asOutputFiles,
+                             String sOutputSummary)
         {
             _imageFormat = imageFormat;
             _timItem = timItem;
+            _outputDir = outputDir;
             _asOutputFiles = asOutputFiles;
             _sOutputSummary = sOutputSummary;
         }
@@ -469,52 +466,30 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             return _sOutputSummary;
         }
 
-        public File getOutputFile(int i) {
-            int iCount = 0;
-            for (String sFile : _asOutputFiles) {
-                if (sFile != null) {
-                    if (iCount == i)
-                        return new File(sFile);
-                    iCount++;
-                }
-            }
-            throw new IllegalArgumentException();
-        }
-
-        public int getOutputFileCount() {
-            int iCount = 0;
-            for (String sFile : _asOutputFiles) {
-                if (sFile != null)
-                    iCount++;
-            }
-            return iCount;
-        }
-
-        
-        public void startSave(ProgressListenerLogger pl, File dir) throws TaskCanceledException {
+        public void startSave(ProgressListenerLogger pll) throws TaskCanceledException {
 
             try {
                 Tim tim = _timItem.readTim();
 
-                pl.progressStart();
+                pll.progressStart();
                 for (int i = 0; i < _asOutputFiles.length; i++) {
                     if (_asOutputFiles[i] != null) {
                         String sFile = _asOutputFiles[i];
-                        pl.event("Writing " + sFile);
+                        pll.event("Writing " + sFile);
                         BufferedImage bi = tim.toBufferedImage(i);
-                        File f = new File(dir, sFile);
-                        IO.makeDirs(f.getParentFile());
+                        File f = new File(_outputDir, sFile);
+                        IO.makeDirsForFile(f);
                         boolean blnOk = ImageIO.write(bi, _imageFormat.getId(), f);
                         if (!blnOk)
-                            pl.warning("Unable to write image for palette " + i);
-                        pl.progressUpdate((double)i / _timItem.getPaletteCount());
+                            pll.warning("Unable to write image for palette " + i);
+                        pll.progressUpdate((double)i / _timItem.getPaletteCount());
                     }
                 }
-                pl.progressEnd();
+                pll.progressEnd();
             } catch (NotThisTypeException ex) {
-                pl.log(Level.SEVERE, null, ex);
+                pll.log(Level.SEVERE, null, ex);
             } catch (IOException ex) {
-                pl.log(Level.SEVERE, null, ex);
+                pll.log(Level.SEVERE, null, ex);
             }
         }
 

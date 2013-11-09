@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems.savers;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import jpsxdec.discitems.DiscItemVideoStream;
@@ -44,60 +45,91 @@ import jpsxdec.formats.JavaImageFormat;
 
 
 public enum VideoFormat {
-    AVI_MJPG    ("AVI: Compressed (MJPG)"  , "avi:mjpg", JavaImageFormat.JPG) {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+    AVI_MJPG    ("AVI: Compressed (MJPG)"  , "avi:mjpg") {
+        public String makePostfixFormat(int iWidth, int iHeight) {
             return ".avi";
         }
-        public boolean canSaveAudio() { return true; }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return ".avi";
+        }
+        public boolean isAvi() { return true; }
+        public int getDecodeQualityCount() { return 0; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
     },
     AVI_RGB     ("AVI: Uncompressed RGB"   , "avi:rgb") {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+        public String makePostfixFormat(int iWidth, int iHeight) {
             return ".avi";
         }
-        public boolean canSaveAudio() { return true; }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return ".avi";
+        }
+        public boolean isAvi() { return true; }
     },
     AVI_YUV     ("AVI: YUV"                , "avi:yuv") {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+        public String makePostfixFormat(int iWidth, int iHeight) {
             return ".avi";
         }
-        public boolean canSaveAudio() { return true; }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return ".avi";
+        }
+        public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 1; }
-        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH_PLUS; }
     },
     AVI_JYUV    ("AVI: YUV with [0-255] range", "avi:jyuv") {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
+        public String makePostfixFormat(int iWidth, int iHeight) {
             return ".avi";
         }
-        public boolean canSaveAudio() { return true; }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return ".avi";
+        }
+        public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 1; }
-        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH_PLUS; }
     },
     IMGSEQ_PNG  ("Image sequence: png"     , "png", JavaImageFormat.PNG) {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
-            return digitBlk(vid, iFrame) + ".png";
+        public String makePostfixFormat(int iWidth, int iHeight) {
+            return "." + getImgFmt().getExtension();
+        }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return frameFormat(iEndFrame) + "." + getImgFmt().getExtension();
         }
     },
-    IMGSEQ_JPG  ("Image sequence: jpg"     , "jpg", JavaImageFormat.JPG) {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
-            return digitBlk(vid, iFrame) + ".jpg";
+    IMGSEQ_JPG  ("Image sequence: jpg"     , "jpg") {
+        public String makePostfixFormat(int iWidth, int iHeight) {
+            return ".jpg";
         }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return frameFormat(iEndFrame) + ".jpg";
+        }
+        public int getDecodeQualityCount() { return 0; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
     },
     IMGSEQ_BMP  ("Image sequence: bmp"     , "bmp", JavaImageFormat.BMP) {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
-            return digitBlk(vid, iFrame) + ".bmp";
+        public String makePostfixFormat(int iWidth, int iHeight) {
+            return "." + getImgFmt().getExtension();
+        }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return frameFormat(iEndFrame) + "." + getImgFmt().getExtension();
         }
     },
-    IMGSEQ_DEMUX("Image sequence: bitstream"   , "bs") {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
-            return "_" + vid.getWidth() + "x" + vid.getHeight() + digitBlk(vid, iFrame) + ".bs";
+    IMGSEQ_BITSTREAM("Image sequence: bitstream"   , "bs") {
+        public String makePostfixFormat(int iWidth, int iHeight) {
+            return "_" + iWidth + "x" + iHeight + ".bs";
+        }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return "_" + iWidth + "x" + iHeight + frameFormat(iEndFrame) + ".bs";
         }
         public int getDecodeQualityCount() { return 0; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
         public boolean isCroppable() { return false; }
     },
     IMGSEQ_MDEC ("Image sequence: mdec"    , "mdec") {
-        public String formatPostfix(DiscItemVideoStream vid, int iFrame) {
-            return "_" + vid.getWidth() + "x" + vid.getHeight() + digitBlk(vid, iFrame) + ".mdec";
+        public String makePostfixFormat(int iWidth, int iHeight) {
+            return "_" + iWidth + "x" + iHeight + ".mdec";
+        }
+        public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame) {
+            return "_" + iWidth + "x" + iHeight + frameFormat(iEndFrame) + ".mdec";
         }
         public int getDecodeQualityCount() { return 0; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
@@ -130,25 +162,33 @@ public enum VideoFormat {
     public int getDecodeQualityCount() { return MdecDecodeQuality.values().length; }
     public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.values()[i]; }
 
-    public boolean canSaveAudio() { return false; }
+    /** If AVI, it means it can save audio, otherwise it is an image sequence. */
+    public boolean isAvi() { return false; }
 
     public JavaImageFormat getImgFmt() { return _eImgFmt; }
 
-    public boolean hasCompression() {
-        return _eImgFmt == null ? false : _eImgFmt.hasCompression();
+    final public String makeFormat(DiscItemVideoStream vid) {
+        File baseName = vid.getSuggestedBaseName();
+        String sName = baseName.getName().replace("%", "%%") +
+                       makePostfixFormat(vid.getWidth(), vid.getHeight(), vid.getEndFrame());
+        String sBaseNameParent = baseName.getParent();
+        if (sBaseNameParent == null)
+            return sName;
+        else
+            return new File(baseName.getParent().replace("%", "%%"), sName).toString();
     }
-
-    abstract public String formatPostfix(DiscItemVideoStream vid, int iStartFrame);
+    abstract public String makePostfixFormat(int iWidth, int iHeight);
+    abstract public String makePostfixFormat(int iWidth, int iHeight, int iEndFrame);
 
     /////////////////////////////////////////////////////////
 
-    private static String digitBlk(DiscItemVideoStream vid, int iFrame) {
-        int iDigitCount = String.valueOf(vid.getEndFrame()).length();
-        return String.format("[%0" + String.valueOf(iDigitCount) + "d]", iFrame);
+    private static String frameFormat(int iEndFrame) {
+        int iDigitCount = String.valueOf(iEndFrame).length();
+        return "[%0" + String.valueOf(iDigitCount) + "d]";
     }
 
     public static VideoFormat fromCmdLine(String sCmdLine) {
-        for (VideoFormat fmt : values()) {
+        for (VideoFormat fmt : getAvailable()) {
             if (fmt.getCmdLine().equalsIgnoreCase(sCmdLine))
                 return fmt;
         }

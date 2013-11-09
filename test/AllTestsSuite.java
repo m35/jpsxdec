@@ -46,11 +46,6 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
     jpsxdec.psxvideo.bitstreams.BitReader.class,
     jpsxdec.psxvideo.bitstreams.Bitstreams.class,
-    jpsxdec.psxvideo.bitstreams.LainCompressor.class,
-    jpsxdec.psxvideo.mdec.Decoder.class,
-    jpsxdec.discitems.psxvideoencode.Replace.class,
-    jpsxdec.cdreaders.Cd.class,
-    jpsxdec.discitems.DiscItemXaAudioStream_test.class
 })
 public class AllTestsSuite {
 

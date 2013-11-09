@@ -38,9 +38,10 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.discitems.psxvideoencode.ReplaceFrames;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.encode.ParsedMdecImage;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.ConsoleProgressListenerLogger;
@@ -123,8 +124,9 @@ public abstract class DiscItemVideoStream extends DiscItem {
     /** 1 for 1x (75 sectors/second), 2 for 2x (150 sectors/second), or -1 if unknown. */
     abstract public int getDiscSpeed();
     
-    abstract public PlayController makePlayController() throws LineUnavailableException, UnsupportedAudioFileException, IOException;
-    
+    abstract public PlayController makePlayController();
+
+    /** Creates a demuxer that can handle frames in this video. */
     abstract public ISectorFrameDemuxer makeDemuxer();
     
     abstract public Fraction getSectorsPerFrame();
@@ -151,30 +153,67 @@ public abstract class DiscItemVideoStream extends DiscItem {
     
     public void frameInfoDump(final FeedbackStream fbs) throws IOException {
         DiscItemVideoStream vidItem = this;
-        ConsoleProgressListenerLogger log = new ConsoleProgressListenerLogger("frameInfoDump", fbs);
 
         ISectorFrameDemuxer demuxer = makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
             public void frameComplete(IDemuxedFrame frame) throws IOException {
-                frame.printStats(fbs);
+                try {
+                    byte[] abBitStream = frame.copyDemuxData(null);
+                    BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream);
+                    uncompressor.reset(abBitStream);
+                    ParsedMdecImage parsed = new ParsedMdecImage(getWidth(), getHeight());
+                    parsed.readFrom(uncompressor);
+                    uncompressor.skipPaddingBits();
+                    fbs.println("Bitstream info: " + uncompressor);
+                    fbs.println("Available demux size: " + frame.getDemuxSize());
+                    fbs.indent();
+                    try {
+                        frame.printSectors(fbs);
+                        if (fbs.printMore()) {
+                            int iMbWidth  = Calc.macroblockDim(_iWidth),
+                                iMbHeight = Calc.macroblockDim(_iHeight);
+                            for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
+                                for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
+                                    fbs.println(iMbX + ", " + iMbY);
+                                    fbs.indent();
+                                    try {
+                                        for (int iBlk = 0; iBlk < 6; iBlk++) {
+                                            fbs.println(parsed.getBlockInfo(iMbX, iMbY, iBlk));
+                                        }
+                                    } finally {
+                                        fbs.outdent();
+                                    }
+                                }
+                            }
+                        }
+                    } finally {
+                        fbs.outdent();
+                    }
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         });
 
-        for (int iSector = 0;
-             iSector < vidItem.getSectorLength();
-             iSector++)
-        {
-            try {
-                IdentifiedSector sector = vidItem.getRelativeIdentifiedSector(iSector);
-                if (sector != null) {
-                    demuxer.feedSector(sector, log);
+        ConsoleProgressListenerLogger log = new ConsoleProgressListenerLogger("frameInfoDump", fbs);
+        try {
+            for (int iSector = 0;
+                iSector < vidItem.getSectorLength();
+                iSector++)
+            {
+                try {
+                    IdentifiedSector sector = vidItem.getRelativeIdentifiedSector(iSector);
+                    if (sector != null) {
+                        demuxer.feedSector(sector, log);
+                    }
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
                 }
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
             }
+            demuxer.flush(log);
+        } finally {
+            log.close();
         }
-        demuxer.flush(log);
-
     }
 
     public void replaceFrames(FeedbackStream Feedback, String sXmlFile) 

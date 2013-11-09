@@ -363,9 +363,10 @@ public class CdFileSectorReader {
         
         byte[] abRawData = cdSector.rebuildRawSector(abSrcUserData);
 
-        int iOffset = _sectorFactory.getRawSectorSize() * iSector;
+        long lngOffset = (long)_sectorFactory.get1stSectorOffset() + 
+                         (long)_sectorFactory.getRawSectorSize() * iSector;
 
-        _inputFile.seek(iOffset);
+        _inputFile.seek(lngOffset);
         _inputFile.write(abRawData);
     }
 

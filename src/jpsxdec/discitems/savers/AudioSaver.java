@@ -58,13 +58,15 @@ public class AudioSaver implements IDiscItemSaver  {
 
     private final DiscItemAudioStream _audItem;
     private final ISectorAudioDecoder _decoder;
+    private final File _outputDir;
     private final File _fileSubPath;
     private final JavaAudioFormat _containerFormat;
 
-    public AudioSaver(DiscItemAudioStream audItem, File fileSubPath,
+    public AudioSaver(DiscItemAudioStream audItem, File outputDir, File fileSubPath,
                        JavaAudioFormat containerFormat, double dblVolume)
     {
         _audItem = audItem;
+        _outputDir = outputDir;
         _fileSubPath = fileSubPath;
         _decoder = audItem.makeDecoder(dblVolume);
         _containerFormat = containerFormat;
@@ -82,14 +84,6 @@ public class AudioSaver implements IDiscItemSaver  {
         return _fileSubPath.getPath();
     }
 
-    public File getOutputFile(int i) {
-        return _fileSubPath;
-    }
-
-    public int getOutputFileCount() {
-        return 1;
-    }
-
     public void printSelectedOptions(PrintStream ps) {
         ps.println("Format: " + _containerFormat);
         ps.println("Volume: " + Math.round(_decoder.getVolume() * 100) + "%");
@@ -97,11 +91,11 @@ public class AudioSaver implements IDiscItemSaver  {
     }
 
 
-    public void startSave(ProgressListenerLogger pl, File dir) throws IOException, TaskCanceledException {
+    public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
 
-        File outputFile = new File(dir, _fileSubPath.getPath());
+        File outputFile = new File(_outputDir, _fileSubPath.getPath());
 
-        IO.makeDirs(outputFile.getParentFile());
+        IO.makeDirsForFile(outputFile);
 
         AudioFormat audioFmt = _decoder.getOutputFormat();
         final AudioOutputFileWriter audioWriter;
@@ -118,15 +112,15 @@ public class AudioSaver implements IDiscItemSaver  {
             final int SECTOR_LENGTH = _audItem.getSectorLength();
             for (int iSector = 0; iSector < SECTOR_LENGTH; iSector++) {
                 IdentifiedSector identifiedSect = _audItem.getRelativeIdentifiedSector(iSector);
-                _decoder.feedSector(identifiedSect, pl);
-                pl.progressUpdate(iSector / (double)SECTOR_LENGTH);
+                _decoder.feedSector(identifiedSect, pll);
+                pll.progressUpdate(iSector / (double)SECTOR_LENGTH);
             }
-            pl.progressEnd();
+            pll.progressEnd();
         } finally {
             try {
                 audioWriter.close();
             } catch (Throwable ex) {
-                pl.log(Level.SEVERE, "Error closing audio writer", ex);
+                pll.log(Level.SEVERE, "Error closing audio writer", ex);
             }
         }
     }

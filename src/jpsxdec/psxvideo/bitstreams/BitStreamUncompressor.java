@@ -40,14 +40,11 @@ package jpsxdec.psxvideo.bitstreams;
 import java.io.EOFException;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.logging.Logger;
-import jpsxdec.Version;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
-import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -55,8 +52,6 @@ import jpsxdec.util.NotThisTypeException;
  * that can then be fed into an MDEC decoder to produce an image. */
 public abstract class BitStreamUncompressor extends MdecInputStream {
     
-    protected static final Logger LOG = Logger.getLogger(BitStreamUncompressor.class.getName());
-
     /** Enable to print the detailed decoding process. */
     public static boolean DEBUG = false;
 
@@ -77,6 +72,21 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
 
     /** Longest AC variable-length (Huffman) bit code, in bits. */
     public final static int AC_LONGEST_VARIABLE_LENGTH_CODE = 17;
+
+    public static BitStreamCompressor identifyCompressor(byte[] abHeaderBytes) {
+        if (BitStreamUncompressor_STRv2.checkHeader(abHeaderBytes))
+            return new BitStreamUncompressor_STRv2.BitstreamCompressor_STRv2();
+        else if(BitStreamUncompressor_STRv3.checkHeader(abHeaderBytes))
+            return new BitStreamUncompressor_STRv3.BitstreamCompressor_STRv3();
+        else if(BitStreamUncompressor_STRv1.checkHeader(abHeaderBytes))
+            return new BitStreamUncompressor_STRv1.BitStreamCompressor_STRv1();
+        else if(BitStreamUncompressor_Iki.checkHeader(abHeaderBytes))
+            return new BitStreamUncompressor_Iki.BitStreamCompressor_Iki();
+        else if(BitStreamUncompressor_Lain.checkHeader(abHeaderBytes))
+            return new BitStreamUncompressor_Lain.BitstreamCompressor_Lain();
+        else
+            return null;
+    }
 
     /** Holds the mapping of bit string to Zero-Run Length + AC Coefficient. */
     protected static class AcBitCode {
@@ -761,41 +771,12 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** Create an equivalent bitstream compressor. */
     abstract public BitStreamCompressor makeCompressor();
 
-    /** Returns an iterator that, for each item, generates a list of
-     * block quantization scales for use with a {@link BitStreamCompressor}.
-     * The {@link MdecInputStream} needs to be fully read for the
-     * returned iterator to make sense! 
-     * @param blnStartAt1  Initialize the quantization scales at 1 and increment from there,
-     *                     otherwise start at the currently uncompressed frame's quantization scales.
-     */
-    abstract public Iterator<int[]> qscaleIterator(boolean blnStartAt1);
-
     abstract public String getName();
 
+    @Override
     abstract public String toString();
 
     // -------------------------------------------------------------------------
-
-    public static class SpeedTest {
-        /** Speed test. */
-        public static void main(String[] args) throws Exception {
-            System.out.println(Version.Version);
-            byte[] abBits = IO.readFile("ff9media021[1]_320x224[1].demux");
-            BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
-            final MdecCode code = new MdecCode();
-            long lngStart, lngEnd;
-            lngStart = System.currentTimeMillis();
-            for (int i = 0; i < 40000; i++) {
-                v2.reset(abBits);
-                for (int j = 0; j < 6000; j++) {
-                    v2.readMdecCode(code);
-                }
-            }
-            lngEnd = System.currentTimeMillis();
-            System.out.println(lngEnd - lngStart);
-        }
-
-    }
 
     public static class SaturnGen {
 

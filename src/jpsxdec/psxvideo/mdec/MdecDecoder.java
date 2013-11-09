@@ -72,8 +72,8 @@ public abstract class MdecDecoder {
     protected final int[] _aiDebugPreqantBlock;
 
     protected MdecDecoder(int iWidth, int iHeight) {
-        _iMacBlockWidth = (iWidth + 15) / 16;
-        _iMacBlockHeight = (iHeight + 15) / 16;
+        _iMacBlockWidth = Calc.macroblockDim(iWidth);
+        _iMacBlockHeight = Calc.macroblockDim(iHeight);
         W = _iMacBlockWidth * 16;
         H = _iMacBlockHeight * 16;
         CW = _iMacBlockWidth * 8;

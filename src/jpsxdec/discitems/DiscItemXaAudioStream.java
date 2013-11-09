@@ -348,8 +348,8 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
             return DiscItemXaAudioStream.this.getDiscSpeed();
         }
 
-        public void printAudioDetails(PrintStream ps) {
-            ps.println(DiscItemXaAudioStream.this);
+        public String[] getAudioDetails() {
+            return new String[] { DiscItemXaAudioStream.this.toString() };
         }
 
     }

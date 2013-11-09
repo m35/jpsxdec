@@ -38,13 +38,13 @@
 package jpsxdec.util.player;
 
 
-public class PlayingState {
+class PlayingState {
 
     private final static boolean DEBUG = false;
 
     public static enum State { PLAYING, PAUSED, STOPPED }
 
-    private State _state;
+    private volatile State _state;
 
     public PlayingState(State state) {
         _state = state;

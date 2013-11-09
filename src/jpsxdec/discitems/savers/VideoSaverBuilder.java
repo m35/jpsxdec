@@ -41,15 +41,18 @@ import argparser.ArgParser;
 import argparser.BooleanHolder;
 import argparser.IntHolder;
 import argparser.StringHolder;
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
+import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDiscItemSaver;
-import jpsxdec.formats.JavaImageFormat;
+import jpsxdec.discitems.ISectorAudioDecoder;
+import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.psxvideo.mdec.Calc;
-import jpsxdec.psxvideo.mdec.MdecDecoder;
-import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
+import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.Misc;
@@ -70,7 +73,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         setCrop(true);
         setDecodeQuality(MdecDecodeQuality.LOW);
         setChromaInterpolation(Upsampler.Bicubic);
-        setJpgCompression(0.75f);
         setSaveStartFrame(_sourceVidItem.getStartFrame());
         setSaveEndFrame(_sourceVidItem.getEndFrame());
         setSingleSpeed(false);
@@ -89,8 +91,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                 other.setDecodeQuality(getDecodeQuality());
             if (getChromaInterpolation_enabled())
                 other.setChromaInterpolation(getChromaInterpolation());
-            if (getJpgCompression_enabled())
-                other.setJpgCompression(getJpgCompression());
             if (getSingleSpeed_enabled())
                 other.setSingleSpeed(getSingleSpeed());
             if (getAudioVolume_enabled())
@@ -102,16 +102,24 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     // .........................................................................
 
-    public String getOutputBaseName() {
-        return _sourceVidItem.getSuggestedBaseName().getPath();
-    }
-
-    public String getOutputPostfixStart() {
-        return getVideoFormat().formatPostfix(_sourceVidItem, getStartFrame());
-    }
-
-    public String getOutputPostfixEnd() {
-        return getVideoFormat().formatPostfix(_sourceVidItem, getEndFrame());
+    /** Returns array length 1 or 2. */
+    public File[] getOutputFileRange() {
+        VideoFormat vf = getVideoFormat();
+        if (vf.isAvi()) {
+            return new File[] { new File(vf.makeFormat(_sourceVidItem)) };
+        } else {
+            String sFmt = vf.makeFormat(_sourceVidItem);
+            if (getSaveStartFrame() == getSaveEndFrame()) {
+                return new File[] {
+                    new File(String.format(sFmt, getSaveStartFrame())),
+                };
+            } else {
+                return new File[] {
+                    new File(String.format(sFmt, getSaveStartFrame())),
+                    new File(String.format(sFmt, getSaveEndFrame())),
+                };
+            }
+        }
     }
 
     // .........................................................................
@@ -135,7 +143,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         firePossibleChange();
     }
     public boolean getSingleSpeed_enabled() {
-        return getVideoFormat().canSaveAudio() &&
+        return getVideoFormat().isAvi() &&
                (findDiscSpeed() < 1);
     }
     public Fraction getFps() {
@@ -161,21 +169,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     public void setVideoFormat(VideoFormat val) {
         _videoFormat = val;
         firePossibleChange();
-    }
-
-    // .........................................................................
-
-    private float _jpgCompressionOption = 0.75f;
-    public float getJpgCompression() {
-        return _jpgCompressionOption;
-    }
-    public void setJpgCompression(float val) {
-        _jpgCompressionOption = Math.max(Math.min(val, 1.f), 0.f);
-        firePossibleChange();
-    }
-
-    public boolean getJpgCompression_enabled() {
-        return getVideoFormat().hasCompression();
     }
 
     // .........................................................................
@@ -230,7 +223,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public boolean getDecodeQuality_enabled() {
-        return getVideoFormat().getDecodeQualityCount() > 0;
+        return getVideoFormat().getDecodeQualityCount() > 1;
     }
 
     // .........................................................................
@@ -305,12 +298,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         StringHolder vidfmt = new StringHolder();
         parser.addOption("-vidfmt,-vf %s", vidfmt);
 
-        IntHolder jpg = null;
-        if (JavaImageFormat.JPG.isAvailable()) {
-            jpg = new IntHolder(-999);
-            parser.addOption("-jpg %i", jpg);
-        }
-
         BooleanHolder nocrop = new BooleanHolder(false);
         parser.addOption("-nocrop %v", nocrop); // only non demux & mdec formats
 
@@ -326,18 +313,12 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         parser.addOption("-ds %i {[1, 2]}", discSpeed);
 
         StringHolder frames = new StringHolder();
-        parser.addOption("-frame,-frames,-f %s", frames);
+        parser.addOption("-frame,-frames %s", frames);
 
         //...........
         
-        BooleanHolder noaud = new BooleanHolder(false);
-        parser.addOption("-noaud %v", noaud); // Only with AVI & audio
-
-        BooleanHolder emulateav = new BooleanHolder(false);
-        parser.addOption("-psxav %v", emulateav); // Only with AVI & audio
-
-        BooleanHolder emulatefps = new BooleanHolder(false);
-        parser.addOption("-psxfps %v", emulatefps); // Mutually excusive with fps...
+        //BooleanHolder emulatefps = new BooleanHolder(false);
+        //parser.addOption("-psxfps %v", emulatefps); // Mutually excusive with fps...
 
         // -------------------------
         String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
@@ -383,14 +364,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                 fbs.printlnWarn("Invalid upsample quality " + up.value);
         }
 
-        // make sure to process this after the video format is set
-        if (jpg != null && jpg.value != -999) {
-            if (jpg.value >= 0 && jpg.value <= 100)
-                setJpgCompression(jpg.value / 100.f);
-            else
-                fbs.printlnWarn("Invalid jpg compression " + jpg.value);
-        }
-
         setCrop(!nocrop.value);
 
         if (discSpeed.value == 1) {
@@ -410,39 +383,26 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     /** Override to append additional help items. */
     protected void makeHelpTable(TabularFeedback tfb) {
-
         tfb.setRowSpacing(1);
 
-        tfb.print("-vidfmt,-vf <format>").tab().print("Output video format (default avi:mjpg). Options:");
+        tfb.print("-vidfmt,-vf <format>").tab().println("Output video format (default avi:mjpg).")
+                                               .print("Options:");
         tfb.indent();
         for (VideoFormat fmt : VideoFormat.values()) {
             if (fmt.isAvailable()) {
                 tfb.ln().print(fmt.getCmdLine());
             }
         }
-        tfb.newRow();
 
-        tfb.print("-quality,-q <quality>").tab().println("Decoding quality (default low). Options:")
-                              .indent().print(MdecDecodeQuality.getCmdLineList());
         tfb.newRow();
-
-        tfb.print("-vf <format>").tab().println("Output video format (default avi). Options:")
-                              .indent().print(VideoFormat.getCmdLineList());
+        tfb.print("-quality,-q <quality>").tab().println("Decoding quality (default low). Options:");
+        tfb.indent().print(MdecDecodeQuality.getCmdLineList());
+        
         tfb.newRow();
-
-        tfb.print("-up <upsampling>").tab().print("Chroma upsampling method (default NearestNeighbor). Options:")
-                              .indent();
+        tfb.print("-up <upsampling>").tab().println("Chroma upsampling method")
+                                           .print("(default "+Upsampler.Bicubic+"). Options:").indent();
         for (Upsampler up : Upsampler.values()) {
-            tfb.println("").print(up.name());
-        }
-        tfb.newRow();
-
-        JavaImageFormat JPG = JavaImageFormat.JPG;
-        if (JPG.isAvailable()) {
-            tfb.print("-jpg <between 1 and 100>").tab()
-                    .println("Output quality when saving as jpg or avi:mjpg")
-                    .print("(default is 75).");
-            tfb.newRow();
+            tfb.ln().print(up.name());
         }
 
         if (getSingleSpeed_enabled()) {
@@ -450,8 +410,11 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
             tfb.print("-ds <disc speed>").tab().print("Specify 1 or 2 if disc speed is undetermined.");
         }
         
+        //tfb.newRow();
+        //tfb.print("-psxfps").tab().print("Emulate PSX FPS timing");
+
         tfb.newRow();
-        tfb.print("-psxfps").tab().print("Emulate PSX FPS timing");
+        tfb.print("-frame,-frames # or #-#").tab().print("Process only frames in range.");
 
         if (_sourceVidItem.shouldBeCropped()) {
             tfb.newRow();
@@ -460,44 +423,27 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     /** Make the snapshot with the right demuxer and audio decoder. */
-    abstract protected VideoSaverBuilderSnapshot makeSnapshot();
+    abstract protected SectorFeeder makeFeeder();
 
-    /** Called by {@link #makeSnapshot()}. */
-    final protected MdecDecoder makeVideoDecoder() {
-        final MdecDecoder vidDecoder = getDecodeQuality().makeDecoder(
-                _sourceVidItem.getWidth(), _sourceVidItem.getHeight());
-        if (vidDecoder instanceof MdecDecoder_double_interpolate)
-            ((MdecDecoder_double_interpolate)vidDecoder).setResampler(getChromaInterpolation());
-        return vidDecoder;
+    public static abstract class SectorFeeder {
+        public ISectorFrameDemuxer videoDemuxer;
+        public ISectorAudioDecoder audioDecoder;
+        abstract public void feedSector(IdentifiedSector sector, Logger log) throws IOException;
+        public void flush(Logger log) throws IOException {
+            videoDemuxer.flush(log);
+        }
     }
 
-    final public IDiscItemSaver makeSaver() {
+    final public IDiscItemSaver makeSaver(File directory) {
+        SectorFeeder feeder = makeFeeder();
 
-        VideoSaverBuilderSnapshot snap = makeSnapshot();
+        VideoSaver vs;
+        if (getVideoFormat().isAvi())
+            vs = new VideoSaver.Avi(_sourceVidItem, directory, feeder, this);
+        else
+            vs = new VideoSaver.Sequence(_sourceVidItem, directory, feeder, this);
 
-        VideoSaver writer;
-        switch (snap.videoFormat) {
-            case AVI_JYUV:
-                writer = new VideoSavers.DecodedAviWriter_JYV12(snap); break;
-            case AVI_YUV:
-                writer = new VideoSavers.DecodedAviWriter_YV12(snap); break;
-            case AVI_MJPG:
-                writer = new VideoSavers.DecodedAviWriter_MJPG(snap); break;
-            case AVI_RGB:
-                writer = new VideoSavers.DecodedAviWriter_DIB(snap); break;
-            case IMGSEQ_DEMUX:
-                writer = new VideoSavers.BitstreamSequenceWriter(snap); break;
-            case IMGSEQ_MDEC:
-                writer = new VideoSavers.MdecSequenceWriter(snap); break;
-            case IMGSEQ_JPG:
-            case IMGSEQ_BMP:
-            case IMGSEQ_PNG:
-                writer = new VideoSavers.DecodedJavaImageSequenceWriter(snap); break;
-            default:
-                throw new UnsupportedOperationException(getVideoFormat() + " not implemented yet.");
-        }
-        return writer;
-
+        return vs;
     }
 
     // audio related subclass methods

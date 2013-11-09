@@ -39,102 +39,83 @@ package jpsxdec.util.player;
 
 /** Video processor thread manages the conversion of video source data
  * to a presentation image. */
-public class VideoProcessor implements Runnable {
+class VideoProcessor implements Runnable {
 
     private static final boolean DEBUG = false;
 
     private static final int CAPACITY = 50;
 
-    private final MultiStateBlockingQueue<IDecodableFrame> _framesProcessingQueue =
-            new MultiStateBlockingQueue<IDecodableFrame>(CAPACITY);
+    private final ObjectPlayStream<IDecodableFrame> _framesProcessingQueue =
+            new ObjectPlayStream<IDecodableFrame>(CAPACITY);
     private Thread _thread;
     
-    private IVideoTimer _vidTimer;
-    private VideoPlayer _vidPlayer;
+    private final IVideoTimer _vidTimer;
+    private final VideoPlayer _vidPlayer;
 
-    VideoProcessor(IVideoTimer timer, VideoPlayer player) {
+    public VideoProcessor(IVideoTimer timer, VideoPlayer player) {
         _vidTimer = timer;
         _vidPlayer = player;
-        _framesProcessingQueue.stop();
+        _framesProcessingQueue.writerClose();
+        _framesProcessingQueue.readerClose();
     }
 
     public void run() {
         IDecodableFrame decodeFrame;
+        int[] aiImage = new int[_vidPlayer.getWidth() * _vidPlayer.getHeight()];
         try {
-            while ((decodeFrame = _framesProcessingQueue.take()) != null) {
-                // check if this frame is part of current play sequence
-                // and if we haven't passed presentation time
+            while ((decodeFrame = _framesProcessingQueue.read()) != null) {
+                // check that we haven't passed presentation time
                 if (_vidTimer.shouldBeProcessed(decodeFrame.getPresentationTime()))
                 {
                     if (DEBUG) System.out.println("Processor processing frame :)");
                     VideoPlayer.VideoFrame frame = _vidPlayer._videoFramePool.borrow();
-                    frame.init(decodeFrame);
+                    frame.PresentationTime = decodeFrame.getPresentationTime();
                     // decode frame
-                    decodeFrame.decodeVideo(frame.Memory);
-                    frame.MemImgSrc.newPixels();
+                    decodeFrame.decodeVideo(aiImage);
+                    frame.Img.setRGB(0, 0,
+                            frame.Img.getWidth(), frame.Img.getHeight(),
+                            aiImage, 0, frame.Img.getWidth());
                     // submit to vid player
                     // will block if player is full
                     _vidPlayer.addFrame(frame);
                 } else {
-                    System.out.println("Processor not processing frame :(");
+                    System.out.println("Processor skipping frame :(");
                 }
             }
         } catch (Throwable ex) {
             ex.printStackTrace();
         } finally {
-            _framesProcessingQueue.stop();
+            _framesProcessingQueue.readerClose();
+            _vidPlayer.writerClose();
         }
     }
 
-    public void addFrame(IDecodableFrame frame) {
+    public void writeFrame(IDecodableFrame frame) {
         try {
-            _framesProcessingQueue.add(frame);
+            _framesProcessingQueue.write(frame);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
     }
     
-    final void play() {
+    public void startBuffering() {
         synchronized (_framesProcessingQueue.getSyncObject()) {
-            if (_framesProcessingQueue.isPaused()) {
-                _framesProcessingQueue.play();
-            } else if (_framesProcessingQueue.isStopped()) {
+            if (_framesProcessingQueue.isReaderClosed()) {
+                _framesProcessingQueue.writerOpen();
+                _framesProcessingQueue.readerOpen();
                 _thread = new Thread(this, getClass().getName());
                 _thread.start();
-                _framesProcessingQueue.play();
             }
         }
     }
     
-    final void pause() {
-        synchronized (_framesProcessingQueue.getSyncObject()) {
-            if (_framesProcessingQueue.isPlaying()) {
-                _framesProcessingQueue.pause();
-            } else if (_framesProcessingQueue.isStopped()) {
-                _thread = new Thread(this, getClass().getName());
-                _thread.start();
-                _framesProcessingQueue.pause();
-            }
-        }
-    }
-
     /** Make sure player is stopped before calling this method or it will deadlock. */
-    final void stop() throws InterruptedException {
-        synchronized (_framesProcessingQueue.getSyncObject()) {
-            if (_framesProcessingQueue.isPlaying() || _framesProcessingQueue.isPaused())
-                _framesProcessingQueue.stop();
-        }
+    public void stop() {
+        _framesProcessingQueue.readerClose();
     }
 
-    void overwriteWhenFull() {
-        _framesProcessingQueue.overwriteWhenFull();
-    }
-    void blockWhenFull() {
-        _framesProcessingQueue.blockWhenFull();
-    }
-
-    void stopWhenEmpty() {
-        _framesProcessingQueue.stopWhenEmpty();
+    public void writerClose() {
+        _framesProcessingQueue.writerClose();
     }
 
 }

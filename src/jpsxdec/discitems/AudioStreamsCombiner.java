@@ -38,7 +38,6 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.List;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
@@ -168,9 +167,11 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
         }
     }
 
-    public void printAudioDetails(PrintStream ps) {
-        for (DiscItemAudioStream item : _aoSrcItems) {
-            ps.println(item);
+    public String[] getAudioDetails() {
+        String[] as = new String[_aoSrcItems.length];
+        for (int i = 0; i < as.length; i++) {
+            as[i] = _aoSrcItems[i].toString();
         }
+        return as;
     }
 }

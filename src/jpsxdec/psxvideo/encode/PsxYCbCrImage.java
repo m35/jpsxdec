@@ -212,6 +212,10 @@ public class PsxYCbCrImage {
     }
 
     public double[] get8x8blockY(int iX, int iY) {
+        if (iX < 0 || iX >= _iWidth)
+            throw new IllegalArgumentException(iX + " X is out of bounds");
+        if (iY < 0 || iY >= _iHeight)
+            throw new IllegalArgumentException(iY + " Y is out of bounds");
         return get8x8block(iX, iY, _adblY, _iWidth);
     }
 

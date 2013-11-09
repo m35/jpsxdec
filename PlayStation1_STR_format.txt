@@ -1,7 +1,7 @@
                       The PlayStation 1 Video (STR) Format
-                                v1.1, March 2013
-                       http://kenai.com/projects/jpsxdec/
-                         http://jpsxdec.blogspot.com/
+                               v1.10, March 2013
+                           http://jpsxdec.kenai.com/
+                          http://jpsxdec.blogspot.com/
 
 --------------------------------------------------------------------------------
 This document, copyright (c) 2008-2011 Michael Sabin, is licensed under a MIT License. Permission has been obtained to also include some source code comments from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this license is at the end of this file. Note that the related jPSXdec program is NOT licensed under the MIT license, but is under a non-commercial license.
@@ -68,7 +68,7 @@ v1.00
     - Overall: Some unknown fields identified
                Luminance -> Luma, Chrominance -> Chroma, Subcode -> Submode
                Many minor tweaks and corrections
-v1.1
+v1.10
     - ch 3.1: Added v1 frames
     - ch 3.8: Added Ace Combat 3 Electrosphere
     - ch 3.10: Added Judge Dredd
@@ -123,7 +123,7 @@ Sony PlayStation 1 videos, usually with the extension STR, MOV, or BIN, contain 
 
 This document attempts to explain the decoding process of a single video frame. Audio is not covered in this document, but has already been documented by Jonathan Atkins (http://freshmeat.net/projects/cdxa/, also mirrored at http://code.google.com/p/jpsxdec/downloads/list).
 
-Like MPEG1 streams, the decoding process is long, and rather complicated. Specifically, Chapters 2.2 and 2.3 closely resemble two aspects of MPEG1 decoding: translation of variable length codes, and macro-block decoding.
+Like MPEG1 streams, the decoding process is long and rather complicated. Specifically, Chapters 2.2 and 2.3 closely resemble two aspects of MPEG1 decoding: translation of variable length codes, and macro-block decoding.
 
 I have tried to keep the descriptions as clear and straight-forward as possible, and explain some of the details and terminology of MPEG1 decoding. However, this document doesn't contain everything, and I've been immersed in this stuff for so long that I no longer can see where my explanations fall short. Therefore, you may need other sources of information to fully grasp these steps.
 
@@ -356,7 +356,7 @@ That was the easy part. It gets harder from here.
 ## 2.2. Uncompress the data
 ################################################################################
 
-There are two common and understood video frame types found on PlayStation game discs: version 2, and version 3 (I don't know what happened to version 1). These two versions I assume cover the majority of video frame formats. My guess is they were part of the standard development tools given to game developers.
+There are two common and understood video frame types found on PlayStation game discs: version 2, and version 3 (I'm not sure what happened to version 1). These two versions I assume cover the majority of video frame formats. My guess is they were part of the standard development tools given to game developers.
 
 It would be convenient if every movie found in every game used these two formats. However, since it is the game's responsibility to decompress the data off the disc, some studious game developers used their own method. Alas, the only way one could ever understand the decoding scheme used by some games would be to reverse engineer the game's code.
 
@@ -1077,7 +1077,7 @@ Blue  = (Y + 128) + 1.772  * Cb
 
 The adjustment of 128 is called "level shift" in the JPEG standard.
 
-Because the equation can result in RGB values below 0, and above 255, you also should "clamp" the Red, Green, and Blue within a range of 0 to 255.
+Because the equation can result in RGB values below 0, and above 255, you also must "clamp" the Red, Green, and Blue within a range of 0 to 255.
 
 If Red   > 255 Then Red   = 255 Else If Red   < 0 Then Red   = 0
 If Green > 255 Then Green = 255 Else If Green < 0 Then Green = 0
@@ -1800,9 +1800,11 @@ Offset   Size   Endian --------------------------------------------------------
   6 . . . 2 . . little . Inverted frame number: Starts at last frame
   8 . . . 2 . . little . Frame width in pixels
  10 . . . 2 . . little . Frame height in pixels
- 12 . .  14 . .  n/a . . All zeros
+ 12 . .  12 . .  n/a . . All zeros
  24 . . . 8 . . . ?? . . Unknown
  32 ---------------------------------------------------------------------------
+
+For some reason the frame number starts at the last frame and descends to 0.
 
 ################################################################################
 ## 3.9. .iki

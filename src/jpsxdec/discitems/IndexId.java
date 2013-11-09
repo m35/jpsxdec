@@ -76,7 +76,7 @@ public class IndexId {
         if (asParts[2] == null)
             _aiTreeIndexes = null;
         else {
-            _aiTreeIndexes = Misc.parseDelimitedInts(asParts[2].substring(1, asParts[2].length()-1), "\\.");
+            _aiTreeIndexes = Misc.splitInt(asParts[2].substring(1, asParts[2].length()-1), "\\.");
             if (_aiTreeIndexes == null)
                 throw new NotThisTypeException("Invalid id format: " + sSerialized);
         }

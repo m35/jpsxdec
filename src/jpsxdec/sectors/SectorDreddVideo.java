@@ -117,7 +117,7 @@ public class SectorDreddVideo extends SectorAbstractVideo {
                 String sLine;
                 int iSize = 0;
                 while ((sLine = reader.readLine()) != null) {
-                    int[] aiParts = Misc.parseDelimitedInts(sLine, "\t");
+                    int[] aiParts = Misc.splitInt(sLine, "\t");
                     aiSectorList[iSize] = aiParts[0];
                     asiFrameList[iSize] = (short) aiParts[1];
                     abChunkList[iSize] = (byte) aiParts[2];

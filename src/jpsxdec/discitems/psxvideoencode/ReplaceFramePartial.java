@@ -44,17 +44,15 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
-import jpsxdec.psxvideo.encode.ParsedMdecImage.Block;
-import jpsxdec.psxvideo.encode.ParsedMdecImage.MacroBlock;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
@@ -152,7 +150,9 @@ public class ReplaceFramePartial extends ReplaceFrame {
     }
 
     @Override
-    public void replace(IDemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) throws IOException, NotThisTypeException, MdecException {
+    public void replace(IDemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) 
+            throws IOException, NotThisTypeException, MdecException
+    {
         final int WIDTH = frame.getWidth();
         final int HEIGHT = frame.getHeight();
 
@@ -165,6 +165,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
         parsedOrig.readFrom(uncompressor);
 
         // 2. convert both to RGB
+        // TODO: use best quality to decode, but same as encode
         MdecDecoder_double decoder = new MdecDecoder_double(new StephensIDCT(),
                                                             WIDTH, HEIGHT);
         decoder.decode(parsedOrig.getStream());
@@ -172,83 +173,58 @@ public class ReplaceFramePartial extends ReplaceFrame {
         decoder.readDecodedRgb(rgb.getWidth(), rgb.getHeight(), rgb.getData());
         BufferedImage origImg = rgb.toBufferedImage();
         BufferedImage newImg = ImageIO.read(getImageFile());
-
+        
         // 3. compare the macroblocks, considering the tolerance
         //    and filter any that don't have any differences within
         //    the bounding box and mask
         ArrayList<Point> diffMacblks = findDiffMacroblocks(origImg, newImg);
-
         if (diffMacblks.isEmpty()) {
             fbs.println("No differences found, skipping.");
             return;
         } else if (diffMacblks.size() == Calc.macroblocks(WIDTH, HEIGHT)) {
             fbs.printlnWarn("Warning: Entire frame has is different.");
         }
+        printDiffMacroBlocks(diffMacblks, fbs);
 
+        // 4. Encode and compress
+        PsxYCbCrImage newYuvImg = new PsxYCbCrImage(newImg);
+        MdecEncoder encoder = new MdecEncoder(parsedOrig, newYuvImg, diffMacblks);
+        BitStreamCompressor comp = BitStreamUncompressor.identifyCompressor(origBits);
+        byte[] abNewFrame = comp.compressPartial(origBits, frame.getFrame(), encoder, fbs);
+        
+        if (abNewFrame.length > frame.getDemuxSize())
+            throw new MdecException.Compress(String.format(
+                    "Demux data does fit in frame %d!! Available size %d, needed size %d",
+                    getFrame(), frame.getDemuxSize(), abNewFrame.length));
+
+        // 5. replace the frame
+        frame.writeToSectors(abNewFrame, abNewFrame.length, comp.getMdecCodesFromLastCompress(), cd, fbs);
+    }
+
+    private void printDiffMacroBlocks(ArrayList<Point> diffMacblks, FeedbackStream fbs) {
         fbs.println("Found " + diffMacblks.size() + " different macroblocks (16x16):");
         int iY = -1;
         for (Point macblk : diffMacblks) {
-            if (iY < 0) 
+            if (iY < 0)
                 iY = macblk.y;
             else if (macblk.y != iY) {
                 iY = macblk.y;
                 fbs.println();
             }
-                
+
             fbs.print(String.format("(%d, %d) ", macblk.x, macblk.y));
         }
         fbs.println();
-
-        PsxYCbCrImage newPsxImg = new PsxYCbCrImage(newImg);
-        BitStreamCompressor compressor = uncompressor.makeCompressor();
-        ParsedMdecImage parsedNew = new ParsedMdecImage(WIDTH, HEIGHT);
-        byte[] abNewDemux = null;
-        
-        // 4. Encode replacement image with original frame qscale
-        MdecEncoder encoder = new MdecEncoder(newPsxImg);
-        Iterator<int[]> qscales = uncompressor.qscaleIterator(false);
-        while (qscales.hasNext()) {
-            fbs.println("Trying " + qscales);
-
-            // 5. Replace new macroblocks in the parsed source image
-            parsedNew.readFrom(encoder.getStream(qscales.next()));
-            for (Point macblk : diffMacblks) {
-                MacroBlock origMacblk = parsedOrig.getMacroBlock(macblk.x, macblk.y);
-                MacroBlock newMacblk = parsedNew.getMacroBlock(macblk.x, macblk.y);
-                copyMacroBlock(origMacblk, newMacblk, fbs);
-            }
-
-            try {
-                // 6. Recompress the entire original image with the new macroblocks
-                abNewDemux = compressor.compress(parsedOrig.getStream(), parsedOrig.getMdecCodeCount());
-
-                // 7. Check if it will fit
-                if (abNewDemux.length <= frame.getDemuxSize()) {
-                    fbs.indent().format("New demux size %d <= max source %d ",
-                            abNewDemux.length, frame.getDemuxSize()).outdent().println();
-                    break;
-                } else {
-                    fbs.indent().format("!!! New demux size %d > max source %d !!!",
-                            abNewDemux.length, frame.getDemuxSize()).outdent().println();
-                }
-
-            } catch (MdecException.TooMuchEnergyToCompress ex) {
-                fbs.printlnWarn(ex.getMessage());
-            }
-            // 8. If not, start again from step 4, increasing the qscale
-        }
-
-        // 9. replace the frame
-        frame.writeToSectors(abNewDemux, abNewDemux.length, parsedNew.getMdecCodeCount(), cd, fbs);
     }
 
-    private ArrayList<Point> findDiffMacroblocks(BufferedImage origImg, BufferedImage newImg)
+    private ArrayList<Point> findDiffMacroblocks(BufferedImage origImg,
+                                                 BufferedImage newImg)
               throws IOException
     {
         int iMacblkWidth  = Calc.macroblockDim(origImg.getWidth());
         int iMacblkHeight = Calc.macroblockDim(origImg.getHeight());
 
-        ArrayList<Point> diffMacblks = new ArrayList<Point>(iMacblkWidth * iMacblkHeight);
+        ArrayList<Point> diffMacblks = new ArrayList<Point>();
 
         BufferedImage maskImg = null;
         if (_imageMaskFile != null) {
@@ -256,13 +232,11 @@ public class ReplaceFramePartial extends ReplaceFrame {
         }
 
         Point macblk = new Point();
-        // 1. make a list of all the macro blocks
         for (int y=0; y<iMacblkHeight; y++) {
             for (int x=0; x<iMacblkWidth; x++) {
                 macblk.setLocation(x, y);
                 if (blockIsDifferent(macblk, origImg, newImg, maskImg)) {
-                    diffMacblks.add(macblk);
-                    macblk = new Point();
+                    diffMacblks.add(new Point(macblk));
                 }
             }
         }
@@ -270,14 +244,12 @@ public class ReplaceFramePartial extends ReplaceFrame {
         return diffMacblks;
     }
     
-    private boolean blockIsDifferent(Point macblk, BufferedImage bi1, BufferedImage bi2, BufferedImage maskImg) {
-
+    private boolean blockIsDifferent(Point macblk, BufferedImage bi1, BufferedImage bi2, BufferedImage maskImg)
+    {
         // 1. filter out macroblocks that aren't touched by the bounding box
         if (_rectMask != null) {
-            if (macblk.x * 16+15 < _rectMask.getMinX() ||
-                macblk.x * 16    > _rectMask.getMaxX() ||
-                macblk.y * 16+15 < _rectMask.getMinY() ||
-                macblk.y * 16    > _rectMask.getMaxY())
+            Rectangle rectMb = new Rectangle(macblk.x * 16, macblk.y * 16, 15, 15);
+            if (!_rectMask.intersects(rectMb))
                 return false;
         }
 
@@ -309,20 +281,5 @@ public class ReplaceFramePartial extends ReplaceFrame {
         return false;
     }
 
-    private void copyMacroBlock(MacroBlock origMacblk, MacroBlock newMacblk, FeedbackStream fbs) {
-        for (int iBlock = 0; iBlock < 6; iBlock++) {
-            Block srcBlk = origMacblk.getBlockCopy(iBlock);
-            Block modBlk = newMacblk.getBlockCopy(iBlock);
-            if (srcBlk.getQscale() != modBlk.getQscale()) {
-                if (DEBUG) {
-                    fbs.printlnMore(String.format("  %s qscale is different (%d -> %d) ",
-                                    srcBlk.getName(), modBlk.getQscale(), srcBlk.getQscale()));
-                }
-
-                modBlk.changeQuantizationScale(srcBlk.getQscale());
-            }
-            origMacblk.replaceBlock(modBlk);
-        }
-    }
 
 }

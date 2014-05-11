@@ -34,10 +34,10 @@ package jpsxdec.psxvideo.mdec.idct;
 
 public final class simple_idct implements IDCT_int {
 
-	final int W1 = 22725, W2 = 21407, W3 = 19266, W4 = 16383,
+	final static int W1 = 22725, W2 = 21407, W3 = 19266, W4 = 16383,
 			  W5 = 12873, W6 =  8867, W7 = 4520;
 	
-	final int ROW_SHIFT = 11, COL_SHIFT = 20;
+	final static int ROW_SHIFT = 11, COL_SHIFT = 20;
 		
 	// input is actually short and output is actually byte
 	// but Java makes that really hard

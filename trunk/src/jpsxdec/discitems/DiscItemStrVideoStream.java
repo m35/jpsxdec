@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,14 +41,14 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Logger;
-import jpsxdec.cdreaders.CdSector;
+import jpsxdec.I18N;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderStr;
-import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.Maths;
@@ -56,23 +56,26 @@ import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.player.PlayController;
 
 /** Represents all variations of PlayStation video streams. */
-public class DiscItemStrVideoStream extends DiscItemVideoStream {
+public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
 
     private static final Logger LOG = Logger.getLogger(DiscItemStrVideoStream.class.getName());
 
-    public static final String TYPE_ID = "Video";
+    private static final String FRAMES_KEY = "Frames";
+    /** Last video frame number. */
+    private final int _iEndFrame;
+    /** First video frame number. */
+    private final int _iStartFrame;
     
-    private static final String DISC_SPEED_KEY = "Disc Speed";
     private static final String SECTORSPERFRAME_KEY = "Sectors/Frame";
-    private static final String FRAME1_LAST_SECTOR_KEY = "Frame 1 last sector";
-
-    /** The last sector of frame 1 relative to the start sector.
-     * Important for syncing audio and video. */
-    private final int _iFrame1LastSector;
-    
     private final int _iSectors;
     private final int _iPerFrame;
 
+    private static final String FRAME1_LAST_SECTOR_KEY = "Frame 1 last sector";
+    /** The last sector of frame 1 relative to the start sector.
+     * Important for syncing audio and video. */
+    private final int _iFirstFrameLastSector;
+    
+    private static final String DISC_SPEED_KEY = "Disc Speed";
     private int _iDiscSpeed = -1;
     private int _iAudioDiscSpeed = 0;
 
@@ -80,39 +83,49 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
             new TreeSet<DiscItemAudioStream>();
 
     public DiscItemStrVideoStream(int iStartSector, int iEndSector,
-                                  int iStartFrame, int iEndFrame,
                                   int iWidth, int iHeight,
+                                  int iFrameCount,
+                                  int iStartFrame, int iEndFrame,
                                   int iSectors, int iPerFrame,
-                                  int iFrame1LastSector)
+                                  int iFirstFrameLastSector)
     {
         super(iStartSector, iEndSector, 
               iWidth, iHeight, 
-              iStartFrame, iEndFrame);
+              iFrameCount);
+
+        _iStartFrame = iStartFrame;
+        _iEndFrame = iEndFrame;
+        
         // ensure the sectors/frame fraction is simplied
         int iGcd = Maths.gcd(iSectors, iPerFrame);
         _iSectors = iSectors / iGcd;
         _iPerFrame = iPerFrame / iGcd;
 
-        _iFrame1LastSector = iFrame1LastSector;
+        _iFirstFrameLastSector = iFirstFrameLastSector;
     }
 
     public DiscItemStrVideoStream(SerializedDiscItem fields) throws NotThisTypeException
     {
         super(fields);
-        
+
+        int[] ai = fields.getIntRange(FRAMES_KEY);
+        _iStartFrame = ai[0];
+        _iEndFrame = ai[1];
+
         long[] alng = fields.getFraction(SECTORSPERFRAME_KEY);
         _iSectors = (int)alng[0];
         _iPerFrame = (int)alng[1];
 
         _iDiscSpeed = fields.getInt(DISC_SPEED_KEY, -1);
-        _iFrame1LastSector = fields.getInt(FRAME1_LAST_SECTOR_KEY);
+        _iFirstFrameLastSector = fields.getInt(FRAME1_LAST_SECTOR_KEY);
     }
 
     @Override
     public SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
+        serial.addRange(FRAMES_KEY, _iStartFrame, _iEndFrame);
         serial.addFraction(SECTORSPERFRAME_KEY, _iSectors, _iPerFrame);
-        serial.addNumber(FRAME1_LAST_SECTOR_KEY, _iFrame1LastSector);
+        serial.addNumber(FRAME1_LAST_SECTOR_KEY, _iFirstFrameLastSector);
 
         int iDiscSpeed = getDiscSpeed();
         if (iDiscSpeed > 0)
@@ -120,9 +133,12 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
         return serial;
     }
 
-    @Override
-    public String getSerializationTypeId() {
-        return TYPE_ID;
+    public int getStartFrame() {
+        return _iStartFrame;
+    }
+
+    public int getEndFrame() {
+        return _iEndFrame;
     }
 
     @Override
@@ -134,7 +150,7 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
 
     @Override
     public int getPresentationStartSector() {
-        return getStartSector() + _iFrame1LastSector;
+        return getStartSector() + _iFirstFrameLastSector;
     }
     
     @Override
@@ -142,16 +158,10 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
         return new Fraction(_iSectors, _iPerFrame);
     }
     
-
     @Override
-    public int getParentRating(DiscItem child) {
-        if (!(child instanceof DiscItemAudioStream))
-            return 0;
-
-        int iOverlapPercent = child.getOverlap(this)*100 / child.getSectorLength();
-        if (iOverlapPercent > 0)
-            iOverlapPercent += 100;
-        return iOverlapPercent;
+    public String getFrameNumberFormat() {
+        int iDigitCount = String.valueOf(_iEndFrame).length();
+        return "%0" + String.valueOf(iDigitCount) + 'd';
     }
 
     @Override
@@ -214,27 +224,38 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     @Override
-    public String getInterestingDescription() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%dx%d, %d frames, ",
-                getWidth(), getHeight(), getEndFrame() - getStartFrame() + 1));
+    public double getApproxDuration() {
         int iDiscSpeed = getDiscSpeed();
-        if (iDiscSpeed > 0) {
-            formatFps(sb, iDiscSpeed * 75);
-        } else {
-            formatFps(sb, 150);
-            sb.append(" (or ");
-            formatFps(sb, 75);
-            sb.append(')');
-        }
-        return sb.toString();
+        if (iDiscSpeed < 1)
+            iDiscSpeed = 2;
+        return getSectorLength() / (double)(iDiscSpeed * 75);
     }
 
-    private void formatFps(StringBuilder sb, int iSectorsPerSecond) {
-        sb.append(formatFps(Fraction.divide(iSectorsPerSecond, getSectorsPerFrame())));
-        sb.append(" fps = ");
-        sb.append(formatTime(getSectorLength() / iSectorsPerSecond));
+    @Override
+    public String getInterestingDescription() {
+        int iDiscSpeed = getDiscSpeed();
+        int iFrameRange = getFrameCount();
+        if (iDiscSpeed > 0) {
+            int iSectorsPerSecond = iDiscSpeed * 75;
+            Date secs = new Date(0, 0, 0, 0, 0, Math.max(getSectorLength() / iSectorsPerSecond, 1));
+            return I18N.S("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#.###} fps = {4,time,m:ss}", // I18N
+                          getWidth(), getHeight(),
+                          iFrameRange,
+                          Fraction.divide(iSectorsPerSecond, getSectorsPerFrame()).asDouble(),
+                          secs);
+        } else {
+            Date secs150 = new Date(0, 0, 0, 0, 0, 150);
+            Date secs75 = new Date(0, 0, 0, 0, 0, 75);
+            return I18N.S("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#.###} fps = {4,time,m:ss} (or {5,number,#.###} fps = {6,time,m:ss})", // I18N
+                          getWidth(), getHeight(),
+                          iFrameRange,
+                          Fraction.divide(150, getSectorsPerFrame()).asDouble(),
+                          secs150,
+                          Fraction.divide(75, getSectorsPerFrame()).asDouble(),
+                          secs75);
+        }                
     }
+    
 
     @Override
     public VideoSaverBuilderStr makeSaverBuilder() {
@@ -343,33 +364,25 @@ public class DiscItemStrVideoStream extends DiscItemVideoStream {
         return _longestNonIntersectingAudioStreams;
     }
 
-    public void fpsDump(PrintStream ps) throws IOException {
-        final int LENGTH = getSectorLength();
-            for (int iSector = 0; iSector < LENGTH; iSector++) {
-            CdSector sector = getRelativeSector(iSector);
-                IdentifiedSector isect = IdentifiedSector.identifySector(sector);
-                if (isect instanceof IVideoSector) {
-                    IVideoSector vidSect = (IVideoSector) isect;
-                    ps.println(String.format("%-5d %-4d %d/%d",
-                                            iSector,
-                                            vidSect.getFrameNumber(),
-                                            vidSect.getChunkNumber(),
-                                            vidSect.getChunksInFrame() ));
-                } else {
-                    ps.println(String.format(
-                            "%-5d X",
-                            iSector));
-                }
+    abstract public void fpsDump(PrintStream ps) throws IOException;
 
+    public void fpsDump2(final PrintStream ps) throws IOException {
+        ISectorFrameDemuxer demuxer = makeDemuxer();
+        demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
+            public void frameComplete(IDemuxedFrame frame) throws IOException {
+                DemuxedStrFrame strFrame = (DemuxedStrFrame) frame;
+                ps.println((strFrame.getStartSector()-getStartSector())+"-"+
+                           (strFrame.getPresentationSector()-getStartSector()));
             }
+        });
+        final int LENGTH = getSectorLength();
+        for (int iSector = 0; iSector < LENGTH; iSector++) {
+            IdentifiedSector isect = getRelativeIdentifiedSector(iSector);
+            demuxer.feedSector(isect, LOG);
+        }
     }
 
-    @Override
-    public ISectorFrameDemuxer makeDemuxer() {
-        return new FrameDemuxer(getWidth(), getHeight(), 
-                                getStartSector(), getEndSector());
-    }
-    
+
     @Override
     public PlayController makePlayController() {
 

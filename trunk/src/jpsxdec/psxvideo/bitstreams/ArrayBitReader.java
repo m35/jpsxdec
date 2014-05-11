@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,22 +39,28 @@ package jpsxdec.psxvideo.bitstreams;
 
 
 import java.io.EOFException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jpsxdec.util.Misc;
 
 /** A (hopefully) very fast bit reader. It can be initialized to read the bits
  * in big-endian order, or in 16-bit little-endian order. */
 public class ArrayBitReader {
 
+    private static final Logger LOG = Logger.getLogger(ArrayBitReader.class.getName());
+
     /** Data to be read as a binary stream. */
     private byte[] _abData;
+    /** Size of the data (ignores data array size). */
+    protected int _iDataSize;
     /** If 16-bit words should be read in big or little endian order. */
     private boolean _blnLittleEndian;
     /** Offset of first byte in the current word being read from the source buffer. */
-    private int _iByteOffset;
+    protected int _iByteOffset;
     /** The current 16-bit word value from the source data. */
-    private short _siCurrentWord;
+    protected short _siCurrentWord;
     /** Bits remaining to be read from the current word. */
-    private int _iBitsLeft;
+    protected int _iBitsLeft;
 
     /** Quick lookup table to mask remaining bits. */
     private static final int BIT_MASK[] = {
@@ -76,33 +82,42 @@ public class ArrayBitReader {
 
     /** Start reading from the start of the array with the requested
      * endian-ness. */
-    public ArrayBitReader(byte[] abData, boolean blnLittleEndian) {
-        this(abData, blnLittleEndian, 0);
+    public ArrayBitReader(byte[] abData, int iDataSize, boolean blnLittleEndian)
+    {
+        this(abData, iDataSize, blnLittleEndian, 0);
     }
 
     /** Start reading from a requested point in the array with the requested
      *  endian-ness. 
      *  @param iReadStart  Position in array to start reading. Must be an even number. */
-    public ArrayBitReader(byte[] abDemux, boolean blnLittleEndian, int iReadStart) {
-        reset(abDemux, blnLittleEndian, iReadStart);
+    public ArrayBitReader(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart)
+    {
+        reset(abData, iDataSize, blnLittleEndian, iReadStart);
     }
     
     /** Re-constructs this ArrayBitReader. Allows for re-using the object
      *  so there is no need to create a new one.
      *  @param iReadStart  Position in array to start reading. Must be an even number. */
-    public final void reset(byte[] abDemux, boolean blnLittleEndian, int iReadStart) {
+    public final void reset(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+        if (iReadStart < 0 || iReadStart > abData.length)
+            throw new IllegalArgumentException("Read start out of array bounds.");
         if ((iReadStart & 1) != 0)
             throw new IllegalArgumentException("Data start must be on word boundary.");
+        if (iDataSize < 0 || iDataSize > abData.length)
+            throw new IllegalArgumentException("Invalid data size.");
+        if ((iDataSize & 1) != 0)
+            throw new IllegalArgumentException("Data length must be even.");
         _iByteOffset = iReadStart;
-        _abData = abDemux;
-        _iBitsLeft = 16;
+        _iDataSize = iDataSize;
+        _abData = abData;
+        _iBitsLeft = 0;
         _blnLittleEndian = blnLittleEndian;
-        _siCurrentWord = readWord(_iByteOffset);
     }
 
-    /** Reads 16-bits at the requested offset in the proper endian order. 
-     * @throws ArrayIndexOutOfBoundsException */
-    private short readWord(int i) throws ArrayIndexOutOfBoundsException {
+    /** Reads 16-bits at the requested offset in the proper endian order. */
+    protected short readWord(int i) throws EOFException {
+        if (i + 1 >= _iDataSize)
+            throw new EOFException("Unexpected end of bitstream at " + i);
         int b1, b2;
         if (_blnLittleEndian) {
             b1 = _abData[i  ] & 0xFF;
@@ -125,28 +140,26 @@ public class ArrayBitReader {
 
     /** Returns the number of bits remaining in the source data. */
     public int getBitsRemaining() {
-        return (_abData.length - _iByteOffset) * 8 - (16 - _iBitsLeft);
+        return (_iDataSize - _iByteOffset) * 8 + _iBitsLeft;
     }
 
     /** Reads the requested number of bits.
      * @param iCount  expected to be from 1 to 31  */
     public int readUnsignedBits(int iCount) throws EOFException {
-        assert iCount >= 0 && iCount <= 31;
+        if (iCount < 0 || iCount >= 32)
+            throw new IllegalArgumentException("Bits to read are out of range " + iCount);
+        if (iCount == 0)
+            return 0;
         
-        try {
-            // want to read the next 16-bit word only when it is needed
-            // so we don't try to buffer data beyond the array
-            if (_iBitsLeft == 0) {
-                _iByteOffset += 2;
-                _siCurrentWord = readWord(_iByteOffset);
-                _iBitsLeft = 16;
-            }
-        } catch (ArrayIndexOutOfBoundsException ex) {
-            _iByteOffset -= 2;
-            throw new EOFException();
+        // want to read the next 16-bit word only when it is needed
+        // so we don't try to buffer data beyond the array
+        if (_iBitsLeft == 0) {
+            _siCurrentWord = readWord(_iByteOffset);
+            _iByteOffset += 2;
+            _iBitsLeft = 16;
         }
 
-        int iRet = 0;
+        int iRet;
         if (iCount <= _iBitsLeft) { // iCount <= _iBitsLeft <= 16
             iRet = (_siCurrentWord >>> (_iBitsLeft - iCount)) & BIT_MASK[iCount];
             _iBitsLeft -= iCount;
@@ -157,20 +170,20 @@ public class ArrayBitReader {
 
             try {
                 while (iCount >= 16) {
-                    _iByteOffset += 2;
                     iRet = (iRet << 16) | (readWord(_iByteOffset) & 0xFFFF);
+                    _iByteOffset += 2;
                     iCount -= 16;
                 }
 
                 if (iCount > 0) { // iCount < 16
-                    _iByteOffset += 2;
                     _siCurrentWord = readWord(_iByteOffset);
+                    _iByteOffset += 2;
                     _iBitsLeft = 16 - iCount;
                     iRet = (iRet << iCount) | ((_siCurrentWord & 0xFFFF) >>> _iBitsLeft);
                 }
-            } catch (ArrayIndexOutOfBoundsException ex) {
+            } catch (EOFException ex) {
+                LOG.log(Level.INFO, "Bitstream is about to end", ex);
                 // _iBitsLeft will == 0
-                _iByteOffset -= 2;
                 return iRet << iCount;
             }
         }
@@ -180,7 +193,7 @@ public class ArrayBitReader {
     
     /** Reads the requested number of bits then sets the sign 
      *  according to the highest bit.
-     * @param iCount  expected to be from 1 to 31  */
+     * @param iCount  expected to be from 0 to 31  */
     public int readSignedBits(int iCount) throws EOFException {
         return (readUnsignedBits(iCount) << (32 - iCount)) >> (32 - iCount); // extend sign bit
     }    
@@ -199,7 +212,7 @@ public class ArrayBitReader {
         }
     }
     
-    /** @param iCount  expected to be from 1 to 31  */
+    /** @param iCount  expected to be from 0 to 31  */
     public int peekSignedBits(int iCount) throws EOFException {
         return (peekUnsignedBits(iCount) << (32 - iCount)) >> (32 - iCount); // extend sign bit
     }    
@@ -208,19 +221,24 @@ public class ArrayBitReader {
 
         _iBitsLeft -= iCount;
         if (_iBitsLeft < 0) {
-            while (_iBitsLeft < 0) {
-                _iByteOffset += 2;
-                _iBitsLeft += 16;
-            }
-            if (_iBitsLeft > 0) {
-                try {
-                    _siCurrentWord = readWord(_iByteOffset);
-                } catch (ArrayIndexOutOfBoundsException ex) {
-                    throw new EOFException();
+            // same as _iByteOffset += -(_iBitsLeft / 16)*2;
+            _iByteOffset += ((-_iBitsLeft) >> 4) << 1;
+            // same as _iBitsLeft = _iBitsLeft % 16;
+            _iBitsLeft = -((-_iBitsLeft) & 0xf);
+            if (_iByteOffset > _iDataSize) { // clearly out of bounds
+                _iBitsLeft = 0;
+                _iByteOffset = _iDataSize;
+                throw new EOFException("Unexpected end of bitstream at " + _iByteOffset);
+            } else if (_iBitsLeft < 0) { // _iBitsLeft should be <= 0
+                if (_iByteOffset == _iDataSize) { // also out of bounds
+                    _iBitsLeft = 0;
+                    throw new EOFException("Unexpected end of bitstream at " + _iByteOffset);
                 }
+                _iBitsLeft += 16;
+                _siCurrentWord = readWord(_iByteOffset);
+                _iByteOffset += 2;
             }
         }
-        
     }
 
     /** Returns a String of 1 and 0 unless at the end of the stream, then

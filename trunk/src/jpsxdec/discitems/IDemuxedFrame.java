@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2013  Michael Sabin
+ * Copyright (C) 2012-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,7 +52,11 @@ public interface IDemuxedFrame {
     /** The frame number of the demuxed frame. */
     int getFrame();
 
-    /** The last sector of the frame. */
+    int getStartSector();
+
+    int getEndSector();
+
+    /** The sector when the frame should be displayed. */
     int getPresentationSector();
 
     /** Size of the demuxed frame. */

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,6 +45,7 @@ import java.util.Comparator;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.I18N;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.Calc;
@@ -72,7 +73,10 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
     private int _iCurrentBlock;
 
     @Override
-    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
+    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) throws NotThisTypeException {
+        if (iDataSize < 10)
+            throw new NotThisTypeException();
+        
         _iMdecCodeCount = IO.readUInt16LE(abFrameData, 0);
         int iMagic3800 = IO.readUInt16LE(abFrameData, 2);
         _iWidth = IO.readSInt16LE(abFrameData, 4);
@@ -82,32 +86,42 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         if (_iMdecCodeCount < 0 || iMagic3800 != 0x3800 || _iWidth < 1 || _iHeight < 1 || _iCompressedDataSize < 1)
             throw new NotThisTypeException();
 
+        if (abFrameData.length < 10 + _iCompressedDataSize) {
+            LOG.log(Level.WARNING, "Incomplete iki frame header");
+            throw new NotThisTypeException("Incomplete iki frame header"); // I18N
+        }
+
         _iBlockCount = Calc.blocks(_iWidth, _iHeight);
         int iQscaleDcLookupTableSize = _iBlockCount * 2; // 2 bytes per block
 
         if (_abQscaleDcLookupTable == null || _abQscaleDcLookupTable.length < iQscaleDcLookupTableSize)
             _abQscaleDcLookupTable = new byte[iQscaleDcLookupTableSize];
 
-        try {
-            ikiLzssUncompress(abFrameData, 10, _abQscaleDcLookupTable, iQscaleDcLookupTableSize);
-        } catch (ArrayIndexOutOfBoundsException ex) {
-            LOG.log(Level.SEVERE, "Incomplete iki frame header", ex);
-            throw new NotThisTypeException();
-        }
+        ikiLzssUncompress(abFrameData, 10, _abQscaleDcLookupTable, iQscaleDcLookupTableSize);
 
-        bitReader.reset(abFrameData, true, 10 + _iCompressedDataSize);
+        bitReader.reset(abFrameData, iDataSize, true, 10 + _iCompressedDataSize);
 
         _iCurrentBlock = 0;
     }
 
     public static boolean checkHeader(byte[] abFrameData) {
+        if (abFrameData.length < 10)
+            return false;
+
         int _iMdecCodeCount = IO.readUInt16LE(abFrameData, 0);
         int iMagic3800 = IO.readUInt16LE(abFrameData, 2);
         int _iWidth = IO.readSInt16LE(abFrameData, 4);
         int _iHeight = IO.readSInt16LE(abFrameData, 6);
         int _iCompressedDataSize = IO.readUInt16LE(abFrameData, 8);
 
-        return !(_iMdecCodeCount < 0 || iMagic3800 != 0x3800 || _iWidth < 1 || _iHeight < 1 || _iCompressedDataSize < 1);
+        if (_iMdecCodeCount < 0 || iMagic3800 != 0x3800 || _iWidth < 1 || _iHeight < 1 || _iCompressedDataSize < 1)
+            return false;
+
+        if (abFrameData.length < 10 + _iCompressedDataSize) {
+            LOG.log(Level.WARNING, "Incomplete iki frame header");
+            return false;
+        }
+        return true;
     }
     
     public static int getWidth(byte[] abFrameData) {
@@ -126,7 +140,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
     @Override
     protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress {
         if (_iCurrentBlock >= _iBlockCount)
-            throw new MdecException.Uncompress("End of stream");
+            throw new MdecException.Uncompress("End of stream"); // I18N
         readBlockQscaleAndDC(code, _iCurrentBlock);
         _iCurrentBlock++;
     }
@@ -201,7 +215,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         private int _iFlags;
         private int _iFlagBit;
         private final ByteArrayOutputStream _buffer = new ByteArrayOutputStream();
-        private ByteArrayOutputStream _baosLogger = new ByteArrayOutputStream();
+        private final ByteArrayOutputStream _baosLogger = new ByteArrayOutputStream();
         private PrintStream _logger = new PrintStream(_baosLogger, true);
 
         /** Find the longest run of bytes that match the current position. */
@@ -328,7 +342,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         }
         return String.format("%s Qscale=%d-%d Offset=%d MB=%d.%d Mdec count=%d",
                 getName(), iMinQscale, iMaxQscale,
-                getWordPosition(),
+                _bitReader.getWordPosition(),
                 getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
                 getMdecCodeCount());
     }
@@ -353,7 +367,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
             byte[] abNewDemux = null;
             int iQscale;
             for (iQscale = 1; iQscale < 64; iQscale++) {
-                fbs.println("Trying " + iQscale);
+                fbs.println(I18N.S("Trying {0,number,#}", iQscale)); // I18N
 
                 int[] aiNewQscale = { iQscale, iQscale, iQscale,
                                       iQscale, iQscale, iQscale };
@@ -365,12 +379,12 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
                 abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 int iNewDemuxSize = abNewDemux.length;
                 if (iNewDemuxSize <= abOriginal.length) {
-                    fbs.indent1().format("New frame %d demux size %d <= max source %d",
-                                         iFrame, iNewDemuxSize, abOriginal.length).println();
+                    fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} <= max source {2,number,#}", // I18N
+                                                 iFrame, iNewDemuxSize, abOriginal.length));
                     break;
                 } else {
-                    fbs.indent1().format("!!! New frame %d demux size %d > max source %d !!!",
-                                         iFrame, iNewDemuxSize, abOriginal.length).println();
+                    fbs.indent1().println(I18N.S("!!! New frame {0,number,#} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
+                                                 iFrame, iNewDemuxSize, abOriginal.length));
                 }
             }
 
@@ -414,11 +428,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
                     iDistY = o2.Y - iMbCenterY;
                     int o2dist = iDistX*iDistX + iDistY*iDistY;
                     // put those closer to the center first
-                    if (o1dist < o2dist)
-                        return -1;
-                    if (o1dist > o2dist)
-                        return 1;
-                    return 0;
+                    return Misc.intCompare(o1dist, o2dist);
                 }
             });
             for (MacroBlockEncoder macblk : encoder) {
@@ -429,16 +439,16 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
             int[] aiNewQscale = { iNewQscale, iNewQscale, iNewQscale,
                                   iNewQscale, iNewQscale, iNewQscale };
             for (MacroBlockEncoder macblk : macblocks) {
-                fbs.format("Trying to reduce Qscale of (%d,%d) to %d", macblk.X, macblk.Y, iNewQscale).println();
+                fbs.println(I18N.S("Trying to reduce Qscale of ({0,number,#},{1,number,#}) to {2,number,#}", macblk.X, macblk.Y, iNewQscale)); // I18N
                 macblk.setToFullEncode(aiNewQscale);
                 byte[] abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 int iNewDemuxSize = abNewDemux.length;
                 if (iNewDemuxSize <= iOriginalLength) {
-                    fbs.indent1().format("New frame %d demux size %d <= max source %d",
-                                         iFrame, iNewDemuxSize, iOriginalLength).println();
+                    fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} <= max source {2,number,#}", // I18N
+                                                 iFrame, iNewDemuxSize, iOriginalLength));
                 } else {
-                    fbs.indent1().format("New frame %d demux size %d > max source %d, so stopping",
-                                         iFrame, iNewDemuxSize, iOriginalLength).println();
+                    fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} > max source {2,number,#}, so stopping", // I18N
+                                                 iFrame, iNewDemuxSize, iOriginalLength));
                     break;
                 }
                 abLastGoodDemux = abNewDemux;

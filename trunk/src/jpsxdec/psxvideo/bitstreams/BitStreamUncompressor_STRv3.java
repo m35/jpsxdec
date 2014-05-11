@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.psxvideo.bitstreams;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
@@ -248,9 +249,12 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
                 _iPreviousY_DC;
 
     @Override
-    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) 
+    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) 
             throws NotThisTypeException
     {
+        if (iDataSize < 8)
+            throw new NotThisTypeException();
+        
         super._iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
         int iMagic3800             = IO.readUInt16LE(abFrameData, 2);
         super._iQscale             = IO.readSInt16LE(abFrameData, 4);
@@ -260,12 +264,15 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             iVersion != 3  || _iHalfVlcCountCeil32 < 0)
             throw new NotThisTypeException();
 
-        bitReader.reset(abFrameData, true, 8);
+        bitReader.reset(abFrameData, iDataSize, true, 8);
         _iPreviousCr_DC = _iPreviousCb_DC = _iPreviousY_DC = 0;
     }
 
     /** Returns if this is a v3 frame. */
     public static boolean checkHeader(byte[] abFrameData) {
+        if (abFrameData.length < 8)
+            return false;
+        
         int iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
         int iMagic3800          = IO.readUInt16LE(abFrameData, 2);
         int iQscale             = IO.readSInt16LE(abFrameData, 4);
@@ -310,11 +317,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         DcVariableLengthCode dcVlc = CHROMA_LOOKUP[iBits];
         
         if (dcVlc == null) {
-            throw new MdecException.Uncompress(
-                    String.format("Error uncompressing macro block %d.%d: " +
-                                    "Unknown chroma DC variable length code %s",
+            throw new MdecException.Uncompress("Error uncompressing macro block {0,number,#}.{1,number,#}: Unknown chroma DC variable length code {2}", // I18N
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE)));
+                    Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE));
         }
 
         assert !DEBUG || _debug.append(dcVlc.VariableLengthCode);
@@ -325,11 +330,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         iPreviousDC += dcVlc.readDc(_bitReader, _debug);
 
         if (iPreviousDC < -512 || iPreviousDC > 511) {
-            throw new MdecException.Uncompress(
-                    String.format("Error uncompressing macro block %d.%d: " +
-                                  "Chroma DC out of bounds: %s",
+            throw new MdecException.Uncompress("Error uncompressing macro block {0,number,#}.{1,number,#}: Chroma DC out of bounds: {2,number,#}", // I18N
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    iPreviousDC));
+                    iPreviousDC);
         }
 
         return iPreviousDC;
@@ -342,11 +345,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         DcVariableLengthCode dcVlc = LUMA_LOOKUP[iBits];
         
         if (dcVlc == null) {
-            throw new MdecException.Uncompress(
-                    String.format("Error uncompressing macro block %d.%d: " +
-                                    "Unknown luma DC variable length code %s",
+            throw new MdecException.Uncompress("Error uncompressing macro block {0,number,#}.{1,number,#}: Unknown luma DC variable length code {2}", // I18N
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    Misc.bitsToString(iBits, DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE)));
+                    Misc.bitsToString(iBits, DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE));
         }
             
         assert !DEBUG || _debug.append(dcVlc.VariableLengthCode);
@@ -357,11 +358,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         _iPreviousY_DC += dcVlc.readDc(_bitReader, _debug);
 
         if (_iPreviousY_DC < -512 || _iPreviousY_DC > 511) {
-            throw new MdecException.Uncompress(
-                    String.format("Error uncompressing macro block %d.%d: " +
-                                  "Luma DC out of bounds: %s",
+            throw new MdecException.Uncompress("Error uncompressing macro block {0,number,#}.{1,number,#}: Luma DC out of bounds: {2,number,#}", // I18N
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    _iPreviousY_DC));
+                    _iPreviousY_DC);
         }
     }
 
@@ -370,7 +369,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     public void skipPaddingBits() throws EOFException {
         int iPaddingBits = _bitReader.readUnsignedBits(11);
         if (iPaddingBits != b11111111110) {
-            LOG.warning("Incorrect padding bits " + Misc.bitsToString(iPaddingBits, 11));
+            LOG.log(Level.WARNING, "Incorrect padding bits {0}", Misc.bitsToString(iPaddingBits, 11));
         }
     }
 

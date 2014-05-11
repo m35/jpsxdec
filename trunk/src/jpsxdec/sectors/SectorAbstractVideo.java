@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,12 +38,10 @@
 package jpsxdec.sectors;
 
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv3;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Shared super class of several video sector types. */
@@ -87,41 +85,6 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
     final public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
         super.getCdSector().getCdUserDataCopy(getSectorHeaderSize(), abOut,
                 iOutPos, getIdentifiedUserDataSize());
-    }
-
-    final public boolean matchesPrevious(IVideoSector prevSector) {
-        if (!(getClass().equals(prevSector.getClass())))
-            return false;
-
-        if (getWidth()  != prevSector.getWidth() ||
-            getHeight() != prevSector.getHeight())
-               return false;
-
-        /*  This logic is accurate, but not forgiving at all
-
-        if (prevSector.getFrameNumber() == getFrameNumber() &&
-            prevSector.getChunksInFrame() != getChunksInFrame())
-            return false;
-
-        long iNextChunk = prevSector.getChunkNumber() + 1;
-        long iNextFrame = prevSector.getFrameNumber();
-        if (iNextChunk >= prevSector.getChunksInFrame()) {
-            iNextChunk = 0;
-            iNextFrame++;
-        }
-
-        if (iNextChunk != getChunkNumber() || iNextFrame != getFrameNumber())
-            return false;
-        */
-
-        // much softer logic
-        if (prevSector.getFrameNumber() <= getFrameNumber() &&
-            getSectorNumber() < prevSector.getSectorNumber() + 100)
-        {
-            return true;
-        } else {
-            return false;
-        }
     }
 
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,

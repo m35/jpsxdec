@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -55,6 +55,7 @@ import javax.swing.JTextArea;
 import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import jpsxdec.I18N;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.tim.Tim;
@@ -98,7 +99,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
 
             JScrollPane p = new JScrollPane(__files);
             p.setBorder(null);
-            _topParagraphPanel.add(new JLabel("Save as:"), ParagraphLayout.NEW_PARAGRAPH);
+            _topParagraphPanel.add(new JLabel(I18N.S("Save as:")), ParagraphLayout.NEW_PARAGRAPH); // I18N
             _topParagraphPanel.add(p, ParagraphLayout.STRETCH_H);
         }
         public void stateChanged(ChangeEvent e) {
@@ -133,7 +134,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
             ex.printStackTrace(new PrintWriter(sw));
             gl.setRows(1);
             gl.setColumns(1);
-            JTextArea t = new JTextArea("Error reading TIM preview\n"+sw.toString());
+            JTextArea t = new JTextArea(I18N.S("Error reading TIM preview\n{0}", sw.toString())); // I18N
             t.setLineWrap(true);
             _panelImages.add(new JScrollPane(t));
         }
@@ -158,7 +159,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
     private class Format extends AbstractCombo {
 
         public Format() {
-            super("Format:");
+            super(I18N.S("Format:")); // I18N
         }
 
         @Override

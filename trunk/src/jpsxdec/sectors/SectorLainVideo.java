@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,7 @@ import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
 
-public class SectorLainVideo extends SectorAbstractVideo {
+public class SectorLainVideo extends SectorAbstractVideo implements IVideoSectorWithFrameNumber {
 
     // Magic 0x80010160                     //  0    [4 bytes]
     private int  _iChunkNumber;             //  4    [2 bytes]
@@ -140,14 +140,10 @@ public class SectorLainVideo extends SectorAbstractVideo {
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                 int iMdecCodeCount, byte[] abSectUserData)
     {
-        BitStreamUncompressor_Lain bsu = new BitStreamUncompressor_Lain();
-        try {
-            bsu.reset(abDemuxData);
-        } catch (NotThisTypeException ex) {
-            throw new IllegalArgumentException("Incompatable frame type " + bsu);
-        }
-        int iQscaleLuma = bsu.getLumaQscale();
-        int iQscaleChroma = bsu.getChromaQscale();
+        int iQscaleLuma = BitStreamUncompressor_Lain.getQscaleLuma(abDemuxData);
+        int iQscaleChroma = BitStreamUncompressor_Lain.getQscaleChroma(abDemuxData);
+        if (iQscaleLuma < 0 || iQscaleChroma < 0)
+            throw new IllegalArgumentException("Incompatable frame data for Lain");
 
         // no need to update the demux size because it won't be any different
         // as it is just the total number of bytes of demuxed data available

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -141,8 +141,7 @@ public class DiscIndexerSquare extends DiscIndexer {
     }
 
     @Override
-    public void indexGenerated(DiscIndex aThis) {
-        
+    public void indexGenerated(DiscIndex index) {
     }
 
 }

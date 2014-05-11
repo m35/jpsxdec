@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,7 +47,7 @@ import jpsxdec.util.IO;
 
 /** Alice In Cyber Land frame chunk sector. */
 public class SectorAliceVideo extends SectorAliceNullVideo
-        implements IVideoSector 
+        implements IVideoSectorWithFrameNumber
 {
 
 
@@ -74,25 +74,6 @@ public class SectorAliceVideo extends SectorAliceNullVideo
     @Override
     public String getTypeName() {
         return "Alice";
-    }
-
-    public boolean matchesPrevious(IVideoSector prevSector) {
-        if (!(getClass().equals(prevSector.getClass())))
-            return false;
-
-        SectorAliceVideo prevAlice = (SectorAliceVideo) prevSector;
-        if (getHeight() != prevAlice.getHeight() ||
-            getWidth() != prevAlice.getWidth())
-            return false;
-
-        long lngNextChunkNum = prevSector.getChunkNumber()+1;
-        long lngNextFrameNum = prevSector.getFrameNumber();
-        if (lngNextChunkNum >= prevSector.getChunksInFrame()) {
-            lngNextChunkNum = 0;
-            lngNextFrameNum++;
-        }
-        return (lngNextChunkNum == getChunkNumber() &&
-                lngNextFrameNum == getFrameNumber());
     }
 
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,

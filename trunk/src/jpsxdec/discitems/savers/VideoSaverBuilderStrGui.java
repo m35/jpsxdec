@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2013  Michael Sabin
+ * Copyright (C) 2012-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,6 +43,7 @@ import javax.swing.JTable;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.table.AbstractTableModel;
+import jpsxdec.I18N;
 import jpsxdec.gui.SavingGuiTable;
 
 
@@ -58,7 +59,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
 
     
     private class EmulateAv extends AbstractCheck {
-        public EmulateAv() { super("Emulate PSX a/v sync:"); }
+        public EmulateAv() { super(I18N.S("Emulate PSX a/v sync:")); } // I18N
         public boolean isSelected() {
             return _writerBuilder.getEmulatePsxAvSync();
         }
@@ -87,7 +88,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
             public Object get(VideoSaverBuilderStr bldr, int i) {
                 return bldr.getParallelAudio(i).getIndex();
             }
-            public String toString() { return "#"; }
+            public String toString() { return "#"; } // I18N
         },
         Id() {
             public Class type() { return String.class; }

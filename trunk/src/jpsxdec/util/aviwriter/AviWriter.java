@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,6 +46,7 @@ import java.util.Arrays;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import jpsxdec.LocalizedIOException;
 import jpsxdec.Version;
 import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
 
@@ -334,7 +335,7 @@ public abstract class AviWriter {
 
     /** Audio format must be signed 16-bit PCM in little-endian order. */
     public void writeAudio(AudioInputStream audStream) throws IOException {
-        if (_aviFile == null) throw new IOException("Avi file is closed");
+        if (_aviFile == null) throw new LocalizedIOException("Avi file is closed"); // I18N
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
         
@@ -380,7 +381,7 @@ public abstract class AviWriter {
 
     /** Audio data must be signed 16-bit PCM in little-endian order. */
     public void writeAudio(byte[] abData, int iOfs, int iLen) throws IOException {
-        if (_aviFile == null) throw new IOException("Avi file is closed");
+        if (_aviFile == null) throw new LocalizedIOException("Avi file is closed"); // I18N
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
 
@@ -430,7 +431,7 @@ public abstract class AviWriter {
 
     /** Subclasses will use this method to write each frame's data. */
     protected void writeFrameChunk(byte[] abData, int iOfs, int iLen) throws IOException {
-        if (_aviFile == null) throw new IOException("Avi file is closed");
+        if (_aviFile == null) throw new LocalizedIOException("Avi file is closed"); // I18N
 
         AVIOLDINDEXENTRY idxentry = new AVIOLDINDEXENTRY();
         idxentry.dwOffset = (int)(_aviFile.getFilePointer() - (LIST_movi.getStart() + 4));
@@ -469,7 +470,7 @@ public abstract class AviWriter {
      * This must be called and complete successfully for the AVI to be playable.
      */
     public void close() throws IOException {
-        if (_aviFile == null) throw new IOException("Avi file is closed");
+        if (_aviFile == null) throw new LocalizedIOException("Avi file is closed"); // I18N
         
             LIST_movi.endChunk(_aviFile);
             

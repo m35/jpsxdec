@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2013  Michael Sabin
+ * Copyright (C) 2012-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import java.util.logging.Logger;
 import jpsxdec.discitems.CrusaderDemuxer;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemCrusader;
+import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDemuxedFrame;
-import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorCrusader;
@@ -52,21 +52,51 @@ import jpsxdec.util.NotThisTypeException;
 
 
 /** Identify Crusader: No Remorse audio/video streams. */
-public class DiscIndexerCrusader extends DiscIndexer 
-    implements ISectorFrameDemuxer.ICompletedFrameListener 
-{
+public class DiscIndexerCrusader extends DiscIndexer {
+
+    private static class VideoStreamIndex extends AbstractVideoStreamIndex {
+
+        private int _iStartFrame = -1;
+        private final CrusaderDemuxer _demuxer;
+
+        public VideoStreamIndex(Logger errLog, SectorCrusader vidSect) {
+            super(errLog, vidSect, false);
+
+            initDemuxer(_demuxer = new CrusaderDemuxer(),
+                        vidSect);
+        }
+
+        @Override
+        public void frameComplete(IDemuxedFrame frame) {
+            if (_iStartFrame < 0)
+                _iStartFrame = frame.getFrame();
+            super.frameComplete(frame);
+        }
+
+        @Override
+        protected DiscItemCrusader createVideo(int iStartSector, int iEndSector,
+                                               int iWidth, int iHeight,
+                                               int iFrameCount,
+                                               int iLastSeenFrameNumber,
+                                               int iSectors, int iPerFrame,
+                                               int iFrame1PresentationSector)
+        {
+            if (_iStartFrame > 1)
+                _errLog.log(Level.WARNING, "Video stream first frame is > 1: {0,number,#}", _iStartFrame);
+            
+            return new DiscItemCrusader(_demuxer.getStartSector(), _demuxer.getEndSector(),
+                                        iWidth, iHeight,
+                                        iFrameCount,
+                                        _iStartFrame, iLastSeenFrameNumber);
+        }
+
+    }
 
     private final Logger _errLog;
-    
-    private CrusaderDemuxer _demuxer;
-    
-    private int _iStartFrame = -1;
-    private int _iEndFrame = -1;
-    
-    public DiscIndexerCrusader(Logger log) {
-        _errLog = log;
-        _demuxer = new CrusaderDemuxer();
-        _demuxer.setFrameListener(this);
+    private VideoStreamIndex _currentStream;
+
+    public DiscIndexerCrusader(Logger errLog) {
+        _errLog = errLog;
     }
 
     @Override
@@ -74,47 +104,33 @@ public class DiscIndexerCrusader extends DiscIndexer
         if (!(identifiedSector instanceof SectorCrusader))
             return;
 
-        try {
-            boolean blnAccepted = _demuxer.indexFeedSector(identifiedSector, _errLog);
-            while (!blnAccepted) {
-                addDiscItem(new DiscItemCrusader(_demuxer.getStartSector(), _demuxer.getEndSector(), 
-                        _demuxer.getWidth(), _demuxer.getHeight(), 
-                        _iStartFrame, _iEndFrame));
-                _iStartFrame = _iEndFrame = -1;
-                _demuxer = new CrusaderDemuxer();
-                _demuxer.setFrameListener(this);
-                blnAccepted = _demuxer.indexFeedSector(identifiedSector, _errLog);
-            }
-        } catch (IOException ex) {
-            throw new RuntimeException("Should never happen", ex);
-        }
-    }
+        SectorCrusader vidSect = (SectorCrusader)identifiedSector;
 
-    public void frameComplete(IDemuxedFrame frame) {
-        if (_iStartFrame == -1)
-            _iStartFrame = frame.getFrame();
-        _iEndFrame = frame.getFrame();
+        if (_currentStream != null) {
+            boolean blnAccepted = _currentStream.sectorRead(vidSect);
+            if (!blnAccepted) {
+                DiscItemVideoStream vid = _currentStream.endOfMovie();
+                if (vid != null)
+                    super.addDiscItem(vid);
+                _currentStream = null;
+            }
+        }
+        if (_currentStream == null) {
+            _currentStream = new VideoStreamIndex(_errLog, vidSect);
+        }
+
     }
 
     @Override
     public void indexingEndOfDisc() {
-        try {
-            _demuxer.flush(_errLog);
-            if (_demuxer.foundAPayload()) {
-                addDiscItem(new DiscItemCrusader(_demuxer.getStartSector(), _demuxer.getEndSector(), 
-                                                 _demuxer.getWidth(), _demuxer.getHeight(), 
-                                                 _iStartFrame, _iEndFrame));
-            }
-        } catch (IOException ex) {
-            _errLog.log(Level.SEVERE, "Error flushing Crusader movie", ex);
-            throw new RuntimeException("Error flushing Crusader movie", ex);
+        if (_currentStream != null) {
+            DiscItemVideoStream vid = _currentStream.endOfMovie();
+            if (vid != null)
+                super.addDiscItem(vid);
+            _currentStream = null;
         }
     }
 
-    @Override
-    public void indexGenerated(DiscIndex index) {
-    }
-    
     @Override
     public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine) {
         try {
@@ -123,6 +139,10 @@ public class DiscIndexerCrusader extends DiscIndexer
             }
         } catch (NotThisTypeException ex) {}
         return null;
+    }
+
+    @Override
+    public void indexGenerated(DiscIndex index) {
     }
 
     @Override

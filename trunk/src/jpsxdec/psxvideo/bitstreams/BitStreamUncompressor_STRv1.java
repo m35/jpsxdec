@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
+import java.io.EOFException;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
@@ -56,8 +57,10 @@ import jpsxdec.util.NotThisTypeException;
 public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
 
     @Override
-    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
-
+    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) throws NotThisTypeException {
+        if (iDataSize < 8)
+            throw new NotThisTypeException();
+        
         _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
         int iMagic3800       = IO.readUInt16LE(abFrameData, 2);
         _iQscale             = IO.readSInt16LE(abFrameData, 4);
@@ -67,10 +70,12 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
             iVersion != 1 || _iHalfVlcCountCeil32 < 0)
             throw new NotThisTypeException();
 
-        bitReader.reset(abFrameData, true, 8);
+        bitReader.reset(abFrameData, iDataSize, true, 8);
     }
 
     public static boolean checkHeader(byte[] abFrameData) {
+        if (abFrameData.length < 8)
+            return false;
 
         int _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
         int iMagic3800           = IO.readUInt16LE(abFrameData, 2);

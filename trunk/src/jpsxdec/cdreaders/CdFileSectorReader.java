@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,10 +42,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Arrays;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.I18N;
+import jpsxdec.LocalizedIOException;
 import jpsxdec.sectors.SectorXaAudio;
 import jpsxdec.util.IO;
-import jpsxdec.util.IOException6;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -142,15 +144,15 @@ public class CdFileSectorReader {
 
         try {
             factory = new Cd2352or2448Factory(_inputFile, true /*2352*/, true /*2448*/);
-            LOG.info("Disc type identified as " + factory.getTypeDescription());
+            LOG.log(Level.INFO, "Disc type identified as {0}", factory.getTypeDescription());
         } catch (NotThisTypeException ex) {
             try {
                 factory = new Cd2336Factory(_inputFile);
-                LOG.info("Disc type identified as " + factory.getTypeDescription());
+                LOG.log(Level.INFO, "Disc type identified as {0}", factory.getTypeDescription());
             } catch (NotThisTypeException ex1) {
                 // we couldn't figure out what it is, assuming ISO style
                 factory = new Cd2048Factory();
-                LOG.info("Unknown disc type, assuming " + factory.getTypeDescription());
+                LOG.log(Level.INFO, "Unknown disc type, assuming {0}", factory.getTypeDescription());
             }
         }
         
@@ -191,7 +193,7 @@ public class CdFileSectorReader {
                     throw new IllegalArgumentException("Invalid sector size to open disc image as " + iSectorSize);
             }
         } catch (NotThisTypeException ex) {
-            throw new IOException6(ex);
+            throw new LocalizedIOException(ex);
         }
 
         _iSectorCount = calculateSectorCount();
@@ -208,7 +210,7 @@ public class CdFileSectorReader {
     {
         String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
         if (asValues == null || asValues.length != 5)
-            throw new NotThisTypeException("Failed to deserialize CD string: " + sSerialization);
+            throw new NotThisTypeException("Failed to deserialize CD string: {0}", sSerialization); // I18N
 
         try {
             _iSectorCount = Integer.parseInt(asValues[3]);
@@ -244,9 +246,8 @@ public class CdFileSectorReader {
         int iActualSectorCount = calculateSectorCount();
         if (_iSectorCount != iActualSectorCount) {
             _inputFile.close();
-            throw new NotThisTypeException(String.format(
-                    "Serialized sector count (%d) does not match actual (%d)",
-                    _iSectorCount, iActualSectorCount));
+            throw new NotThisTypeException("Serialized sector count {0,number,#} does not match actual {1,number,#}", // I18N
+                    _iSectorCount, iActualSectorCount);
         }
 
     }
@@ -274,6 +275,8 @@ public class CdFileSectorReader {
 
     public boolean matchesSerialization(String sSerialization) {
         String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
+        if (asValues == null)
+            return false;
 
         try {
             int iSectorSize = Integer.parseInt(asValues[2]);
@@ -312,7 +315,7 @@ public class CdFileSectorReader {
     /** Returns the actual offset in bytes from the start of the file/CD 
      *  to the start of iSector. */
     public long getFilePointer(int iSector) {
-        return iSector * _sectorFactory.getRawSectorSize() + _sectorFactory.get1stSectorOffset();
+        return (long)iSector * _sectorFactory.getRawSectorSize() + _sectorFactory.get1stSectorOffset();
     }
 
     /** Returns the number of sectors in the file/CD */
@@ -340,7 +343,7 @@ public class CdFileSectorReader {
             int iBytesRead = _inputFile.read(_abBulkReadCache);
             if (iBytesRead < _sectorFactory.getRawSectorSize()) {
                 _abBulkReadCache = null;
-                throw new IOException("Failed to read at least 1 entire sector.");
+                throw new LocalizedIOException("Failed to read at least 1 entire sector."); // I18N
             }
         }
 
@@ -412,7 +415,7 @@ public class CdFileSectorReader {
 
 
         public String getTypeDescription() {
-            return ".iso (2048 bytes/sector) format";
+            return I18N.S(".iso (2048 bytes/sector) format"); // I18N
         }
 
         public boolean hasSectorHeader() {
@@ -500,7 +503,7 @@ public class CdFileSectorReader {
         }
 
         public String getTypeDescription() {
-            return "partial header (2336 bytes/sector) format";
+            return I18N.S("partial header (2336 bytes/sector) format"); // I18N
         }
         public boolean hasSectorHeader() {
             return true;
@@ -540,7 +543,7 @@ public class CdFileSectorReader {
                 cdFile.seek(lngSectStart);
                 IO.readByteArray(cdFile, abSyncHeader);
                 if (Arrays.equals(abSyncHeader, CdxaHeader.SECTOR_SYNC_HEADER)) {
-                    LOG.fine("Possible sync header at " + lngSectStart);
+                    LOG.log(Level.FINE, "Possible sync header at {0,number,#}", lngSectStart);
                     // we think we found a sync header
                     if (blnCheck2352 && checkMore(SECTOR_SIZE_2352_BIN, cdFile, lngSectStart, abSyncHeader)) {
                         _bln2352 = true;
@@ -589,8 +592,8 @@ public class CdFileSectorReader {
 
         public String getTypeDescription() {
             return _bln2352 ?
-                "BIN/CUE (2352 bytes/sector) format" :
-                "BIN/CUE + Sub Channel (2448 bytes/sector) format";
+                I18N.S("BIN/CUE (2352 bytes/sector) format") : // I18N
+                I18N.S("BIN/CUE + Sub Channel (2448 bytes/sector) format"); // I18N
         }
         public boolean hasSectorHeader() {
             return true;

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2013  Michael Sabin
+ * Copyright (C) 2012-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems.savers;
 
+import jpsxdec.I18N;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
@@ -46,18 +47,24 @@ import jpsxdec.psxvideo.mdec.idct.simple_idct;
 
 
 public enum MdecDecodeQuality {
-    LOW("Fast (lower quality)", "low") {
+    LOW("Fast (lower quality)", // I18N
+        "low") // I18N
+    {
         public MdecDecoder makeDecoder(int iWidth, int iHeight) {
             return new MdecDecoder_int(new simple_idct(), iWidth, iHeight);
         }
     },
-    HIGH_PLUS("High quality (slower)", "high") {
+    HIGH_PLUS("High quality (slower)", // I18N
+              "high") // I18N
+    {
         public MdecDecoder makeDecoder(int iWidth, int iHeight) {
             return new MdecDecoder_double_interpolate(new PsxMdecIDCT_double(), iWidth, iHeight);
         }
         public boolean canUpsample() { return true; }
     },
-    PSX("Emulate PSX (low) quality", "psx") {
+    PSX("Emulate PSX (low) quality", // I18N
+        "psx") // I18N
+    {
         public MdecDecoder makeDecoder(int iWidth, int iHeight) {
             return new MdecDecoder_int(new PsxMdecIDCT_int(), iWidth, iHeight);
         }
@@ -94,5 +101,5 @@ public enum MdecDecodeQuality {
     abstract public MdecDecoder makeDecoder(int iWidth, int iHeight);
 
     public String getCmdLine() { return _sCmdLine; }
-    public String toString() { return _sGuiDescription; }
+    public String toString() { return I18N.S(_sGuiDescription); }
 }

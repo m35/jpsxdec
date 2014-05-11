@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2013  Michael Sabin
+ * Copyright (C) 2012-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,8 @@
 
 package jpsxdec.discitems;
 
+import java.util.Date;
+import jpsxdec.I18N;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderCrusader;
 import jpsxdec.util.Fraction;
@@ -50,18 +52,37 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     private static final Fraction SECTORS_PER_FRAME = new Fraction(10);
     private static final int FPS = 15;
     
+    private static final String FRAMES_KEY = "Frames";
+    /** First video frame number. */
+    private final int _iStartFrame;
+    /** Last video frame number. */
+    private final int _iEndFrame;
     
     public DiscItemCrusader(int iStartSector, int iEndSector, 
                             int iWidth, int iHeight,
-                            int iStartFrame, int iEndFrame) 
+                            int iFrameCount,
+                            int iStartFrame, int iEndFrame)
     {
         super(iStartSector, iEndSector,
               iWidth, iHeight,
-              iStartFrame, iEndFrame);
+              iFrameCount);
+        _iStartFrame = iStartFrame;
+        _iEndFrame = iEndFrame;
     }
     
     public DiscItemCrusader(SerializedDiscItem fields) throws NotThisTypeException {
         super(fields);
+
+        int[] ai = fields.getIntRange(FRAMES_KEY);
+        _iStartFrame = ai[0];
+        _iEndFrame = ai[1];
+    }
+
+    @Override
+    public SerializedDiscItem serialize() {
+        SerializedDiscItem serial = super.serialize();
+        serial.addRange(FRAMES_KEY, _iStartFrame, _iEndFrame);
+        return serial;
     }
 
     @Override
@@ -69,12 +90,27 @@ public class DiscItemCrusader extends DiscItemVideoStream {
         return TYPE_ID;
     }
 
+    public int getStartFrame() {
+        return _iStartFrame;
+    }
+
+    public int getEndFrame() {
+        return _iEndFrame;
+    }
+
+    @Override
+    public String getFrameNumberFormat() {
+        int iDigitCount = String.valueOf(_iEndFrame).length();
+        return "%0" + String.valueOf(iDigitCount) + 'd';
+    }
+
     @Override
     public String getInterestingDescription() {
-        int iFrames = getEndFrame() - getStartFrame() + 1;
-        return String.format("%dx%d, %d frames, %d fps = %s",
+        int iFrames = getFrameCount();
+        Date secs = new Date(0, 0, 0, 0, 0, Math.max(iFrames / FPS, 1));
+        return I18N.S("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#} fps = {4,time,m:ss}", // I18N
                              getWidth() ,getHeight(),
-                             iFrames , FPS, formatTime(iFrames / FPS));
+                             iFrames, FPS, secs);
     }
     
     @Override
@@ -95,6 +131,11 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     @Override
     public int getPresentationStartSector() {
         return getStartSector();
+    }
+
+    @Override
+    public double getApproxDuration() {
+        return getFrameCount() / (double)FPS;
     }
 
     @Override

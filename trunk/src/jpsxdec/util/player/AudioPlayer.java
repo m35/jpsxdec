@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -208,7 +208,7 @@ class AudioPlayer implements IVideoTimer {
         }
     }
 
-    public long getPlayTime() {
+    public long getNanoPlayTime() {
         return (long)(_dataLine.getLongFramePosition() * _dblTimeConvert);
     }
 
@@ -221,7 +221,7 @@ class AudioPlayer implements IVideoTimer {
             switch (_state.get()) {
                 case PAUSED:
                 case PLAYING:
-                    long lngPlayTime = getPlayTime();
+                    long lngPlayTime = getNanoPlayTime();
                     if (DEBUG) System.out.println("[AudioPlayer] Play time = " + lngPlayTime + " vs. Pres time = " + lngPresentationTime);
                     return lngPresentationTime >= lngPlayTime;
                 case STOPPED:
@@ -245,7 +245,7 @@ class AudioPlayer implements IVideoTimer {
                             if (DEBUG) System.out.println("[AudioPlayer] AudioPlayer timer, not waiting anymore");
                             break; // loop again to see the new state
                         case PLAYING:
-                            long lngPos = getPlayTime();
+                            long lngPos = getNanoPlayTime();
                             long lngSleepTime;
                             if ((lngSleepTime = frame.PresentationTime - lngPos) > FRAME_DELAY_FUDGE_TIME) {
                                 lngSleepTime -= FRAME_DELAY_FUDGE_TIME;

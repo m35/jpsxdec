@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -126,9 +126,13 @@ public class SectorXaAudio extends IdentifiedSector {
         setProbability(100 - iErrors * 100 / iMaxErrors);
         
         if (iErrors > 0) {
-            LOG.log(Level.WARNING, "{0} errors out of {1} in XA sound parameters for {2}",
+            LOG.log(Level.WARNING, "{0,number,#} errors out of {1,number,#} in XA sound parameters for {2}",
                     new Object[]{iErrors, iMaxErrors, this.toString()});
         }
+    }
+
+    public int getChannel() {
+        return getCdSector().getSubHeaderChannel();
     }
 
     public boolean isStereo() {

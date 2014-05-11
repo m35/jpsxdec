@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -72,19 +72,28 @@ public class GuiSettings {
     private int _iPreviousImageCount;
 
     private static final String PREVIOUS_INDEX_KEY = "PreviousIndex";
-    private LinkedList<String> _previousIndexes = new LinkedList<String>();
+    private final LinkedList<String> _previousIndexes = new LinkedList<String>();
 
     private static final String PREVIOUS_INDEX_COUNT_KEY = "PreviousIndexCount";
     private int _iPreviousIndexCount;
 
     public void load() {
         Properties prop = new Properties();
+        FileInputStream propFile = null;
         try {
-            prop.load(new FileInputStream(INI_FILE_NAME));
+            prop.load(propFile = new FileInputStream(INI_FILE_NAME));
         } catch (FileNotFoundException ex) {
             LOG.info("ini file not found");
         } catch (Throwable ex) {
             LOG.log(Level.WARNING, "Error loading ini file", ex);
+        } finally {
+            if (propFile != null) {
+                try {
+                    propFile.close();
+                } catch (IOException ex) {
+                    LOG.log(Level.SEVERE, null, ex);
+                }
+            }
         }
         _sSavingDir = prop.getProperty(SAVING_DIR_KEY, new File("").getAbsolutePath());
         _sImageDir = prop.getProperty(IMAGE_DIR_KEY, new File("").getAbsolutePath());

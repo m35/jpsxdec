@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,23 +43,6 @@ public interface IVideoSector extends IIdentifiedSector {
     /** Where this sector falls in the order of 
      *  video sectors for this frame. */
     int getChunkNumber();
-
-    /** Number of video sectors used to hold the frame that this sector
-     *  is a part of. */
-    int getChunksInFrame();
-
-    /** Frame number that this sector is a part of. */
-    int getFrameNumber();
-
-    /** Height of the frame in pixels. */
-    int getHeight();
-
-    /** Width of the frame in pixels. */
-    int getWidth();
-
-    /** Used primarily (exclusively?) during indexing to determine if
-     *  this sectors is part of the same video as the previous sector. */
-    boolean matchesPrevious(IVideoSector prevVidSect);
 
     /** Copies the identified user data portion of the sector data to the
      *  output buffer. */

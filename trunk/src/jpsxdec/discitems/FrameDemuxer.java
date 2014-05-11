@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,24 +38,38 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
 
-/** Demuxes a series of frame chunk sectors into a solid stream.
- *  This is surprisingly more complicated that it seems. */
-public class FrameDemuxer implements ISectorFrameDemuxer {
+/** Demuxes a series of STR-like frame chunk sectors into a solid stream. */
+public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFrameDemuxer {
 
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
     /** Sectors outside of this range are ignored. */
-    private final int _iVideoStartSector, _iVideoEndSector;
-    /** Expected dimensions of the frame. */
-    private final int _iWidth, _iHeight;
+    private final int _iVideoStartSector;
+    private final int _iVideoEndSector;
 
-    private DemuxedStrFrame _current;
+    /** Sector type used in this video.
+     * Set by first video sector accepted. All other sector types are ignored. */
+    private Class _videoSectorType = null;
+    /** Sector number of the last accepted video sector.
+     * Too much gap between video sectors causes problems with frame rate calc. */
+    private int _iLastSeenSectorNumber = -1;
+
+    private int _iLastSeenFrameNumber = -1;
+
+    /** Chunks of the current frame.
+     * Created and grown as needed. */
+    private IVideoSector[] _aoCurrent;
+    private int _iCurrentFrame = -1;
+    private int _iChunksInFrame = -1;
+    private int _iChunksReceived = 0;
 
     private ICompletedFrameListener _listener;
 
@@ -64,74 +78,140 @@ public class FrameDemuxer implements ISectorFrameDemuxer {
     /* ---------------------------------------------------------------------- */
 
     /** Sectors outside of the start and end sectors (inclusive) are simply ignored. */
-    public FrameDemuxer(int iWidth, int iHeight, 
-                        int iVideoStartSector, int iVideoEndSector)
-    {
-        if (iWidth < 1 || iHeight < 1)
-            throw new IllegalArgumentException("Invalid dimensions " + iWidth + "x" + iHeight);
+    public FrameDemuxer(int iVideoStartSector, int iVideoEndSector) {
         if (iVideoStartSector < 0 || iVideoEndSector < iVideoStartSector)
             throw new IllegalArgumentException("Invalid video sector range " + iVideoStartSector + "-" + iVideoEndSector);
-        _iWidth = iWidth;
-        _iHeight = iHeight;
         _iVideoStartSector = iVideoStartSector;
         _iVideoEndSector = iVideoEndSector;
     }
-    
+
     /* ---------------------------------------------------------------------- */
     /* Public Functions ----------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
-    
-    public int getWidth() {
-        return _iWidth;
+
+    public int getStartSector() {
+        return _iVideoStartSector;
     }
 
-    public int getHeight() {
-        return _iHeight;
+    public int getEndSector() {
+        return _iVideoEndSector;
     }
 
-    public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
-        if (!(sector instanceof IVideoSector))
-            return;
+    abstract public int getWidth();
+    abstract public int getHeight();
 
-        if (sector.getSectorNumber() < _iVideoStartSector ||
-            sector.getSectorNumber() > _iVideoEndSector)
-            return;
+    private void ensureCapacity(int iSize) {
+        if (_aoCurrent == null) {
+            _aoCurrent = new IVideoSector[iSize];
+        } else if (_aoCurrent.length < iSize) {
+            IVideoSector[] ao = new IVideoSector[iSize];
+            System.arraycopy(_aoCurrent, 0, ao, 0, _aoCurrent.length);
+            _aoCurrent = ao;
+        }
+    }
 
-        IVideoSector chunk = (IVideoSector) sector;
+    public boolean feedSector(IdentifiedSector sector, Logger log) throws IOException {
+        T chunk = isVideoSector(sector);
+        if (chunk == null)
+            return false;
 
-        if (chunk.getWidth() != _iWidth)
-            throw new IllegalArgumentException("Inconsistent width.");
+        if (!isPartOfVideo(chunk))
+            return false;
 
-        if (chunk.getHeight() != _iHeight)
-            throw new IllegalArgumentException("Inconsistent height.");
+        if (!isPartOfFrame(chunk)) {
+            // frame is done
+            flush(log);
+        }
+        _iLastSeenFrameNumber = _iCurrentFrame = getFrameNumber(chunk);
 
-        // is it the first 
-        if (_current == null) {
-            _current = new DemuxedStrFrame(chunk);
+        int iChunksInFrame = getChunksInFrame(chunk);
+
+        if (_iChunksInFrame >= 0 &&_iChunksInFrame != iChunksInFrame)
+            log.log(Level.WARNING, "Chunks in frame {0} changed from {1} to {2}", // I18N
+                    new Object[]{_iCurrentFrame, _iChunksInFrame, iChunksInFrame});
+        _iChunksInFrame = iChunksInFrame;
+
+        // now add the chunk
+        if (chunk.getChunkNumber() >= iChunksInFrame) {
+            log.log(Level.WARNING, "Chunk number {0} is >= chunks in frame {1}", // I18N
+                    new Object[]{chunk.getChunkNumber(), iChunksInFrame});
+            ensureCapacity(chunk.getChunkNumber());
         } else {
-            boolean blnRejected = _current.addChunk(chunk);
-            if (blnRejected) {
-                _listener.frameComplete(_current);
-                _current = new DemuxedStrFrame(chunk);
-            }
+            ensureCapacity(iChunksInFrame);
         }
+        _aoCurrent[chunk.getChunkNumber()] = chunk;
+        _iChunksReceived++;
+        // really must push frames once all chunks are received,
+        // in case of duplicate frame numbers it saves warnings above
+        if (_iChunksReceived == _iChunksInFrame)
+            flush(log);
 
-        if (_current.isFull()) {
-            _listener.frameComplete(_current);
-            _current = null;
-        }
-
+        return true;
     }
 
-    public void flush(Logger log) throws IOException {
-        if (_current != null) {
-            _listener.frameComplete(_current);
-            _current = null;
+    final public void flush(Logger log) throws IOException {
+        if (_iChunksReceived > 0) {
+            _listener.frameComplete(
+                new DemuxedStrFrame(_iCurrentFrame,
+                                    getWidth(), getHeight(),
+                                    _aoCurrent, _iChunksInFrame)
+            );
+            Arrays.fill(_aoCurrent, null);
+            _iCurrentFrame = -1;
+            _iChunksInFrame = -1;
+            _iChunksReceived = 0;
         }
     }
 
     public void setFrameListener(ICompletedFrameListener listener) {
         _listener = listener;
     }
-    
+
+    /* ---------------------------------------------------------------------- */
+    /* Protected Functions -------------------------------------------------- */
+    /* ---------------------------------------------------------------------- */
+
+    abstract protected T isVideoSector(IdentifiedSector sector);
+    abstract protected int getFrameNumber(T chunk);
+    abstract protected int getChunksInFrame(T chunk);
+
+    /** Override to add additional checks. */
+    protected boolean isPartOfVideo(T chunk) {
+        if (chunk.getSectorNumber() < _iVideoStartSector)
+            return false;
+        if (chunk.getSectorNumber() > _iVideoEndSector)
+            return false;
+
+        if (_iLastSeenFrameNumber >= 0 && getFrameNumber(chunk) < _iLastSeenFrameNumber)
+            return false;
+
+        if (_videoSectorType == null)
+            _videoSectorType = chunk.getClass();
+        else if (!_videoSectorType.equals(chunk.getClass()))
+            return false;
+
+        // FPS calculation can't handle huge breaks between frame sectors
+        if (_iLastSeenSectorNumber >= 0 && chunk.getSectorNumber() > _iLastSeenSectorNumber + 100)
+            return false;
+        _iLastSeenSectorNumber = chunk.getSectorNumber();
+        return true;
+    }
+
+    /** Override to add additional checks. */
+    protected boolean isPartOfFrame(T chunk) {
+        // different frame number
+        if (_iCurrentFrame >= 0 && _iCurrentFrame != getFrameNumber(chunk))
+            return false;
+        // chunk already exists
+        if (_aoCurrent != null &&
+            chunk.getChunkNumber() < _aoCurrent.length &&
+            _aoCurrent[chunk.getChunkNumber()] != null)
+        {
+            // log warning?
+            return false;
+        }
+
+        return true;
+    }
+
 }

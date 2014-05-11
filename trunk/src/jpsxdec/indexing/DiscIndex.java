@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.I18N;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
@@ -61,6 +62,7 @@ import jpsxdec.discitems.DiscItemStrVideoStream;
 import jpsxdec.discitems.IndexId;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
@@ -80,7 +82,7 @@ public class DiscIndex implements Iterable<DiscItem> {
     private CdFileSectorReader _sourceCD;
     private String _sDiscName = null;
     private final ArrayList<DiscItem> _root;
-    private final ArrayList<DiscItem> _iterate;
+    private final ArrayList<DiscItem> _iterate = new ArrayList<DiscItem>();
 
     private final LinkedHashMap<Object, DiscItem> _lookup = new LinkedHashMap<Object, DiscItem>();
 
@@ -95,8 +97,6 @@ public class DiscIndex implements Iterable<DiscItem> {
             //new DiscIndexerMdec(),
             //new DiscIndexerLzs()
         };
-
-        _iterate = new ArrayList<DiscItem>();
 
         for (DiscIndexer indexer : aoIndexers) {
             indexer.putYourCompletedItemsHere(_iterate);
@@ -121,8 +121,8 @@ public class DiscIndex implements Iterable<DiscItem> {
                     int iNewSectNumber = sect.getHeaderSectorNumber();
                     if (iCurrentSectorNumber >= 0) {
                         if (iCurrentSectorNumber + 1 != iNewSectNumber)
-                            pl.warning("Non-continuous sector header number: " +
-                                                iCurrentSectorNumber + " -> " + iNewSectNumber);
+                            pl.log(Level.WARNING, "Non-continuous sector header number: {0,number,#} -> {1,number,#}", // I18N
+                                   new Object[]{iCurrentSectorNumber, iNewSectNumber});
                     }
                     iCurrentSectorNumber = iNewSectNumber;
                 } else {
@@ -130,7 +130,8 @@ public class DiscIndex implements Iterable<DiscItem> {
                 }
                 if (sect.isMode1()) {
                     if (iMode1Count < iMode2Count)
-                        pl.warning("Sector " + sect.getSectorNumberFromStart() + " is Mode 1 found among Mode 2 sectors");
+                        pl.log(Level.WARNING, "Sector {0,number,#} is Mode 1 found among Mode 2 sectors",  // I18N
+                               sect.getSectorNumberFromStart());
                     iMode1Count++;
                 } else if (!sect.isCdAudioSector())
                     iMode2Count++;
@@ -143,7 +144,8 @@ public class DiscIndex implements Iterable<DiscItem> {
                 }
 
                 if (pl.seekingEvent())
-                    pl.event(String.format("Sector %d / %d  %d items found", iSector, _sourceCD.getLength(), _iterate.size()));
+                    pl.event(I18N.S("Sector {0,number,#} / {1,number,#}  {2,number,#} items found", // I18N
+                            iSector, _sourceCD.getLength(), _iterate.size()));
             }
         });
 
@@ -194,7 +196,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             }
 
         } catch (IOException ex) {
-            pl.log(Level.SEVERE, "Error while indexing disc", ex);
+            pl.log(Level.SEVERE, "Error while indexing disc", ex); // I18N
         }
 
         // notify indexers that the disc is finished
@@ -221,7 +223,8 @@ public class DiscIndex implements Iterable<DiscItem> {
         }
 
         if (pl.seekingEvent())
-            pl.event(String.format("Sector %d / %d  %d items found", _sourceCD.getLength(), _sourceCD.getLength(), _iterate.size()));
+            pl.event(I18N.S("Sector {0,number,#} / {1,number,#}  {2,number,#} items found", // I18N
+                    _sourceCD.getLength(), _sourceCD.getLength(), _iterate.size()));
 
         pl.progressEnd();
 
@@ -287,12 +290,9 @@ public class DiscIndex implements Iterable<DiscItem> {
                 return -1;
             else if (typeHierarchyLevel(o1) > typeHierarchyLevel(o2))
                 return 1;
-            else if (o1.getEndSector() > o2.getEndSector())
-                return -1;
-            else if (o1.getEndSector() < o2.getEndSector())
-                return 1;
             else
-                return 0;
+                // have more encompassing disc items come first (result is much cleaner)
+                return Misc.intCompare(o2.getEndSector(), o1.getEndSector());
         }
     };
 
@@ -326,8 +326,6 @@ public class DiscIndex implements Iterable<DiscItem> {
         BufferedReader reader = new BufferedReader(new FileReader(indexFile));
         boolean blnExceptionThrown = true;
         try {
-            _iterate = new ArrayList<DiscItem>();
-
             indexers.addAll(Arrays.asList(DiscIndexer.createIndexers(errLog)));
             indexers.add(new DiscIndexerTim());
 
@@ -339,21 +337,25 @@ public class DiscIndex implements Iterable<DiscItem> {
             String sLine = reader.readLine();
             if (!INDEX_HEADER.equals(sLine)) {
                 reader.close();
-                throw new NotThisTypeException("Missing proper index header.");
+                throw new NotThisTypeException("Missing proper index header."); // I18N
             }
 
             while ((sLine = reader.readLine()) != null) {
 
                 // comments
                 if (sLine.startsWith(COMMENT_LINE_START))
-                continue;
+                    continue;
 
+                // blank lines
+                if (sLine.matches("^\\s*$"))
+                    throw new NotThisTypeException("Empty serialized string"); // I18N
+                
                 // source file
                 if (sLine.startsWith(CdFileSectorReader.SERIALIZATION_START)) {
                     if (cdReader != null) {
                         // verify that the source file matches
                         if (!cdReader.matchesSerialization(sLine)) {
-                            errLog.warning("Disc format does not match what index says.");
+                            errLog.log(Level.WARNING, "Disc format does not match what index says."); // I18N
                         }
                     } else {
                         _sourceCD = new CdFileSectorReader(sLine, blnAllowWrites);
@@ -374,9 +376,9 @@ public class DiscIndex implements Iterable<DiscItem> {
                         }
                     }
                     if (!blnLineHandled)
-                        errLog.warning("Failed to do anything with " + sLine);
+                        errLog.log(Level.WARNING, "Failed to do anything with {0}", sLine); // I18N
                 } catch (NotThisTypeException e) {
-                    errLog.warning("Failed to parse line: " + sLine);
+                    errLog.log(Level.WARNING, "Failed to parse line: {0}", sLine); // I18N
                 }
             }
             
@@ -442,7 +444,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                     continue;
                 if (itemId.isParent(possibleParent.getIndexId())) {
                     if (!possibleParent.addChild(child)) {
-                        log.warning(possibleParent + " rejected " + child);
+                        log.log(Level.WARNING, "{0} rejected {1}", new Object[]{possibleParent, child}); // I18N
                     }
                     continue Outside;
                 }
@@ -467,7 +469,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             throws IOException
     {
         ps.println(INDEX_HEADER);
-        ps.println(COMMENT_LINE_START + " Lines that begin with "+COMMENT_LINE_START+" are ignored");
+        ps.println(COMMENT_LINE_START + " Lines that begin with "+COMMENT_LINE_START+" are ignored"); // I18N
         // TODO: Serialize the CD file location relative to where this index file is being saved
         ps.println(_sourceCD.serialize());
         for (DiscItem item : this) {

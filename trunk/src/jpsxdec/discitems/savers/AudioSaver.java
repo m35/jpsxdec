@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.logging.Level;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.I18N;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.discitems.ISectorAudioDecoder;
@@ -85,9 +86,9 @@ public class AudioSaver implements IDiscItemSaver  {
     }
 
     public void printSelectedOptions(PrintStream ps) {
-        ps.println("Format: " + _containerFormat);
-        ps.println("Volume: " + Math.round(_decoder.getVolume() * 100) + "%");
-        ps.println("Filename: " + _fileSubPath);
+        ps.println(I18N.S("Format: {0}", _containerFormat)); // I18N
+        ps.println(I18N.S("Volume: {0}%", Math.round(_decoder.getVolume() * 100))); // I18N
+        ps.println(I18N.S("Filename: {0}", _fileSubPath)); // I18N
     }
 
 
@@ -120,7 +121,7 @@ public class AudioSaver implements IDiscItemSaver  {
             try {
                 audioWriter.close();
             } catch (Throwable ex) {
-                pll.log(Level.SEVERE, "Error closing audio writer", ex);
+                pll.log(Level.SEVERE, "Error closing audio writer", ex); // I18N
             }
         }
     }

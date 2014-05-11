@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,9 +38,9 @@
 package jpsxdec.cdreaders;
 
 import java.io.File;
-import java.io.FileNotFoundException;
+import jpsxdec.LocalizedFileNotFoundException;
 
-public class CdFileNotFoundException extends FileNotFoundException {
+public class CdFileNotFoundException extends LocalizedFileNotFoundException {
 
     private final File _file;
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.I18N;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.indexing.DiscIndex;
@@ -83,7 +84,7 @@ class Command_Visualize extends Command {
              *
              * summarize to just the important data-points
              */
-            _fbs.println("Generating visualization");
+            _fbs.println(I18N.S("Generating visualization")); // I18N
             int[] aiDataPoints = extractDataPoints(index);
             // pre-determine the tree-area width based on max point of overalpping items
             int iMaxOverlap = findMaxOverlap(aiDataPoints, index);
@@ -169,7 +170,7 @@ class Command_Visualize extends Command {
             }
             pdf.flush();
         } catch (Exception ex) {
-            throw new CommandLineException("Error creating or writing the visualization", ex);
+            throw new CommandLineException(ex, "Error creating or writing the visualization"); // I18N
         } finally {
             if (pdfStream != null) try {
                 pdfStream.close();

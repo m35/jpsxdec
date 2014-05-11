@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,27 +37,45 @@
 
 package jpsxdec.util;
 
-import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.logging.Formatter;
+import java.util.logging.LogRecord;
 
-/** {@link IOException} in Java 5 doesn't have the
- * {@link java.lang.Throwable} constructor. */
-public class IOException6 extends IOException {
 
-    public IOException6(Throwable cause) {
-        super();
-        initCause(cause);
-    }
+/** Originally from the book "JDK 1.4 Tutorial" by Gregory M. Travis.
+ * http://www.manning.com/travis/
+ */
+public class BriefFormatter extends Formatter {
 
-    public IOException6(String message, Throwable cause) {
-        super(message);
-        initCause(cause);
-    }
+    /** Line separator string.  This is the value of the line.separator
+     * property at the moment that the SimpleFormatter was created. */
+    private final static String LINE_SEPARATOR = System.getProperty("line.separator");
 
-    public IOException6(String message) {
-        super(message);
-    }
+    private final Date _date = new Date();
+    private final SimpleDateFormat _formatter = new SimpleDateFormat("HH:MM");
 
-    public IOException6() {
+    /**
+     * Format the given LogRecord.
+     * @param record the log record to be formatted.
+     * @return a formatted log record
+     */
+    public synchronized String format(LogRecord record) {
+	StringBuilder sb = new StringBuilder();
+	// Minimize memory allocations here.
+	_date.setTime(record.getMillis());
+	sb.append(_formatter.format(_date));
+	sb.append(' ');
+        sb.append(record.getLoggerName());
+	sb.append(' ');
+	sb.append(record.getLevel().getName());
+	sb.append(": ");
+	sb.append(formatMessage(record));
+	sb.append(LINE_SEPARATOR);
+	if (record.getThrown() != null) {
+            sb.append(Misc.stack2string(record.getThrown()));
+	}
+	return sb.toString();
     }
 
 }

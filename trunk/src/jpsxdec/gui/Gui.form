@@ -6,6 +6,7 @@
   </Properties>
   <SyntheticProperties>
     <SyntheticProperty name="formSizePolicy" type="int" value="1"/>
+    <SyntheticProperty name="generateCenter" type="boolean" value="false"/>
   </SyntheticProperties>
   <Events>
     <EventHandler event="windowClosing" listener="java.awt.event.WindowListener" parameters="java.awt.event.WindowEvent" handler="formWindowClosing"/>
@@ -56,7 +57,9 @@
                 <Property name="icon" type="javax.swing.Icon" editor="org.netbeans.modules.form.editors2.IconEditor">
                   <Image iconType="3" name="/jpsxdec/gui/media-optical-5.png"/>
                 </Property>
-                <Property name="text" type="java.lang.String" value="Open and Analyzie Disc Image"/>
+                <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                  <ResourceString bundle="jpsxdec/Translations.properties" key="Open and Analyze Disc Image" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                </Property>
                 <Property name="horizontalTextPosition" type="int" value="2"/>
                 <Property name="margin" type="java.awt.Insets" editor="org.netbeans.beaninfo.editors.InsetsEditor">
                   <Insets value="[5, 10, 5, 10]"/>
@@ -73,7 +76,9 @@
                 <Property name="icon" type="javax.swing.Icon" editor="org.netbeans.modules.form.editors2.IconEditor">
                   <Image iconType="3" name="/jpsxdec/gui/insert-numbers.png"/>
                 </Property>
-                <Property name="text" type="java.lang.String" value="Open Index"/>
+                <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                  <ResourceString bundle="jpsxdec/Translations.properties" key="Open Index" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                </Property>
                 <Property name="focusable" type="boolean" value="false"/>
                 <Property name="horizontalTextPosition" type="int" value="2"/>
                 <Property name="margin" type="java.awt.Insets" editor="org.netbeans.beaninfo.editors.InsetsEditor">
@@ -91,7 +96,9 @@
                 <Property name="icon" type="javax.swing.Icon" editor="org.netbeans.modules.form.editors2.IconEditor">
                   <Image iconType="3" name="/jpsxdec/gui/3floppy_unmount.png"/>
                 </Property>
-                <Property name="text" type="java.lang.String" value="Save Index"/>
+                <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                  <ResourceString bundle="jpsxdec/Translations.properties" key="Save Index" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                </Property>
                 <Property name="enabled" type="boolean" value="false"/>
                 <Property name="focusable" type="boolean" value="false"/>
                 <Property name="horizontalTextPosition" type="int" value="2"/>
@@ -203,7 +210,9 @@
               <SubComponents>
                 <Component class="javax.swing.JButton" name="_guiSelectAll">
                   <Properties>
-                    <Property name="text" type="java.lang.String" value="Select ..."/>
+                    <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                      <ResourceString bundle="jpsxdec/Translations.properties" key="Select ..." replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                    </Property>
                     <Property name="enabled" type="boolean" value="false"/>
                   </Properties>
                   <Events>
@@ -229,7 +238,9 @@
                 </Component>
                 <Component class="javax.swing.JButton" name="_guiExpandAll">
                   <Properties>
-                    <Property name="text" type="java.lang.String" value="Expand All"/>
+                    <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                      <ResourceString bundle="jpsxdec/Translations.properties" key="Expand All" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                    </Property>
                   </Properties>
                   <Events>
                     <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="_guiExpandAllActionPerformed"/>
@@ -242,7 +253,9 @@
                 </Component>
                 <Component class="javax.swing.JButton" name="_guiCollapseAll">
                   <Properties>
-                    <Property name="text" type="java.lang.String" value="Collapse All"/>
+                    <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                      <ResourceString bundle="jpsxdec/Translations.properties" key="Collapse All" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                    </Property>
                   </Properties>
                   <Events>
                     <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="_guiCollapseAllActionPerformed"/>
@@ -336,7 +349,9 @@
                       <SubComponents>
                         <Component class="javax.swing.JLabel" name="_guiDirectoryLbl">
                           <Properties>
-                            <Property name="text" type="java.lang.String" value="Directory:"/>
+                            <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                              <ResourceString bundle="jpsxdec/Translations.properties" key="Directory:" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                            </Property>
                           </Properties>
                           <Constraints>
                             <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.DesignBorderLayout" value="org.netbeans.modules.form.compat2.layouts.DesignBorderLayout$BorderConstraintsDescription">
@@ -353,7 +368,9 @@
                         </Component>
                         <Component class="javax.swing.JButton" name="_guiChooseDir">
                           <Properties>
-                            <Property name="text" type="java.lang.String" value="..."/>
+                            <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                              <ResourceString bundle="jpsxdec/Translations.properties" key="..." replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                            </Property>
                             <Property name="margin" type="java.awt.Insets" editor="org.netbeans.beaninfo.editors.InsetsEditor">
                               <Insets value="[2, 3, 2, 2]"/>
                             </Property>
@@ -398,7 +415,9 @@
                       <SubComponents>
                         <Component class="javax.swing.JButton" name="_guiApplyAll">
                           <Properties>
-                            <Property name="text" type="java.lang.String" value="Apply to all ..."/>
+                            <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                              <ResourceString bundle="jpsxdec/Translations.properties" key="Apply to all {0}" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                            </Property>
                             <Property name="enabled" type="boolean" value="false"/>
                           </Properties>
                           <Events>
@@ -407,7 +426,9 @@
                         </Component>
                         <Component class="javax.swing.JButton" name="_guiSaveAll">
                           <Properties>
-                            <Property name="text" type="java.lang.String" value="Save All Selected"/>
+                            <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                              <ResourceString bundle="jpsxdec/Translations.properties" key="Save All Selected" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                            </Property>
                             <Property name="enabled" type="boolean" value="false"/>
                           </Properties>
                           <Events>
@@ -431,7 +452,9 @@
                   <SubComponents>
                     <Component class="javax.swing.JButton" name="_guiPlayPauseBtn">
                       <Properties>
-                        <Property name="text" type="java.lang.String" value="Play"/>
+                        <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+                          <ResourceString bundle="jpsxdec/Translations.properties" key="Play" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                        </Property>
                       </Properties>
                       <Events>
                         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="_guiPlayPauseBtnActionPerformed"/>

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -77,17 +77,19 @@ public class SerializedDiscItem {
     /** Parses a serialization string and makes the information available
      *  through the accessors. */
     public SerializedDiscItem(String sSerialized) throws NotThisTypeException {
+        if (sSerialized.matches("^\\s*$"))
+            throw new NotThisTypeException("Empty serialized string"); // I18N
         // TODO: For 1.0 make index and id normal keys: #:1|Id:FISH.STR|...
         String[] asFields = sSerialized.split(Pattern.quote(FIELD_DELIMITER));
         String[] asIndexId = asFields[0].split(" ");
         if (asIndexId.length > 2)
-            throw new NotThisTypeException("Improperly formatted serialization: " + sSerialized);
+            throw new NotThisTypeException("Improperly formatted serialization: {0}", sSerialized); // I18N
         try {
             // remove leading #
             int iIndex = Integer.parseInt(asIndexId[0].substring(1));
             addNumber(INDEX_KEY, iIndex);
         } catch (NumberFormatException ex) {
-            throw new NotThisTypeException("Improperly formatted serialization: " + sSerialized);
+            throw new NotThisTypeException("Improperly formatted serialization: {0}", sSerialized); // I18N
         }
         if (asIndexId.length > 1)
             addString(ID_KEY, asIndexId[1]);
@@ -100,7 +102,7 @@ public class SerializedDiscItem {
     private void deserializeField(String sSerialized) throws NotThisTypeException {
         String[] asParts = sSerialized.split(KEY_VALUE_DELIMITER);
         if (asParts.length != 2)
-            throw new NotThisTypeException("Improperly formatted field serialization: " + sSerialized);
+            throw new NotThisTypeException("Improperly formatted field serialization: {0}", sSerialized); // I18N
         String sKey = asParts[0];
         String sValue = asParts[1];
         _fields.put(sKey, sValue);
@@ -149,7 +151,7 @@ public class SerializedDiscItem {
         return _sSerizedString;
     }
     
-    public void addString(String sFieldName, String sValue) {
+    final public void addString(String sFieldName, String sValue) {
         if (_sSerizedString != null) throw new IllegalStateException("Serialization object locked.");
         if (sValue != null) {
             if (sValue.contains(":")) throw new IllegalArgumentException(
@@ -161,12 +163,12 @@ public class SerializedDiscItem {
         }
     }
     
-    public void addNumber(String sFieldName, long lngValue) {
+    final public void addNumber(String sFieldName, long lngValue) {
         if (_sSerizedString != null) throw new IllegalStateException("Serialization object locked.");
         _fields.put(sFieldName, String.format("%d", lngValue));
     }
     
-    public void addRange(String sFieldName, long lngStart, long lngEnd) {
+    final public void addRange(String sFieldName, long lngStart, long lngEnd) {
         if (_sSerizedString != null) throw new IllegalStateException("Serialization object locked.");
         if (lngStart < 0 || lngEnd < 0) throw new IllegalArgumentException("Range values must be >= 0");
         _fields.put(sFieldName, String.format("%d-%d", lngStart, lngEnd) );
@@ -189,23 +191,23 @@ public class SerializedDiscItem {
     
     public long getLong(String sFieldName) throws NotThisTypeException {
         String sValue = _fields.get(sFieldName);
-        if (sValue == null) throw new NotThisTypeException(sFieldName + " field not found.");
+        if (sValue == null) throw new NotThisTypeException("{0} field not found.", sFieldName); // I18N
         
         try {
             return Long.parseLong(sValue);
         } catch (NumberFormatException e) {
-            throw new NotThisTypeException("Failed to convert serialized field to long: " + sValue);
+            throw new NotThisTypeException("Failed to convert serialized field to long: {0}", sValue); // I18N
         }
     }
     
     public int getInt(String sFieldName) throws NotThisTypeException {
         String sValue = _fields.get(sFieldName);
-        if (sValue == null) throw new NotThisTypeException(sFieldName + " field not found.");
+        if (sValue == null) throw new NotThisTypeException("{0} field not found.", sFieldName); // I18N
         
         try {
             return Integer.parseInt(sValue);
         } catch (NumberFormatException e) {
-            throw new NotThisTypeException("Failed to convert serialized field to long: " + sValue);
+            throw new NotThisTypeException("Failed to convert serialized field to long: {0}", sValue); // I18N
         }
     }
 
@@ -217,7 +219,7 @@ public class SerializedDiscItem {
         try {
             return Integer.parseInt(sValue);
         } catch (NumberFormatException e) {
-            throw new NotThisTypeException("Failed to convert serialized field to long: " + sValue);
+            throw new NotThisTypeException("Failed to convert serialized field to long: {0}", sValue); // I18N
         }
     }
     
@@ -225,7 +227,7 @@ public class SerializedDiscItem {
         String sValue = _fields.get(sFieldName);
         int[] ai = jpsxdec.util.Misc.splitInt(sValue, "\\D+");
         if (ai == null || ai.length != 2) throw new NotThisTypeException(
-                "Failed to convert serialized value to range: " + sValue);
+                "Failed to convert serialized value to range: {0}", sValue); // I18N
 
         return ai;
     }
@@ -234,7 +236,7 @@ public class SerializedDiscItem {
         String sValue = _fields.get(sFieldName);
         long[] alng = jpsxdec.util.Misc.splitLong(sValue, "\\D+");
         if (alng == null || alng.length != 2) throw new NotThisTypeException(
-                "Failed to convert serialized value to range: " + sValue);
+                "Failed to convert serialized value to range: {0}", sValue); // I18N
 
         return alng;
     }

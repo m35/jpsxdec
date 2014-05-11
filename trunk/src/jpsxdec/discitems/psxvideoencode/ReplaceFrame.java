@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -58,7 +58,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 public class ReplaceFrame {
-	private final int _iFrame;
+    private final int _iFrame;
     private String _sFormat;
     private File _imageFile;
 
@@ -93,7 +93,7 @@ public class ReplaceFrame {
         return _imageFile;
     }
 
-    public void setImageFile(String sImageFile) {
+    final public void setImageFile(String sImageFile) {
         setImageFile(new File(sImageFile.trim()));
     }
     public void setImageFile(File imageFile) {
@@ -106,7 +106,7 @@ public class ReplaceFrame {
         return _sFormat;
     }
 
-    public void setFormat(String sFormat) {
+    final public void setFormat(String sFormat) {
         _sFormat = sFormat;
     }
 
@@ -140,18 +140,16 @@ public class ReplaceFrame {
         }
 
         if (abNewFrame.length > frame.getDemuxSize())
-            throw new MdecException.Compress(String.format(
-                    "Demux data does fit in frame %d!! Available size %d, needed size %d",
-                    getFrame(), frame.getDemuxSize(), abNewFrame.length));
+            throw new MdecException.Compress("Demux data does fit in frame {0,number,#}!! Available size {1,number,#}, needed size {2,number,#}", // I18N
+                    getFrame(), frame.getDemuxSize(), abNewFrame.length);
 
         // find out how many bytes and mdec codes are used by the new frame
         BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(abNewFrame);
-        bsu.reset(abNewFrame);
+        bsu.reset(abNewFrame, abNewFrame.length);
         bsu.readToEnd(frame.getWidth(), frame.getHeight());
         bsu.skipPaddingBits();
 
-        // +2 because getWordPosition() returns the active word, not the next word to be read
-        frame.writeToSectors(abNewFrame, bsu.getWordPosition()+2, bsu.getMdecCodeCount(), cd, fbs);
+        frame.writeToSectors(abNewFrame, ((bsu.getBitPosition() + 15) / 16) * 2, bsu.getMdecCodeCount(), cd, fbs);
     }
 
 }

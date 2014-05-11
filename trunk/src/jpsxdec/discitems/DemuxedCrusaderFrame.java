@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2013  Michael Sabin
+ * Copyright (C) 2012-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,11 +38,9 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
-import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.sectors.SectorCrusader;
 import jpsxdec.util.FeedbackStream;
 
@@ -52,6 +50,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
     
     private final int _iWidth, _iHeight;
     private final SectorCrusader[] _aoSectors;
+    private final int _iStartSector, _iEndSector;
     private final int _iSize;
     private final int _iStartOffset;
     private final int _iFrame;
@@ -72,6 +71,20 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         _iStartOffset = iFirstSectorStartOffset;
         _iFrame = iFrameNumber;
         _iPresentationSector = iPresentationSector;
+
+        int iMin = Integer.MAX_VALUE, iMax = Integer.MIN_VALUE;
+        for (SectorCrusader cruSect : aoSectors) {
+            if (cruSect == null)
+                continue;
+            if (cruSect.getSectorNumber() < iMin)
+                iMin = cruSect.getSectorNumber();
+            if (cruSect.getSectorNumber() > iMax)
+                iMax = cruSect.getSectorNumber();
+            if (iMin == Integer.MAX_VALUE || iMax == Integer.MIN_VALUE)
+                throw new IllegalArgumentException("No Crusader sectors");
+        }
+        _iStartSector = iMin;
+        _iEndSector = iMax;
     }
     
     public byte[] copyDemuxData(byte[] abBuffer) {
@@ -92,7 +105,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
                 chunk.copyIdentifiedUserData(0, abBuffer, iPos, iLen);
                 iPos += iLen;
             } else {
-                LOG.warning("Frame " + _iFrame + " chunk " + iChunk + " missing.");
+                LOG.log(Level.WARNING, "Frame {0,number,#} chunk {1,number,#} missing.", new Object[]{_iFrame, iChunk}); // I18N
             }
         }
         return abBuffer;
@@ -104,6 +117,14 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
 
     public int getDemuxSize() {
         return _iSize;
+    }
+
+    public int getStartSector() {
+        return _iStartSector;
+    }
+
+    public int getEndSector() {
+        return _iEndSector;
     }
 
     public int getFrame() {
@@ -138,7 +159,11 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         }
     }
 
-    public void writeToSectors(byte[] abNewDemux, int _, int __, CdFileSectorReader cd, FeedbackStream fbs) throws IOException {
+    public void writeToSectors(byte[] abNewDemux,
+                               int iUsedSize_ignore, int iMdecCodeCount_ignore,
+                               CdFileSectorReader cd, FeedbackStream fbs)
+             throws IOException 
+    {
         if (abNewDemux.length > _iSize)
             throw new IllegalArgumentException("Unable to fit new demux size " + abNewDemux.length + " into " + _iSize + " bytes");
 

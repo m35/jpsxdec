@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -249,7 +249,7 @@ public class Bitstreams {
             bw.write(i, 10);
             bw.close();
 
-            v2.reset(baos.toByteArray());
+            v2.reset(baos.toByteArray(), baos.size());
             v2.readMdecCode(code); // DC
             assertEquals(new MdecCode(1, i), code);
         }
@@ -269,7 +269,7 @@ public class Bitstreams {
                 bw.write(i != 0);
                 bw.close();
 
-                v2.reset(baos.toByteArray());
+                v2.reset(baos.toByteArray(), baos.size());
                 v2.readMdecCode(code); // DC
                 assertEquals(new MdecCode(1, 1), code);
                 v2.readMdecCode(code); // AC
@@ -293,7 +293,7 @@ public class Bitstreams {
                 bw.write(iAc, 10);
                 bw.close();
 
-                v2.reset(baos.toByteArray());
+                v2.reset(baos.toByteArray(), baos.size());
                 v2.readMdecCode(code); // DC
                 assertEquals(new MdecCode(1, 1), code);
                 v2.readMdecCode(code); // AC
@@ -312,7 +312,7 @@ public class Bitstreams {
 
         BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
-        v2.reset(baos.toByteArray());
+        v2.reset(baos.toByteArray(), baos.size());
         v2.readMdecCode(code); // DC
         assertEquals(new MdecCode(1, 1), code);
         try {
@@ -352,7 +352,7 @@ public class Bitstreams {
             BitStreamWriter bw = writeHeader(baos, 3);
             bw.write(sBits);
             bw.close();
-            v3.reset(baos.toByteArray());
+            v3.reset(baos.toByteArray(), baos.size());
             for (String sCode : asCodes) {
                 try {
                     v3.readMdecCode(code);
@@ -405,7 +405,7 @@ public class Bitstreams {
 
         private void closeAndReset() throws IOException, NotThisTypeException {
             _bw.close();
-            _v3.reset(_baos.toByteArray());
+            _v3.reset(_baos.toByteArray(), _baos.size());
             _baos.reset();
             _sb.setLength(0);
         }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,6 +59,7 @@ import javax.swing.*;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.filechooser.FileFilter;
+import jpsxdec.I18N;
 import jpsxdec.gui.GuiTree.TreeItem;
 import jpsxdec.Main;
 import jpsxdec.Version;
@@ -68,6 +69,7 @@ import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.indexing.DiscIndex;
+import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.UserFriendlyLogger;
 import jpsxdec.util.player.PlayController;
@@ -247,49 +249,40 @@ public class Gui extends javax.swing.JFrame {
                     aiWarnErr[1]++;
                 }
             });
-            log.setHeader(1, "Opening index " + indexFile.toString());
+            log.log(Level.INFO, "Opening index {0}", indexFile); // I18N
             
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
             setIndex(new DiscIndex(indexFile.getPath(), log), indexFile.getName());
             _settings.addPreviousIndex(indexFile.getAbsolutePath());
             _guiSaveIndex.setEnabled(false);
             if (aiWarnErr[0] > 0 || aiWarnErr[1] > 0) {
-                final String[][] asMessages = {
-                    {null,              "was 1 warning.",               "were %d warnings."},
-                    {"was 1 error.",    "was 1 error and 1 warning.",   "was 1 error and %d warnings."},
-                    {"were %d errors.", "were %d error and 1 warning.", "were %d errors and %d warnings."},
-                };
-                Object[] aoArgs = new Object[2];
-                int i = 0, iWarn, iErr;
-                iWarn = aiWarnErr[0] == 0 ? 0 : aiWarnErr[0] == 1 ? 1 : 2;
-                iErr = aiWarnErr[1] == 0 ? 0 : aiWarnErr[1] == 1 ? 1 : 2;
+                StringBuilder sb = new StringBuilder(I18N.S("Loaded {0,number,#} items, but with issues.", _index.size())); // I18N
+                sb.append('\n');
+                if (aiWarnErr[0] > 0)
+                    sb.append(I18N.S("  Warnings: {0,number,#}", aiWarnErr[0])) // I18N
+                      .append('\n');
+                if (aiWarnErr[1] > 0)
+                    sb.append(I18N.S("  Errors: {0,number,#}", aiWarnErr[1])) // I18N
+                      .append('\n');
+                sb.append(I18N.S("See {0} for details.", log.getFileName())); // I18N
                 
-                if (iWarn > 0) {
-                    aoArgs[0] = aiWarnErr[0];
-                    i = 1;
-                }
-                if (iErr > 0)
-                    aoArgs[i] = aiWarnErr[1];
-                
-                String sMsg = "Loaded " + _index.size() + " items, but there " +
-                        String.format(asMessages[iErr][iWarn], aoArgs) + 
-                        " See " + log.getFileName() + " for details.";
-                
-                JOptionPane.showMessageDialog(this, sMsg, "Issues loading index", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, sb.toString(), I18N.S("Issues loading index"), JOptionPane.WARNING_MESSAGE); // I18N
             }
         } catch (NotThisTypeException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error loading index file", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex.getMessage(), I18N.S("Error loading index file"), JOptionPane.WARNING_MESSAGE); // I18N
         } catch (CdFileNotFoundException ex) {
             log.log(Level.WARNING, null, ex);
-            JOptionPane.showMessageDialog(this, "Unable to open " + ex.getFile(), "File not found", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, I18N.S("Unable to open {0}", ex.getFile()), // I18N
+                                                I18N.S("File not found"), JOptionPane.WARNING_MESSAGE); // I18N
         } catch (FileNotFoundException ex) {
             log.log(Level.WARNING, null, ex);
-            JOptionPane.showMessageDialog(this, "Unable to open " + ex.getMessage(), "File not found", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, I18N.S("Unable to open {0}", ex.getMessage()), // I18N
+                                                I18N.S("File not found"), JOptionPane.WARNING_MESSAGE); // I18N
             _settings.removePreviousIndex(indexFile.getAbsolutePath());
         } catch (Throwable ex) {
             ex.printStackTrace();
             log.log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(this, ex, "Bad error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex, I18N.S("Bad error"), JOptionPane.ERROR_MESSAGE); // I18N
         } finally {
             setCursor(Cursor.getDefaultCursor());
             log.close();
@@ -314,7 +307,7 @@ public class Gui extends javax.swing.JFrame {
         _guiDiscTree.formatTreeTable(_index);
 
         if (sIndexFile == null) {
-            sIndexFile = "*Unsaved*";
+            sIndexFile = I18N.S("*Unsaved*"); // I18N
         }
         setIndexTitle(sIndexFile);
 
@@ -350,8 +343,10 @@ public class Gui extends javax.swing.JFrame {
 
         BetterFileChooser fc = new BetterFileChooser(_settings.getIndexDir());
         fc.setDialogType(JFileChooser.SAVE_DIALOG);
-        fc.setDialogTitle("Save index");
+        fc.setAcceptAllFileFilterUsed(true);
+        fc.setDialogTitle(I18N.S("Save index")); // I18N
         fc.addChoosableFileFilter(GuiFileFilters.INDEX_FILE_FILTER);
+        fc.setFileFilter(GuiFileFilters.INDEX_FILE_FILTER);
         int iResult = fc.showSaveDialog(this);
         if (iResult != BetterFileChooser.APPROVE_OPTION)
             return false;
@@ -374,7 +369,7 @@ public class Gui extends javax.swing.JFrame {
         } catch (Throwable ex) {
             ex.printStackTrace();
             LOG.log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(this, ex, "Error saving index", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex, I18N.S("Error saving index"), JOptionPane.ERROR_MESSAGE); // I18N
             return false;
         }
 
@@ -400,11 +395,14 @@ public class Gui extends javax.swing.JFrame {
             CdFileSectorReader cd = new CdFileSectorReader(file);
 
             if (!cd.hasSectorHeader())
-                JOptionPane.showMessageDialog(this, "Disc image does not have raw headers -- audio may not be detected.");
+                JOptionPane.showMessageDialog(this, I18N.S("Disc image does not have raw headers -- audio may not be detected.")); // I18N
 
             IndexingGui gui = new IndexingGui(this, cd);
             gui.setVisible(true);
-            if (gui.getIndex() != null) {
+            if (gui.getIndex() == null) {
+                // indexing was canceled
+                cd.close();
+            } else {
                 setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
                 setIndex(gui.getIndex(), null);
                 _guiSaveIndex.setEnabled(true);
@@ -412,13 +410,14 @@ public class Gui extends javax.swing.JFrame {
 
         } catch (FileNotFoundException ex) {
             LOG.log(Level.WARNING, null, ex);
-            JOptionPane.showMessageDialog(this, "Unable to open " + file, "File not found",
+            JOptionPane.showMessageDialog(this, I18N.S("Unable to open {0}", file), // I18N
+                                                I18N.S("File not found"), // I18N
                                           JOptionPane.WARNING_MESSAGE);
             _settings.removePreviousImage(file.getAbsolutePath());
         } catch (Throwable ex) {
             ex.printStackTrace();
             LOG.log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(this, ex, "Bad error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex, I18N.S("Bad error"), JOptionPane.ERROR_MESSAGE); // I18N
         } finally {
             setCursor(Cursor.getDefaultCursor());
         }
@@ -487,7 +486,7 @@ public class Gui extends javax.swing.JFrame {
         _guiToolbar.setRollover(true);
 
         _guiOpenDisc.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jpsxdec/gui/media-optical-5.png"))); // NOI18N
-        _guiOpenDisc.setText("Open and Analyzie Disc Image");
+        _guiOpenDisc.setText(I18N.S("Open and Analyze Disc Image")); // I18N
         _guiOpenDisc.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
         _guiOpenDisc.setMargin(new java.awt.Insets(5, 10, 5, 10));
         _guiOpenDisc.addActionListener(new java.awt.event.ActionListener() {
@@ -499,7 +498,7 @@ public class Gui extends javax.swing.JFrame {
         _guiToolbar.add(_guiToolbarSeparator1);
 
         _guiOpenIndex.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jpsxdec/gui/insert-numbers.png"))); // NOI18N
-        _guiOpenIndex.setText("Open Index");
+        _guiOpenIndex.setText(I18N.S("Open Index")); // I18N
         _guiOpenIndex.setFocusable(false);
         _guiOpenIndex.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
         _guiOpenIndex.setMargin(new java.awt.Insets(5, 10, 5, 10));
@@ -512,7 +511,7 @@ public class Gui extends javax.swing.JFrame {
         _guiToolbar.add(_guiToolbarSeparator2);
 
         _guiSaveIndex.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jpsxdec/gui/3floppy_unmount.png"))); // NOI18N
-        _guiSaveIndex.setText("Save Index");
+        _guiSaveIndex.setText(I18N.S("Save Index")); // I18N
         _guiSaveIndex.setEnabled(false);
         _guiSaveIndex.setFocusable(false);
         _guiSaveIndex.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
@@ -559,7 +558,7 @@ public class Gui extends javax.swing.JFrame {
 
         _guiTreeButtonContainer.setLayout(new java.awt.GridBagLayout());
 
-        _guiSelectAll.setText("Select ...");
+        _guiSelectAll.setText(I18N.S("Select ...")); // I18N
         _guiSelectAll.setEnabled(false);
         _guiSelectAll.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -571,7 +570,7 @@ public class Gui extends javax.swing.JFrame {
         _guiSelectAllType.setModel(new DefaultComboBoxModel(GuiTree.Select.values()));
         _guiTreeButtonContainer.add(_guiSelectAllType, new java.awt.GridBagConstraints());
 
-        _guiExpandAll.setText("Expand All");
+        _guiExpandAll.setText(I18N.S("Expand All")); // I18N
         _guiExpandAll.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 _guiExpandAllActionPerformed(evt);
@@ -579,7 +578,7 @@ public class Gui extends javax.swing.JFrame {
         });
         _guiTreeButtonContainer.add(_guiExpandAll, new java.awt.GridBagConstraints());
 
-        _guiCollapseAll.setText("Collapse All");
+        _guiCollapseAll.setText(I18N.S("Collapse All")); // I18N
         _guiCollapseAll.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 _guiCollapseAllActionPerformed(evt);
@@ -609,11 +608,11 @@ public class Gui extends javax.swing.JFrame {
         _guiDirChooserContainer.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 5, 2, 5));
         _guiDirChooserContainer.setLayout(new java.awt.BorderLayout(2, 0));
 
-        _guiDirectoryLbl.setText("Directory:");
+        _guiDirectoryLbl.setText(I18N.S("Directory:")); // I18N
         _guiDirChooserContainer.add(_guiDirectoryLbl, java.awt.BorderLayout.WEST);
         _guiDirChooserContainer.add(_guiDirectory, java.awt.BorderLayout.CENTER);
 
-        _guiChooseDir.setText("...");
+        _guiChooseDir.setText(I18N.S("...")); // I18N
         _guiChooseDir.setMargin(new java.awt.Insets(2, 3, 2, 2));
         _guiChooseDir.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -630,7 +629,7 @@ public class Gui extends javax.swing.JFrame {
 
         _guiSaveBtnContainer.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
 
-        _guiApplyAll.setText("Apply to all ...");
+        _guiApplyAll.setText(I18N.S("Apply to all {0}")); // I18N
         _guiApplyAll.setEnabled(false);
         _guiApplyAll.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -639,7 +638,7 @@ public class Gui extends javax.swing.JFrame {
         });
         _guiSaveBtnContainer.add(_guiApplyAll);
 
-        _guiSaveAll.setText("Save All Selected");
+        _guiSaveAll.setText(I18N.S("Save All Selected")); // I18N
         _guiSaveAll.setEnabled(false);
         _guiSaveAll.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -654,7 +653,7 @@ public class Gui extends javax.swing.JFrame {
 
         _guiPreviewContainer.setLayout(new java.awt.BorderLayout());
 
-        _guiPlayPauseBtn.setText("Play");
+        _guiPlayPauseBtn.setText(I18N.S("Play")); // I18N
         _guiPlayPauseBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 _guiPlayPauseBtnActionPerformed(evt);
@@ -681,8 +680,10 @@ public class Gui extends javax.swing.JFrame {
         if (!promptSaveIndex())
             return;
         BetterFileChooser fc = new BetterFileChooser(_settings.getIndexDir());
-        fc.setDialogTitle("Load index");
+        fc.setAcceptAllFileFilterUsed(true);
+        fc.setDialogTitle(I18N.S("Load index")); // I18N
         fc.addChoosableFileFilter(GuiFileFilters.INDEX_FILE_FILTER);
+        fc.setFileFilter(GuiFileFilters.INDEX_FILE_FILTER);
         int iResult = fc.showOpenDialog(this);
         if (iResult != BetterFileChooser.APPROVE_OPTION)
             return;
@@ -707,11 +708,12 @@ public class Gui extends javax.swing.JFrame {
             _guiSavePanel.removeAll();
             _guiSavePanel.add(gui);
             _guiApplyAll.setEnabled(true);
-            _guiApplyAll.setText("Apply to all " + selection.getType());
+            _guiApplyAll.setText(I18N.S("Apply to all {0}", selection.getType())); // I18N
         } else if (gui == null) {
             _guiSavePanel.removeAll();
             _guiApplyAll.setEnabled(false);
-            _guiApplyAll.setText("Apply to all ");
+            _guiApplyAll.setText(I18N.S("Apply to all {0}", // I18N
+                                        ""));
         }
         _guiSavePanel.revalidate();
         _guiSavePanel.repaint();
@@ -735,12 +737,12 @@ public class Gui extends javax.swing.JFrame {
     private void _guiPlayPauseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiPlayPauseBtnActionPerformed
         try {
             if (_currentPlayer != null) {
-                if (_guiPlayPauseBtn.getText().equals("Play")) {
+                if (_guiPlayPauseBtn.getText().equals(I18N.S("Play"))) { // I18N
                     _currentPlayer.unpause();
-                    _guiPlayPauseBtn.setText("Pause");
+                    _guiPlayPauseBtn.setText(I18N.S("Pause")); // I18N 
                 } else {
                     _currentPlayer.pause();
-                    _guiPlayPauseBtn.setText("Play");
+                    _guiPlayPauseBtn.setText(I18N.S("Play")); // I18N
                 }
             }
         } catch (Throwable ex) {
@@ -753,7 +755,8 @@ public class Gui extends javax.swing.JFrame {
         if (!promptSaveIndex())
             return;
         BetterFileChooser fc = new BetterFileChooser(_settings.getImageDir());
-        fc.setDialogTitle("Select disc image or media file");
+        fc.setAcceptAllFileFilterUsed(true);
+        fc.setDialogTitle(I18N.S("Select disc image or media file")); // I18N
         for (FileFilter filter : GuiFileFilters.DISC_OPEN_FILTERS) {
             fc.addChoosableFileFilter(filter);
         }
@@ -804,8 +807,8 @@ public class Gui extends javax.swing.JFrame {
 
     private boolean promptSaveIndex() {
         if (_guiSaveIndex.isEnabled()) {
-            int iRet = JOptionPane.showConfirmDialog(this, "The index has not been saved. Save index?",
-                                                     "Save index?", JOptionPane.YES_NO_CANCEL_OPTION);
+            int iRet = JOptionPane.showConfirmDialog(this, I18N.S("The index has not been saved. Save index?"), // I18N
+                                                     I18N.S("Save index?"), JOptionPane.YES_NO_CANCEL_OPTION); // I18N
             if (iRet == JOptionPane.CANCEL_OPTION)
                 return false;
             else if (iRet == JOptionPane.YES_OPTION) {
@@ -823,7 +826,7 @@ public class Gui extends javax.swing.JFrame {
         DiscItemSaverBuilder builder = node.getBuilder();
         if (builder != null) {
             int iCount = _guiDiscTree.applySettings(builder);
-            JOptionPane.showMessageDialog(this, "Applied settings to " + iCount + " items.");
+            JOptionPane.showMessageDialog(this, I18N.S("Applied settings to {0,number,#} items.", iCount)); // I18N
         }
     }//GEN-LAST:event__guiApplyAllActionPerformed
 
@@ -836,7 +839,7 @@ public class Gui extends javax.swing.JFrame {
             File dir = sDir.length() == 0 ? null : new File(sDir);
             ArrayList<IDiscItemSaver> savers = _guiDiscTree.collectSelected(dir);
             if (savers.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Nothing is marked for saving.");
+                JOptionPane.showMessageDialog(this, I18N.S("Nothing is marked for saving.")); // I18N
                 return;
             }
             
@@ -847,7 +850,7 @@ public class Gui extends javax.swing.JFrame {
         } catch (Throwable ex) {
             ex.printStackTrace();
             LOG.log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(this, ex, "Bad error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex, I18N.S("Bad error"), JOptionPane.ERROR_MESSAGE); // I18N
         }
 
     }//GEN-LAST:event__guiSaveAllActionPerformed
@@ -865,7 +868,7 @@ public class Gui extends javax.swing.JFrame {
     }//GEN-LAST:event__guiChooseDirActionPerformed
 
     
-    private final PlayController.PlayerListener _playerListener = new PlayController.PlayerListener() {
+    private transient final PlayController.PlayerListener _playerListener = new PlayController.PlayerListener() {
         public void update(Event eEvent) {
             switch (eEvent) {
                 case Stop:
@@ -896,7 +899,7 @@ public class Gui extends javax.swing.JFrame {
                     _guiPreviewPanel.revalidate();
                 }
                 _currentPlayer.addLineListener(_playerListener);
-                _guiPlayPauseBtn.setText("Play");
+                _guiPlayPauseBtn.setText(I18N.S("Play")); // I18N
                 _guiPlayPauseBtn.setEnabled(true);
             }
         } else {
@@ -906,7 +909,6 @@ public class Gui extends javax.swing.JFrame {
                 _guiPreviewPanel.removeAll();
                 _guiPreviewPanel.validate();
                 _guiPreviewPanel.repaint();
-                System.gc();
             }        
         }
         
@@ -921,8 +923,9 @@ public class Gui extends javax.swing.JFrame {
             File f = new File(_sCommandLineFile);
             fis = new FileInputStream(f);
             byte[] abBuffer = new byte[Version.VerString.length()*2];
-            fis.read(abBuffer);
+            IO.readByteArray(fis, abBuffer);
             fis.close();
+            fis = null;
             String s = new String(abBuffer, "ascii");
             if (s.contains("jPSXdec")) {
             //if (_sCommandLineFile.substring(_sCommandLineFile.length()-4).equalsIgnoreCase(".idx")) {
@@ -932,8 +935,9 @@ public class Gui extends javax.swing.JFrame {
             }
         } catch (IOException ex) {
             LOG.log(Level.WARNING, null, ex);
-            JOptionPane.showMessageDialog(this, "Error opening " + _sCommandLineFile + ": " + ex.getMessage(), 
-                    "Failed to read file",
+            JOptionPane.showMessageDialog(this,
+                    I18N.S("Error opening {0}: {1}", ex.getLocalizedMessage(), _sCommandLineFile), // I18N
+                    I18N.S("Failed to read file"), // I18N
                     JOptionPane.ERROR_MESSAGE);
         } finally {
             try {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ import java.awt.Dimension;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.List;
+import jpsxdec.I18N;
 import jpsxdec.discitems.IDiscItemSaver;
 
 public class SavingGui extends javax.swing.JDialog implements PropertyChangeListener {
@@ -88,17 +89,17 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
     public void propertyChange(PropertyChangeEvent evt) {
         if (SavingGuiTask.ALL_DONE.equals(evt.getPropertyName())) {
             _eState = STATES.Ended;
-            jButton1.setText("Close");
-            jButton1.setEnabled(true);
+            _guiStartCancelCloseBtn.setText(I18N.S("Close")); // I18N
+            _guiStartCancelCloseBtn.setEnabled(true);
             String sResult;
             if (_saveAll.isCancelled())
-                sResult = "Canceled";
+                sResult = I18N.S("Canceled"); // I18N
             else
-                sResult = "Complete";
+                sResult = I18N.S("Complete"); // I18N
             if (_saveAll._progressLog.getFileName() == null) {
-                jLabel1.setText(sResult);
+                _guiResultLbl.setText(sResult);
             } else {
-                jLabel1.setText(sResult + " with messages - see " + _saveAll._progressLog.getFileName() + " for details");
+                _guiResultLbl.setText(I18N.S("{0} | See {1} for details", sResult, _saveAll._progressLog.getFileName())); // I18N
             }
         }
     }
@@ -118,8 +119,8 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
         jScrollPane1 = new javax.swing.JScrollPane();
         jTable1 = new javax.swing.JTable();
         jPanel1 = new javax.swing.JPanel();
-        jLabel1 = new javax.swing.JLabel();
-        jButton1 = new javax.swing.JButton();
+        _guiResultLbl = new javax.swing.JLabel();
+        _guiStartCancelCloseBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         addWindowListener(new java.awt.event.WindowAdapter() {
@@ -150,38 +151,38 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
 
         jPanel1.setLayout(new java.awt.GridBagLayout());
 
-        jLabel1.setText(" ");
+        _guiResultLbl.setText(" ");
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
-        jPanel1.add(jLabel1, gridBagConstraints);
+        jPanel1.add(_guiResultLbl, gridBagConstraints);
 
-        jButton1.setText("Start");
-        jButton1.addActionListener(new java.awt.event.ActionListener() {
+        _guiStartCancelCloseBtn.setText(I18N.S("Start")); // I18N
+        _guiStartCancelCloseBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton1ActionPerformed(evt);
+                _guiStartCancelCloseBtnActionPerformed(evt);
             }
         });
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.anchor = java.awt.GridBagConstraints.EAST;
         gridBagConstraints.weightx = 1.0;
-        jPanel1.add(jButton1, gridBagConstraints);
+        jPanel1.add(_guiStartCancelCloseBtn, gridBagConstraints);
 
         getContentPane().add(jPanel1, java.awt.BorderLayout.SOUTH);
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+    private void _guiStartCancelCloseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiStartCancelCloseBtnActionPerformed
         switch (_eState) {
             case NotStarted:
                 _eState = STATES.Running;
                 _saveAll.execute();
-                jButton1.setText("Cancel");
+                _guiStartCancelCloseBtn.setText(I18N.S("Cancel")); // I18N
                 break;
             case Running:
                 _eState = STATES.Canceling;
                 _saveAll.cancel(false);
-                jButton1.setEnabled(false);
+                _guiStartCancelCloseBtn.setEnabled(false);
                 break;
             case Canceling:
                 break;
@@ -191,7 +192,7 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
                 dispose();
                 break;
         }
-    }//GEN-LAST:event_jButton1ActionPerformed
+    }//GEN-LAST:event__guiStartCancelCloseBtnActionPerformed
 
     private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
         _saveAll.cancel(true);
@@ -199,8 +200,8 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton1;
-    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel _guiResultLbl;
+    private javax.swing.JButton _guiStartCancelCloseBtn;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTable jTable1;

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,6 +47,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
+import jpsxdec.I18N;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.ProgressListenerLogger;
@@ -121,7 +122,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         } else if (ProgresGuiTask.EXCEPTION.equals(evt.getPropertyName()) ) {
             // fatal/unhandled exception
             _exception = (Throwable)evt.getNewValue();
-            JOptionPane.showMessageDialog(this, _exception.toString(), "Exception", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, _exception.toString(), I18N.S("Exception"), JOptionPane.ERROR_MESSAGE); // I18N
             _exception.printStackTrace(System.err); // debug
             taskComplete();
         } else if (ProgresGuiTask.DONE.equals(evt.getPropertyName()) ) {
@@ -132,17 +133,17 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     private void taskComplete() {
         _eState = State.ENDED;
         _guiCancelBtn.setEnabled(true);
-        _guiCancelBtn.setText("Close");
+        _guiCancelBtn.setText(I18N.S("Close")); // I18N
         if (wasCanceled()) {
-            _guiResultLbl.setText("Canceled");
+            _guiResultLbl.setText(I18N.S("Canceled")); // I18N
             _guiResultLbl.setForeground(Color.orange);
         } else if (getException() != null) {
-            _guiResultLbl.setText("Failure - See " + _task.__progressLog.getFileName() + " for details");
+            _guiResultLbl.setText(I18N.S("Failure - See {0} for details", _task.__progressLog.getFileName())); // I18N
             _guiResultLbl.setForeground(Color.red);
         } else if (_iWarningCount > 0 || _iErrorCount > 0) {
-            _guiResultLbl.setText("Success with messages - See " + _task.__progressLog.getFileName() + " for details");
+            _guiResultLbl.setText(I18N.S("Success with messages - See {0} for details", _task.__progressLog.getFileName())); // I18N
         } else {
-            _guiResultLbl.setText("Success!");
+            _guiResultLbl.setText(I18N.S("Success!")); // I18N
         }
     }
 
@@ -184,7 +185,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiCancelBtn = new javax.swing.JButton();
         _guiResultLbl = new javax.swing.JLabel();
 
-        setTitle("Progress...");
+        setTitle(I18N.S("Progress...")); // I18N
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent evt) {
                 formWindowClosing(evt);
@@ -194,7 +195,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiMarginPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
         _guiMarginPanel.setLayout(new java.awt.GridBagLayout());
 
-        _guiSavingLbl.setText("Indexing:");
+        _guiSavingLbl.setText(I18N.S("Indexing:")); // I18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
         _guiMarginPanel.add(_guiSavingLbl, gridBagConstraints);
@@ -225,7 +226,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiBottomPanel.setLayout(new java.awt.GridBagLayout());
 
         _guiWarningsLbl.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        _guiWarningsLbl.setText("Warnings:");
+        _guiWarningsLbl.setText(I18N.S("Warnings:")); // I18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = 0;
@@ -243,7 +244,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiBottomPanel.add(_guiWarningsCount, gridBagConstraints);
 
         _guiErrorsLbl.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        _guiErrorsLbl.setText("Errors:");
+        _guiErrorsLbl.setText(I18N.S("Errors:")); // I18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = 1;
@@ -260,7 +261,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         gridBagConstraints.weightx = 1.0;
         _guiBottomPanel.add(_guiErrorsCount, gridBagConstraints);
 
-        _guiCancelBtn.setText("Start");
+        _guiCancelBtn.setText(I18N.S("Start")); // I18N
         _guiCancelBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 _guiCancelBtnActionPerformed(evt);
@@ -280,7 +281,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTH;
         _guiMarginPanel.add(_guiBottomPanel, gridBagConstraints);
 
-        _guiResultLbl.setText("Success!");
+        _guiResultLbl.setText(I18N.S("Success!")); // I18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = 5;
@@ -296,7 +297,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     private void _guiCancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiCancelBtnActionPerformed
         switch (_eState) {
             case NOT_STARTED:
-                _guiCancelBtn.setText("Cancel");
+                _guiCancelBtn.setText(I18N.S("Cancel")); // I18N
                 _task.execute();
                 _eState = State.RUNNING;
                 break;
@@ -390,7 +391,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 }
             });
             
-            __progressLog.setHeader(1, "Indexing " + _cd.getSourceFile().toString());
+            __progressLog.log(Level.INFO, "Indexing {0}", _cd.getSourceFile()); // I18N
         }
 
         @Override
@@ -408,8 +409,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 // uncool
                 _exception = ex;
                 firePropertyChange(EXCEPTION, null, ex); // calls IndexingGui#propertyChange()
-                LOG.log(Level.SEVERE, "Unhandled error", ex);
-                __progressLog.log(Level.SEVERE, "Unhandled error", ex);
+                __progressLog.log(Level.SEVERE, "Unhandled error", ex); // I18N
                 return null;
             }
             firePropertyChange(DONE, null, null); // calls IndexingGui#propertyChange()

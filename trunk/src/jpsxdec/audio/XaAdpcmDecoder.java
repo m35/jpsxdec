@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.audio;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,6 +45,7 @@ import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.LocalizedEOFException;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
@@ -143,14 +143,14 @@ public abstract class XaAdpcmDecoder {
 
     /** Temporarily stores a logger to log errors when decoding. */
     private Logger _log;
-    /** Temporarily stores a log context when decoding. */
-    private String _sLogContext;
+    /** Temporarily stores a source sector number for log purposes. */
+    private int _iSourceSector = -1;
 
     /** Decodes a sector's worth of ADPCM data.
      *  Reads 2304 bytes and writes either 4032 or 8064 bytes. 
      * @param sLogContext String to prepend when logging. May be null.
      */
-    public void decode(InputStream inStream, OutputStream out, Logger log, String sLogContext)
+    public void decode(InputStream inStream, OutputStream out, Logger log, int iSourceSector)
             throws IOException
     {
         // There are 18 sound groups,
@@ -159,14 +159,14 @@ public abstract class XaAdpcmDecoder {
         // ( 18*(16+112) = 2304 bytes will be read )
         try {
             _log = log;
-            _sLogContext = sLogContext;
+            _iSourceSector = iSourceSector;
             for (int iSoundGroup = 0; iSoundGroup < ADPCM_SOUND_GROUPS_PER_SECTOR; iSoundGroup++) {
                 _soundGroup.readSoundGroup(inStream);
                 adpcmSoundGroupToPcm(_soundGroup, out);
             }
         } finally {
             _log = null;
-            _sLogContext = null;
+            _iSourceSector = -1;
         }
     }
 
@@ -371,7 +371,7 @@ public abstract class XaAdpcmDecoder {
                 for (int iSoundUnit = 0; iSoundUnit < 4;  iSoundUnit++) {
                     int iByte = inStream.read();
                     if (iByte < 0)
-                        throw new EOFException("Unexpected end of audio data");
+                        throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
                     // sound unit bytes are interleaved like this
                     // 0,1,2,3, 0,1,2,3, 0,1,2,3 ...
                     // 1 sample for one sound unit per byte
@@ -432,7 +432,7 @@ public abstract class XaAdpcmDecoder {
                 {
                     int iByte = inStream.read();
                     if (iByte < 0)
-                        throw new EOFException("Unexpected end of audio data");
+                        throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
 
                     // sound unit bytes are interleaved like this
                     // 1/0,3/2,5/4,7/6, 1/0,3/2,5/4,7/6, ...
@@ -573,29 +573,31 @@ public abstract class XaAdpcmDecoder {
         /** Returns best parameter of all the parameters that were added since
          * this method was last called. Resets the class. */
         public int getBestParameter() {
+            boolean blnCorruption = false;
             if (_uniqueParameters.size() > 1) {
+                // corruption!
+                blnCorruption = true;
+                // sort the best parameter to the top
                 Collections.sort(_uniqueParameters);
-                if (_log != null && _log.isLoggable(Level.WARNING)) {
-                    // corruption!
-                    StringBuilder sb = new StringBuilder();
-                    if (_sLogContext != null)
-                        sb.append(_sLogContext);
-                    for (int i = 0; i < _uniqueParameters.size(); i++) {
-                        _uniqueParameters.get(i).report(sb);
-                        sb.append('.');
-                    }
-                    sb.append(" Chose [").append(_uniqueParameters.get(0).getIndex()).append("]. Affects samples starting at ").append(_lngSamplesRead);
-                    _log.warning(sb.toString());
-                }
-            } else if (!_uniqueParameters.get(0).isValid() && _log != null && _log.isLoggable(Level.WARNING)) {
-                StringBuilder sb = new StringBuilder();
-                if (_sLogContext != null)
-                    sb.append(_sLogContext);
-                _uniqueParameters.get(0).report(sb);
-                sb.append(". Affects samples starting at ").append(_lngSamplesRead);
-                _log.warning(sb.toString());
             }
             int iChosen = _uniqueParameters.get(0).getValue();
+            // also corruption if the first one is bad
+            blnCorruption = blnCorruption || !_uniqueParameters.get(0).isValid();
+            if (blnCorruption && _log != null) {
+                // corruption!
+                _log.log(Level.WARNING, 
+                    "Sector {0,number,#} sound parameter corrupted: [{1}{2,choice,0# (bad)|1#}, {3}{4,choice,0# (bad)|1#}, {5}{6,choice,0# (bad)|1#}, {7}{8,choice,0# (bad)|1#}]. Chose {9}. Affects samples starting at {10}.", // I18N
+                    new Object[] {
+                        _iSourceSector,
+                        _aoParameterPool[0].getValue(), _aoParameterPool[0].isValid() ? 1 : 0,
+                        _aoParameterPool[1].getValue(), _aoParameterPool[1].isValid() ? 1 : 0,
+                        _aoParameterPool[2].getValue(), _aoParameterPool[2].isValid() ? 1 : 0,
+                        _aoParameterPool[3].getValue(), _aoParameterPool[3].isValid() ? 1 : 0,
+                        iChosen,
+                        _lngSamplesRead
+                    }
+                );
+            }
             _uniqueParameters.clear();
             _iPoolIndex = 0;
             return iChosen;
@@ -644,8 +646,52 @@ public abstract class XaAdpcmDecoder {
                 return false;
             }
 
-            /** Returns a readable summary of this SoundParameter and any duplicates. */
-            public void report(StringBuilder sb) {
+            /** Sorts by:
+             * <ol>
+             *  <li>valid values
+             *      <ol><li>number of duplicates</ol>
+             *  <li>then by index
+             * </ol>
+             * This should put the best SoundParameter as the first item.
+             * @return Never 0.
+             */
+            // [implements Comparable]
+            public int compareTo(SoundParameter other) {
+                if (_iValue == other._iValue)
+                    throw new IllegalStateException("Logic of RobustSoundParameter.add() must be wrong.");
+                
+                if (_blnIsValid && !other._blnIsValid)
+                    return -1;
+                if (!_blnIsValid && other._blnIsValid)
+                    return 1;
+
+                if (_blnIsValid) {
+                    // both are valid
+                    // sort by who has the most duplicates
+                    if (_duplicates.size() > other._duplicates.size())
+                        return -1;
+                    else if (_duplicates.size() < other._duplicates.size())
+                        return 1;
+                } // just sort invalid values by index
+                
+                if (_iIndex < other._iIndex)
+                    return -1;
+                else
+                    return 1;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                return this == obj;
+            }
+
+            @Override
+            public int hashCode() {
+                throw new UnsupportedOperationException();
+            }
+
+            public String toString() {
+                StringBuilder sb = new StringBuilder();
                 sb.append('[').append(_iIndex).append(']');
                 for (int i = 0; i < _duplicates.size(); i++) {
                     sb.append(",[").append(_duplicates.get(i)._iIndex).append(']');
@@ -653,28 +699,6 @@ public abstract class XaAdpcmDecoder {
                 sb.append('=').append(Misc.bitsToString(_iValue, 8));
                 if (!_blnIsValid)
                     sb.append(" (bad)");
-            }
-
-            /** Sorts valid values first, then by index.
-             * This should put the best SoundParameter as the first item. */
-            // [implements Comparable]
-            public int compareTo(SoundParameter other) {
-                if (_blnIsValid && !other._blnIsValid)
-                    return -1;
-                if (!_blnIsValid && other._blnIsValid)
-                    return 1;
-                if (_iValue == other._iValue)
-                    throw new IllegalStateException(
-                            "Logic of RobustSoundParameter.add() must be wrong.");
-                if (_iIndex < other._iIndex)
-                    return -1;
-                else
-                    return 1;
-            }
-
-            public String toString() {
-                StringBuilder sb = new StringBuilder();
-                report(sb);
                 return sb.toString();
             }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,9 +53,9 @@ public class Imaging {
     public static final ColorModel LINEAR_RGB_INT;
     public static final IndexColorModel LINEAR_GRAY_INDEXED;
     static {
-        ColorSpace oClrSpace = ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB);
+        ColorSpace clrSpace = ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB);
         LINEAR_RGB_INT = new DirectColorModel(
-                oClrSpace,
+                clrSpace,
                 24,
                 0x00ff0000,
                 0x0000ff00,

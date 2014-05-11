@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -126,10 +126,9 @@ public class MdecDecoder_int extends MdecDecoder {
                                 // Reverse Zig-Zag
                                 iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                             } catch (ArrayIndexOutOfBoundsException ex) {
-                                throw new MdecException.Decode(String.format(
-                                        "[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d (%s)",
-                                        iCurrentBlockVectorPosition,
-                                        iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]));
+                                throw new MdecException.Decode("[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} ({2,number,#}, {3,number,#}) block {4,number,#} ({5})", // I18N
+                                               iCurrentBlockVectorPosition,
+                                               iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]);
                             }
                             assert !DEBUG || setPrequantValue(iRevZigZagPos, _code.getBottom10Bits());
                             // Dequantize
@@ -155,7 +154,13 @@ public class MdecDecoder_int extends MdecDecoder {
                 }
             }
         } catch (Throwable ex) {
-            String sErr = "Error decoding macro block " + iMacBlk + " block " + iBlock;
+            MdecException.Decode mdecEx;
+            if (ex instanceof MdecException.Decode) {
+                mdecEx = (MdecException.Decode)ex;
+            } else {
+                mdecEx = new MdecException.Decode(ex, "Error decoding macro block {0,number,#} block {1,number,#}",// I18N
+                                                  iMacBlk, iBlock);
+            }
             // fill in the remaining data with zeros
             int iTotalMacBlks = _iMacBlockWidth * _iMacBlockHeight;
             // pickup where decoding left off
@@ -165,11 +170,7 @@ public class MdecDecoder_int extends MdecDecoder {
                 }
                 iBlock = 0;
             }
-            if (ex instanceof MdecException.Decode) {
-                throw (MdecException.Decode)ex;
-            } else {
-                throw new MdecException.Decode(sErr, ex);
-            }
+            throw mdecEx;
         }
     }
 
@@ -225,7 +226,7 @@ public class MdecDecoder_int extends MdecDecoder {
         }
 
         assert !DEBUG || debugPrintBlock("Post-IDCT block");
-        
+
     }
 
     public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,

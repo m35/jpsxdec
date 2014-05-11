@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -71,7 +71,6 @@ public class PathTableRecordBE extends ISO9660Struct {
         magicXzero(is, name_len % 2);
         if (!name.matches(VALID_CHARACTERS))
             throw new NotThisTypeException();
-        //else System.out.println("ok?\"" + name + "\"");
     }
 
     @Override

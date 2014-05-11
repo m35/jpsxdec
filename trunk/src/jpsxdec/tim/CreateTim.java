@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -112,7 +112,7 @@ class CreateTim {
                     iBitsPerPixel = 4;
                 else
                     iBitsPerPixel = 8;
-                LOG.log(Level.WARNING, "TIM reports 16 bits/pixel, but it also has a CLUT. Assuming " + iBitsPerPixel + " bits/pixel");
+                LOG.log(Level.WARNING, "TIM reports 16 bits/pixel, but it also has a CLUT. Assuming {0,number,#} bits/pixel", iBitsPerPixel);
             } else if (iBitsPerPixel == 24) {
                 LOG.log(Level.WARNING, "TIM reports 24 bits/pixel, but it also has a CLUT. Assuming 8 bits/pixel");
                 iBitsPerPixel = 8;
@@ -208,7 +208,7 @@ class CreateTim {
                     iBitsPerPixel = 4;
                 else
                     iBitsPerPixel = 8;
-                LOG.log(Level.WARNING, "TIM reports 16 bits/pixel, but it also has a CLUT. Assuming {0} bits/pixel", iBitsPerPixel);
+                LOG.log(Level.WARNING, "TIM reports 16 bits/pixel, but it also has a CLUT. Assuming {0,number,#} bits/pixel", iBitsPerPixel);
             } else if (iBitsPerPixel == 24) {
                 LOG.log(Level.WARNING, "TIM reports 24 bits/pixel, but it also has a CLUT. Assuming 8 bits/pixel");
                 iBitsPerPixel = 8;

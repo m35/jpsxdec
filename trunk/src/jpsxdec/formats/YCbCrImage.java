@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -91,7 +91,7 @@ public class YCbCrImage {
         if (iWidth < 2 || iHeight < 2 ||
                (iWidth % 2) != 0 ||
                (iHeight % 2) != 0) {
-            throw new IllegalArgumentException("Invalid y4m dimensions.");
+            throw new IllegalArgumentException("Dimensions must be even.");
         }
         _iLumaWidth  = iWidth;
         _iLumaHeight = iHeight;

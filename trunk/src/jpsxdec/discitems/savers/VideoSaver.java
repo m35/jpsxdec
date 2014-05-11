@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.I18N;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemVideoStream;
@@ -86,17 +87,19 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
             _iCroppedHeight = Calc.fullDimension(videoItem.getHeight());
         }
         if (vsb.getCrop_enabled())
-            _selectedOptions.add("Cropping: " + (vsb.getCrop() ? "Yes" : "No"));
+            _selectedOptions.add(
+                    I18N.S("Cropping: {0,choice,0#No|1#Yes}", vsb.getCrop() ? 1 : 0)); // I18N
 
         VideoFormat videoFormat = vsb.getVideoFormat();
 
-        _selectedOptions.add("Frames: " + vsb.getSaveStartFrame() + "-" + vsb.getSaveEndFrame());
-        _selectedOptions.add("Video format: " + videoFormat);
+        _selectedOptions.add(I18N.S("Frames: {0,number,#}-{1,number,#}", // I18N
+                vsb.getSaveStartFrame(), vsb.getSaveEndFrame()));
+        _selectedOptions.add(I18N.S("Video format: {0}", videoFormat)); // I18N
 
 
-        _selectedOptions.add(String.format("Disc speed: %s (%s fps)",
-                vsb.getSingleSpeed() ? "1x" : "2x",
-                DiscItemVideoStream.formatFps(vsb.getFps())));
+        _selectedOptions.add(I18N.S("Disc speed: {0,choice,1#1x|2#2x} ({1} fps)", // I18N
+                             vsb.getSingleSpeed() ? 1 : 2,
+                             vsb.getFps().asDouble()));
 
         _sectorFeeder.videoDemuxer.setFrameListener(this);
     }
@@ -128,11 +131,11 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
 
     protected MdecDecoder makeVideoDecoder(VideoSaverBuilder vsb) {
         MdecDecodeQuality quality = vsb.getDecodeQuality();
-        _selectedOptions.add("Decode quality: " + quality);
+        _selectedOptions.add(I18N.S("Decode quality: {0}", quality)); // I18N
         MdecDecoder vidDecoder = quality.makeDecoder(_videoItem.getWidth(), _videoItem.getHeight());
         if (vidDecoder instanceof MdecDecoder_double_interpolate) {
             Upsampler chroma = vsb.getChromaInterpolation();
-            _selectedOptions.add("Chroma upsampling: " + chroma);
+            _selectedOptions.add(I18N.S("Chroma upsampling: {0}", chroma)); // I18N
             ((MdecDecoder_double_interpolate)vidDecoder).setResampler(chroma);
         }
         return vidDecoder;
@@ -148,10 +151,10 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
             if (aoOutRng.length == 1)
                 _sOutSummary = aoOutRng[0].toString();
             else
-                _sOutSummary = aoOutRng[0] + "-" + aoOutRng[1];
+                _sOutSummary = aoOutRng[0] + "-" + aoOutRng[1]; // I18N
 
             VideoFormat vf = vsb.getVideoFormat();
-            File outFileStrFormat = new File(directory, vf.makeFormat(videoItem));
+            FrameFormatter outFileStrFormat = FrameFormatter.makeFormatter(directory, vf, videoItem);
             switch (vf) {
                 case IMGSEQ_BITSTREAM:
                     _bsListener = new VDP.Bitstream2File(outFileStrFormat);
@@ -187,7 +190,7 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
                     throw new UnsupportedOperationException(vf + " not implemented yet.");
             }
 
-            _selectedOptions.add("Saving as: " + _sOutSummary);
+            _selectedOptions.add(I18N.S("Saving as: {0}" + _sOutSummary)); // I18N
         }
 
         public String getOutputSummary() {
@@ -212,7 +215,7 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
                 }
 
                 if (pll.seekingEvent())
-                    pll.event("Frame " + _iCurrentFrame);
+                    pll.event(I18N.S("Frame {0,number,#}", _iCurrentFrame)); // I18N
 
                 pll.progressUpdate(iSector / (double)iSectorLen);
 
@@ -222,6 +225,8 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
                     break;
             }
             _sectorFeeder.flush(pll);
+            if (pll.seekingEvent())
+                pll.event(I18N.S("Frame {0,number,#}", _iCurrentFrame)); // I18N
             pll.progressEnd();
         }
 
@@ -237,8 +242,9 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
             
             VDP.Bitstream2Mdec bs2mdec = new VDP.Bitstream2Mdec();
             int iSectorsPerSecond = vsb.getSingleSpeed() ? 75 : 150;
-            File outFile = new File(directory, vf.makeFormat(videoItem));
+            File outFile = FrameFormatter.makeFile(directory, vf, videoItem);
             if (fdr.audioDecoder == null) {
+                _selectedOptions.add(I18N.S("No audio")); // I18N
                 VideoSync vidSync = new VideoSync(_videoItem.getPresentationStartSector(),
                                                   iSectorsPerSecond,
                                                   _videoItem.getSectorsPerFrame());
@@ -259,9 +265,10 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
                     default: throw new UnsupportedOperationException(vf + " not implemented yet.");
                 }
             } else {
-                _selectedOptions.add("With audio item(s):");
+                _selectedOptions.add(I18N.S("With audio item(s):")); // I18N
                 _selectedOptions.addAll(Arrays.asList(fdr.audioDecoder.getAudioDetails()));
-                _selectedOptions.add("Emulate PSX audio/video sync: " + (vsb.getEmulatePsxAvSync() ? "Yes" : "No"));
+                _selectedOptions.add(I18N.S("Emulate PSX audio/video sync: {0,choice,0#No|1#Yes}", // I18N
+                        vsb.getEmulatePsxAvSync() ? 1 : 0));
 
                 AudioVideoSync avSync = new AudioVideoSync(
                         _videoItem.getPresentationStartSector(),
@@ -299,7 +306,7 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
                 mdec2decode.setDecoded((VDP.IDecodedListener)_2avi);
             }
             _bsListener = bs2mdec;
-            _selectedOptions.add("Saving as: " + _2avi.getOutputFile());
+            _selectedOptions.add(I18N.S("Saving as: {0}", _2avi.getOutputFile())); // I18N
         }
 
         public String getOutputSummary() {
@@ -340,7 +347,7 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
                     }
 
                     if (pll.seekingEvent())
-                        pll.event("Frame " + _iCurrentFrame);
+                        pll.event(I18N.S("Frame {0,number,#}", _iCurrentFrame)); // I18N
 
                     pll.progressUpdate((iSector - iStartSector) / SECTOR_LENGTH);
 
@@ -351,12 +358,14 @@ public abstract class VideoSaver implements IDiscItemSaver, ISectorFrameDemuxer.
                 }
 
                 _sectorFeeder.flush(pll);
+                if (pll.seekingEvent())
+                    pll.event(I18N.S("Frame {0,number,#}", _iCurrentFrame)); // I18N
                 pll.progressEnd();
             } finally {
                 try {
                     _2avi.close();
                 } catch (Throwable ex) {
-                    pll.log(Level.SEVERE, "Error closing AVI", ex);
+                    pll.log(Level.SEVERE, "Error closing AVI", ex); // I18N
                 }
                 _bsListener.setLog(null);
             }

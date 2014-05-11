@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,11 +38,11 @@
 package jpsxdec.gui;
 
 import java.io.File;
-import java.text.MessageFormat;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileSystemView;
+import jpsxdec.I18N;
 
 /** The JFileChooser is pretty lame, so this sub-class attempts to fix
  *  some of the problems with it. */
@@ -56,60 +56,54 @@ public class BetterFileChooser extends JFileChooser {
     }
 
     /** My own 'All files' filter as a workaround for Java 5 Linux bug. */
-    public static final FileFilter ALL_FILE_FILTER = new FileFilter() {
+    private transient final FileFilter ALL_FILE_FILTER = new FileFilter() {
         @Override
         public boolean accept(File f) {
-            return true;
+            return BetterFileChooser.super.getAcceptAllFileFilter().accept(f);
         }
 
         @Override
         public String getDescription() {
-            return "All files";
+            return BetterFileChooser.super.getAcceptAllFileFilter().getDescription();
         }
 
         @Override
         public String toString() {
             // Java 5 on Linux uses toString() instead of
             // getDescription() in the list of file extention filters.
-            return getDescription();
+            return BetterFileChooser.super.getAcceptAllFileFilter().getDescription();
         }
     };
 
     /** Creates a new BetterFileChooser. */
     public BetterFileChooser() {
         super();
-        init();
     }
 
     public BetterFileChooser(String currentDirectoryPath, FileSystemView fsv) {
         super(currentDirectoryPath, fsv);
-        init();
     }
 
     public BetterFileChooser(File currentDirectory, FileSystemView fsv) {
         super(currentDirectory, fsv);
-        init();
     }
 
     public BetterFileChooser(FileSystemView fsv) {
         super(fsv);
-        init();
     }
 
     public BetterFileChooser(File currentDirectory) {
         super(currentDirectory);
-        init();
     }
 
     public BetterFileChooser(String currentDirectoryPath) {
         super(currentDirectoryPath);
-        init();
     }
 
-    private void init() {
-        // fix the broken 'all' file filter for Linux by using my own
-        super.removeChoosableFileFilter(super.getAcceptAllFileFilter());
-        super.addChoosableFileFilter(ALL_FILE_FILTER);
+    @Override
+    public FileFilter getAcceptAllFileFilter() {
+        // fix the broken 'all' file filter for Java 5 Linux by wrapping it with my own
+        return ALL_FILE_FILTER;
     }
 
     @Override
@@ -117,9 +111,7 @@ public class BetterFileChooser extends JFileChooser {
         // Fix the possible 5 second delay that can occur on Windows
         // by disabling some feature.
         // http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6372808
-        /*
-        putClientProperty("FileChooser.useShellFolder", Boolean.FALSE);
-        */
+        //putClientProperty("FileChooser.useShellFolder", Boolean.FALSE);
         super.updateUI();
     }
 
@@ -140,8 +132,9 @@ public class BetterFileChooser extends JFileChooser {
 
             // confirm overwrite
             if (f.exists()) {
-                String sMsg = "The file \"{0}\" already exists!\nDo you want to replace it?";
-                sMsg = MessageFormat.format(sMsg, new Object[]{f.getName()});
+                String sMsg = 
+                        I18N.S("The file \"{0}\" already exists!\nDo you want to replace it?", // I18N
+                        f.getName());
                 String sTitle = getDialogTitle();
                 int iOption = JOptionPane.showConfirmDialog(this, sMsg, sTitle, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
                 if (iOption != JOptionPane.YES_OPTION) {

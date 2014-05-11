@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -100,7 +100,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
     /** Final Fantasy 9 video chunk sector. */
     public static class SectorFF9Video
             extends SectorFF9
-            implements IVideoSector 
+            implements IVideoSectorWithFrameNumber
     {
 
         // .. Static stuff .....................................................
@@ -219,34 +219,6 @@ public abstract class SectorFF9 extends IdentifiedSector {
             return "FF9Video";
         }
 
-        public boolean matchesPrevious(IVideoSector prevSector) {
-            if (!(prevSector instanceof SectorFF9Video))
-                return false;
-
-            SectorFF9Video prevFF9Vid = (SectorFF9Video) prevSector;
-
-            if (getWidth()  != prevFF9Vid.getWidth() ||
-                getHeight() != prevFF9Vid.getHeight())
-                return false;
-
-            long lngNextChunk = prevFF9Vid.getActualChunkNumber() + 1;
-            long lngNextFrame = prevFF9Vid.getFrameNumber();
-            if (lngNextChunk >= prevFF9Vid.getActualChunksInFrame()) {
-                lngNextChunk = 2;
-                lngNextFrame++;
-            }
-
-            if (lngNextChunk != getActualChunkNumber() ||
-                lngNextFrame != getFrameNumber())
-                return false;
-
-            if (getFrameNumber() == prevFF9Vid.getFrameNumber() &&
-                getActualChunksInFrame() != prevFF9Vid.getActualChunksInFrame())
-                return false;
-
-            return true;
-        }
-        
         public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                     int iMdecCodeCount, byte[] abSectUserData)
         {
@@ -387,24 +359,24 @@ public abstract class SectorFF9 extends IdentifiedSector {
                 return 0;
         }
 
-        public boolean matchesPrevious(ISquareAudioSector oPrevSect) {
-            if (!(oPrevSect instanceof SectorFF9Audio))
+        public boolean matchesPrevious(ISquareAudioSector prevSect) {
+            if (!(prevSect instanceof SectorFF9Audio))
                 return false;
 
-            SectorFF9Audio oPrevFF9Aud = (SectorFF9Audio) oPrevSect;
+            SectorFF9Audio oPrevFF9Aud = (SectorFF9Audio) prevSect;
 
             if (getSamplesPerSecond() != oPrevFF9Aud.getSamplesPerSecond())
                 return false;
 
-            if (oPrevSect.getAudioChunkNumber() == 0) {
+            if (prevSect.getAudioChunkNumber() == 0) {
                 if (getAudioChunkNumber() != 1 ||
-                    oPrevSect.getFrameNumber() != getFrameNumber() ||
-                    oPrevSect.getSectorNumber() + 1 != getSectorNumber())
+                    prevSect.getFrameNumber() != getFrameNumber() ||
+                    prevSect.getSectorNumber() + 1 != getSectorNumber())
                     return false;
-            } else if (oPrevSect.getAudioChunkNumber() == 1) {
+            } else if (prevSect.getAudioChunkNumber() == 1) {
                 if (getAudioChunkNumber() != 0 ||
-                    oPrevSect.getFrameNumber() + 1 != getFrameNumber() ||
-                    oPrevSect.getSectorNumber() + 9 != getSectorNumber())
+                    prevSect.getFrameNumber() + 1 != getFrameNumber() ||
+                    prevSect.getSectorNumber() + 9 != getSectorNumber())
                     return false;
             }
 

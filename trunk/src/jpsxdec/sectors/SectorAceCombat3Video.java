@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,20 +46,22 @@ public class SectorAceCombat3Video extends SectorAbstractVideo {
     private int _iChunkNumber;         // 1  [1 byte]
     private int _iChunksInThisFrame;   // 2  [2 bytes]
     private int _iUnknown1;            // 4  [2 bytes]
+    // the frame number descends from the total frame count down to 0
     private int _iInvertedFrame;       // 6  [2 bytes]
     private int _iWidth,               // 8  [2 bytes]
                 _iHeight;              // 10 [2 bytes]
-    // All zeros                       // 12 [12 bytes]
-    private long _lngUnknown2;         // 24 [8 bytes]
+    // Always 0                        // 12 [4 bytes]
+    private long _lngUnknown2;         // 16 [8 bytes]
+    private long _lngUnknown3;         // 24 [8 bytes]
 
-    private int _iFrameNumber;
-    
     public int getSectorHeaderSize() { return 32; }
 
 
     public SectorAceCombat3Video(CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
+
+        if (!cdSector.hasSubHeader()) return;
 
         if (cdSector.readUserDataByte(0) != 0x01) return;
 
@@ -71,37 +73,36 @@ public class SectorAceCombat3Video extends SectorAbstractVideo {
         _iUnknown1 = cdSector.readUInt16LE(4);
 
         _iInvertedFrame = cdSector.readUInt16LE(6);
-        if (_iInvertedFrame < 0 || _iInvertedFrame > 1927) return;
-        // the frame number actually descends from the total frame count down to 0
-        // which is incompatable with general assumptions,
-        // so we invert the frame number here
-        _iFrameNumber = 1927 - _iInvertedFrame;
+        if (_iInvertedFrame < 0) return;
 
         _iWidth = cdSector.readSInt16LE(8);
         _iHeight = cdSector.readSInt16LE(10);
-        if (!((_iWidth == 304 && _iHeight == 224) || (_iWidth == 320 && _iHeight == 176)))
+        if (!((_iWidth == 304 && _iHeight == 224) || 
+              (_iWidth == 320 && _iHeight == 176) ||
+              (_iWidth == 128 && _iHeight == 96 )))
             return;
 
-        for (int i = 12; i < 24; i++) {
-            if (cdSector.readUserDataByte(i) != 0) return;
-        }
-
-        _lngUnknown2 = cdSector.readSInt64BE(24);
+        if (cdSector.readSInt32BE(12) != 0)
+            return;
+        
+        _lngUnknown2 = cdSector.readSInt64BE(16);
+        _lngUnknown3 = cdSector.readSInt64BE(24);
 
         setProbability(100);
     }
 
     final public String toString() {
-        return String.format("%s %s frame:%d chunk:%d/%d %dx%d ?1:%04x ?2:%016x",
+        return String.format("%s %s inv-frame: %d chunk:%d/%d %dx%d ?1:%04x ?2:%016x ?3:%016x",
             getTypeName(),
             super.cdToString(),
-            _iFrameNumber,
+            _iInvertedFrame,
             _iChunkNumber,
             _iChunksInThisFrame,
             _iWidth,
             _iHeight,
             _iUnknown1,
-            _lngUnknown2
+            _lngUnknown2,
+            _lngUnknown3
             );
     }
 
@@ -125,8 +126,12 @@ public class SectorAceCombat3Video extends SectorAbstractVideo {
         return _iChunksInThisFrame;
     }
 
-    public int getFrameNumber() {
-        return _iFrameNumber;
+    public int getInvertedFrameNumber() {
+        return _iInvertedFrame;
+    }
+
+    public int getChannel() {
+        return getCdSector().getSubHeaderChannel();
     }
 
     public int splitXaAudio() {
@@ -135,6 +140,5 @@ public class SectorAceCombat3Video extends SectorAbstractVideo {
         return (_iInvertedFrame == 0 && _iChunkNumber == _iChunksInThisFrame - 1) ?
             SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
     }
-
 
 }

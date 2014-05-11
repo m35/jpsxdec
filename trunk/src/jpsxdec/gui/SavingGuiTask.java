@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,12 +38,12 @@
 package jpsxdec.gui;
 
 import java.awt.EventQueue;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import jpsxdec.I18N;
 import jpsxdec.gui.SavingGuiTable.Row;
 import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
@@ -102,7 +102,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     public SavingGuiTask(ArrayList<Row> rows, String sCd) {
         _rows = rows;
 
-        _progressLog.setHeader(1, sCd);
+        _progressLog.info(sCd);
 
         _progressLog.setListener(new UserFriendlyLogger.OnWarnErr() {
             public void onWarn(LogRecord record) {
@@ -119,7 +119,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         for (Row row : _rows) {
             _currentRow = row;
             try {
-                _progressLog.setHeader(2, row._saver.getDiscItem().toString());
+                _progressLog.info(row._saver.getDiscItem().toString());
                 row._saver.startSave(_progressLog);
             } catch (TaskCanceledException ex) {
                 // cool
@@ -127,8 +127,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
                 break;
             } catch (Throwable ex) {
                 // uncool
-                LOG.log(Level.SEVERE, "Unhandled error", ex);
-                _progressLog.log(Level.SEVERE, "Unhandled error", ex);
+                _progressLog.log(Level.SEVERE, I18N.S("Unhandled error"), ex); // I18N
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 if (ex instanceof InterruptedException)
                     break;

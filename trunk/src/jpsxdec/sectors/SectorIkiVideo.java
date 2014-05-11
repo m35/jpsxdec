@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,7 @@ import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.util.IO;
 
 
-public class SectorIkiVideo extends SectorAbstractVideo {
+public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorWithFrameNumber {
     
     // .. Fields ..........................................................
 

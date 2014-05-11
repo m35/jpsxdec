@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,8 +38,11 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.util.Date;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.I18N;
 import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.sectors.IdentifiedSector;
@@ -78,8 +81,8 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         _iSectorsPastEnd = iSectorsPastEnd;
 
         if (_lngLeftSampleCount != _lngRightSampleCount)
-            LOG.warning("Left & right sample count does not match: " +
-                    _lngLeftSampleCount + " != " + _lngRightSampleCount);
+            LOG.log(Level.WARNING, "Left & right sample count does not match: {0,number,#} != {1,number,#}",
+                    new Object[]{_lngLeftSampleCount, _lngRightSampleCount});
     }
     
     public DiscItemSquareAudioStream(SerializedDiscItem fields) throws NotThisTypeException
@@ -92,10 +95,11 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         _iSectorsPastEnd = fields.getInt(SECTORS_PAST_END_KEY);
 
         if (_lngLeftSampleCount != _lngRightSampleCount)
-            LOG.warning("Left & right sample count does not match: " +
-                    _lngLeftSampleCount + " != " + _lngRightSampleCount);
+            LOG.log(Level.WARNING, "Left & right sample count does not match: {0,number,#} != {1,number,#}",
+                    new Object[]{_lngLeftSampleCount, _lngRightSampleCount});
     }
     
+    @Override
     public SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
         fields.addNumber(SAMPLES_PER_SEC_KEY, _iSamplesPerSecond);
@@ -116,14 +120,15 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     public String getSerializationTypeId() {
         return TYPE_ID;
     }
-
+    
     @Override
     public String getInterestingDescription() {
         long lngSampleCount = _lngLeftSampleCount > _lngRightSampleCount ?
                               _lngLeftSampleCount : _lngRightSampleCount;
-        return String.format("%s, %d Hz Stereo",
-                DiscItemStrVideoStream.formatTime(lngSampleCount / _iSamplesPerSecond),
-                _iSamplesPerSecond);
+        // unable to find ANY sources of info about how to localize durations
+        Date secs = new Date(0, 0, 0, 0, 0, (int)Math.max(lngSampleCount / _iSamplesPerSecond, 1));
+        return I18N.S("{0,time,m:ss}, {1,number,#} Hz Stereo", // I18N
+                      secs, _iSamplesPerSecond);
     }
 
     public int getDiscSpeed() {
@@ -133,6 +138,13 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     @Override
     public int getPresentationStartSector() {
         return getStartSector() + 1;
+    }
+
+    @Override
+    public double getApproxDuration() {
+        long lngSampleCount = _lngLeftSampleCount > _lngRightSampleCount ?
+                              _lngLeftSampleCount : _lngRightSampleCount;
+        return lngSampleCount / (double)_iSamplesPerSecond;
     }
 
     public AudioFormat getAudioFormat(boolean blnBigEndian) {
@@ -168,9 +180,9 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             __audioWriter = audioOut;
         }
 
-        public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
+        public boolean feedSector(IdentifiedSector sector, Logger log) throws IOException {
             if (!(sector instanceof ISquareAudioSector))
-                return;
+                return false;
             
             ISquareAudioSector audSector = (ISquareAudioSector) sector;
             if (audSector.getAudioChannel() == 0) {
@@ -191,6 +203,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             } else {
                 throw new RuntimeException("Invalid audio channel " + audSector.getAudioChannel());
             }
+            return true;
         }
 
         public double getVolume() {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ package jpsxdec.discitems;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import jpsxdec.I18N;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.TimSaverBuilder;
 import jpsxdec.tim.Tim;
@@ -85,6 +86,7 @@ public class DiscItemTim extends DiscItem {
         _iHeight = aiDims[1];
     }
     
+    @Override
     public SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
         fields.addNumber(START_OFFSET_KEY, _iStartOffset);
@@ -100,7 +102,7 @@ public class DiscItemTim extends DiscItem {
 
     @Override
     public String getInterestingDescription() {
-        return _iWidth + "x" + _iHeight + ", Palettes: " + _iPaletteCount;
+        return I18N.S("{0,number,#}x{1,number,#}, Palettes: {2,number,#}", _iWidth, _iHeight, _iPaletteCount); // I18N
     }
 
     public TimSaverBuilder makeSaverBuilder() {
@@ -187,7 +189,7 @@ public class DiscItemTim extends DiscItem {
         int iBytesToWrite = abNewTim.length;
         if (_iStartOffset + iBytesToWrite > abUserData.length)
             iBytesToWrite = abUserData.length - _iStartOffset;
-        Feedback.println("Writing " + iBytesToWrite + " bytes to sector " + iSector);
+        Feedback.println(I18N.S("Writing {0,number,#} bytes to sector {1,number,#}", iBytesToWrite, iSector)); // I18N
         System.arraycopy(abNewTim, 0, abUserData, _iStartOffset, iBytesToWrite);
         cd.writeSector(iSector, abUserData);
         
@@ -202,7 +204,7 @@ public class DiscItemTim extends DiscItem {
             iBytesToWrite = abNewTim.length - iBytesWritten;
             if (iBytesToWrite > abUserData.length)
                 iBytesToWrite = abUserData.length;
-            Feedback.println("Writing " + iBytesToWrite + " bytes to sector " + iSector);
+            Feedback.println(I18N.S("Writing {0,number,#} bytes to sector {1,number,#}", iBytesToWrite, iSector)); // I18N
             System.arraycopy(abNewTim, iBytesWritten, abUserData, 0, iBytesToWrite);
             cd.writeSector(iSector, abUserData);
             iBytesWritten += iBytesToWrite;

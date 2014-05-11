@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.indexing.psxvideofps;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.util.Fraction;
 
@@ -150,19 +151,19 @@ public class StrFrameRateCalc {
     private WholeNumberSectorsPerFrame _wholeFrameRate;
     private LinkedList<InconsistentFrameSequence> _inconsistentFrameRate;
 
-    public StrFrameRateCalc(int iSector, int iFirstFrame, int iFirstChunk, int iFirstChunkCount) {
-        _wholeFrameRate = new WholeNumberSectorsPerFrame(iSector, iFirstFrame);
-        _inconsistentFrameRate = InconsistentFrameSequence.generate(iFirstFrame, iFirstChunk, iFirstChunkCount);
+    public StrFrameRateCalc(int iFirstFrameStartSector, int iFirstFrameEndSector) {
+        _wholeFrameRate = new WholeNumberSectorsPerFrame(iFirstFrameEndSector);
+        _inconsistentFrameRate = InconsistentFrameSequence.generate(iFirstFrameStartSector, iFirstFrameEndSector);
     }
 
-    public void nextVideo(int iSector, int iFrame, int iChunk, int iFrameChunkCount) {
+    public void nextVideo(int iNextFrameStartSector, int iNextFrameEndSector) {
         if (_wholeFrameRate != null)
-            if (!_wholeFrameRate.matchesNextVideo(iSector, iFrame))
+            if (!_wholeFrameRate.matchesNextVideo(iNextFrameStartSector, iNextFrameEndSector))
                 _wholeFrameRate = null; // failed to match any whole number frame rates
         // TODO: Log when whole frame and inconsistent frame rate matching fails
         if (_inconsistentFrameRate != null) {
             for (Iterator<InconsistentFrameSequence> it = _inconsistentFrameRate.iterator(); it.hasNext();) {
-                if (!it.next().matchesNextVideo(iSector, iFrame, iChunk, iFrameChunkCount))
+                if (!it.next().matchesNextVideo(iNextFrameStartSector, iNextFrameEndSector))
                     it.remove();
             }
             if (_inconsistentFrameRate.size() == 0)
@@ -190,8 +191,8 @@ public class StrFrameRateCalc {
             int[] aiPossibleSectorsPerFrame = _wholeFrameRate.getPossibleSectorsPerFrame();
             if (aiPossibleSectorsPerFrame != null) {
                 if (aiPossibleSectorsPerFrame.length > 1) {
-                    LOG.info("All possible sectors/frame " +
-                                Arrays.toString(aiPossibleSectorsPerFrame));
+                    LOG.log(Level.INFO, "All possible sectors/frame {0}",
+                            Arrays.toString(aiPossibleSectorsPerFrame));
                 }
                 sectorsPerFrame = new Fraction(aiPossibleSectorsPerFrame[aiPossibleSectorsPerFrame.length-1]);
             }

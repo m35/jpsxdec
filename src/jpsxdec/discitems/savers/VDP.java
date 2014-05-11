@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,6 +49,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.I18N;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.formats.RgbIntImage;
@@ -80,22 +81,16 @@ public class VDP {
 
     public static class Bitstream2File implements IBitstreamListener {
 
-        private final File _outFileStrFormat;
-        private final String _sFormat;
+        private final FrameFormatter _formatter;
         private Logger _log = LOG;
 
-        /**
-         * @param outFileStrFormat File path with the name optionally having one
-         *        {@link String#format(java.lang.String, java.lang.Object[])}
-         *        formatted {@code %d} for the frame number.
-         */
-        public Bitstream2File(File outFileStrFormat) {
-            _outFileStrFormat = outFileStrFormat.getParentFile();
-            _sFormat = outFileStrFormat.getName();
+
+        public Bitstream2File(FrameFormatter formatter) {
+            _formatter = formatter;
         }
 
         public void bitstream(byte[] abBitstream, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException {
-            File f = new File(_outFileStrFormat, String.format(_sFormat, iFrameNumber));
+            File f = _formatter.format(iFrameNumber);
             IO.makeDirsForFile(f);
             FileOutputStream fos = new FileOutputStream(f);
             try {
@@ -120,36 +115,39 @@ public class VDP {
         private BitStreamUncompressor _uncompressor;
         private IMdecListener _listener;
 
-        private BitStreamUncompressor identify(byte[] abBitstream) {
+        private BitStreamUncompressor identify(byte[] abBitstream, int iBitstreamSize) {
             BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitstream);
             if (uncompressor != null) {
                 try {
-                    uncompressor.reset(abBitstream);
-                    _log.info("Video format identified as " + uncompressor.getName());
+                    uncompressor.reset(abBitstream, iBitstreamSize);
+                    _log.log(Level.INFO, "Video format identified as {0}", uncompressor.getName()); // I18N
                 } catch (NotThisTypeException ex) {
+                    LOG.log(Level.SEVERE, "Uncompressor rejected frame it just acceped");
                     uncompressor = null;
                 }
             }
             return uncompressor;
         }
-        private BitStreamUncompressor resetUncompressor(byte[] abBitstream) {
+        private BitStreamUncompressor resetUncompressor(byte[] abBitstream, int iBitstreamSize) {
             if (_uncompressor == null) {
-                _uncompressor = identify(abBitstream);
+                _uncompressor = identify(abBitstream, iBitstreamSize);
             } else {
                 try {
-                    _uncompressor.reset(abBitstream);
+                    _uncompressor.reset(abBitstream, iBitstreamSize);
                 } catch (NotThisTypeException ex) {
-                    _uncompressor = identify(abBitstream);
+                    _uncompressor = identify(abBitstream, iBitstreamSize);
                 }
             }
             return _uncompressor;
         }
 
-        public void bitstream(byte[] abBitstream, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException {
-            resetUncompressor(abBitstream);
+        public void bitstream(byte[] abBitstream, int iBitstreamSize, int iFrameNumber, int iFrameEndSector)
+                throws IOException
+        {
+            resetUncompressor(abBitstream, iBitstreamSize);
             if (_uncompressor == null) {
-                _log.severe("Error with frame " + iFrameNumber + ": Unable to determine frame type.");
-                _listener.error("Unable to determine frame type", iFrameNumber, iFrameEndSector);
+                _log.log(Level.SEVERE, "Error with frame {0,number,#}: Unable to determine frame type.", iFrameNumber); // I18N
+                _listener.error(I18N.S("Unable to determine frame type"), iFrameNumber, iFrameEndSector); // I18N
             } else
                 _listener.mdec(_uncompressor, iFrameNumber, iFrameEndSector);
         }
@@ -172,24 +170,20 @@ public class VDP {
     
     public static class Mdec2File implements IMdecListener {
 
-        private final File _outFileStrFormat;
+        private final FrameFormatter _formatter;
         private final int _iTotalBlocks;
-        private final String _sFormat;
         private Logger _log = LOG;
 
-        /**
-         * @param outFileStrFormat File path with the name optionally having one
-         *        {@link String#format(java.lang.String, java.lang.Object[])}
-         *        formatted {@code %d} for the frame number.
-         */
-        public Mdec2File(File outFileStrFormat, int iWidth, int iHeight) {
+
+        public Mdec2File(FrameFormatter formatter, int iWidth, int iHeight) {
+            _formatter = formatter;
             _iTotalBlocks = Calc.blocks(iHeight, iWidth);
-            _outFileStrFormat = outFileStrFormat.getParentFile();
-            _sFormat = outFileStrFormat.getName();
         }
         
-        public void mdec(MdecInputStream mdecIn, int iFrameNumber, int _) throws IOException {
-            File f = new File(_outFileStrFormat, String.format(_sFormat, iFrameNumber));
+        public void mdec(MdecInputStream mdecIn, int iFrameNumber, int iFrameEndSector_ignored)
+                throws IOException
+        {
+            File f = _formatter.format(iFrameNumber);
             IO.makeDirsForFile(f);
             BufferedOutputStream bos = null;
             try {
@@ -197,15 +191,15 @@ public class VDP {
                 try {
                     MdecInputStreamReader.writeMdecBlocks(mdecIn, bos, _iTotalBlocks);
                 } catch (MdecException ex) {
-                    _log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                    _log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex); // I18N
                 }
             } catch (IOException ex) {
-                _log.log(Level.WARNING, "Error writing frame " + iFrameNumber, ex);
+                _log.log(Level.WARNING, "Error writing frame " + iFrameNumber, ex); // I18N
             } finally {
                 if (bos != null) try {
                     bos.close();
                 } catch (IOException ex) {
-                    _log.log(Level.WARNING, "Error closing file for frame " + iFrameNumber, ex);
+                    _log.log(Level.WARNING, "Error closing file for frame " + iFrameNumber, ex); // I18N
                 }
             }
         }
@@ -223,31 +217,24 @@ public class VDP {
     
     public static class Mdec2Jpeg implements IMdecListener {
 
-        private final File _outFileStrFormat;
+        private final FrameFormatter _formatter;
         private final jpsxdec.psxvideo.mdec.tojpeg.Mdec2Jpeg _jpegTranslator;
         private final ExposedBAOS _buffer = new ExposedBAOS();
         private Logger _log = LOG;
 
-        private final String _sFormat;
 
-        /**
-         * @param outFileStrFormat File path with the name optionally having one
-         *        {@link String#format(java.lang.String, java.lang.Object[])}
-         *        formatted {@code %d} for the frame number.
-         */
-        public Mdec2Jpeg(File outFileStrFormat, int iWidth, int iHeight) {
-            _outFileStrFormat = outFileStrFormat.getParentFile();
-            _sFormat = outFileStrFormat.getName();
+        public Mdec2Jpeg(FrameFormatter formatter, int iWidth, int iHeight) {
+            _formatter = formatter;
             _jpegTranslator = new jpsxdec.psxvideo.mdec.tojpeg.Mdec2Jpeg(iWidth, iHeight);
         }
 
         public void mdec(MdecInputStream mdecIn, int iFrameNumber, int iFrameEndSector) throws IOException {
-            File f = new File(_outFileStrFormat, String.format(_sFormat, iFrameNumber));
+            File f = _formatter.format(iFrameNumber);
             IO.makeDirsForFile(f);
             try {
                 _jpegTranslator.readMdec(mdecIn);
             } catch (MdecException.Decode ex) {
-                _log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                _log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex); // I18N
             }
             _buffer.reset();
             _jpegTranslator.writeJpeg(_buffer);
@@ -279,7 +266,7 @@ public class VDP {
             try {
                 _decoder.decode(mdecIn);
             } catch (MdecException.Decode ex) {
-                _log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                I18N.log(_log, Level.WARNING, ex, "Error uncompressing frame {0,number,#}", iFrameNumber); // I18N
             }
             _listener.decoded(_decoder, iFrameNumber, iFrameEndSector);
         }
@@ -311,36 +298,29 @@ public class VDP {
 
     public static class Decoded2JavaImage implements IDecodedListener {
         
-        private final File _outDileStrFormat;
+        private final FrameFormatter _formatter;
         private final String _sFmt;
         private final BufferedImage _rgbImg;
         private Logger _log = LOG;
 
-        private final String _sFormat;
 
-        /**
-         * @param outFileStrFormat File path with the name optionally having one
-         *        {@link String#format(java.lang.String, java.lang.Object[])}
-         *        formatted {@code %d} for the frame number.
-         */
-        public Decoded2JavaImage(File outFileStrFormat, JavaImageFormat eFmt, int iWidth, int iHeight) {
-            _outDileStrFormat = outFileStrFormat.getParentFile();
+        public Decoded2JavaImage(FrameFormatter formatter, JavaImageFormat eFmt, int iWidth, int iHeight) {
+            _formatter = formatter;
             _sFmt = eFmt.getId();
             _rgbImg = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
-            _sFormat = outFileStrFormat.getName();
         }
         
         public void decoded(MdecDecoder decoder, int iFrameNumber, int iFrameEndSector) throws IOException {
             decoder.readDecodedRgb(_rgbImg.getWidth(), _rgbImg.getHeight(),
                     ((DataBufferInt)_rgbImg.getRaster().getDataBuffer()).getData());
-            File f = new File(_outDileStrFormat, String.format(_sFormat, iFrameNumber));
+            File f = _formatter.format(iFrameNumber);
             IO.makeDirsForFile(f);
             try {
                 if (!ImageIO.write(_rgbImg, _sFmt, f)) {
-                    _log.log(Level.WARNING, "Unable to write frame file " + f);
+                    _log.log(Level.WARNING, "Unable to write frame file {0}", f); // I18N
                 }
             } catch (IOException ex) {
-                _log.log(Level.WARNING, "Error writing frame file " + f, ex);
+                I18N.log(_log, Level.WARNING, ex, "Error writing frame file {0}", f); // I18N
             }
         }
 
@@ -401,7 +381,8 @@ public class VDP {
             // if first frame
             if (_writer.getVideoFramesWritten() < 1 && _vidSync.getInitialVideo() > 0) {
 
-                _log.log(Level.INFO, "Writing " + _vidSync.getInitialVideo() + " blank frame(s) to align audio/video playback.");
+                _log.log(Level.INFO, "Writing {0,number,#} blank frame(s) to align audio/video playback.", // I18N
+                         _vidSync.getInitialVideo());
                 _writer.writeBlankFrame();
                 for (int i = _vidSync.getInitialVideo()-1; i > 0; i--) {
                     _writer.repeatPreviousFrame();
@@ -416,7 +397,8 @@ public class VDP {
             if (iDupCount < 0) {
                 // hopefully this will never happen because the frame rate
                 // calculated during indexing should prevent it
-                _log.log(Level.WARNING, "Frame "+iFrameNumber+" is ahead of reading by " + (-iDupCount) + " frame(s).");
+                _log.log(Level.WARNING, "Frame {0,number,#} is ahead of reading by {1,number,#} frame(s).", // I18N
+                         new Object[]{iFrameNumber, -iDupCount});
             } else while (iDupCount > 0) { // could happen with first frame
                 if (_writer.getVideoFramesWritten() < 1) // TODO: fix design so this isn't needed
                     _writer.writeBlankFrame();
@@ -433,12 +415,13 @@ public class VDP {
             if (_writer.getAudioSamplesWritten() < 1 &&
                 _avSync.getInitialAudio() > 0)
             {
-                _log.log(Level.INFO, "Writing " + _avSync.getInitialAudio() + " samples of silence to align audio/video playback.");
+                _log.log(Level.INFO, "Writing {0,number,#} samples of silence to align audio/video playback.", // I18N
+                        _avSync.getInitialAudio());
                 _writer.writeSilentSamples(_avSync.getInitialAudio());
             }
             long lngNeededSilence = _avSync.calculateAudioToCatchUp(iPresentationSector, _writer.getAudioSamplesWritten());
             if (lngNeededSilence > 0) {
-                _log.log(Level.INFO, "Adding " + lngNeededSilence + " samples to keep audio in sync.");
+                _log.log(Level.INFO, "Adding {0,number,#} samples to keep audio in sync.", lngNeededSilence); // I18N
                 _writer.writeSilentSamples(lngNeededSilence);
             }
 
@@ -587,7 +570,7 @@ public class VDP {
             try {
                 _jpegTranslator.readMdec(mdecIn);
             } catch (MdecException.Decode ex) {
-                _log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex);
+                I18N.log(_log, Level.WARNING, ex, "Error uncompressing frame {0,number,#}", iFrameNumber); // I18N
             }
             _buffer.reset();
             _jpegTranslator.writeJpeg(_buffer);
@@ -604,6 +587,7 @@ public class VDP {
             }
         }
 
+        @Override
         public File getOutputFile() {
             return _outputFile;
         }
@@ -616,7 +600,7 @@ public class VDP {
     }
 
     
-    /** Draw the error onto a blank image */
+    /** Draw the error onto a blank image. */
     private static BufferedImage makeErrorImage(String sErr, int iWidth, int iHeight) {
         BufferedImage bi = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = bi.createGraphics();

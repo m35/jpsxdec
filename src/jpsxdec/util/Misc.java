@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -76,11 +76,21 @@ public final class Misc {
     }
     
     /** http://www.rgagnon.com/javadetails/java-0029.html */
-    public static String stack2string(Exception e) {
+    public static String stack2string(Throwable e) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         e.printStackTrace(pw);
+        pw.close();
         return sw.toString();
+    }
+
+    public static int intCompare(int i1, int i2) {
+            if (i1 < i2)
+                return -1;
+            else if (i1 > i2)
+                return 1;
+            else
+                return 0;
     }
     
     
@@ -136,28 +146,28 @@ public final class Misc {
     
     
     public static String join(Iterable ao, String sBetween) {
-        StringBuilder oSB = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
         boolean blnFirst = true;
         for (Object o : ao) {
-            if (!blnFirst) oSB.append(sBetween); else blnFirst = false;
-            oSB.append(o.toString());
+            if (!blnFirst) sb.append(sBetween); else blnFirst = false;
+            sb.append(o.toString());
         }
-        return oSB.toString();
+        return sb.toString();
     }
 
     
     public static String join(Object[] ao, String sBetween) {
-        StringBuilder oSB = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
         boolean blnFirst = true;
         for (Object o : ao) {
-            if (!blnFirst) oSB.append(sBetween); else blnFirst = false;
-            oSB.append(o.toString());
+            if (!blnFirst) sb.append(sBetween); else blnFirst = false;
+            sb.append(o.toString());
         }
-        return oSB.toString();
+        return sb.toString();
     }
 
     /** Splits a string into an array of ints. 
-     *  Returns null if non-int values encoutnered. */
+     *  Returns null if non-int values encountered. */
     public static int[] splitInt(String s, String regex) {
         String[] asSplit = s.split(regex);
         return stringArrayToIntArray(asSplit);
@@ -179,7 +189,7 @@ public final class Misc {
     }
     
     /** Parses an array of strings into an array of ints. If there is any
-     *  error, or if any of the values are negitive, null is returned. */
+     *  error, or if any of the values are negative, null is returned. */
     public static int[] stringArrayToIntArray(String[] as) {
         try {
             int[] aiVals = new int[as.length];
@@ -229,7 +239,7 @@ public final class Misc {
     }
 
     private static final URI CURRENT_URI = new File(".").toURI();
-    public static final String forwardSlashPath(File f) {
+    public static String forwardSlashPath(File f) {
         return CURRENT_URI.relativize(f.toURI()).toString();
     }
 

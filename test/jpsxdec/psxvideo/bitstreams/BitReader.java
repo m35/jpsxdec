@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -69,7 +69,7 @@ public class BitReader {
     }
 
     @Test
-    public void test() throws EOFException {
+    public void testReadFixed() throws EOFException {
         final Random rand = new Random();
 
         byte[] abTest = new byte[6];
@@ -83,7 +83,7 @@ public class BitReader {
         System.out.println(BIT_STRING);
         sb.setLength(0);
 
-        ArrayBitReader abr = new ArrayBitReader(abTest, false);
+        ArrayBitReader abr = new ArrayBitReader(abTest, abTest.length, false);
 
         System.out.println("Reading " + 16);
         sb.append(abr.peekBitsToString(16));
@@ -96,61 +96,204 @@ public class BitReader {
         abr.skipBits(16);
         System.out.println(sb);
 
-        sb.setLength(0);
-        abr = new ArrayBitReader(abTest, false);
+        int iPeek, iRead;
 
-        int i;
-        for (i = rand.nextInt(31)+1; i < abr.getBitsRemaining(); i = rand.nextInt(31)+1) {
-            String s = abr.peekBitsToString(i);
-            System.out.println("Reading " + i + " " + s);
-            sb.append(s);
-            abr.skipBits(i);
-        }
-        i = abr.getBitsRemaining();
-        if (i > 0) {
-            String s = abr.peekBitsToString(i);
-            System.out.println("Reading " + i + " " + s);
-            sb.append(s);
-            abr.skipBits(i);
-        }
-
-        final String READ_BITS = sb.toString();
-        assertEquals(READ_BITS, READ_BITS, BIT_STRING);
-        
-
-        long lngPeek, lngRead;
-
-        abr.reset(abTest, true, 0);
+        abr.reset(abTest, abTest.length, true, 0);
 
         assertEquals("Bits remaining", abr.getBitsRemaining(), 48);
         String sPeek = abr.peekBitsToString(31);
-        lngPeek = abr.peekUnsignedBits(31);
-        lngRead = abr.readUnsignedBits(31);
-        assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
+        iPeek = abr.peekUnsignedBits(31);
+        iRead = abr.readUnsignedBits(31);
+        assertEquals(iPeek+" == "+iRead, iPeek, iRead);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 17);
-        lngPeek = abr.peekUnsignedBits(3);
-        lngRead = abr.readUnsignedBits(3);
-        assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
+        iPeek = abr.peekUnsignedBits(3);
+        iRead = abr.readUnsignedBits(3);
+        assertEquals(iPeek+" == "+iRead, iPeek, iRead);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 14);
-        lngPeek = abr.peekUnsignedBits(3);
-        lngRead = abr.readUnsignedBits(3);
-        assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
+        iPeek = abr.peekUnsignedBits(3);
+        iRead = abr.readUnsignedBits(3);
+        assertEquals(iPeek+" == "+iRead, iPeek, iRead);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 11);
-        lngPeek = abr.peekUnsignedBits(11);
-        lngRead = abr.readUnsignedBits(11);
-        assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
+        iPeek = abr.peekUnsignedBits(11);
+        iRead = abr.readUnsignedBits(11);
+        assertEquals(iPeek+" == "+iRead, iPeek, iRead);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 0);
 
-        abr.reset(abTest, true, 0);
+        abr.reset(abTest, abTest.length, true, 0);
         abr.skipBits(5);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 43);
         abr.skipBits(30);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 13);
-        lngPeek = abr.peekUnsignedBits(13);
-        lngRead = abr.readUnsignedBits(13);
-        assertEquals(lngPeek+" == "+lngRead, lngPeek, lngRead);
+        iPeek = abr.peekUnsignedBits(13);
+        iRead = abr.readUnsignedBits(13);
+        assertEquals(iPeek+" == "+iRead, iPeek, iRead);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 0);
+
     }
 
+    @Test
+    public void testMod() {
+        for (int i = -500; i <= 0; i++) {
+            assertEquals(i % 16, -((-i) & 0xf));
+            assertEquals(-(i / 16)*2, ((-i) >> 4) << 1);
+        }
+    }
+
+
+    @Test
+    public void testReadRandom() throws EOFException {
+        final Random rand = new Random();
+        
+        byte[] abTest = new byte[8];
+        rand.nextBytes(abTest);
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : abTest) {
+            sb.append(Misc.bitsToString(b, 8));
+        }
+        final String BIT_STRING = sb.toString();
+        System.out.println(BIT_STRING);
+        sb.setLength(0);
+
+        sb.setLength(0);
+        ArrayBitReader abr = new ArrayBitReader(abTest, abTest.length, false);
+
+        int iRead = 0;
+        int i;
+        abr.skipBits(0);
+        assertEquals("peekSignedBits(0)", 0, abr.peekSignedBits(0));
+        for (i = rand.nextInt(31); abr.getBitsRemaining() > 0; i = rand.nextInt(31)) {
+            String s = abr.peekBitsToString(i);
+            System.out.println("Peeked " + i + " " + s);
+            sb.append(s);
+            System.out.println("@" + iRead + " Skipping " + i);
+            try {
+                abr.skipBits(i);
+                iRead += i;
+                assertEquals("getBitsReamining()", BIT_STRING.length()-iRead, abr.getBitsRemaining());
+                assertEquals("getBitsRead()", iRead, abr.getBitsRead());
+            } catch (EOFException ex) {
+                assertTrue(iRead + i > BIT_STRING.length());
+            }
+        }
+        assertEquals("getBitsReamining()", 0, abr.getBitsRemaining());
+        assertEquals("getBitsRead()", BIT_STRING.length(), abr.getBitsRead());
+        abr.skipBits(0);
+        assertEquals("peekSignedBits(0)", 0, abr.peekSignedBits(0));
+        assertEquals("getBitsReamining()", 0, abr.getBitsRemaining());
+        assertEquals("getBitsRead()", BIT_STRING.length(), abr.getBitsRead());
+
+        final String READ_BITS = sb.toString();
+        assertTrue(READ_BITS, BIT_STRING.startsWith(READ_BITS));
+    }
+
+    @Test
+    public void testPerformance() throws EOFException {
+        byte[] abData = new byte[100000];
+        ArrayBitReader[] aoReaders = {
+            new LoopSkip(),
+            new ModSkip(),
+            new BitSkip(),
+        };
+        long[] alngDuration = new long[aoReaders.length];
+
+        for (int i = 0; i < aoReaders.length; i++) {
+            ArrayBitReader reader = aoReaders[i];
+            long lngStart, lngEnd;
+            lngStart = System.currentTimeMillis();
+            for (int iTimes = 0; iTimes < 1000; iTimes++) {
+                reader.reset(abData, abData.length, true, 0);
+                try {
+                    int iSkipBits = 0;
+                    for (;; iSkipBits = (iSkipBits + 1) & 0x1F) {
+                        reader.skipBits(iSkipBits);
+                    }
+                } catch (EOFException ex) {
+                }
+            }
+            lngEnd = System.currentTimeMillis();
+            alngDuration[i] = lngEnd - lngStart;
+        }
+
+        for (int i = 0; i < aoReaders.length; i++) {
+            System.out.println(aoReaders[i].getClass()+" "+alngDuration[i]);
+        }
+
+        assertTrue(alngDuration[2] < alngDuration[0]);
+        assertTrue(alngDuration[2] < alngDuration[1]);
+
+    }
+    
+
+    private static class LoopSkip extends ArrayBitReader {
+        @Override
+        public void skipBits(int iCount) throws EOFException {
+            _iBitsLeft -= iCount;
+            if (_iBitsLeft < 0) {
+                _iByteOffset += -(_iBitsLeft / 16)*2;
+                _iBitsLeft = _iBitsLeft % 16;
+                if (_iBitsLeft < 0) {
+                    _iBitsLeft += 16;
+                    _iByteOffset += 2;
+                }
+                if (_iByteOffset > _iDataSize) {
+                    _iBitsLeft = 0;
+                    _iByteOffset = _iDataSize;
+                    throw new EOFException();
+                } else if (_iBitsLeft > 0) {
+                    _siCurrentWord = readWord(_iByteOffset-2);
+                }
+            }
+        }
+    }
+
+    private static class BitSkip extends ArrayBitReader {
+        @Override
+        public void skipBits(int iCount) throws EOFException {
+
+            _iBitsLeft -= iCount;
+            if (_iBitsLeft < 0) {
+                _iByteOffset += ((-_iBitsLeft) >> 4) << 1;
+                _iBitsLeft = -((-_iBitsLeft) & 0xf);
+                if (_iByteOffset > _iDataSize) {
+                    _iBitsLeft = 0;
+                    _iByteOffset = _iDataSize;
+                    throw new EOFException();
+                } else if (_iBitsLeft < 0) {
+                    if (_iByteOffset == _iDataSize) {
+                        _iBitsLeft = 0;
+                        throw new EOFException();
+                    }
+                    _iBitsLeft += 16;
+                    _siCurrentWord = readWord(_iByteOffset);
+                    _iByteOffset += 2;
+                }
+            }
+        }
+    }
+
+    private static class ModSkip extends ArrayBitReader {
+        @Override
+        public void skipBits(int iCount) throws EOFException {
+            _iBitsLeft -= iCount;
+            if (_iBitsLeft < 0) {
+                _iByteOffset += -(_iBitsLeft / 16)*2;
+                _iBitsLeft = _iBitsLeft % 16;
+                if (_iByteOffset > _iDataSize) {
+                    _iBitsLeft = 0;
+                    _iByteOffset = _iDataSize;
+                    throw new EOFException();
+                } else if (_iBitsLeft < 0) {
+                    if (_iByteOffset == _iDataSize) {
+                        _iBitsLeft = 0;
+                        throw new EOFException();
+                    }
+                    _iBitsLeft += 16;
+                    _siCurrentWord = readWord(_iByteOffset);
+                    _iByteOffset += 2;
+                }
+            }
+        }
+    }
 
 }

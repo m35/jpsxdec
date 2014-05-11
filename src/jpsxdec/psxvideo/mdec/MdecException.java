@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,10 @@
 
 package jpsxdec.psxvideo.mdec;
 
+import jpsxdec.LocalizedException;
+
 /** Superclass of the different MDEC conversion and bitstream exceptions. */
-public abstract class MdecException extends Exception {
+public abstract class MdecException extends LocalizedException {
 
     public MdecException(String msg) {
         super(msg);
@@ -48,8 +50,16 @@ public abstract class MdecException extends Exception {
         super(cause);
     }
 
-    public MdecException(String message, Throwable cause) {
-        super(message, cause);
+    public MdecException(Throwable cause, String message) {
+        super(cause, message);
+    }
+
+    public MdecException(String sMessage, Object... aoArguments) {
+        super(sMessage, aoArguments);
+    }
+
+    public MdecException(Throwable cause, String sMessage, Object... aoArguments) {
+        super(cause, sMessage, aoArguments);
     }
 
     // =========================================================
@@ -66,10 +76,14 @@ public abstract class MdecException extends Exception {
             super(cause);
         }
 
-        public Read(String message, Throwable cause) {
-            super(message, cause);
+        public Read(Throwable cause, String sMessage, Object... aoArguments) {
+            super(cause, sMessage, aoArguments);
         }
 
+        public Read(String sMessage, Object... aoArguments) {
+            super(sMessage, aoArguments);
+        }
+        
     }
 
     /** Error related to decoding an MDEC stream. */
@@ -79,13 +93,22 @@ public abstract class MdecException extends Exception {
             super(message);
         }
 
-        public Decode(String message, Throwable cause) {
-            super(message, cause);
+        public Decode(Throwable cause, String message) {
+            super(cause, message);
         }
 
         public Decode(Throwable cause) {
             super(cause);
         }
+
+        public Decode(String sMessage, Object... aoArguments) {
+            super(sMessage, aoArguments);
+        }
+        
+        public Decode(Throwable cause, String sMessage, Object... aoArguments) {
+            super(cause, sMessage, aoArguments);
+        }
+        
     }
 
     /** Error related to uncompressing an MDEC bitstream. */
@@ -99,6 +122,10 @@ public abstract class MdecException extends Exception {
             super(cause);
         }
 
+        public Uncompress(String sMessage, Object... aoArguments) {
+            super(sMessage, aoArguments);
+        }
+        
     }
 
     // ======================================================================
@@ -113,6 +140,10 @@ public abstract class MdecException extends Exception {
         public Write(Exception cause) {
             super(cause);
         }
+
+        public Write(String sMessage, Object... aoArguments) {
+            super(sMessage, aoArguments);
+        }
         
     }
 
@@ -123,6 +154,10 @@ public abstract class MdecException extends Exception {
             super(message);
         }
 
+        public Encode(String sMessage, Object... aoArguments) {
+            super(sMessage, aoArguments);
+        }
+        
     }
 
     /** Error related to compressing an MDEC bitstream. */
@@ -131,7 +166,10 @@ public abstract class MdecException extends Exception {
         public Compress(String message) {
             super(message);
         }
-        
+
+        public Compress(String sMessage, Object... aoArguments) {
+            super(sMessage, aoArguments);
+        }
     }
 
     /** A specific type of bitstream compression failure
@@ -143,6 +181,10 @@ public abstract class MdecException extends Exception {
 
         public TooMuchEnergyToCompress(String message) {
             super(message);
+        }
+
+        public TooMuchEnergyToCompress(String sMessage, Object... aoArguments) {
+            super(sMessage, aoArguments);
         }
 
     }

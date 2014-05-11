@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -57,8 +57,9 @@ public interface ISectorAudioDecoder {
     AudioFormat getOutputFormat();
 
     /** If it likes the sector, feeds audio data to the ISectorTimedAudioWriter
-     *  supplied by the {@link #setAudioListener(ISectorTimedAudioWriter)} method. */
-    void feedSector(IdentifiedSector sector, Logger log) throws IOException;
+     *  supplied by the {@link #setAudioListener(ISectorTimedAudioWriter)} method. 
+     *  @return if the sector was accepted.  */
+    boolean feedSector(IdentifiedSector sector, Logger log) throws IOException;
 
     double getVolume();
     void setVolume(double dblVolume);

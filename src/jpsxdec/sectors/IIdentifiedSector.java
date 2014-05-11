@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,10 +54,6 @@ public interface IIdentifiedSector {
     /** Returns a stream of the sector's user data payload. */
     public ByteArrayFPIS getIdentifiedUserDataStream();
     
-    /** Returns the 'channel' value in the raw CDXA header,
-     *  or -1 if there is no header. */
-    public int getChannel();
-
     /** Returns the sector offset from the start of the file. */
     public int getSectorNumber();
 

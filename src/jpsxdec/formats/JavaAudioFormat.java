@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,12 +56,12 @@ public class JavaAudioFormat {
     private final static JavaAudioFormat AIFC = new JavaAudioFormat(AudioFileFormat.Type.AIFC);
     private final static JavaAudioFormat SND  = new JavaAudioFormat(AudioFileFormat.Type.SND);
 
-    private JavaAudioFormat(AudioFileFormat.Type oAudioType) {
-        _audioType = oAudioType;
-        _sId = oAudioType.toString();
-        _sDescription = oAudioType.toString().toLowerCase();
-        _sExtension = oAudioType.getExtension();
-        _blnIsAvailable = AudioSystem.isFileTypeSupported(oAudioType);
+    private JavaAudioFormat(AudioFileFormat.Type audioType) {
+        _audioType = audioType;
+        _sId = audioType.toString();
+        _sDescription = audioType.toString().toLowerCase();
+        _sExtension = audioType.getExtension();
+        _blnIsAvailable = AudioSystem.isFileTypeSupported(audioType);
     }
 
     private boolean isAvailable() {

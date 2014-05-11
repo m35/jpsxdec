@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,12 +45,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import javax.imageio.ImageIO;
+import jpsxdec.I18N;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
@@ -160,7 +160,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
         byte[] origBits = frame.copyDemuxData(null);
         BitStreamUncompressor uncompressor =
                 BitStreamUncompressor.identifyUncompressor(origBits);
-        uncompressor.reset(origBits);
+        uncompressor.reset(origBits, frame.getDemuxSize());
         ParsedMdecImage parsedOrig = new ParsedMdecImage(WIDTH, HEIGHT);
         parsedOrig.readFrom(uncompressor);
 
@@ -179,10 +179,10 @@ public class ReplaceFramePartial extends ReplaceFrame {
         //    the bounding box and mask
         ArrayList<Point> diffMacblks = findDiffMacroblocks(origImg, newImg);
         if (diffMacblks.isEmpty()) {
-            fbs.println("No differences found, skipping.");
+            fbs.println(I18N.S("No differences found, skipping.")); // I18N
             return;
         } else if (diffMacblks.size() == Calc.macroblocks(WIDTH, HEIGHT)) {
-            fbs.printlnWarn("Warning: Entire frame has is different.");
+            fbs.printlnWarn(I18N.S("Warning: Entire frame has is different.")); // I18N
         }
         printDiffMacroBlocks(diffMacblks, fbs);
 
@@ -193,16 +193,15 @@ public class ReplaceFramePartial extends ReplaceFrame {
         byte[] abNewFrame = comp.compressPartial(origBits, frame.getFrame(), encoder, fbs);
         
         if (abNewFrame.length > frame.getDemuxSize())
-            throw new MdecException.Compress(String.format(
-                    "Demux data does fit in frame %d!! Available size %d, needed size %d",
-                    getFrame(), frame.getDemuxSize(), abNewFrame.length));
+            throw new MdecException.Compress("Demux data does fit in frame {0,number,#}!! Available size {1,number,#}, needed size {2,number,#}", // I18N
+                    getFrame(), frame.getDemuxSize(), abNewFrame.length);
 
         // 5. replace the frame
         frame.writeToSectors(abNewFrame, abNewFrame.length, comp.getMdecCodesFromLastCompress(), cd, fbs);
     }
 
     private void printDiffMacroBlocks(ArrayList<Point> diffMacblks, FeedbackStream fbs) {
-        fbs.println("Found " + diffMacblks.size() + " different macroblocks (16x16):");
+        fbs.println(I18N.S("Found {0,number,#} different macroblocks (16x16):", diffMacblks.size())); // I18N
         int iY = -1;
         for (Point macblk : diffMacblks) {
             if (iY < 0)

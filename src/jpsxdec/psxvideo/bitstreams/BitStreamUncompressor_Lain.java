@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.psxvideo.bitstreams;
 
 import java.io.EOFException;
 import java.io.IOException;
+import jpsxdec.I18N;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2.BitstreamCompressor_STRv2;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
@@ -188,7 +189,10 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     }
 
     @Override
-    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
+    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) throws NotThisTypeException {
+        if (iDataSize < 8)
+            throw new NotThisTypeException();
+        
         _iQscaleLuma             = abFrameData[0];
         _iQscaleChroma           = abFrameData[1];
         _iMagic3800orFrame       = IO.readUInt16LE(abFrameData, 2);
@@ -203,10 +207,13 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         if (_iMagic3800orFrame != 0x3800 && (_iMagic3800orFrame < 0 || _iMagic3800orFrame > 4765))
             throw new NotThisTypeException();
 
-        bitReader.reset(abFrameData, false, 8);
+        bitReader.reset(abFrameData, iDataSize, false, 8);
     }
     
     public static boolean checkHeader(byte[] abFrameData) {
+        if (abFrameData.length < 8)
+            return false;
+
         int _iQscaleLuma            = abFrameData[0];
         int _iQscaleChroma          = abFrameData[1];
         int _iMagic3800orFrame      = IO.readUInt16LE(abFrameData, 2);
@@ -350,7 +357,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         return String.format("%s Qscale L=%d C=%d 3800=%x Offset=%d MB=%d.%d Mdec count=%d",
                 getName(), getLumaQscale(), getChromaQscale(),
                 getMagic3800orFrame(),
-                getWordPosition(),
+                _bitReader.getWordPosition(),
                 getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
                 getMdecCodeCount());
     }
@@ -375,7 +382,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
             byte[] abNewDemux = null;
             int iLQscale = 1, iCQscale = 1;
             while (iLQscale < 64 && iCQscale < 64) {
-                fbs.println("Trying luma " + iLQscale + " chroma " + iCQscale);
+                fbs.println(I18N.S("Trying luma {0,number,#} chroma {1,number,#}", iLQscale, iCQscale)); // I18N
 
                 int[] aiNewQscale = { iCQscale, iCQscale,
                                       iLQscale, iLQscale, iLQscale, iLQscale };
@@ -388,12 +395,12 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                     abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                     int iNewDemuxSize = abNewDemux.length;
                     if (iNewDemuxSize <= abOriginal.length) {
-                        fbs.indent1().format("New frame %d demux size %d <= max source %d ",
-                                             iFrame, iNewDemuxSize, abOriginal.length).println();
+                        fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} <= max source {2,number,#}", // I18N
+                                                     iFrame, iNewDemuxSize, abOriginal.length));
                         break;
                     } else {
-                        fbs.indent1().format("!!! New frame %d demux size %d > max source %d !!!",
-                                             iFrame, iNewDemuxSize, abOriginal.length).println();
+                        fbs.indent1().println(I18N.S("!!! New frame {0,number,#} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
+                                                     iFrame, iNewDemuxSize, abOriginal.length));
                     }
                 } catch (MdecException.TooMuchEnergyToCompress ex) {
                     fbs.printlnWarn(ex.getMessage());
@@ -419,7 +426,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                                        iFrameLQscale, iFrameLQscale, iFrameLQscale };
             int iLQscale = iFrameLQscale, iCQscale = iFrameCQscale;
             while (iLQscale < 64 && iCQscale < 64) {
-                fbs.println("Trying luma " + iLQscale + " chroma " + iCQscale);
+                fbs.println("Trying luma " + iLQscale + " chroma " + iCQscale); // I18N
 
                 int[] aiNewQscale = { iCQscale, iCQscale,
                                       iLQscale, iLQscale, iLQscale, iLQscale };
@@ -430,11 +437,11 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
                 byte[] abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 if (abNewDemux.length <= abOriginal.length) {
-                    fbs.indent1().format("New demux size %d <= max source %d ",
+                    fbs.indent1().format("New demux size %d <= max source %d ", // I18N
                             abNewDemux.length, abOriginal.length).println();
                     return abNewDemux;
                 } else {
-                    fbs.indent1().format("!!! New demux size %d > max source %d !!!",
+                    fbs.indent1().format("!!! New demux size %d > max source %d !!!", // I18N
                             abNewDemux.length, abOriginal.length).println();
                 }
 
@@ -458,16 +465,18 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                 if (_iChromaQscale < 0) {
                     _iChromaQscale = iQscale;
                     if (_iChromaQscale < 1 || _iChromaQscale > 63)
-                        throw new MdecException.Compress("Invalid chroma quantization scale " + _iChromaQscale);
+                        throw new MdecException.Compress("Invalid chroma quantization scale {0,number,#}", // I18N
+                                                         _iChromaQscale);
                 } else if (_iChromaQscale != iQscale)
-                    throw new MdecException.Compress("Inconsistent chroma qscale");
+                    throw new MdecException.Compress("Inconsistent chroma quantization scale"); // I18N
             } else {
                 if (_iLumaQscale < 0) {
                     _iLumaQscale = iQscale;
                     if (_iLumaQscale < 1 || _iLumaQscale > 63)
-                        throw new MdecException.Compress("Invalid luma quantization scale " + _iLumaQscale);
+                        throw new MdecException.Compress("Invalid luma quantization scale {0,number,#}", // I18N
+                                                         _iLumaQscale);
                 } else if (_iLumaQscale != iQscale)
-                    throw new MdecException.Compress("Inconsistent luma qscale");
+                    throw new MdecException.Compress("Inconsistent luma quantization scale"); // I18N
             }
         }
 
@@ -506,9 +515,10 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         protected String encodeAcEscape(MdecCode code) throws MdecException.Compress {
             String sTopBits = Misc.bitsToString(code.getTop6Bits(), 6);
             if (code.getBottom10Bits() == 0)
-                throw new IllegalArgumentException("Invalid MDEC code to escape " + code.toString());
+                throw new IllegalArgumentException("Invalid MDEC code to escape " + code);
             if (code.getBottom10Bits() < -256 || code.getBottom10Bits() > 255)
-                throw new MdecException.TooMuchEnergyToCompress("Unable to escape, AC code too large for Lain " + code.toString());
+                throw new MdecException.TooMuchEnergyToCompress("Unable to escape {0}, AC code too large for Lain", // I18N
+                                                                code);
             if (code.getBottom10Bits() >= -127 && code.getBottom10Bits() <= 127) {
                 return AcLookup.ESCAPE_CODE.BitString + sTopBits + Misc.bitsToString(code.getBottom10Bits(), 8);
             } else {

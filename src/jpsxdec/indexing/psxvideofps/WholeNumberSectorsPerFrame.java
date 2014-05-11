@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.indexing.psxvideofps;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.TreeSet;
+import jpsxdec.util.Misc;
 
 /** Detects whole-number (integer) sectors/frame rate of
  * STR movies. This can also handle variable rates as long as they have some common factor.
@@ -66,57 +67,45 @@ public class WholeNumberSectorsPerFrame {
     // TODO: how can we detect if the video has a variable frame rate?
     // maybe detect when rates change by some factor?
     
-    /** The current frame number. */
-    private int _iCurrentFrame;
-    /** The number of the previous sector that was reported to be a video sector. */
-    private int _iPreviousVideoSect = -1;
+    /** The last sector of the previous frame. */
+    private int _iPrevFrameEndSector;
 
     /** 3 states:
      * <ol>
      * <li>prior to the 2nd frame: <code>_startingPoints == null</code>
-     * <li>still possibilities: <code>_startingPoints.size() &lt; 0</code>
+     * <li>still possibilities: <code>_startingPoints.size() &gt; 0</code>
      * <li>no more possibilities: <code>_startingPoints.size() == 0</code>
      * </ol>
      */
     private TreeSet<SectorsPerFrameFromStart> _startingPoints;
 
-    public WholeNumberSectorsPerFrame(int iSector, int iFrame) {
-        if (iSector < 0 || iFrame < 0)
+    public WholeNumberSectorsPerFrame(int iFirstFrameEndSector) {
+        if (iFirstFrameEndSector < 0)
             throw new IllegalArgumentException();
-        _iCurrentFrame = iFrame;
-        _iPreviousVideoSect = iSector;
+        _iPrevFrameEndSector = iFirstFrameEndSector;
     }
 
-    /** Should be called for every video sector.
+    /** Should be called for every frame.
      * 
-     * @param iSector  Number of sectors since the start of the video (starts at 0).
-     * @param iFrame   Frame number of the sector.
-     * @return         If any sector/frame possibilities exist other than 1.
+     * @return  If any sector/frame possibilities exist other than 1.
      */
-    public boolean matchesNextVideo(int iSector, int iFrame) {
-        if (iSector <= _iPreviousVideoSect || iFrame < _iCurrentFrame)
+    public boolean matchesNextVideo(int iNextFrameStartSector, int iNextFrameEndSector) {
+        if (iNextFrameStartSector <= _iPrevFrameEndSector || iNextFrameEndSector <= _iPrevFrameEndSector)
             throw new IllegalArgumentException();
-
-        // TODO: If the frame number increases by more than 1, make sure the
-        // test intervals occur at least twice within the space between frames?
 
         boolean blnRet;
 
         if (_startingPoints == null) {
-            // haven't reached 2nd frame yet
+            // 2nd frame
 
-            if (_iCurrentFrame != iFrame) {
-                // now we've reached 2nd frame
-
-                // create a possible sectors/frame for each sector that the
-                // 2nd frame could actually start from
-                _startingPoints = new TreeSet<SectorsPerFrameFromStart>();
-                for (int iFrame2StartSector = _iPreviousVideoSect+1;
-                    iFrame2StartSector <= iSector;
-                    iFrame2StartSector++)
-                {
-                    _startingPoints.add(new SectorsPerFrameFromStart(iFrame2StartSector));
-                }
+            // create a possible sectors/frame for each sector
+            // that the 2nd frame could actually start from
+            _startingPoints = new TreeSet<SectorsPerFrameFromStart>();
+            for (int iPossibleFrame2StartSector = _iPrevFrameEndSector+1;
+                     iPossibleFrame2StartSector <= iNextFrameStartSector;
+                     iPossibleFrame2StartSector++)
+            {
+                _startingPoints.add(new SectorsPerFrameFromStart(iPossibleFrame2StartSector));
             }
             blnRet = true;
         } else if (_startingPoints.isEmpty()) {
@@ -125,32 +114,23 @@ public class WholeNumberSectorsPerFrame {
         } else {
             // can add more
             
-            if (_iCurrentFrame == iFrame) {
-                // still part of existing frame, so we're ok
-                blnRet = true;
-            } else {
-                // so we have a new frame, eh?
-
-                blnRet = false;
-                for (Iterator<SectorsPerFrameFromStart> it = _startingPoints.iterator(); it.hasNext();) {
-                    SectorsPerFrameFromStart possibleStart = it.next();
-                    if (possibleStart.update(_iPreviousVideoSect, iSector)) {
-                        // at least 1 possible starting sector reports still having
-                        // some valid sectors/second
-                        blnRet = true;
-                    } else {
-                        // if that starting sector assumption leads to no results,
-                        // remove it from the list
-                        it.remove();
-                    }
+            blnRet = false; // assume we won't find any
+            for (Iterator<SectorsPerFrameFromStart> it = _startingPoints.iterator(); it.hasNext();) {
+                SectorsPerFrameFromStart possibleStart = it.next();
+                if (possibleStart.update(_iPrevFrameEndSector, iNextFrameStartSector)) {
+                    // at least 1 possible starting sector reports still having
+                    // some valid sectors/second
+                    blnRet = true;
+                } else {
+                    // if that starting sector assumption leads to no results,
+                    // remove it from the list
+                    it.remove();
                 }
-
             }
 
         }
 
-        _iCurrentFrame = iFrame;
-        _iPreviousVideoSect = iSector;
+        _iPrevFrameEndSector = iNextFrameEndSector;
 
         return blnRet;
     }
@@ -198,7 +178,7 @@ public class WholeNumberSectorsPerFrame {
         for (Iterator<Integer> it = copy.iterator(); it.hasNext();) {
             Integer oi = it.next();
             Integer[] aioValues = copy.toArray(new Integer[copy.size()]);
-            for (int i = aioValues.length-1; aioValues[i] != oi; i--) {
+            for (int i = aioValues.length-1; aioValues[i].intValue() != oi.intValue(); i--) {
                 if (aioValues[i].intValue() % oi.intValue() == 0) {
                     it.remove();
                     break;
@@ -280,12 +260,22 @@ public class WholeNumberSectorsPerFrame {
         
         /** Sort based on starting sector. */
         public int compareTo(SectorsPerFrameFromStart o) {
-            if (_iFrame2StartSector < o._iFrame2StartSector)
-                return -1;
-            else if (_iFrame2StartSector > o._iFrame2StartSector)
-                return 1;
-            else
-                return 0;
+            return Misc.intCompare(_iFrame2StartSector, o._iFrame2StartSector);
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 29 * hash + _iFrame2StartSector;
+            hash = 29 * hash + (_possibleSectorsPerFrame != null ? _possibleSectorsPerFrame.hashCode() : 0);
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null || getClass() != obj.getClass())
+                return false;
+            return compareTo((SectorsPerFrameFromStart) obj) == 0;
         }
 
     }

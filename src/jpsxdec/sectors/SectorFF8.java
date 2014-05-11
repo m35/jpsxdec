@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -109,7 +109,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
 
     /** Final Fantasy 8 video chunk sector. */
     public static class SectorFF8Video extends SectorFF8
-            implements IVideoSector 
+            implements IVideoSectorWithFrameNumber
     {
 
         public SectorFF8Video(CdSector cdSector) {
@@ -160,30 +160,6 @@ public abstract class SectorFF8 extends IdentifiedSector {
 
         public String getTypeName() {
             return "FF8Video";
-        }
-
-        public boolean matchesPrevious(IVideoSector prevSect) {
-            if (!(prevSect instanceof SectorFF8Video))
-                return false;
-
-            SectorFF8Video prevFF8Vid = (SectorFF8Video) prevSect;
-
-            long lngNextChunk = prevFF8Vid.getFF8ChunkNumber() + 1;
-            long lngNextFrame = prevFF8Vid.getFrameNumber();
-            if (lngNextChunk >= prevFF8Vid.getFF8ChunksInFrame()) {
-                lngNextChunk = 2;
-                lngNextFrame++;
-            }
-
-            if (lngNextChunk != getFF8ChunkNumber() ||
-                lngNextFrame != getFrameNumber())
-                return false;
-
-            if (getFrameNumber() == prevFF8Vid.getFrameNumber() &&
-                getFF8ChunksInFrame() != prevFF8Vid.getFF8ChunksInFrame())
-                return false;
-
-            return true;
         }
 
         public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
@@ -312,21 +288,21 @@ public abstract class SectorFF8 extends IdentifiedSector {
                 return 0;
         }
 
-         public boolean matchesPrevious(ISquareAudioSector oPrevSect) {
-            if (!(oPrevSect instanceof SectorFF8Audio))
+         public boolean matchesPrevious(ISquareAudioSector prevSect) {
+            if (!(prevSect instanceof SectorFF8Audio))
                 return false;
 
-            if (oPrevSect.getAudioChunkNumber() == 0) {
+            if (prevSect.getAudioChunkNumber() == 0) {
                 if (getAudioChunkNumber() != 1 ||
-                    oPrevSect.getFrameNumber() != getFrameNumber() ||
-                    oPrevSect.getSectorNumber() + 1 != getSectorNumber())
+                    prevSect.getFrameNumber() != getFrameNumber() ||
+                    prevSect.getSectorNumber() + 1 != getSectorNumber())
                     return false;
-            } else if (oPrevSect.getAudioChunkNumber() == 1) {
+            } else if (prevSect.getAudioChunkNumber() == 1) {
                 if (getAudioChunkNumber() != 0 ||
-                    oPrevSect.getFrameNumber() + 1 != getFrameNumber() ||
+                    prevSect.getFrameNumber() + 1 != getFrameNumber() ||
                     // the audio only movie
-                    (oPrevSect.getSectorNumber() + 1 != getSectorNumber() &&
-                     oPrevSect.getSectorNumber() + 9 != getSectorNumber()))
+                    (prevSect.getSectorNumber() + 1 != getSectorNumber() &&
+                     prevSect.getSectorNumber() + 9 != getSectorNumber()))
                     return false;
             }
 

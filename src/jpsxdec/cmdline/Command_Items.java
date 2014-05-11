@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,6 +52,7 @@ import javax.imageio.ImageIO;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import jpsxdec.I18N;
 import jpsxdec.Version;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAudioStream;
@@ -86,12 +87,12 @@ class Command_Items {
             try {
                 _iItemNum = Integer.parseInt(s);
                 if (_iItemNum < 0)
-                    return "Invalid item number: " + s;
+                    return I18N.S("Invalid item number: {0}", s); // I18N
                 else
                     return null;
             } catch (NumberFormatException ex) {
                 if (s.contains(" "))
-                    return "Invalid item identifier: " + s;
+                    return I18N.S("Invalid item identifier: {0}", s); // I18N
                 _sItemId = s;
                 return null;
             }
@@ -103,11 +104,11 @@ class Command_Items {
             if (_sItemId != null) {
                 item = discIndex.getById(_sItemId);
                 if (item == null)
-                    throw new IllegalArgumentException("Could not find disc item " + _sItemId);
+                    throw new CommandLineException("Could not find disc item {0}", _sItemId); // I18N
             } else {
                 item = discIndex.getByIndex(_iItemNum);
                 if (item == null)
-                    throw new IllegalArgumentException("Could not find disc item " + _iItemNum);
+                    throw new CommandLineException("Could not find disc item {0,number,#}", _iItemNum); // I18N
             }
 
             ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger("save", _fbs);
@@ -123,7 +124,7 @@ class Command_Items {
             throws InterruptedException
     {
 
-        final JFrame window = new JFrame(Version.VerStringNonCommercial + " - Player");
+        final JFrame window = new JFrame(Version.VerStringNonCommercial + " - Player"); // I18N
 
         window.addWindowListener(new java.awt.event.WindowAdapter() {
 
@@ -144,7 +145,7 @@ class Command_Items {
 
         window.add(new JLabel(item.toString()), BorderLayout.NORTH);
 
-        final JButton startBtn = new JButton("Play");
+        final JButton startBtn = new JButton(I18N.S("Play")); // I18N
         startBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 startBtn.setEnabled(false);
@@ -200,7 +201,7 @@ class Command_Items {
                     if (item.getType().name().equalsIgnoreCase(_sType)) {
                         blnFound = true;
                         handleItem(item, asRemainingArgs, _fbs, cpll);
-                        _fbs.println("Item complete.");
+                        _fbs.println(I18N.S("Item complete.")); // I18N
                         _fbs.println();
                     }
                 }
@@ -209,9 +210,9 @@ class Command_Items {
             }
 
             if (!blnFound) {
-                _fbs.println("Sorry, couldn't find any disc items of type " + _sType);
+                _fbs.println(I18N.S("Sorry, couldn''t find any disc items of type {0}", _sType)); // I18N
             } else {
-                _fbs.println("All index items complete.");
+                _fbs.println(I18N.S("All index items complete.")); // I18N
             }
         }
     }
@@ -248,51 +249,51 @@ class Command_Items {
             if (fpsDumpArg.value) {
 
                 if (!(item instanceof DiscItemStrVideoStream)) {
-                    throw new CommandLineException("Disc item isn't a video.");
+                    throw new CommandLineException("Disc item isn''t a video."); // I18N
                 } else {
                     fbs.println("Generating fps dump.");
                     PrintStream ps = new PrintStream("fps.txt");
                     try {
-                        ((DiscItemStrVideoStream)item).fpsDump(ps);
+                        ((DiscItemStrVideoStream)item).fpsDump2(ps);
                     } finally {
                         ps.close();
                     }
                 }
 
             } else if (itemHelpArg.value) {
-                fbs.println("Detailed help for");
+                fbs.println(I18N.S("Detailed help for")); // I18N
                 fbs.println(item);
                 item.makeSaverBuilder().printHelp(fbs);
             } else if (playArg.value) {
                 if (item instanceof DiscItemVideoStream) {
-                    fbs.println("Creating player for");
+                    fbs.println(I18N.S("Creating player for")); // I18N
                     fbs.println(item);
                     try {
                         player(((DiscItemVideoStream)item).makePlayController(), item, fbs);
                     } catch (InterruptedException ex) {
-                        throw new CommandLineException("Error with player", ex);
+                        throw new CommandLineException(ex, "Error with player"); // I18N
                     }
                 } else if (item instanceof DiscItemAudioStream) {
                     try {
                         player(((DiscItemAudioStream)item).makePlayController(), item, fbs);
                     } catch (InterruptedException ex) {
-                        throw new CommandLineException("Error with player", ex);
+                        throw new CommandLineException(ex, "Error with player"); // I18N
                     }
                 } else {
-                    throw new CommandLineException(item, "is not audio or video. Cannot create player.");
+                    throw new CommandLineException(item, "is not audio or video. Cannot create player."); // I18N
                 }
             } else if (frameInfoArg.value) {
                 if (!(item instanceof DiscItemVideoStream)) {
-                    throw new CommandLineException(item, "Disc item isn't a video.");
+                    throw new CommandLineException(item, "Disc item isn''t a video."); // I18N
                 } else {
                     ((DiscItemVideoStream)item).frameInfoDump(fbs);
                 }
             } else if (replaceFrames.value != null) {
                 if (!(item instanceof DiscItemVideoStream)) {
-                    throw new CommandLineException(item, "Disc item isn't a video.");
+                    throw new CommandLineException(item, "Disc item isn''t a video."); // I18N
                 } else {
-                    fbs.printlnWarn("Hope your disc image is backed up because this is irreversable.");
-                    fbs.printlnWarn("Reopening disc image with write access.");
+                    fbs.printlnWarn(I18N.S("Hope your disc image is backed up because this is irreversable.")); // I18N
+                    fbs.printlnWarn(I18N.S("Reopening disc image with write access.")); // I18N
                     item.getSourceCd().reopenForWriting();
                     try {
                         ((DiscItemVideoStream)item).replaceFrames(fbs, replaceFrames.value);
@@ -302,25 +303,25 @@ class Command_Items {
                 }
             } else if (replaceTim.value != null) {
                 if (!(item instanceof DiscItemTim)) {
-                    throw new CommandLineException("Disc item isn't a TIM image.");
+                    throw new CommandLineException("Disc item isn''t a TIM image."); // I18N
                 } else {
                     DiscItemTim timItem = (DiscItemTim)item;
                     if (timItem.getPaletteCount() != 1) {
-                        throw new CommandLineException("Unable to replace a TIM image that has multiple palettes.");
+                        throw new CommandLineException("Unable to replace a TIM image that has multiple palettes."); // I18N
                     }
                     BufferedImage bi = ImageIO.read(new File(replaceTim.value));
-                    fbs.printlnWarn("Hope your disc image is backed up because this is irreversable.");
-                    fbs.printlnWarn("Reopening disc image with write access.");
+                    fbs.printlnWarn(I18N.S("Hope your disc image is backed up because this is irreversable.")); // I18N
+                    fbs.printlnWarn(I18N.S("Reopening disc image with write access.")); // I18N
                     item.getSourceCd().reopenForWriting();
                     timItem.replace(fbs, bi);
                 }
             } else if (replaceXa.value != null) {
                 if (!(item instanceof DiscItemXaAudioStream)) {
-                    throw new CommandLineException("Disc item isn't a XA stream.");
+                    throw new CommandLineException("Disc item isn''t a XA stream."); // I18N
                 } else {
                     DiscItemXaAudioStream xaItem = (DiscItemXaAudioStream)item;
-                    fbs.printlnWarn("Hope your disc image is backed up because this is irreversable.");
-                    fbs.println("Opening patch index " + replaceXa.value);
+                    fbs.printlnWarn(I18N.S("Hope your disc image is backed up because this is irreversable.")); // I18N
+                    fbs.println(I18N.S("Opening patch index {0}", replaceXa.value)); // I18N
                     DiscIndex patchIndex;
                     try {
                         patchIndex = new DiscIndex(replaceXa.value, LOG);
@@ -333,9 +334,9 @@ class Command_Items {
                         int iPatchXaIndex = Integer.parseInt(xaNum.value);
                         patchXa = (DiscItemXaAudioStream) patchIndex.getByIndex(iPatchXaIndex);
                     } catch (Throwable ex) {
-                        throw new CommandLineException("Invalid or missing XA item number " + xaNum.value);
+                        throw new CommandLineException("Invalid or missing XA item number {0}", xaNum.value); // I18N
                     }
-                    fbs.printlnWarn("Reopening disc image with write access.");
+                    fbs.printlnWarn(I18N.S("Reopening disc image with write access.")); // I18N
                     item.getSourceCd().reopenForWriting();
                     xaItem.replaceXa(fbs, patchXa);
                 }
@@ -347,7 +348,7 @@ class Command_Items {
                     dir = null;
                 // decode/extract the desired disc item
                 decodeDiscItem(item, dir, asRemainingArgs, fbs, cpll);
-                fbs.println("Disc decoding/extracting complete.");
+                fbs.println(I18N.S("Disc decoding/extracting complete.")); // I18N
             }
 
         } catch (NotThisTypeException ex) {
@@ -364,7 +365,7 @@ class Command_Items {
 
         DiscItemSaverBuilder builder = item.makeSaverBuilder();
 
-        fbs.println("Saving " + item.toString());
+        fbs.println(I18N.S("Saving {0}", item.toString())); // I18N
 
         builder.commandLineOptions(asRemainingArgs, fbs);
 
@@ -377,15 +378,14 @@ class Command_Items {
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();
         try {
-            cpll.setHeader(1, item.getSourceCd().toString());
-            cpll.setHeader(2, item.toString());
+            cpll.info(item.getSourceCd().toString());
+            cpll.info(item.toString());
             saver.startSave(cpll);
         } catch (TaskCanceledException ex) {
             LOG.severe("SHOULD NEVER HAPPEN");
         }
         lngEnd = System.currentTimeMillis();
-        fbs.format("Time: %1.2f sec", (lngEnd - lngStart) / 1000.0);
-        fbs.println();
+        fbs.println(I18N.S("Time: {0,number,#.##} sec", (lngEnd - lngStart) / 1000.0)); // I18N
     }
 
 }

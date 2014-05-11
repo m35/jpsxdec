@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,9 @@ package jpsxdec.psxvideo.bitstreams;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.I18N;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.Calc;
@@ -200,7 +202,12 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         super(AC_VARIABLE_LENGTH_CODES_MPEG1);
     }
 
-    protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException {
+    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader)
+            throws NotThisTypeException
+    {
+        if (iDataSize < 8)
+            throw new NotThisTypeException();
+        
         _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
         int iMagic3800       = IO.readUInt16LE(abFrameData, 2);
         _iQscale             = IO.readSInt16LE(abFrameData, 4);
@@ -210,11 +217,14 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             iVersion != 2  || _iHalfVlcCountCeil32 < 0)
             throw new NotThisTypeException();
 
-        bitReader.reset(abFrameData, true, 8);
+        bitReader.reset(abFrameData, iDataSize, true, 8);
     }
 
     /** Returns if this is a v2 frame. */
     public static boolean checkHeader(byte[] abFrameData) {
+        if (abFrameData.length < 8)
+            return false;
+
         int _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
         int iMagic3800           = IO.readUInt16LE(abFrameData, 2);
         int _iQscale             = IO.readSInt16LE(abFrameData, 4);
@@ -257,7 +267,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     public void skipPaddingBits() throws EOFException {
         int iPaddingBits = _bitReader.readUnsignedBits(11);
         if (iPaddingBits != b01111111110)
-            LOG.warning("Incorrect padding bits " + Misc.bitsToString(iPaddingBits, 11));
+            LOG.log(Level.WARNING, "Incorrect padding bits {0}", Misc.bitsToString(iPaddingBits, 11));
     }
 
     @Override
@@ -286,7 +296,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return getName();
         return String.format("%s Qscale=%d, Current Offset=%d, Current MB.Blk=%d.%d, MDEC count=%d",
                 getName(), _iQscale,
-                getWordPosition(),
+                _bitReader.getWordPosition(),
                 getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
                 getMdecCodeCount());
     }
@@ -308,7 +318,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         {
             byte[] abNewDemux = null;
             for (int iQscale = 1; iQscale < 64; iQscale++) {
-                fbs.println("Trying " + iQscale);
+                fbs.println(I18N.S("Trying {0,number,#}", iQscale)); // I18N
 
                 int[] aiNewQscale = { iQscale, iQscale, iQscale,
                                       iQscale, iQscale, iQscale };
@@ -319,12 +329,12 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
                 abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 if (abNewDemux.length <= abOriginal.length) {
-                    fbs.indent1().format("New frame %d demux size %d <= max source %d ",
-                                         iFrame, abNewDemux.length, abOriginal.length).println();
+                    fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} <= max source {2,number,#}", // I18N
+                                                 iFrame, abNewDemux.length, abOriginal.length));
                     break;
                 } else {
-                    fbs.indent1().format("!!! New frame %d demux size %d > max source %d !!!",
-                                         iFrame, abNewDemux.length, abOriginal.length).println();
+                    fbs.indent1().println(I18N.S("!!! New frame {0,number,#} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
+                                                 iFrame, abNewDemux.length, abOriginal.length));
                 }
             }
             return abNewDemux;
@@ -340,7 +350,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                                        iFrameQscale, iFrameQscale, iFrameQscale };
             int iNewQscale = iFrameQscale;
             while (iNewQscale < 64) {
-                fbs.println("Trying " + iNewQscale);
+                fbs.println(I18N.S("Trying {0,number,#}", iNewQscale)); // I18N
 
                 int[] aiNewQscale = { iNewQscale, iNewQscale, iNewQscale,
                                       iNewQscale, iNewQscale, iNewQscale };
@@ -351,12 +361,12 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
                 abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 if (abNewDemux.length <= abOriginal.length) {
-                    fbs.indent1().format("New demux size %d <= max source %d ",
-                                         abNewDemux.length, abOriginal.length).println();
+                    fbs.indent1().println(I18N.S("New demux size {0,number,#} <= max source {1,number,#}", // I18N
+                                                 abNewDemux.length, abOriginal.length));
                     break;
                 } else {
-                    fbs.indent1().format("!!! New demux size %d > max source %d !!!",
-                                         abNewDemux.length, abOriginal.length).println();
+                    fbs.indent1().println(I18N.S("!!! New demux size {0,number,#} > max source {1,number,#} !!!", // I18N
+                                                 abNewDemux.length, abOriginal.length));
                 }
             }
             return abNewDemux;
@@ -440,9 +450,9 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                 if (_iQscale < 0) {
                     _iQscale = code.getTop6Bits();
                     if (_iQscale < 1 || _iQscale > 63)
-                        throw new MdecException.Read("Invalid quantization scale " + _iQscale);
+                        throw new MdecException.Read("Invalid quantization scale {0,number,#}", _iQscale); // I18N
                 } else if (_iQscale != code.getTop6Bits())
-                    throw new MdecException.Compress("Inconsistent qscale");
+                    throw new MdecException.Compress("Inconsistent quantization scale"); // I18N
             }
         }
 
@@ -454,9 +464,9 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             if (_iQscale < 0) {
                 _iQscale = iQscale;
                 if (_iQscale < 1 || _iQscale > 63)
-                    throw new MdecException.Encode("Invalid quantization scale " + _iQscale);
+                    throw new MdecException.Encode("Invalid quantization scale {0,number,#}", _iQscale); // I18N
             } else if (_iQscale != iQscale)
-                throw new MdecException.Compress("Inconsistent qscale");
+                throw new MdecException.Compress("Inconsistent quantization scale"); // I18N
         }
 
         protected String encodeDC(int iDC, int iBlock) {

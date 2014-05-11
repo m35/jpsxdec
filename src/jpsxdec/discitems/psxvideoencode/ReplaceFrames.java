@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,6 +50,8 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import jpsxdec.I18N;
+import jpsxdec.LocalizedIOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDemuxedFrame;
@@ -57,7 +59,6 @@ import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IOException6;
 import jpsxdec.util.NotThisTypeException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -93,13 +94,13 @@ public class ReplaceFrames {
         try {
             db = dbf.newDocumentBuilder();
         } catch (ParserConfigurationException ex) {
-            throw new IOException6(ex);
+            throw new LocalizedIOException(ex);
         }
         Document doc;
         try {
             doc = db.parse(file);
         } catch (SAXException ex) {
-            throw new IOException6(ex);
+            throw new LocalizedIOException(ex);
         }
 
         Element root = doc.getDocumentElement();
@@ -148,9 +149,9 @@ public class ReplaceFrames {
             StreamResult result = new StreamResult(new File(sFile));
             transformer.transform(source, result);
         } catch (TransformerException ex) {
-            throw new IOException6(ex);
+            throw new LocalizedIOException(ex);
         } catch (ParserConfigurationException ex) {
-            throw new IOException6(ex);
+            throw new LocalizedIOException(ex);
         }
     }
 
@@ -175,10 +176,10 @@ public class ReplaceFrames {
 
                 ReplaceFrame replacer = getFrameToReplace(frame.getFrame());
                 if (replacer != null) {
-                    fbs.println("Frame " + frame.getFrame() + ":");
+                    fbs.println(I18N.S("Frame {0,number,#}:", frame.getFrame())); // I18N
                     fbs.indent();
                     try {
-                        fbs.println("Replacing with " + replacer.getImageFile());
+                        fbs.println(I18N.S("Replacing with {0}", replacer.getImageFile())); // I18N
                         replacer.replace(frame, cd, fbs);
                     } catch (MdecException ex) {
                         exception[0] = ex;

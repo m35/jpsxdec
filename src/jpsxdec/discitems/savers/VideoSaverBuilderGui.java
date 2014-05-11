@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,8 +48,8 @@ import javax.swing.JRadioButton;
 import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import jpsxdec.I18N;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
-import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
 import jpsxdec.util.Fraction;
 
@@ -77,7 +77,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
     }
 
     private class VideoFormat extends AbstractCombo {
-        public VideoFormat() { super("Video format"); }
+        public VideoFormat() { super(I18N.S("Video format:")); } // I18N
         public int getSize() {
             return _writerBuilder.getVideoFormat_listSize();
         }
@@ -94,7 +94,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
     }
 
     private class DecodeQuality extends AbstractCombo {
-        public DecodeQuality() { super("Decode quality:"); }
+        public DecodeQuality() { super(I18N.S("Decode quality:")); } // I18N
         public int getSize() {
             return _writerBuilder.getDecodeQuality_listSize();
         }
@@ -114,7 +114,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
 
 
     private class ChromaUpsampling extends AbstractCombo {
-        public ChromaUpsampling() { super("Chroma upsampling:"); }
+        public ChromaUpsampling() { super(I18N.S("Chroma upsampling:")); } // I18N
         public int getSize() {
             return _writerBuilder.getChromaInterpolation_listSize();
         }
@@ -133,7 +133,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
     }
 
     private class Volume extends AbstractSlider {
-        public Volume() { super("Audio volume:"); }
+        public Volume() { super(I18N.S("Audio volume:")); } // I18N
         public int getValue() {
             return (int) (_writerBuilder.getAudioVolume() * 100);
         }
@@ -147,13 +147,13 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
 
 
     private class Crop extends ToggleButtonModel implements ChangeListener {
-        JCheckBox __chk = new JCheckBox("Crop");
-        JLabel __label = new JLabel("Dimensions:");
+        JCheckBox __chk = new JCheckBox(I18N.S("Crop")); // I18N
+        JLabel __label = new JLabel(I18N.S("Dimensions:")); // I18N
         JLabel __dims;
         boolean __cur = isSelected();
         public Crop() {
             __chk.setModel(this);
-            __dims = new JLabel(_writerBuilder.getWidth() + " x " + _writerBuilder.getHeight());
+            __dims = new JLabel(I18N.S("{0,number,#}x{1,number,#}", _writerBuilder.getWidth(), _writerBuilder.getHeight())); // I18N
             _topPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);
             _topPanel.add(__dims);
             _topPanel.add(__chk);
@@ -165,7 +165,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
                 fireItemStateChanged(new ItemEvent(this, ItemEvent.ITEM_STATE_CHANGED, this,
                         isSelected() ? ItemEvent.SELECTED : ItemEvent.DESELECTED));
             }
-            __dims.setText(_writerBuilder.getWidth() + " x " + _writerBuilder.getHeight());
+            __dims.setText(I18N.S("{0,number,#}x{1,number,#}", _writerBuilder.getWidth(), _writerBuilder.getHeight())); // I18N
         }
         public boolean isSelected() {
             return _writerBuilder.getCrop();
@@ -204,7 +204,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
         abstract public void setSelected(boolean b);
     }
     private class DiscSpeed1x extends AbstractDiscSpeed {
-        public DiscSpeed1x() { super("1x"); }
+        public DiscSpeed1x() { super(I18N.S("1x")); } // I18N
         public boolean isSelected() {
             return _writerBuilder.getSingleSpeed();
         }
@@ -213,7 +213,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
         }
     }
     private class DiscSpeed2x extends AbstractDiscSpeed {
-        public DiscSpeed2x() { super("2x"); }
+        public DiscSpeed2x() { super(I18N.S("2x")); } // I18N
         public boolean isSelected() {
             return !_writerBuilder.getSingleSpeed();
         }
@@ -223,7 +223,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
     }
 
     private class DiscSpeed implements ChangeListener {
-        JLabel __label = new JLabel("Disc speed:");
+        JLabel __label = new JLabel(I18N.S("Disc speed:")); // I18N
         JLabel __fps = new JLabel();
         boolean __cur;
         AbstractDiscSpeed __1x, __2x;
@@ -246,16 +246,16 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
         private void updateFps() {
             Fraction fps = _writerBuilder.getFps();
             if ((fps.getNumerator() % fps.getDenominator()) == 0)
-                __fps.setText(String.format("%d fps", fps.getNumerator() / fps.getDenominator()));
+                __fps.setText(I18N.S("{0,number,#} fps", fps.getNumerator() / fps.getDenominator())); // I18N
             else
-                __fps.setText(String.format("%s (%d/%d) fps",
-                        DiscItemVideoStream.formatFps(fps),
-                        fps.getNumerator(), fps.getDenominator()));
+                __fps.setText(I18N.S("{0} ({1,number,#}/{2,number,#}) fps", // I18N
+                              fps.asDouble(),
+                              fps.getNumerator(), fps.getDenominator()));
         }
     }
 
     private class FileName implements ChangeListener {
-        JLabel __label = new JLabel("Save as:");
+        JLabel __label = new JLabel(I18N.S("Save as:")); // I18N
         JLabel __postfix1 = new JLabel(" ");
         JLabel __postfix2 = new JLabel(" ");
         public FileName() {
@@ -276,7 +276,8 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
                 if (!" ".equals(__postfix2.getText()))
                     __postfix2.setText(" ");
             } else {
-                String sStart = aoFiles[0].getPath(), sEnd = "to: "+aoFiles[1].getPath();
+                String sStart = aoFiles[0].getPath(),
+                       sEnd = "to: "+aoFiles[1].getPath(); // I18N
                 if (!sStart.equals(__postfix1.getText()))
                     __postfix1.setText(sStart);
                 if (!sEnd.equals(__postfix2.getText()))

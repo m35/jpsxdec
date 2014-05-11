@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,11 +48,12 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
     private double _dblNextProgressMark = 0;
     private int _iWarnCount = 0;
     private int _iErrCount = 0;
-    private final PrintStream _ps;
+    /** Different from the logging stream.  */
+    private final PrintStream _progressStream;
 
-    public ConsoleProgressListenerLogger(String sBaseName, PrintStream ps) {
+    public ConsoleProgressListenerLogger(String sBaseName, PrintStream progressStream) {
         super(sBaseName);
-        _ps = ps;
+        _progressStream = progressStream;
         setListener(new OnWarnErr() {
             public void onErr(LogRecord record) {
                 _iErrCount++;
@@ -68,18 +69,18 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
     }
 
     public void progressInfo(String s) {
-        _ps.println(s);
+        _progressStream.println(s);
     }
 
     public void progressEnd() {
-        _ps.println(buildProgress(1));
+        _progressStream.println(buildProgress(1));
         _dblNextProgressMark = 0;
     }
 
     public void progressStart() { progressStart(null); }
     public void progressStart(String s) {
         if (s != null)
-            _ps.println(s);
+            _progressStream.println(s);
         _dblNextProgressMark = 0;
         _iWarnCount = 0;
         _iErrCount = 0;
@@ -100,7 +101,7 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
         // a carriage return after the string \r
         // resets the cursor position back to the beginning of the line
         // but for now just do normal new line
-        _ps.println(sLine);
+        _progressStream.println(sLine);
         
         _dblNextProgressMark = Math.round((dblPercentComplete + 0.05) * 10.0) / 10.0;
     }
@@ -118,9 +119,9 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
         strBuild.append(String.format("] %4d%% %s", (long)Math.floor(dblPercentComplete * 100), _sLastEvent));
 
         if (_iWarnCount > 0)
-            strBuild.append(" ").append(_iWarnCount).append(" warnings");
+            strBuild.append(" ").append(_iWarnCount).append(" warnings"); // I18N
         if (_iErrCount > 0)
-            strBuild.append(" ").append(_iErrCount).append(" errors");
+            strBuild.append(" ").append(_iErrCount).append(" errors"); // I18N
 
         return strBuild.toString();
     }

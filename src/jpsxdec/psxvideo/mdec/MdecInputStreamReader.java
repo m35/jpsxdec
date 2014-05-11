@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,12 +44,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import jpsxdec.I18N;
 import jpsxdec.util.IO;
 
 /** Wraps an InputStream (or creates a FileInputStream) to read MDEC values from. */
 public class MdecInputStreamReader extends MdecInputStream {
 
-    private InputStream _inStream;
+    private final InputStream _inStream;
     private int _iBlock = 0;
 
     public MdecInputStreamReader(String sFile) throws FileNotFoundException {
@@ -75,7 +76,7 @@ public class MdecInputStreamReader extends MdecInputStream {
                 return false;
             }
         } catch (EOFException ex) {
-            throw new MdecException.Read("Unexpected end of stream in block " + _iBlock);
+            throw new MdecException.Read(I18N.S("Unexpected end of stream in block {0,number,#}", _iBlock)); // I18N
         } catch (IOException ex) {
             throw new MdecException.Read(ex);
         }

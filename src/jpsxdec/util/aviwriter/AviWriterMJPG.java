@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,6 +47,7 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.LocalizedIOException;
 import jpsxdec.util.ExposedBAOS;
 
 /**
@@ -111,10 +112,10 @@ public class AviWriterMJPG extends AviWriter {
     public AviWriterMJPG(final File oOutputfile,
                      final int iWidth, final int iHeight,
                      final long lngFrames, final long lngPerSecond,
-                     final AudioFormat oAudioFormat)
+                     final AudioFormat audioFormat)
             throws IOException
     {
-        this(oOutputfile, iWidth, iHeight, lngFrames, lngPerSecond, -1, oAudioFormat);
+        this(oOutputfile, iWidth, iHeight, lngFrames, lngPerSecond, -1, audioFormat);
     }
     public AviWriterMJPG(final File oOutputfile,
                      final int iWidth, final int iHeight,
@@ -128,16 +129,16 @@ public class AviWriterMJPG extends AviWriter {
                      final int iWidth, final int iHeight,
                      final long lngFrames, final long lngPerSecond,
                      final float fltLossyQuality,
-                     final AudioFormat oAudioFormat)
+                     final AudioFormat audioFormat)
             throws IOException
     {
-        super(oOutputfile, iWidth, iHeight, lngFrames, lngPerSecond, oAudioFormat, true, "MJPG", AVIstruct.string2int("MJPG"));
+        super(oOutputfile, iWidth, iHeight, lngFrames, lngPerSecond, audioFormat, true, "MJPG", AVIstruct.string2int("MJPG"));
 
         if (!CAN_ENCODE_JPEG)
             throw new UnsupportedOperationException("Unable to create 'jpeg' images on this platform.");
 
-        Iterator<ImageWriter> oIter = ImageIO.getImageWritersByFormatName("jpeg");
-        _imgWriter = oIter.next();
+        Iterator<ImageWriter> iter = ImageIO.getImageWritersByFormatName("jpeg");
+        _imgWriter = iter.next();
 
         if (fltLossyQuality < 0 || fltLossyQuality > 1) {
             _writeParams = null;
@@ -218,7 +219,7 @@ public class AviWriterMJPG extends AviWriter {
     /** Converts JPEG file data to be used in an MJPG AVI. */
     private static void JPEG2MJPEG(byte [] ab) throws IOException {
         if (ab[6] != 'J' || ab[7] != 'F' || ab[8] != 'I' || ab[9] != 'F')
-            throw new IOException("JFIF header not found in jpeg data, unable to write frame to AVI.");
+            throw new LocalizedIOException("JFIF header not found in jpeg data, unable to write frame to AVI."); // I18N
         // http://cekirdek.pardus.org.tr/~ismail/ffmpeg-docs/mjpegdec_8c-source.html#l00869
         // ffmpeg treats the JFIF and AVI1 header differently. It's probably
         // safer to stick with standard JFIF header since that's what JPEG uses.

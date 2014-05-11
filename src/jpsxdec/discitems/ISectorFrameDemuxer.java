@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2013  Michael Sabin
+ * Copyright (C) 2012-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,17 +43,17 @@ import jpsxdec.sectors.IdentifiedSector;
 
 public interface ISectorFrameDemuxer {
 
-    void feedSector(IdentifiedSector sector, Logger log) throws IOException;
-
-    /**
-     * Finish any uncompleted frame and add it to the completed frame queue.
-     */
-    void flush(Logger log) throws IOException;
-
-    int getHeight();
+    /** If it likes the sector, adds the sector to the demuxed frame.
+     *  @return if the sector was accepted.  */
+    boolean feedSector(IdentifiedSector sector, Logger log) throws IOException;
 
     int getWidth();
-    
+    int getHeight();
+
+    /** Finish any frame being built and send it to the listener.
+     * Resets to receive a new frame. */
+    void flush(Logger log) throws IOException;
+
     public interface ICompletedFrameListener {
         void frameComplete(IDemuxedFrame frame) throws IOException;
     }

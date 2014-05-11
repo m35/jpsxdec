@@ -1143,7 +1143,7 @@ Offset   Size   Endian --------------------------------------------------------
  22 . . . 2 . . little . Unknown
  24 . . . 2 . . little . Unknown
  26 . . . 2 . . little . Unknown
- 28 . . . 2 . . little . Always 0x00000000
+ 28 . . . 2 . . little . Always zero
  32 ---------------------------------------------------------------------------
 
 At the start of *some* demultiplexed frames is an additional 40 bytes of camera information.
@@ -1800,11 +1800,13 @@ Offset   Size   Endian --------------------------------------------------------
   6 . . . 2 . . little . Inverted frame number: Starts at last frame
   8 . . . 2 . . little . Frame width in pixels
  10 . . . 2 . . little . Frame height in pixels
- 12 . .  12 . .  n/a . . All zeros
- 24 . . . 8 . . . ?? . . Unknown
+ 12 . . . 4 . .  n/a . . Zeros
+ 24 . .  16 . . . ?? . . Unknown
  32 ---------------------------------------------------------------------------
 
 For some reason the frame number starts at the last frame and descends to 0.
+
+The Japanese version may be the only game that has two streaming videos running in parallel on different channels.
 
 ################################################################################
 ## 3.9. .iki

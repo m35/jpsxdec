@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,7 @@ import java.io.IOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
 
@@ -148,7 +149,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Returns how many sectors this item and the supplied disc item overlap. */
     public int getOverlap(DiscItem other) {
-        // does not overlap this file at all
+        // does not overlap this item at all
         if (other.getEndSector() < getStartSector() || other.getStartSector() > getEndSector())
             return 0;
 
@@ -160,15 +161,15 @@ public abstract class DiscItem implements Comparable<DiscItem> {
                 // this item is totally inside other item
                 iOverlap = getSectorLength();
             } else {
-                // other item is totall inside this item
+                // other item is totally inside this item
                 iOverlap = other.getSectorLength();
             }
         } else {
             if (other.getEndSector() > getEndSector()) {
-                // first part of other item is overlaps this item
+                // first part of other item overlaps this item
                 iOverlap = getEndSector() - other.getStartSector() + 1;
             } else {
-                // last part of other item is overlaps this item
+                // last part of other item overlaps this item
                 iOverlap = other.getEndSector() - other.getStartSector() + 1;
             }
         }
@@ -255,11 +256,23 @@ public abstract class DiscItem implements Comparable<DiscItem> {
             return -1;
         else if (getStartSector() > other.getStartSector())
             return 1;
-        else if (getEndSector() > other.getEndSector())
-            return -1;
-        else if (getEndSector() < other.getEndSector())
-            return 1;
         else
-            return 0;
+            // have more encompassing disc items come first (result is much cleaner)
+            return Misc.intCompare(other.getEndSector(), getEndSector());
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        final DiscItem other = (DiscItem) obj;
+        return compareTo(other)== 0;
+    }
+
+    @Override
+    public int hashCode() {
+        throw new UnsupportedOperationException();
+    }
+
 }

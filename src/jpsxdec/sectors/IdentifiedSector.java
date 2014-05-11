@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -115,13 +115,6 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         return _sourceCdSector.toString();
     }
     
-    /** @return The 'channel' value in the raw CDXA header, 
-     *          or -1 if there was no header, or if it is a 'NULL' sector
-     *          (overridden by SectorXANull).*/
-    public int getChannel() {
-        return _sourceCdSector.getSubHeaderChannel();
-    }
-
     /** @return The sector number from the start of the source file. */
     public int getSectorNumber() {
         return _sourceCdSector.getSectorNumberFromStart();

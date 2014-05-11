@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,6 +54,7 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.discitems.DemuxedStrFrame;
+import jpsxdec.discitems.DiscItemStrVideoWithFrame;
 import jpsxdec.discitems.FrameDemuxer;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.ISectorFrameDemuxer;
@@ -83,7 +84,7 @@ import jpsxdec.util.NotThisTypeException;
  * the absence of any ISO9660 file system. Unfortunately it will prevent
  * identifying Judge Dredd sectors on other disc images (which probably has
  * happened). */
-public class SectorDreddVideo extends SectorAbstractVideo {
+public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSectorWithFrameNumber {
 
     private static final Logger LOG = Logger.getLogger(SectorDreddVideo.class.toString());
 
@@ -413,13 +414,14 @@ public class SectorDreddVideo extends SectorAbstractVideo {
         for (int iVideo = 0; iVideo < VIDEO_SECTORS.length; iVideo+=2) {
             final boolean blnIsTypeA = VIDEO_SECTORS[iVideo] < FIRST_SECTOR_TYPE_B;
             
-            FrameDemuxer demux = new FrameDemuxer(320, blnIsTypeA ? 352 : 240, 0, cd.getLength());
+            FrameDemuxer demux = new DiscItemStrVideoWithFrame.Demuxer(VIDEO_SECTORS[iVideo], VIDEO_SECTORS[iVideo+1],
+                                                                       320, blnIsTypeA ? 352 : 240);
             demux.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
                 public void frameComplete(IDemuxedFrame f) throws IOException {
                     String ok = validateFrame(f.copyDemuxData(null), blnIsTypeA);
                     if (ok != null) {
-                        for (int j = 0; j < (blnIsTypeA ? 9 : 10); j++) {
-                            IVideoSector vid = ((DemuxedStrFrame)f).getChunk(j);
+                        for (int iChunk = 0; iChunk < (blnIsTypeA ? 9 : 10); iChunk++) {
+                            DummyDreddVid vid = (DummyDreddVid) ((DemuxedStrFrame)f).getChunk(iChunk);
                             if (vid == null)
                                 continue;
                             if (ok.length() > 0)
@@ -427,7 +429,7 @@ public class SectorDreddVideo extends SectorAbstractVideo {
                             out.println(String.format(ok + "%d\t%d\t%d",
                                     vid.getCdSector().getHeaderSectorNumber(),
                                     vid.getFrameNumber(),
-                                    j));
+                                    iChunk));
                         }
                     } else {
                         aiSkippedPossibleVidSectors[0]++;
@@ -483,7 +485,7 @@ public class SectorDreddVideo extends SectorAbstractVideo {
             return null;
         }
         try {
-            uncom.reset(abFrame);
+            uncom.reset(abFrame, abFrame.length);
             uncom.readToEnd(320, blnTypeA ? 352 : 240);
         } catch (Read ex) {
             return "?";

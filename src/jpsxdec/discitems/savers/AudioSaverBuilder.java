@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,9 +38,9 @@
 package jpsxdec.discitems.savers;
 
 import argparser.ArgParser;
-import argparser.IntHolder;
 import argparser.StringHolder;
 import java.io.File;
+import jpsxdec.I18N;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
@@ -130,26 +130,31 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
         ArgParser parser = new ArgParser("", false);
 
-        IntHolder vol = new IntHolder(-1);
-        parser.addOption("-vol %i {[0, 100]}", vol);
+        StringHolder vol = new StringHolder();
+        parser.addOption("-vol %s", vol);
 
         StringHolder audfmt = new StringHolder();
-        parser.addOption("-audfmt,-af %s {" + JavaAudioFormat.getCmdLineList() + "}", audfmt);
+        parser.addOption("-audfmt,-af %s", audfmt);
 
         String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
 
-        if (vol.value >= 0 && vol.value <= 100) {
-            fbs.println("Volume set to " + vol.value + "%");
-            setVolume(vol.value / 100.0);
+        if (vol.value != null) {
+            try {
+                int iVol = Integer.parseInt(vol.value);
+                if (iVol < 0 || iVol > 100)
+                    throw new NumberFormatException();
+                setVolume(iVol / 100.0);
+            } catch (NumberFormatException ex) {
+                fbs.printlnWarn(I18N.S("Ignoring invalid volume {0}", vol.value)); // I18N
+            }
         }
 
         if (audfmt.value != null) {
             JavaAudioFormat fmt = JavaAudioFormat.fromCmdLine(audfmt.value);
             if (fmt != null) {
-                fbs.println("Saving as " + fmt.getExtension());
                 setContainerForamt(fmt);
             } else {
-                fbs.printlnWarn("Ignoring invalid format " + audfmt.value);
+                fbs.printlnWarn(I18N.S("Ignoring invalid format {0}", audfmt.value)); // I18N
             }
         }
 
@@ -161,11 +166,11 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
         tfb.setRowSpacing(1);
 
-        tfb.print("-audfmt,-af <format>").tab().print("Output audio format (default wav). Options: ")
+        tfb.print("-audfmt,-af <format>").tab().print("Output audio format (default wav). Options: ") // I18N
                 .indent().print(JavaAudioFormat.getCmdLineList());
         tfb.newRow();
 
-        tfb.print("-vol <0-100>").tab().print("Adjust volume (default 100).");
+        tfb.print("-vol <0-100>").tab().print("Adjust volume (default 100)."); // I18N
 
         tfb.write(fbs);
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -66,6 +66,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
     private final int _iMovieStartSector;
     private final int _iMovieEndSector;
     private final CdFileSectorReader _cdReader;
+    private final double _dblDuration;
 
     //----------------------------------------------------------
 
@@ -92,15 +93,16 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
             // if disc speed is unknown, assume 2x
             _iSectorsPerSecond = 150;
         }
+        _dblDuration = vid.getApproxDuration();
 
         _vid = vid;
-        _demuxer = demuxer;
-        _demuxer.setFrameListener(this);
         _b2m = new VDP.Bitstream2Mdec();
         _m2d = new VDP.Mdec2Decoded(new MdecDecoder_int(new simple_idct(),
                                                         vid.getWidth(),
                                                         vid.getHeight()));
         _b2m.setMdec(_m2d);
+        _demuxer = demuxer;
+        _demuxer.setFrameListener(this);
     }
 
     //-----------------------------------------------------------------------
@@ -118,6 +120,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
             // if disc speed is unknown, assume 2x
             _iSectorsPerSecond = 150;
         }
+        _dblDuration = aud.getApproxDuration();
 
         _audioDecoder = aud.makeDecoder(1.0);
         _audioOut = new AudioPlayerSectorTimedWriter(this, _iMovieStartSector, _iSectorsPerSecond, _audioDecoder.getSamplesPerSecond());
@@ -155,7 +158,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
 
         try {
 
-            final int SECTOR_LENGTH = _iMovieStartSector - _iMovieEndSector + 1;
+            final int SECTOR_LENGTH = _iMovieEndSector - _iMovieStartSector + 1;
 
             for (int iSector = _iMovieStartSector; iSector <= _iMovieEndSector && stillPlaying(); iSector++)
             {
@@ -234,6 +237,9 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
         return _vid.getHeight();
     }
 
+    public double getDuration() {
+        return _dblDuration;
+    }
 
     private class StrFrame implements IDecodableFrame, VDP.IDecodedListener {
 
@@ -257,7 +263,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
             _m2d.setDecoded(this);
             __aiDrawHere = drawHere;
             try {
-                _b2m.bitstream(__abDemuxBuf, -1, __iFrame, _iMovieEndSector);
+                _b2m.bitstream(__abDemuxBuf, __abDemuxBuf.length, __iFrame, _iMovieEndSector);
             } catch (IOException ex) {
                 System.err.print("Frame "+__iFrame+' '+ex.getMessage());
                 if (ex.getCause() != null && ex.getCause().getMessage() != null)

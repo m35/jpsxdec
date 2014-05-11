@@ -1,3 +1,24 @@
+v0.99.3 rev2795 (10 May 2014)
+    - Better Ace Combat 3 video support
+    - Reduced size of executable (.jar) and download
+    - Improved frame rate detection
+    - More robust bitstream detection
+    - Improve quality of decoded XA audio from sectors that are corrupted
+    - Index format changed, indexes need to be regenerated
+    Bug fixes:
+    - Video decoding YCbCr->RGB values slightly varies depending on code path
+    - Slightly inaccurate sector header data may be written to replaced sectors
+    - Command-line sloppiness
+    - Blank line in index not handled well
+    - File Chooser drop-down out of order on Java 7
+    - debug.log formatting
+    - FindBugs fixes and other minor fixes
+    Internal:
+    - Preliminary I18N support
+    - Reduce dependence on video sector frame number
+    Known Problems:
+    - Some .iki frame rate detection is wrong
+    - Audio + Video playback on Linux might be choppy or not display
 v0.99.2 rev2705 (8 Nov 2013)
     - Video player scales to fit window
     - Writing (M)JPEG is now close to lossless (see manual for details)

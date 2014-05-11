@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,7 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import jpsxdec.I18N;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.formats.JavaAudioFormat;
 
@@ -67,7 +68,7 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuil
         JComboBox __combo;
 
         public AudioFormat() {
-            __label = new JLabel("Save as:");
+            __label = new JLabel(I18N.S("Save as:")); // I18N
             __name = new JLabel(_writerBuilder.getFileBaseName());
             __combo = new JComboBox(this);
             add(__label, ParagraphLayout.NEW_PARAGRAPH);
@@ -95,7 +96,7 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuil
     }
 
     private class Volume extends AbstractSlider {
-        public Volume() { super("Volume:"); }
+        public Volume() { super(I18N.S("Volume:")); } // I18N
         public int getValue() {
             return (int) (_writerBuilder.getVolume() * 100);
         }

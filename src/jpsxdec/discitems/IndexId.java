@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -66,7 +66,7 @@ public class IndexId {
 
         String[] asParts = Misc.regex("([^\\[]+)(\\[[^\\]]+\\])?", sSerialized);
         if (asParts == null || asParts.length != 3)
-            throw new NotThisTypeException("Invalid id format: " + sSerialized);
+            throw new NotThisTypeException("Invalid id format: {0}", sSerialized); // I18N
 
         if (UNNAMED.equals(asParts[1]))
             _sourceFile = null;
@@ -78,12 +78,12 @@ public class IndexId {
         else {
             _aiTreeIndexes = Misc.splitInt(asParts[2].substring(1, asParts[2].length()-1), "\\.");
             if (_aiTreeIndexes == null)
-                throw new NotThisTypeException("Invalid id format: " + sSerialized);
+                throw new NotThisTypeException("Invalid id format: {0}", sSerialized); // I18N
         }
 
     }
 
-    private static final String UNNAMED = "Unnamed";
+    private static final String UNNAMED = "Unnamed"; // I18N
     private static final File UNNAMED_FILE = new File(UNNAMED);
     private File safePath() {
         return _sourceFile == null ? UNNAMED_FILE : _sourceFile;

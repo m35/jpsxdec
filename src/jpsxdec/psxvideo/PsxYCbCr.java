@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -123,10 +123,23 @@ public class PsxYCbCr {
     }
 
     public static void toRgb(double y, double cb, double cr, RGB rgb) {
+        double dblChromRed, dblChromGreen, dblChromBlue;
+        // MUST store chroma first like in instance method or result is slightly different
+        if (INCORRECTLY_SWAP_CB_CR_LIKE_PSXMC) {
+            // this math is wrong, wrong, WRONG
+            // unfortunately it is used by the majority of existing decoders
+            dblChromRed   = ( 1.772  * cr)                 ;
+            dblChromGreen = (-0.3437 * cr) + (-0.7143 * cb);
+            dblChromBlue  =                  ( 1.402  * cb);
+        } else {
+            dblChromRed   =                  ( 1.402  * cr);
+            dblChromGreen = (-0.3437 * cb) + (-0.7143 * cr);
+            dblChromBlue  = ( 1.772  * cb)                 ;
+        }
         double dblYshift = y + 128;
-        rgb.setR(dblYshift +                  ( 1.402  * cr));
-        rgb.setG(dblYshift + (-0.3437 * cb) + (-0.7143 * cr));
-        rgb.setB(dblYshift + ( 1.772  * cb)                 );
+        rgb.setR(dblYshift + dblChromRed  );
+        rgb.setG(dblYshift + dblChromGreen);
+        rgb.setB(dblYshift + dblChromBlue );
     }
 
     final public void toRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {

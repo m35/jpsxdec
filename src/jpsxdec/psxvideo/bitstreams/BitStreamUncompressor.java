@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,6 @@ package jpsxdec.psxvideo.bitstreams;
 import java.io.EOFException;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.logging.Logger;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
@@ -401,8 +400,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                 assert !DEBUG || debugPrintln("Table 3 offset " + (i17bits & 0xff));
                 return       Table_000000000xxxxxxxx[i17bits & 0xff];
             } else {
-                throw new MdecException.Uncompress(
-                        "Unmatched AC variable length code: " +
+                throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
                         Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
             }
         }
@@ -434,8 +432,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                     array =      Table_000000000xxxxxxxx;
                     c = i17bits & 0xff;
                 } else {
-                    throw new MdecException.Uncompress(
-                            "Unmatched AC variable length code: " +
+                    throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
                             Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
                 }
                 return array[c];
@@ -460,8 +457,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                 } else if ((i17bits & b00000000011100000) != 0) {
                     return       Table_000000000xxxxxxxx[i17bits & 0xff];
                 } else {
-                    throw new MdecException.Uncompress(
-                            "Unmatched AC variable length code: " +
+                    throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
                             Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
                 }
             }
@@ -493,8 +489,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                     array =      Table_000000000xxxxxxxx;
                     c = i17bits & 0xff;
                 } else {
-                    throw new MdecException.Uncompress(
-                            "Unmatched AC variable length code: " +
+                    throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
                             Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
                 }
                 return array[c];
@@ -565,9 +560,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             } else if ((i17bits & b0000000000010000_) != 0) {      // "000000000001xxxx"
                 vlc = _aoAcBitCodes[95 + (int)((i17bits >>> 1) & 15)];
             } else {
-                throw new MdecException.Uncompress(
-                        "Unmatched AC variable length code: " +
-                         Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE + 1));
+                throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
+                        Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
             }
 
             code.setTop6Bits(vlc.ZeroRun);
@@ -667,8 +661,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     }
 
     /** Resets this instance as if a new object was created. */
-    final public void reset(byte[] abBitstream, int iStart) throws NotThisTypeException {
-        readHeader(abBitstream, _bitReader);
+    final public void reset(byte[] abBitstream, int iBitstreamSize, int iStart) throws NotThisTypeException {
+        readHeader(abBitstream, iBitstreamSize, _bitReader);
         _blnBlockStart = true;
         _iMdecCodeCount = 0;
         _iCurrentBlockVectorPos = 0;
@@ -678,8 +672,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
 
 
     /** Resets this instance as if a new object was created. */
-    final public void reset(byte[] abBitstream) throws NotThisTypeException {
-        reset(abBitstream, 0);
+    final public void reset(byte[] abBitstream, int iBitstreamSize) throws NotThisTypeException {
+        reset(abBitstream, iBitstreamSize, 0);
     }
 
     /** @throws NullPointerException if {@link #reset(byte[])} has not been called. */
@@ -719,8 +713,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
 
                     _iCurrentBlockVectorPos += code.getTop6Bits() + 1;
                     if (_iCurrentBlockVectorPos >= 64) {
-                        throw new MdecException.Uncompress(
-                                "Run length out of bounds: " + _iCurrentBlockVectorPos);
+                        throw new MdecException.Uncompress("Run length out of bounds: {0,number,#}", // I18N
+                                _iCurrentBlockVectorPos);
                     }
                 }
 
@@ -735,11 +729,6 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
         // _blnBlockStart will be set to true if an EOB code was read
         _iMdecCodeCount++;
         return _blnBlockStart;
-    }
-
-    /** Byte position in the source data, rounded down to multiples of 2. */
-    final public int getWordPosition() {
-        return _bitReader.getWordPosition();
     }
 
     final public int getBitPosition() {
@@ -760,7 +749,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
 
     /** Validates the frame header and initializes for reading
      * (including resetting the bit reader to the proper start byte and endian). */
-    abstract protected void readHeader(byte[] abFrameData, ArrayBitReader bitReader) throws NotThisTypeException;
+    abstract protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) throws NotThisTypeException;
 
     /** Read the quantization scale and DC coefficient from the bitstream. */
     abstract protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress, EOFException;

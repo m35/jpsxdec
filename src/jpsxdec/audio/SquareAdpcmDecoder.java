@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,12 +37,14 @@
 
 package jpsxdec.audio;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.I18N;
+import jpsxdec.LocalizedEOFException;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 
@@ -163,7 +165,7 @@ public final class SquareAdpcmDecoder {
                 // read a byte
                 int iByte = inStream.read();
                 if (iByte < 0)
-                    throw new EOFException("Unexpected end of audio data");
+                    throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
                 
                 // get the two ADPCM samples from it
                 // shift the nibble into the top of a short
@@ -191,30 +193,34 @@ public final class SquareAdpcmDecoder {
         {
             int iSoundParameter = inStream.read();
             if (iSoundParameter < 0)
-                throw new EOFException("Unexpected end of audio data");
+                throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
 
             _bParameter_Range       = (byte)(iSoundParameter & 0xF);
             _bParameter_FilterIndex = (byte)((iSoundParameter >>> 4) & 0xF);
 
             if (_bParameter_FilterIndex > 4) {
                 if (log != null) {
-                    StringBuilder sb = new StringBuilder("Square ADPCM Sound Parameter Filter Index > 4 (");
-                    sb.append(_bParameter_FilterIndex);
-                    sb.append(") [sound parameter 0x");
-                    sb.append(Integer.toHexString(iSoundParameter));
                     if (inStream instanceof ByteArrayFPIS) {
-                        sb.append(" at ");
-                        sb.append(((ByteArrayFPIS)inStream).getFilePointer()-1);
+                        log.log(Level.WARNING, "Square ADPCM Sound Parameter Filter Index > 4 ({0,number,#}) [sound parameter 0x{1} at {2,number,#}]", // I18N
+                                new Object[]{
+                                    _bParameter_FilterIndex,
+                                    Integer.toHexString(iSoundParameter), 
+                                    ((ByteArrayFPIS)inStream).getFilePointer()-1
+                                });
+                    } else {
+                        log.log(Level.WARNING, "Square ADPCM Sound Parameter Filter Index > 4 ({0,number,#}) [sound parameter 0x{1}]", // I18N
+                                new Object[]{
+                                    _bParameter_FilterIndex, 
+                                    Integer.toHexString(iSoundParameter)
+                                });
                     }
-                    sb.append("]");
-                    log.warning(sb.toString());
                 }
                 _bParameter_FilterIndex = (byte)(_bParameter_FilterIndex & 3);
             }
 
             // for some reason this byte isn't used?
             if (inStream.skip(1) != 1)
-                throw new EOFException("Unexpected end of audio data");
+                throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
         }
 
 

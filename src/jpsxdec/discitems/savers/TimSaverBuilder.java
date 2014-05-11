@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,6 +52,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import javax.imageio.ImageIO;
+import jpsxdec.I18N;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemTim;
@@ -283,7 +284,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
     private TimSaveFormat fromCmdLine(String sCmdLine) {
         for (TimSaveFormat fmt : _validFormats) {
-            if (fmt.getId().equals(sCmdLine))
+            if (fmt.getId().equalsIgnoreCase(sCmdLine))
                 return fmt;
         }
         return null;
@@ -307,7 +308,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         if (timpalettes.value != null) {
             boolean[] ablnNewValues = parseNumberListRange(timpalettes.value, getPaletteCount());
             if (ablnNewValues == null) {
-                fbs.printlnWarn("Invalid list of palettes " + timpalettes.value);
+                fbs.printlnWarn(I18N.S("Invalid list of palettes {0}", timpalettes.value)); // I18N
             } else {
                 System.arraycopy(ablnNewValues, 0, _ablnSavePalette, 0, getPaletteCount());
             }
@@ -316,7 +317,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         if (format.value != null) {
             TimSaveFormat fmt = fromCmdLine(format.value);
             if (fmt == null) {
-                fbs.printlnWarn("Invalid format " + format.value);
+                fbs.printlnWarn(I18N.S("Invalid format {0}", format.value)); // I18N
             } else {
                 setImageFormat(fmt);
             }
@@ -355,9 +356,9 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         TabularFeedback tfb = new TabularFeedback();
         tfb.setRowSpacing(1);
 
-        tfb.print("-pal <#,#-#>").tab().print("Palettes to save (default all).");
+        tfb.print("-pal <#,#-#>").tab().print("Palettes to save (default all)."); // I18N
         tfb.newRow();
-        tfb.print("-imgfmt,-if <format>").tab().println("Output image format (default "+_validFormats.get(0)+"). Options:");
+        tfb.print("-imgfmt,-if <format>").tab().println("Output image format (default "+_validFormats.get(0)+"). Options:"); // I18N
         tfb.indent().print(getCmdLineList());
 
         tfb.write(fbs);
@@ -396,7 +397,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             try {
                 pll.progressStart();
                 Tim tim = _timItem.readTim();
-                pll.event("Writing " + _outputFile.getName());
+                pll.event(I18N.S("Writing {0}", _outputFile.getName())); // I18N
                 File f = new File(_outputDir, _outputFile.getPath());
                 IO.makeDirsForFile(f);
                 os = new BufferedOutputStream(new FileOutputStream(f));
@@ -429,7 +430,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         }
 
         public void printSelectedOptions(PrintStream ps) {
-            ps.println("Format: " + TimSaveFormat.TIM);
+            ps.println(I18N.S("Format: {0}", TimSaveFormat.TIM)); // I18N
         }
         
     }
@@ -475,13 +476,13 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                 for (int i = 0; i < _asOutputFiles.length; i++) {
                     if (_asOutputFiles[i] != null) {
                         String sFile = _asOutputFiles[i];
-                        pll.event("Writing " + sFile);
+                        pll.event(I18N.S("Writing {0}", sFile)); // I18N
                         BufferedImage bi = tim.toBufferedImage(i);
                         File f = new File(_outputDir, sFile);
                         IO.makeDirsForFile(f);
                         boolean blnOk = ImageIO.write(bi, _imageFormat.getId(), f);
                         if (!blnOk)
-                            pll.warning("Unable to write image for palette " + i);
+                            pll.log(Level.WARNING, "Unable to write image for palette {0,number,#}", i); // I18N
                         pll.progressUpdate((double)i / _timItem.getPaletteCount());
                     }
                 }
@@ -494,8 +495,8 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         }
 
         public void printSelectedOptions(PrintStream ps) {
-            ps.println("Palette files: " + _sOutputSummary);
-            ps.println("Format: " + _imageFormat.getExtension());
+            ps.println(I18N.S("Palette files: {0}", _sOutputSummary)); // I18N
+            ps.println(I18N.S("Format: {0}", _imageFormat.getExtension())); // I18N
         }
 
     }

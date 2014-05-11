@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,43 +37,45 @@
 
 package jpsxdec.cdreaders;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import jpsxdec.I18N;
 
     
 /** Represents a raw CD header without a sync header and sector header. */
 public class CdxaSubHeader {
 
     private static enum IssueType {
-        EQUAL_BOTH_GOOD(0) {public String log(String s1, String s2, int c) {return null;}},
-        EQUAL_BOTHBAD(0) {public String log(String s1, String s2, int c) {
-            return s1 + " (bad) == " + s2 + " (bad)";
+        EQUAL_BOTH_GOOD(0) {public String msg(int iConfidenceBalance) {return null;}},
+        EQUAL_BOTHBAD(0) {public String msg(int iConfidenceBalance) {
+            return "Sector {0,number,#} {1} corrupted: {2} (bad) == {3} (bad)"; // I18N
         }},
-        DIFF_BOTHGOOD(0) {public String log(String s1, String s2, int c) {
-            if (c < 0)
-                return (s1 + " != " + s2 + " (chose " + s1 + " by confidence)");
-            else if (c > 0)
-                return (s1 + " != " + s2 + " (chose " + s2 + " by confidence)");
+        DIFF_BOTHGOOD(0) {public String msg(int iConfidenceBalance) {
+            if (iConfidenceBalance < 0)
+                return "Sector {0,number,#} {1} corrupted: {2} != {3} (chose {2} by confidence)"; // I18N
+            else if (iConfidenceBalance > 0)
+                return "Sector {0,number,#} {1} corrupted: {2} != {3} (chose {3} by confidence)"; // I18N
             else
-                return (s1 + " != " + s2 + " (chose "  + s1 + " by default)");
+                return "Sector {0,number,#} {1} corrupted: {2} != {3} (chose {2} by default)"; // I18N
         }},
-        DIFF_1GOOD2BAD(-1) {public String log(String s1, String s2, int c) {
-            return (s1 + " != " + s2 + " (bad) (chose "  + s1 + ")");
+        DIFF_1GOOD2BAD(-1) {public String msg(int iConfidenceBalance) {
+            return "Sector {0,number,#} {1} corrupted: {2} != {3} (bad) (chose {2})"; // I18N
         }},
-        DIFF_1BAD2GOOD(+1) {public String log(String s1, String s2, int c) {
-            return (s1 + " (bad) != " + s2 + " (chose "  + s2 + ")");
+        DIFF_1BAD2GOOD(+1) {public String msg(int iConfidenceBalance) {
+            return "Sector {0,number,#} {1} corrupted: {2} (bad) != {3} (chose {3})"; // I18N
         }},
-        DIFF_BOTHBAD(0) {public String log(String s1, String s2, int c) {
-            if (c < 0)
-                return (s1 + " (bad) != " + s2 + " (bad) (chose " + s1 + " by confidence)");
-            else if (c > 0)
-                return (s1 + " (bad) != " + s2 + " (bad) (chose " + s2 + " by confidence)");
+        DIFF_BOTHBAD(0) {public String msg(int iConfidenceBalance) {
+            if (iConfidenceBalance < 0)
+                return "Sector {0,number,#} {1} corrupted: {2} (bad) != {3} (bad) (chose {2} by confidence)"; // I18N
+            else if (iConfidenceBalance > 0)
+                return "Sector {0,number,#} {1} corrupted: {2} (bad) != {3} (bad) (chose {3} by confidence)"; // I18N
             else
-                return (s1 + " (bad) != " + s2 + " (bad) (chose "  + s1 + " by default)");
+                return "Sector {0,number,#} {1} corrupted: {2} (bad) != {3} (bad) (chose {2} by default)"; // I18N
         }};
 
         public final int Balance;
         IssueType(int i) { Balance = i; }
-        abstract public String log(String s1, String s2, int c);
+        abstract public String msg(int iConfidenceBalance);
 
         // .........................................
 
@@ -100,9 +102,9 @@ public class CdxaSubHeader {
         return SIZE;
     }
 
-    private int _iFileNum1 = -1;            // [1 byte] used to identify sectors
-                                        //          belonging to the same file
-    private int _iFileNum2;
+    private final int _iFileNum1;            // [1 byte] used to identify sectors
+                                             //          belonging to the same file
+    private final int _iFileNum2;
     private final IssueType _eFileIssue;
     public int getFileNumber() {
         switch (_eFileIssue) {
@@ -116,8 +118,8 @@ public class CdxaSubHeader {
         }
     }
 
-    private int _iChannel1 = -1;         // [1 byte] 0-31 for ADPCM audio
-    private int _iChannel2;
+    private final int _iChannel1;         // [1 byte] 0-31 for ADPCM audio
+    private final int _iChannel2;
     private final IssueType _eChannelIssue;
     public int getChannel() { 
         switch (_eChannelIssue) {
@@ -131,8 +133,8 @@ public class CdxaSubHeader {
         }
     }
 
-    private SubMode _submode1;            // [1 byte]
-    private SubMode _submode2;
+    private final SubMode _submode1;            // [1 byte]
+    private final SubMode _submode2;
     private final IssueType _eSubModeIssue;
     public SubMode getSubMode() { 
         switch (_eChannelIssue) {
@@ -146,8 +148,8 @@ public class CdxaSubHeader {
         }
     }
 
-    private CodingInfo _codingInfo1;     // [1 byte]
-    private CodingInfo _codingInfo2;
+    private final CodingInfo _codingInfo1;     // [1 byte]
+    private final CodingInfo _codingInfo2;
     private final IssueType _eCodingInfoIssue;
     public CodingInfo getCodingInfo() { 
         switch (_eChannelIssue) {
@@ -240,20 +242,28 @@ public class CdxaSubHeader {
 
     void printErrors(int iSector, Logger logger) {
         if (_eFileIssue != IssueType.EQUAL_BOTH_GOOD) {
-            logger.warning("Sector " + iSector + " File Number corrupted: " + 
-                _eFileIssue.log(String.valueOf(_iFileNum1), String.valueOf(_iFileNum2), _iConfidenceBalance));
+            logger.log(Level.WARNING, _eFileIssue.msg(_iConfidenceBalance),
+                    new Object[]{ iSector, 
+                        I18N.S("File Number"), // I18N
+                        _iFileNum1, _iFileNum2});
         }
         if (_eChannelIssue != IssueType.EQUAL_BOTH_GOOD) {
-            logger.warning("Sector " + iSector + " Channel Number corrupted: " +
-                _eChannelIssue.log(String.valueOf(_iChannel1), String.valueOf(_iChannel2), _iConfidenceBalance));
+            logger.log(Level.WARNING, _eChannelIssue.msg(_iConfidenceBalance),
+                    new Object[]{ iSector,
+                        I18N.S("Channel Number"), // I18N
+                        _iChannel1, _iChannel2});
         }
         if (_eSubModeIssue != IssueType.EQUAL_BOTH_GOOD) {
-            logger.warning("Sector " + iSector + " Submode corrupted: " +
-                _eSubModeIssue.log(_submode1.toString(), _submode2.toString(), _iConfidenceBalance));
+            logger.log(Level.WARNING, _eSubModeIssue.msg(_iConfidenceBalance),
+                    new Object[]{ iSector,
+                        I18N.S("Submode"), // I18N
+                        _submode1.toString(), _submode2.toString()});
         }
         if (_eCodingInfoIssue != IssueType.EQUAL_BOTH_GOOD) {
-            logger.warning("Sector " + iSector + " Coding Info corrupted: " +
-                _eCodingInfoIssue.log(_codingInfo1.toString(), _codingInfo2.toString(), _iConfidenceBalance));
+            logger.log(Level.WARNING, _eCodingInfoIssue.msg(_iConfidenceBalance),
+                    new Object[]{ iSector,
+                        I18N.S("Coding Info"), // I18N
+                        _codingInfo1.toString(), _codingInfo2.toString()});
         }
     }
 

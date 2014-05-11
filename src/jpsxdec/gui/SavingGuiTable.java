@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,6 +50,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
+import jpsxdec.I18N;
 import jpsxdec.discitems.IDiscItemSaver;
 
 
@@ -61,7 +62,7 @@ public class SavingGuiTable extends AbstractTableModel {
         }},
         SaveAs(String.class) { 
             Object val(Row row) { return row._saver.getOutputSummary(); }
-            public String toString() { return "Save As"; }
+            public String toString() { return I18N.S("Save As"); } // I18N
         },
         Progress(Integer.class) { Object val(Row row) {
             return row.Progress;
@@ -115,13 +116,13 @@ public class SavingGuiTable extends AbstractTableModel {
             int i = (Integer)value;
             String sText;
             if(i == PROGRESS_FAILED)
-                sText = "Failed!";
+                sText = I18N.S("Failed!"); // I18N
             else if (i == PROGRESS_CANCELED)
-                sText = "Canceled";
+                sText = I18N.S("Canceled"); // I18N
             else if (i == PROGRESS_WAITING)
-                sText = "Waiting";
+                sText = I18N.S("Waiting"); // I18N
             else if (i >= PROGRESS_DONE)
-                sText = "Done";
+                sText = I18N.S("Done"); // I18N
             else { // >= PROGRESS_STARTED
                 _bar.setValue(i);
                 return _bar;

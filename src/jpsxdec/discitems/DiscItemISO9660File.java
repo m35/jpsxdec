@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,13 +45,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
-import java.text.DecimalFormat;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import jpsxdec.I18N;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
@@ -110,7 +111,7 @@ public class DiscItemISO9660File extends DiscItem {
             if (child.setIndexId(childId))
                 childId = childId.createNext();
             else
-                LOG.info("Child rejected id " + child);
+                LOG.log(Level.INFO, "Child rejected id {0}", child);
         }
         return false;
     }
@@ -173,7 +174,7 @@ public class DiscItemISO9660File extends DiscItem {
             // if there is overlap, then the other item should technically fall
             // entirely within this iso9660 file, except they don't always...
             if (other.getStartSector() < getStartSector() || other.getEndSector() > getEndSector()) {
-                LOG.warning(other + " breaks this file boundaries " + this);
+                LOG.log(Level.WARNING, "{0} breaks this file boundaries {1}", new Object[]{other, this});
             }
         }
         return iOverlap;
@@ -187,7 +188,7 @@ public class DiscItemISO9660File extends DiscItem {
 
     @Override
     public String getInterestingDescription() {
-        return DecimalFormat.getInstance().format(_lngSize) + " bytes";
+        return I18N.S("{0} bytes", _lngSize); // I18N
     }
 
     public class ISO9660SaverBuilder extends DiscItemSaverBuilder {
@@ -259,9 +260,9 @@ public class DiscItemISO9660File extends DiscItem {
         public void printHelp(FeedbackStream fbs) {
             fbs.indent();
             if (getSourceCd().hasSectorHeader())
-                fbs.println("-iso   save as 2048 sectors (default raw 2352 sectors)");
+                fbs.println("-iso   save as 2048 sectors (default raw 2352 sectors)"); // I18N
             else
-                fbs.println("[no options available]");
+                fbs.println("[no options available]"); // I18N
             fbs.outdent();
         }
 
@@ -279,7 +280,7 @@ public class DiscItemISO9660File extends DiscItem {
         }
 
         private class FileName implements ChangeListener {
-            JLabel __label = new JLabel("Save as:");
+            JLabel __label = new JLabel(I18N.S("Save as:")); // I18N
             JLabel __name;
             public FileName() {
                 __name = new JLabel(_writerBuilder.getFileName());
@@ -294,7 +295,7 @@ public class DiscItemISO9660File extends DiscItem {
 
         private class SaveRaw extends AbstractCheck {
 
-            public SaveRaw() { super("Save raw:"); }
+            public SaveRaw() { super(I18N.S("Save raw:")); } // I18N
             public boolean isSelected() { return _writerBuilder.getSaveRaw(); }
             public void setSelected(boolean b) { _writerBuilder.setSaveRaw(b); }
             public boolean isEnabled() { return _writerBuilder.getSaveRaw_enabled(); }
@@ -348,9 +349,9 @@ public class DiscItemISO9660File extends DiscItem {
 
         public void printSelectedOptions(PrintStream ps) {
             if (__blnSaveRaw)
-                ps.println("Saving with raw sectors");
+                ps.println(I18N.S("Saving with raw sectors")); // I18N
             else
-                ps.println("Saving with iso sectors");
+                ps.println(I18N.S("Saving with iso sectors")); // I18N
         }
 
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,6 +48,8 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
+import jpsxdec.I18N;
+import jpsxdec.discitems.savers.FrameFormatter;
 import jpsxdec.discitems.savers.MdecDecodeQuality;
 import jpsxdec.discitems.savers.VDP;
 import jpsxdec.discitems.savers.VideoFormat;
@@ -80,7 +82,7 @@ class Command_Static extends Command {
                 return null;
             }
         }
-        return "Invalid static type: " + s;
+        return I18N.S("Invalid static type: {0}", s); // I18N
     }
 
     public void execute(String[] asRemainingArgs) throws CommandLineException {
@@ -89,7 +91,7 @@ class Command_Static extends Command {
             case bs:
             case mdec:
                 if (asRemainingArgs == null) {
-                    throw new CommandLineException("-dim option required");
+                    throw new CommandLineException("-dim option required"); // I18N
                 }
                 ArgParser parser = new ArgParser("", false);
                 BooleanHolder debug = new BooleanHolder(false);
@@ -106,7 +108,7 @@ class Command_Static extends Command {
                 parser.matchAllArgs(asRemainingArgs, 0, 0);
                 //......
                 if (dimentions.value == null) {
-                    throw new CommandLineException("-dim option required");
+                    throw new CommandLineException("-dim option required"); // I18N
                 }
                 final int iWidth;
                 final int iHeight;
@@ -119,11 +121,11 @@ class Command_Static extends Command {
                     boolean blnAssertsEnabled = false;
                     assert blnAssertsEnabled = true;
                     if (!blnAssertsEnabled) {
-                        _fbs.printlnWarn("Unable to enable decoding debug because asserts are disabled.");
-                        _fbs.printlnWarn("Start java using the -ea option.");
+                        _fbs.printlnWarn(I18N.S("Unable to enable decoding debug because asserts are disabled.")); // I18N
+                        _fbs.printlnWarn(I18N.S("Start java using the -ea option.")); // I18N
                     }
                 }
-                _fbs.println("Reading static file " + inFile);
+                _fbs.println(I18N.S("Reading static file {0}", inFile)); // I18N
                 String sFileBaseName = Misc.getBaseName(inFile.getName());
                 VideoFormat vf = null;
                 for (VideoFormat fmt : VideoFormat.getAvailable()) {
@@ -133,23 +135,23 @@ class Command_Static extends Command {
                     }
                 }
                 if (vf == null) {
-                    throw new CommandLineException("Invalid format type " + format.value);
+                    throw new CommandLineException("Invalid format type {0}", format.value); // I18N
                 }
                 
                 VDP.IMdecListener mdecOut;
-                final File outFile = new File(sFileBaseName + vf.makePostfixFormat(iWidth, iHeight));
+                FrameFormatter formatter = FrameFormatter.makeFormatter(sFileBaseName, vf, iWidth, iHeight);
                 if (vf == VideoFormat.IMGSEQ_MDEC) {
-                    mdecOut = new VDP.Mdec2File(outFile, iWidth, iHeight);
+                    mdecOut = new VDP.Mdec2File(formatter, iWidth, iHeight);
                 } else if (vf == VideoFormat.IMGSEQ_JPG) {
-                    VDP.Mdec2Jpeg m2j = new VDP.Mdec2Jpeg(outFile, iWidth, iHeight);
+                    VDP.Mdec2Jpeg m2j = new VDP.Mdec2Jpeg(formatter, iWidth, iHeight);
                     mdecOut = m2j;
                 } else {
                     MdecDecodeQuality decQuality = MdecDecodeQuality.fromCmdLine(quality.value);
                     if (decQuality == null) {
-                        throw new CommandLineException("Invalid quality " + quality.value);
+                        throw new CommandLineException("Invalid quality {0}", quality.value); // I18N
                     }
                     MdecDecoder vidDecoder = decQuality.makeDecoder(iWidth, iHeight);
-                    _fbs.println("Using quality " + quality.value);
+                    _fbs.println(I18N.S("Using quality {0}", quality.value)); // I18N
                     if (vidDecoder instanceof MdecDecoder_double_interpolate) {
                         MdecDecoder_double_interpolate.Upsampler up;
                         if (upsample.value == null) {
@@ -157,18 +159,18 @@ class Command_Static extends Command {
                         } else {
                             up = MdecDecoder_double_interpolate.Upsampler.fromCmdLine(upsample.value);
                             if (up == null) {
-                                throw new CommandLineException("Invalid upsampling " + upsample.value);
+                                throw new CommandLineException("Invalid upsampling {0}", upsample.value); // I18N
                             }
                         }
-                        _fbs.println("Using upsampling " + up.name());
+                        _fbs.println(I18N.S("Using upsampling {0}", up.name())); // I18N
                         ((MdecDecoder_double_interpolate) vidDecoder).setResampler(up);
                     }
                     VDP.Mdec2Decoded m2d = new VDP.Mdec2Decoded(vidDecoder);
                     mdecOut = m2d;
-                    VDP.Decoded2JavaImage imgOut = new VDP.Decoded2JavaImage(outFile, vf.getImgFmt(), iWidth, iHeight);
+                    VDP.Decoded2JavaImage imgOut = new VDP.Decoded2JavaImage(formatter, vf.getImgFmt(), iWidth, iHeight);
                     m2d.setDecoded(imgOut);
                 }
-                _fbs.println("Saving as " + outFile);
+                _fbs.println(I18N.S("Saving as {0}", formatter.format(-1))); // I18N
                 UserFriendlyLogger log = new UserFriendlyLogger("static", _fbs);
                 try {
                     byte[] abBitstream = IO.readFile(inFile);
@@ -177,7 +179,7 @@ class Command_Static extends Command {
                         b2m.setMdec(mdecOut);
                         b2m.setLog(log);
                         try {
-                            b2m.bitstream(abBitstream, iWidth, iHeight, -1);
+                            b2m.bitstream(abBitstream, abBitstream.length, -1, -1);
                         } finally {
                             b2m.setLog(null);
                         }
@@ -189,13 +191,13 @@ class Command_Static extends Command {
                             mdecOut.setLog(null);
                         }
                     }
-                    _fbs.println("Frame converted successfully.");
+                    _fbs.println(I18N.S("Frame converted successfully.")); // I18N
                 } catch (IOException ex) {
                     throw new CommandLineException(ex);
                 }
                 return;
             case tim:
-                _fbs.println("Reading TIM file " + inFile);
+                _fbs.println(I18N.S("Reading TIM file {0}", inFile)); // I18N
                 FileInputStream is = null;
                 try {
                     is = new FileInputStream(inFile);
@@ -207,14 +209,14 @@ class Command_Static extends Command {
                         BufferedImage bi = tim.toBufferedImage(i);
                         String sFileName = String.format("%s_p%0" + iDigitCount + "d.png", sOutBaseName, i);
                         File file = new File(sFileName);
-                        _fbs.println("Writing " + file.getPath());
+                        _fbs.println(I18N.S("Writing {0}", file.getPath())); // I18N
                         ImageIO.write(bi, "png", file);
                     }
-                    _fbs.println("Image converted successfully");
+                    _fbs.println(I18N.S("Image converted successfully")); // I18N
                 } catch (NotThisTypeException ex) {
-                    throw new CommandLineException("Error: not a Tim image");
+                    throw new CommandLineException("Error: not a Tim image"); // I18N
                 } catch (IOException ex) {
-                    throw new CommandLineException("Error reading or writing TIM file", ex);
+                    throw new CommandLineException(ex, "Error reading or writing TIM file"); // I18N
                 } finally {
                     if (is != null) try {
                         is.close();

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,19 +45,21 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.ResourceBundle;
 import java.util.logging.Filter;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import jpsxdec.I18N;
 import jpsxdec.Version;
 
 
 /** May only be friendly to English speakers. */
 public class UserFriendlyLogger extends Logger {
 
-    private static final SimpleDateFormat TIME_FORMAT = 
+    private final SimpleDateFormat TIME_FORMAT = 
             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     public static final int HEADER_LEVEL_COUNT = 4;
@@ -75,35 +77,25 @@ public class UserFriendlyLogger extends Logger {
         }
 
         public void print(LogRecord record, PrintStream ps) {
-            Level lvl = record.getLevel();
-            if (lvl == Level.WARNING) {
-                ps.print("[WARN] ");
-            } else if (lvl == Level.SEVERE) {
-                ps.print("[ERR] ");
-            } else {
-                ps.print('[');
-                ps.print(lvl.getName());
-                ps.print("] ");
-            }
+            ps.print('[');
+            ps.print(record.getLevel().getName());
+            ps.print("] ");
             if (record.getMessage() != null) {
                 ps.print(formatMessage(record));
             }
             ps.println();
             if (record.getThrown() != null) {
-                ps.print("[^EX^] ");
+                ps.print("[^EX^] "); // I18N
                 record.getThrown().printStackTrace(ps);
             }
         }
     }
     private static final FriendlyFormatter FORMATTER = new FriendlyFormatter();
 
-    private final String[] _asHeaders = new String[HEADER_LEVEL_COUNT];
-    private boolean _blnHasHeader = false;
-
     /** Filename of the logger file. Null if logging to a PrintStream. */
     private File _file;
     /** Stream where all logging goes to. */
-    protected PrintStream _ps;
+    private PrintStream _ps;
     /** Name of the log. */
     private final String _sBaseName;
 
@@ -133,13 +125,7 @@ public class UserFriendlyLogger extends Logger {
 
     /** Returns the file name of the log file. */
     public String getFileName() {
-        return _file == null ? null : _file.toString();
-    }
-
-    /** Only written if something is logged. */
-    public void setHeader(int iHeaderLevel, String s) {
-        _asHeaders[iHeaderLevel] = s;
-        _blnHasHeader = true;
+        return String.valueOf(_file);
     }
 
     @Override
@@ -147,16 +133,6 @@ public class UserFriendlyLogger extends Logger {
         _globalLogger.log(record);
         if (_ps == null)
             openOutputFile();
-
-        if (_blnHasHeader) {
-            for (int i = 0; i < _asHeaders.length; i++) {
-                if (_asHeaders[i] == null)
-                    continue;
-                _ps.println(_asHeaders[i]);
-                _asHeaders[i] = null;
-            }
-            _blnHasHeader = false;
-        }
 
         Level lvl = record.getLevel();
 
@@ -179,8 +155,8 @@ public class UserFriendlyLogger extends Logger {
                 file = File.createTempFile(_sBaseName, ".log", new File("."));
                 fos = new FileOutputStream(file);
             } catch (IOException ex) {
-                Logger.getLogger(UserFriendlyLogger.class.getName()).severe(
-                        "Unable to create custom logger file " + _file);
+                Logger.getLogger(UserFriendlyLogger.class.getName()).log(
+                        Level.SEVERE, "Unable to create custom logger file {0}", _file);
                 _ps = System.err;
             }
         }
@@ -192,7 +168,7 @@ public class UserFriendlyLogger extends Logger {
         }
     }
 
-    private static void writeFileHeader(PrintStream ps) {
+    private void writeFileHeader(PrintStream ps) {
         ps.println(Version.VerString);
         ps.print(System.getProperty("os.name")); ps.print(' '); ps.println(System.getProperty("os.version"));
         ps.print("Java "); ps.println(System.getProperty("java.version"));
@@ -202,6 +178,16 @@ public class UserFriendlyLogger extends Logger {
     public void close() {
         if (_file != null)
             _ps.close();
+    }
+
+    @Override
+    public String getResourceBundleName() {
+        return I18N.getResourceBundleName();
+    }
+
+    @Override
+    public ResourceBundle getResourceBundle() {
+        return I18N.getResourceBundle();
     }
 
     // -----------------------------------------------------------------------

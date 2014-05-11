@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,11 +38,9 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
-import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.util.FeedbackStream;
 
@@ -62,78 +60,48 @@ public class DemuxedStrFrame implements IDemuxedFrame {
     /** Frame number of the frame. */
     private final int _iFrame;
 
-    private IVideoSector[] _aoChunks;
-
-    private int _iChunksReceived;
+    private final IVideoSector[] _aoChunks;
 
     /** Size in bytes of the data contained in all the demux sectors. */
-    private int _iDemuxFrameSize;
+    private final int _iDemuxFrameSize;
+    
+    private final int _iMinSector;
 
     /** Basically the last sector of the frame, which we assume is when
      * the frame will be displayed. */
-    private int _iPresentationSector;
+    private final int _iPresentationSector;
 
     /* ---------------------------------------------------------------------- */
     /* Constructors---------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
     /** Initialize the frame with an initial sector. */
-    DemuxedStrFrame(IVideoSector firstChunk)
+    public DemuxedStrFrame(int iFrame, int iWidth, int iHeight, IVideoSector[] aoChunks, int iChunksInFrame)
     {
-        _iFrame = firstChunk.getFrameNumber();
-        _iWidth = firstChunk.getWidth();
-        _iHeight = firstChunk.getHeight();
-
-        _aoChunks = new IVideoSector[firstChunk.getChunksInFrame()];
-
-        // save the chunk
-        _aoChunks[firstChunk.getChunkNumber()] = firstChunk;
-        // add the sector's data size to the total
-        _iDemuxFrameSize = firstChunk.getIdentifiedUserDataSize();
-        // set the presentation sector to the only sector we have so far
-        _iPresentationSector = firstChunk.getSectorNumber();
-
-        _iChunksReceived = 1;
-
-    }
-
-    boolean addChunk(IVideoSector chunk) {
-        if (chunk.getFrameNumber() != _iFrame || isFull())
-            return true;
-
-        // for easy reference
-        final int iChkNum = chunk.getChunkNumber();
-
-        if (chunk.getChunksInFrame() != _aoChunks.length) {
-            // if the number of chunks in the frame suddenly changed
-            throw new IllegalArgumentException("Number of chunks in this frame changed from " +
-                          _aoChunks.length + " to " + chunk.getChunksInFrame());
-        } else if (iChkNum < 0 || iChkNum >= _aoChunks.length) {
-            // if the chunk number is out of valid range
-            throw new IllegalArgumentException("Frame chunk number " + iChkNum + " is outside the range of possible chunk numbers.");
+        _iFrame = iFrame;
+        _iWidth = iWidth;
+        _iHeight = iHeight;
+        _aoChunks = new IVideoSector[iChunksInFrame];
+        int iMin = Integer.MAX_VALUE, iMax = 0, iSize = 0;
+        for (int i = 0; i < aoChunks.length; i++) {
+            IVideoSector chunk = aoChunks[i];
+            if (chunk != null) {
+                int iSector = chunk.getSectorNumber();
+                if (iSector < iMin)
+                    iMin = iSector;
+                if (iSector > iMax)
+                    iMax = iSector;
+                iSize += chunk.getIdentifiedUserDataSize();
+                _aoChunks[i] = chunk;
+            }
         }
-
-        // make sure we don't alrady have the chunk
-        if (_aoChunks[iChkNum] != null)
-            throw new IllegalArgumentException("Chunk number " + iChkNum + " already received.");
-
-        // finally add the chunk where it belongs in the list
-        _aoChunks[iChkNum] = chunk;
-        // add the sector's data size to the total
-        _iDemuxFrameSize += chunk.getIdentifiedUserDataSize();
-        // update the presentation sector if it's larger
-        if (chunk.getSectorNumber() > _iPresentationSector)
-            _iPresentationSector = chunk.getSectorNumber();
-
-        _iChunksReceived++;
-        
-        return false;
+        if (iSize < 1)
+            throw new IllegalArgumentException();
+        _iDemuxFrameSize = iSize;
+        _iMinSector = iMin;
+        _iPresentationSector = iMax;
     }
 
-    boolean isFull() {
-        return _iChunksReceived == _aoChunks.length;
-    }
-    
     /* ---------------------------------------------------------------------- */
     /* Properties ----------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
@@ -181,7 +149,7 @@ public class DemuxedStrFrame implements IDemuxedFrame {
                 chunk.copyIdentifiedUserData(abBuffer, iPos);
                 iPos += chunk.getIdentifiedUserDataSize();
             } else {
-                LOG.warning("Frame " + _iFrame + " chunk " + iChunk + " missing.");
+                LOG.log(Level.WARNING, "Frame {0,number,#} chunk {1,number,#} missing.", new Object[]{_iFrame, iChunk});
             }
         }
         return abBuffer;
@@ -225,6 +193,18 @@ public class DemuxedStrFrame implements IDemuxedFrame {
         }
     }
 
+    @Override
+    public String toString() {
+        return "STR "+_iWidth+"x"+_iHeight+" Frame "+_iFrame+
+               " Chunks "+_aoChunks.length+
+               " DemuxSize "+_iDemuxFrameSize+" PresSect "+_iPresentationSector;
+    }
 
+    public int getStartSector() {
+        return _iMinSector;
+    }
+    public int getEndSector() {
+        return getPresentationSector();
+    }
 
 }

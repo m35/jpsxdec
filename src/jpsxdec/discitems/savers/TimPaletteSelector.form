@@ -45,7 +45,9 @@
         <Property name="icon" type="javax.swing.Icon" editor="org.netbeans.modules.form.editors2.IconEditor">
           <Image iconType="3" name="/jpsxdec/discitems/savers/edit-paste-4.png"/>
         </Property>
-        <Property name="toolTipText" type="java.lang.String" value="Copy to clipboard"/>
+        <Property name="toolTipText" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
+          <ResourceString bundle="jpsxdec/Translations.properties" key="Copy to clipboard" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+        </Property>
         <Property name="alignmentY" type="float" value="0.0"/>
         <Property name="margin" type="java.awt.Insets" editor="org.netbeans.beaninfo.editors.InsetsEditor">
           <Insets value="[0, 0, 0, 0]"/>

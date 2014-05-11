@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013  Michael Sabin
+ * Copyright (C) 2013-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -249,10 +249,9 @@ public class Mdec2Jpeg {
                             iCurrentBlockVectorPosition += code.getTop6Bits() + 1;
 
                             if (iCurrentBlockVectorPosition >= 64) {
-                                throw new MdecException.Decode(String.format(
-                                        "[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d",
-                                        iCurrentBlockVectorPosition,
-                                        iMacBlk, iMacBlkX, iMacBlkY, iBlock));
+                                throw new MdecException.Decode("[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} ({2,number,#}, {3,number,#}) block {4,number,#}", // I18N
+                                               iCurrentBlockVectorPosition,
+                                               iMacBlk, iMacBlkX, iMacBlkY, iBlock);
                             }
 
                             // Dequantize
@@ -284,8 +283,11 @@ public class Mdec2Jpeg {
             }
 
         } catch (MdecException ex) {
-            String sErr = "Error reading macro block " + iMacBlk + " block " + iBlock;
-            throw new MdecException.Decode(sErr, ex);
+            if (ex instanceof MdecException.Decode)
+                throw (MdecException.Decode)ex;
+            else
+                throw new MdecException.Decode(ex, "Error reading macro block {0,number,#} block {1,number,#}", // I18N
+                                                iMacBlk, iBlock);
         }
     }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2013  Michael Sabin
+ * Copyright (C) 2007-2014  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -86,9 +86,6 @@ public class DiscIndexerXaAudio extends DiscIndexer {
          *  May be null. */
         public SectorXaAudio getCurrent() { return _currentXA; }
 
-        /** Count of how many sample are found in the stream. */
-        private long _lngSampleCount = 0;
-
         /** Number of sectors between XA sectors that are part of this stream.
          * Should only ever be 1, 2, 4, 8, 16, or 32
          * (enforced by {@link SectorXAAudio#matchesPrevious(jpsxdec.sectors.IdentifiedSector)}).
@@ -120,7 +117,6 @@ public class DiscIndexerXaAudio extends DiscIndexer {
                 return false;
 
             _previousXA = _currentXA;
-            _lngSampleCount += _previousXA.getSampleCount();
             _currentXA = newCurrent;
 
             return true; // the sector was accepted
@@ -129,38 +125,35 @@ public class DiscIndexerXaAudio extends DiscIndexer {
         public void createMediaItemFromCurrent(DiscIndexer adder) {
             if (_previousXA == null && _currentXA.isAllQuiet()) {
                 if (_errLog.isLoggable(Level.INFO)) {
-                    _errLog.info("Ignoring a silent XA audio stream that is only 1 sector long at sector " + _iStartSector + ", channel " + _currentXA.getChannel());
+                    _errLog.log(Level.INFO, "Ignoring a silent XA audio stream that is only 1 sector long at sector {0,number,#}, channel {1,number,#}", // I18N
+                            new Object[]{_iStartSector, _currentXA.getChannel()});
                 }
                 return;
             }
-            _lngSampleCount += _currentXA.getSampleCount();
             adder.addDiscItem(new DiscItemXaAudioStream(
-                _iStartSector, _currentXA.getSectorNumber(),
-                _currentXA.getChannel(),
-                _lngSampleCount,
-                _currentXA.getSamplesPerSecond(),
-                _currentXA.isStereo(), _currentXA.getBitsPerSample(),
-                _iAudioStride));
+                              _iStartSector, _currentXA.getSectorNumber(),
+                              _currentXA.getChannel(),
+                              _currentXA.getSamplesPerSecond(),
+                              _currentXA.isStereo(), _currentXA.getBitsPerSample(),
+                              _iAudioStride));
         }
 
         public void createMediaItemFromPrevious(DiscIndexer adder) {
             if (_previousXA == null) {
                 // this should only happen due to programmer error
                 if (LOG.isLoggable(Level.WARNING))
-                    LOG.warning("Trying to create XA item from non-existant previous sector! Current sector is " + _iStartSector);
+                    LOG.log(Level.WARNING, "Trying to create XA item from non-existant previous sector! Current sector is {0,number,#}", _iStartSector);
                 return;
             } 
             DiscItemXaAudioStream ret = new DiscItemXaAudioStream(
                 _iStartSector, _previousXA.getSectorNumber(),
                 _currentXA.getChannel(),
-                _lngSampleCount,
                 _currentXA.getSamplesPerSecond(),
                 _currentXA.isStereo(), _currentXA.getBitsPerSample(),
                 _iAudioStride);
             _previousXA = null;
             _iStartSector = _currentXA.getSectorNumber();
             _iAudioStride = -1;
-            _lngSampleCount = 0;
             adder.addDiscItem(ret);
         }
 
@@ -208,8 +201,7 @@ public class DiscIndexerXaAudio extends DiscIndexer {
                         indexingEndOfDisc();
                         break;
                     case IVideoSector.SPLIT_XA_AUDIO_PREVIOUS:
-                        for (int i = 0; i < _aoChannels.length; i++) {
-                            AudioStreamIndex audStream = _aoChannels[i];
+                        for (AudioStreamIndex audStream : _aoChannels) {
                             if (audStream != null) {
                                 audStream.createMediaItemFromPrevious(this);
                             }

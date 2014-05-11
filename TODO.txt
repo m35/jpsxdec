@@ -12,23 +12,21 @@
 
 
 Self contained
-! Update manual screenshots
+* add double-click and arrow list
+* add keyboard actions on rows
 * Add time log msg at end of save/index
-* Add disc opening to debug.log
-! Duplicated frame number in header messes things up (iki)
-* Not closing files if indexing is canceled
+* show error/warn unused cmdline args
+/?/ Add disc opening to debug.log
 * Rewrite manual
 * New video GUI
 * Proper handling when directory box is empty
 * Finish testing LoD iki: GOAST.IKI (end of disc 2), DENIN2.INI (middle of disc 3), DRAGON1.IKI
-* add double-click and arrow list
-* add keyboard actions on rows
 * Update dir chooser
 * Update launch4j
 * Print bs format in -static
 * Bug when saving: leftover text in Message column
 * Add About button
-* Add exit button
+* Add Exit button
 * Add selected count on Save All Selected button
 * Find better dropdown button
 * double-check what the EOF and Audio-end flags mean
@@ -45,10 +43,12 @@ Self contained
 * Add unit tests to build.xml
     * Unit tests require Java 6 while jPSXdec is built with Java 5 ...
       can use 2 different Javas in ant?
+    * Create unit test subproject?
 * Experiment with other tree tables (need Mac)
 * Create mac app bundle: need a Mac to test!
 
 General
+! Findbug fixes
 * Code coverage/unit testing
     * Make unit tests for the various layers of decoding:
         1) Opening/identifying various disc images
@@ -56,8 +56,8 @@ General
         3) Indexing of the various item types
       /  1) Uncompression of various bitstreams
       /  2) Various ways to decode MDEC streams
-* Translate/localize the GUI and CL text
-* Replace all logging to use proper logging syntax
+/ Translate/localize the GUI and CL text
+// Replace all logging to use proper logging syntax
 * Clean up all the TODOs
 * write code documentation
 * Mac test
@@ -71,16 +71,24 @@ Compare
 * Compare Tim against various tools out there
 
 Redesign
+* Change the way video items split audio items: do it after indexing.
+  It's conceptually better, and removes Audio indexer from having to know about video frames.
+  However, different movie types split movies slightly differently
+  And right now its the sectors that are the only game specific logic
+  I would need to add game specific indexers
 ! Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates
   make them 75 or 150 fps - by checking how much variance there is between frame lengths
+! Duplicated frame number in header messes things up (iki)
+    * Remove need for frame numbers, and Dredd prebuilt index
+    * Just store the frame start sectors for Dredd
 ? Even when not upsampling chroma, utilize it for PsxYuv->JpgYuv matrix conversion
     ! Test how much difference there is between the two color sets
+! new parsx lib: String sFile = parser.getStringParam("-f"); .hasHelp()
 * Expose logger options
+* Have separate DiscItemBuilderGuiFactory to create a gui from a DiscItemBuilder and cache it
 * Log when frame rate detection fails
-* Bug: Using start and end frames to calculate anything may not work if frame numbering skips
-    * Change current fps fallback calc to actually count the frames
-* Remove need for frame numbers, and Dredd prebuilt index
-* Just store the frame start sectors for Dredd
+// Bug: Using start and end frames to calculate anything may not work if frame numbering skips
+    // Change current fps fallback calc to actually count the frames
 * Command-line selection of parallel audio?
 * change xa playback to properly handle static (adjacent sector) streaming
 * Bug: Ubuntu: only tree column is white, but text boxes have gray background
@@ -88,7 +96,7 @@ Redesign
 * Add -psxfps
 * Add tooltips for everything
 ? Combine [Open & Analyze Disc] with [Open Index]?
-? Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
+* Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
 ? Try to automate the release process
 ? When displaying progress, setup a timer to only update the display at most every second
 ? Index doesn't indicate generic type
@@ -96,7 +104,6 @@ Redesign
 ? Add option to save just 1 item allowing to specify name and location
 ? Is there a better Saving dialog design?
 ? Cleanup Main (again)
-    ? new parsx lib: String sFile = parser.getStringParam("-f");
     ? Remove FeedbackStream and just use a Logger
     // Add cmdline 1 arg -> start gui and open idx or img
     // Bug: Cmdline multi processing overwrites save.log file for each item
@@ -108,13 +115,6 @@ User test feedback
 * [Save] button not really associated with selection
 * More clearly associate list with right panel
 ? Ignore completely transparent paletted Tims
-// Fix apply to all Tim
-// Sees disc items as "files"
-// Bug: FPS not grayed in some cases
-// "Tim" -> "Image"
-// Fix "Saved as" for video saving
-// Surprised when started analyzing after opening image
-// Make it clearer on googlecode page that project moved
 .....................
 
 Indexing
@@ -158,45 +158,12 @@ Real-time media playback/preview
             Add remaining Cb and Cr values
             // Figure out why Y comes out so strange
 
-// update manual -f
-// Have Userfriendly logger also log to debug.log
-// Enhance -frameinfodump with how many bits per block
-// Finish .iki encoding: find what blocks to decrease qscale
-// Test other video playback library https://github.com/riven8192/LibMedia
-// Add bicubic and lanczos chroma upsampling interpolation
-    // Change video saving settings to include interpolation option
-    // Recompare ffmpeg and jPSXdec
-// Combine VideoSaver and VideoSavers
-// Video encoder
-    // Finish .iki encoder
-        1. Encode STRv2,v3 full
-        2. Encode STRv2,v3 partial
-        3. Encode Lain full
-        4. Encode Lain partial
-        5. Encode iki full -> investigate how existing movies know what blocks have higher qscale
-        6. Encode iki partial
-    x Alternatively create an mpeg2 parser and converter
-    x Add frame (quantization) format descriptors to compare for compatability, print details, and use for encoder
-    x Fancy encoding algorithms
-        x Smart chrominance sub-sampling calculation
-        x Pre-anti-aliasing and Pre-blockiness reduction
-        x Temporal spreading (diffusion?) of quantization error
-        x Shorter VLC substitution searching
-        x Trellis quantization
-        x Context-adaptive variable-length coding (or is this h.264 only?)
-// Test Tim generation width
-// tim: copy to clipboard
-x Update argparser -> No updates since forever
-// Bug: Video save saving doesn't use jpg compression quality for jpeg imgseq
-// MDEC to JPEG translator
-    // Remove jpeg quality option
-//IMGSEQ_DEMUX->BITSTREAM
-//Gui save: Success -> Complete
-//Gui: "And"
-// Don't print id # before set
-// Fix: Save as, Saved as, Output
-// Remove 'high' quality
-
+// Update manual screenshots
+// -imgfmt case sensitive
+// -audfmt no error on invalid
+// -noaud say no audio
+// Not closing files if indexing is canceled
+// -i <invalid> shows ugly error
 
 Indexing
     ? More static data handling
@@ -215,6 +182,13 @@ Video encoder
     ? create movies from scratch
     ? Include Cb/Cr un-swap correction option
       so videos decoded with other programs can be re-encoded with consistent coloring
+    x Fancy encoding algorithms
+        x Smart chrominance sub-sampling calculation
+        x Pre-anti-aliasing and Pre-blockiness reduction
+        x Temporal spreading (diffusion?) of quantization error
+        x Shorter VLC substitution searching
+        x Trellis quantization
+        x Context-adaptive variable-length coding (or is this h.264 only?)
 ? Make XA encoder
 ? Generate javadoc and post on site
     - How does that affect wiki pages?
@@ -225,7 +199,7 @@ Video encoder
 ? Add LIST:INFO:ISFT to AVI
 ? Make tutorial on ripping a game and using jpsxdec
 ? Change visualization to output HTML page
-? Save and load ini on every change?
+* Save and load ini on every change?
 ? https://code.google.com/p/xfiledialog/
 ? Update manual to cover game ripping
 ? Indexing overhaul:
@@ -233,14 +207,8 @@ Video encoder
   Introduce contextual information to help identify sector types
     CD audio sectors will benefit
     Identifying video sectors by combining the frame data along the way and checking if its valid (FF7, Lain, Dredd)
-? Change the way video items split audio items: do it after indexing.
-  It's conceptually better, and removes Audio indexer from having to know about video frames.
-  However, different movie types split movies slightly differently
-  And right now its the sectors that are the only game specific logic
-  I would need to add game specific indexers
 ? Wield the power of Java: Multi-thread decoding (essentially use the player model)
 ? Create my own smaller/simpler arg parser
-? Replace much of IO and some of Misc with Apache Commons IO
 ? Highlight tree items that are checked for saving
 ? Change sector reading to start by only reading the header, then read remaining as needed
 ? Add hex viewer for files

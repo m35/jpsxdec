@@ -178,7 +178,10 @@ public class InconsistentFrameSequence {
                     return false;
                 currentLineFrame = new LineParse(sLine);
             } while (currentLineFrame.iFrameStartSector + _iLoopStartSector < iFrameStartSector);
-            
+
+            // TODO: Check if frame lies between the previous and next frames (instead of just inside this frame)
+            // prevLineFrame.iFrameEndSector + _iLoopStartSector <= iFrameStartSector
+            // nextLineFrame.iFrameStartSector + _iLoopStartSector <= iFrameEndSector
             if (currentLineFrame.iFrameStartSector + _iLoopStartSector <= iFrameStartSector &&
                 currentLineFrame.iFrameEndSector   + _iLoopStartSector >= iFrameEndSector)
             {

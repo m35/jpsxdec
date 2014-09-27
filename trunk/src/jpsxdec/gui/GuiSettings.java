@@ -139,7 +139,7 @@ public class GuiSettings {
         }
         FileOutputStream fos = new FileOutputStream(INI_FILE_NAME);
         try {
-            prop.store(fos, Version.VerString);
+            prop.store(fos, Version.VerString.getEnglishMessage());
         } finally {
             fos.close();
         }

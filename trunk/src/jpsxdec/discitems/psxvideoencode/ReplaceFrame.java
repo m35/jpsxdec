@@ -44,6 +44,7 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.savers.FrameLookup;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
@@ -58,35 +59,36 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 public class ReplaceFrame {
-    private final int _iFrame;
+    private final FrameLookup _frameNum;
     private String _sFormat;
     private File _imageFile;
 
     public static final String XML_TAG_NAME = "replace";
 
-    public ReplaceFrame(Element element) {
+    public ReplaceFrame(Element element) throws NotThisTypeException {
         this(element.getAttribute("frame"));
         setImageFile(element.getFirstChild().getNodeValue());
         setFormat(element.getAttribute("format"));
     }
     public Element serialize(Document document) {
         Element node = document.createElement(XML_TAG_NAME);
-        node.setAttribute("frame", String.valueOf(getFrame()));
+        node.setAttribute("frame", getFrame().toString());
         node.setTextContent(getImageFile().toString());
         if (getFormat() != null)
             node.setAttribute("format", getFormat());
         return node;
     }
 
-    public ReplaceFrame(String sFrameNumber) {
-        this(Integer.parseInt(sFrameNumber.trim()));
-    }
-    public ReplaceFrame(int iFrame) {
-        _iFrame = iFrame;
+    public ReplaceFrame(FrameLookup frameNumber) {
+        _frameNum = frameNumber;
     }
 
-    public int getFrame() {
-        return _iFrame;
+    public ReplaceFrame(String sFrameNumber) throws NotThisTypeException {
+        _frameNum = FrameLookup.deserialize(sFrameNumber.trim());
+    }
+
+    public FrameLookup getFrame() {
+        return _frameNum;
     }
 
     public File getImageFile() {
@@ -99,7 +101,7 @@ public class ReplaceFrame {
     public void setImageFile(File imageFile) {
         _imageFile = imageFile;
         if (!_imageFile.exists())
-            throw new IllegalArgumentException("Unable to find " + _imageFile);
+            throw new IllegalArgumentException("Unable to find " + _imageFile); // I18N
     }
 
     public String getFormat() {
@@ -127,20 +129,20 @@ public class ReplaceFrame {
         } else {
             BufferedImage bi = ImageIO.read(_imageFile);
             if (bi == null)
-                throw new IllegalArgumentException("Unable to read " + _imageFile + " as an image. Did you forget 'format'?");
+                throw new IllegalArgumentException("Unable to read " + _imageFile + " as an image. Did you forget 'format'?"); // I18N
 
             if (bi.getWidth()  != Calc.fullDimension(frame.getWidth()) ||
                 bi.getHeight() != Calc.fullDimension(frame.getHeight()))
-                throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace: " +
+                throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace: " + // I18N
                         bi.getWidth() + "x" + bi.getHeight() + " != " + frame.getWidth() + "x" + frame.getHeight());
 
             PsxYCbCrImage psxImage = new PsxYCbCrImage(bi);
             MdecEncoder encoder = new MdecEncoder(psxImage, frame.getWidth(), frame.getHeight());
-            abNewFrame = compressor.compressFull(abExistingFrame, _iFrame, encoder, fbs);
+            abNewFrame = compressor.compressFull(abExistingFrame, frame.getFrame(), encoder, fbs);
         }
 
         if (abNewFrame.length > frame.getDemuxSize())
-            throw new MdecException.Compress("Demux data does fit in frame {0,number,#}!! Available size {1,number,#}, needed size {2,number,#}", // I18N
+            throw new MdecException.Compress("Demux data does fit in frame {0}!! Available size {1,number,#}, needed size {2,number,#}", // I18N
                     getFrame(), frame.getDemuxSize(), abNewFrame.length);
 
         // find out how many bytes and mdec codes are used by the new frame

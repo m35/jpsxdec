@@ -50,7 +50,7 @@ public abstract class  CdSector {
 
 
     protected CdSector(byte[] abSectorBytes, int iByteStartOffset,
-                        int iSectorIndex, long lngFilePointer)
+                       int iSectorIndex, long lngFilePointer)
     {
         _iSectorIndex = iSectorIndex;
         _lngFilePointer = lngFilePointer;

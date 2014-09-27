@@ -45,6 +45,10 @@ public class NotThisTypeException extends LocalizedException {
     public NotThisTypeException() {
         super();
     }
+
+    public NotThisTypeException(Throwable cause) {
+        super(cause);
+    }
     
     public NotThisTypeException(String s) {
         super(s);

@@ -38,11 +38,9 @@
 package jpsxdec.sectors;
 
 import java.io.PrintStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import jpsxdec.audio.XaAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
+import jpsxdec.cdreaders.XaAnalysis;
 import jpsxdec.util.ByteArrayFPIS;
 
 
@@ -56,7 +54,6 @@ public class SectorXaAudio extends IdentifiedSector {
      * for both valid and null XA audio sectors. */
     public static final int MAX_VALID_CHANNEL = 254;
     
-    private static final Logger LOG = Logger.getLogger(SectorXaAudio.class.getName());
 
     private int _iSamplesPerSecond;
     private int _iBitsPerSample;
@@ -67,68 +64,16 @@ public class SectorXaAudio extends IdentifiedSector {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
-        if (cdSector.isCdAudioSector()) return;
+        XaAnalysis analysis = XaAnalysis.analyze(cdSector, MAX_VALID_CHANNEL);
+        if (analysis == null) return;
 
-        if (!cdSector.hasSubHeader()) return;
-        if (cdSector.subModeMask(SubMode.MASK_FORM | SubMode.MASK_AUDIO) !=
-                                (SubMode.MASK_FORM | SubMode.MASK_AUDIO)) return;
-        // Ace Combat 3 has several sectors with channel 255
-        // They seem to be "null" sectors
-        if (cdSector.getSubHeaderChannel() < 0 || cdSector.getSubHeaderChannel() > MAX_VALID_CHANNEL) return;
+        _blnStereo = analysis.blnStereo;
+        _iSamplesPerSecond = analysis.iSamplesPerSecond;
+        _iBitsPerSample = analysis.iBitsPerSample;
 
-        _blnStereo = cdSector.getCodingInfo().isStereo();
-        _iSamplesPerSecond = cdSector.getCodingInfo().getSampleRate();
-        _iBitsPerSample = cdSector.getCodingInfo().getBitsPerSample();
+        _iErrors = analysis.iErrors;
 
-        // TODO: check Sound Parameters values that the index is valid
-
-        int iErrors = 0;
-        int iMaxErrors;
-        if (_iBitsPerSample == 4) {
-            iMaxErrors = XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 2;
-            for (int iOfs = 0; 
-                 iOfs < cdSector.getCdUserDataSize() - XaAdpcmDecoder.SIZE_OF_SOUND_GROUP;
-                 iOfs+=XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)
-            {
-                // the 8 sound parameters (one for each sound unit)
-                // are repeated twice, and are ordered like this:
-                // 0,1,2,3, 0,1,2,3, 4,5,6,7, 4,5,6,7
-                for (int i = 0; i < 4; i++) {
-                    if (cdSector.readUserDataByte(iOfs + i) != cdSector.readUserDataByte(iOfs + 4 + i))
-                        iErrors++;
-                    if (cdSector.readUserDataByte(iOfs + 8 + i) != cdSector.readUserDataByte(iOfs + 12 + i))
-                        iErrors++;
-                }
-            }
-        } else {
-            iMaxErrors = XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 3;
-            for (int iOfs = 0;
-                 iOfs < cdSector.getCdUserDataSize() - XaAdpcmDecoder.SIZE_OF_SOUND_GROUP;
-                 iOfs+=XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)
-            {
-                // the 4 sound parameters (one for each sound unit)
-                // are repeated four times and are ordered like this:
-                // 0,1,2,3, 0,1,2,3, 0,1,2,3, 0,1,2,3
-                for (int i = 0; i < 4; i++) {
-                    byte b = cdSector.readUserDataByte(iOfs + i);
-                    if (b != cdSector.readUserDataByte(iOfs + 4 + i))
-                        iErrors++;
-                    if (b != cdSector.readUserDataByte(iOfs + 8 + i))
-                        iErrors++;
-                    if (b != cdSector.readUserDataByte(iOfs + 12 + i))
-                        iErrors++;
-                }
-            }
-        }
-
-        _iErrors = iErrors;
-
-        setProbability(100 - iErrors * 100 / iMaxErrors);
-        
-        if (iErrors > 0) {
-            LOG.log(Level.WARNING, "{0,number,#} errors out of {1,number,#} in XA sound parameters for {2}",
-                    new Object[]{iErrors, iMaxErrors, this.toString()});
-        }
+        setProbability(analysis.iProbability);        
     }
 
     public int getChannel() {
@@ -178,7 +123,7 @@ public class SectorXaAudio extends IdentifiedSector {
         sb.append(_iSamplesPerSecond).append(" samples/sec");
         if (_iErrors > 0)
             sb.append(" {").append(_iErrors).append(" errors}");
-        if (isAllQuiet())
+        if (isSilent())
             sb.append(" SILENT");
         return sb.toString();
     }
@@ -211,7 +156,7 @@ public class SectorXaAudio extends IdentifiedSector {
      *  most reliable if this sector is not associated with any other XA
      *  sectors. In that case it really doesn't generate anything but silence.
      *  */
-    public boolean isAllQuiet() {
+    public boolean isSilent() {
         for(int iSndGrp = 0, i = 0;
             iSndGrp < XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR;
             iSndGrp++, i += XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)

@@ -46,7 +46,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.I18N;
 import jpsxdec.LocalizedIOException;
-import jpsxdec.sectors.SectorXaAudio;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
@@ -323,7 +323,7 @@ public class CdFileSectorReader {
         return _iSectorCount;
     }
 
-    public String getTypeDescription() {
+    public LocalizedMessage getTypeDescription() {
         return _sectorFactory.getTypeDescription();
     }
 
@@ -391,7 +391,7 @@ public class CdFileSectorReader {
     
     private interface SectorFactory {
         CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer);
-        String getTypeDescription();
+        LocalizedMessage getTypeDescription();
         boolean hasSectorHeader();
         long get1stSectorOffset();
         int getRawSectorSize();
@@ -414,8 +414,8 @@ public class CdFileSectorReader {
         }
 
 
-        public String getTypeDescription() {
-            return I18N.S(".iso (2048 bytes/sector) format"); // I18N
+        public LocalizedMessage getTypeDescription() {
+            return new LocalizedMessage(".iso (2048 bytes/sector) format"); // I18N
         }
 
         public boolean hasSectorHeader() {
@@ -464,7 +464,8 @@ public class CdFileSectorReader {
                 if (cdSector.getSubMode().getForm() != 2 || cdSector.isCdAudioSector())
                     continue;
 
-                if (new SectorXaAudio(cdSector).getProbability() == 100) {
+                XaAnalysis xa = XaAnalysis.analyze(cdSector, 254);
+                if (xa != null && xa.iProbability == 100) {
                     // we've found an XA audio sector
                     // maybe try to find another just to be sure?
 
@@ -481,7 +482,8 @@ public class CdFileSectorReader {
                         cdFile.seek(lngSectStart + lngAdditionalOffset);
                         IO.readByteArray(cdFile, abTestSectorData, 0, SECTOR_SIZE_2336_BIN_NOSYNC);
 
-                        if (new SectorXaAudio(cdSector).getProbability() == 100) {
+                        xa = XaAnalysis.analyze(cdSector, 254);
+                        if (xa != null && xa.iProbability == 100) {
                             // sweet, we found another one. we're done.
                             // backup to the first sector
                             _lng1stSectorOffset = lngSectStart % SECTOR_SIZE_2336_BIN_NOSYNC;
@@ -502,8 +504,8 @@ public class CdFileSectorReader {
             return sector;
         }
 
-        public String getTypeDescription() {
-            return I18N.S("partial header (2336 bytes/sector) format"); // I18N
+        public LocalizedMessage getTypeDescription() {
+            return new LocalizedMessage("partial header (2336 bytes/sector) format"); // I18N
         }
         public boolean hasSectorHeader() {
             return true;
@@ -590,10 +592,10 @@ public class CdFileSectorReader {
             return sector;
         }
 
-        public String getTypeDescription() {
+        public LocalizedMessage getTypeDescription() {
             return _bln2352 ?
-                I18N.S("BIN/CUE (2352 bytes/sector) format") : // I18N
-                I18N.S("BIN/CUE + Sub Channel (2448 bytes/sector) format"); // I18N
+                new LocalizedMessage("BIN/CUE (2352 bytes/sector) format") : // I18N
+                new LocalizedMessage("BIN/CUE + Sub Channel (2448 bytes/sector) format"); // I18N
         }
         public boolean hasSectorHeader() {
             return true;

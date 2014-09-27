@@ -42,10 +42,12 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.TimSaverBuilder;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
 
@@ -101,8 +103,9 @@ public class DiscItemTim extends DiscItem {
     }
 
     @Override
-    public String getInterestingDescription() {
-        return I18N.S("{0,number,#}x{1,number,#}, Palettes: {2,number,#}", _iWidth, _iHeight, _iPaletteCount); // I18N
+    public LocalizedMessage getInterestingDescription() {
+        return new LocalizedMessage("{0,number,#}x{1,number,#}, Palettes: {2,number,#}", // I18N
+                                    _iWidth, _iHeight, _iPaletteCount);
     }
 
     public TimSaverBuilder makeSaverBuilder() {
@@ -146,14 +149,16 @@ public class DiscItemTim extends DiscItem {
 
     @Override
     public int compareTo(DiscItem other) {
-        int i = super.compareTo(other);
-        if (i == 0 && other instanceof DiscItemTim) {
+        if (other instanceof DiscItemTim) {
             DiscItemTim otherTim = (DiscItemTim) other;
-            return _iStartOffset > otherTim._iStartOffset ? 1
-                 : _iStartOffset < otherTim._iStartOffset ? -1
-                 : 0;
+            int i = Misc.intCompare(getStartSector(), otherTim.getStartSector());
+            if (i == 0)
+                return Misc.intCompare(_iStartOffset, otherTim._iStartOffset);
+            else
+                return i;
+        } else {
+            return super.compareTo(other);
         }
-        return i;
     }
 
     /** Attempts to replace the TIM image on the disc with the a new TIM created

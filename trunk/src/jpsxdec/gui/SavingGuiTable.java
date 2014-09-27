@@ -57,31 +57,39 @@ import jpsxdec.discitems.IDiscItemSaver;
 public class SavingGuiTable extends AbstractTableModel {
 
     private static enum COLUMNS {
-        Source(String.class) { Object val(Row row) {
-            return row._saver.getInput();
-        }},
+        Source(String.class) { 
+            Object val(Row row) { return row._saver.getInput(); }
+            public String toString() { return I18N.S("Source"); } // I18N
+        },
         SaveAs(String.class) { 
             Object val(Row row) { return row._saver.getOutputSummary(); }
             public String toString() { return I18N.S("Save As"); } // I18N
         },
-        Progress(Integer.class) { Object val(Row row) {
-            return row.Progress;
-        }},
-        Message(String.class) { Object val(Row row) {
-            return row.Message;
-        }},
-        Warn(Integer.class) { Object val(Row row) {
-            return row.Warnings;
-        }},
-        Err(Integer.class) { Object val(Row row) {
-            return row.Errors;
-        }};
+        Progress(Integer.class) { 
+            Object val(Row row) { return row.Progress; }
+            public String toString() { return I18N.S("Progress"); } // I18N
+        },
+        Message(String.class) { 
+            Object val(Row row) { return row.Message; }
+            public String toString() { return I18N.S("Message"); } // I18N
+        },
+        Warn(Integer.class) { 
+            Object val(Row row) { return row.Warnings; }
+            public String toString() { return I18N.S("Warn"); } // I18N
+        },
+        Err(Integer.class) { 
+            Object val(Row row) { return row.Errors; }
+            public String toString() { return I18N.S("Err"); } // I18N
+        };
 
         private final Class _type;
         COLUMNS(Class type) {
             _type = type;
         }
         abstract Object val(Row item);
+
+        @Override
+        abstract public String toString();
     }
 
     private static class WarnErrRenderer extends DefaultTableCellRenderer {
@@ -181,9 +189,9 @@ public class SavingGuiTable extends AbstractTableModel {
         }
 
         table.setModel(this);
-        table.getColumn(COLUMNS.Progress.name()).setCellRenderer(new ProgressRenderer());
-        table.getColumn(COLUMNS.Warn.name()).setCellRenderer(new WarnErrRenderer());
-        table.getColumn(COLUMNS.Err.name()).setCellRenderer(new WarnErrRenderer());
+        table.getColumn(COLUMNS.Progress.toString()).setCellRenderer(new ProgressRenderer());
+        table.getColumn(COLUMNS.Warn.toString()).setCellRenderer(new WarnErrRenderer());
+        table.getColumn(COLUMNS.Err.toString()).setCellRenderer(new WarnErrRenderer());
         autoResizeColWidth(table);
         //table.getColumn(COLUMNS.Saving.name()).setPreferredWidth(200);
     }

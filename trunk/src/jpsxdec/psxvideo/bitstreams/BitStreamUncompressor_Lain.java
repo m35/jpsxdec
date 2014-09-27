@@ -40,6 +40,7 @@ package jpsxdec.psxvideo.bitstreams;
 import java.io.EOFException;
 import java.io.IOException;
 import jpsxdec.I18N;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2.BitstreamCompressor_STRv2;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
@@ -375,7 +376,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     public static class BitstreamCompressor_Lain extends BitstreamCompressor_STRv2 {
 
         @Override
-        public byte[] compressFull(byte[] abOriginal, int iFrame,
+        public byte[] compressFull(byte[] abOriginal, FrameNumber frame,
                                    MdecEncoder encoder, FeedbackStream fbs)
                 throws MdecException
         {
@@ -395,12 +396,12 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                     abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                     int iNewDemuxSize = abNewDemux.length;
                     if (iNewDemuxSize <= abOriginal.length) {
-                        fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} <= max source {2,number,#}", // I18N
-                                                     iFrame, iNewDemuxSize, abOriginal.length));
+                        fbs.indent1().println(I18N.S("New frame {0} demux size {1,number,#} <= max source {2,number,#}", // I18N
+                                                     frame, iNewDemuxSize, abOriginal.length));
                         break;
                     } else {
-                        fbs.indent1().println(I18N.S("!!! New frame {0,number,#} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
-                                                     iFrame, iNewDemuxSize, abOriginal.length));
+                        fbs.indent1().println(I18N.S("!!! New frame {0} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
+                                                     frame, iNewDemuxSize, abOriginal.length));
                     }
                 } catch (MdecException.TooMuchEnergyToCompress ex) {
                     fbs.printlnWarn(ex.getMessage());
@@ -416,7 +417,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         }
 
         @Override
-        public byte[] compressPartial(byte[] abOriginal, int iFrame,
+        public byte[] compressPartial(byte[] abOriginal, FrameNumber frame,
                                       MdecEncoder encoder, FeedbackStream fbs)
                 throws MdecException
         {

@@ -50,7 +50,7 @@ public interface IDemuxedFrame {
     public static final int UNKNOWN_FRAME = -1;
     
     /** The frame number of the demuxed frame. */
-    int getFrame();
+    FrameNumber getFrame();
 
     int getStartSector();
 

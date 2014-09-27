@@ -38,8 +38,9 @@
 package jpsxdec.indexing;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.Collection;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
@@ -54,7 +55,7 @@ import jpsxdec.util.NotThisTypeException;
 /**
  * Constructs the ISO9660 file system.
  */
-public class DiscIndexerISO9660 extends DiscIndexer {
+public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Identified {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerISO9660.class.getName());
 
@@ -69,7 +70,6 @@ public class DiscIndexerISO9660 extends DiscIndexer {
         _errLog = errLog;
     }
 
-    @Override
     public void indexingSectorRead(IdentifiedSector identifiedSect) {
         if (identifiedSect instanceof SectorISO9660DirectoryRecords) {
             SectorISO9660DirectoryRecords oDirRectSect =
@@ -96,7 +96,7 @@ public class DiscIndexerISO9660 extends DiscIndexer {
         if (_primaryDescriptors.size() > 1) {
             LOG.warning("Disc has more than 1 primary descriptors??");
             for (SectorISO9660VolumePrimaryDescriptor pd : _primaryDescriptors) {
-                LOG.warning(pd.toString());
+                LOG.log(Level.WARNING, "{0}", pd);
             }
         } else if (_primaryDescriptors.size() == 1) {
             SectorISO9660VolumePrimaryDescriptor priDesc = _primaryDescriptors.get(0);
@@ -160,11 +160,6 @@ public class DiscIndexerISO9660 extends DiscIndexer {
         return null;
     }
 
-    @Override
-    public void staticRead(DemuxedUnidentifiedDataStream indexingIS) throws IOException {
-        // this doesn't create static items
-    }
-
     public ArrayList<SectorISO9660DirectoryRecords> getDirectoryRecords() {
         return _dirRecords;
     }
@@ -174,8 +169,11 @@ public class DiscIndexerISO9660 extends DiscIndexer {
     }
 
     @Override
-    public void indexGenerated(DiscIndex discIndex) {
+    public void listPostProcessing(Collection<DiscItem> allItems) {
+    }
 
+    @Override
+    public void indexGenerated(DiscIndex discIndex) {
         if (_primaryDescriptors.size() > 0)
             discIndex.setDiscName(_primaryDescriptors.get(0).getVPD().volume_id.trim());
     }

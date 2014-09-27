@@ -134,7 +134,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
             ex.printStackTrace(new PrintWriter(sw));
             gl.setRows(1);
             gl.setColumns(1);
-            JTextArea t = new JTextArea(I18N.S("Error reading TIM preview\n{0}", sw.toString())); // I18N
+            JTextArea t = new JTextArea(I18N.S("Error reading TIM preview\n{0}", sw)); // I18N
             t.setLineWrap(true);
             _panelImages.add(new JScrollPane(t));
         }

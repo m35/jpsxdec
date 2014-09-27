@@ -44,14 +44,17 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
@@ -82,30 +85,28 @@ public class DiscIndex implements Iterable<DiscItem> {
     private CdFileSectorReader _sourceCD;
     private String _sDiscName = null;
     private final ArrayList<DiscItem> _root;
-    private final ArrayList<DiscItem> _iterate = new ArrayList<DiscItem>();
+    private final List<DiscItem> _iterate = new LinkedList<DiscItem>();
 
     private final LinkedHashMap<Object, DiscItem> _lookup = new LinkedHashMap<Object, DiscItem>();
 
-    /** Finds all the interesting items on the CD.  */
+    /** Finds all the interesting items on the CD. */
     public DiscIndex(CdFileSectorReader cdReader, final ProgressListenerLogger pl) throws TaskCanceledException {
         _sourceCD = cdReader;
         
         final DiscIndexer[] aoIndexers = DiscIndexer.createIndexers(pl);
 
-        DiscIndexer[] aoStaticIndexers = {
-            new DiscIndexerTim(),
-            //new DiscIndexerMdec(),
-            //new DiscIndexerLzs()
-        };
+        final List<DiscIndexer.Identified> identifiedIndexers = new ArrayList<DiscIndexer.Identified>();
+        final List<DiscIndexer.Static> staticIndexers = new ArrayList<DiscIndexer.Static>();
 
         for (DiscIndexer indexer : aoIndexers) {
             indexer.putYourCompletedItemsHere(_iterate);
+            
+            if (indexer instanceof DiscIndexer.Identified)
+                identifiedIndexers.add((DiscIndexer.Identified) indexer);
+            if (indexer instanceof DiscIndexer.Static)
+                staticIndexers.add((DiscIndexer.Static) indexer);
         }
-        for (DiscIndexer indexer : aoStaticIndexers) {
-            indexer.putYourCompletedItemsHere(_iterate);
-        }
-
-
+        
         DiscriminatingSectorIterator sectIter =
                 new DiscriminatingSectorIterator(cdReader, 0);
 
@@ -144,7 +145,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                 }
 
                 if (pl.seekingEvent())
-                    pl.event(I18N.S("Sector {0,number,#} / {1,number,#}  {2,number,#} items found", // I18N
+                    pl.event(new LocalizedMessage("Sector {0,number,#} / {1,number,#}  {2,number,#} items found", // I18N
                             iSector, _sourceCD.getLength(), _iterate.size()));
             }
         });
@@ -159,7 +160,7 @@ public class DiscIndex implements Iterable<DiscItem> {
 
                     IdentifiedSector idSect = sectIter.nextIdentified();
                     
-                    for (DiscIndexer indexer : aoIndexers) {
+                    for (DiscIndexer.Identified indexer : identifiedIndexers) {
 
                         indexer.indexingSectorRead(idSect);
 
@@ -168,22 +169,22 @@ public class DiscIndex implements Iterable<DiscItem> {
                     }
                 }
 
-                if (sectIter.hasNextUnidentified()) {
+                if (sectIter.hasNextUnidentified() && !staticIndexers.isEmpty()) {
                     DemuxedUnidentifiedDataStream staticStream = new DemuxedUnidentifiedDataStream(sectIter);
 
                     for (; staticStream.headHasMore(); staticStream.incrementStartAndReset(4)) {
 
-                        aoStaticIndexers[0].staticRead(staticStream);
+                        staticIndexers.get(0).staticRead(staticStream);
 
                         if (aoTaskCanceled[0] != null)
                             throw aoTaskCanceled[0];
 
-                        for (int i = 1; i < aoStaticIndexers.length; i++) {
+                        for (int i = 1; i < staticIndexers.size(); i++) {
                             // reset the stream
                             staticStream.reset();
 
                             // pass it the stream to try
-                            aoStaticIndexers[i].staticRead(staticStream);
+                            staticIndexers.get(i).staticRead(staticStream);
 
                             if (aoTaskCanceled[0] != null)
                                 throw aoTaskCanceled[0];
@@ -202,6 +203,10 @@ public class DiscIndex implements Iterable<DiscItem> {
         // notify indexers that the disc is finished
         for (DiscIndexer indexer : aoIndexers) {
             indexer.indexingEndOfDisc();
+        }
+
+        for (DiscIndexer indexer : aoIndexers) {
+            indexer.listPostProcessing(_iterate);
         }
 
         // sort the numbered index list according to the start sector & hierarchy level
@@ -223,14 +228,15 @@ public class DiscIndex implements Iterable<DiscItem> {
         }
 
         if (pl.seekingEvent())
-            pl.event(I18N.S("Sector {0,number,#} / {1,number,#}  {2,number,#} items found", // I18N
+            pl.event(new LocalizedMessage("Sector {0,number,#} / {1,number,#}  {2,number,#} items found", // I18N
                     _sourceCD.getLength(), _sourceCD.getLength(), _iterate.size()));
 
         pl.progressEnd();
 
     }
 
-    private ArrayList<DiscItem> buildTree(ArrayList<DiscItem> allItems) {
+
+    private ArrayList<DiscItem> buildTree(Collection<DiscItem> allItems) {
 
         ArrayList<DiscItem> rootItems = new ArrayList<DiscItem>();
 
@@ -428,7 +434,7 @@ public class DiscIndex implements Iterable<DiscItem> {
 
     }
 
-    private ArrayList<DiscItem> recreateTree(ArrayList<DiscItem> allItems, Logger log) {
+    private ArrayList<DiscItem> recreateTree(Collection<DiscItem> allItems, Logger log) {
         ArrayList<DiscItem> rootItems = new ArrayList<DiscItem>();
 
         Outside:
@@ -469,7 +475,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             throws IOException
     {
         ps.println(INDEX_HEADER);
-        ps.println(COMMENT_LINE_START + " Lines that begin with "+COMMENT_LINE_START+" are ignored"); // I18N
+        ps.println(I18N.S("{0} Lines that begin with {0} are ignored", COMMENT_LINE_START)); // I18N
         // TODO: Serialize the CD file location relative to where this index file is being saved
         ps.println(_sourceCD.serialize());
         for (DiscItem item : this) {

@@ -53,6 +53,7 @@ import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
@@ -187,8 +188,8 @@ public class DiscItemISO9660File extends DiscItem {
     }
 
     @Override
-    public String getInterestingDescription() {
-        return I18N.S("{0} bytes", _lngSize); // I18N
+    public LocalizedMessage getInterestingDescription() {
+        return new LocalizedMessage("{0} bytes", _lngSize); // I18N
     }
 
     public class ISO9660SaverBuilder extends DiscItemSaverBuilder {
@@ -307,6 +308,7 @@ public class DiscItemISO9660File extends DiscItem {
     private class ISO9660FileSaver implements IDiscItemSaver {
         private final boolean __blnSaveRaw;
         private final File __outputDir;
+        private File __generatedFile;
 
         public ISO9660FileSaver(boolean blnSaveRaw, File outputDir) {
             __blnSaveRaw = blnSaveRaw;
@@ -334,6 +336,7 @@ public class DiscItemISO9660File extends DiscItem {
             final int iStartSect = getStartSector();
             final int iEndSect = getEndSector();
             FileOutputStream fos = new FileOutputStream(outputFile);
+            __generatedFile = outputFile;
             pll.progressStart();
             for (int iSector = iStartSect; iSector <= iEndSect; iSector++) {
                 CdSector cdSector = getSourceCd().getSector(iSector);
@@ -354,7 +357,12 @@ public class DiscItemISO9660File extends DiscItem {
                 ps.println(I18N.S("Saving with iso sectors")); // I18N
         }
 
-
+        public File[] getGeneratedFiles() {
+            if (__generatedFile == null)
+                return null;
+            else
+                return new File[] {__generatedFile};
+        }
     }
 
 }

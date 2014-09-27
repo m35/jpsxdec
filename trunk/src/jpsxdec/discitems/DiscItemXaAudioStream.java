@@ -43,6 +43,7 @@ import java.util.Date;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.audio.XaAdpcmDecoder;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorXaAudio;
@@ -202,10 +203,10 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
     }
 
     @Override
-    public String getInterestingDescription() {
+    public LocalizedMessage getInterestingDescription() {
         Date secs = new Date(0, 0, 0, 0, 0, (int)Math.max(getApproxDuration(), 1));
-        return I18N.S("{0,time,m:ss}, {1,number,#} Hz {2,choice,1#Mono|2#Stereo}", // I18N
-                      secs, _iSamplesPerSecond, _blnIsStereo ? 2 : 1);
+        return new LocalizedMessage("{0,time,m:ss}, {1,number,#} Hz {2,choice,1#Mono|2#Stereo}", // I18N
+                                    secs, _iSamplesPerSecond, _blnIsStereo ? 2 : 1);
     }
     
     public int getDiscSpeed() {
@@ -252,6 +253,21 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
     public ISectorAudioDecoder makeDecoder(double dblVolume) {
         return new XAConverter(dblVolume);
+    }
+
+    public DiscItemXaAudioStream[] split(int iBeforeSector) {
+        if (iBeforeSector <= getStartSector() || iBeforeSector > getEndSector())
+            throw new IllegalArgumentException("Split sector outside the bounds of XA audio stream");
+
+        int iFirstEnd = iBeforeSector - ((iBeforeSector - getStartSector()-1) % _iSectorStride) - 1;
+        int iSecondStart = iBeforeSector + (_iSectorStride - (iBeforeSector - getStartSector()-1) % _iSectorStride) - 1;
+        DiscItemXaAudioStream first = new DiscItemXaAudioStream(getStartSector(), iFirstEnd,
+                _iChannel, _iSamplesPerSecond, _blnIsStereo, _iBitsPerSample, _iSectorStride);
+        DiscItemXaAudioStream second = new DiscItemXaAudioStream(iSecondStart, getEndSector(),
+                _iChannel, _iSamplesPerSecond, _blnIsStereo, _iBitsPerSample, _iSectorStride);
+        first.setSourceCd(getSourceCd());
+        second.setSourceCd(getSourceCd());
+        return new DiscItemXaAudioStream[] { first, second };
     }
     
     public void replaceXa(PrintStream ps, DiscItemXaAudioStream other) throws IOException {

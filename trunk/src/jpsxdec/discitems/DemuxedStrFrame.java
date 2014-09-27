@@ -58,7 +58,7 @@ public class DemuxedStrFrame implements IDemuxedFrame {
     private final int _iWidth, _iHeight;
 
     /** Frame number of the frame. */
-    private final int _iFrame;
+    private final FrameNumber _frameNumber;
 
     private final IVideoSector[] _aoChunks;
 
@@ -76,9 +76,10 @@ public class DemuxedStrFrame implements IDemuxedFrame {
     /* ---------------------------------------------------------------------- */
 
     /** Initialize the frame with an initial sector. */
-    public DemuxedStrFrame(int iFrame, int iWidth, int iHeight, IVideoSector[] aoChunks, int iChunksInFrame)
+    public DemuxedStrFrame(FrameNumber frameNumber, int iWidth, int iHeight,
+                           IVideoSector[] aoChunks, int iChunksInFrame)
     {
-        _iFrame = iFrame;
+        _frameNumber = frameNumber;
         _iWidth = iWidth;
         _iHeight = iHeight;
         _aoChunks = new IVideoSector[iChunksInFrame];
@@ -122,8 +123,8 @@ public class DemuxedStrFrame implements IDemuxedFrame {
         return _iPresentationSector;
     }
 
-    public int getFrame() {
-        return _iFrame;
+    public FrameNumber getFrame() {
+        return _frameNumber;
     }
     
     public int getChunksInFrame() {
@@ -149,7 +150,7 @@ public class DemuxedStrFrame implements IDemuxedFrame {
                 chunk.copyIdentifiedUserData(abBuffer, iPos);
                 iPos += chunk.getIdentifiedUserDataSize();
             } else {
-                LOG.log(Level.WARNING, "Frame {0,number,#} chunk {1,number,#} missing.", new Object[]{_iFrame, iChunk});
+                LOG.log(Level.WARNING, "Frame {0} chunk {1,number,#} missing.", new Object[]{_frameNumber, iChunk});
             }
         }
         return abBuffer;
@@ -195,7 +196,7 @@ public class DemuxedStrFrame implements IDemuxedFrame {
 
     @Override
     public String toString() {
-        return "STR "+_iWidth+"x"+_iHeight+" Frame "+_iFrame+
+        return "STR "+_iWidth+"x"+_iHeight+" Frame "+_frameNumber+
                " Chunks "+_aoChunks.length+
                " DemuxSize "+_iDemuxFrameSize+" PresSect "+_iPresentationSector;
     }

@@ -1,3 +1,23 @@
+v0.99.4 rev2859 (27 Sep 2014)
+    - New frame numbering and lookup options (see manual)
+        . Frame index number now used by default
+        . -replaceframes XML version now 0.2 to support new frame number options
+    - Indexing improvements for Ace Combat 3, Judge Dredd, Alice in Cyber Land
+    - "Unnamed" changed to "?" in index
+    - GUI very poorly translated to Japanese (Google translate)
+      Please contact me if you would like to help translate to any language!
+    - Index format changed, indexes need to be regenerated
+    Bug fixes:
+    - Image sequence file names messed up
+    - Passing small files as the single command-line parameter causes error
+    - Chroma upsampling on command-line not being handled properly
+    - Issue saving AVI when specifying frame range (command-line)
+    - Image sequence with duplicate header frame numbers overwrites files
+    - Tim images in the same sector not sorted by offset in index
+    - debug0.log timestamp using day instead of minutes
+    Known Problems:
+    - Some .iki frame rate detection is wrong
+    - Audio + Video playback on Linux might be choppy or not display
 v0.99.3 rev2795 (10 May 2014)
     - Better Ace Combat 3 video support
     - Reduced size of executable (.jar) and download

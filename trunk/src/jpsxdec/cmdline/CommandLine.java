@@ -50,6 +50,7 @@ import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileNotFoundException;
 import jpsxdec.cdreaders.CdFileSectorReader;
@@ -127,9 +128,9 @@ public class CommandLine {
                     }
                 }
             } else {
-                String sError = mainCommand.validate();
-                if (sError != null) {
-                    Feedback.printlnErr(sError);
+                LocalizedMessage errMsg = mainCommand.validate();
+                if (errMsg != null) {
+                    Feedback.printlnErr(errMsg.getLocalizedMessage());
                     Feedback.printlnErr(I18N.S("Try -? for help.")); // I18N
                     return 1;
                 } else {
@@ -141,7 +142,7 @@ public class CommandLine {
             LOG.log(Level.SEVERE, null, ex);
             return 1;
         } catch (Throwable ex) {
-            Feedback.printlnErr(I18N.S("ERROR: {0} ({1})", ex.toString(), ex.getClass().getSimpleName())); // I18N
+            Feedback.printlnErr(I18N.S("ERROR: {0} ({1})", ex, ex.getClass().getSimpleName())); // I18N
             LOG.log(Level.SEVERE, "Unhandled exception", ex);
             return 1;
         }
@@ -237,7 +238,7 @@ public class CommandLine {
             Feedback.println(I18N.S("Identified as {0}", cd.getTypeDescription())); // I18N
             return cd;
         } catch (CdFileNotFoundException ex) {
-            throw new CommandLineException(ex.getFile(), "File not found."); // I18N
+            throw new CommandLineException(ex.getFile(), "File not found"); // I18N
         } catch (IOException ex) {
             throw new CommandLineException(ex, "Disc read error."); // I18N
         }
@@ -255,7 +256,7 @@ public class CommandLine {
         } finally {
             cpll.close();
         }
-        Feedback.println(I18N.S("{0,number,#} items found.", index.size())); // I18N
+        Feedback.println(I18N.S("{0,number,#} items found", index.size())); // I18N
         return index;
     }
 
@@ -263,7 +264,7 @@ public class CommandLine {
             throws CommandLineException
     {
         if (index.size() < 1) {
-            Feedback.println(I18N.S("No items found, not saving index file.")); // I18N
+            Feedback.println(I18N.S("No items found, not saving index file")); // I18N
         } else if (sIndexFile.equals("-")) {
             try {
                 index.serializeIndex(System.out);

@@ -37,14 +37,13 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
-import java.util.logging.Level;
+import java.util.Collection;
 import java.util.logging.Logger;
 import jpsxdec.discitems.CrusaderDemuxer;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemCrusader;
-import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.FrameNumberFormat;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorCrusader;
@@ -52,42 +51,32 @@ import jpsxdec.util.NotThisTypeException;
 
 
 /** Identify Crusader: No Remorse audio/video streams. */
-public class DiscIndexerCrusader extends DiscIndexer {
+public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Identified {
 
-    private static class VideoStreamIndex extends AbstractVideoStreamIndex {
-
-        private int _iStartFrame = -1;
-        private final CrusaderDemuxer _demuxer;
+    private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemCrusader> {
 
         public VideoStreamIndex(Logger errLog, SectorCrusader vidSect) {
             super(errLog, vidSect, false);
 
-            initDemuxer(_demuxer = new CrusaderDemuxer(),
+            initDemuxer(new CrusaderDemuxer(),
                         vidSect);
-        }
-
-        @Override
-        public void frameComplete(IDemuxedFrame frame) {
-            if (_iStartFrame < 0)
-                _iStartFrame = frame.getFrame();
-            super.frameComplete(frame);
         }
 
         @Override
         protected DiscItemCrusader createVideo(int iStartSector, int iEndSector,
                                                int iWidth, int iHeight,
                                                int iFrameCount,
-                                               int iLastSeenFrameNumber,
+                                               FrameNumberFormat frameNumberFormat,
+                                               FrameNumber startFrame,
+                                               FrameNumber lastSeenFrameNumber,
                                                int iSectors, int iPerFrame,
                                                int iFrame1PresentationSector)
         {
-            if (_iStartFrame > 1)
-                _errLog.log(Level.WARNING, "Video stream first frame is > 1: {0,number,#}", _iStartFrame);
-            
-            return new DiscItemCrusader(_demuxer.getStartSector(), _demuxer.getEndSector(),
+            return new DiscItemCrusader(iStartSector, iEndSector,
                                         iWidth, iHeight,
                                         iFrameCount,
-                                        _iStartFrame, iLastSeenFrameNumber);
+                                        frameNumberFormat,
+                                        startFrame, lastSeenFrameNumber);
         }
 
     }
@@ -99,7 +88,6 @@ public class DiscIndexerCrusader extends DiscIndexer {
         _errLog = errLog;
     }
 
-    @Override
     public void indexingSectorRead(IdentifiedSector identifiedSector) {
         if (!(identifiedSector instanceof SectorCrusader))
             return;
@@ -109,7 +97,7 @@ public class DiscIndexerCrusader extends DiscIndexer {
         if (_currentStream != null) {
             boolean blnAccepted = _currentStream.sectorRead(vidSect);
             if (!blnAccepted) {
-                DiscItemVideoStream vid = _currentStream.endOfMovie();
+                DiscItemCrusader vid = _currentStream.endOfMovie();
                 if (vid != null)
                     super.addDiscItem(vid);
                 _currentStream = null;
@@ -124,11 +112,15 @@ public class DiscIndexerCrusader extends DiscIndexer {
     @Override
     public void indexingEndOfDisc() {
         if (_currentStream != null) {
-            DiscItemVideoStream vid = _currentStream.endOfMovie();
+            DiscItemCrusader vid = _currentStream.endOfMovie();
             if (vid != null)
                 super.addDiscItem(vid);
             _currentStream = null;
         }
+    }
+
+    @Override
+    public void listPostProcessing(Collection<DiscItem> allItems) {
     }
 
     @Override
@@ -143,10 +135,6 @@ public class DiscIndexerCrusader extends DiscIndexer {
 
     @Override
     public void indexGenerated(DiscIndex index) {
-    }
-
-    @Override
-    public void staticRead(DemuxedUnidentifiedDataStream is) throws IOException {
     }
 
 }

@@ -45,10 +45,10 @@ public interface ISquareAudioSector extends IIdentifiedSector {
     int getSamplesPerSecond();
     /** How many left/right-channel audio samples will be decoded from this 
      *  audio sector. */
-    public long getLeftSampleCount();
+    long getLeftSampleCount();
     /** How many left/right-channel audio samples will be decoded from this
      *  audio sector. */
-    public long getRightSampleCount();
+    long getRightSampleCount();
     
     /** 0 for left channel, 1 for right channel */
     int getAudioChannel();

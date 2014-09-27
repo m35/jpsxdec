@@ -39,12 +39,13 @@ package jpsxdec.util;
 
 import java.io.PrintStream;
 import java.util.logging.LogRecord;
+import jpsxdec.LocalizedMessage;
 
 public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
 
     private static final int BAR_WIDTH = 30;
 
-    private String _sLastEvent = "";
+    private LocalizedMessage _lastEvent = null;
     private double _dblNextProgressMark = 0;
     private int _iWarnCount = 0;
     private int _iErrCount = 0;
@@ -64,12 +65,12 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
         });
     }
 
-    public void event(String sDescription) {
-        _sLastEvent = sDescription;
+    public void event(LocalizedMessage msg) {
+        _lastEvent = msg;
     }
 
-    public void progressInfo(String s) {
-        _progressStream.println(s);
+    public void progressInfo(LocalizedMessage msg) {
+        _progressStream.println(msg.getLocalizedMessage());
     }
 
     public void progressEnd() {
@@ -78,12 +79,13 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
     }
 
     public void progressStart() { progressStart(null); }
-    public void progressStart(String s) {
-        if (s != null)
-            _progressStream.println(s);
+    public void progressStart(LocalizedMessage msg) {
+        if (msg != null)
+            _progressStream.println(msg.getLocalizedMessage());
         _dblNextProgressMark = 0;
         _iWarnCount = 0;
         _iErrCount = 0;
+        _lastEvent = null;
     }
 
     public void progressUpdate(double dblPercentComplete) {
@@ -116,7 +118,11 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
                 strBuild.append('.');
         }
 
-        strBuild.append(String.format("] %4d%% %s", (long)Math.floor(dblPercentComplete * 100), _sLastEvent));
+        long lngPercent = (long)Math.floor(dblPercentComplete * 100);
+        if (_lastEvent== null)
+            strBuild.append(String.format("] %4d%%", lngPercent));
+        else
+            strBuild.append(String.format("] %4d%% %s", lngPercent, _lastEvent.getLocalizedMessage()));
 
         if (_iWarnCount > 0)
             strBuild.append(" ").append(_iWarnCount).append(" warnings"); // I18N

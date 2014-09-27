@@ -50,6 +50,8 @@ import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.formats.RgbIntImage;
@@ -74,25 +76,31 @@ public class VDP {
     
     private static final Logger LOG = Logger.getLogger(VDP.class.getName());
 
+    public interface GeneratedFileListener {
+        void fileGenerated(File f);
+    }
+
     public interface IBitstreamListener {
-        void bitstream(byte[] abBitstream, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException;
+        void bitstream(byte[] abBitstream, int iSize, FrameNumber frameNumber, int iFrameEndSector) throws IOException;
         void setLog(Logger log);
     }
 
     public static class Bitstream2File implements IBitstreamListener {
 
-        private final FrameFormatter _formatter;
+        private final FrameFileFormatter _formatter;
         private Logger _log = LOG;
+        private GeneratedFileListener _fileGenListener;
 
-
-        public Bitstream2File(FrameFormatter formatter) {
+        public Bitstream2File(FrameFileFormatter formatter) {
             _formatter = formatter;
         }
 
-        public void bitstream(byte[] abBitstream, int iSize, int iFrameNumber, int iFrameEndSector) throws IOException {
-            File f = _formatter.format(iFrameNumber);
+        public void bitstream(byte[] abBitstream, int iSize, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            File f = _formatter.format(frameNumber, _log);
             IO.makeDirsForFile(f);
             FileOutputStream fos = new FileOutputStream(f);
+            if (_fileGenListener != null)
+                _fileGenListener.fileGenerated(f);
             try {
                 fos.write(abBitstream, 0, iSize);
             } finally {
@@ -106,6 +114,10 @@ public class VDP {
 
         public void setLog(Logger log) {
             _log = log == null ? LOG : log;
+        }
+
+        public void setGenFileListener(GeneratedFileListener listener) {
+            _fileGenListener = listener;
         }
     }
 
@@ -141,15 +153,15 @@ public class VDP {
             return _uncompressor;
         }
 
-        public void bitstream(byte[] abBitstream, int iBitstreamSize, int iFrameNumber, int iFrameEndSector)
+        public void bitstream(byte[] abBitstream, int iBitstreamSize, FrameNumber frameNumber, int iFrameEndSector)
                 throws IOException
         {
             resetUncompressor(abBitstream, iBitstreamSize);
             if (_uncompressor == null) {
-                _log.log(Level.SEVERE, "Error with frame {0,number,#}: Unable to determine frame type.", iFrameNumber); // I18N
-                _listener.error(I18N.S("Unable to determine frame type"), iFrameNumber, iFrameEndSector); // I18N
+                _log.log(Level.SEVERE, "Error with frame {0}: Unable to determine frame type.", frameNumber); // I18N
+                _listener.error(new LocalizedMessage("Unable to determine frame type"), frameNumber, iFrameEndSector); // I18N
             } else
-                _listener.mdec(_uncompressor, iFrameNumber, iFrameEndSector);
+                _listener.mdec(_uncompressor, frameNumber, iFrameEndSector);
         }
 
         public void setMdec(IMdecListener listener) {
@@ -163,48 +175,50 @@ public class VDP {
     }
 
     public interface IMdecListener {
-        void mdec(MdecInputStream mdecIn, int iFrameNumber, int iFrameEndSector) throws IOException;
-        void error(String sErr, int iFrameNumber, int iFrameEndSector) throws IOException;
+        void mdec(MdecInputStream mdecIn, FrameNumber frameNumber, int iFrameEndSector) throws IOException;
+        void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) throws IOException;
         void setLog(Logger log);
     }
     
     public static class Mdec2File implements IMdecListener {
 
-        private final FrameFormatter _formatter;
+        private final FrameFileFormatter _formatter;
         private final int _iTotalBlocks;
         private Logger _log = LOG;
+        private GeneratedFileListener _fileGenListener;
 
-
-        public Mdec2File(FrameFormatter formatter, int iWidth, int iHeight) {
+        public Mdec2File(FrameFileFormatter formatter, int iWidth, int iHeight) {
             _formatter = formatter;
             _iTotalBlocks = Calc.blocks(iHeight, iWidth);
         }
         
-        public void mdec(MdecInputStream mdecIn, int iFrameNumber, int iFrameEndSector_ignored)
+        public void mdec(MdecInputStream mdecIn, FrameNumber frameNumber, int iFrameEndSector_ignored)
                 throws IOException
         {
-            File f = _formatter.format(iFrameNumber);
+            File f = _formatter.format(frameNumber, _log);
             IO.makeDirsForFile(f);
             BufferedOutputStream bos = null;
             try {
                 bos = new BufferedOutputStream(new FileOutputStream(f));
+                if (_fileGenListener != null)
+                    _fileGenListener.fileGenerated(f);
                 try {
                     MdecInputStreamReader.writeMdecBlocks(mdecIn, bos, _iTotalBlocks);
                 } catch (MdecException ex) {
-                    _log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex); // I18N
+                    I18N.log(_log, Level.WARNING, ex, "Error uncompressing frame {0}", frameNumber); // I18N
                 }
             } catch (IOException ex) {
-                _log.log(Level.WARNING, "Error writing frame " + iFrameNumber, ex); // I18N
+                I18N.log(_log, Level.WARNING, ex, "Error writing frame {0}", frameNumber); // I18N
             } finally {
                 if (bos != null) try {
                     bos.close();
                 } catch (IOException ex) {
-                    _log.log(Level.WARNING, "Error closing file for frame " + iFrameNumber, ex); // I18N
+                    I18N.log(_log, Level.WARNING, ex, "Error closing file for frame {0}", frameNumber); // I18N
                 }
             }
         }
 
-        public void error(String sErr, int iFrameNumber, int iFrameEndSector) {
+        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) {
             // sender already logged it
         }
 
@@ -212,43 +226,60 @@ public class VDP {
             _log = log == null ? LOG : log;
         }
 
+        public void setGenFileListener(GeneratedFileListener listener) {
+            _fileGenListener = listener;
+        }
     }
 
     
     public static class Mdec2Jpeg implements IMdecListener {
 
-        private final FrameFormatter _formatter;
+        private final FrameFileFormatter _formatter;
         private final jpsxdec.psxvideo.mdec.tojpeg.Mdec2Jpeg _jpegTranslator;
         private final ExposedBAOS _buffer = new ExposedBAOS();
         private Logger _log = LOG;
+        private GeneratedFileListener _fileGenListener;
 
-
-        public Mdec2Jpeg(FrameFormatter formatter, int iWidth, int iHeight) {
+        public Mdec2Jpeg(FrameFileFormatter formatter, int iWidth, int iHeight) {
             _formatter = formatter;
             _jpegTranslator = new jpsxdec.psxvideo.mdec.tojpeg.Mdec2Jpeg(iWidth, iHeight);
         }
 
-        public void mdec(MdecInputStream mdecIn, int iFrameNumber, int iFrameEndSector) throws IOException {
-            File f = _formatter.format(iFrameNumber);
+        public void mdec(MdecInputStream mdecIn, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            File f = _formatter.format(frameNumber, _log);
             IO.makeDirsForFile(f);
             try {
                 _jpegTranslator.readMdec(mdecIn);
             } catch (MdecException.Decode ex) {
-                _log.log(Level.WARNING, "Error uncompressing frame " + iFrameNumber, ex); // I18N
+                I18N.log(_log, Level.WARNING, ex, "Error uncompressing frame {0}", frameNumber); // I18N
             }
             _buffer.reset();
             _jpegTranslator.writeJpeg(_buffer);
-            IO.writeFile(f, _buffer.getBuffer(), 0, _buffer.size());
+            FileOutputStream fos = new FileOutputStream(f);
+            if (_fileGenListener != null)
+                _fileGenListener.fileGenerated(f);
+            try {
+                fos.write(_buffer.getBuffer(), 0, _buffer.size());
+            } finally {
+                try {
+                    fos.close();
+                } catch (IOException ex) {
+                    _log.log(Level.SEVERE, null, ex);
+                }
+            }
         }
 
-        public void error(String sErr, int iFrameNumber, int iFrameEndSector) {
+        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) {
             // sender already logged it
         }
 
         public void setLog(Logger log) {
             _log = log == null ? LOG : log;
         }
-        
+
+        public void setGenFileListener(GeneratedFileListener listener) {
+            _fileGenListener = listener;
+        }
     }
 
 
@@ -262,17 +293,17 @@ public class VDP {
             _decoder = decoder;
         }
 
-        public void mdec(MdecInputStream mdecIn, int iFrameNumber, int iFrameEndSector) throws IOException {
+        public void mdec(MdecInputStream mdecIn, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
             try {
                 _decoder.decode(mdecIn);
             } catch (MdecException.Decode ex) {
-                I18N.log(_log, Level.WARNING, ex, "Error uncompressing frame {0,number,#}", iFrameNumber); // I18N
+                I18N.log(_log, Level.WARNING, ex, "Error uncompressing frame {0}", frameNumber); // I18N
             }
-            _listener.decoded(_decoder, iFrameNumber, iFrameEndSector);
+            _listener.decoded(_decoder, frameNumber, iFrameEndSector);
         }
 
-        public void error(String sErr, int iFrameNumber, int iFrameEndSector) throws IOException {
-            _listener.error(sErr, iFrameNumber, iFrameEndSector);
+        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            _listener.error(errMsg, frameNumber, iFrameEndSector);
         }
 
         public void setDecoded(IDecodedListener decoded) {
@@ -290,33 +321,36 @@ public class VDP {
     }
 
     public interface IDecodedListener {
-        void decoded(MdecDecoder decoder, int iFrameNumber, int iFrameEndSector) throws IOException;
-        void error(String sErr, int iFrameNumber, int iFrameEndSector) throws IOException;
+        void decoded(MdecDecoder decoder, FrameNumber frameNumber, int iFrameEndSector) throws IOException;
+        void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) throws IOException;
         void setLog(Logger log);
         void assertAcceptsDecoded(MdecDecoder decoder);
     }
 
     public static class Decoded2JavaImage implements IDecodedListener {
         
-        private final FrameFormatter _formatter;
+        private final FrameFileFormatter _formatter;
         private final String _sFmt;
         private final BufferedImage _rgbImg;
         private Logger _log = LOG;
+        private GeneratedFileListener _fileGenListener;
 
-
-        public Decoded2JavaImage(FrameFormatter formatter, JavaImageFormat eFmt, int iWidth, int iHeight) {
+        public Decoded2JavaImage(FrameFileFormatter formatter, JavaImageFormat eFmt, int iWidth, int iHeight) {
             _formatter = formatter;
             _sFmt = eFmt.getId();
             _rgbImg = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
         }
         
-        public void decoded(MdecDecoder decoder, int iFrameNumber, int iFrameEndSector) throws IOException {
+        public void decoded(MdecDecoder decoder, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
             decoder.readDecodedRgb(_rgbImg.getWidth(), _rgbImg.getHeight(),
                     ((DataBufferInt)_rgbImg.getRaster().getDataBuffer()).getData());
-            File f = _formatter.format(iFrameNumber);
+            File f = _formatter.format(frameNumber, _log);
             IO.makeDirsForFile(f);
             try {
-                if (!ImageIO.write(_rgbImg, _sFmt, f)) {
+                if (ImageIO.write(_rgbImg, _sFmt, f)) {
+                    if (_fileGenListener != null)
+                        _fileGenListener.fileGenerated(f);
+                } else {
                     _log.log(Level.WARNING, "Unable to write frame file {0}", f); // I18N
                 }
             } catch (IOException ex) {
@@ -324,7 +358,7 @@ public class VDP {
             }
         }
 
-        public void error(String sErr, int iFrameNumber, int iFrameEndSector) {
+        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) {
             // sender already logged it
         }
 
@@ -334,7 +368,10 @@ public class VDP {
         public void setLog(Logger log) {
             _log = log == null ? LOG : log;
         }
-        
+
+        public void setGenFileListener(GeneratedFileListener listener) {
+            _fileGenListener = listener;
+        }
     }
 
     // ########################################################################
@@ -351,6 +388,7 @@ public class VDP {
         protected final AudioFormat _af;
         protected Logger _log = LOG;
         protected AviWriter _writer;
+        protected GeneratedFileListener _fileGenListener;
 
         public ToAvi(File outputFile, int iWidth, int iHeight, VideoSync vidSync) {
             _outputFile = outputFile;
@@ -372,9 +410,9 @@ public class VDP {
 
         abstract public void open() throws IOException;
 
-        abstract public void error(String sErr, int iFrameNumber, int iFrameEndSector) throws IOException;
+        abstract public void error(LocalizedMessage sErr, FrameNumber frameNumber, int iFrameEndSector) throws IOException;
 
-        final protected void prepForFrame(int iFrameNumber, int iFrameEndSector) throws IOException {
+        final protected void prepForFrame(FrameNumber frameNumber, int iFrameEndSector) throws IOException {
             if (_writer == null)
                 throw new IllegalStateException("Avi writer is not open");
 
@@ -397,8 +435,8 @@ public class VDP {
             if (iDupCount < 0) {
                 // hopefully this will never happen because the frame rate
                 // calculated during indexing should prevent it
-                _log.log(Level.WARNING, "Frame {0,number,#} is ahead of reading by {1,number,#} frame(s).", // I18N
-                         new Object[]{iFrameNumber, -iDupCount});
+                _log.log(Level.WARNING, "Frame {0} is ahead of reading by {1,number,#} frame(s).", // I18N
+                         new Object[]{frameNumber, -iDupCount});
             } else while (iDupCount > 0) { // could happen with first frame
                 if (_writer.getVideoFramesWritten() < 1) // TODO: fix design so this isn't needed
                     _writer.writeBlankFrame();
@@ -437,7 +475,10 @@ public class VDP {
         public void setLog(Logger log) {
             _log = log == null ? LOG : log;
         }
-        
+
+        public void setGenFileListener(GeneratedFileListener listener) {
+            _fileGenListener = listener;
+        }
     }
 
     static class Decoded2RgbAvi extends ToAvi implements IDecodedListener {
@@ -464,19 +505,21 @@ public class VDP {
                                                         _vidSync.getFpsNum(),
                                                         _vidSync.getFpsDenom(),
                                                         _af);
+                if (_fileGenListener != null)
+                    _fileGenListener.fileGenerated(_outputFile);
                 _aiImageBuf = new int[_iWidth*_iHeight];
             }
         }
 
-        public void decoded(MdecDecoder decoder, int iFrameNumber, int iFrameEndSector) throws IOException {
-            prepForFrame(iFrameNumber, iFrameEndSector);
+        public void decoded(MdecDecoder decoder, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            prepForFrame(frameNumber, iFrameEndSector);
             decoder.readDecodedRgb(_writerDib.getWidth(), _writerDib.getHeight(), _aiImageBuf);
             _writerDib.writeFrameRGB(_aiImageBuf, 0, _writerDib.getWidth());
         }
 
-        public void error(String sErr, int iFrameNumber, int iFrameEndSector) throws IOException {
-            prepForFrame(iFrameNumber, iFrameEndSector);
-            BufferedImage bi = makeErrorImage(sErr, _writerDib.getWidth(), _writerDib.getHeight());
+        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            prepForFrame(frameNumber, iFrameEndSector);
+            BufferedImage bi = makeErrorImage(errMsg, _writerDib.getWidth(), _writerDib.getHeight());
             RgbIntImage rgb = new RgbIntImage(bi);
             _writerDib.writeFrameRGB(rgb.getData(), 0, _writerDib.getWidth());
         }
@@ -509,20 +552,22 @@ public class VDP {
                                                          _vidSync.getFpsNum(),
                                                          _vidSync.getFpsDenom(),
                                                          _af);
+                if (_fileGenListener != null)
+                    _fileGenListener.fileGenerated(_outputFile);
                 _yuvImgBuff = new YCbCrImage(_iWidth, _iHeight);
             }
         }
 
-        public void decoded(MdecDecoder decoder, int iFrameNumber, int iFrameEndSector) throws IOException {
-            prepForFrame(iFrameNumber, iFrameEndSector);
+        public void decoded(MdecDecoder decoder, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            prepForFrame(frameNumber, iFrameEndSector);
             ((MdecDecoder_double)decoder).readDecoded_Rec601_YCbCr420(_yuvImgBuff);
             _writerYuv.write(_yuvImgBuff.getY(), _yuvImgBuff.getCb(), _yuvImgBuff.getCr());
         }
 
-        public void error(String sErr, int iFrameNumber, int iFrameEndSector) throws IOException {
-            prepForFrame(iFrameNumber, iFrameEndSector);
+        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            prepForFrame(frameNumber, iFrameEndSector);
             // TODO: write error with proper sample range
-            BufferedImage bi = makeErrorImage(sErr, _writerYuv.getWidth(), _writerYuv.getHeight());
+            BufferedImage bi = makeErrorImage(errMsg, _writerYuv.getWidth(), _writerYuv.getHeight());
             YCbCrImage yuv = new YCbCrImage(bi);
             _writerYuv.write(yuv.getY(), yuv.getCb(), yuv.getCr());
         }
@@ -541,8 +586,8 @@ public class VDP {
         }
 
         @Override
-        public void decoded(MdecDecoder decoder, int iFrameNumber, int iFrameEndSector) throws IOException {
-            prepForFrame(iFrameNumber, iFrameEndSector);
+        public void decoded(MdecDecoder decoder, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            prepForFrame(frameNumber, iFrameEndSector);
             ((MdecDecoder_double)decoder).readDecoded_JFIF_YCbCr420(_yuvImgBuff);
             _writerYuv.write(_yuvImgBuff.getY(), _yuvImgBuff.getCb(), _yuvImgBuff.getCr());
         }
@@ -566,15 +611,15 @@ public class VDP {
             _jpegTranslator = new jpsxdec.psxvideo.mdec.tojpeg.Mdec2Jpeg(iWidth, iHeight);
         }
 
-        public void mdec(MdecInputStream mdecIn, int iFrameNumber, int iFrameEndSector) throws IOException {
+        public void mdec(MdecInputStream mdecIn, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
             try {
                 _jpegTranslator.readMdec(mdecIn);
             } catch (MdecException.Decode ex) {
-                I18N.log(_log, Level.WARNING, ex, "Error uncompressing frame {0,number,#}", iFrameNumber); // I18N
+                I18N.log(_log, Level.WARNING, ex, "Error uncompressing frame {0}", frameNumber); // I18N
             }
             _buffer.reset();
             _jpegTranslator.writeJpeg(_buffer);
-            prepForFrame(iFrameNumber, iFrameEndSector);
+            prepForFrame(frameNumber, iFrameEndSector);
             _mjpegWriter.writeFrame(_buffer.getBuffer(), 0, _buffer.size());
         }
 
@@ -584,6 +629,8 @@ public class VDP {
                 IO.makeDirsForFile(_outputFile);
                 _writer = _mjpegWriter = new AviWriterMJPG
                         (_outputFile, _iWidth, _iHeight, _vidSync.getFpsNum(), _vidSync.getFpsDenom(), _af);
+                if (_fileGenListener != null)
+                    _fileGenListener.fileGenerated(_outputFile);
             }
         }
 
@@ -592,20 +639,20 @@ public class VDP {
             return _outputFile;
         }
 
-        public void error(String sErr, int iFrameNumber, int iFrameEndSector) throws IOException {
-            prepForFrame(iFrameNumber, iFrameEndSector);
-            _mjpegWriter.writeFrame(makeErrorImage(sErr, _iWidth, _iHeight));
+        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) throws IOException {
+            prepForFrame(frameNumber, iFrameEndSector);
+            _mjpegWriter.writeFrame(makeErrorImage(errMsg, _iWidth, _iHeight));
         }
 
     }
 
     
     /** Draw the error onto a blank image. */
-    private static BufferedImage makeErrorImage(String sErr, int iWidth, int iHeight) {
+    private static BufferedImage makeErrorImage(LocalizedMessage sErr, int iWidth, int iHeight) {
         BufferedImage bi = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = bi.createGraphics();
         g.setColor(Color.white);
-        g.drawString(sErr, 5, 20);
+        g.drawString(sErr.getLocalizedMessage(), 5, 20);
         g.dispose();
         return bi;
     }

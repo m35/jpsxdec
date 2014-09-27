@@ -53,7 +53,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
     private final int _iStartSector, _iEndSector;
     private final int _iSize;
     private final int _iStartOffset;
-    private final int _iFrame;
+    private final FrameNumber _frameNumber;
     /** The sector the frame should be presented.
      * This will be many sectors after the frame was read. */
     private final int _iPresentationSector;
@@ -61,7 +61,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
     public DemuxedCrusaderFrame(int iWidth, int iHeight, 
                                 SectorCrusader[] aoSectors, 
                                 int iByteSize, int iFirstSectorStartOffset, 
-                                int iFrameNumber,
+                                FrameNumber frameNumber,
                                 int iPresentationSector)
     {
         _iWidth = iWidth;
@@ -69,7 +69,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         _aoSectors = aoSectors;
         _iSize = iByteSize;
         _iStartOffset = iFirstSectorStartOffset;
-        _iFrame = iFrameNumber;
+        _frameNumber = frameNumber;
         _iPresentationSector = iPresentationSector;
 
         int iMin = Integer.MAX_VALUE, iMax = Integer.MIN_VALUE;
@@ -105,7 +105,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
                 chunk.copyIdentifiedUserData(0, abBuffer, iPos, iLen);
                 iPos += iLen;
             } else {
-                LOG.log(Level.WARNING, "Frame {0,number,#} chunk {1,number,#} missing.", new Object[]{_iFrame, iChunk}); // I18N
+                LOG.log(Level.WARNING, "Frame {0} chunk {1,number,#} missing.", new Object[]{_frameNumber, iChunk}); // I18N
             }
         }
         return abBuffer;
@@ -127,8 +127,8 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         return _iEndSector;
     }
 
-    public int getFrame() {
-        return _iFrame;
+    public FrameNumber getFrame() {
+        return _frameNumber;
     }
 
     public int getWidth() {
@@ -195,5 +195,10 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         }
 
     }
-    
+
+    @Override
+    public String toString() {
+        return "Crusader "+_iWidth+"x"+_iHeight+" Frame "+_frameNumber+
+               " Size "+_iSize+" PresSect "+_iPresentationSector;
+    }
 }

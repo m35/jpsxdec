@@ -45,20 +45,36 @@ import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 
-/** Superclass of all disc indexers. */
+/** Superclass of all disc indexers. 
+ * Be sure to also implement {@link Identified} and/or {@link Static}
+ * to receive the data of interest. */
 public abstract class DiscIndexer {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexer.class.getName());
+
+    /** Indexer is interested in {@link IdentifiedSector}s found in the disc.
+     * Most common indexer. */
+    public interface Identified {
+        /** Sectors are passed to this function in sequential order. */
+        public void indexingSectorRead(IdentifiedSector identifiedSector);
+    }
+
+    /** Indexer is interested in unidentified sectors demuxed into a stream. */
+    public interface Static {
+        /** Process a stream of data. */
+        public void staticRead(DemuxedUnidentifiedDataStream is) throws IOException;
+    }
 
     public static DiscIndexer[] createIndexers(Logger log) {
         return new DiscIndexer[] {
             new DiscIndexerISO9660(log),
             new DiscIndexerSquare(log),
-            //new DiscIndexerTim(),
+            new DiscIndexerTim(),
             new DiscIndexerStrVideoWithFrame(log),
             new DiscIndexerAceCombat3Video(log),
             new DiscIndexerXaAudio(log),
             new DiscIndexerCrusader(log),
+            new DiscIndexerDredd(log),
         };
     }
 
@@ -77,13 +93,9 @@ public abstract class DiscIndexer {
             return;
         }
         if (LOG.isLoggable(Level.INFO))
-            LOG.log(Level.INFO, "Adding media item {0}", discItem.toString());
+            LOG.log(Level.INFO, "Adding media item {0}", discItem);
         _mediaList.add(discItem);
     }
-
-    /** Sectors are passed to this function in sequential order. Indexers
-     * may do with them what they will.  */
-    abstract public void indexingSectorRead(IdentifiedSector identifiedSector);
 
     /** Signals to the indexers that no more sectors will be passed, and that
      * indexers should close off and submit any lingering disc items. */
@@ -93,7 +105,7 @@ public abstract class DiscIndexer {
      * @return  if the line successfully created a disc item. */
     abstract public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine);
 
-    abstract public void staticRead(DemuxedUnidentifiedDataStream is) throws IOException;
+    abstract public void listPostProcessing(Collection<DiscItem> allItems);
 
     /** Called after the entire indexing process is complete. The DiscIndex
      * will not be changing any further, but indexers can tweak individual items

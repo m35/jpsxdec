@@ -86,13 +86,5 @@ public class SectorAliceVideo extends SectorAliceNullVideo
         return ALICE_VIDEO_SECTOR_HEADER_SIZE;
     }
 
-    public int splitXaAudio() {
-        return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
-            SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
-        // it would be nice to split the audio at previous sector
-        // but there are EOF audio indicators that are messing things up
-    }
-
-
 }
 

@@ -61,6 +61,17 @@ public class Util {
         }
     }
 
+    public static File resourceAsFile(Class cls, String sResource) throws IOException {
+        InputStream is = cls.getResourceAsStream(sResource);
+        File f = new File(new File(sResource).getName());
+        try {
+            IO.writeIStoFile(is, f);
+        } finally {
+            is.close();
+        }
+        return f;
+    }
+
      public static Object getField(Object instance, String sField)
              throws SecurityException, NoSuchFieldException, ClassNotFoundException,
                     IllegalArgumentException, IllegalAccessException

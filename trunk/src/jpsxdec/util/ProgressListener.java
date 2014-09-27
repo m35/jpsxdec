@@ -37,9 +37,11 @@
 
 package jpsxdec.util;
 
+import jpsxdec.LocalizedMessage;
+
 public interface ProgressListener {
 
-    public void progressStart(String s) throws TaskCanceledException;
+    public void progressStart(LocalizedMessage msg) throws TaskCanceledException;
 
     public void progressStart() throws TaskCanceledException;
 
@@ -48,9 +50,9 @@ public interface ProgressListener {
     public void progressUpdate(double dblPercentComplete) throws TaskCanceledException;
 
     /** Report progress event. */
-    public void event(String sDescription);
+    public void event(LocalizedMessage msg);
     /** If the progress listener is wanting an event. */
     public boolean seekingEvent();
 
-    public void progressInfo(String s);
+    public void progressInfo(LocalizedMessage msg);
 }

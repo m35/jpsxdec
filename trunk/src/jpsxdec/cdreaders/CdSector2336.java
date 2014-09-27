@@ -172,7 +172,7 @@ public class CdSector2336 extends CdSector {
     }
     
     public String toString() {
-        return String.format("[Sector:%d M2 %s]", _iSectorIndex, _subHeader.toString());
+        return String.format("[Sector:%d M2 %s]", _iSectorIndex, _subHeader);
     }
 
     @Override

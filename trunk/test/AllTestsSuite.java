@@ -44,9 +44,13 @@ import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
+    jpsxdec.audio.XaAdpcmDecoderTest.class,
+    jpsxdec.discitems.FrameNumberTest.class,
+    jpsxdec.discitems.FrameNumberFormatTest.class,
+    jpsxdec.discitems.savers.FrameLookupTest.class,
     jpsxdec.psxvideo.bitstreams.BitReader.class,
     jpsxdec.psxvideo.bitstreams.Bitstreams.class,
-    jpsxdec.audio.XaAdpcmDecoderTest.class,
+    jpsxdec.psxvideo.bitstreams.Iki.class
 })
 public class AllTestsSuite {
 

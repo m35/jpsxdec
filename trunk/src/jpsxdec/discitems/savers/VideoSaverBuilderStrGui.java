@@ -82,31 +82,36 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
             public void set(VideoSaverBuilderStr bldr, int i, Object val) {
                 bldr.setParallelAudio(i, (Boolean)val);
             }
+            public String toString() { return I18N.S("Save"); } // I18N
         },
         Num() {
             public Class type() { return Integer.class; }
             public Object get(VideoSaverBuilderStr bldr, int i) {
                 return bldr.getParallelAudio(i).getIndex();
             }
-            public String toString() { return "#"; } // I18N
+            public String toString() { return I18N.S("#"); } // I18N
         },
         Id() {
             public Class type() { return String.class; }
             public Object get(VideoSaverBuilderStr bldr, int i) {
                 return bldr.getParallelAudio(i).getIndexId().getTopLevel();
             }
-            public String toString() { return ""; }
+            public String toString() { return I18N.S(""); } // I18N
         },
         Details() {
             public Class type() { return String.class; }
             public Object get(VideoSaverBuilderStr bldr, int i) {
                 return bldr.getParallelAudio(i).getInterestingDescription();
             }
+            public String toString() { return I18N.S("Details"); } // I18N
         };
         abstract public Class type();
         public boolean editable() { return false; }
         abstract public Object get(VideoSaverBuilderStr bldr, int i);
         public void set(VideoSaverBuilderStr bldr, int i, Object val) {}
+
+        @Override
+        abstract public String toString();
     }
     private class ParallelAudio extends AbstractTableModel implements ChangeListener {
 

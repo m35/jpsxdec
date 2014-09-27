@@ -55,7 +55,7 @@ import javax.swing.event.TreeModelListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
-import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemISO9660File;
@@ -83,18 +83,21 @@ public class GuiTree extends JXTreeTable {
     public static final ImageIcon IMAGE_ICON = new ImageIcon(GuiTree.class.getResource("image-x-generic.png"));
 
     public static enum Select {
-        NONE(I18N.S("none")), // I18N
-        ALL_VIDEO(I18N.S("all Video")), // I18N
-        ALL_AUDIO(I18N.S("all Audio (excluding video audio)")), // I18N
-        ALL_AUDIO_VIDEO(I18N.S("all Audio (including video audio)")), // I18N
-        ALL_FILES(I18N.S("all Files")), // I18N
-        ALL_IMAGES(I18N.S("all Images")); // I18N
+        NONE("none"), // I18N
+        ALL_VIDEO("all Video"), // I18N
+        ALL_AUDIO("all Audio (excluding video audio)"), // I18N
+        ALL_AUDIO_VIDEO("all Audio (including video audio)"), // I18N
+        ALL_FILES("all Files"), // I18N
+        ALL_IMAGES("all Images"); // I18N
 
-        private final String _str;
+        private final LocalizedMessage _str;
 
-        private Select(String str) { _str = str; }
+        private Select(String str) { _str = new LocalizedMessage(str); }
 
-        public String toString() { return _str; }
+        /** {@inheritDoc}
+         *<p>
+         * Used in a list control, so toString() must be localized. */
+        public String toString() { return _str.getLocalizedMessage(); }
     }
 
     private RootTreeItem _root;
@@ -114,7 +117,7 @@ public class GuiTree extends JXTreeTable {
         setModel(om);
         setRowSorter(null);
         setRowHeight(getRowHeight() - 2);
-        /*/
+        / */
 
         FontMetrics fm = getFontMetrics(getFont());
         int iSectorWidth = fm.stringWidth("999999-999999");
@@ -132,7 +135,7 @@ public class GuiTree extends JXTreeTable {
         getColumn(COLUMNS.Num.toString()).setPreferredWidth(iNumberWidth + 10);
         getColumn(COLUMNS.Sectors.toString()).setPreferredWidth(iSectorWidth + 10);
         getColumn(COLUMNS.Details.toString()).setPreferredWidth(Math.max(200, getColumn(COLUMNS.Details.toString()).getWidth()));
-        //*/
+        // */
     }
 
     //public void expandAll() {} public void collapseAll() {}
@@ -161,40 +164,51 @@ public class GuiTree extends JXTreeTable {
 
     private enum COLUMNS {
 
-        Num(Integer.class) {
-            Object val(TreeItem item) {
-                return item.getIndexNum();
-            }
-            public String toString() {
-                return "#";
+        // use Integer to get nicer alignment
+        Num(Integer.class, "#") { // I18N
+            String val(TreeItem item) { return item.getIndexNum(); }
+        },
+        Save(Boolean.class, "Save") { // I18N
+            Boolean val(TreeItem item) { return item.getSave(); }
+        },
+        Name(TreeItem.class, "") {
+            TreeItem val(TreeItem item) { return item; }
+        },
+        Type(String.class, "Type") { // I18N
+            String val(TreeItem item) {
+                DiscItem.GeneralType type = item.getType();
+                if (type == null)
+                    return null;
+                return type.getMessage().getLocalizedMessage();
             }
         },
-        Save(Boolean.class) { Object val(TreeItem item) {
-            return item.getSave();
-        }},
-        Name(TreeItem.class) {
-            Object val(TreeItem item) {
-                return item;
-            }
-            public String toString() {
-                return "";
-            }
+        Sectors(String.class, "Sectors") { // I18N
+            String val(TreeItem item) { return item.getSectorRange(); }
         },
-        Type(String.class) { Object val(TreeItem item) {
-            return item.getType();
-        }},
-        Sectors(String.class) { Object val(TreeItem item) {
-            return item.getSectorRange();
-        }},
-        Details(String.class) { Object val(TreeItem item) {
-            return item.getDetails();
-        }},
-        ;
+        Details(String.class, "Details") { // I18N
+            String val(TreeItem item) { 
+                LocalizedMessage details = item.getDetails();
+                return details == null ? null : details.getLocalizedMessage();
+            }
+        };
+
         private final Class _type;
-        COLUMNS(Class type) {
+        private final LocalizedMessage _str;
+        private COLUMNS(Class type, String sStr) {
             _type = type;
+            _str = new LocalizedMessage(sStr);
         }
         abstract Object val(TreeItem item);
+
+        /** {@inheritDoc}
+         *<p>
+         * Must be localized so {@link JXTreeTable#getColumn(java.lang.Object)}
+         * can find it.
+         * @see GuiTree#formatTreeTable(jpsxdec.indexing.DiscIndex) */
+        @Override
+        public String toString() {
+            return _str.getLocalizedMessage();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -241,8 +255,8 @@ public class GuiTree extends JXTreeTable {
 
         abstract public DiscItemSaverBuilder getBuilder();
         abstract public String getIndexNum();
-        abstract public String getType();
-        abstract public String getDetails();
+        abstract public DiscItem.GeneralType getType();
+        abstract public LocalizedMessage getDetails();
         abstract public String getSectorRange();
 
         abstract public boolean canPlay();
@@ -289,11 +303,11 @@ public class GuiTree extends JXTreeTable {
             return "[ROOT]";
         }
         @Override
-        public String getDetails() { return ""; }
+        public LocalizedMessage getDetails() { return null; }
         @Override
         public String getIndexNum() { return ""; }
         @Override
-        public String getType() { return ""; }
+        public DiscItem.GeneralType getType() { return null; }
         @Override
         public String getSectorRange() { return ""; }
         @Override
@@ -309,30 +323,25 @@ public class GuiTree extends JXTreeTable {
 
     private static class DirectoryTreeItem extends RootTreeItem {
 
-        private String _sDirName;
+        private final String _sDirName;
 
-        public DirectoryTreeItem(String _sDirName) {
-            this._sDirName = _sDirName;
+        public DirectoryTreeItem(String sDirName) {
+            _sDirName = sDirName;
         }
 
-        private Object getName() {
-            return _sDirName;
-        }
+        private Object getName() { return _sDirName; }
 
         @Override
-        public Icon getIcon() {
-            return null;
-        }
+        public Icon getIcon() { return null; }
 
         public String toString() {
             return _sDirName + "/";
         }
-
     }
 
     private static class DiscItemTreeItem extends TreeItem {
 
-        private DiscItem _item;
+        private final DiscItem _item;
         private DiscItemSaverBuilder _builder;
         private boolean _blnSave = false;
 
@@ -383,12 +392,12 @@ public class GuiTree extends JXTreeTable {
         }
 
         @Override
-        public String getType() {
-            return _item.getType().name();
+        public DiscItem.GeneralType getType() {
+            return _item.getType();
         }
 
         @Override
-        public String getDetails() {
+        public LocalizedMessage getDetails() {
             return _item.getInterestingDescription();
         }
 
@@ -479,7 +488,7 @@ public class GuiTree extends JXTreeTable {
     private static class DiscTreeModel implements TreeTableModel
         //, RowModel // Outline
     {
-        private TreeItem _treeRoot;
+        private final TreeItem _treeRoot;
 
         public DiscTreeModel(TreeItem _treeRoot) {
             this._treeRoot = _treeRoot;
@@ -534,13 +543,16 @@ public class GuiTree extends JXTreeTable {
         }
 
         public void setValueAt(Object value, Object node, int i) {
+            assert i == COLUMNS.Save.ordinal();
             ((DiscItemTreeItem)node).setSave(((Boolean)value).booleanValue());
         }
 
+        // for Netbeans Outline
         public Object getValueFor(Object node, int column) {
             return getValueAt(node, column);
         }
 
+        // for Netbeans Outline
         public void setValueFor(Object node, int column, Object value) {
             setValueAt(value, node, column);
         }
@@ -581,7 +593,7 @@ public class GuiTree extends JXTreeTable {
             super(new CheckBoxProvider());
         }
 
-        private DefaultTableRenderer _blank = new DefaultTableRenderer();
+        private final DefaultTableRenderer _blank = new DefaultTableRenderer();
         public Component getTableCellRendererComponent(JTable table, Object value,
                           boolean isSelected, boolean hasFocus, int row, int column)
         {

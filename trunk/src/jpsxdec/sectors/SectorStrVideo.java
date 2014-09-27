@@ -154,9 +154,5 @@ public class SectorStrVideo extends SectorAbstractVideo implements IVideoSectorW
         return _iWidth;
     }
 
-    public int splitXaAudio() {
-        return (getFrameNumber() == 1 && getChunkNumber() == 0) ?
-            SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
-    }
 }
 

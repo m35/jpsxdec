@@ -74,7 +74,16 @@ public final class Misc {
         }
         return matches.toArray(new String[matches.size()]);
     }
-    
+
+    /** Converts the String to int via {@link Integer#parseInt(java.lang.String)},
+     * unless it is null, then returns the default. */
+    public static int parseIntOrDefault(String sInt, int iDefault) throws NumberFormatException {
+        if (sInt == null)
+            return iDefault;
+        else
+            return Integer.parseInt(sInt);
+    }
+
     /** http://www.rgagnon.com/javadetails/java-0029.html */
     public static String stack2string(Throwable e) {
         StringWriter sw = new StringWriter();

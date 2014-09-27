@@ -257,19 +257,19 @@ public class CdxaSubHeader {
             logger.log(Level.WARNING, _eSubModeIssue.msg(_iConfidenceBalance),
                     new Object[]{ iSector,
                         I18N.S("Submode"), // I18N
-                        _submode1.toString(), _submode2.toString()});
+                        _submode1, _submode2});
         }
         if (_eCodingInfoIssue != IssueType.EQUAL_BOTH_GOOD) {
             logger.log(Level.WARNING, _eCodingInfoIssue.msg(_iConfidenceBalance),
                     new Object[]{ iSector,
                         I18N.S("Coding Info"), // I18N
-                        _codingInfo1.toString(), _codingInfo2.toString()});
+                        _codingInfo1, _codingInfo2});
         }
     }
 
     public String toString() {
         return String.format("File.Channel:%d.%d Submode:%s",
-                    getFileNumber(), getChannel(), getSubMode().toString());
+                    getFileNumber(), getChannel(), getSubMode());
     }
     
     //**************************************************************************

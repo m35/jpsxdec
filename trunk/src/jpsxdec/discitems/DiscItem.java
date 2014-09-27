@@ -39,6 +39,7 @@ package jpsxdec.discitems;
 
 import java.io.File;
 import java.io.IOException;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.sectors.IdentifiedSector;
@@ -62,7 +63,21 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Basic types of {@link DiscItem}s. */
     public static enum GeneralType {
-        Audio, Video, Image, File
+        Audio("Audio"), // I18N
+        Video("Video"), // I18N
+        Image("Image"), // I18N
+        File ("File" ), // I18N
+        ;
+
+        private final LocalizedMessage _localizedName;
+
+        private GeneralType(String sName) {
+            _localizedName = new LocalizedMessage(sName);
+        }
+
+        public LocalizedMessage getMessage() {
+            return _localizedName;
+        }
     }
 
 
@@ -234,7 +249,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     abstract public GeneralType getType();
 
     /** Description of various details about the disc item. */
-    abstract public String getInterestingDescription();
+    abstract public LocalizedMessage getInterestingDescription();
 
     abstract public DiscItemSaverBuilder makeSaverBuilder();
 

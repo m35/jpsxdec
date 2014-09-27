@@ -47,7 +47,7 @@ import jpsxdec.cdreaders.CdSector;
 public class DemuxedUnidentifiedDataStream extends InputStream {
 
     private static class BufferedUnidentfifiedSectorWalker {
-        private DiscriminatingSectorIterator _sectorReader;
+        private final DiscriminatingSectorIterator _sectorReader;
 
         private final LinkedList<CdSector> _buffer =
                 new LinkedList<CdSector>();

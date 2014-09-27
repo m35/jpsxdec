@@ -42,8 +42,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import java.util.logging.Logger;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.gui.SavingGuiTable.Row;
 import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
@@ -52,8 +52,6 @@ import org.jdesktop.swingworker.SwingWorker;
 
 public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message> 
 {
-    private static final Logger LOG = Logger.getLogger(SavingGuiTask.class.getName());
-
     public static final String ALL_DONE = "alldone";
 
     private final ArrayList<Row> _rows;
@@ -63,8 +61,8 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     final ProgressListenerLogger _progressLog = new ProgressListenerLogger("save")
     {
 
-        public void progressStart(String s) throws TaskCanceledException {
-            publish(new Event_Message(_currentRow, s));
+        public void progressStart(LocalizedMessage msg) throws TaskCanceledException {
+            publish(new Event_Message(_currentRow, msg));
             setProgress(0);
         }
 
@@ -84,8 +82,8 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
             EventQueue.invokeLater(new Event_Progress(_currentRow, (int)Math.round(dblPercentComplete * 100)));
         }
 
-        public void event(String sDescription) {
-            publish(new Event_Message(_currentRow, sDescription));
+        public void event(LocalizedMessage msg) {
+            publish(new Event_Message(_currentRow, msg));
         }
 
         public boolean seekingEvent() {
@@ -93,7 +91,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
             return true;
         }
 
-        public void progressInfo(String s) {
+        public void progressInfo(LocalizedMessage msg) {
             // ignored
         }
     };
@@ -168,9 +166,9 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         public void run() { _row.setProgress(_val); }
     }
     public static class Event_Message extends Event {
-        private final String _val;
-        public Event_Message(Row row, String val) { super(row); _val = val; }
-        public void run() { _row.setMessage(_val); }
+        private final LocalizedMessage _val;
+        public Event_Message(Row row, LocalizedMessage val) { super(row); _val = val; }
+        public void run() { _row.setMessage(_val.getLocalizedMessage()); }
     }
 
 }

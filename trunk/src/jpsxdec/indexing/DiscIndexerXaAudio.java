@@ -37,14 +37,13 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
+import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemXaAudioStream;
 import jpsxdec.discitems.SerializedDiscItem;
-import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorXaAudio;
 import jpsxdec.util.NotThisTypeException;
@@ -55,7 +54,7 @@ import jpsxdec.util.NotThisTypeException;
  * Adds them to the media list as they end.
  *
  */
-public class DiscIndexerXaAudio extends DiscIndexer {
+public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Identified {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerXaAudio.class.getName());
 
@@ -63,6 +62,10 @@ public class DiscIndexerXaAudio extends DiscIndexer {
 
     public DiscIndexerXaAudio(Logger errLog) {
         _errLog = errLog;
+    }
+
+    @Override
+    public void listPostProcessing(Collection<DiscItem> allItems) {
     }
 
     @Override
@@ -123,7 +126,7 @@ public class DiscIndexerXaAudio extends DiscIndexer {
         }
 
         public void createMediaItemFromCurrent(DiscIndexer adder) {
-            if (_previousXA == null && _currentXA.isAllQuiet()) {
+            if (_previousXA == null && _currentXA.isSilent()) {
                 if (_errLog.isLoggable(Level.INFO)) {
                     _errLog.log(Level.INFO, "Ignoring a silent XA audio stream that is only 1 sector long at sector {0,number,#}, channel {1,number,#}", // I18N
                             new Object[]{_iStartSector, _currentXA.getChannel()});
@@ -177,7 +180,6 @@ public class DiscIndexerXaAudio extends DiscIndexer {
         return null;
     }
 
-    @Override
     public void indexingSectorRead(IdentifiedSector sector) {
         if (sector instanceof SectorXaAudio) {
 
@@ -191,24 +193,6 @@ public class DiscIndexerXaAudio extends DiscIndexer {
                 _aoChannels[audSect.getChannel()] = new AudioStreamIndex(audSect, _errLog);
             }
         } else {
-
-            // Alice in Cyberland, FF7, and probably others need to split
-            // audio at the start of movies because there's no other
-            // indicator of audio splitting
-            if (sector instanceof IVideoSector) {
-                switch (((IVideoSector)sector).splitXaAudio()) {
-                    case IVideoSector.SPLIT_XA_AUDIO_CURRENT:
-                        indexingEndOfDisc();
-                        break;
-                    case IVideoSector.SPLIT_XA_AUDIO_PREVIOUS:
-                        for (AudioStreamIndex audStream : _aoChannels) {
-                            if (audStream != null) {
-                                audStream.createMediaItemFromPrevious(this);
-                            }
-                        }
-                        break;
-                }
-            }
 
             // check for streams that are beyond their stride
             for (int i = 0; i < _aoChannels.length; i++) {
@@ -242,10 +226,6 @@ public class DiscIndexerXaAudio extends DiscIndexer {
                 _aoChannels[i] = null;
             }
         }
-    }
-
-    @Override
-    public void staticRead(DemuxedUnidentifiedDataStream is) throws IOException {
     }
 
 }

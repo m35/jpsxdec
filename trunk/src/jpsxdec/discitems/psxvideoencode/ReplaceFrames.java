@@ -40,7 +40,7 @@ package jpsxdec.discitems.psxvideoencode;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -54,6 +54,7 @@ import jpsxdec.I18N;
 import jpsxdec.LocalizedIOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.psxvideo.mdec.MdecException;
@@ -80,35 +81,35 @@ import org.xml.sax.SAXException;
 */
 public class ReplaceFrames {
 
-    private static final String VERSION = "0.1";
+    private static final String VERSION = "0.2";
 
-    private final LinkedHashMap<Integer, ReplaceFrame> _replacers =
-            new LinkedHashMap<Integer, ReplaceFrame>();
+    private final ArrayList<ReplaceFrame> _replacers =
+            new ArrayList<ReplaceFrame>();
 
     public ReplaceFrames() {}
 
-    public ReplaceFrames(String sXmlConfig) throws IOException {
+    public ReplaceFrames(String sXmlConfig) throws IOException, NotThisTypeException {
         File file = new File(sXmlConfig);
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder db;
         try {
             db = dbf.newDocumentBuilder();
         } catch (ParserConfigurationException ex) {
-            throw new LocalizedIOException(ex);
+            throw new RuntimeException(ex);
         }
         Document doc;
         try {
             doc = db.parse(file);
         } catch (SAXException ex) {
-            throw new LocalizedIOException(ex);
+            throw new NotThisTypeException(ex);
         }
 
         Element root = doc.getDocumentElement();
         root.normalize();
         if (!"str-replace".equals(root.getNodeName()))
-            throw new IllegalArgumentException();
+            throw new NotThisTypeException("Invalid root node {0}", root.getNodeName()); // I18N
         if (!VERSION.equals(root.getAttribute("version")))
-            throw new IllegalArgumentException();
+            throw new NotThisTypeException("Invalid version {0}", root.getAttribute("version")); // I18N
 
         NodeList nodeLst = root.getChildNodes();
 
@@ -127,7 +128,7 @@ public class ReplaceFrames {
                 replace = new ReplaceFramePartial(element);
             }
             if (replace != null) {
-                _replacers.put(replace.getFrame(), replace);
+                _replacers.add(replace);
             }
         }
             
@@ -139,7 +140,7 @@ public class ReplaceFrames {
             Element root = document.createElement("str-replace");
             root.setAttribute("version", VERSION);
             document.appendChild(root);
-            for (ReplaceFrame replacer : _replacers.values()) {
+            for (ReplaceFrame replacer : _replacers) {
                 root.appendChild(replacer.serialize(document));
             }
             TransformerFactory transformerFactory = TransformerFactory.newInstance();
@@ -155,12 +156,17 @@ public class ReplaceFrames {
         }
     }
 
-    protected ReplaceFrame getFrameToReplace(int iFrame) {
-        return _replacers.get(iFrame);
+    /** Returns null if no match. */
+    protected ReplaceFrame getFrameToReplace(FrameNumber frame) {
+        for (ReplaceFrame replacer : _replacers) {
+            if (replacer.getFrame().compareTo(frame) == 0)
+                return replacer;
+        }
+        return null;
     }
 
     public void addFrameToReplace(ReplaceFrame replace) {
-        _replacers.put(replace.getFrame(), replace);
+        _replacers.add(replace);
     }
 
     public void replaceFrames(DiscItemVideoStream vidItem, final CdFileSectorReader cd, final FeedbackStream fbs)
@@ -176,7 +182,7 @@ public class ReplaceFrames {
 
                 ReplaceFrame replacer = getFrameToReplace(frame.getFrame());
                 if (replacer != null) {
-                    fbs.println(I18N.S("Frame {0,number,#}:", frame.getFrame())); // I18N
+                    fbs.println(I18N.S("Frame {0}:", frame.getFrame())); // I18N
                     fbs.indent();
                     try {
                         fbs.println(I18N.S("Replacing with {0}", replacer.getImageFile())); // I18N

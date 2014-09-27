@@ -53,6 +53,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.Version;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAudioStream;
@@ -83,16 +84,16 @@ class Command_Items {
         public Command_Item() {
             super("-i,-item");
         }
-        protected String validate(String s) {
+        protected LocalizedMessage validate(String s) {
             try {
                 _iItemNum = Integer.parseInt(s);
                 if (_iItemNum < 0)
-                    return I18N.S("Invalid item number: {0}", s); // I18N
+                    return new LocalizedMessage("Invalid item number: {0}", s); // I18N
                 else
                     return null;
             } catch (NumberFormatException ex) {
                 if (s.contains(" "))
-                    return I18N.S("Invalid item identifier: {0}", s); // I18N
+                    return new LocalizedMessage("Invalid item identifier: {0}", s); // I18N
                 _sItemId = s;
                 return null;
             }
@@ -186,7 +187,7 @@ class Command_Items {
         public Command_All() {
             super("-a,-all");
         }
-        protected String validate(String s) {
+        protected LocalizedMessage validate(String s) {
             _sType = s;
             return null;
         }
@@ -365,7 +366,7 @@ class Command_Items {
 
         DiscItemSaverBuilder builder = item.makeSaverBuilder();
 
-        fbs.println(I18N.S("Saving {0}", item.toString())); // I18N
+        fbs.println(I18N.S("Saving {0}", item)); // I18N
 
         builder.commandLineOptions(asRemainingArgs, fbs);
 
@@ -381,6 +382,7 @@ class Command_Items {
             cpll.info(item.getSourceCd().toString());
             cpll.info(item.toString());
             saver.startSave(cpll);
+            fbs.println(I18N.S("{0,choice,0#No files created|1#1 file created|2#{0} files created}", saver.getGeneratedFiles().length)); // I18N
         } catch (TaskCanceledException ex) {
             LOG.severe("SHOULD NEVER HAPPEN");
         }

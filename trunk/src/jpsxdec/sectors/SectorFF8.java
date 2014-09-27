@@ -163,7 +163,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
         }
 
         public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
-                                    int iMdecCodeCount, byte[] abSectUserData)
+                                                   int iMdecCodeCount, byte[] abSectUserData)
         {
             // none of the FF8 video sector headers need to be modified
             // so just return the size of the header so the caller
@@ -171,11 +171,6 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return SectorFF8.SHARED_HEADER_SIZE;
         }
 
-        public int splitXaAudio() {
-            // don't want to split audio because that would cut the audio
-            // at the beginning of the movie
-            return SPLIT_XA_AUDIO_NONE;
-        }
     }
 
     /** Final Fantasy 8 audio sector. */

@@ -40,6 +40,7 @@ package jpsxdec.cmdline;
 import java.io.IOException;
 import java.io.PrintStream;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.sectors.IdentifiedSector;
@@ -53,7 +54,7 @@ class Command_SectorDump extends Command {
         super("-sectordump");
     }
 
-    protected String validate(String s) {
+    protected LocalizedMessage validate(String s) {
         _sOutfile = s;
         return null;
     }

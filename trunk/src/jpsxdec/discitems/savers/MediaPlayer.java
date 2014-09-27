@@ -40,10 +40,12 @@ package jpsxdec.discitems.savers;
 import java.io.IOException;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.ISectorFrameDemuxer;
@@ -166,18 +168,14 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
                 CdSector cdSector = _cdReader.getSector(iSector);
                 IdentifiedSector identifiedSector = IdentifiedSector.identifySector(cdSector);
                 if (identifiedSector != null) {
+                    if (_demuxer != null) {
+                        _demuxer.feedSector(identifiedSector, null);
+                    }
                     // if frame demuxer and audio decoder are the same object
                     // don't feed the sector twice (this is currently only for
                     // Crusader movies)
-                    if (_demuxer == _audioDecoder) {
-                        _demuxer.feedSector(identifiedSector, null);
-                    } else {
-                        if (_demuxer != null) {
-                            _demuxer.feedSector(identifiedSector, null);
-                        }
-                        if (_audioDecoder != null) {
-                            _audioDecoder.feedSector(identifiedSector, null);
-                        }
+                    if (_audioDecoder != null && _audioDecoder != _demuxer) {
+                        _audioDecoder.feedSector(identifiedSector, null);
                     }
                 }
 
@@ -193,7 +191,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
         }
     }
 
-    public void frameComplete(IDemuxedFrame frame) throws IOException {
+    public void frameComplete(IDemuxedFrame frame) {
         StrFrame strFrame = _framePool.borrow();
         strFrame.init(frame.getDemuxSize(), frame.getFrame(), frame.getPresentationSector() - _iMovieStartSector);
         strFrame.__abDemuxBuf = frame.copyDemuxData(strFrame.__abDemuxBuf);
@@ -244,15 +242,15 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
     private class StrFrame implements IDecodableFrame, VDP.IDecodedListener {
 
         public byte[] __abDemuxBuf;
-        private int __iFrame;
+        private FrameNumber __frameNum;
         private int __iSectorFromStart;
         private int[] __aiDrawHere;
         
-        public void init(int iSize, int iFrame, int iSectorFromStart) {
+        public void init(int iSize, FrameNumber frameNum, int iSectorFromStart) {
             if (__abDemuxBuf == null || __abDemuxBuf.length < iSize)
                 __abDemuxBuf = new byte[iSize];
             __iSectorFromStart = iSectorFromStart;
-            __iFrame = iFrame;
+            __frameNum = frameNum;
         }
 
         public long getPresentationTime() {
@@ -263,9 +261,9 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
             _m2d.setDecoded(this);
             __aiDrawHere = drawHere;
             try {
-                _b2m.bitstream(__abDemuxBuf, __abDemuxBuf.length, __iFrame, _iMovieEndSector);
+                _b2m.bitstream(__abDemuxBuf, __abDemuxBuf.length, __frameNum, _iMovieEndSector);
             } catch (IOException ex) {
-                System.err.print("Frame "+__iFrame+' '+ex.getMessage());
+                System.err.print("Frame "+__frameNum+' '+ex.getMessage());
                 if (ex.getCause() != null && ex.getCause().getMessage() != null)
                     System.err.println(": " + ex.getCause().getMessage());
                 else
@@ -278,12 +276,12 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
 
         public void assertAcceptsDecoded(MdecDecoder decoder) {}
 
-        public void decoded(MdecDecoder decoder, int iFrameNumber, int iFrameEndSector) {
+        public void decoded(MdecDecoder decoder, FrameNumber frameNumber, int iFrameEndSector) {
             decoder.readDecodedRgb(getVideoWidth(), getVideoHeight(), __aiDrawHere);
         }
 
-        public void error(String sErr, int iFrameNumber, int iFrameEndSector) {
-            System.err.println(sErr);
+        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) {
+            System.err.println(errMsg.getEnglishMessage());
         }
 
         public void setLog(Logger log) {

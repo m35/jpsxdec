@@ -57,21 +57,4 @@ public interface IVideoSector extends IIdentifiedSector {
     public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
                                 int iMdecCodeCount, byte[] abSectUserData);
 
-    /** Do not split audio streams. @see #splitXaAudio() */
-    public static final int SPLIT_XA_AUDIO_NONE = 0;
-    /** Tells the XA indexer that all current audio streams should be ended
-     * at this sector.  @see #splitXaAudio() */
-    public static final int SPLIT_XA_AUDIO_CURRENT = 1;
-    /** Tells the indexer that all current audio streams should be ended
-     * just before the last audio sector.  @see #splitXaAudio() */
-    public static final int SPLIT_XA_AUDIO_PREVIOUS = 2;
-
-    /** Tells the XA indexer if all current audio streams should be ended in
-     * some way. This is unfortunately necessary because the only way
-     * to know where the end the audio for some games is to check the related
-     * video clip. 
-     * @return {@link #SPLIT_XA_AUDIO_NONE}, {@link #SPLIT_XA_AUDIO_CURRENT}, or
-     *         {@link #SPLIT_XA_AUDIO_PREVIOUS} */
-    int splitXaAudio();
-
 }

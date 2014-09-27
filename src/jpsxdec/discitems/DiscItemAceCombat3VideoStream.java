@@ -39,15 +39,12 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.logging.Logger;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorAceCombat3Video;
 import jpsxdec.util.NotThisTypeException;
 
 /** Represents all variations of PlayStation video streams. */
 public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
-
-    private static final Logger LOG = Logger.getLogger(DiscItemAceCombat3VideoStream.class.getName());
 
     public static final String TYPE_ID = "AC3Vid";
     
@@ -57,15 +54,18 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
     public DiscItemAceCombat3VideoStream(int iStartSector, int iEndSector,
                                          int iWidth, int iHeight,
                                          int iFrameCount,
+                                         FrameNumberFormat frameNumberFormat,
                                          int iSectors, int iPerFrame,
                                          int iFirstFrameLastSector,
-                                         int iEndFrame,
+                                         FrameNumber startFrame,
+                                         FrameNumber endFrame,
                                          int iChannel)
     {
         super(iStartSector, iEndSector,
               iWidth, iHeight,
               iFrameCount,
-              0, iEndFrame,
+              frameNumberFormat,
+              startFrame, endFrame,
               iSectors, iPerFrame,
               iFirstFrameLastSector);
         _iChannel = iChannel;
@@ -104,6 +104,24 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
         return iOverlapPercent;
     }
 
+    private static final int AUDIO_SPLIT_THRESHOLD = 32;
+
+
+    public int splitAudio(DiscItemXaAudioStream audio) {
+        if (audio.getChannel() != _iChannel)
+            return -1;
+        
+        int iStartSector = getStartSector();
+        // if audio crosses the start sector
+        if (audio.getStartSector() < iStartSector - AUDIO_SPLIT_THRESHOLD &&
+            audio.getEndSector()  >= iStartSector)
+        {
+            return iStartSector - 1;
+        } else {
+            return -1;
+        }
+    }
+
     
     @Override
     public void fpsDump(PrintStream ps) throws IOException {
@@ -114,7 +132,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
                 SectorAceCombat3Video vidSect = (SectorAceCombat3Video) isect;
                 ps.println(String.format("%-5d %-4d %d/%d",
                                         iSector,
-                                        getEndFrame() - vidSect.getInvertedFrameNumber(),
+                                        getEndFrame().getHeaderFrameNumber() - vidSect.getInvertedFrameNumber(),
                                         vidSect.getChunkNumber(),
                                         vidSect.getChunksInFrame() ));
             } else {
@@ -128,7 +146,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
 
     @Override
     public ISectorFrameDemuxer makeDemuxer() {
-        return new Demuxer(getStartSector(), getEndSector(), getWidth(), getHeight(), getEndFrame(), _iChannel);
+        return new Demuxer(getStartSector(), getEndSector(), getWidth(), getHeight(), getEndFrame().getHeaderFrameNumber(), _iChannel);
     }
 
     public static class Demuxer extends FrameDemuxer<SectorAceCombat3Video> {
@@ -164,7 +182,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
         }
 
         @Override
-        protected int getFrameNumber(SectorAceCombat3Video chunk) {
+        protected int getHeaderFrameNumber(SectorAceCombat3Video chunk) {
             return _iEndFrame - chunk.getInvertedFrameNumber();
         }
 

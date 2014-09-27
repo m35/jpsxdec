@@ -84,7 +84,7 @@ public enum MdecDecodeQuality {
 
     public static MdecDecodeQuality fromCmdLine(String sCmdLine) {
         for (MdecDecodeQuality dq : MdecDecodeQuality.values()) {
-            if (dq.getCmdLine().equals(sCmdLine))
+            if (dq.getCmdLine().equalsIgnoreCase(sCmdLine))
                 return dq;
         }
         return null;

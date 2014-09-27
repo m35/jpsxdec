@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.I18N;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.Calc;
@@ -312,7 +313,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         private int _iQscale;
         private int _iMdecCodeCount;
 
-        public byte[] compressFull(byte[] abOriginal, int iFrame,
+        public byte[] compressFull(byte[] abOriginal, FrameNumber frame,
                                    MdecEncoder encoder, FeedbackStream fbs)
                 throws MdecException
         {
@@ -329,18 +330,18 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
                 abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 if (abNewDemux.length <= abOriginal.length) {
-                    fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} <= max source {2,number,#}", // I18N
-                                                 iFrame, abNewDemux.length, abOriginal.length));
+                    fbs.indent1().println(I18N.S("New frame {0} demux size {1,number,#} <= max source {2,number,#}", // I18N
+                                                 frame, abNewDemux.length, abOriginal.length));
                     break;
                 } else {
-                    fbs.indent1().println(I18N.S("!!! New frame {0,number,#} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
-                                                 iFrame, abNewDemux.length, abOriginal.length));
+                    fbs.indent1().println(I18N.S("!!! New frame {0} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
+                                                 frame, abNewDemux.length, abOriginal.length));
                 }
             }
             return abNewDemux;
         }
 
-        public byte[] compressPartial(byte[] abOriginal, int iFrame,
+        public byte[] compressPartial(byte[] abOriginal, FrameNumber frame,
                                       MdecEncoder encoder, FeedbackStream fbs)
                 throws MdecException
         {

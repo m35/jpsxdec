@@ -105,7 +105,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
     protected void setProbability(int iProbability) {
         _iProbability = iProbability;
     }
-    /** Between 0 and 100. */
+
     public int getProbability() {
         return _iProbability;
     }

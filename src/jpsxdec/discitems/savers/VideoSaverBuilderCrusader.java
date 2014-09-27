@@ -98,13 +98,17 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
 
     // .........................................................................
 
+    public boolean getSavingAudio_enabled() {
+        return getVideoFormat().isAvi() && getSaveStartFrame() == null;
+    }
+
     public boolean hasAudio() {
         return true;
     }
 
     private boolean _blnSavingAudio = true;
     public boolean getSavingAudio() {
-        if (!getVideoFormat().isAvi())
+        if (!getSavingAudio_enabled())
             return false;
         return _blnSavingAudio;
     }

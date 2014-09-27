@@ -40,6 +40,7 @@ package jpsxdec.psxvideo.mdec;
 import com.mortennobel.imagescaling.ResampleFilter;
 import com.mortennobel.imagescaling.ResampleFilters;
 import com.mortennobel.imagescaling.ResampleOp;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.formats.RGB;
 import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
@@ -63,17 +64,19 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
     private Upsampler _upsampler = Upsampler.Bicubic;
 
     public enum Upsampler {
-        /** i.e. Box */ NearestNeighbor(null),
-        /** i.e. Triangle */ Bilinear(null),
-        Bicubic(ResampleFilters.getBiCubicFilter()),
-        Bell(ResampleFilters.getBellFilter()),
-        Mitchell(ResampleFilters.getMitchellFilter()),
-        BSpline(ResampleFilters.getBSplineFilter()),
-        Lanczos3(ResampleFilters.getLanczos3Filter()),
-        Hermite(ResampleFilters.getHermiteFilter());
+        /** i.e. Box */ NearestNeighbor("Nearest Neighbor", null), // I18N
+        /** i.e. Triangle */ Bilinear("Bilinear", null), // I18N
+        Bicubic("Bicubic", ResampleFilters.getBiCubicFilter()), // I18N
+        Bell("Bell", ResampleFilters.getBellFilter()), // I18N
+        Mitchell("Mitchell", ResampleFilters.getMitchellFilter()), // I18N
+        BSpline("BSpline", ResampleFilters.getBSplineFilter()), // I18N
+        Lanczos3("Lanczos3", ResampleFilters.getLanczos3Filter()), // I18N
+        Hermite("Hermite", ResampleFilters.getHermiteFilter()); // I18N
 
+        private final LocalizedMessage _name;
         private final ResampleFilter _filter;
-        private Upsampler(ResampleFilter filter) {
+        private Upsampler(String sName, ResampleFilter filter) {
+            _name = new LocalizedMessage(sName);
             _filter = filter;
         }
 
@@ -86,6 +89,14 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
                 }
             }
             return up;
+        }
+
+        /** {@inheritDoc}
+         *<p>
+         * Used in GUI list so must be localized. */
+        @Override
+        public String toString() {
+            return _name.getLocalizedMessage();
         }
     }
 

@@ -222,7 +222,7 @@ public class SerializedDiscItem {
             throw new NotThisTypeException("Failed to convert serialized field to long: {0}", sValue); // I18N
         }
     }
-    
+
     public int[] getIntRange(String sFieldName) throws NotThisTypeException {
         String sValue = _fields.get(sFieldName);
         int[] ai = jpsxdec.util.Misc.splitInt(sValue, "\\D+");
@@ -231,7 +231,7 @@ public class SerializedDiscItem {
 
         return ai;
     }
-    
+
     public long[] getLongRange(String sFieldName) throws NotThisTypeException {
         String sValue = _fields.get(sFieldName);
         long[] alng = jpsxdec.util.Misc.splitLong(sValue, "\\D+");

@@ -39,8 +39,10 @@ package jpsxdec;
 
 public class Version {
 
-    public final static String Version = "0.99.3 (beta)";
-    public final static String VerString = "jPSXdec: PSX media decoder v" + Version;
-    public final static String VerStringNonCommercial = I18N.S("jPSXdec: PSX media decoder (non-commercial) v{0}", Version); // I18N
+    public final static String Version = "0.99.4 (beta)";
+    public final static LocalizedMessage VerString = 
+            new LocalizedMessage("jPSXdec: PSX media decoder v{0}", Version); // I18N
+    public final static LocalizedMessage VerStringNonCommercial = 
+            new LocalizedMessage("jPSXdec: PSX media decoder (non-commercial) v{0}", Version); // I18N
 
 }

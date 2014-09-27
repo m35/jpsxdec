@@ -75,17 +75,13 @@ public class I18N {
     /** Localize a string.
      * If no key is found, the key is returned as the localized string. */
     public static String S(String sKey) {
-        if (true) { // TODO: enable once keys are in bundle
+        if (_translationBundle == null)
             return sKey;
-        } else {
-            if (_translationBundle == null)
-                return sKey;
-            try {
-                return _translationBundle.getString(sKey);
-            } catch (MissingResourceException ex) {
-                LOG.log(Level.WARNING, sKey, ex);
-                return sKey;
-            }
+        try {
+            return _translationBundle.getString(sKey);
+        } catch (MissingResourceException ex) {
+            LOG.log(Level.WARNING, "Missing I18N for {0}", sKey);
+            return sKey;
         }
     }
     

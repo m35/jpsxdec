@@ -37,6 +37,7 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
@@ -48,10 +49,10 @@ public interface BitStreamCompressor {
     byte[] compress(MdecInputStream inStream, int iWidth, int iHeight)
             throws MdecException, MdecException.TooMuchEnergyToCompress;
     
-    byte[] compressFull(byte[] abOriginal, int iFrame,
+    byte[] compressFull(byte[] abOriginal, FrameNumber frame,
                         MdecEncoder encoder,
                         FeedbackStream fbs) throws MdecException;
-    byte[] compressPartial(byte[] abOriginal, int iFrame,
+    byte[] compressPartial(byte[] abOriginal, FrameNumber frame,
                            MdecEncoder encoder,
                            FeedbackStream fbs) throws MdecException;
 

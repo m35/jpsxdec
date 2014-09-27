@@ -46,6 +46,7 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.I18N;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.Calc;
@@ -216,7 +217,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         private int _iFlagBit;
         private final ByteArrayOutputStream _buffer = new ByteArrayOutputStream();
         private final ByteArrayOutputStream _baosLogger = new ByteArrayOutputStream();
-        private PrintStream _logger = new PrintStream(_baosLogger, true);
+        private final PrintStream _logger = new PrintStream(_baosLogger, true);
 
         /** Find the longest run of bytes that match the current position. */
         public void compress(byte[] abSrcData, ByteArrayOutputStream out) {
@@ -359,7 +360,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         private int _iWidth, _iHeight;
         
         @Override
-        public byte[] compressFull(byte[] abOriginal, int iFrame,
+        public byte[] compressFull(byte[] abOriginal, FrameNumber frame,
                                    MdecEncoder encoder, FeedbackStream fbs)
                 throws MdecException
         {
@@ -379,12 +380,12 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
                 abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 int iNewDemuxSize = abNewDemux.length;
                 if (iNewDemuxSize <= abOriginal.length) {
-                    fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} <= max source {2,number,#}", // I18N
-                                                 iFrame, iNewDemuxSize, abOriginal.length));
+                    fbs.indent1().println(I18N.S("New frame {0} demux size {1,number,#} <= max source {2,number,#}", // I18N
+                                                 frame, iNewDemuxSize, abOriginal.length));
                     break;
                 } else {
-                    fbs.indent1().println(I18N.S("!!! New frame {0,number,#} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
-                                                 iFrame, iNewDemuxSize, abOriginal.length));
+                    fbs.indent1().println(I18N.S("!!! New frame {0} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
+                                                 frame, iNewDemuxSize, abOriginal.length));
                 }
             }
 
@@ -393,7 +394,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
                 //         until we run out of space
                 abNewDemux = reduceQscaleForHighEnergyMacroBlocks(
                              abNewDemux,
-                             abOriginal.length, iFrame, iQscale-1, encoder, fbs);
+                             abOriginal.length, frame, iQscale-1, encoder, fbs);
             }
 
             return abNewDemux;
@@ -405,7 +406,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
          * partially replacing frames, and pretty good for full frame replace. */
         private byte[] reduceQscaleForHighEnergyMacroBlocks(
                             byte[] abLastGoodDemux,
-                            int iOriginalLength, int iFrame, int iNewQscale,
+                            int iOriginalLength, FrameNumber frame, int iNewQscale,
                             MdecEncoder encoder, FeedbackStream fbs) 
                 throws MdecException 
         {
@@ -444,11 +445,11 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
                 byte[] abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 int iNewDemuxSize = abNewDemux.length;
                 if (iNewDemuxSize <= iOriginalLength) {
-                    fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} <= max source {2,number,#}", // I18N
-                                                 iFrame, iNewDemuxSize, iOriginalLength));
+                    fbs.indent1().println(I18N.S("New frame {0} demux size {1,number,#} <= max source {2,number,#}", // I18N
+                                                 frame, iNewDemuxSize, iOriginalLength));
                 } else {
-                    fbs.indent1().println(I18N.S("New frame {0,number,#} demux size {1,number,#} > max source {2,number,#}, so stopping", // I18N
-                                                 iFrame, iNewDemuxSize, iOriginalLength));
+                    fbs.indent1().println(I18N.S("New frame {0} demux size {1,number,#} > max source {2,number,#}, so stopping", // I18N
+                                                 frame, iNewDemuxSize, iOriginalLength));
                     break;
                 }
                 abLastGoodDemux = abNewDemux;
@@ -458,12 +459,12 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         }
         
         @Override
-        public byte[] compressPartial(byte[] abOriginal, int iFrame,
+        public byte[] compressPartial(byte[] abOriginal, FrameNumber frame,
                                       MdecEncoder encoder, FeedbackStream fbs)
                 throws MdecException
         {
             // all blocks to replace are full replaced
-            return compressFull(abOriginal, iFrame, encoder, fbs);
+            return compressFull(abOriginal, frame, encoder, fbs);
         }
 
 

@@ -46,6 +46,7 @@ import java.io.OutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaRiffHeader;
@@ -62,10 +63,10 @@ class Command_CopySect extends Command {
     }
     private int[] _aiStartEndSectors;
 
-    protected String validate(String s) {
+    protected LocalizedMessage validate(String s) {
         _aiStartEndSectors = parseNumberRange(s);
         if (_aiStartEndSectors == null) {
-            return I18N.S("Invalid sector range: {0}", s); // I18N
+            return new LocalizedMessage("Invalid sector range: {0}", s); // I18N
         } else {
             return null;
         }

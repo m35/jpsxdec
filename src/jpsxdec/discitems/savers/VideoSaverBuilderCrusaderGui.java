@@ -57,7 +57,7 @@ public class VideoSaverBuilderCrusaderGui extends VideoSaverBuilderGui<VideoSave
             _writerBuilder.setSavingAudio(b);
         }
         public boolean isEnabled() {
-            return true;
+            return _writerBuilder.getSavingAudio_enabled();
         }
     }
 

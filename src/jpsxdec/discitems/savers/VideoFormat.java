@@ -39,7 +39,7 @@ package jpsxdec.discitems.savers;
 
 import java.util.ArrayList;
 import java.util.List;
-import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.formats.JavaImageFormat;
 
 
@@ -47,9 +47,7 @@ public enum VideoFormat {
     AVI_MJPG("AVI: Compressed (MJPG)", // I18N
              "avi:mjpg") // I18N
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return ".avi";
-        }
+        public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 0; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
@@ -57,17 +55,13 @@ public enum VideoFormat {
     AVI_RGB("AVI: Uncompressed RGB", // I18N
             "avi:rgb") // I18N
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return ".avi";
-        }
+        public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
     },
     AVI_YUV("AVI: YUV", // I18N
             "avi:yuv") // I18N
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return ".avi";
-        }
+        public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 1; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH_PLUS; }
@@ -75,9 +69,7 @@ public enum VideoFormat {
     AVI_JYUV("AVI: YUV with [0-255] range", // I18N
              "avi:jyuv") // I18N
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return ".avi";
-        }
+        public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 1; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH_PLUS; }
@@ -86,16 +78,12 @@ public enum VideoFormat {
                "png", // I18N
                JavaImageFormat.PNG)
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return "." + getImgFmt().getExtension();
-        }
+        public String getExtension() { return "." + getImgFmt().getExtension(); }
     },
     IMGSEQ_JPG("Image sequence: jpg", // I18N
                "jpg") // I18N
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return ".jpg";
-        }
+        public String getExtension() { return ".jpg"; }
         public int getDecodeQualityCount() { return 0; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
     },
@@ -103,48 +91,49 @@ public enum VideoFormat {
                "bmp", // I18N
                JavaImageFormat.BMP)
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return "." + getImgFmt().getExtension();
-        }
+        public String getExtension() { return "." + getImgFmt().getExtension(); }
     },
     IMGSEQ_BITSTREAM("Image sequence: bitstream", // I18N
                      "bs") // I18N
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return "_" + iWidth + "x" + iHeight + ".bs";
-        }
+        public String getExtension() { return ".bs"; }
         public int getDecodeQualityCount() { return 0; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
         public boolean isCroppable() { return false; }
+        public boolean needsDims() { return true; }
     },
     IMGSEQ_MDEC ("Image sequence: mdec", // I18N
                  "mdec") // I18N
     {
-        public String makePostfix(int iWidth, int iHeight) {
-            return "_" + iWidth + "x" + iHeight + ".mdec";
-        }
+        public String getExtension() { return ".mdec"; }
         public int getDecodeQualityCount() { return 0; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
         public boolean isCroppable() { return false; }
+        public boolean needsDims() { return true; }
     },
     ;
 
-    private final String _sGui;
-    private final String _sCmdLine;
+    /** How the format will be displayed in the GUI. */
+    private final LocalizedMessage _guiName;
+    /** How the format will be displayed on the command line. */
+    private final LocalizedMessage _cmdLineId;
     private final JavaImageFormat _eImgFmt;
 
-    VideoFormat(String sGui, String sCmdLine) {
+    private VideoFormat(String sGui, String sCmdLine) {
         this(sGui, sCmdLine, null);
     }
 
-    VideoFormat(String sGui, String sCmdLine, JavaImageFormat imgFormat) {
-        _sGui = sGui;
-        _sCmdLine = sCmdLine;
+    private VideoFormat(String sGui, String sCmdLine, JavaImageFormat imgFormat) {
+        _guiName = new LocalizedMessage(sGui);
+        _cmdLineId = new LocalizedMessage(sCmdLine);
         _eImgFmt = imgFormat;
     }
 
-    public String toString() { return I18N.S(_sGui); }
-    public String getCmdLine() { return _sCmdLine; }
+    /** {@inheritDoc}
+     *<p>
+     *  Must be localized because this object is used directly. */
+    public String toString() { return _guiName.getLocalizedMessage(); }
+    public LocalizedMessage getCmdLine() { return _cmdLineId; }
     public boolean isAvailable() {
         return _eImgFmt == null ? true : _eImgFmt.isAvailable();
     }
@@ -160,14 +149,17 @@ public enum VideoFormat {
 
     public JavaImageFormat getImgFmt() { return _eImgFmt; }
 
-    /** Postfix for a single frame (no frame number). */
-    abstract public String makePostfix(int iWidth, int iHeight);
+    /** If the output filename should include frame dimensions. */
+    public boolean needsDims() { return false; }
+    /** Filename extension with '.'. */
+    abstract public String getExtension();
 
     /////////////////////////////////////////////////////////
 
     public static VideoFormat fromCmdLine(String sCmdLine) {
         for (VideoFormat fmt : getAvailable()) {
-            if (fmt.getCmdLine().equalsIgnoreCase(sCmdLine))
+            if (fmt.getCmdLine().getEnglishMessage().equalsIgnoreCase(sCmdLine) ||
+                fmt.getCmdLine().getLocalizedMessage().equalsIgnoreCase(sCmdLine))
                 return fmt;
         }
         return null;

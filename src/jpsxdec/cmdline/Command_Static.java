@@ -49,7 +49,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
 import jpsxdec.I18N;
-import jpsxdec.discitems.savers.FrameFormatter;
+import jpsxdec.LocalizedMessage;
+import jpsxdec.discitems.savers.FrameFileFormatter;
 import jpsxdec.discitems.savers.MdecDecodeQuality;
 import jpsxdec.discitems.savers.VDP;
 import jpsxdec.discitems.savers.VideoFormat;
@@ -75,14 +76,14 @@ class Command_Static extends Command {
     }
     private StaticType _eStaticType;
 
-    protected String validate(String s) {
+    protected LocalizedMessage validate(String s) {
         for (StaticType type : StaticType.values()) {
             if (s.equalsIgnoreCase(type.name())) {
                 _eStaticType = type;
                 return null;
             }
         }
-        return I18N.S("Invalid static type: {0}", s); // I18N
+        return new LocalizedMessage("Invalid static type: {0}", s); // I18N
     }
 
     public void execute(String[] asRemainingArgs) throws CommandLineException {
@@ -127,19 +128,13 @@ class Command_Static extends Command {
                 }
                 _fbs.println(I18N.S("Reading static file {0}", inFile)); // I18N
                 String sFileBaseName = Misc.getBaseName(inFile.getName());
-                VideoFormat vf = null;
-                for (VideoFormat fmt : VideoFormat.getAvailable()) {
-                    if (!fmt.isAvi() && fmt != VideoFormat.IMGSEQ_BITSTREAM && fmt.getCmdLine().equalsIgnoreCase(format.value)) {
-                        vf = fmt;
-                        break;
-                    }
-                }
-                if (vf == null) {
+                VideoFormat vf = VideoFormat.fromCmdLine(format.value);
+                if (vf == null || vf.isAvi() || vf == VideoFormat.IMGSEQ_BITSTREAM) {
                     throw new CommandLineException("Invalid format type {0}", format.value); // I18N
                 }
                 
                 VDP.IMdecListener mdecOut;
-                FrameFormatter formatter = FrameFormatter.makeFormatter(sFileBaseName, vf, iWidth, iHeight);
+                FrameFileFormatter formatter = FrameFileFormatter.makeFormatter(sFileBaseName, vf, iWidth, iHeight);
                 if (vf == VideoFormat.IMGSEQ_MDEC) {
                     mdecOut = new VDP.Mdec2File(formatter, iWidth, iHeight);
                 } else if (vf == VideoFormat.IMGSEQ_JPG) {
@@ -170,8 +165,8 @@ class Command_Static extends Command {
                     VDP.Decoded2JavaImage imgOut = new VDP.Decoded2JavaImage(formatter, vf.getImgFmt(), iWidth, iHeight);
                     m2d.setDecoded(imgOut);
                 }
-                _fbs.println(I18N.S("Saving as {0}", formatter.format(-1))); // I18N
                 UserFriendlyLogger log = new UserFriendlyLogger("static", _fbs);
+                _fbs.println(I18N.S("Saving as {0}", formatter.format(null, log))); // I18N
                 try {
                     byte[] abBitstream = IO.readFile(inFile);
                     if (_eStaticType == StaticType.bs) {
@@ -179,14 +174,14 @@ class Command_Static extends Command {
                         b2m.setMdec(mdecOut);
                         b2m.setLog(log);
                         try {
-                            b2m.bitstream(abBitstream, abBitstream.length, -1, -1);
+                            b2m.bitstream(abBitstream, abBitstream.length, null, -1);
                         } finally {
                             b2m.setLog(null);
                         }
                     } else {
                         mdecOut.setLog(log);
                         try {
-                            mdecOut.mdec(new MdecInputStreamReader(new ByteArrayInputStream(abBitstream)), -1, -1);
+                            mdecOut.mdec(new MdecInputStreamReader(new ByteArrayInputStream(abBitstream)), null, -1);
                         } finally {
                             mdecOut.setLog(null);
                         }

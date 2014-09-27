@@ -231,7 +231,7 @@ public class CdSector2352 extends CdSector {
                 return String.format("[Sector:%d (%d) M2 %s]", 
                         _iSectorIndex, 
                         _header.calculateSectorNumber(), 
-                        _subHeader.toString());
+                        _subHeader);
         }
     }
 

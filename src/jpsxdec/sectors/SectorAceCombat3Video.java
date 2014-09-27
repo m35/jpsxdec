@@ -134,11 +134,4 @@ public class SectorAceCombat3Video extends SectorAbstractVideo {
         return getCdSector().getSubHeaderChannel();
     }
 
-    public int splitXaAudio() {
-        // split the audio at the end of every movie
-        // because some audio streams don't automatically split
-        return (_iInvertedFrame == 0 && _iChunkNumber == _iChunksInThisFrame - 1) ?
-            SPLIT_XA_AUDIO_CURRENT : SPLIT_XA_AUDIO_NONE;
-    }
-
 }

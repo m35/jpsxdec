@@ -47,6 +47,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Logger;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderStr;
 import jpsxdec.sectors.IdentifiedSector;
@@ -61,20 +62,20 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     private static final Logger LOG = Logger.getLogger(DiscItemStrVideoStream.class.getName());
 
     private static final String FRAMES_KEY = "Frames";
-    /** Last video frame number. */
-    private final int _iEndFrame;
     /** First video frame number. */
-    private final int _iStartFrame;
-    
+    private final FrameNumber _startFrame;
+    /** Last video frame number. */
+    private final FrameNumber _endFrame;
+
     private static final String SECTORSPERFRAME_KEY = "Sectors/Frame";
     private final int _iSectors;
     private final int _iPerFrame;
 
-    private static final String FRAME1_LAST_SECTOR_KEY = "Frame 1 last sector";
+    private static final String FRAME1_LAST_SECTOR_KEY = "1st frame end sector";
     /** The last sector of frame 1 relative to the start sector.
      * Important for syncing audio and video. */
     private final int _iFirstFrameLastSector;
-    
+
     private static final String DISC_SPEED_KEY = "Disc Speed";
     private int _iDiscSpeed = -1;
     private int _iAudioDiscSpeed = 0;
@@ -85,17 +86,19 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     public DiscItemStrVideoStream(int iStartSector, int iEndSector,
                                   int iWidth, int iHeight,
                                   int iFrameCount,
-                                  int iStartFrame, int iEndFrame,
+                                  FrameNumberFormat frameNumberFormat,
+                                  FrameNumber startFrame, FrameNumber endFrame,
                                   int iSectors, int iPerFrame,
                                   int iFirstFrameLastSector)
     {
         super(iStartSector, iEndSector, 
               iWidth, iHeight, 
-              iFrameCount);
+              iFrameCount,
+              frameNumberFormat);
 
-        _iStartFrame = iStartFrame;
-        _iEndFrame = iEndFrame;
-        
+        _startFrame = startFrame;
+        _endFrame = endFrame;
+
         // ensure the sectors/frame fraction is simplied
         int iGcd = Maths.gcd(iSectors, iPerFrame);
         _iSectors = iSectors / iGcd;
@@ -108,9 +111,9 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     {
         super(fields);
 
-        int[] ai = fields.getIntRange(FRAMES_KEY);
-        _iStartFrame = ai[0];
-        _iEndFrame = ai[1];
+        FrameNumber[] ao = FrameNumber.parseRange(fields.getString(FRAMES_KEY));
+        _startFrame = ao[0];
+        _endFrame = ao[1];
 
         long[] alng = fields.getFraction(SECTORSPERFRAME_KEY);
         _iSectors = (int)alng[0];
@@ -123,7 +126,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     @Override
     public SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
-        serial.addRange(FRAMES_KEY, _iStartFrame, _iEndFrame);
+        serial.addString(FRAMES_KEY, FrameNumber.toRange(_startFrame, _endFrame));
         serial.addFraction(SECTORSPERFRAME_KEY, _iSectors, _iPerFrame);
         serial.addNumber(FRAME1_LAST_SECTOR_KEY, _iFirstFrameLastSector);
 
@@ -133,12 +136,12 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         return serial;
     }
 
-    public int getStartFrame() {
-        return _iStartFrame;
+    public FrameNumber getStartFrame() {
+        return _startFrame;
     }
 
-    public int getEndFrame() {
-        return _iEndFrame;
+    public FrameNumber getEndFrame() {
+        return _endFrame;
     }
 
     @Override
@@ -158,11 +161,6 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         return new Fraction(_iSectors, _iPerFrame);
     }
     
-    @Override
-    public String getFrameNumberFormat() {
-        int iDigitCount = String.valueOf(_iEndFrame).length();
-        return "%0" + String.valueOf(iDigitCount) + 'd';
-    }
 
     @Override
     public boolean addChild(DiscItem other) {
@@ -232,13 +230,13 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     @Override
-    public String getInterestingDescription() {
+    public LocalizedMessage getInterestingDescription() {
         int iDiscSpeed = getDiscSpeed();
         int iFrameRange = getFrameCount();
         if (iDiscSpeed > 0) {
             int iSectorsPerSecond = iDiscSpeed * 75;
             Date secs = new Date(0, 0, 0, 0, 0, Math.max(getSectorLength() / iSectorsPerSecond, 1));
-            return I18N.S("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#.###} fps = {4,time,m:ss}", // I18N
+            return new LocalizedMessage("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#.###} fps = {4,time,m:ss}", // I18N
                           getWidth(), getHeight(),
                           iFrameRange,
                           Fraction.divide(iSectorsPerSecond, getSectorsPerFrame()).asDouble(),
@@ -246,7 +244,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         } else {
             Date secs150 = new Date(0, 0, 0, 0, 0, 150);
             Date secs75 = new Date(0, 0, 0, 0, 0, 75);
-            return I18N.S("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#.###} fps = {4,time,m:ss} (or {5,number,#.###} fps = {6,time,m:ss})", // I18N
+            return new LocalizedMessage("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#.###} fps = {4,time,m:ss} (or {5,number,#.###} fps = {6,time,m:ss})", // I18N
                           getWidth(), getHeight(),
                           iFrameRange,
                           Fraction.divide(150, getSectorsPerFrame()).asDouble(),
@@ -364,6 +362,8 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         return _longestNonIntersectingAudioStreams;
     }
 
+    abstract public int splitAudio(DiscItemXaAudioStream audio);
+    
     abstract public void fpsDump(PrintStream ps) throws IOException;
 
     public void fpsDump2(final PrintStream ps) throws IOException {

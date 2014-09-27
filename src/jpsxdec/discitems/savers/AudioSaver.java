@@ -60,15 +60,16 @@ public class AudioSaver implements IDiscItemSaver  {
     private final DiscItemAudioStream _audItem;
     private final ISectorAudioDecoder _decoder;
     private final File _outputDir;
-    private final File _fileSubPath;
+    private final File _fileRelativePath;
     private final JavaAudioFormat _containerFormat;
+    private File _generatedFile;
 
-    public AudioSaver(DiscItemAudioStream audItem, File outputDir, File fileSubPath,
+    public AudioSaver(DiscItemAudioStream audItem, File outputDir, File fileRelativePath,
                        JavaAudioFormat containerFormat, double dblVolume)
     {
         _audItem = audItem;
         _outputDir = outputDir;
-        _fileSubPath = fileSubPath;
+        _fileRelativePath = fileRelativePath;
         _decoder = audItem.makeDecoder(dblVolume);
         _containerFormat = containerFormat;
     }
@@ -82,19 +83,19 @@ public class AudioSaver implements IDiscItemSaver  {
     }
 
     public String getOutputSummary() {
-        return _fileSubPath.getPath();
+        return _fileRelativePath.getPath();
     }
 
     public void printSelectedOptions(PrintStream ps) {
         ps.println(I18N.S("Format: {0}", _containerFormat)); // I18N
         ps.println(I18N.S("Volume: {0}%", Math.round(_decoder.getVolume() * 100))); // I18N
-        ps.println(I18N.S("Filename: {0}", _fileSubPath)); // I18N
+        ps.println(I18N.S("Filename: {0}", _fileRelativePath)); // I18N
     }
 
 
     public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
 
-        File outputFile = new File(_outputDir, _fileSubPath.getPath());
+         File outputFile = new File(_outputDir, _fileRelativePath.getPath());
 
         IO.makeDirsForFile(outputFile);
 
@@ -102,7 +103,7 @@ public class AudioSaver implements IDiscItemSaver  {
         final AudioOutputFileWriter audioWriter;
         audioWriter = new AudioOutputFileWriter(outputFile,
                             audioFmt, _containerFormat.getJavaType());
-
+        _generatedFile = outputFile;
         _decoder.setAudioListener(new ISectorAudioDecoder.ISectorTimedAudioWriter() {
             public void write(AudioFormat format, byte[] abData, int iStart, int iLen, int iPresentationSector) throws IOException {
                 audioWriter.write(format, abData, iStart, iLen);
@@ -126,5 +127,11 @@ public class AudioSaver implements IDiscItemSaver  {
         }
     }
 
+    public File[] getGeneratedFiles() {
+        if (_generatedFile == null)
+            return null;
+        else
+            return new File[] {_generatedFile};
+    }    
 }
 

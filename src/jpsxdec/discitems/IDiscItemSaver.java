@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import jpsxdec.util.ProgressListenerLogger;
@@ -53,4 +54,7 @@ public interface IDiscItemSaver {
     public void printSelectedOptions(PrintStream ps);
     public DiscItem getDiscItem();
 
+    /** Returns a list of files generated during the saving process.
+     * May return null before saving is done. */
+    public File[] getGeneratedFiles();
 }

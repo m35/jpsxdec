@@ -39,29 +39,31 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.logging.Logger;
 import jpsxdec.sectors.IVideoSectorWithFrameNumber;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
 
-/** Represents all variations of PlayStation video streams. */
+/** Handles most variations of PlayStation video streams.
+ * Most video streams have video sectors with similar header information
+ * that includes the frame number the sector belongs to. */
 public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
-
-    private static final Logger LOG = Logger.getLogger(DiscItemStrVideoWithFrame.class.getName());
 
     public static final String TYPE_ID = "Video";
 
     public DiscItemStrVideoWithFrame(int iStartSector, int iEndSector,
                                      int iWidth, int iHeight,
                                      int iFrameCount,
-                                     int iStartFrame, int iEndFrame,
+                                     FrameNumberFormat frameNumberFormat,
+                                     FrameNumber startFrame,
+                                     FrameNumber endFrame,
                                      int iSectors, int iPerFrame,
                                      int iFirstFrameLastSector)
     {
         super(iStartSector, iEndSector,
               iWidth, iHeight,
               iFrameCount,
-              iStartFrame, iEndFrame,
+              frameNumberFormat,
+              startFrame, endFrame,
               iSectors, iPerFrame,
               iFirstFrameLastSector);
     }
@@ -88,6 +90,19 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
         return iOverlapPercent;
     }
 
+    private static final int AUDIO_SPLIT_THRESHOLD = 32;
+    
+    public int splitAudio(DiscItemXaAudioStream audio) {
+        int iStartSector = getStartSector();
+        // if audio crosses the start sector
+        if (audio.getStartSector() < iStartSector - AUDIO_SPLIT_THRESHOLD &&
+            audio.getEndSector()  >= iStartSector + AUDIO_SPLIT_THRESHOLD)
+        {
+            return iStartSector;
+        } else {
+            return -1;
+        }
+    }
     
     @Override
     public void fpsDump(PrintStream ps) throws IOException {
@@ -141,7 +156,7 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
         }
 
         @Override
-        protected int getFrameNumber(IVideoSectorWithFrameNumber chunk) {
+        protected int getHeaderFrameNumber(IVideoSectorWithFrameNumber chunk) {
             return chunk.getFrameNumber();
         }
 

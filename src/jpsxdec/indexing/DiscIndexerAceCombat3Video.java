@@ -37,13 +37,15 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAceCombat3VideoStream;
-import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.discitems.FrameNumberFormat;
 import jpsxdec.discitems.SerializedDiscItem;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorAceCombat3Video;
 import jpsxdec.util.NotThisTypeException;
@@ -52,15 +54,13 @@ import jpsxdec.util.NotThisTypeException;
  * Searches for Ace Combat 3: Electrosphere video streams.
  * Only case I've seen that video streams are interleaved.
  */
-public class DiscIndexerAceCombat3Video extends DiscIndexer {
+public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndexer.Identified {
 
-    private static final Logger LOG = Logger.getLogger(DiscIndexerAceCombat3Video.class.getName());
     
-    private static class VideoStreamIndex extends AbstractVideoStreamIndex {
+    private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemAceCombat3VideoStream> {
         
         private final int _iChannel;
         private final int _iMaxFrame;
-        
         
         public VideoStreamIndex(Logger errLog, SectorAceCombat3Video vidSect) {
             super(errLog, vidSect, true);
@@ -79,7 +79,9 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer {
         protected DiscItemAceCombat3VideoStream createVideo(int iStartSector, int iEndSector,
                                                             int iWidth, int iHeight,
                                                             int iFrameCount,
-                                                            int iLastSeenFrameNumber,
+                                                            FrameNumberFormat frameNumberFormat,
+                                                            FrameNumber startFrame,
+                                                            FrameNumber lastSeenFrameNumber,
                                                             int iSectors, int iPerFrame,
                                                             int iFrame1PresentationSector)
         {
@@ -87,9 +89,10 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer {
                     iStartSector, iEndSector,
                     iWidth, iHeight,
                     iFrameCount,
+                    frameNumberFormat,
                     iSectors, iPerFrame,
                     iFrame1PresentationSector,
-                    _iMaxFrame,
+                    startFrame, lastSeenFrameNumber,
                     _iChannel);
         }
 
@@ -97,7 +100,8 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer {
 
     
     private final Logger _errLog;
-    private final TreeMap<Integer, VideoStreamIndex> _vidStreams = new TreeMap<Integer, VideoStreamIndex>();
+    private final TreeMap<Integer, VideoStreamIndex> _activeStreams = new TreeMap<Integer, VideoStreamIndex>();
+    private final Collection<DiscItemAceCombat3VideoStream> _completedVideos = new ArrayList<DiscItemAceCombat3VideoStream>();
 
     public DiscIndexerAceCombat3Video(Logger errLog) {
         _errLog = errLog;
@@ -113,7 +117,6 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer {
         return null;
     }
 
-    @Override
     public void indexingSectorRead(IdentifiedSector sector) {
         if (!(sector instanceof SectorAceCombat3Video)) {
             return;
@@ -122,35 +125,41 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer {
         SectorAceCombat3Video vidSect = (SectorAceCombat3Video)sector;
         
         Integer oiChannel = Integer.valueOf(vidSect.getChannel());
-        VideoStreamIndex stream = _vidStreams.get(oiChannel);
+        VideoStreamIndex stream = _activeStreams.get(oiChannel);
         if (stream != null) {
             boolean blnAccepted = stream.sectorRead(vidSect);
             if (!blnAccepted) {
-                DiscItemVideoStream vid = stream.endOfMovie();
-                if (vid != null)
+                DiscItemAceCombat3VideoStream vid = stream.endOfMovie();
+                if (vid != null) {
+                    _completedVideos.add(vid);
                     super.addDiscItem(vid);
-                _vidStreams.remove(oiChannel);
+                }
+                _activeStreams.remove(oiChannel);
                 stream = null;
             }
         }
         if (stream == null) {
             stream = new VideoStreamIndex(_errLog, vidSect);
-            _vidStreams.put(oiChannel, stream);
+            _activeStreams.put(oiChannel, stream);
         }
     }
 
     @Override
     public void indexingEndOfDisc() {
-        for (VideoStreamIndex videoStreamIndex : _vidStreams.values()) {
-            DiscItemVideoStream vid = videoStreamIndex.endOfMovie();
-            if (vid != null)
+        for (VideoStreamIndex videoStreamIndex : _activeStreams.values()) {
+            DiscItemAceCombat3VideoStream vid = videoStreamIndex.endOfMovie();
+            if (vid != null) {
+                _completedVideos.add(vid);
                 super.addDiscItem(vid);
+            }
         }
-        _vidStreams.clear();
+        _activeStreams.clear();
     }
 
     @Override
-    public void staticRead(DemuxedUnidentifiedDataStream inStream) throws IOException {
+    public void listPostProcessing(Collection<DiscItem> allItems) {
+        if (_completedVideos.size() > 0)
+            DiscIndexerStrVideoWithFrame.audioSplit(_completedVideos, allItems);
     }
 
     @Override

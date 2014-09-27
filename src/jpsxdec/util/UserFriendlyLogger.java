@@ -43,7 +43,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.text.SimpleDateFormat;
+import java.io.UnsupportedEncodingException;
+import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.ResourceBundle;
 import java.util.logging.Filter;
@@ -56,14 +57,13 @@ import jpsxdec.I18N;
 import jpsxdec.Version;
 
 
-/** May only be friendly to English speakers. */
+/** Logger that creates a file with a known name, meant for user consumption. */
 public class UserFriendlyLogger extends Logger {
 
-    private final SimpleDateFormat TIME_FORMAT = 
-            new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private final DateFormat _dateFormat = DateFormat.getDateTimeInstance();
 
-    public static final int HEADER_LEVEL_COUNT = 4;
-    
+    /** Listener will be notified of any {@link Level#WARNING} or
+     * {@link Level#SEVERE} (errors). */
     public static interface OnWarnErr {
         void onWarn(LogRecord record);
         void onErr(LogRecord record);
@@ -78,10 +78,10 @@ public class UserFriendlyLogger extends Logger {
 
         public void print(LogRecord record, PrintStream ps) {
             ps.print('[');
-            ps.print(record.getLevel().getName());
+            ps.print(record.getLevel().getLocalizedName());
             ps.print("] ");
             if (record.getMessage() != null) {
-                ps.print(formatMessage(record));
+                ps.print(formatMessage(record)); // localizes the message
             }
             ps.println();
             if (record.getThrown() != null) {
@@ -163,16 +163,21 @@ public class UserFriendlyLogger extends Logger {
         if (fos != null) {
             _file = file;
             BufferedOutputStream bos = new BufferedOutputStream(fos);
-            _ps = new PrintStream(bos, true);
+            try {
+                _ps = new PrintStream(bos, true, "UTF-8");
+            } catch (UnsupportedEncodingException ex) {
+                Logger.getLogger(UserFriendlyLogger.class.getName()).log(Level.SEVERE, null, ex);
+                _ps = new PrintStream(bos, true);
+            }
             writeFileHeader(_ps);
         }
     }
 
     private void writeFileHeader(PrintStream ps) {
-        ps.println(Version.VerString);
+        ps.println(Version.VerString.getLocalizedMessage());
         ps.print(System.getProperty("os.name")); ps.print(' '); ps.println(System.getProperty("os.version"));
         ps.print("Java "); ps.println(System.getProperty("java.version"));
-        ps.println(TIME_FORMAT.format(Calendar.getInstance().getTime()));
+        ps.println(_dateFormat.format(Calendar.getInstance().getTime()));
     }
 
     public void close() {

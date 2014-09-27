@@ -124,6 +124,8 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     /** Saved payload sectors. */
     private final ArrayList<SectorCrusader> _sectors = new ArrayList<SectorCrusader>();
 
+    private final FrameNumber.FactoryWithHeader _frameNumberFactory = new FrameNumber.FactoryWithHeader();
+
     // ........................................................................
     
     private ICompletedFrameListener _frameListener;
@@ -267,7 +269,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
                         
                         if (_ePayloadType == PayloadType.MDEC) {
                             if (_frameListener != null)
-                                videoPayload(_iPayloadSize - 16);
+                                videoPayload(_iPayloadSize - 16, log);
                         } else if (_audioListener != null) {
                             audioPayload(_iPayloadSize - 16, log);
                         }
@@ -290,7 +292,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
             _blnFoundAPayload = true;
             if (_ePayloadType == PayloadType.MDEC) {
                 if (_frameListener != null)
-                    videoPayload(_iPayloadSize - 16 - _iRemainingPayload);
+                    videoPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
             } else if (_audioListener != null) { // ad20, ad21
                 audioPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
                 _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0,
@@ -306,7 +308,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     
     //-- Video stuff ---------------------------
     
-    private void videoPayload(int iSize) throws IOException {
+    private void videoPayload(int iSize, Logger log) throws IOException {
         
         int iWidth = IO.readSInt16BE(_abHeader, 0);
         int iHeight = IO.readSInt16BE(_abHeader, 2);
@@ -338,13 +340,13 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
                     _sectors.get(_sectors.size()-1).getSectorNumber() ).println();
         
         SectorCrusader[] aoSects = _sectors.toArray(new SectorCrusader[_sectors.size()]);
-
+        FrameNumber hdrFrame = _frameNumberFactory.next(_sectors.get(0).getSectorNumber(), iFrame);
         if (DEBUG)
             System.out.format("Writing frame %d to be presented at sector %d", iFrame, _iStartSector + iPresentationSector).println();
         _frameListener.frameComplete(new DemuxedCrusaderFrame(_iWidth, _iHeight, 
                                                               aoSects, iSize, 
                                                               _iPayloadStartOffset, 
-                                                              iFrame, _iStartSector + iPresentationSector));
+                                                              hdrFrame, _iStartSector + iPresentationSector));
     }
     
     public int getHeight() {

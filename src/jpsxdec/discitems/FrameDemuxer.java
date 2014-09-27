@@ -67,9 +67,11 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
     /** Chunks of the current frame.
      * Created and grown as needed. */
     private IVideoSector[] _aoCurrent;
-    private int _iCurrentFrame = -1;
+    private FrameNumber _currentFrame = null;
     private int _iChunksInFrame = -1;
     private int _iChunksReceived = 0;
+
+    private final FrameNumber.FactoryWithHeader _frameNumberFactory = new FrameNumber.FactoryWithHeader();
 
     private ICompletedFrameListener _listener;
 
@@ -122,13 +124,15 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
             // frame is done
             flush(log);
         }
-        _iLastSeenFrameNumber = _iCurrentFrame = getFrameNumber(chunk);
+        _iLastSeenFrameNumber = getHeaderFrameNumber(chunk);
+        if (_currentFrame == null)
+            _currentFrame = _frameNumberFactory.next(chunk.getSectorNumber(), _iLastSeenFrameNumber);
 
         int iChunksInFrame = getChunksInFrame(chunk);
 
         if (_iChunksInFrame >= 0 &&_iChunksInFrame != iChunksInFrame)
             log.log(Level.WARNING, "Chunks in frame {0} changed from {1} to {2}", // I18N
-                    new Object[]{_iCurrentFrame, _iChunksInFrame, iChunksInFrame});
+                    new Object[]{_currentFrame, _iChunksInFrame, iChunksInFrame});
         _iChunksInFrame = iChunksInFrame;
 
         // now add the chunk
@@ -152,12 +156,12 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
     final public void flush(Logger log) throws IOException {
         if (_iChunksReceived > 0) {
             _listener.frameComplete(
-                new DemuxedStrFrame(_iCurrentFrame,
+                new DemuxedStrFrame(_currentFrame,
                                     getWidth(), getHeight(),
                                     _aoCurrent, _iChunksInFrame)
             );
             Arrays.fill(_aoCurrent, null);
-            _iCurrentFrame = -1;
+            _currentFrame = null;
             _iChunksInFrame = -1;
             _iChunksReceived = 0;
         }
@@ -172,7 +176,7 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
     /* ---------------------------------------------------------------------- */
 
     abstract protected T isVideoSector(IdentifiedSector sector);
-    abstract protected int getFrameNumber(T chunk);
+    abstract protected int getHeaderFrameNumber(T chunk);
     abstract protected int getChunksInFrame(T chunk);
 
     /** Override to add additional checks. */
@@ -182,7 +186,7 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
         if (chunk.getSectorNumber() > _iVideoEndSector)
             return false;
 
-        if (_iLastSeenFrameNumber >= 0 && getFrameNumber(chunk) < _iLastSeenFrameNumber)
+        if (_iLastSeenFrameNumber >= 0 && getHeaderFrameNumber(chunk) < _iLastSeenFrameNumber)
             return false;
 
         if (_videoSectorType == null)
@@ -200,7 +204,7 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
     /** Override to add additional checks. */
     protected boolean isPartOfFrame(T chunk) {
         // different frame number
-        if (_iCurrentFrame >= 0 && _iCurrentFrame != getFrameNumber(chunk))
+        if (_currentFrame != null && _currentFrame.getHeaderFrameNumber() != getHeaderFrameNumber(chunk))
             return false;
         // chunk already exists
         if (_aoCurrent != null &&

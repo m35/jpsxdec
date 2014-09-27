@@ -39,6 +39,7 @@ package jpsxdec.discitems;
 
 import java.io.File;
 import java.util.Arrays;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -68,7 +69,7 @@ public class IndexId {
         if (asParts == null || asParts.length != 3)
             throw new NotThisTypeException("Invalid id format: {0}", sSerialized); // I18N
 
-        if (UNNAMED.equals(asParts[1]))
+        if (UNNAMED_INDEX.equals(asParts[1]))
             _sourceFile = null;
         else
             _sourceFile = new File(asParts[1]);
@@ -83,15 +84,20 @@ public class IndexId {
 
     }
 
-    private static final String UNNAMED = "Unnamed"; // I18N
-    private static final File UNNAMED_FILE = new File(UNNAMED);
+    /** How unnamed files will be saved in the index (never localized). */
+    private static final String UNNAMED_INDEX = "?";
+    /** How unnamed files will be displayed. */
+    private static final LocalizedMessage UNNAMED_FILE_NAME = new LocalizedMessage("Unnamed"); // I18N
+    /** Pre-create file. */
+    private static final File UNNAMED_FILE = new File(UNNAMED_FILE_NAME.getLocalizedMessage());
     private File safePath() {
         return _sourceFile == null ? UNNAMED_FILE : _sourceFile;
     }
 
 
     public String serialize() {
-        return getId();
+        return (_sourceFile == null ? UNNAMED_INDEX : Misc.forwardSlashPath(_sourceFile)) +
+                getTreeIndex();
     }
 
     public String getId() {

@@ -37,7 +37,7 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
+import java.util.Collection;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSquareAudioStream;
@@ -47,7 +47,7 @@ import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
 
 /** Watches for Square's unique audio format streams. */
-public class DiscIndexerSquare extends DiscIndexer {
+public class DiscIndexerSquare extends DiscIndexer implements DiscIndexer.Identified {
 
     private int _iAudioStartSector;
     private long _lngAudioLeftSampleCount;
@@ -79,7 +79,6 @@ public class DiscIndexerSquare extends DiscIndexer {
      * All known games that use Square audio run their streaming media at 2x
      * speed.
      */
-    @Override
     public void indexingSectorRead(IdentifiedSector identifiedSector) {
         if (!(identifiedSector instanceof ISquareAudioSector))
             return;
@@ -136,10 +135,8 @@ public class DiscIndexerSquare extends DiscIndexer {
     }
 
     @Override
-    public void staticRead(DemuxedUnidentifiedDataStream oIS) throws IOException {
-        // add any Square specific static media here
+    public void listPostProcessing(Collection<DiscItem> allItems) {
     }
-
     @Override
     public void indexGenerated(DiscIndex index) {
     }

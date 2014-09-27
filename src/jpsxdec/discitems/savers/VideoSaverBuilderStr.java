@@ -174,7 +174,7 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
     }
 
     public boolean getParallelAudio_enabled() {
-        return getVideoFormat().isAvi();
+        return getVideoFormat().isAvi() && getSaveStartFrame() == null;
     }
 
     public boolean hasAudio() {
@@ -182,7 +182,7 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
     }
 
     public boolean getSavingAudio() {
-        if (!getVideoFormat().isAvi())
+        if (!getParallelAudio_enabled())
             return false;
         
         for (boolean b : _ablnParallelAudio) {

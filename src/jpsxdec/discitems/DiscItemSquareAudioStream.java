@@ -43,6 +43,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.sectors.IdentifiedSector;
@@ -109,26 +110,16 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return fields;
     }
 
+    public String getSerializationTypeId() {
+        return TYPE_ID;
+    }
+
     public boolean isStereo() {
         return true;
     }
 
     public int getSectorsPastEnd() {
         return _iSectorsPastEnd;
-    }
-
-    public String getSerializationTypeId() {
-        return TYPE_ID;
-    }
-    
-    @Override
-    public String getInterestingDescription() {
-        long lngSampleCount = _lngLeftSampleCount > _lngRightSampleCount ?
-                              _lngLeftSampleCount : _lngRightSampleCount;
-        // unable to find ANY sources of info about how to localize durations
-        Date secs = new Date(0, 0, 0, 0, 0, (int)Math.max(lngSampleCount / _iSamplesPerSecond, 1));
-        return I18N.S("{0,time,m:ss}, {1,number,#} Hz Stereo", // I18N
-                      secs, _iSamplesPerSecond);
     }
 
     public int getDiscSpeed() {
@@ -153,6 +144,16 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
 
     public int getSampleRate() {
         return _iSamplesPerSecond;
+    }
+
+    @Override
+    public LocalizedMessage getInterestingDescription() {
+        long lngSampleCount = _lngLeftSampleCount > _lngRightSampleCount ?
+                              _lngLeftSampleCount : _lngRightSampleCount;
+        // unable to find ANY sources of info about how to localize durations
+        Date secs = new Date(0, 0, 0, 0, 0, (int)Math.max(lngSampleCount / _iSamplesPerSecond, 1));
+        return new LocalizedMessage("{0,time,m:ss}, {1,number,#} Hz Stereo", // I18N
+                                    secs, _iSamplesPerSecond);
     }
 
     public ISectorAudioDecoder makeDecoder(double dblVolume) {
@@ -183,7 +184,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         public boolean feedSector(IdentifiedSector sector, Logger log) throws IOException {
             if (!(sector instanceof ISquareAudioSector))
                 return false;
-            
+
             ISquareAudioSector audSector = (ISquareAudioSector) sector;
             if (audSector.getAudioChannel() == 0) {
                 __leftAudioSector = audSector;

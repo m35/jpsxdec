@@ -43,7 +43,10 @@ import jpsxdec.util.ByteArrayFPIS;
 
 /** Interface implemented by all identified CD sectors. */
 public interface IIdentifiedSector {
-    
+
+    /** Between 0 and 100. */
+    public int getProbability();
+
     /** @return Human readable sector type (used for reference and debugging).*/
     public String getTypeName();
     

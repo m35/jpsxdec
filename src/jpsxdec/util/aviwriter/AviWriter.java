@@ -82,7 +82,7 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  */
 public abstract class AviWriter {
 
-    public static final String AVI_WRITER_ID = Version.VerString;
+    public static final String AVI_WRITER_ID = Version.VerString.getEnglishMessage();
 
     // -------------------------------------------------------------------------
     // -- Fields ---------------------------------------------------------------

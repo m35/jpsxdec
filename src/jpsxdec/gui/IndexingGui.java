@@ -48,6 +48,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.ProgressListenerLogger;
@@ -337,7 +338,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
     // run in separate thread
 
-    private class ProgresGuiTask extends SwingWorker<Void, String>
+    private class ProgresGuiTask extends SwingWorker<Void, LocalizedMessage>
     {
 
         public static final String PROGRESS_VALUE = "progress";
@@ -345,10 +346,10 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         public static final String DONE = "done";
 
         private final ProgressListenerLogger __progressLog = new ProgressListenerLogger("index") {
-            public void progressStart(String s) throws TaskCanceledException {
+            public void progressStart(LocalizedMessage msg) throws TaskCanceledException {
                 if (isCancelled())
                     throw new TaskCanceledException();
-                publish(s);
+                publish(msg);
                 setProgress(0);
             }
 
@@ -368,8 +369,8 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 setProgress((int)Math.round(dblPercentComplete * 100));
             }
 
-            public void event(String sDescription) {
-                publish(sDescription);
+            public void event(LocalizedMessage msg) {
+                publish(msg);
             }
 
             public boolean seekingEvent() {
@@ -377,7 +378,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 return true;
             }
 
-            public void progressInfo(String s) {
+            public void progressInfo(LocalizedMessage msg) {
             }
         };
 
@@ -395,8 +396,8 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         }
 
         @Override
-        final protected void process(List<String> chunks) {
-            _guiProgressDescription.setText(chunks.get(chunks.size()-1));
+        final protected void process(List<LocalizedMessage> chunks) {
+            _guiProgressDescription.setText(chunks.get(chunks.size()-1).getLocalizedMessage());
         }
 
         @Override

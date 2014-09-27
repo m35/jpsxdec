@@ -43,10 +43,12 @@ import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -65,11 +67,13 @@ import jpsxdec.Main;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileNotFoundException;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.IO;
+import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.UserFriendlyLogger;
 import jpsxdec.util.player.PlayController;
@@ -101,7 +105,7 @@ public class Gui extends javax.swing.JFrame {
             LOG.log(Level.WARNING, "Error setting system L&F", ex);
         }
 
-        setTitle(Version.VerStringNonCommercial);
+        setTitle(Version.VerStringNonCommercial.getLocalizedMessage());
 
         initComponents();
         
@@ -269,14 +273,14 @@ public class Gui extends javax.swing.JFrame {
                 JOptionPane.showMessageDialog(this, sb.toString(), I18N.S("Issues loading index"), JOptionPane.WARNING_MESSAGE); // I18N
             }
         } catch (NotThisTypeException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), I18N.S("Error loading index file"), JOptionPane.WARNING_MESSAGE); // I18N
+            JOptionPane.showMessageDialog(this, ex.getLocalizedMessage(), I18N.S("Error loading index file"), JOptionPane.WARNING_MESSAGE); // I18N
         } catch (CdFileNotFoundException ex) {
             log.log(Level.WARNING, null, ex);
             JOptionPane.showMessageDialog(this, I18N.S("Unable to open {0}", ex.getFile()), // I18N
                                                 I18N.S("File not found"), JOptionPane.WARNING_MESSAGE); // I18N
         } catch (FileNotFoundException ex) {
             log.log(Level.WARNING, null, ex);
-            JOptionPane.showMessageDialog(this, I18N.S("Unable to open {0}", ex.getMessage()), // I18N
+            JOptionPane.showMessageDialog(this, I18N.S("Unable to open {0}", ex.getLocalizedMessage()), // I18N
                                                 I18N.S("File not found"), JOptionPane.WARNING_MESSAGE); // I18N
             _settings.removePreviousIndex(indexFile.getAbsolutePath());
         } catch (Throwable ex) {
@@ -381,7 +385,7 @@ public class Gui extends javax.swing.JFrame {
 
     private void setDisc(CdFileSectorReader cd) {
         _guiDiscInfoLine1.setText(cd.getSourceFile().getAbsoluteFile().getPath());
-        _guiDiscInfoLine2.setText(cd.getTypeDescription());
+        _guiDiscInfoLine2.setText(cd.getTypeDescription().getLocalizedMessage());
 
         _settings.addPreviousImage(cd.getSourceFile().getAbsolutePath());
     }
@@ -486,7 +490,7 @@ public class Gui extends javax.swing.JFrame {
         _guiToolbar.setRollover(true);
 
         _guiOpenDisc.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jpsxdec/gui/media-optical-5.png"))); // NOI18N
-        _guiOpenDisc.setText(I18N.S("Open and Analyze Disc Image")); // I18N
+        _guiOpenDisc.setText(I18N.S("Open and Analyze File")); // I18N
         _guiOpenDisc.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
         _guiOpenDisc.setMargin(new java.awt.Insets(5, 10, 5, 10));
         _guiOpenDisc.addActionListener(new java.awt.event.ActionListener() {
@@ -649,7 +653,7 @@ public class Gui extends javax.swing.JFrame {
 
         _guiSaveContainer.add(_guiSaveBtnContainer, java.awt.BorderLayout.SOUTH);
 
-        _guiTab.addTab("    Save    ", _guiSaveContainer);
+        _guiTab.addTab(I18N.S("    Save    "), _guiSaveContainer); // I18N
 
         _guiPreviewContainer.setLayout(new java.awt.BorderLayout());
 
@@ -664,7 +668,7 @@ public class Gui extends javax.swing.JFrame {
         _guiPreviewPanel.setLayout(new java.awt.BorderLayout());
         _guiPreviewContainer.add(_guiPreviewPanel, java.awt.BorderLayout.CENTER);
 
-        _guiTab.addTab("    Play    ", _guiPreviewContainer);
+        _guiTab.addTab(I18N.S("    Play    "), _guiPreviewContainer); // I18N
 
         _guiTabContainer.add(_guiTab, java.awt.BorderLayout.CENTER);
         _guiTab.getAccessibleContext().setAccessibleName("DoStuffTabs");
@@ -704,17 +708,24 @@ public class Gui extends javax.swing.JFrame {
             _guiTab.setSelectedIndex(0);
             _guiTab.setEnabledAt(1, false);
         }
+
+        DiscItem.GeneralType type = null;
         if (gui != null && !gui.isAncestorOf(_guiSavePanel)) {
             _guiSavePanel.removeAll();
             _guiSavePanel.add(gui);
             _guiApplyAll.setEnabled(true);
-            _guiApplyAll.setText(I18N.S("Apply to all {0}", selection.getType())); // I18N
+            type = selection.getType();
         } else if (gui == null) {
             _guiSavePanel.removeAll();
             _guiApplyAll.setEnabled(false);
+            type = null;
+        }
+        if (type == null)
             _guiApplyAll.setText(I18N.S("Apply to all {0}", // I18N
                                         ""));
-        }
+        else
+            _guiApplyAll.setText(I18N.S("Apply to all {0}", type.getMessage().getLocalizedMessage())); // I18N
+
         _guiSavePanel.revalidate();
         _guiSavePanel.repaint();
 
@@ -920,12 +931,13 @@ public class Gui extends javax.swing.JFrame {
             return;
         FileInputStream fis = null;
         try {
+            // read the first several bytes
             File f = new File(_sCommandLineFile);
             fis = new FileInputStream(f);
-            byte[] abBuffer = new byte[Version.VerString.length()*2];
-            IO.readByteArray(fis, abBuffer);
+            byte[] abBuffer = readAsMuchAsPossible(fis, Version.VerString.getEnglishMessage().length()*2);
             fis.close();
             fis = null;
+            // convert to string
             String s = new String(abBuffer, "ascii");
             if (s.contains("jPSXdec")) {
             //if (_sCommandLineFile.substring(_sCommandLineFile.length()-4).equalsIgnoreCase(".idx")) {
@@ -935,8 +947,17 @@ public class Gui extends javax.swing.JFrame {
             }
         } catch (IOException ex) {
             LOG.log(Level.WARNING, null, ex);
-            JOptionPane.showMessageDialog(this,
-                    I18N.S("Error opening {0}: {1}", ex.getLocalizedMessage(), _sCommandLineFile), // I18N
+            String sMsg = ex.getLocalizedMessage();
+            if (sMsg == null)
+                sMsg = ex.getMessage();
+            String sPopup;
+            if (sMsg == null)
+                sPopup = I18N.S("Error opening {0}", // I18N
+                                _sCommandLineFile);
+            else
+                sPopup = I18N.S("Error opening {0}: {1}", // I18N
+                                _sCommandLineFile, sMsg);
+            JOptionPane.showMessageDialog(this, sPopup,
                     I18N.S("Failed to read file"), // I18N
                     JOptionPane.ERROR_MESSAGE);
         } finally {
@@ -949,7 +970,21 @@ public class Gui extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_formWindowOpened
 
-
+    /** Read specified bytes, or until the stream ends.
+     * @return array size &lt;= iCount */
+    private static byte[] readAsMuchAsPossible(InputStream is, final int iCount) throws IOException {
+        byte[] ab = new byte[iCount];
+        int iSize = 0;
+        while (iSize < iCount) {
+            int i = is.read(ab, iSize, iCount);
+            if (i < 0) break;
+            iSize += i;
+        }
+        if (iSize < ab.length)
+            return Misc.copyOfRange(ab, 0, iSize);
+        else
+            return ab;
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton _guiApplyAll;

@@ -48,6 +48,7 @@ import javax.imageio.ImageIO;
 import jpsxdec.I18N;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.savers.FrameLookup;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
@@ -65,15 +66,13 @@ import org.w3c.dom.Element;
 
 public class ReplaceFramePartial extends ReplaceFrame {
 
-    private static final boolean DEBUG = false;
-
     public static final String XML_TAG_NAME = "partial-replace";
 
     private int _iTolerance;
     private File _imageMaskFile;
     private Rectangle _rectMask;
 
-    public ReplaceFramePartial(Element element) {
+    public ReplaceFramePartial(Element element) throws NotThisTypeException {
         super(element);
         if (element.hasAttribute("tolerance")) {
             setTolerance(element.getAttribute("tolerance"));
@@ -88,7 +87,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
     @Override
     public Element serialize(Document document) {
         Element node = document.createElement(XML_TAG_NAME);
-        node.setAttribute("frame", String.valueOf(getFrame()));
+        node.setAttribute("frame", getFrame().toString());
         node.setTextContent(getImageFile().toString());
         if (getFormat() != null)
             node.setAttribute("format", getFormat());
@@ -103,18 +102,19 @@ public class ReplaceFramePartial extends ReplaceFrame {
     }
 
 
-    public ReplaceFramePartial(String sFrameNumber) {
+    public ReplaceFramePartial(String sFrameNumber) throws NotThisTypeException {
         super(sFrameNumber);
     }
-    public ReplaceFramePartial(int iFrame) {
-        super(iFrame);
+
+    public ReplaceFramePartial(FrameLookup frameNumber) {
+        super(frameNumber);
     }
 
     public File getImageMaskFile() {
         return _imageMaskFile;
     }
 
-    public void setImageMaskFile(String sImageMaskFile) {
+    final public void setImageMaskFile(String sImageMaskFile) {
         setImageFile(new File(sImageMaskFile));
     }
     public void setImageMaskFile(File imageMaskFile) {
@@ -125,7 +125,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
         return _iTolerance;
     }
 
-    public void setTolerance(String sToleranceValue) {
+    final public void setTolerance(String sToleranceValue) {
         setTolerance(Integer.parseInt(sToleranceValue));
     }
     public void setTolerance(int iTolerance) {
@@ -137,7 +137,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
     }
 
 
-    public void setRectMask(String sRectMask) {
+    final public void setRectMask(String sRectMask) {
         String[] asCoords = sRectMask.trim().split("\\D+");
         setRectMask(new Rectangle(
                 Integer.parseInt(asCoords[0]),
@@ -194,7 +194,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
         
         if (abNewFrame.length > frame.getDemuxSize())
             throw new MdecException.Compress("Demux data does fit in frame {0,number,#}!! Available size {1,number,#}, needed size {2,number,#}", // I18N
-                    getFrame(), frame.getDemuxSize(), abNewFrame.length);
+                    frame, frame.getDemuxSize(), abNewFrame.length);
 
         // 5. replace the frame
         frame.writeToSectors(abNewFrame, abNewFrame.length, comp.getMdecCodesFromLastCompress(), cd, fbs);

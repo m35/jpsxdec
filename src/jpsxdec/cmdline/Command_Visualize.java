@@ -45,6 +45,7 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.indexing.DiscIndex;
@@ -59,7 +60,7 @@ class Command_Visualize extends Command {
         super("-visualize");
     }
 
-    protected String validate(String s) {
+    protected LocalizedMessage validate(String s) {
         _sOutfile = s;
         return null;
     }

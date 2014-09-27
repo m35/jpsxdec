@@ -42,6 +42,7 @@ import argparser.StringHolder;
 import java.io.File;
 import java.io.IOException;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.FeedbackStream;
@@ -75,13 +76,15 @@ public abstract class Command {
         return _receiver.value != null;
     }
 
-    final public String validate() {
+    /** If issue, returns an error message and the caller should fail,
+     * otherwise null if there is no issue. */
+    final public LocalizedMessage validate() {
         return validate(_receiver.value);
     }
 
     /** Checks that the option value is valid.
         *  Returns {@code null} if OK, or error message if invalid. */
-    abstract protected String validate(String sOptionValue);
+    abstract protected LocalizedMessage validate(String sOptionValue);
 
     protected CdFileSectorReader getCdReader() throws CommandLineException {
         if (inputFileArg.value != null) {
@@ -92,9 +95,9 @@ public abstract class Command {
             try {
                 index = new DiscIndex(indexFileArg.value, new UserFriendlyLogger("index"));
             } catch (IOException ex) {
-                throw new CommandLineException(ex, "Error loading index"); // I18N
+                throw new CommandLineException(ex, "Error loading index file"); // I18N
             } catch (NotThisTypeException ex) {
-                throw new CommandLineException(ex, "Error loading index"); // I18N
+                throw new CommandLineException(ex, "Error loading index file"); // I18N
             }
             _fbs.println(I18N.S("{0,number,#} items loaded.", index.size())); // I18N
             return index.getSourceCd();
@@ -114,9 +117,9 @@ public abstract class Command {
                     try {
                         index = new DiscIndex(indexFileArg.value, cd, new UserFriendlyLogger("index"));
                     } catch (IOException ex) {
-                        throw new CommandLineException(ex, "Error loading index"); // I18N
+                        throw new CommandLineException(ex, "Error loading index file"); // I18N
                     } catch (NotThisTypeException ex) {
-                        throw new CommandLineException(ex, "Error loading index"); // I18N
+                        throw new CommandLineException(ex, "Error loading index file"); // I18N
                     }
                     _fbs.println(I18N.S("Using source file {0}", index.getSourceCd().getSourceFile())); // I18N
                     _fbs.println(I18N.S("{0,number,#} items loaded.", index.size())); // I18N
@@ -129,12 +132,12 @@ public abstract class Command {
                 try {
                     index = new DiscIndex(indexFileArg.value, new UserFriendlyLogger("index")); // I18N
                 } catch (IOException ex) {
-                    throw new CommandLineException(ex, "Error loading index"); // I18N
+                    throw new CommandLineException(ex, "Error loading index file"); // I18N
                 } catch (NotThisTypeException ex) {
-                    throw new CommandLineException(ex, "Error loading index"); // I18N
+                    throw new CommandLineException(ex, "Error loading index file"); // I18N
                 }
                 _fbs.println(I18N.S("Using source file {0}", index.getSourceCd().getSourceFile())); // I18N
-                _fbs.println(I18N.S("{0,number,#} items loaded", index.size())); // I18N
+                _fbs.println(I18N.S("{0,number,#} items loaded.", index.size())); // I18N
             }
         } else {
             if (inputFileArg.value != null) {

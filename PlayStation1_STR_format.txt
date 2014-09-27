@@ -1,5 +1,5 @@
                       The PlayStation 1 Video (STR) Format
-                               v1.10, March 2013
+                               v1.11, ? 2014?
                            http://jpsxdec.kenai.com/
                           http://jpsxdec.blogspot.com/
 
@@ -73,6 +73,9 @@ v1.10
     - ch 3.8: Added Ace Combat 3 Electrosphere
     - ch 3.10: Added Judge Dredd
     - ch 3.11: Added Crusader: No Remorse
+v1.11
+    - ch 3.8. Improved Ace Combat 3 Electrosphere
+    - other minor tweaks
 
 Left to do:
 * Confirm Legend of Mana format
@@ -153,7 +156,7 @@ All compact discs are composed of hundreds of thousands of sectors (technically 
 
 For a normal "Red Book" "Mode 1" sector, there are 24 bytes of header information, and 280 bytes of error correction at the end. This leaves 2048 of data per sector for information. "Mode 1" sectors are what nearly all computer software and operating systems are designed to work with. When you copy a file from a standard CD, you are only copying the 2048 bytes in the middle of the sectors.
 
-PlayStation video frames are stored in "Green Book" "Mode 2 Form 1" sectors. These are very similar to "Mode 1" sectors (it has small header and footer differences that won't be detailed in this document). Modern computer operating systems can usually read these sector types without problems, and copy the middle 2048 bytes.
+PlayStation video frames are usually stored in "Green Book" "Mode 2 Form 1" sectors. These are very similar to "Mode 1" sectors (it has small header and footer differences that won't be detailed in this document). Modern computer operating systems can usually read these sector types without problems, and copy the middle 2048 bytes.
 
    A "Mode 2 Form 1" compact-disc sector
  +-24 bytes--+-2048 bytes-------------------------------------+-280 bytes--+

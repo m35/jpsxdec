@@ -38,12 +38,19 @@
 package jpsxdec.util;
 
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.logging.Formatter;
+import java.util.logging.Handler;
 import java.util.logging.LogRecord;
+import jpsxdec.Version;
 
 
-/** Originally from the book "JDK 1.4 Tutorial" by Gregory M. Travis.
+/** Brief logging formatter.
+ *<p>
+ * Never localizes strings.
+ *<p>
+ * Originally from the book "JDK 1.4 Tutorial" by Gregory M. Travis.
  * http://www.manning.com/travis/
  */
 public class BriefFormatter extends Formatter {
@@ -53,7 +60,19 @@ public class BriefFormatter extends Formatter {
     private final static String LINE_SEPARATOR = System.getProperty("line.separator");
 
     private final Date _date = new Date();
-    private final SimpleDateFormat _formatter = new SimpleDateFormat("HH:MM");
+    private final SimpleDateFormat _timeFormatter = new SimpleDateFormat("HH:mm");
+
+    @Override
+    public String getHead(Handler h) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(Version.VerString.getEnglishMessage()).append(LINE_SEPARATOR);
+        sb.append(System.getProperty("os.name")).append(' ').append(System.getProperty("os.version")).append(LINE_SEPARATOR);
+        sb.append("Java ").append(System.getProperty("java.version")).append(LINE_SEPARATOR);
+        SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        sb.append(dateFormatter.format(Calendar.getInstance().getTime())).append(LINE_SEPARATOR);
+        return sb.toString();
+    }
+
 
     /**
      * Format the given LogRecord.
@@ -64,18 +83,24 @@ public class BriefFormatter extends Formatter {
 	StringBuilder sb = new StringBuilder();
 	// Minimize memory allocations here.
 	_date.setTime(record.getMillis());
-	sb.append(_formatter.format(_date));
+	sb.append(_timeFormatter.format(_date));
 	sb.append(' ');
         sb.append(record.getLoggerName());
 	sb.append(' ');
 	sb.append(record.getLevel().getName());
 	sb.append(": ");
-	sb.append(formatMessage(record));
+        
+        // don't localize the message
+        String sMsg = record.getMessage();
+        Object aoParams[] = record.getParameters();
+        if (aoParams != null && aoParams.length > 0)
+            sMsg = java.text.MessageFormat.format(sMsg, aoParams);
+	sb.append(sMsg);
+        
 	sb.append(LINE_SEPARATOR);
 	if (record.getThrown() != null) {
             sb.append(Misc.stack2string(record.getThrown()));
 	}
 	return sb.toString();
     }
-
 }

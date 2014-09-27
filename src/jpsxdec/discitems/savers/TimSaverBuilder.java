@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.logging.Level;
 import javax.imageio.ImageIO;
 import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemTim;
@@ -383,13 +384,11 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     private static class TimRawSaver implements IDiscItemSaver {
 
         private final DiscItemTim _timItem;
-        private final File _outputDir;
         private final File _outputFile;
 
         public TimRawSaver(DiscItemTim tim, File outputDir, String sOutputFile) {
             _timItem = tim;
-            _outputDir = outputDir;
-            _outputFile = new File(sOutputFile);
+            _outputFile = new File(outputDir, sOutputFile);
         }
         
         public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
@@ -397,10 +396,9 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             try {
                 pll.progressStart();
                 Tim tim = _timItem.readTim();
-                pll.event(I18N.S("Writing {0}", _outputFile.getName())); // I18N
-                File f = new File(_outputDir, _outputFile.getPath());
-                IO.makeDirsForFile(f);
-                os = new BufferedOutputStream(new FileOutputStream(f));
+                pll.event(new LocalizedMessage("Writing {0}", _outputFile.getName())); // I18N
+                IO.makeDirsForFile(_outputFile);
+                os = new BufferedOutputStream(new FileOutputStream(_outputFile));
                 tim.write(os);
                 pll.progressEnd();
             } catch (NotThisTypeException ex) {
@@ -432,7 +430,10 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         public void printSelectedOptions(PrintStream ps) {
             ps.println(I18N.S("Format: {0}", TimSaveFormat.TIM)); // I18N
         }
-        
+
+        public File[] getGeneratedFiles() {
+            return new File[] {_outputFile};
+        }
     }
     
     
@@ -443,6 +444,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         private final File _outputDir;
         private final String[] _asOutputFiles;
         private final String _sOutputSummary;
+        private ArrayList<File> _generatedFiles;
 
         public TimImageSaver(JavaImageFormat imageFormat, DiscItemTim timItem, 
                              File outputDir, String[] asOutputFiles,
@@ -471,17 +473,20 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
             try {
                 Tim tim = _timItem.readTim();
+                _generatedFiles = new ArrayList<File>();
 
                 pll.progressStart();
                 for (int i = 0; i < _asOutputFiles.length; i++) {
                     if (_asOutputFiles[i] != null) {
                         String sFile = _asOutputFiles[i];
-                        pll.event(I18N.S("Writing {0}", sFile)); // I18N
+                        pll.event(new LocalizedMessage("Writing {0}", sFile)); // I18N
                         BufferedImage bi = tim.toBufferedImage(i);
                         File f = new File(_outputDir, sFile);
                         IO.makeDirsForFile(f);
                         boolean blnOk = ImageIO.write(bi, _imageFormat.getId(), f);
-                        if (!blnOk)
+                        if (blnOk)
+                            _generatedFiles.add(f);
+                        else
                             pll.log(Level.WARNING, "Unable to write image for palette {0,number,#}", i); // I18N
                         pll.progressUpdate((double)i / _timItem.getPaletteCount());
                     }
@@ -499,6 +504,12 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             ps.println(I18N.S("Format: {0}", _imageFormat.getExtension())); // I18N
         }
 
+        public File[] getGeneratedFiles() {
+            if (_generatedFiles == null)
+                return null;
+            else
+                return _generatedFiles.toArray(new File[_generatedFiles.size()]);
+        }
     }
 
 }

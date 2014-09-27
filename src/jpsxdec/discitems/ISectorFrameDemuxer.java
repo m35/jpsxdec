@@ -43,8 +43,8 @@ import jpsxdec.sectors.IdentifiedSector;
 
 public interface ISectorFrameDemuxer {
 
-    /** If it likes the sector, adds the sector to the demuxed frame.
-     *  @return if the sector was accepted.  */
+    /** If it likes the sector, adds the sector to the video stream.
+     * @return true if the sector was accepted, false if the sector is not part of the same stream. */
     boolean feedSector(IdentifiedSector sector, Logger log) throws IOException;
 
     int getWidth();

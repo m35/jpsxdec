@@ -39,12 +39,12 @@ package jpsxdec.indexing;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemTim;
 import jpsxdec.discitems.SerializedDiscItem;
-import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.tim.Tim;
 import jpsxdec.tim.TimInfo;
 import jpsxdec.util.NotThisTypeException;
@@ -52,7 +52,7 @@ import jpsxdec.util.NotThisTypeException;
 /**
  * Searches for TIM images
  */
-public class DiscIndexerTim extends DiscIndexer {
+public class DiscIndexerTim extends DiscIndexer implements DiscIndexer.Static {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerTim.class.getName());
 
@@ -66,15 +66,6 @@ public class DiscIndexerTim extends DiscIndexer {
         return null;
     }
 
-    @Override
-    public void indexingSectorRead(IdentifiedSector oSect) {
-    }
-
-    @Override
-    public void indexingEndOfDisc() {
-    }
-
-    @Override
     public void staticRead(DemuxedUnidentifiedDataStream inStream) throws IOException {
 
         final int iStartSector = inStream.getCurrentSector();
@@ -91,6 +82,14 @@ public class DiscIndexerTim extends DiscIndexer {
         } catch (EOFException ex) {
             LOG.log(Level.INFO, "Stream ended in the middle of possible Tim", ex);
         }
+    }
+
+    @Override
+    public void indexingEndOfDisc() {
+    }
+
+    @Override
+    public void listPostProcessing(Collection<DiscItem> allItems) {
     }
 
     @Override

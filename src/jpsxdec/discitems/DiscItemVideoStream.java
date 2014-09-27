@@ -62,14 +62,19 @@ public abstract class DiscItemVideoStream extends DiscItem {
     /** Number of frames. */
     private final int _iFrameCount;
 
+    private static final String FORMAT_KEY = "Digits";
+    private final FrameNumberFormat _frameNumberFormat;
+
     public DiscItemVideoStream(int iStartSector, int iEndSector, 
                                int iWidth, int iHeight,
-                               int iFrameCount)
+                               int iFrameCount,
+                               FrameNumberFormat frameNumberFormat)
     {
         super(iStartSector, iEndSector);
         _iWidth = iWidth;
         _iHeight = iHeight;
         _iFrameCount = iFrameCount;
+        _frameNumberFormat = frameNumberFormat;
     }
     
     public DiscItemVideoStream(SerializedDiscItem fields) throws NotThisTypeException {
@@ -80,6 +85,8 @@ public abstract class DiscItemVideoStream extends DiscItem {
         _iHeight = ai[1];
         
         _iFrameCount = fields.getInt(FRAMECOUNT_KEY);
+
+        _frameNumberFormat = new FrameNumberFormat(fields.getString(FORMAT_KEY));
     }
     
     @Override
@@ -87,6 +94,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
         SerializedDiscItem serial = super.serialize();
         serial.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
         serial.addNumber(FRAMECOUNT_KEY, _iFrameCount);
+        serial.addString(FORMAT_KEY, _frameNumberFormat.serialize());
         return serial;
     }
     
@@ -98,12 +106,16 @@ public abstract class DiscItemVideoStream extends DiscItem {
         return _iHeight;
     }
     
-    abstract public int getStartFrame();
+    abstract public FrameNumber getStartFrame();
 
-    abstract public int getEndFrame();
+    abstract public FrameNumber getEndFrame();
 
     public int getFrameCount() {
         return _iFrameCount;
+    }
+
+    final public FrameNumberFormat getFrameNumberFormat() {
+        return _frameNumberFormat;
     }
     
     public boolean shouldBeCropped() {
@@ -115,8 +127,6 @@ public abstract class DiscItemVideoStream extends DiscItem {
     public GeneralType getType() {
         return GeneralType.Video;
     }
-
-    abstract public String getFrameNumberFormat();
 
     /** 1 for 1x (75 sectors/second), 2 for 2x (150 sectors/second), or -1 if unknown. */
     abstract public int getDiscSpeed();
@@ -148,27 +158,33 @@ public abstract class DiscItemVideoStream extends DiscItem {
                     ParsedMdecImage parsed = new ParsedMdecImage(getWidth(), getHeight());
                     parsed.readFrom(uncompressor);
                     uncompressor.skipPaddingBits();
-                    fbs.println("Bitstream info: " + uncompressor);
-                    fbs.println("Available demux size: " + frame.getDemuxSize());
+                    fbs.println(frame);
                     fbs.indent();
                     try {
-                        frame.printSectors(fbs);
-                        if (fbs.printMore()) {
-                            int iMbWidth  = Calc.macroblockDim(_iWidth),
-                                iMbHeight = Calc.macroblockDim(_iHeight);
-                            for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
-                                for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
-                                    fbs.println(iMbX + ", " + iMbY);
-                                    fbs.indent();
-                                    try {
-                                        for (int iBlk = 0; iBlk < 6; iBlk++) {
-                                            fbs.println(parsed.getBlockInfo(iMbX, iMbY, iBlk));
+                        fbs.println("Bitstream info: " + uncompressor);
+                        fbs.println("Available demux size: " + frame.getDemuxSize());
+                        fbs.indent();
+                        try {
+                            frame.printSectors(fbs);
+                            if (fbs.printMore()) {
+                                int iMbWidth  = Calc.macroblockDim(_iWidth),
+                                    iMbHeight = Calc.macroblockDim(_iHeight);
+                                for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
+                                    for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
+                                        fbs.println(iMbX + ", " + iMbY);
+                                        fbs.indent();
+                                        try {
+                                            for (int iBlk = 0; iBlk < 6; iBlk++) {
+                                                fbs.println(parsed.getBlockInfo(iMbX, iMbY, iBlk));
+                                            }
+                                        } finally {
+                                            fbs.outdent();
                                         }
-                                    } finally {
-                                        fbs.outdent();
                                     }
                                 }
                             }
+                        } finally {
+                            fbs.outdent();
                         }
                     } finally {
                         fbs.outdent();

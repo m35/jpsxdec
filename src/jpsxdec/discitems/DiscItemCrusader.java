@@ -38,7 +38,7 @@
 package jpsxdec.discitems;
 
 import java.util.Date;
-import jpsxdec.I18N;
+import jpsxdec.LocalizedMessage;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderCrusader;
 import jpsxdec.util.Fraction;
@@ -54,34 +54,36 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     
     private static final String FRAMES_KEY = "Frames";
     /** First video frame number. */
-    private final int _iStartFrame;
+    private final FrameNumber _startFrame;
     /** Last video frame number. */
-    private final int _iEndFrame;
+    private final FrameNumber _endFrame;
     
     public DiscItemCrusader(int iStartSector, int iEndSector, 
                             int iWidth, int iHeight,
                             int iFrameCount,
-                            int iStartFrame, int iEndFrame)
+                            FrameNumberFormat frameNumberFormat,
+                            FrameNumber startFrame, FrameNumber endFrame)
     {
         super(iStartSector, iEndSector,
               iWidth, iHeight,
-              iFrameCount);
-        _iStartFrame = iStartFrame;
-        _iEndFrame = iEndFrame;
+              iFrameCount,
+              frameNumberFormat);
+        _startFrame = startFrame;
+        _endFrame = endFrame;
     }
     
     public DiscItemCrusader(SerializedDiscItem fields) throws NotThisTypeException {
         super(fields);
 
-        int[] ai = fields.getIntRange(FRAMES_KEY);
-        _iStartFrame = ai[0];
-        _iEndFrame = ai[1];
+        FrameNumber[] ao = FrameNumber.parseRange(fields.getString(FRAMES_KEY));
+        _startFrame = ao[0];
+        _endFrame = ao[1];
     }
 
     @Override
     public SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
-        serial.addRange(FRAMES_KEY, _iStartFrame, _iEndFrame);
+        serial.addString(FRAMES_KEY, FrameNumber.toRange(_startFrame, _endFrame));
         return serial;
     }
 
@@ -90,25 +92,19 @@ public class DiscItemCrusader extends DiscItemVideoStream {
         return TYPE_ID;
     }
 
-    public int getStartFrame() {
-        return _iStartFrame;
+    public FrameNumber getStartFrame() {
+        return _startFrame;
     }
 
-    public int getEndFrame() {
-        return _iEndFrame;
-    }
-
-    @Override
-    public String getFrameNumberFormat() {
-        int iDigitCount = String.valueOf(_iEndFrame).length();
-        return "%0" + String.valueOf(iDigitCount) + 'd';
+    public FrameNumber getEndFrame() {
+        return _endFrame;
     }
 
     @Override
-    public String getInterestingDescription() {
+    public LocalizedMessage getInterestingDescription() {
         int iFrames = getFrameCount();
         Date secs = new Date(0, 0, 0, 0, 0, Math.max(iFrames / FPS, 1));
-        return I18N.S("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#} fps = {4,time,m:ss}", // I18N
+        return new LocalizedMessage("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#} fps = {4,time,m:ss}", // I18N
                              getWidth() ,getHeight(),
                              iFrames, FPS, secs);
     }

@@ -84,7 +84,7 @@ import jpsxdec.util.NotThisTypeException;
  * the absence of any ISO9660 file system. Unfortunately it will prevent
  * identifying Judge Dredd sectors on other disc images (which probably has
  * happened). */
-public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSectorWithFrameNumber {
+public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSector {
 
     private static final Logger LOG = Logger.getLogger(SectorDreddVideo.class.toString());
 
@@ -280,15 +280,6 @@ public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSecto
 
     public int getWidth() {
         return 320;
-    }
-
-    /** {@inheritDoc}
-     * <p>
-     * For Judge Dredd sectors, returns {@link #SPLIT_XA_AUDIO_PREVIOUS} at the
-     * start of new videos. */
-    public int splitXaAudio() {
-        return (getFrameNumber() == 0 && getChunkNumber() == 0) ?
-            SPLIT_XA_AUDIO_PREVIOUS : SPLIT_XA_AUDIO_NONE;
     }
 
     @Override

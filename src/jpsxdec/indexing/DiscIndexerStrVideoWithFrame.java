@@ -37,13 +37,18 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
-import java.util.logging.Level;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItem;
+import jpsxdec.discitems.DiscItemStrVideoStream;
 import jpsxdec.discitems.DiscItemStrVideoWithFrame;
-import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.DiscItemXaAudioStream;
+import jpsxdec.discitems.FrameNumberFormat;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IVideoSectorWithFrameNumber;
 import jpsxdec.sectors.IdentifiedSector;
@@ -52,12 +57,11 @@ import jpsxdec.util.NotThisTypeException;
 /**
  * Searches for most common video streams.
  */
-public class DiscIndexerStrVideoWithFrame extends DiscIndexer {
+public class DiscIndexerStrVideoWithFrame extends DiscIndexer implements DiscIndexer.Identified {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerStrVideoWithFrame.class.getName());
 
-    private static class VideoStreamIndex extends AbstractVideoStreamIndex {
-        private int _iStartFrame = -1;
+    private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemStrVideoWithFrame> {
 
         public VideoStreamIndex(Logger errLog, IVideoSectorWithFrameNumber vidSect) {
             super(errLog, (IdentifiedSector)vidSect, true);
@@ -69,28 +73,21 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer {
         }
 
         @Override
-        public void frameComplete(IDemuxedFrame frame) {
-            if (_iStartFrame < 0)
-                _iStartFrame = frame.getFrame();
-            super.frameComplete(frame);
-        }
-
-        @Override
         protected DiscItemStrVideoWithFrame createVideo(int iStartSector, int iEndSector,
                                                         int iWidth, int iHeight,
                                                         int iFrameCount,
-                                                        int iLastSeenFrameNumber,
+                                                        FrameNumberFormat frameNumberFormat,
+                                                        FrameNumber startFrame,
+                                                        FrameNumber lastSeenFrameNumber,
                                                         int iSectors, int iPerFrame,
                                                         int iFrame1PresentationSector)
         {
-            if (_iStartFrame > 1)
-                _errLog.log(Level.WARNING, "Video stream first frame is > 1: {0,number,#}", _iStartFrame);
-            
             return new DiscItemStrVideoWithFrame(
                     iStartSector, iEndSector,
                     iWidth, iHeight,
                     iFrameCount,
-                    _iStartFrame, iLastSeenFrameNumber,
+                    frameNumberFormat,
+                    startFrame, lastSeenFrameNumber,
                     iSectors, iPerFrame,
                     iFrame1PresentationSector);
         }
@@ -99,6 +96,7 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer {
 
     private final Logger _errLog;
     private VideoStreamIndex _currentStream;
+    private final Collection<DiscItemStrVideoWithFrame> _completedVideos = new ArrayList<DiscItemStrVideoWithFrame>();
 
     public DiscIndexerStrVideoWithFrame(Logger errLog) {
         _errLog = errLog;
@@ -114,20 +112,20 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer {
         return null;
     }
 
-    @Override
     public void indexingSectorRead(IdentifiedSector sector) {
         if (!(sector instanceof IVideoSectorWithFrameNumber))
             return;
-        
 
         IVideoSectorWithFrameNumber vidSect = (IVideoSectorWithFrameNumber)sector;
         
         if (_currentStream != null) {
             boolean blnAccepted = _currentStream.sectorRead(sector);
             if (!blnAccepted) {
-                DiscItemVideoStream vid = _currentStream.endOfMovie();
-                if (vid != null)
+                DiscItemStrVideoWithFrame vid = _currentStream.endOfMovie();
+                if (vid != null) {
+                    _completedVideos.add(vid);
                     super.addDiscItem(vid);
+                }
                 _currentStream = null;
             }
         }
@@ -139,15 +137,60 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer {
     @Override
     public void indexingEndOfDisc() {
         if (_currentStream != null) {
-            DiscItemVideoStream vid = _currentStream.endOfMovie();
-            if (vid != null)
+            DiscItemStrVideoWithFrame vid = _currentStream.endOfMovie();
+            if (vid != null) {
+                _completedVideos.add(vid);
                 super.addDiscItem(vid);
+            }
             _currentStream = null;
         }
     }
 
     @Override
-    public void staticRead(DemuxedUnidentifiedDataStream inStream) throws IOException {
+    public void listPostProcessing(Collection<DiscItem> allItems) {
+        if (_completedVideos.size() > 0)
+            audioSplit(_completedVideos, allItems);
+    }
+
+    static void audioSplit(Collection<? extends DiscItemStrVideoStream> videos,
+                           Collection<DiscItem> allItems)
+    {
+        List<DiscItemXaAudioStream> added = new ArrayList<DiscItemXaAudioStream>();
+
+        for (Iterator<DiscItem> it = allItems.iterator(); it.hasNext();) {
+            DiscItem item = it.next();
+            if (item instanceof DiscItemXaAudioStream) {
+                DiscItemXaAudioStream audio = (DiscItemXaAudioStream) item;
+                for (DiscItemStrVideoStream video : videos) {
+                    int iSector = video.splitAudio(audio);
+                    if (iSector >= 0) {
+                        DiscItemXaAudioStream[] aoSplit = audio.split(iSector);
+                        it.remove();
+                        added.add(aoSplit[0]);
+                        added.add(aoSplit[1]);
+                        break; // will continue later with split items
+                    }
+                }
+            }
+        }
+
+        // now process the new items
+        for (ListIterator<DiscItemXaAudioStream> it = added.listIterator(); it.hasNext();) {
+            DiscItemXaAudioStream audio = it.next();
+            for (DiscItemStrVideoStream video : videos) {
+                int iSector = video.splitAudio(audio);
+                if (iSector >= 0) {
+                    DiscItemXaAudioStream[] aoSplit = audio.split(iSector);
+                    it.remove();
+                    it.add(aoSplit[0]);
+                    it.add(aoSplit[1]);
+                    it.previous(); // jump to before the split items
+                    it.previous();
+                    break; // will continue with split items
+                }
+            }
+        }
+        allItems.addAll(added);
     }
 
     @Override

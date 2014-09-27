@@ -41,14 +41,18 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.discitems.DiscItemVideoStream;
+import jpsxdec.discitems.FrameNumberFormat;
 import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.indexing.psxvideofps.StrFrameRateCalc;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.Fraction;
 
 /** Tracks a single video stream. */
-public abstract class AbstractVideoStreamIndex implements ISectorFrameDemuxer.ICompletedFrameListener {
+public abstract class AbstractVideoStreamIndex<T extends DiscItemVideoStream> 
+        implements ISectorFrameDemuxer.ICompletedFrameListener
+{
     
     private static final Logger LOG = Logger.getLogger(AbstractVideoStreamIndex.class.getName());
 
@@ -59,11 +63,12 @@ public abstract class AbstractVideoStreamIndex implements ISectorFrameDemuxer.IC
 
     private int _iEndSector;
     private int _iFrame1PresentationSector = -1;
-    private int _iLastSeenFrameNumber = -1;
+    private FrameNumber _startFrame = null;
+    private FrameNumber _lastSeenFrameNumber = null;
     private int _iFrameCount = 0;
-    private boolean _blnHasDuplicateFrameNums = false;
     private StrFrameRateCalc _fpsCalc;
 
+    private final FrameNumberFormat.Builder _frameNumFormatBldr = new FrameNumberFormat.Builder();
 
     public AbstractVideoStreamIndex(Logger errLog, IdentifiedSector vidSect, boolean blnCalcFps) {
         _errLog = errLog;
@@ -103,9 +108,8 @@ public abstract class AbstractVideoStreamIndex implements ISectorFrameDemuxer.IC
 
         if (_iFrame1PresentationSector < 0)
             _iFrame1PresentationSector = frame.getPresentationSector() - _iStartSector;
-        if (_iLastSeenFrameNumber >= 0 && _iLastSeenFrameNumber == frame.getFrame()) {
-            _errLog.log(Level.INFO, "Duplicate frame number {0,number,#}", _iLastSeenFrameNumber); // I18N
-            _blnHasDuplicateFrameNums = true;
+        if (frame.getFrame().getHeaderFrameDuplicate() > 0) {
+            _errLog.log(Level.INFO, "Duplicate header frame number {0,number,0}", frame.getFrame().getHeaderFrameNumber()); // I18N
         }
         if (_blnCalcFps) {
             if (_fpsCalc == null) {
@@ -118,19 +122,25 @@ public abstract class AbstractVideoStreamIndex implements ISectorFrameDemuxer.IC
         }
 
         _iEndSector = frame.getEndSector();
-        _iLastSeenFrameNumber = frame.getFrame();
+        _lastSeenFrameNumber = frame.getFrame();
+        if (_startFrame == null)
+            _startFrame = _lastSeenFrameNumber;
+
+        _frameNumFormatBldr.addFrame(_lastSeenFrameNumber);
         _iFrameCount++;
     }
 
-    abstract protected DiscItemVideoStream createVideo(
+    abstract protected T createVideo(
                     int iStartSector, int iEndSector,
                     int iWidth, int iHeight,
                     int iFrameCount,
-                    int iLastSeenFrameNumber,
+                    FrameNumberFormat frameNumberFormat,
+                    FrameNumber startFrame,
+                    FrameNumber lastSeenFrameNumber,
                     int iSectors, int iPerFrame,
                     int iFrame1PresentationSector);
 
-    public DiscItemVideoStream endOfMovie() {
+    public T endOfMovie() {
         try {
             _demuxer.flush(_errLog);
         } catch (IOException ex) {
@@ -151,10 +161,12 @@ public abstract class AbstractVideoStreamIndex implements ISectorFrameDemuxer.IC
             iSectors  = _iEndSector - _iStartSector + 1;
             iPerFrame = _iFrameCount;
         }
+
         return createVideo(_iStartSector, _iEndSector,
                            _demuxer.getWidth(), _demuxer.getHeight(),
                            _iFrameCount,
-                           _iLastSeenFrameNumber,
+                           _frameNumFormatBldr.getFormat(),
+                           _startFrame, _lastSeenFrameNumber,
                            iSectors, iPerFrame,
                            _iFrame1PresentationSector);
     }

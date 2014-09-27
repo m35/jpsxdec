@@ -17,7 +17,6 @@ Self contained
 * Add time log msg at end of save/index
 * show error/warn unused cmdline args
 /?/ Add disc opening to debug.log
-* Rewrite manual
 * New video GUI
 * Proper handling when directory box is empty
 * Finish testing LoD iki: GOAST.IKI (end of disc 2), DENIN2.INI (middle of disc 3), DRAGON1.IKI
@@ -57,7 +56,6 @@ General
       /  1) Uncompression of various bitstreams
       /  2) Various ways to decode MDEC streams
 / Translate/localize the GUI and CL text
-// Replace all logging to use proper logging syntax
 * Clean up all the TODOs
 * write code documentation
 * Mac test
@@ -78,17 +76,16 @@ Redesign
   I would need to add game specific indexers
 ! Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates
   make them 75 or 150 fps - by checking how much variance there is between frame lengths
-! Duplicated frame number in header messes things up (iki)
+// Duplicated frame number in header messes things up (iki)
     * Remove need for frame numbers, and Dredd prebuilt index
     * Just store the frame start sectors for Dredd
+    * Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
 ? Even when not upsampling chroma, utilize it for PsxYuv->JpgYuv matrix conversion
     ! Test how much difference there is between the two color sets
 ! new parsx lib: String sFile = parser.getStringParam("-f"); .hasHelp()
 * Expose logger options
 * Have separate DiscItemBuilderGuiFactory to create a gui from a DiscItemBuilder and cache it
 * Log when frame rate detection fails
-// Bug: Using start and end frames to calculate anything may not work if frame numbering skips
-    // Change current fps fallback calc to actually count the frames
 * Command-line selection of parallel audio?
 * change xa playback to properly handle static (adjacent sector) streaming
 * Bug: Ubuntu: only tree column is white, but text boxes have gray background
@@ -96,7 +93,6 @@ Redesign
 * Add -psxfps
 * Add tooltips for everything
 ? Combine [Open & Analyze Disc] with [Open Index]?
-* Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
 ? Try to automate the release process
 ? When displaying progress, setup a timer to only update the display at most every second
 ? Index doesn't indicate generic type
@@ -105,8 +101,6 @@ Redesign
 ? Is there a better Saving dialog design?
 ? Cleanup Main (again)
     ? Remove FeedbackStream and just use a Logger
-    // Add cmdline 1 arg -> start gui and open idx or img
-    // Bug: Cmdline multi processing overwrites save.log file for each item
 
 
 User test feedback
@@ -129,6 +123,7 @@ Real-time media playback/preview
     * OpenJDK Ubuntu video playback doesn't process frames
     * Oracle Java Ubuntu VM audio auto-starts when it shouldn't
     * Add PlayingState.AT_END
+    * Bug: audio playback position is randomly reset by SDK
     * Bug: Player doesn't let you play movie with 1 frame
     /?/ Bug: end of playing race condition locks gui
     /?/ Bug: Player automatically plays video-only content when it is very short
@@ -154,16 +149,8 @@ Real-time media playback/preview
             Place two values at various locations in the matrix
     * Reverse engineer YCbCr->RGB
         Create test movies with -0.5 identity IDCT that generate predictable DC coefficients
-            // Convert newLISP script to Java and combine with FF9 experiment class
             Add remaining Cb and Cr values
-            // Figure out why Y comes out so strange
 
-// Update manual screenshots
-// -imgfmt case sensitive
-// -audfmt no error on invalid
-// -noaud say no audio
-// Not closing files if indexing is canceled
-// -i <invalid> shows ugly error
 
 Indexing
     ? More static data handling

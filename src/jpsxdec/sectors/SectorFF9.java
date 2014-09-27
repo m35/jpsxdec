@@ -236,11 +236,6 @@ public abstract class SectorFF9 extends IdentifiedSector {
             return 32;
         }
 
-        public int splitXaAudio() {
-            // don't want to split audio because that would cut the audio
-            // at the beginning of the movie
-            return SPLIT_XA_AUDIO_NONE;
-        }
     }
 
     /**************************************************************************/

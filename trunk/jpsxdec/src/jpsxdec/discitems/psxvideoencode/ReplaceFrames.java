@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,8 +39,13 @@ package jpsxdec.discitems.psxvideoencode;
 
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -50,8 +55,9 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedIOException;
+import jpsxdec.i18n.I;
+import jpsxdec.util.IncompatibleException;
+import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.FrameNumber;
@@ -69,7 +75,7 @@ import org.xml.sax.SAXException;
 
 /*
 <?xml version="1.0"?>
-<str-replace version="0.1">
+<str-replace version="0.2">
 
     <replace frame="14" format="bmp">newframe14.bmp</replace>
 
@@ -88,8 +94,10 @@ public class ReplaceFrames {
 
     public ReplaceFrames() {}
 
-    public ReplaceFrames(String sXmlConfig) throws IOException, NotThisTypeException {
-        File file = new File(sXmlConfig);
+    public ReplaceFrames(@Nonnull String sXmlConfig) throws IOException, NotThisTypeException {
+        this(new File(sXmlConfig));
+    }
+    public ReplaceFrames(@Nonnull File xmlConfig) throws IOException, NotThisTypeException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder db;
         try {
@@ -99,7 +107,16 @@ public class ReplaceFrames {
         }
         Document doc;
         try {
-            doc = db.parse(file);
+            FileInputStream fis = new FileInputStream(xmlConfig);
+            try {
+                doc = db.parse(fis); // .parse() treats File like URL, must open manually
+            } finally {
+                try {
+                    fis.close();
+                } catch (IOException ex) {
+                    Logger.getLogger(ReplaceFrames.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
         } catch (SAXException ex) {
             throw new NotThisTypeException(ex);
         }
@@ -107,9 +124,9 @@ public class ReplaceFrames {
         Element root = doc.getDocumentElement();
         root.normalize();
         if (!"str-replace".equals(root.getNodeName()))
-            throw new NotThisTypeException("Invalid root node {0}", root.getNodeName()); // I18N
+            throw new NotThisTypeException(I.CMD_REPLACE_XML_INVALID_ROOT_NODE(root.getNodeName()));
         if (!VERSION.equals(root.getAttribute("version")))
-            throw new NotThisTypeException("Invalid version {0}", root.getAttribute("version")); // I18N
+            throw new NotThisTypeException(I.CMD_REPLACE_XML_INVALID_VERSION(root.getAttribute("version")));
 
         NodeList nodeLst = root.getChildNodes();
 
@@ -134,7 +151,7 @@ public class ReplaceFrames {
             
     }
 
-    public void save(String sFile) throws IOException {
+    public void save(@Nonnull String sFile) throws IOException {
         try {
             Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
             Element root = document.createElement("str-replace");
@@ -157,7 +174,7 @@ public class ReplaceFrames {
     }
 
     /** Returns null if no match. */
-    protected ReplaceFrame getFrameToReplace(FrameNumber frame) {
+    protected @CheckForNull ReplaceFrame getFrameToReplace(@Nonnull FrameNumber frame) {
         for (ReplaceFrame replacer : _replacers) {
             if (replacer.getFrame().compareTo(frame) == 0)
                 return replacer;
@@ -165,12 +182,14 @@ public class ReplaceFrames {
         return null;
     }
 
-    public void addFrameToReplace(ReplaceFrame replace) {
+    public void addFrameToReplace(@Nonnull ReplaceFrame replace) {
         _replacers.add(replace);
     }
 
-    public void replaceFrames(DiscItemVideoStream vidItem, final CdFileSectorReader cd, final FeedbackStream fbs)
-            throws IOException, NotThisTypeException, MdecException
+    public void replaceFrames(@Nonnull DiscItemVideoStream vidItem, 
+                              final @Nonnull CdFileSectorReader cd,
+                              final @Nonnull FeedbackStream fbs)
+            throws IOException, NotThisTypeException, MdecException, IncompatibleException
     {
         final Throwable[] exception = new Throwable[1];
         
@@ -178,18 +197,20 @@ public class ReplaceFrames {
         demuxer = vidItem.makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
 
-            public void frameComplete(IDemuxedFrame frame) throws IOException {
+            public void frameComplete(@Nonnull IDemuxedFrame frame) throws IOException {
 
                 ReplaceFrame replacer = getFrameToReplace(frame.getFrame());
                 if (replacer != null) {
-                    fbs.println(I18N.S("Frame {0}:", frame.getFrame())); // I18N
+                    fbs.println(I.CMD_REPLACING_FRAME_NUM(frame.getFrame()));
                     fbs.indent();
                     try {
-                        fbs.println(I18N.S("Replacing with {0}", replacer.getImageFile())); // I18N
+                        fbs.println(I.CMD_REPLACING_FRAME_WITH_FILE(replacer.getImageFile()));
                         replacer.replace(frame, cd, fbs);
                     } catch (MdecException ex) {
                         exception[0] = ex;
                     } catch (NotThisTypeException ex) {
+                        exception[0] = ex;
+                    } catch (IncompatibleException ex) {
                         exception[0] = ex;
                     } finally {
                         fbs.outdent();
@@ -198,26 +219,27 @@ public class ReplaceFrames {
 
             }
         });
+        
+        Logger log = Logger.getLogger("replace");
 
-        for (int iSector = 0;
-             iSector < vidItem.getSectorLength();
-             iSector++)
-        {
+        for (int iSector = 0; iSector < vidItem.getSectorLength(); iSector++) {
             IdentifiedSector sector = vidItem.getRelativeIdentifiedSector(iSector);
             if (sector != null)
-                demuxer.feedSector(sector, null);
+                demuxer.feedSector(sector, log);
 
             if (exception[0] != null) {
                 if (exception[0] instanceof MdecException)
                     throw (MdecException)exception[0];
                 else if (exception[0] instanceof NotThisTypeException)
                     throw (NotThisTypeException)exception[0];
+                else if (exception[0] instanceof IncompatibleException)
+                    throw (IncompatibleException)exception[0];
                 else
                     throw new RuntimeException(exception[0]);
             }
         }
 
-        demuxer.flush(null);
+        demuxer.flush(log);
     }
 
 }

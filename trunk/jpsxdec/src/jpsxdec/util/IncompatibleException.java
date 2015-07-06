@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,51 +35,28 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec;
+package jpsxdec.util;
 
-import java.io.EOFException;
-import java.text.MessageFormat;
+import jpsxdec.i18n.LocalizedException;
+import jpsxdec.i18n.LocalizedMessage;
+import javax.annotation.CheckForNull;
 
-public class LocalizedEOFException extends EOFException {
+/** Indicates that the supplied data is incompatible with the existing data. */
+public class IncompatibleException extends LocalizedException {
 
-    private final Object[] _aoArguments;
-    
-    public LocalizedEOFException() {
-        _aoArguments = null;
+    public IncompatibleException() {
     }
 
-    public LocalizedEOFException(String sMessage) {
-        super(sMessage);
-        _aoArguments = null;
+    public IncompatibleException(@CheckForNull LocalizedMessage msg) {
+        super(msg);
     }
 
-    public LocalizedEOFException(String sMessage, Object ... aoArguments) {
-        super(sMessage);
-        _aoArguments = aoArguments;
-    }
-    
-    @Override
-    public String getLocalizedMessage() {
-        String sSuperMessage = super.getMessage();
-        if (sSuperMessage == null)
-            return null;
-        else {
-            if (_aoArguments == null)
-                return I18N.S(sSuperMessage);
-            else
-                return I18N.S(sSuperMessage, _aoArguments);
-        }
+    public IncompatibleException(@CheckForNull Throwable cause) {
+        super(cause);
     }
 
-    @Override
-    public String getMessage() {
-        String sSuperMessage = super.getMessage();
-        if (_aoArguments == null)
-            return sSuperMessage;
-        else if (sSuperMessage != null)
-            return MessageFormat.format(sSuperMessage, _aoArguments);
-        else
-            return null;
+    public IncompatibleException(@CheckForNull LocalizedMessage msg, @CheckForNull Throwable cause) {
+        super(msg, cause);
     }
-    
+
 }

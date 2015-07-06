@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,19 +38,20 @@
 package jpsxdec.discitems.savers;
 
 import com.jhlabs.awt.ParagraphLayout;
+import javax.annotation.Nonnull;
 import javax.swing.AbstractListModel;
 import javax.swing.ComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.I18N;
+import jpsxdec.i18n.I;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.formats.JavaAudioFormat;
 
 public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuilder> {
 
-    public AudioSaverBuilderGui(AudioSaverBuilder builder) {
+    public AudioSaverBuilderGui(@Nonnull AudioSaverBuilder builder) {
         super(builder, new ParagraphLayout());
         setParagraphLayoutPanel(this);
 
@@ -63,12 +64,12 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuil
 
     protected class AudioFormat extends AbstractListModel implements ComboBoxModel, ChangeListener {
         Object __cur = getSelectedItem();
-        JLabel __label;
-        JLabel __name;
-        JComboBox __combo;
+        @Nonnull final JLabel __label;
+        @Nonnull final JLabel __name;
+        @Nonnull final JComboBox __combo;
 
         public AudioFormat() {
-            __label = new JLabel(I18N.S("Save as:")); // I18N
+            __label = new JLabel(I.GUI_SAVE_AS_LABEL().getLocalizedMessage());
             __name = new JLabel(_writerBuilder.getFileBaseName());
             __combo = new JComboBox(this);
             add(__label, ParagraphLayout.NEW_PARAGRAPH);
@@ -96,7 +97,7 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuil
     }
 
     private class Volume extends AbstractSlider {
-        public Volume() { super(I18N.S("Volume:")); } // I18N
+        public Volume() { super(I.GUI_VOLUME_LABEL()); }
         public int getValue() {
             return (int) (_writerBuilder.getVolume() * 100);
         }

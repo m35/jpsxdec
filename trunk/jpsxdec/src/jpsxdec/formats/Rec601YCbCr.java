@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,8 @@
 
 package jpsxdec.formats;
 
+import javax.annotation.Nonnull;
+
 /** Holds a standard Rec.601 color space YCbCr color with 4:2:0 subsampling.
  * Four luma samples, and one chroma sub-sample are stored
  * as doubles in the standard range of
@@ -53,12 +55,12 @@ public class Rec601YCbCr {
     }
 
     /** Performs simple bilinear downsampling interpolation for chroma components. */
-    public Rec601YCbCr(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
+    public Rec601YCbCr(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
         fromRgb(rgb1, rgb2, rgb3, rgb4);
     }
 
     /** Performs simple bilinear downsampling interpolation for chroma components. */
-    public void fromRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
+    public void fromRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
         cb = cr = 0;
         y1 = oneRgb(rgb1);
         y2 = oneRgb(rgb2);
@@ -67,7 +69,7 @@ public class Rec601YCbCr {
         cb /= 4;
         cr /= 4;
     }
-    private double oneRgb(RGB rgb) {
+    private double oneRgb(@Nonnull RGB rgb) {
         int r = rgb.getR(), g = rgb.getG(), b = rgb.getB();
         double y = ( 0.257 * r) + ( 0.504 * g) + ( 0.098 * b)  + 16;
         cb      += (-0.148 * r) + (-0.291 * g) + ( 0.439 * b)  + 128;
@@ -75,7 +77,7 @@ public class Rec601YCbCr {
         return y;
     }
 
-    public static void toRgb(double y, double cb, double cr, RGB rgb) {
+    public static void toRgb(double y, double cb, double cr, @Nonnull RGB rgb) {
         double y_16 = y - 16;
         double cb_128 = cb - 128;
         double cr_128 = cr - 128;
@@ -84,7 +86,7 @@ public class Rec601YCbCr {
         rgb.setB( (y_16 * 1.164) + ( 2.018 * cb_128)                     );
     }
 
-    public void toRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
+    public void toRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
         double cb_128 = cb - 128;
         double cr_128 = cr - 128;
         double dblChromRed   =                     ( 1.596 * cr_128);

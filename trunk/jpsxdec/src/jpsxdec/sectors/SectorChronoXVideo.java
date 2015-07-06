@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 
@@ -67,7 +68,7 @@ public class SectorChronoXVideo extends SectorAbstractVideo implements IVideoSec
     @Override
     protected int getSectorHeaderSize() { return 32; }
 
-    public SectorChronoXVideo(CdSector cdSector) {
+    public SectorChronoXVideo(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -109,7 +110,7 @@ public class SectorChronoXVideo extends SectorAbstractVideo implements IVideoSec
 
     // .. Public methods ...................................................
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "CX Video";
     }
 

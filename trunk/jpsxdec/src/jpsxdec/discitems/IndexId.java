@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,35 +39,38 @@ package jpsxdec.discitems;
 
 import java.io.File;
 import java.util.Arrays;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
 /** Holds the index unique number, and unique string id based on a file. */
 public class IndexId {
-    private final File _sourceFile;
-    private final int[] _aiTreeIndexes;
+    private final @CheckForNull File _sourceFile;
+    private final @CheckForNull int[] _aiTreeIndexes;
 
     public IndexId(int iIndex) {
         _sourceFile = null;
         _aiTreeIndexes = new int[] { iIndex };
     }
 
-    public IndexId(File baseFile) {
+    public IndexId(@Nonnull File baseFile) {
         _sourceFile = baseFile;
         _aiTreeIndexes = null;
     }
 
-    private IndexId(File baseFile, int[] aiIndex) {
+    private IndexId(@CheckForNull File baseFile, @Nonnull int[] aiIndex) {
         _sourceFile = baseFile;
         _aiTreeIndexes = aiIndex;
     }
 
-    public IndexId(String sSerialized) throws NotThisTypeException {
+    public IndexId(@Nonnull String sSerialized) throws NotThisTypeException {
 
         String[] asParts = Misc.regex("([^\\[]+)(\\[[^\\]]+\\])?", sSerialized);
         if (asParts == null || asParts.length != 3)
-            throw new NotThisTypeException("Invalid id format: {0}", sSerialized); // I18N
+            throw new NotThisTypeException(I.ID_FORMAT_INVALID(sSerialized));
 
         if (UNNAMED_INDEX.equals(asParts[1]))
             _sourceFile = null;
@@ -79,7 +82,7 @@ public class IndexId {
         else {
             _aiTreeIndexes = Misc.splitInt(asParts[2].substring(1, asParts[2].length()-1), "\\.");
             if (_aiTreeIndexes == null)
-                throw new NotThisTypeException("Invalid id format: {0}", sSerialized); // I18N
+                throw new NotThisTypeException(I.ID_FORMAT_INVALID(sSerialized));
         }
 
     }
@@ -87,28 +90,28 @@ public class IndexId {
     /** How unnamed files will be saved in the index (never localized). */
     private static final String UNNAMED_INDEX = "?";
     /** How unnamed files will be displayed. */
-    private static final LocalizedMessage UNNAMED_FILE_NAME = new LocalizedMessage("Unnamed"); // I18N
+    private static final LocalizedMessage UNNAMED_FILE_NAME = I.UNNAMED_DISC_ITEM();
     /** Pre-create file. */
     private static final File UNNAMED_FILE = new File(UNNAMED_FILE_NAME.getLocalizedMessage());
-    private File safePath() {
+    private @Nonnull File safePath() {
         return _sourceFile == null ? UNNAMED_FILE : _sourceFile;
     }
 
 
-    public String serialize() {
+    public @Nonnull String serialize() {
         return (_sourceFile == null ? UNNAMED_INDEX : Misc.forwardSlashPath(_sourceFile)) +
                 getTreeIndex();
     }
 
-    public String getId() {
+    public @Nonnull String getId() {
         return Misc.forwardSlashPath(safePath()) + getTreeIndex();
     }
 
-    public File getFile() {
+    public @CheckForNull File getFile() {
         return _sourceFile;
     }
 
-    private String getTreeIndex() {
+    private @Nonnull String getTreeIndex() {
         if (_aiTreeIndexes == null) {
             return "";
         } else {
@@ -123,7 +126,7 @@ public class IndexId {
         }
     }
 
-    public File getSuggestedBaseName(String sFallback) {
+    public @Nonnull File getSuggestedBaseName(@Nonnull String sFallback) {
         String sFile;
         if (_sourceFile == null)
             sFile = sFallback;
@@ -133,7 +136,7 @@ public class IndexId {
     }
 
     /** Like {@link File#getName()}. */
-    public String getTopLevel() {
+    public @Nonnull String getTopLevel() {
         return safePath().getName() + getTreeIndex();
     }
 
@@ -144,7 +147,7 @@ public class IndexId {
     }
 
     /** Returns if the supplied id is a direct parent of this id. */
-    public boolean isParent(IndexId parentId) {
+    public boolean isParent(@Nonnull IndexId parentId) {
         if (isRoot())
             return false;
         
@@ -156,7 +159,7 @@ public class IndexId {
         // make sure the other item is a direct parent
         int[] aiParentTreeIndexes = parentId._aiTreeIndexes;
         if (aiParentTreeIndexes == null) {
-            if (_aiTreeIndexes.length == 1) {
+            if (_aiTreeIndexes.length == 1) { // _aiTreeIndexes already confirmed to != null in isRoot()
                 return true;
             }
         } else if (_aiTreeIndexes.length - 1 == aiParentTreeIndexes.length) {
@@ -175,7 +178,7 @@ public class IndexId {
         return (_sourceFile == null && _aiTreeIndexes.length == 1);
     }
 
-    public IndexId createNext() {
+    public @Nonnull IndexId createNext() {
         if (_aiTreeIndexes == null)
             throw new IllegalStateException("Unable to create the next id from " + this);
         int[] aiNext = _aiTreeIndexes.clone();
@@ -183,7 +186,7 @@ public class IndexId {
         return new IndexId(_sourceFile, aiNext);
     }
 
-    IndexId createChild() {
+    public @Nonnull IndexId createChild() {
         int[] aiChild;
         if (_aiTreeIndexes == null)
             aiChild = new int[] {0};
@@ -212,7 +215,7 @@ public class IndexId {
     @Override
     public int hashCode() {
         int hash = 5;
-        hash = 89 * hash + (this._sourceFile != null ? this._sourceFile.hashCode() : 0);
+        hash = 89 * hash + (_sourceFile != null ? _sourceFile.hashCode() : 0);
         return hash;
     }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,8 +38,11 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IncompatibleException;
 
 public interface IDemuxedFrame {
     
@@ -50,7 +53,7 @@ public interface IDemuxedFrame {
     public static final int UNKNOWN_FRAME = -1;
     
     /** The frame number of the demuxed frame. */
-    FrameNumber getFrame();
+    @Nonnull FrameNumber getFrame();
 
     int getStartSector();
 
@@ -66,12 +69,13 @@ public interface IDemuxedFrame {
      * buffer is not null and is big enough to fit the demuxed data, it is used,
      * otherwise a new buffer is created and returned.
      * @param abBuffer Optional buffer to copy the demuxed data into. */
-    byte[] copyDemuxData(byte[] abBuffer);
+    @Nonnull byte[] copyDemuxData(@CheckForNull byte[] abBuffer);
 
-    void printSectors(FeedbackStream fbs);
+    void printSectors(@Nonnull FeedbackStream fbs);
 
-    void writeToSectors(byte[] abNewDemux,
+    void writeToSectors(@Nonnull byte[] abNewDemux,
                         int iUsedSize, int iMdecCodeCount,
-                        CdFileSectorReader cd, FeedbackStream fbs)
-            throws IOException;
+                        @Nonnull CdFileSectorReader cd,
+                        @Nonnull FeedbackStream fbs)
+            throws IOException, IncompatibleException;
 }

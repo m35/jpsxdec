@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,11 +38,14 @@
 package jpsxdec.gui;
 
 import java.io.File;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileSystemView;
-import jpsxdec.I18N;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 
 /** The JFileChooser is pretty lame, so this sub-class attempts to fix
  *  some of the problems with it. */
@@ -52,7 +55,7 @@ public class BetterFileChooser extends JFileChooser {
      * Special filter for saving so we can consider auto extension before saving.
      */
     public abstract static class SaveFileFilter extends FileFilter {
-        abstract public String getExtension();
+        abstract public @Nonnull String getExtension();
     }
 
     /** My own 'All files' filter as a workaround for Java 5 Linux bug. */
@@ -80,28 +83,28 @@ public class BetterFileChooser extends JFileChooser {
         super();
     }
 
-    public BetterFileChooser(String currentDirectoryPath, FileSystemView fsv) {
+    public BetterFileChooser(@Nonnull String currentDirectoryPath, @Nonnull FileSystemView fsv) {
         super(currentDirectoryPath, fsv);
     }
 
-    public BetterFileChooser(File currentDirectory, FileSystemView fsv) {
+    public BetterFileChooser(@Nonnull File currentDirectory, @Nonnull FileSystemView fsv) {
         super(currentDirectory, fsv);
     }
 
-    public BetterFileChooser(FileSystemView fsv) {
+    public BetterFileChooser(@Nonnull FileSystemView fsv) {
         super(fsv);
     }
 
-    public BetterFileChooser(File currentDirectory) {
+    public BetterFileChooser(@Nonnull File currentDirectory) {
         super(currentDirectory);
     }
 
-    public BetterFileChooser(String currentDirectoryPath) {
+    public BetterFileChooser(@CheckForNull String currentDirectoryPath) {
         super(currentDirectoryPath);
     }
 
     @Override
-    public FileFilter getAcceptAllFileFilter() {
+    public @Nonnull FileFilter getAcceptAllFileFilter() {
         // fix the broken 'all' file filter for Java 5 Linux by wrapping it with my own
         return ALL_FILE_FILTER;
     }
@@ -132,11 +135,9 @@ public class BetterFileChooser extends JFileChooser {
 
             // confirm overwrite
             if (f.exists()) {
-                String sMsg = 
-                        I18N.S("The file \"{0}\" already exists!\nDo you want to replace it?", // I18N
-                        f.getName());
+                LocalizedMessage msg = I.GUI_FILE_EXISTS_REPLACE(f.getName());
                 String sTitle = getDialogTitle();
-                int iOption = JOptionPane.showConfirmDialog(this, sMsg, sTitle, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                int iOption = JOptionPane.showConfirmDialog(this, msg, sTitle, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
                 if (iOption != JOptionPane.YES_OPTION) {
                     return;
                 }

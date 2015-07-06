@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,9 @@ package jpsxdec.psxvideo.bitstreams;
 
 import java.io.EOFException;
 import java.io.IOException;
-import jpsxdec.I18N;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.discitems.FrameNumber;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2.BitstreamCompressor_STRv2;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
@@ -190,7 +192,10 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     }
 
     @Override
-    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) throws NotThisTypeException {
+    protected void readHeader(@Nonnull byte[] abFrameData, int iDataSize,
+                              @Nonnull ArrayBitReader bitReader)
+            throws NotThisTypeException
+    {
         if (iDataSize < 8)
             throw new NotThisTypeException();
         
@@ -211,7 +216,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         bitReader.reset(abFrameData, iDataSize, false, 8);
     }
     
-    public static boolean checkHeader(byte[] abFrameData) {
+    public static boolean checkHeader(@Nonnull byte[] abFrameData) {
         if (abFrameData.length < 8)
             return false;
 
@@ -232,22 +237,18 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         return true;
     }
 
-    public static int getQscaleLuma(byte[] abFrameData) {
-        if (checkHeader(abFrameData))
-            return abFrameData[0];
-        else
-            return -1;
-    }
-
-    public static int getQscaleChroma(byte[] abFrameData) {
-        if (checkHeader(abFrameData))
-            return abFrameData[1];
-        else
-            return -1;
+    /** @return int[2] array: {luma, chroma} */
+    public static @Nonnull int[] getQscale(@Nonnull byte[] abFrameData)
+            throws MdecException.Uncompress
+    {
+        if (!checkHeader(abFrameData))
+            throw new MdecException.Uncompress(I.FRAME_NOT_LAIN());
+        
+        return new int[] { abFrameData[0], abFrameData[1] };
     }
 
     @Override
-    protected void readQscaleAndDC(MdecCode code) throws EOFException {
+    protected void readQscaleAndDC(@Nonnull MdecCode code) throws EOFException {
         code.setBottom10Bits( _bitReader.readSignedBits(10) );
         assert !DEBUG || _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10));
         if (getCurrentMacroBlockSubBlock() < 2)
@@ -258,7 +259,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
 
     
-    protected void readEscapeAcCode(MdecCode code) throws EOFException
+    protected void readEscapeAcCode(@Nonnull MdecCode code) throws EOFException
     {
 
         int iBits = _bitReader.readUnsignedBits(6+8);
@@ -365,10 +366,12 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
 
     @Override
-    public BitstreamCompressor_Lain makeCompressor() {
+    public @Nonnull BitstreamCompressor_Lain makeCompressor() {
         return new BitstreamCompressor_Lain();
     }
 
+    // =========================================================================
+    
     /** Lain videos luma:chroma ratio varies between 0.06 and 5.0.
      * Most are around the 1.0-2.0 range. */
     private static final double LUMA_TO_CHROMA_RATIO = 2.0;
@@ -376,14 +379,15 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     public static class BitstreamCompressor_Lain extends BitstreamCompressor_STRv2 {
 
         @Override
-        public byte[] compressFull(byte[] abOriginal, FrameNumber frame,
-                                   MdecEncoder encoder, FeedbackStream fbs)
+        public @CheckForNull byte[] compressFull(@Nonnull byte[] abOriginal,
+                                                 @Nonnull FrameNumber frame,
+                                                 @Nonnull MdecEncoder encoder,
+                                                 @Nonnull FeedbackStream fbs)
                 throws MdecException
         {
-            byte[] abNewDemux = null;
             int iLQscale = 1, iCQscale = 1;
             while (iLQscale < 64 && iCQscale < 64) {
-                fbs.println(I18N.S("Trying luma {0,number,#} chroma {1,number,#}", iLQscale, iCQscale)); // I18N
+                fbs.println(I.TRYING_LUMA_CHROMA(iLQscale, iCQscale));
 
                 int[] aiNewQscale = { iCQscale, iCQscale,
                                       iLQscale, iLQscale, iLQscale, iLQscale };
@@ -393,18 +397,16 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                 }
 
                 try {
-                    abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
+                    byte[] abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                     int iNewDemuxSize = abNewDemux.length;
                     if (iNewDemuxSize <= abOriginal.length) {
-                        fbs.indent1().println(I18N.S("New frame {0} demux size {1,number,#} <= max source {2,number,#}", // I18N
-                                                     frame, iNewDemuxSize, abOriginal.length));
-                        break;
+                        fbs.indent1().println(I.NEW_FRAME_FITS(frame, iNewDemuxSize, abOriginal.length));
+                        return abNewDemux;
                     } else {
-                        fbs.indent1().println(I18N.S("!!! New frame {0} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
-                                                     frame, iNewDemuxSize, abOriginal.length));
+                        fbs.indent1().println(I.NEW_FRAME_DOES_NOT_FIT(frame, iNewDemuxSize, abOriginal.length));
                     }
                 } catch (MdecException.TooMuchEnergyToCompress ex) {
-                    fbs.printlnWarn(ex.getMessage());
+                    fbs.printlnWarn(ex.getSourceMessage());
                 }
 
                 if ((iLQscale / (double)iCQscale) < LUMA_TO_CHROMA_RATIO)
@@ -413,21 +415,24 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                     iCQscale++;
             }
 
-            return abNewDemux;
+            return null;
         }
 
         @Override
-        public byte[] compressPartial(byte[] abOriginal, FrameNumber frame,
-                                      MdecEncoder encoder, FeedbackStream fbs)
+        public @CheckForNull byte[] compressPartial(@Nonnull byte[] abOriginal,
+                                                    @Nonnull FrameNumber frame,
+                                                    @Nonnull MdecEncoder encoder,
+                                                    @Nonnull FeedbackStream fbs)
                 throws MdecException
         {
-            final int iFrameLQscale = BitStreamUncompressor_Lain.getQscaleLuma(abOriginal);
-            final int iFrameCQscale = BitStreamUncompressor_Lain.getQscaleChroma(abOriginal);
+            final int[] aiFrameQscale = BitStreamUncompressor_Lain.getQscale(abOriginal);
+            final int iFrameLQscale = aiFrameQscale[0];
+            final int iFrameCQscale = aiFrameQscale[1];
             final int[] aiOriginalQscale = { iFrameCQscale, iFrameCQscale, iFrameLQscale,
-                                       iFrameLQscale, iFrameLQscale, iFrameLQscale };
+                                             iFrameLQscale, iFrameLQscale, iFrameLQscale };
             int iLQscale = iFrameLQscale, iCQscale = iFrameCQscale;
             while (iLQscale < 64 && iCQscale < 64) {
-                fbs.println("Trying luma " + iLQscale + " chroma " + iCQscale); // I18N
+                fbs.println(I.TRYING_LUMA_CHROMA(iLQscale, iCQscale));
 
                 int[] aiNewQscale = { iCQscale, iCQscale,
                                       iLQscale, iLQscale, iLQscale, iLQscale };
@@ -438,14 +443,16 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
                 byte[] abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 if (abNewDemux.length <= abOriginal.length) {
-                    fbs.indent1().format("New demux size %d <= max source %d ", // I18N
-                            abNewDemux.length, abOriginal.length).println();
+                    fbs.indent1().println(I.NEW_FRAME_FITS(frame, abNewDemux.length, abOriginal.length));
                     return abNewDemux;
                 } else {
-                    fbs.indent1().format("!!! New demux size %d > max source %d !!!", // I18N
-                            abNewDemux.length, abOriginal.length).println();
+                    fbs.indent1().println(I.NEW_FRAME_DOES_NOT_FIT(frame, abNewDemux.length, abOriginal.length));
                 }
 
+                if ((iLQscale / (double)iCQscale) < LUMA_TO_CHROMA_RATIO)
+                    iLQscale++;
+                else
+                    iCQscale++;
             }
             return null;
         }
@@ -454,7 +461,10 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         private int _iLumaQscale, _iChromaQscale;
 
         @Override
-        public byte[] compress(MdecInputStream inStream, int iWidth, int iHeight) throws MdecException {
+        public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream,
+                                        int iWidth, int iHeight)
+                throws MdecException
+        {
             _iLumaQscale = -1;
             _iChromaQscale = -1;
             return super.compress(inStream, iWidth, iHeight);
@@ -466,23 +476,21 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                 if (_iChromaQscale < 0) {
                     _iChromaQscale = iQscale;
                     if (_iChromaQscale < 1 || _iChromaQscale > 63)
-                        throw new MdecException.Compress("Invalid chroma quantization scale {0,number,#}", // I18N
-                                                         _iChromaQscale);
+                        throw new MdecException.Compress(I.INVALID_CHROMA_QSCALE(_iChromaQscale));
                 } else if (_iChromaQscale != iQscale)
-                    throw new MdecException.Compress("Inconsistent chroma quantization scale"); // I18N
+                    throw new MdecException.Compress(I.INCONSISTENT_CHROMA_QSCALE(_iChromaQscale, iQscale));
             } else {
                 if (_iLumaQscale < 0) {
                     _iLumaQscale = iQscale;
                     if (_iLumaQscale < 1 || _iLumaQscale > 63)
-                        throw new MdecException.Compress("Invalid luma quantization scale {0,number,#}", // I18N
-                                                         _iLumaQscale);
+                        throw new MdecException.Compress(I.INVALID_LUMA_QSCALE(_iLumaQscale));
                 } else if (_iLumaQscale != iQscale)
-                    throw new MdecException.Compress("Inconsistent luma quantization scale"); // I18N
+                    throw new MdecException.Compress(I.INCONSISTENT_LUMA_QSCALE(_iLumaQscale, iQscale));
             }
         }
 
         @Override
-        protected byte[] createHeader(int iMdecCodeCount) {
+        protected @Nonnull byte[] createHeader(int iMdecCodeCount) {
             byte[] ab = new byte[8];
 
             ab[0] = (byte)_iLumaQscale;
@@ -508,18 +516,19 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         }
 
         @Override
-        protected AcLookup getAcVaribleLengthCodeList() {
+        protected @Nonnull AcLookup getAcVaribleLengthCodeList() {
             return AC_VARIABLE_LENGTH_CODES_LAIN;
         }
 
         @Override
-        protected String encodeAcEscape(MdecCode code) throws MdecException.Compress {
+        protected @Nonnull String encodeAcEscape(@Nonnull MdecCode code)
+                throws MdecException.Compress
+        {
             String sTopBits = Misc.bitsToString(code.getTop6Bits(), 6);
             if (code.getBottom10Bits() == 0)
                 throw new IllegalArgumentException("Invalid MDEC code to escape " + code);
             if (code.getBottom10Bits() < -256 || code.getBottom10Bits() > 255)
-                throw new MdecException.TooMuchEnergyToCompress("Unable to escape {0}, AC code too large for Lain", // I18N
-                                                                code);
+                throw new MdecException.TooMuchEnergyToCompress(I.AC_CODE_TOO_LARGE_FOR_LAIN(code));
             if (code.getBottom10Bits() >= -127 && code.getBottom10Bits() <= 127) {
                 return AcLookup.ESCAPE_CODE.BitString + sTopBits + Misc.bitsToString(code.getBottom10Bits(), 8);
             } else {

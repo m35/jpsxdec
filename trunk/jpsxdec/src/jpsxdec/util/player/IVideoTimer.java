@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,12 +37,14 @@
 
 package jpsxdec.util.player;
 
+import javax.annotation.Nonnull;
+
 /** Syncs the video playback to whatever underlying timer is used. */
 interface IVideoTimer {
 
-    boolean waitToPresent(VideoPlayer.VideoFrame frame);
+    boolean waitToPresent(@Nonnull VideoPlayer.VideoFrame frame);
     boolean shouldBeProcessed(long lngPresentationTime);
-    Object getSyncObject();
+    @Nonnull Object getSyncObject();
     long getNanoPlayTime();
 
 }

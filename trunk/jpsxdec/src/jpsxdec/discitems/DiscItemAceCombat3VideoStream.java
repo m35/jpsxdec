@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,9 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorAceCombat3Video;
 import jpsxdec.util.NotThisTypeException;
@@ -51,17 +54,18 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
     private static final String CHANNEL_KEY = "Channel";
     private final int _iChannel;
 
-    public DiscItemAceCombat3VideoStream(int iStartSector, int iEndSector,
+    public DiscItemAceCombat3VideoStream(@Nonnull CdFileSectorReader cd,
+                                         int iStartSector, int iEndSector,
                                          int iWidth, int iHeight,
                                          int iFrameCount,
-                                         FrameNumberFormat frameNumberFormat,
+                                         @Nonnull FrameNumberFormat frameNumberFormat,
                                          int iSectors, int iPerFrame,
                                          int iFirstFrameLastSector,
-                                         FrameNumber startFrame,
-                                         FrameNumber endFrame,
+                                         @Nonnull FrameNumber startFrame,
+                                         @Nonnull FrameNumber endFrame,
                                          int iChannel)
     {
-        super(iStartSector, iEndSector,
+        super(cd, iStartSector, iEndSector,
               iWidth, iHeight,
               iFrameCount,
               frameNumberFormat,
@@ -71,19 +75,22 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
         _iChannel = iChannel;
     }
 
-    public DiscItemAceCombat3VideoStream(SerializedDiscItem fields) throws NotThisTypeException {
-        super(fields);
+    public DiscItemAceCombat3VideoStream(@Nonnull CdFileSectorReader cd,
+                                         @Nonnull SerializedDiscItem fields)
+            throws NotThisTypeException
+    {
+        super(cd, fields);
         _iChannel = fields.getInt(CHANNEL_KEY);
     }
 
 
     @Override
-    public String getSerializationTypeId() {
+    public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
 
     @Override
-    public SerializedDiscItem serialize() {
+    public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
         serial.addNumber(CHANNEL_KEY, _iChannel);
         return serial;
@@ -92,7 +99,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
 
 
     @Override
-    public int getParentRating(DiscItem child) {
+    public int getParentRating(@Nonnull DiscItem child) {
         if (!(child instanceof DiscItemXaAudioStream))
             return 0;
         if (((DiscItemXaAudioStream)child).getChannel() != _iChannel)
@@ -107,7 +114,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
     private static final int AUDIO_SPLIT_THRESHOLD = 32;
 
 
-    public int splitAudio(DiscItemXaAudioStream audio) {
+    public int splitAudio(@Nonnull DiscItemXaAudioStream audio) {
         if (audio.getChannel() != _iChannel)
             return -1;
         
@@ -124,7 +131,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
 
     
     @Override
-    public void fpsDump(PrintStream ps) throws IOException {
+    public void fpsDump(@Nonnull PrintStream ps) throws IOException {
         final int LENGTH = getSectorLength();
         for (int iSector = 0; iSector < LENGTH; iSector++) {
             IdentifiedSector isect = getRelativeIdentifiedSector(iSector);
@@ -145,7 +152,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
     }
 
     @Override
-    public ISectorFrameDemuxer makeDemuxer() {
+    public @Nonnull ISectorFrameDemuxer makeDemuxer() {
         return new Demuxer(getStartSector(), getEndSector(), getWidth(), getHeight(), getEndFrame().getHeaderFrameNumber(), _iChannel);
     }
 
@@ -167,14 +174,15 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
         }
 
         
-        protected SectorAceCombat3Video isVideoSector(IdentifiedSector sector) {
+        protected @CheckForNull SectorAceCombat3Video isVideoSector(@Nonnull IdentifiedSector sector)
+        {
             if (!(sector instanceof SectorAceCombat3Video))
                 return null;
             return (SectorAceCombat3Video) sector;
         }
 
         @Override
-        protected boolean isPartOfVideo(SectorAceCombat3Video chunk) {
+        protected boolean isPartOfVideo(@Nonnull SectorAceCombat3Video chunk) {
             return super.isPartOfVideo(chunk) &&
                    chunk.getWidth() == _iWidth && 
                    chunk.getHeight() == _iHeight &&
@@ -182,12 +190,12 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
         }
 
         @Override
-        protected int getHeaderFrameNumber(SectorAceCombat3Video chunk) {
+        protected int getHeaderFrameNumber(@Nonnull SectorAceCombat3Video chunk) {
             return _iEndFrame - chunk.getInvertedFrameNumber();
         }
 
         @Override
-        protected int getChunksInFrame(SectorAceCombat3Video chunk) {
+        protected int getChunksInFrame(@Nonnull SectorAceCombat3Video chunk) {
             return chunk.getChunksInFrame();
         }
 

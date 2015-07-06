@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,8 @@
 
 package jpsxdec.util.player;
 
+import javax.annotation.Nonnull;
+
 
 class PlayingState {
 
@@ -44,17 +46,18 @@ class PlayingState {
 
     public static enum State { PLAYING, PAUSED, STOPPED }
 
+    @Nonnull
     private volatile State _state;
 
-    public PlayingState(State state) {
+    public PlayingState(@Nonnull State state) {
         _state = state;
     }
 
-    public synchronized State get() {
+    public synchronized @Nonnull State get() {
         return _state;
     }
 
-    public synchronized void set(State val) {
+    public synchronized void set(@Nonnull State val) {
         if (_state != val) {
             _state = val;
             if (DEBUG) System.out.println(Thread.currentThread().getName() + " State changed to " + val + ", notifying all");

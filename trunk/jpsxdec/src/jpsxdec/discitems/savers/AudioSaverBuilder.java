@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,12 +40,15 @@ package jpsxdec.discitems.savers;
 import argparser.ArgParser;
 import argparser.StringHolder;
 import java.io.File;
-import jpsxdec.I18N;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.formats.JavaAudioFormat;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.TabularFeedback;
 
@@ -53,28 +56,29 @@ import jpsxdec.util.TabularFeedback;
  *  produces independent instances using the current options. */
 public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
+    @Nonnull
     private final DiscItemAudioStream _audItem;
-    private final JavaAudioFormat[] _aoPossibleContainerFormats = JavaAudioFormat.getAudioFormats();
 
-    public AudioSaverBuilder(DiscItemAudioStream audItem) {
+    public AudioSaverBuilder(@Nonnull DiscItemAudioStream audItem) {
         _audItem = audItem;
         resetToDefaults();
     }
 
-    public DiscItemSaverBuilderGui getOptionPane() {
+    public @Nonnull DiscItemSaverBuilderGui getOptionPane() {
         return new AudioSaverBuilderGui(this);
     }
 
     public void resetToDefaults() {
-        if (_aoPossibleContainerFormats != null && _aoPossibleContainerFormats.length > 0)
-            setContainerForamt(_aoPossibleContainerFormats[0]);
+        JavaAudioFormat[] fmts = JavaAudioFormat.getAudioFormats();
+        if (fmts.length > 0)
+            setContainerForamt(fmts[0]);
         else
             setContainerForamt(null);
-        setVolume(1);
+        setVolume(1.0);
     }
 
     @Override
-    public boolean copySettingsTo(DiscItemSaverBuilder other) {
+    public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder other) {
         if (other instanceof AudioSaverBuilder) {
             AudioSaverBuilder o = (AudioSaverBuilder) other;
             o.setContainerForamt(getContainerFormat());
@@ -85,30 +89,30 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
     }
 
 
-
+    @Nonnull
     private JavaAudioFormat _containerFormat;
-    public void setContainerForamt(JavaAudioFormat val) {
+    public void setContainerForamt(@Nonnull JavaAudioFormat val) {
         _containerFormat = val;
         firePossibleChange();
     }
-    public JavaAudioFormat getContainerFormat() {
+    public @Nonnull JavaAudioFormat getContainerFormat() {
         return _containerFormat;
     }
 
     public int getContainerFormat_listSize() {
         return JavaAudioFormat.getAudioFormats().length;
     }
-    public JavaAudioFormat getContainerFormat_listItem(int i) {
+    public @Nonnull JavaAudioFormat getContainerFormat_listItem(int i) {
         return JavaAudioFormat.getAudioFormats()[i];
     }
 
-    public String getExtension() {
+    public @Nonnull String getExtension() {
         return getContainerFormat().getExtension();
     }
 
     // ....................................................
 
-    public String getFileBaseName() {
+    public @Nonnull String getFileBaseName() {
         return _audItem.getSuggestedBaseName().getPath();
     }
 
@@ -125,7 +129,9 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
     // ....................................................
 
-    public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
+    public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, 
+                                                     @Nonnull FeedbackStream fbs)
+    {
         if (asArgs == null) return asArgs;
 
         ArgParser parser = new ArgParser("", false);
@@ -145,7 +151,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
                     throw new NumberFormatException();
                 setVolume(iVol / 100.0);
             } catch (NumberFormatException ex) {
-                fbs.printlnWarn(I18N.S("Ignoring invalid volume {0}", vol.value)); // I18N
+                fbs.printlnWarn(I.CMD_IGNORING_INVALID_VOLUME(vol.value));
             }
         }
 
@@ -154,30 +160,32 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
             if (fmt != null) {
                 setContainerForamt(fmt);
             } else {
-                fbs.printlnWarn(I18N.S("Ignoring invalid format {0}", audfmt.value)); // I18N
+                fbs.printlnWarn(I.CMD_IGNORING_INVALID_FORMAT(audfmt.value));
             }
         }
 
         return asRemain;
     }
 
-    public void printHelp(FeedbackStream fbs) {
+    public void printHelp(@Nonnull FeedbackStream fbs) {
         TabularFeedback tfb = new TabularFeedback();
 
         tfb.setRowSpacing(1);
 
-        tfb.print("-audfmt,-af <format>").tab().print("Output audio format (default wav). Options: ") // I18N
-                .indent().print(JavaAudioFormat.getCmdLineList());
+        tfb.print(I.CMD_AUDIO_AF()).tab().print(I.CMD_AUDIO_AF_HELP(JavaAudioFormat.getAudioFormats()[0].getExtension()));
+        tfb.indent();
+        for (JavaAudioFormat audioFormat : JavaAudioFormat.getAudioFormats()) {
+            tfb.ln().print(new UnlocalizedMessage(audioFormat.getExtension()));
+        }
         tfb.newRow();
 
-        tfb.print("-vol <0-100>").tab().print("Adjust volume (default 100)."); // I18N
+        tfb.print(I.CMD_AUDIO_VOL()).tab().print(I.CMD_AUDIO_VOL_HELP(100));
 
         tfb.write(fbs);
     }
 
-    public IDiscItemSaver makeSaver(File directory) {
-        return new AudioSaver(_audItem,
-                directory,
+    public @Nonnull IDiscItemSaver makeSaver(@CheckForNull File directory) {
+        return new AudioSaver(_audItem, directory,
                 new File(_audItem.getSuggestedBaseName().getPath() + "." + getExtension()),
                 _containerFormat, _dblVolume);
     }

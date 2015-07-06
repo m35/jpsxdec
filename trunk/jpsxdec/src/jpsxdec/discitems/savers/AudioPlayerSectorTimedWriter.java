@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,30 +38,43 @@
 package jpsxdec.discitems.savers;
 
 import java.io.IOException;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.ISectorAudioDecoder.ISectorTimedAudioWriter;
 
-/** Wraps {@link AudioPlayer} with a 
+/** Wraps {@link MediaPlayer} with a
  * {@link ISectorTimedAudioWriter} interface
  * and keeps the audio in sync with its presentation sector. */
 public class AudioPlayerSectorTimedWriter implements ISectorAudioDecoder.ISectorTimedAudioWriter {
 
+    @Nonnull
     private final MediaPlayer _player;
-    private AudioSync _audioSync;
+    @Nonnull
+    private final AudioSync _audioSync;
 
     private final int _iFrameSize;
 
     private long _lngSamplesWritten = 0;
 
-    public AudioPlayerSectorTimedWriter(MediaPlayer dataLine, int iMovieStartSector, int iSectorsPerSecond, int iSamplesPerSecond) {
+    public AudioPlayerSectorTimedWriter(@Nonnull MediaPlayer dataLine, int iMovieStartSector,
+                                        int iSectorsPerSecond, int iSamplesPerSecond)
+    {
         _player = dataLine;
-        _iFrameSize = _player.getAudioFormat().getFrameSize();
+        AudioFormat fmt = _player.getAudioFormat();
+        if (fmt == null)
+            throw new IllegalArgumentException("Media player without audio passed to AudioPlayerSectorTimedWriter");
+        _iFrameSize = fmt.getFrameSize();
 
         _audioSync = new AudioSync(iMovieStartSector, iSectorsPerSecond, iSamplesPerSecond);
     }
 
-    public void write(AudioFormat inFormat, byte[] abData, int iOffset, int iLength, int iPresentationSector) throws IOException {
+    public void write(@Nonnull AudioFormat inFormat,
+                      @Nonnull byte[] abData, int iOffset, int iLength,
+                      int iPresentationSector)
+            throws IOException
+    {
+        // already confirmed that _player has an audio format
         if (!inFormat.matches(_player.getAudioFormat()))
             throw new IllegalArgumentException("Incompatable audio format.");
         if (iLength % _iFrameSize != 0)

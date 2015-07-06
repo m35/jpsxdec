@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,15 +38,21 @@
 package jpsxdec.formats;
 
 import java.util.ArrayList;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioSystem;
 
 /** Keeps track of Java framework's audio formats. */
 public class JavaAudioFormat {
 
+    @Nonnull
     private final AudioFileFormat.Type _audioType;
+    @Nonnull
     private final String _sId;
+    @Nonnull
     private final String _sDescription;
+    @Nonnull
     private final String _sExtension;
     private final boolean _blnIsAvailable;
 
@@ -56,7 +62,7 @@ public class JavaAudioFormat {
     private final static JavaAudioFormat AIFC = new JavaAudioFormat(AudioFileFormat.Type.AIFC);
     private final static JavaAudioFormat SND  = new JavaAudioFormat(AudioFileFormat.Type.SND);
 
-    private JavaAudioFormat(AudioFileFormat.Type audioType) {
+    private JavaAudioFormat(@Nonnull AudioFileFormat.Type audioType) {
         _audioType = audioType;
         _sId = audioType.toString();
         _sDescription = audioType.toString().toLowerCase();
@@ -68,23 +74,30 @@ public class JavaAudioFormat {
         return _blnIsAvailable;
     }
 
+    public @Nonnull AudioFileFormat.Type getJavaType() {
+        return _audioType;
+    }
+
+    public @Nonnull String getExtension() {
+        return _sExtension;
+    }
+
     @Override
     public String toString() {
         return "." + _sExtension;
     }
 
-    public AudioFileFormat.Type getJavaType() {
-        return _audioType;
-    }
-    
-    //-------------------------------
+    //-----------------------------------------------------------------
+    // static
 
-    public static JavaAudioFormat getDefaultAudioFormat() {
-        return AUDIO_FORMATS[0];
+    public static @Nonnull JavaAudioFormat getDefaultAudioFormat() {
+        return getAudioFormats()[0];
     }
 
+    @CheckForNull
     private static JavaAudioFormat[] AUDIO_FORMATS;
-    public static JavaAudioFormat[] getAudioFormats() {
+    /** The length of returned array is guaranteed to not be empty.. */
+    public static @Nonnull JavaAudioFormat[] getAudioFormats() {
         if (AUDIO_FORMATS != null) return AUDIO_FORMATS;
         
         ArrayList<JavaAudioFormat> javaAudFmts = new ArrayList<JavaAudioFormat>();
@@ -100,30 +113,18 @@ public class JavaAudioFormat {
         if (SND.isAvailable())
             javaAudFmts.add(SND);
 
+        if (javaAudFmts.isEmpty())
+            throw new ExceptionInInitializerError("JVM unable to save any audio formats");
+
         return AUDIO_FORMATS = javaAudFmts.toArray(new JavaAudioFormat[javaAudFmts.size()]);
     }
 
-    public static String getCmdLineList() {
-        StringBuilder sb = new StringBuilder();
-        for (JavaAudioFormat fmt : getAudioFormats()) {
-            if (sb.length() > 0) {
-                sb.append(", ");
-            }
-            sb.append(fmt.getExtension());
-        }
-        return sb.toString();
-    }
-
-    public static JavaAudioFormat fromCmdLine(String s) {
+    public static @CheckForNull JavaAudioFormat fromCmdLine(@Nonnull String s) {
         for (JavaAudioFormat fmt : getAudioFormats()) {
             if (fmt.getExtension().equalsIgnoreCase(s))
                 return fmt;
         }
         return null;
-    }
-
-    public String getExtension() {
-        return _sExtension;
     }
 
 }

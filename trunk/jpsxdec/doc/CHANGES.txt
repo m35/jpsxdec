@@ -1,3 +1,23 @@
+v0.99.5 rev3006 (5 Jul 2015)
+    - Spanish translation provided by Víctor González
+    - Index format changed, indexes need to be regenerated
+    Bug fixes:
+    - Indexing fails if XA sector channel = 255 (JPSXDEC-6 reported by truston)
+    - More forgiving FF8 audio detection (JPSXDEC-8 reported by truston)
+    - Tim items duplicated when loading index
+    - Infinite loop during encoding
+    - Encoding writing invalid quantization scale
+    - STRv3 DC encoding error
+    - Message format and type mismatch
+    - replace.xml file name parsing error
+    - JPEG writes bad data for high energy blocks
+    - Various possible null pointer exceptions
+    - various other bug fixes
+    Internal:
+    - Localization overhaul
+    Known Problems:
+    - Some .iki frame rate detection is wrong
+    - Audio + Video playback on Linux might be choppy or not display
 v0.99.4 rev2859 (27 Sep 2014)
     - New frame numbering and lookup options (see manual)
         . Frame index number now used by default

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.discitems.psxvideoencode;
 
 import java.io.File;
 import java.io.IOException;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 
 public class SectorCopy {
@@ -50,7 +51,10 @@ public class SectorCopy {
 
         sectorCopy(args[0], args[1], Integer.parseInt(args[2]));
     }
-    public static void sectorCopy(String sSource, String sDest, int iStartSector) throws IOException {
+    public static void sectorCopy(@Nonnull String sSource, @Nonnull String sDest,
+                                  int iStartSector)
+            throws IOException
+    {
         
         CdFileSectorReader src = new CdFileSectorReader(new File(sSource));
         CdFileSectorReader dest = new CdFileSectorReader(new File(sDest), true);
@@ -74,6 +78,4 @@ public class SectorCopy {
         
     }
 
-
- 
 }

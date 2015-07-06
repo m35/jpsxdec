@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,6 +50,8 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
@@ -84,7 +86,7 @@ import jpsxdec.util.NotThisTypeException;
  * the absence of any ISO9660 file system. Unfortunately it will prevent
  * identifying Judge Dredd sectors on other disc images (which probably has
  * happened). */
-public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSector {
+public class SectorDreddVideo extends SectorAbstractVideo {
 
     private static final Logger LOG = Logger.getLogger(SectorDreddVideo.class.toString());
 
@@ -97,10 +99,13 @@ public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSecto
     private static final int FIRST_SECTOR_TYPE_B = 230016;
 
     /** A sorted list of sectors containing Judge Dredd video data. */
+    @CheckForNull
     private static final int[] SECTOR_LIST;
     /** The corresponding frame numbers of the sectors found in {@link #SECTOR_LIST}. */
+    @CheckForNull
     private static final short[] FRAME_LIST;
     /** The corresponding chunk numbers of the sectors found in {@link #SECTOR_LIST}. */
+    @CheckForNull
     private static final byte[] CHUNK_LIST;
     
     static {
@@ -119,6 +124,8 @@ public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSecto
                 int iSize = 0;
                 while ((sLine = reader.readLine()) != null) {
                     int[] aiParts = Misc.splitInt(sLine, "\t");
+                    if (aiParts == null)
+                        throw new IOException("Invalid line " + sLine);
                     aiSectorList[iSize] = aiParts[0];
                     asiFrameList[iSize] = (short) aiParts[1];
                     abChunkList[iSize] = (byte) aiParts[2];
@@ -135,7 +142,7 @@ public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSecto
                 throw new RuntimeException("Error loading Judge Dredd textual lookup table", ex);
             } finally {
                 try { is.close(); } catch (IOException ex) {
-                    Logger.getLogger(SectorDreddVideo.class.getName()).log(Level.SEVERE, null, ex);
+                    LOG.log(Level.SEVERE, null, ex);
                 }
             }
         } else {
@@ -176,7 +183,7 @@ public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSecto
                     throw new RuntimeException(ex);
                 } finally {
                     try { is.close(); } catch (IOException ex) {
-                        Logger.getLogger(SectorDreddVideo.class.getName()).log(Level.SEVERE, null, ex);
+                        LOG.log(Level.SEVERE, null, ex);
                     }
                 }
             }
@@ -194,7 +201,7 @@ public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSecto
     /** Dredd sector header size is either 4 or 44. */
     private int _iHeaderSize;
 
-    public SectorDreddVideo(CdSector cdSector) {
+    public SectorDreddVideo(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
         
@@ -253,7 +260,7 @@ public class SectorDreddVideo extends SectorAbstractVideo implements IVideoSecto
         setProbability(50);
     }
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "Dredd";
     }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,8 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
+
 /** For audio sectors in Square games: FF8, FF9, and Chrono Cross. 
  *  Used by SquareAudioPullDemuxerDecoderIS, and PSXMedia playing. */
 public interface ISquareAudioSector extends IIdentifiedSector {
@@ -62,6 +64,6 @@ public interface ISquareAudioSector extends IIdentifiedSector {
     /** The chunk number of this audio sector (either 0 or 1). */
     int getAudioChunkNumber();
     
-    boolean matchesPrevious(ISquareAudioSector oPrevSect);
+    boolean matchesPrevious(@Nonnull ISquareAudioSector prevSect);
     
 }

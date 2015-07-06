@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,9 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
+import jpsxdec.util.IncompatibleException;
+
 /** Interface that should be implemented by all video sector classes. */
 public interface IVideoSector extends IIdentifiedSector {
     
@@ -46,7 +49,7 @@ public interface IVideoSector extends IIdentifiedSector {
 
     /** Copies the identified user data portion of the sector data to the
      *  output buffer. */
-    void copyIdentifiedUserData(byte[] abOut, int iOutPos);
+    void copyIdentifiedUserData(@Nonnull byte[] abOut, int iOutPos);
 
     /** Confirms that the demuxed bitstream data is compatible with the sector,
      * then modifies the sector data and demuxed bitstream data to be correct
@@ -54,7 +57,8 @@ public interface IVideoSector extends IIdentifiedSector {
      * 
      * @return Video frame sector header size.
      */
-    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
-                                int iMdecCodeCount, byte[] abSectUserData);
+    int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
+                                        int iMdecCodeCount, @Nonnull byte[] abSectUserData)
+            throws IncompatibleException;
 
 }

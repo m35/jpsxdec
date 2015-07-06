@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,8 +44,10 @@ import java.util.HashMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.indexing.DiscIndex;
@@ -54,18 +56,19 @@ import jpsxdec.sectors.UnidentifiedSector;
 
 
 class Command_Visualize extends Command {
+    @Nonnull
     private String _sOutfile;
 
     public Command_Visualize() {
         super("-visualize");
     }
 
-    protected LocalizedMessage validate(String s) {
+    protected @CheckForNull LocalizedMessage validate(@Nonnull String s) {
         _sOutfile = s;
         return null;
     }
 
-    public void execute(String[] asRemainingArgs) throws CommandLineException {
+    public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
         DiscIndex index = getIndex();
         CdFileSectorReader cd = index.getSourceCd();
         FileOutputStream pdfStream = null;
@@ -85,7 +88,7 @@ class Command_Visualize extends Command {
              *
              * summarize to just the important data-points
              */
-            _fbs.println(I18N.S("Generating visualization")); // I18N
+            _fbs.println(I.CMD_GENERATING_VISUALIZATION());
             int[] aiDataPoints = extractDataPoints(index);
             // pre-determine the tree-area width based on max point of overalpping items
             int iMaxOverlap = findMaxOverlap(aiDataPoints, index);
@@ -119,7 +122,7 @@ class Command_Visualize extends Command {
                     pdfBox.setColor(aiRgb);
                     pdfBox.drawOn(pdfPage);
                 } catch (IOException ex) {
-                    ex.printStackTrace();
+                    ex.printStackTrace(); // TODO?
                 }
             }
             DiscItem[] aoRunningItems = new DiscItem[iMaxOverlap];
@@ -171,7 +174,7 @@ class Command_Visualize extends Command {
             }
             pdf.flush();
         } catch (Exception ex) {
-            throw new CommandLineException(ex, "Error creating or writing the visualization"); // I18N
+            throw new CommandLineException(I.CMD_VISUALIZATION_ERR(), ex);
         } finally {
             if (pdfStream != null) try {
                 pdfStream.close();
@@ -183,7 +186,7 @@ class Command_Visualize extends Command {
 
     private final HashMap<Class, Color> colorLookup = new HashMap<Class, Color>();
 
-    private Color classToColor(Class c) {
+    private @Nonnull Color classToColor(@Nonnull Class c) {
         Color color = colorLookup.get(c.getClass());
         if (color == null) {
             int iClr = c.getName().hashCode();
@@ -193,7 +196,7 @@ class Command_Visualize extends Command {
         return color;
     }
 
-    private static int findFree(Object[] ao) {
+    private static int findFree(@Nonnull Object[] ao) {
         for (int i = 0; i < ao.length; i++) {
             if (ao[i] == null)
                 return i;
@@ -201,7 +204,7 @@ class Command_Visualize extends Command {
         return -1;
     }
 
-    private static int[] extractDataPoints(DiscIndex index) {
+    private static @Nonnull int[] extractDataPoints(@Nonnull DiscIndex index) {
         TreeSet<Integer> dataPoints = new TreeSet<Integer>();
         for (DiscItem item : index) {
             dataPoints.add(item.getStartSector());
@@ -217,7 +220,7 @@ class Command_Visualize extends Command {
         return aiDataPoints;
     }
 
-    private static int findMaxOverlap(int[] aiDataPoints, DiscIndex index) {
+    private static int findMaxOverlap(@Nonnull int[] aiDataPoints, @Nonnull DiscIndex index) {
         int iMaxOverlap = 0;
         for (int iSector : aiDataPoints) {
             int iSectorOverlap = 0;

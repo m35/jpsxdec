@@ -1,0 +1,72 @@
+Usage:
+
+java -jar jpsxdec.jar [ <in_file> or <index_file> ]
+  Show GUI, optionally opening an <in_file> or <index_file> (auto detected)
+
+java -jar jpsxdec.jar <-?, -h, -help>
+  Display this help
+
+java -jar jpsxdec.jar -f <in_file> -x <index_file>
+  Build an index of <in_file> and save it as <index_file>
+
+java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
+  Main commands that require an index file.
+  Use an existing <index_file> (optionally overriding the <in_file> listed in
+  it) or generate an index on the fly for <in_file> (optionally saving it as
+  <index_file>) and perform one of the following <main_command_and_options>
+
+    -item/-i <#, id> <item_command_and_options>
+    -all/-a <video, audio, image, file> <item_command_and_options>
+      Perform <item_command_and_options> on one index item,
+      or all index items of a type (audio, video, file, image)
+
+        If no other command is specified:
+          Extracts index item using optional processing options 
+          (see item's help for options)
+
+        -help/-h/-?
+          Display help about the index item
+
+        -play
+          Show real-time player for index item (audio/video items only)
+
+        (see manual or item's help for full list of possible commands)
+
+    -visualize <pdf_out_file>
+      Display the layout of sectors and index items
+
+java -jar -f <in_file> <main_command_and_options>
+  Main commands that only require an input file
+
+    -copysect <#, #-#>
+      Copy sectors to a another file
+
+    -sectordump <out_file>
+      Write list of sector types to <out_file> (for debugging)
+
+    -static <tim, bs, mdec> <bs_mdec_options>
+        For bs or mdec (no additional options for tim):
+
+        -dim <width>x<height>
+          Frame dimensions (required)
+
+        -quality/-q <low, high, psx>
+          Decoding quality (default high).
+
+        -fmt <mdec, png, bmp, jpg>
+          Output format (default png).
+
+        -up <upsampling>
+          Chroma upsampling method (default Bicubic).
+          Options: NearestNeighbor, Bilinear, Bicubic, Bell, 
+                   Mitchell, BSpline, Lanczos3, Hermite
+
+        -debug
+          Show detailed decoding steps (needs Java started with -ea)
+
+Universal option (optional):
+    -verbose/-v #
+    How much info to print:
+      0 = none, 1 = only errors, 2 = errors & warnings, 3 = normal, 4 = extra
+
+For all command-line options, see the manual.

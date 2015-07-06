@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,8 @@ package jpsxdec.indexing;
 
 import java.util.Collection;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSquareAudioStream;
 import jpsxdec.discitems.SerializedDiscItem;
@@ -53,23 +55,25 @@ public class DiscIndexerSquare extends DiscIndexer implements DiscIndexer.Identi
     private long _lngAudioLeftSampleCount;
     private long _lngAudioRightSampleCount;
 
+    @CheckForNull
     private ISquareAudioSector _prevAudioSect;
 
     private int _iPrevLeftAudioSectorNum = -1;
     /** -1 indicates no period has been calculated yet. */
     private int _iLeftAudioPeriod = -1;
 
+    @Nonnull
     private Logger _errLog;
 
-    public DiscIndexerSquare(Logger errLog) {
+    public DiscIndexerSquare(@Nonnull Logger errLog) {
         _errLog = errLog;
     }
 
     @Override
-    public DiscItem deserializeLineRead(SerializedDiscItem fields) {
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
         try {
             if (DiscItemSquareAudioStream.TYPE_ID.equals(fields.getType())) {
-                return new DiscItemSquareAudioStream(fields);
+                return new DiscItemSquareAudioStream(getCd(), fields);
             }
         } catch (NotThisTypeException ex) {}
         return null;
@@ -79,7 +83,7 @@ public class DiscIndexerSquare extends DiscIndexer implements DiscIndexer.Identi
      * All known games that use Square audio run their streaming media at 2x
      * speed.
      */
-    public void indexingSectorRead(IdentifiedSector identifiedSector) {
+    public void indexingSectorRead(@Nonnull IdentifiedSector identifiedSector) {
         if (!(identifiedSector instanceof ISquareAudioSector))
             return;
 
@@ -106,6 +110,7 @@ public class DiscIndexerSquare extends DiscIndexer implements DiscIndexer.Identi
             if (_prevAudioSect != null) {
                 // submit the audio stream that just ended
                 super.addDiscItem(new DiscItemSquareAudioStream(
+                    getCd(),
                     _iAudioStartSector, _prevAudioSect.getSectorNumber(),
                     _lngAudioLeftSampleCount, _lngAudioRightSampleCount,
                     _prevAudioSect.getSamplesPerSecond(), _iLeftAudioPeriod - 2));
@@ -128,6 +133,7 @@ public class DiscIndexerSquare extends DiscIndexer implements DiscIndexer.Identi
         if (_prevAudioSect != null) {
             // submit the audio stream
             super.addDiscItem(new DiscItemSquareAudioStream(
+                getCd(),
                 _iAudioStartSector, _prevAudioSect.getSectorNumber(),
                 _lngAudioLeftSampleCount, _lngAudioRightSampleCount,
                 _prevAudioSect.getSamplesPerSecond(), _iLeftAudioPeriod - 2));

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,8 +48,7 @@ class HuffmanTable {
                                                HuffmanTable[] aoDcHuffmanTables,
                                                HuffmanTable[] aoAcHuffmanTables)
     {
-        for (int i = 0; i < aoDhtTables.length; i++) {
-            HuffmanTable dhtTable = aoDhtTables[i];
+        for (HuffmanTable dhtTable : aoDhtTables) {
             if (dhtTable._iTableType == 0) {
                 aoDcHuffmanTables[dhtTable.getIndex()] = dhtTable;
             } else {
@@ -234,10 +233,13 @@ class HuffmanTable {
         if (iDcDiff < 0) {
             int iAbsDcDiff = -iDcDiff;
             int iBitSize = highest1bitPosition(iAbsDcDiff);
+            assert iBitSize <= 11;
             out.write(_aiHuffCodes[iBitSize], _aiHuffCodesSize[iBitSize]);
-            out.write((0xFFFFFF - iAbsDcDiff) & ((1 << iBitSize) - 1), iBitSize);
+            int iAbsDcDiffMask = ((1 << iBitSize) - 1);
+            out.write((0xFFFFFF - iAbsDcDiff) & iAbsDcDiffMask, iBitSize);
         } else {
             int iBitSize = highest1bitPosition(iDcDiff);
+            assert iBitSize <= 11;
             out.write(_aiHuffCodes[iBitSize], _aiHuffCodesSize[iBitSize]);
             if (iBitSize != 0) {
                 out.write(iDcDiff, iBitSize);
@@ -272,6 +274,7 @@ class HuffmanTable {
                 } else {
                     iBitCount = highest1bitPosition(iAc);
                 }
+                assert iBitCount <= 10; // should have been caught during MDEC read phase
                 int iCode = (iZeroRun << 4) | iBitCount;
                 out.write(_aiHuffCodes[iCode], _aiHuffCodesSize[iCode]);
                 out.write(iAc, iBitCount);

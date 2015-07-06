@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -79,5 +79,14 @@ public class Util {
         Field field = instance.getClass().getDeclaredField(sField);
         field.setAccessible(true);
         return field.get(instance);
+    }
+
+     public static void setField(Object instance, String sField, Object value)
+             throws SecurityException, NoSuchFieldException, ClassNotFoundException,
+                    IllegalArgumentException, IllegalAccessException
+     {
+        Field field = instance.getClass().getDeclaredField(sField);
+        field.setAccessible(true);
+        field.set(instance, value);
     }
 }

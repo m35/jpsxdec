@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="jpsxdec" default="release" basedir=".">
+<project name="jpsxdec" default="zip" basedir=".">
 
     <!-- Set JAVA_HOME to 1.5 jdk directory before running this build -->
 
@@ -7,95 +7,163 @@
         Build jPSXdec for releasing.
     </description>
 
-    <!-- global build properties -->
-    <property name="src.dir" location="src"/>
-    <property name="src-lgpl.dir" location="src-lgpl"/>
-    <property name="test.dir" location="test"/>
+    <!-- ====== global build properties ====== -->
+    
+    <property name="jpsxdec.ver" value="v0-99-5_rev3006"/>
 
-    <property name="testbuild.dir" location="test-build"/>
-    <property name="build.dir" location="release-build"/>
-    <property name="build-lgpl.dir" location="release-build-lgpl"/>
-    <property name="dist.dir"  location="release-dist"/>
-    <property name="javadoc.dir" location="release-javadoc"/>
+    <!-- sources -->
+    <property name="src.dir.rel"      location="src"      relative="true"/>
+    <property name="src-lgpl.dir.rel" location="src-lgpl" relative="true"/>
+    <property name="test.dir.rel"     location="test"     relative="true"/>
+    <property name="doc.dir.rel"      location="doc"      relative="true"/>
+    <property name="doc.dir.rel"      location="doc"      relative="true"/>
+
+    <property name="src.dir"      location="${src.dir.rel}"      />
+    <property name="src-lgpl.dir" location="${src-lgpl.dir.rel}" />
+    <property name="test.dir"     location="${test.dir.rel}"     />
+    <property name="doc.dir"      location="${doc.dir.rel}"      />
+
+    <property name="main.class" value="jpsxdec.Main" />
+    <property name="jpsxdec.manual" value="jPSXdec-manual.odt" />
+    <property name="jpsxdec.manual.pdf" value="jPSXdec-manual.pdf" />
+
+    <property name="resource.include.glob" value="**/*.dat,**/*.properties,**/*.png,**/*.gif" />
+    
+    <fileset dir="." id="release.include.files">
+        <include name="${doc.dir.rel}/*" />
+        <exclude name="${doc.dir.rel}/${jpsxdec.manual}" />
+        <include name="jpsxdec.exe" />
+    </fileset>
+    
+    <!-- build -->
+    
+    <property name="working.dir"    location="_ant"/>
+    
+    <property name="build.dir"      location="${working.dir}/build"/>
+    <property name="build-lgpl.dir" location="${working.dir}/build-lgpl"/>
+    <property name="testbuild.dir"  location="${working.dir}/build-test"/>
 
     <property name="javac.target.ver" value="1.5"/>
     <property name="javac.source.ver" value="1.5" />
-    
-    <property name="jar.file" value="jpsxdec.jar" />
+
+    <!-- output -->
+    <property name="release.dir"       location="${working.dir}/release"/>
+    <property name="jar.file"      value="jpsxdec.jar" />
     <property name="jar-lgpl.file" value="jpsxdec-lib.jar" />
-
-    <property name="main.class" value="jpsxdec.Main" />
-
-    <property name="resource.include.glob" value="**/*.dat,**/*.properties,**/*.png,**/*.gif" />
-    <fileset dir="." id="release.include.files">
-        <include name="doc/CHANGES.txt" />
-        <include name="doc/CREDITS.txt" />
-        <include name="doc/lgpl-2.1.txt" />
-        <include name="doc/apache-2.0.txt" />
-        <include name="doc/CDDL-GPL-2-CP.txt" />
-        <include name="doc/LICENSE.txt" />
-        <include name="jpsxdec.exe" />
-    </fileset>
+    <property name="javadoc.dir"    location="${working.dir}/javadoc"/>
+    <property name="zip.dir"        location="${working.dir}"/>
+    <property name="jpsxdec.manual.pdf.path" location="${release.dir}/${doc.dir.rel}/${jpsxdec.manual.pdf}"/>
+    
 
     <target name="init">
-        <echo message="Be sure to set JAVA_HOME to 1.5 jdk directory before building." />
+        <echo>Be sure to set JAVA_HOME to 1.5 jdk directory before building.</echo>
+        <echo>ant.java.version = ${ant.java.version}</echo>
+        <echo>java.specification.version = ${java.specification.version}</echo>
+        <echo>java.version = ${java.version}</echo>
     </target>
 
-    <target name="compile" depends="init" description="compile the source" >
-        <!-- Compile the java code in root source dirs, intermingling the .class files -->
-        <!-- In order to keep the class files separate so they can be grouped 
-             into separate jars, we can't specify a separate build directory -->
-        <javac srcdir="${src.dir}:${src-lgpl.dir}" includeantruntime="false"
+    <target name="compile-lgpl" depends="init" description="compile the LGPL source" >
+        <!-- Create the lgpl build directory -->
+        <mkdir dir="${build-lgpl.dir}"/>
+        <javac srcdir="${src-lgpl.dir}" destdir="${build-lgpl.dir}" includeantruntime="false"
             source="${javac.source.ver}" target="${javac.target.ver}"
-            encoding="UTF8" debug="true" />
-            
-        <!-- I don't want those class files littering the sources, so get them out immediately.
-             Unfortunately javac won't be able to do incremental builds because of this. -->
-        <move-class-copy-resources src.dir="${src.dir}" build.dir="${build.dir}" />
-        <move-class-copy-resources src.dir="${src-lgpl.dir}" build.dir="${build-lgpl.dir}" />
-    </target>
-    
-    <macrodef name="move-class-copy-resources">
-        <attribute name="src.dir"/>
-        <attribute name="build.dir"/>
-        <sequential>
-            <move todir="@{build.dir}" overwrite="true">
-                <fileset dir="@{src.dir}">
-                    <include name="**/*.class"/>
-                </fileset>
-            </move>
-            <copy todir="@{build.dir}" verbose="true">
-                <fileset dir="@{src.dir}" includes="${resource.include.glob}" />
-            </copy>
-        </sequential>
-    </macrodef>
-    
+            encoding="Cp1252" debug="true" />
 
-    <target name="release" depends="compile" description="generate the distribution" >
-    
+        <!-- Copy over resources -->
+        <copy todir="${build-lgpl.dir}" verbose="true">
+            <fileset dir="${src-lgpl.dir}" includes="${resource.include.glob}" />
+        </copy>
+    </target>
+
+    <target name="package-lgpl" depends="compile-lgpl" description="package the LGPL code" >
         <!-- Create the distribution directory -->
-        <mkdir dir="${dist.dir}"/>
+        <mkdir dir="${release.dir}"/>
+
+        <!-- Package the lgpl jar -->
+        <jar destfile="${release.dir}/${jar-lgpl.file}" basedir="${build-lgpl.dir}" compress="true" />
+    </target>
+
+
+    <target name="compile" depends="package-lgpl" description="compile the jPSXdec source" >
+        <!-- Create the build directory -->
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
+            source="${javac.source.ver}" classpath="${release.dir}/${jar-lgpl.file}"
+            target="${javac.target.ver}" encoding="Cp1252" debug="true" />
+            
+        <!-- Copy over resources -->
+        <copy todir="${build.dir}" verbose="true">
+            <fileset dir="${src.dir}" includes="${resource.include.glob}" />
+        </copy>
+    </target>
+
+    <target name="package" depends="compile" description="package the jPSXdec code" >
+        <!-- Create the distribution directory -->
+        <mkdir dir="${release.dir}"/>
 
         <!-- Create the main jar -->
-        <jar jarfile="${dist.dir}/${jar.file}" basedir="${build.dir}" compress="true">
+        <jar jarfile="${release.dir}/${jar.file}" basedir="${build.dir}" compress="true">
             <manifest>
                 <attribute name="Class-Path" value="${jar-lgpl.file}"/>
                 <attribute name="Main-Class" value="${main.class}"/>
             </manifest>
         </jar>
-        
-        <!-- Create the lgpl jar -->
-        <jar destfile="${dist.dir}/${jar-lgpl.file}" basedir="${build-lgpl.dir}" compress="true" />
-
-        <!-- Copy over the distribution files -->
-        <copy todir="${dist.dir}" verbose="true">
-            <fileset refid="release.include.files" />
-        </copy>
-        
-        <echo message="TODO: Manually create PDF of manual using Libre/OpenOffice"/>
     </target>
 
-    <target name="test" depends="release">
+    <target name="check-manual-converted" description="convert the manual to pdf using [Open|Libre]Office" >
+        <mkdir dir="${release.dir}/${doc.dir.rel}"/>
+        <available file="${jpsxdec.manual.pdf.path}" property="jpsxdec.manual.converted"/>
+        <fail unless="jpsxdec.manual.converted">
+Manually convert manual to pdf using [Open|Libre]Office to continue build
+    -Save as ${jpsxdec.manual.pdf.path}
+    -Use Lossless compression
+    -Do not reduce image resolution
+    -Export bookmarks
+    -Do not create PDF form
+    -Leave everything else default
+        </fail>
+    </target>
+
+    <target name="release" depends="package,check-manual-converted" description="finish the distribution" >
+        <!-- Copy over the distribution files -->
+        <copy todir="${release.dir}" verbose="true">
+            <fileset refid="release.include.files" />
+        </copy>
+    </target>
+
+    <target name="zip-src" description="zip the source files" >
+        <mkdir dir="${zip.dir}"/>
+        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}_src.zip" duplicate="fail">
+            <zipfileset prefix="jpsxdec_${jpsxdec.ver}_src" dir="." >
+                <include name="${doc.dir.rel}/**"/>
+                <include name="${src.dir.rel}/**"/>
+                <include name="${src-lgpl.dir.rel}/**"/>
+                <include name="${test.dir.rel}/**"/>
+            </zipfileset>
+            <zipfileset prefix="jpsxdec_${jpsxdec.ver}_src" dir="." includes="*" excludes="PlayStation1_STR_format.txt">
+                <type type="file"/>
+            </zipfileset>
+        </zip>        
+    </target>
+
+    <target name="zip-release" depends="release" description="zip the release files" >
+        <mkdir dir="${zip.dir}"/>
+        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}.zip" duplicate="fail">
+            <zipfileset prefix="jpsxdec_${jpsxdec.ver}" dir="${release.dir}"/>
+        </zip>        
+    </target>
+
+    <target name="zip-bin-src" depends="zip-src,release" description="make bin-src zip" >
+        <mkdir dir="${zip.dir}"/>
+        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}_bin_src.zip" duplicate="fail">
+            <zipfileset prefix="jpsxdec_${jpsxdec.ver}_bin_src" dir="${release.dir}"/>
+            <zipfileset prefix="jpsxdec_${jpsxdec.ver}_bin_src" dir="${zip.dir}" includes="jpsxdec_${jpsxdec.ver}_src.zip"/>
+        </zip>        
+    </target>
+    
+    <target name="zip" depends="zip-release,zip-src,zip-bin-src" description="zip all the things"></target>
+
+    <target name="test" depends="release" description="build and run tests (untested ;)">
         <mkdir dir="${testbuild.dir}"/>
         <javac srcdir="${test.dir}" destdir="${testbuild.dir}" debug="true"
                classpath="" includeantruntime="false"
@@ -127,17 +195,8 @@
     </target>
     
     <target name="clean" description="clean up" >
-        <!-- Delete the build and dist directories -->
-        <delete dir="${build.dir}"/>
-        <delete dir="${build-lgpl.dir}"/>
-        <delete dir="${dist.dir}"/>
-        <!-- Also clear out any leftover class files in case there was an error -->
-        <delete>
-            <fileset dir="${src.dir}" includes="**/*.class" />
-        </delete>
-        <delete>
-            <fileset dir="${src-lgpl.dir}" includes="**/*.class" />
-        </delete>
+        <!-- Delete all generated dirs -->
+        <delete dir="${working.dir}"/>
     </target>
 
 </project>

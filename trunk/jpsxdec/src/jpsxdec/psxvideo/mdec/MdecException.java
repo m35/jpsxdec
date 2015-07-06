@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,29 +37,23 @@
 
 package jpsxdec.psxvideo.mdec;
 
-import jpsxdec.LocalizedException;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.LocalizedException;
+import jpsxdec.i18n.LocalizedMessage;
 
 /** Superclass of the different MDEC conversion and bitstream exceptions. */
 public abstract class MdecException extends LocalizedException {
 
-    public MdecException(String msg) {
+    public MdecException(@Nonnull LocalizedMessage msg) {
         super(msg);
     }
 
-    public MdecException(Throwable cause) {
+    public MdecException(@Nonnull Throwable cause) {
         super(cause);
     }
 
-    public MdecException(Throwable cause, String message) {
-        super(cause, message);
-    }
-
-    public MdecException(String sMessage, Object... aoArguments) {
-        super(sMessage, aoArguments);
-    }
-
-    public MdecException(Throwable cause, String sMessage, Object... aoArguments) {
-        super(cause, sMessage, aoArguments);
+    public MdecException(@Nonnull LocalizedMessage msg, @Nonnull Throwable cause) {
+        super(msg, cause);
     }
 
     // =========================================================
@@ -68,64 +62,48 @@ public abstract class MdecException extends LocalizedException {
     /** Error related to reading from an MDEC stream. */
     public static class Read extends MdecException {
 
-        public Read(String message) {
+        public Read(@Nonnull LocalizedMessage message) {
             super(message);
         }
 
-        public Read(Throwable cause) {
+        public Read(@Nonnull Throwable cause) {
             super(cause);
         }
 
-        public Read(Throwable cause, String sMessage, Object... aoArguments) {
-            super(cause, sMessage, aoArguments);
+        public Read(@Nonnull LocalizedMessage msg, @Nonnull Throwable cause) {
+            super(msg, cause);
         }
 
-        public Read(String sMessage, Object... aoArguments) {
-            super(sMessage, aoArguments);
-        }
-        
     }
 
     /** Error related to decoding an MDEC stream. */
     public static class Decode extends Read {
 
-        public Decode(String message) {
+        public Decode(@Nonnull LocalizedMessage message) {
             super(message);
         }
 
-        public Decode(Throwable cause, String message) {
-            super(cause, message);
-        }
-
-        public Decode(Throwable cause) {
+        public Decode(@Nonnull Throwable cause) {
             super(cause);
         }
 
-        public Decode(String sMessage, Object... aoArguments) {
-            super(sMessage, aoArguments);
+        public Decode(@Nonnull LocalizedMessage message, @Nonnull Throwable cause) {
+            super(message, cause);
         }
-        
-        public Decode(Throwable cause, String sMessage, Object... aoArguments) {
-            super(cause, sMessage, aoArguments);
-        }
-        
+
     }
 
     /** Error related to uncompressing an MDEC bitstream. */
     public static class Uncompress extends Read {
 
-        public Uncompress(String message) {
+        public Uncompress(@Nonnull LocalizedMessage message) {
             super(message);
         }
 
-        public Uncompress(Throwable cause) {
+        public Uncompress(@Nonnull Throwable cause) {
             super(cause);
         }
 
-        public Uncompress(String sMessage, Object... aoArguments) {
-            super(sMessage, aoArguments);
-        }
-        
     }
 
     // ======================================================================
@@ -133,43 +111,32 @@ public abstract class MdecException extends LocalizedException {
     /** Error related to writing to an MDEC stream. */
     public static class Write extends MdecException {
 
-        public Write(String message) {
+        public Write(@Nonnull LocalizedMessage message) {
             super(message);
         }
 
-        public Write(Exception cause) {
+        public Write(@Nonnull Exception cause) {
             super(cause);
         }
 
-        public Write(String sMessage, Object... aoArguments) {
-            super(sMessage, aoArguments);
-        }
-        
     }
 
     /** Error related to encoding to an MDEC stream. */
     public static class Encode extends Write {
 
-        public Encode(String message) {
+        public Encode(@Nonnull LocalizedMessage message) {
             super(message);
         }
 
-        public Encode(String sMessage, Object... aoArguments) {
-            super(sMessage, aoArguments);
-        }
-        
     }
 
     /** Error related to compressing an MDEC bitstream. */
     public static class Compress extends Write {
 
-        public Compress(String message) {
+        public Compress(@Nonnull LocalizedMessage message) {
             super(message);
         }
 
-        public Compress(String sMessage, Object... aoArguments) {
-            super(sMessage, aoArguments);
-        }
     }
 
     /** A specific type of bitstream compression failure
@@ -179,12 +146,8 @@ public abstract class MdecException extends LocalizedException {
      * but is a general concept among video bitstream encoders (e.g. MPEG1). */
     public static class TooMuchEnergyToCompress extends Compress {
 
-        public TooMuchEnergyToCompress(String message) {
+        public TooMuchEnergyToCompress(@Nonnull LocalizedMessage message) {
             super(message);
-        }
-
-        public TooMuchEnergyToCompress(String sMessage, Object... aoArguments) {
-            super(sMessage, aoArguments);
         }
 
     }

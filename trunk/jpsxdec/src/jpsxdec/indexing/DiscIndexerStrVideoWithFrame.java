@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,6 +43,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemStrVideoStream;
 import jpsxdec.discitems.DiscItemStrVideoWithFrame;
@@ -63,26 +66,27 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer implements DiscInd
 
     private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemStrVideoWithFrame> {
 
-        public VideoStreamIndex(Logger errLog, IVideoSectorWithFrameNumber vidSect) {
-            super(errLog, (IdentifiedSector)vidSect, true);
-
-            initDemuxer(new DiscItemStrVideoWithFrame.Demuxer(
+        public VideoStreamIndex(@Nonnull CdFileSectorReader cd, @Nonnull Logger errLog,
+                                @Nonnull IVideoSectorWithFrameNumber vidSect)
+        {
+            super(cd, errLog, (IdentifiedSector)vidSect, true,
+                  new DiscItemStrVideoWithFrame.Demuxer(
                                 vidSect.getSectorNumber(), Integer.MAX_VALUE,
-                                vidSect.getWidth(), vidSect.getHeight()),
-                        (IdentifiedSector)vidSect);
+                                vidSect.getWidth(), vidSect.getHeight()));
         }
 
         @Override
         protected DiscItemStrVideoWithFrame createVideo(int iStartSector, int iEndSector,
                                                         int iWidth, int iHeight,
                                                         int iFrameCount,
-                                                        FrameNumberFormat frameNumberFormat,
-                                                        FrameNumber startFrame,
-                                                        FrameNumber lastSeenFrameNumber,
+                                                        @Nonnull FrameNumberFormat frameNumberFormat,
+                                                        @Nonnull FrameNumber startFrame,
+                                                        @Nonnull FrameNumber lastSeenFrameNumber,
                                                         int iSectors, int iPerFrame,
                                                         int iFrame1PresentationSector)
         {
             return new DiscItemStrVideoWithFrame(
+                    _cd,
                     iStartSector, iEndSector,
                     iWidth, iHeight,
                     iFrameCount,
@@ -94,25 +98,27 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer implements DiscInd
     }
 
 
+    @Nonnull
     private final Logger _errLog;
+    @CheckForNull
     private VideoStreamIndex _currentStream;
     private final Collection<DiscItemStrVideoWithFrame> _completedVideos = new ArrayList<DiscItemStrVideoWithFrame>();
 
-    public DiscIndexerStrVideoWithFrame(Logger errLog) {
+    public DiscIndexerStrVideoWithFrame(@Nonnull Logger errLog) {
         _errLog = errLog;
     }
 
     @Override
-    public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine) {
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
         try {
-            if (DiscItemStrVideoWithFrame.TYPE_ID.equals(deserializedLine.getType())) {
-                return new DiscItemStrVideoWithFrame(deserializedLine);
+            if (DiscItemStrVideoWithFrame.TYPE_ID.equals(fields.getType())) {
+                return new DiscItemStrVideoWithFrame(getCd(), fields);
             }
         } catch (NotThisTypeException ex) {}
         return null;
     }
 
-    public void indexingSectorRead(IdentifiedSector sector) {
+    public void indexingSectorRead(@Nonnull IdentifiedSector sector) {
         if (!(sector instanceof IVideoSectorWithFrameNumber))
             return;
 
@@ -130,7 +136,7 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer implements DiscInd
             }
         }
         if (_currentStream == null) {
-            _currentStream = new VideoStreamIndex(_errLog, vidSect);
+            _currentStream = new VideoStreamIndex(getCd(), _errLog, vidSect);
         }
     }
 
@@ -147,13 +153,13 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer implements DiscInd
     }
 
     @Override
-    public void listPostProcessing(Collection<DiscItem> allItems) {
+    public void listPostProcessing(@Nonnull Collection<DiscItem> allItems) {
         if (_completedVideos.size() > 0)
             audioSplit(_completedVideos, allItems);
     }
 
-    static void audioSplit(Collection<? extends DiscItemStrVideoStream> videos,
-                           Collection<DiscItem> allItems)
+    static void audioSplit(@Nonnull Collection<? extends DiscItemStrVideoStream> videos,
+                           @Nonnull Collection<DiscItem> allItems)
     {
         List<DiscItemXaAudioStream> added = new ArrayList<DiscItemXaAudioStream>();
 

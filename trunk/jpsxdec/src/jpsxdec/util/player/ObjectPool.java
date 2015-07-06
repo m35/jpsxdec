@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,24 +40,27 @@ package jpsxdec.util.player;
 import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import javax.annotation.Nonnull;
 
 public abstract class ObjectPool<T> {
 
     private int _iBalance = 0;
 
+    @Nonnull
     private final Queue<T> _objects;
 
     public ObjectPool() {
-        this._objects = new ConcurrentLinkedQueue<T>();
+        _objects = new ConcurrentLinkedQueue<T>();
     }
 
-    public ObjectPool(Collection<? extends T> objects) {
-        this._objects = new ConcurrentLinkedQueue<T>(objects);
+    public ObjectPool(@Nonnull Collection<? extends T> objects) {
+        _objects = new ConcurrentLinkedQueue<T>(objects);
     }
 
+    @Nonnull
     protected abstract T createNewObject();
 
-    public T borrow() {
+    public @Nonnull T borrow() {
         T t;
         if ((t = _objects.poll()) == null) {
             t = createNewObject();
@@ -66,8 +69,8 @@ public abstract class ObjectPool<T> {
         return t;
     }
 
-    public void giveBack(T object) {
-        this._objects.offer(object);   // no point to wait for free space, just return
+    public void giveBack(@Nonnull T object) {
+        boolean blnIgnored = _objects.offer(object);   // no point to wait for free space, just return
         _iBalance--;
         if (_iBalance == 0) {
             //System.err.println("Object pool balanced.");

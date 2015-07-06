@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,26 +41,34 @@ import java.awt.Dimension;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.List;
-import jpsxdec.I18N;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.discitems.IDiscItemSaver;
 
 public class SavingGui extends javax.swing.JDialog implements PropertyChangeListener {
 
     private STATES _eState = STATES.NotStarted;
+    @Nonnull
     private SavingGuiTask _saveAll;
 
-    public SavingGui(java.awt.Dialog parent, List<IDiscItemSaver> savers, String sCd) {
+    public SavingGui(@Nonnull java.awt.Dialog parent, @Nonnull List<IDiscItemSaver> savers,
+                     @Nonnull String sCd)
+    {
         super(parent, true);
         sharedConstructor(parent, savers, sCd);
     }
 
-    public SavingGui(java.awt.Frame parent, List<IDiscItemSaver> savers, String sCd) {
+    public SavingGui(@Nonnull java.awt.Frame parent, @Nonnull List<IDiscItemSaver> savers,
+                     @Nonnull String sCd)
+    {
         super(parent, true);
         sharedConstructor(parent, savers, sCd);
     }
 
-    private void sharedConstructor(java.awt.Window parent,
-                                   List<IDiscItemSaver> savers, String sCd)
+    private void sharedConstructor(@Nonnull java.awt.Window parent,
+                                   @Nonnull List<IDiscItemSaver> savers,
+                                   @Nonnull String sCd)
     {
         initComponents();
 
@@ -86,21 +94,17 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
         Ended;
     }
 
-    public void propertyChange(PropertyChangeEvent evt) {
+    public void propertyChange(@Nonnull PropertyChangeEvent evt) {
         if (SavingGuiTask.ALL_DONE.equals(evt.getPropertyName())) {
             _eState = STATES.Ended;
-            _guiStartCancelCloseBtn.setText(I18N.S("Close")); // I18N
+            _guiStartCancelCloseBtn.setText(I.GUI_CLOSE_BTN().getLocalizedMessage());
             _guiStartCancelCloseBtn.setEnabled(true);
-            String sResult;
+            LocalizedMessage result;
             if (_saveAll.isCancelled())
-                sResult = I18N.S("Canceled"); // I18N
+                result = I.GUI_SAVE_STATUS_OVERALL_CANCELED(_saveAll._progressLog.getFileName());
             else
-                sResult = I18N.S("Complete"); // I18N
-            if (_saveAll._progressLog.getFileName() == null) {
-                _guiResultLbl.setText(sResult);
-            } else {
-                _guiResultLbl.setText(I18N.S("{0} | See {1} for details", sResult, _saveAll._progressLog.getFileName())); // I18N
-            }
+                result = I.GUI_SAVE_STATUS_OVERALL_COMPLETE(_saveAll._progressLog.getFileName());
+            _guiResultLbl.setText(result.getLocalizedMessage());
         }
     }
 
@@ -156,7 +160,7 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
         jPanel1.add(_guiResultLbl, gridBagConstraints);
 
-        _guiStartCancelCloseBtn.setText(I18N.S("Start")); // I18N
+        _guiStartCancelCloseBtn.setText(I.GUI_START_BTN().getLocalizedMessage()); // NOI18N
         _guiStartCancelCloseBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 _guiStartCancelCloseBtnActionPerformed(evt);
@@ -177,7 +181,7 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
             case NotStarted:
                 _eState = STATES.Running;
                 _saveAll.execute();
-                _guiStartCancelCloseBtn.setText(I18N.S("Cancel")); // I18N
+                _guiStartCancelCloseBtn.setText(I.GUI_CANCEL_BTN().getLocalizedMessage());
                 break;
             case Running:
                 _eState = STATES.Canceling;

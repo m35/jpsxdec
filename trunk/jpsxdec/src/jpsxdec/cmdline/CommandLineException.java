@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,50 +37,23 @@
 
 package jpsxdec.cmdline;
 
-import java.io.File;
-import jpsxdec.LocalizedException;
-import jpsxdec.discitems.DiscItem;
-import jpsxdec.util.FeedbackStream;
+import javax.annotation.CheckForNull;
+import jpsxdec.i18n.LocalizedException;
+import jpsxdec.i18n.LocalizedMessage;
 
 
 public class CommandLineException extends LocalizedException {
-    private File _file;
-    private DiscItem _item;
     
     public CommandLineException() {
     }
-    public CommandLineException(Exception cause) {
+    public CommandLineException(@CheckForNull Throwable cause) {
         super(cause);
     }
-    public CommandLineException(Exception cause, String sMsg) {
-        super(cause, sMsg);
+    public CommandLineException(@CheckForNull LocalizedMessage msg, @CheckForNull Throwable cause) {
+        super(msg, cause);
     }
-    public CommandLineException(String sMsg) {
-        super(sMsg);
-    }
-    public CommandLineException(String sMsg, Object ... aoArguments) {
-        super(sMsg, aoArguments);
-    }
-    public CommandLineException(DiscItem item, String sMsg) {
-        super(sMsg); _item = item;
-    }
-    public CommandLineException(File f, String sMsg) {
-        super(sMsg); _file = f;
-    }
-
-    public void printError(FeedbackStream fbs) {
-        if (_item != null)
-            fbs.printlnErr(_item.toString());
-        fbs.printErr(getLocalizedMessage());
-        Throwable cause = getCause();
-        while (cause != null) {
-            fbs.printErr(": ");
-            fbs.printErr(cause.getLocalizedMessage());
-            cause = cause.getCause();
-        }
-        fbs.printlnErr("");
-        if (_file != null)
-            fbs.printlnErr(_file.toString());
+    public CommandLineException(@CheckForNull LocalizedMessage msg) {
+        super(msg);
     }
 
 }

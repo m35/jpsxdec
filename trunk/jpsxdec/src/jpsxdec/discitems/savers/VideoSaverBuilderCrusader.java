@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,10 +41,13 @@ import argparser.ArgParser;
 import argparser.BooleanHolder;
 import java.io.IOException;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.discitems.CrusaderDemuxer;
 import jpsxdec.discitems.DiscItemCrusader;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
+import jpsxdec.i18n.I;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.TabularFeedback;
@@ -54,9 +57,10 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
 
     /** Hacky workaround to prevent constructor superclass resetting defaults. */
     private boolean _blnAudioInit = false;
+    @Nonnull
     private final DiscItemCrusader _sourceVidItem;
 
-    public VideoSaverBuilderCrusader(DiscItemCrusader vidItem) {
+    public VideoSaverBuilderCrusader(@Nonnull DiscItemCrusader vidItem) {
         super(vidItem);
         _sourceVidItem = vidItem;
         _blnAudioInit = true;
@@ -73,7 +77,7 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
     }
 
     @Override
-    public boolean copySettingsTo(DiscItemSaverBuilder otherBuilder) {
+    public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder otherBuilder) {
         if (super.copySettingsTo(otherBuilder)) {
             if (otherBuilder instanceof VideoSaverBuilderCrusader){
                 VideoSaverBuilderCrusader other = (VideoSaverBuilderCrusader) otherBuilder;
@@ -85,7 +89,7 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
         }
     }
 
-    public DiscItemSaverBuilderGui getOptionPane() {
+    public @Nonnull DiscItemSaverBuilderGui getOptionPane() {
         return new VideoSaverBuilderCrusaderGui(this);
     }
 
@@ -126,7 +130,9 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
     ////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
+    public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, 
+                                                     @Nonnull FeedbackStream fbs)
+    {
         asArgs = super.commandLineOptions(asArgs, fbs);
         if (asArgs == null) return null;
         
@@ -147,15 +153,15 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
     }
 
     @Override
-    protected void makeHelpTable(TabularFeedback tfb) {
+    protected void makeHelpTable(@Nonnull TabularFeedback tfb) {
         super.makeHelpTable(tfb);
 
         tfb.newRow();
-        tfb.print("-noaud").tab().print("Don't save audio."); // I18N
+        tfb.print(I.CMD_VIDEO_NOAUD()).tab().print(I.CMD_VIDEO_NOAUD_HELP());
     }
 
     @Override
-    protected SectorFeeder makeFeeder() {
+    protected @Nonnull SectorFeeder makeFeeder() {
         CrusaderDemuxer av = _sourceVidItem.makeDemuxer();
         CrusaderDemuxer ad;
         if (getSavingAudio()) {
@@ -169,16 +175,18 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
     }
     private static class CrusaderSectorFeeder extends SectorFeeder {
 
-        public CrusaderSectorFeeder(CrusaderDemuxer av, CrusaderDemuxer ad) {
-            videoDemuxer = av;
-            audioDecoder = ad;
+        public CrusaderSectorFeeder(@Nonnull CrusaderDemuxer av, 
+                                    @CheckForNull CrusaderDemuxer ad)
+        {
+            super(av, ad);
         }
 
         @Override
-        public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
+        public void feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) 
+                throws IOException
+        {
             videoDemuxer.feedSector(sector, log);
         }
     }
-
 
 }

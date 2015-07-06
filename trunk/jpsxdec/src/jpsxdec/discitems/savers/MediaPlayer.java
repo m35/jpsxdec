@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,8 +39,10 @@ package jpsxdec.discitems.savers;
 
 import java.io.IOException;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.LocalizedMessage;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItemAudioStream;
@@ -51,7 +53,7 @@ import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
-import jpsxdec.psxvideo.mdec.idct.simple_idct;
+import jpsxdec.psxvideo.mdec.idct.SimpleIDCT;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.player.AudioVideoReader;
 import jpsxdec.util.player.IDecodableFrame;
@@ -67,23 +69,28 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
 
     private final int _iMovieStartSector;
     private final int _iMovieEndSector;
+    @Nonnull
     private final CdFileSectorReader _cdReader;
     private final double _dblDuration;
 
     //----------------------------------------------------------
 
+    @CheckForNull
     private final DiscItemVideoStream _vid;
     private int _iSectorsPerSecond;
+    @CheckForNull
     private final VDP.Bitstream2Mdec _b2m;
+    @CheckForNull
     private final VDP.Mdec2Decoded _m2d;
-    private ISectorFrameDemuxer _demuxer;
+    @CheckForNull
+    private final ISectorFrameDemuxer _demuxer;
 
-    public MediaPlayer(DiscItemVideoStream vid, ISectorFrameDemuxer demuxer) {
+    public MediaPlayer(@Nonnull DiscItemVideoStream vid, @Nonnull ISectorFrameDemuxer demuxer) {
         this(vid, demuxer, vid.getStartSector(), vid.getEndSector());
     }
 
 
-    public MediaPlayer(DiscItemVideoStream vid, ISectorFrameDemuxer demuxer, 
+    public MediaPlayer(@Nonnull DiscItemVideoStream vid, @Nonnull ISectorFrameDemuxer demuxer,
                        int iSectorStart, int iSectorEnd)
     {
         _cdReader = vid.getSourceCd();
@@ -98,21 +105,22 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
         _dblDuration = vid.getApproxDuration();
 
         _vid = vid;
-        _b2m = new VDP.Bitstream2Mdec();
-        _m2d = new VDP.Mdec2Decoded(new MdecDecoder_int(new simple_idct(),
+        _m2d = new VDP.Mdec2Decoded(new MdecDecoder_int(new SimpleIDCT(),
                                                         vid.getWidth(),
                                                         vid.getHeight()));
-        _b2m.setMdec(_m2d);
+        _b2m = new VDP.Bitstream2Mdec(_m2d);
         _demuxer = demuxer;
         _demuxer.setFrameListener(this);
     }
 
     //-----------------------------------------------------------------------
 
+    @CheckForNull
     private ISectorAudioDecoder _audioDecoder;
+    @CheckForNull
     private AudioPlayerSectorTimedWriter _audioOut;
 
-    public MediaPlayer(DiscItemAudioStream aud) {
+    public MediaPlayer(@Nonnull DiscItemAudioStream aud) {
         _cdReader = aud.getSourceCd();
         _iMovieStartSector = aud.getStartSector();
         _iMovieEndSector = aud.getEndSector();
@@ -133,11 +141,14 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
         _vid = null;
         _b2m = null;
         _m2d = null;
+        _demuxer = null;
     }
     
     //----------------------------------------------------------
 
-    public MediaPlayer(DiscItemVideoStream vid, ISectorFrameDemuxer demuxer, ISectorAudioDecoder audio, 
+    public MediaPlayer(@Nonnull DiscItemVideoStream vid, 
+                       @Nonnull ISectorFrameDemuxer demuxer,
+                       @Nonnull ISectorAudioDecoder audio,
                        int iSectorStart, int iSectorEnd)
     {
         // do the video init
@@ -169,13 +180,13 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
                 IdentifiedSector identifiedSector = IdentifiedSector.identifySector(cdSector);
                 if (identifiedSector != null) {
                     if (_demuxer != null) {
-                        _demuxer.feedSector(identifiedSector, null);
+                        _demuxer.feedSector(identifiedSector, LOG);
                     }
                     // if frame demuxer and audio decoder are the same object
                     // don't feed the sector twice (this is currently only for
                     // Crusader movies)
                     if (_audioDecoder != null && _audioDecoder != _demuxer) {
-                        _audioDecoder.feedSector(identifiedSector, null);
+                        _audioDecoder.feedSector(identifiedSector, LOG);
                     }
                 }
 
@@ -191,7 +202,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
         }
     }
 
-    public void frameComplete(IDemuxedFrame frame) {
+    public void frameComplete(@Nonnull IDemuxedFrame frame) {
         StrFrame strFrame = _framePool.borrow();
         strFrame.init(frame.getDemuxSize(), frame.getFrame(), frame.getPresentationSector() - _iMovieStartSector);
         strFrame.__abDemuxBuf = frame.copyDemuxData(strFrame.__abDemuxBuf);
@@ -201,7 +212,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
     // #########################################################################
     // #########################################################################
 
-    public AudioFormat getAudioFormat() {
+    public @CheckForNull AudioFormat getAudioFormat() {
         if (_audioDecoder == null)
             return null;
         return _audioDecoder.getOutputFormat();
@@ -228,10 +239,14 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
     }
 
     public int getVideoWidth() {
+        if (_vid == null)
+            throw new UnsupportedOperationException("Accessing video dimension for audio only player");
         return _vid.getWidth();
     }
 
     public int getVideoHeight() {
+        if (_vid == null)
+            throw new UnsupportedOperationException("Accessing video dimension for audio only player");
         return _vid.getHeight();
     }
 
@@ -241,12 +256,15 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
 
     private class StrFrame implements IDecodableFrame, VDP.IDecodedListener {
 
+        @CheckForNull
         public byte[] __abDemuxBuf;
+        @CheckForNull
         private FrameNumber __frameNum;
         private int __iSectorFromStart;
+        @CheckForNull
         private int[] __aiDrawHere;
         
-        public void init(int iSize, FrameNumber frameNum, int iSectorFromStart) {
+        public void init(int iSize, @Nonnull FrameNumber frameNum, int iSectorFromStart) {
             if (__abDemuxBuf == null || __abDemuxBuf.length < iSize)
                 __abDemuxBuf = new byte[iSize];
             __iSectorFromStart = iSectorFromStart;
@@ -257,10 +275,14 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
             return (__iSectorFromStart * 1000000000L / _iSectorsPerSecond);
         }
 
-        public void decodeVideo(int[] drawHere) {
+        public void decodeVideo(@Nonnull int[] drawHere) {
+            // _md2 and _b2m should != null when processing frames
+            // if not, bad stuff should happen
             _m2d.setDecoded(this);
             __aiDrawHere = drawHere;
             try {
+                // this will call _m2d which in turn will call decoded()
+                // __abDemuxBuf and __frameNum should have been initialied in init()
                 _b2m.bitstream(__abDemuxBuf, __abDemuxBuf.length, __frameNum, _iMovieEndSector);
             } catch (IOException ex) {
                 System.err.print("Frame "+__frameNum+' '+ex.getMessage());
@@ -274,13 +296,19 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
             }
         }
 
-        public void assertAcceptsDecoded(MdecDecoder decoder) {}
+        public void assertAcceptsDecoded(@Nonnull MdecDecoder decoder) {}
 
-        public void decoded(MdecDecoder decoder, FrameNumber frameNumber, int iFrameEndSector) {
+        public void decoded(@Nonnull MdecDecoder decoder,
+                            @CheckForNull FrameNumber frameNumber,
+                            int iFrameEndSector)
+        {
             decoder.readDecodedRgb(getVideoWidth(), getVideoHeight(), __aiDrawHere);
         }
 
-        public void error(LocalizedMessage errMsg, FrameNumber frameNumber, int iFrameEndSector) {
+        public void error(@Nonnull LocalizedMessage errMsg,
+                          @CheckForNull FrameNumber frameNumber,
+                          int iFrameEndSector)
+        {
             System.err.println(errMsg.getEnglishMessage());
         }
 

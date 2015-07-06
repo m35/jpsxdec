@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,9 +40,13 @@ package jpsxdec.discitems;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IncompatibleException;
 
 /** Demuxes a series of frame chunk sectors into a solid stream.
  *  This is surprisingly more complicated that it seems. */
@@ -58,8 +62,10 @@ public class DemuxedStrFrame implements IDemuxedFrame {
     private final int _iWidth, _iHeight;
 
     /** Frame number of the frame. */
+    @Nonnull
     private final FrameNumber _frameNumber;
 
+    @Nonnull
     private final IVideoSector[] _aoChunks;
 
     /** Size in bytes of the data contained in all the demux sectors. */
@@ -76,8 +82,8 @@ public class DemuxedStrFrame implements IDemuxedFrame {
     /* ---------------------------------------------------------------------- */
 
     /** Initialize the frame with an initial sector. */
-    public DemuxedStrFrame(FrameNumber frameNumber, int iWidth, int iHeight,
-                           IVideoSector[] aoChunks, int iChunksInFrame)
+    public DemuxedStrFrame(@Nonnull FrameNumber frameNumber, int iWidth, int iHeight,
+                           @Nonnull IVideoSector[] aoChunks, int iChunksInFrame)
     {
         _frameNumber = frameNumber;
         _iWidth = iWidth;
@@ -134,12 +140,12 @@ public class DemuxedStrFrame implements IDemuxedFrame {
     /** Returns the video sector.
      * @throws ArrayIndexOutOfBoundsException if index is less-than 0 or
      *                                        greater-than {@link #getChunksInFrame()}. */
-    public IVideoSector getChunk(int i) {
+    public @CheckForNull IVideoSector getChunk(int i) {
         return _aoChunks[i];
     }
 
 
-    public byte[] copyDemuxData(byte[] abBuffer) {
+    public @Nonnull byte[] copyDemuxData(@CheckForNull byte[] abBuffer) {
         if (abBuffer == null || abBuffer.length < getDemuxSize())
             abBuffer = new byte[getDemuxSize()];
 
@@ -157,22 +163,23 @@ public class DemuxedStrFrame implements IDemuxedFrame {
     }
 
 
-    public void printSectors(FeedbackStream fbs) {
+    public void printSectors(@Nonnull FeedbackStream fbs) {
         for (int i=0; i < getChunksInFrame(); i++) {
             fbs.println(getChunk(i));
         }
     }
 
-    public void writeToSectors(byte[] abNewDemux,
+    public void writeToSectors(@Nonnull byte[] abNewDemux,
                                int iUsedSize, int iMdecCodeCount,
-                               CdFileSectorReader cd, FeedbackStream fbs)
-            throws IOException
+                               @Nonnull CdFileSectorReader cd,
+                               @Nonnull FeedbackStream fbs)
+            throws IOException, IncompatibleException
     {
         int iDemuxOfs = 0;
         for (int i = 0; i < getChunksInFrame(); i++) {
             IVideoSector vidSector = getChunk(i);
             if (vidSector == null) {
-                fbs.printlnWarn("Trying to replace a frame with missing chunks??");
+                fbs.printlnWarn(I.CMD_FRAME_TO_REPLACE_MISSING_CHUNKS());
                 continue;
             }
 

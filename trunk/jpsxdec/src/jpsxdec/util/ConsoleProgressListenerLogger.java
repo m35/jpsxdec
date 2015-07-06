@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,20 +39,25 @@ package jpsxdec.util;
 
 import java.io.PrintStream;
 import java.util.logging.LogRecord;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 
 public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
 
-    private static final int BAR_WIDTH = 30;
+    private static final int BAR_WIDTH = 20;
 
+    @CheckForNull
     private LocalizedMessage _lastEvent = null;
     private double _dblNextProgressMark = 0;
     private int _iWarnCount = 0;
     private int _iErrCount = 0;
     /** Different from the logging stream.  */
+    @Nonnull
     private final PrintStream _progressStream;
 
-    public ConsoleProgressListenerLogger(String sBaseName, PrintStream progressStream) {
+    public ConsoleProgressListenerLogger(@Nonnull String sBaseName, @Nonnull PrintStream progressStream) {
         super(sBaseName);
         _progressStream = progressStream;
         setListener(new OnWarnErr() {
@@ -65,11 +70,11 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
         });
     }
 
-    public void event(LocalizedMessage msg) {
+    public void event(@Nonnull LocalizedMessage msg) {
         _lastEvent = msg;
     }
 
-    public void progressInfo(LocalizedMessage msg) {
+    public void progressInfo(@Nonnull LocalizedMessage msg) {
         _progressStream.println(msg.getLocalizedMessage());
     }
 
@@ -79,7 +84,7 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
     }
 
     public void progressStart() { progressStart(null); }
-    public void progressStart(LocalizedMessage msg) {
+    public void progressStart(@CheckForNull LocalizedMessage msg) {
         if (msg != null)
             _progressStream.println(msg.getLocalizedMessage());
         _dblNextProgressMark = 0;
@@ -98,38 +103,31 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
             return;
         }
 
-        String sLine = buildProgress(dblPercentComplete);
+        LocalizedMessage line = buildProgress(dblPercentComplete);
 
         // a carriage return after the string \r
         // resets the cursor position back to the beginning of the line
         // but for now just do normal new line
-        _progressStream.println(sLine);
+        _progressStream.println(line);
         
         _dblNextProgressMark = Math.round((dblPercentComplete + 0.05) * 10.0) / 10.0;
     }
 
-    private String buildProgress(double dblPercentComplete) {
-        StringBuilder strBuild = new StringBuilder("[");
+    private @Nonnull LocalizedMessage buildProgress(double dblPercentComplete) {
 
+        StringBuilder progressBar = new StringBuilder();
         for (double dblProgress = 0; dblProgress < 1.0; dblProgress += 1.0/BAR_WIDTH) {
             if (dblProgress < dblPercentComplete)
-                strBuild.append('=');
+                progressBar.append('=');
             else
-                strBuild.append('.');
+                progressBar.append('.');
         }
 
-        long lngPercent = (long)Math.floor(dblPercentComplete * 100);
+        // stupid DecimalFormat has no way to pad numbers with spaces like String.format() does
         if (_lastEvent== null)
-            strBuild.append(String.format("] %4d%%", lngPercent));
+            return I.CMD_PROGRESS(progressBar.toString(), dblPercentComplete, _iWarnCount, _iErrCount);
         else
-            strBuild.append(String.format("] %4d%% %s", lngPercent, _lastEvent.getLocalizedMessage()));
-
-        if (_iWarnCount > 0)
-            strBuild.append(" ").append(_iWarnCount).append(" warnings"); // I18N
-        if (_iErrCount > 0)
-            strBuild.append(" ").append(_iErrCount).append(" errors"); // I18N
-
-        return strBuild.toString();
+            return I.CMD_PROGRESS_WITH_MSG(progressBar.toString(), dblPercentComplete, _lastEvent, _iWarnCount, _iErrCount);
     }
 
     public boolean seekingEvent() { return true; }

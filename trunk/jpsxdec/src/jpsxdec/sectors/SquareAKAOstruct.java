@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 
 /** The AKAO structure used in some Square games. FF8, FF9, and Chrono Cross
@@ -55,12 +56,12 @@ public class SquareAKAOstruct {
     public final long BytesOfData;          // 32 [4 bytes] number of bytes of audio data
     // [44 bytes] unknown
     
-    public SquareAKAOstruct(CdSector cdSector, int i) {
-        AKAO = cdSector.readUInt32LE(i);
-        FrameNumSub1 = cdSector.readUInt32LE(i+4);
+    public SquareAKAOstruct(@Nonnull CdSector cdSector, int iReadPos) {
+        AKAO = cdSector.readUInt32LE(iReadPos);
+        FrameNumSub1 = cdSector.readUInt32LE(iReadPos+4);
 
-        Unknown = cdSector.readUInt32LE(i+28);
-        BytesOfData = cdSector.readUInt32LE(i+32);
+        Unknown = cdSector.readUInt32LE(iReadPos+28);
+        BytesOfData = cdSector.readUInt32LE(iReadPos+32);
     }
     
     public String toString() {

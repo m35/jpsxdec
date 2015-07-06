@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,27 +37,32 @@
 
 package jpsxdec.util.player;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 
 /** User created object to do the actual reading of audio or video chunks.
  * Also indicates the format of the chucks being read.  */
 public abstract class AudioVideoReader implements Runnable {
-    
+
+    @CheckForNull
     private AudioPlayer _audioPlayer;
+    @CheckForNull
     private VideoProcessor _videoProcessor;
     private int _iProgress = -1;
 
+    @CheckForNull
     private Thread _thread;
 
     /** Only stopped or playing. */
     private final PlayingState _state = new PlayingState(PlayingState.State.STOPPED);
 
-    void init(AudioPlayer audPlay, VideoProcessor vidProc) {
+    void init(@CheckForNull AudioPlayer audPlay, @CheckForNull VideoProcessor vidProc) {
         _audioPlayer = audPlay;
         _videoProcessor = vidProc;
     }
 
-    public void writeAudio(byte[] abData, int iStart, int iLength) {
+    public void writeAudio(@Nonnull byte[] abData, int iStart, int iLength) {
         _audioPlayer.write(abData, iStart, iLength);
     }
 
@@ -65,7 +70,7 @@ public abstract class AudioVideoReader implements Runnable {
         _audioPlayer.writeSilence(lngSamples);
     }
 
-    public void writeFrame(IDecodableFrame frame) {
+    public void writeFrame(@Nonnull IDecodableFrame frame) {
         _videoProcessor.writeFrame(frame);
     }
 
@@ -111,7 +116,7 @@ public abstract class AudioVideoReader implements Runnable {
 
     abstract protected void demuxThread();
     /** Return null if no audio. */
-    abstract public AudioFormat getAudioFormat();
+    abstract public @CheckForNull AudioFormat getAudioFormat();
     abstract public boolean hasVideo();
     abstract public int getVideoWidth();
     abstract public int getVideoHeight();

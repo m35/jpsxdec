@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ package jpsxdec.psxvideo.bitstreams;
 import java.io.EOFException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import jpsxdec.util.Misc;
 
 /** A (hopefully) very fast bit reader. It can be initialized to read the bits
@@ -50,6 +51,7 @@ public class ArrayBitReader {
     private static final Logger LOG = Logger.getLogger(ArrayBitReader.class.getName());
 
     /** Data to be read as a binary stream. */
+    @Nonnull
     private byte[] _abData;
     /** Size of the data (ignores data array size). */
     protected int _iDataSize;
@@ -75,14 +77,14 @@ public class ArrayBitReader {
         0x1FFFFFFF, 0x3FFFFFFF, 0x7FFFFFFF, 0xFFFFFFFF,
     };
 
-    /** Performs no initialization. {@link #reset(byte[], boolean, int)}
+    /** Performs no initialization. {@link #reset(byte[], int, boolean, int)}
      * needs to be called before using this class. */
     public ArrayBitReader() {
     }
 
     /** Start reading from the start of the array with the requested
      * endian-ness. */
-    public ArrayBitReader(byte[] abData, int iDataSize, boolean blnLittleEndian)
+    public ArrayBitReader(@Nonnull byte[] abData, int iDataSize, boolean blnLittleEndian)
     {
         this(abData, iDataSize, blnLittleEndian, 0);
     }
@@ -90,7 +92,7 @@ public class ArrayBitReader {
     /** Start reading from a requested point in the array with the requested
      *  endian-ness. 
      *  @param iReadStart  Position in array to start reading. Must be an even number. */
-    public ArrayBitReader(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart)
+    public ArrayBitReader(@Nonnull byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart)
     {
         reset(abData, iDataSize, blnLittleEndian, iReadStart);
     }
@@ -98,7 +100,7 @@ public class ArrayBitReader {
     /** Re-constructs this ArrayBitReader. Allows for re-using the object
      *  so there is no need to create a new one.
      *  @param iReadStart  Position in array to start reading. Must be an even number. */
-    public final void reset(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+    public final void reset(@Nonnull byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
         if (iReadStart < 0 || iReadStart > abData.length)
             throw new IllegalArgumentException("Read start out of array bounds.");
         if ((iReadStart & 1) != 0)
@@ -243,7 +245,7 @@ public class ArrayBitReader {
 
     /** Returns a String of 1 and 0 unless at the end of the stream, then
      * returns only the remaining bits. */
-    public String peekBitsToString(int iCount) throws EOFException {
+    public @Nonnull String peekBitsToString(int iCount) throws EOFException {
         int iBitsRemaining = getBitsRemaining();
         if (iBitsRemaining < iCount)
             return Misc.bitsToString(peekUnsignedBits(iBitsRemaining), iBitsRemaining);
@@ -253,7 +255,7 @@ public class ArrayBitReader {
 
     /** Returns a String of 1 and 0 unless at the end of the stream, then
      * returns only the remaining bits. */
-    public String readBitsToString(int iCount) throws EOFException {
+    public @Nonnull String readBitsToString(int iCount) throws EOFException {
         int iBitsRemaining = getBitsRemaining();
         if (iBitsRemaining < iCount)
             return Misc.bitsToString(readUnsignedBits(iBitsRemaining), iBitsRemaining);

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,12 +38,14 @@
 package jpsxdec.discitems.savers;
 
 import java.awt.BorderLayout;
+import javax.annotation.Nonnull;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.table.AbstractTableModel;
-import jpsxdec.I18N;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.gui.SavingGuiTable;
 
 
@@ -51,7 +53,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
 
 
 
-    public VideoSaverBuilderStrGui(VideoSaverBuilderStr writerBuilder) {
+    public VideoSaverBuilderStrGui(@Nonnull VideoSaverBuilderStr writerBuilder) {
         super(writerBuilder);
 
         addListeners(new EmulateAv(), new ParallelAudio());
@@ -59,7 +61,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
 
     
     private class EmulateAv extends AbstractCheck {
-        public EmulateAv() { super(I18N.S("Emulate PSX a/v sync:")); } // I18N
+        public EmulateAv() { super(I.GUI_EMULATE_PSX_AV_SYNC_LABEL()); }
         public boolean isSelected() {
             return _writerBuilder.getEmulatePsxAvSync();
         }
@@ -73,8 +75,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
 
 
     private enum COLUMNS {
-        Save() {
-            public Class type() { return Boolean.class; }
+        Save(Boolean.class, I.GUI_TREE_SAVE_COLUMN()) {
             public boolean editable() { return true; }
             public Object get(VideoSaverBuilderStr bldr, int i) {
                 return bldr.getParallelAudio_selected(i);
@@ -82,40 +83,44 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
             public void set(VideoSaverBuilderStr bldr, int i, Object val) {
                 bldr.setParallelAudio(i, (Boolean)val);
             }
-            public String toString() { return I18N.S("Save"); } // I18N
         },
-        Num() {
-            public Class type() { return Integer.class; }
+        Num(Integer.class, I.GUI_TREE_INDEX_NUMBER_COLUMN()) {
             public Object get(VideoSaverBuilderStr bldr, int i) {
                 return bldr.getParallelAudio(i).getIndex();
             }
-            public String toString() { return I18N.S("#"); } // I18N
         },
-        Id() {
-            public Class type() { return String.class; }
+        Id(String.class, I.GUI_VID_AUDIO_SAVE_ID_COLUMN()) {
             public Object get(VideoSaverBuilderStr bldr, int i) {
                 return bldr.getParallelAudio(i).getIndexId().getTopLevel();
             }
-            public String toString() { return I18N.S(""); } // I18N
         },
-        Details() {
-            public Class type() { return String.class; }
+        Details(String.class, I.GUI_TREE_DETAILS_COLUMN()) {
             public Object get(VideoSaverBuilderStr bldr, int i) {
                 return bldr.getParallelAudio(i).getInterestingDescription();
             }
-            public String toString() { return I18N.S("Details"); } // I18N
         };
-        abstract public Class type();
+        
         public boolean editable() { return false; }
         abstract public Object get(VideoSaverBuilderStr bldr, int i);
         public void set(VideoSaverBuilderStr bldr, int i, Object val) {}
 
+        @Nonnull
+        private final Class _type;
+        @Nonnull
+        private final LocalizedMessage _name;
+
+        private COLUMNS(@Nonnull Class type, @Nonnull LocalizedMessage name) {
+            _type = type;
+            _name = name;
+        }
+
+        final public Class type() { return _type; };
         @Override
-        abstract public String toString();
+        final public String toString() { return _name.getLocalizedMessage(); }
     }
     private class ParallelAudio extends AbstractTableModel implements ChangeListener {
 
-        JTable __tbl;
+        @Nonnull final JTable __tbl;
 
         public ParallelAudio() {
             __tbl = new JTable(this);

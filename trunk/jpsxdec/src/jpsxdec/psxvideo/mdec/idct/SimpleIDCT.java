@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,60 +35,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec;
+package jpsxdec.psxvideo.mdec.idct;
 
-import java.text.MessageFormat;
-
-public class LocalizedException extends Exception {
-
-    private final Object[] _aoArguments;
-    
-    public LocalizedException() {
-        _aoArguments = null;
+/** Adapter for simple_idct to match jPSXdec interface. */
+public class SimpleIDCT extends simple_idct implements IDCT_int {
+    public void IDCT(int[] aiIdctMatrix, int iOutputOffset, int[] aiOutput) {
+        invers_dct(aiIdctMatrix, iOutputOffset, aiOutput);
     }
 
-    public LocalizedException(String sMessage) {
-        super(sMessage);
-        _aoArguments = null;
+    public void IDCT_1NonZero(int[] aiIdctMatrix, int iNonZeroPos, int iOutputOffset, int[] aiOutput) {
+        invers_dct_special(aiIdctMatrix, iNonZeroPos, iOutputOffset, aiOutput);
     }
-
-    public LocalizedException(String sMessage, Object ... aoArguments) {
-        super(sMessage);
-        _aoArguments = aoArguments;
-    }
-
-    public LocalizedException(Throwable cause) {
-        super(cause);
-        _aoArguments = null;
-    }
-    
-    public LocalizedException(Throwable cause, String sMessage, Object ... aoArguments) {
-        super(sMessage, cause);
-        _aoArguments = aoArguments;
-    }
-
-    @Override
-    public String getLocalizedMessage() {
-        String sSuperMessage = super.getMessage();
-        if (sSuperMessage == null)
-            return null;
-        else {
-            if (_aoArguments == null)
-                return I18N.S(sSuperMessage);
-            else
-                return I18N.S(sSuperMessage, _aoArguments);
-        }
-    }
-
-    @Override
-    public String getMessage() {
-        String sSuperMessage = super.getMessage();
-        if (_aoArguments == null)
-            return sSuperMessage;
-        else if (sSuperMessage != null)
-            return MessageFormat.format(sSuperMessage, _aoArguments);
-        else
-            return null;
-    }
-    
 }

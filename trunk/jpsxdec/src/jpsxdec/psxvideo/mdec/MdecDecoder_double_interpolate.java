@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,10 @@ package jpsxdec.psxvideo.mdec;
 import com.mortennobel.imagescaling.ResampleFilter;
 import com.mortennobel.imagescaling.ResampleFilters;
 import com.mortennobel.imagescaling.ResampleOp;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.formats.RGB;
 import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
@@ -55,35 +58,52 @@ import jpsxdec.psxvideo.mdec.idct.IDCT_double;
  */
 public class MdecDecoder_double_interpolate extends MdecDecoder_double {
 
-    /** Temp buffer for upsampled Cr. */
-    private final double[] _adblUpCr;
-    /** Temp buffer for upsampled Cb. */
-    private final double[] _adblUpCb;
-
-    private final ResampleOp _resampler;
-    private Upsampler _upsampler = Upsampler.Bicubic;
-
     public enum Upsampler {
-        /** i.e. Box */ NearestNeighbor("Nearest Neighbor", null), // I18N
-        /** i.e. Triangle */ Bilinear("Bilinear", null), // I18N
-        Bicubic("Bicubic", ResampleFilters.getBiCubicFilter()), // I18N
-        Bell("Bell", ResampleFilters.getBellFilter()), // I18N
-        Mitchell("Mitchell", ResampleFilters.getMitchellFilter()), // I18N
-        BSpline("BSpline", ResampleFilters.getBSplineFilter()), // I18N
-        Lanczos3("Lanczos3", ResampleFilters.getLanczos3Filter()), // I18N
-        Hermite("Hermite", ResampleFilters.getHermiteFilter()); // I18N
+        /** i.e. Box */
+        NearestNeighbor(I.CHROMA_UPSAMPLE_NEAR_NEIGHBOR_DESCRIPTION(),
+                        I.CHROMA_UPSAMPLE_NEAR_NEIGHBOR_CMDLINE(), null),
 
-        private final LocalizedMessage _name;
+        /** i.e. Triangle */
+        Bilinear(I.CHROMA_UPSAMPLE_BILINEAR_DESCRIPTION(),
+                 I.CHROMA_UPSAMPLE_BILINEAR_CMDLINE(), null),
+
+        Bicubic(I.CHROMA_UPSAMPLE_BICUBIC_DESCRIPTION(),
+                I.CHROMA_UPSAMPLE_BICUBIC_CMDLINE(), ResampleFilters.getBiCubicFilter()),
+
+        Bell(I.CHROMA_UPSAMPLE_BELL_DESCRIPTION(),
+             I.CHROMA_UPSAMPLE_BELL_CMDLINE(), ResampleFilters.getBellFilter()),
+
+        Mitchell(I.CHROMA_UPSAMPLE_MITCHELL_DESCRIPTION(),
+                 I.CHROMA_UPSAMPLE_MITCHELL_CMDLINE(), ResampleFilters.getMitchellFilter()),
+
+        BSpline(I.CHROMA_UPSAMPLE_BSPLINE_DESCRIPTION(),
+                I.CHROMA_UPSAMPLE_BSPLINE_CMDLINE(), ResampleFilters.getBSplineFilter()),
+
+        Lanczos3(I.CHROMA_UPSAMPLE_LANCZOS3_DESCRIPTION(),
+                 I.CHROMA_UPSAMPLE_LANCZOS3_CMDLINE(), ResampleFilters.getLanczos3Filter()),
+
+        Hermite(I.CHROMA_UPSAMPLE_HERMITE_DESCRIPTION(),
+                I.CHROMA_UPSAMPLE_HERMITE_CMDLINE(), ResampleFilters.getHermiteFilter());
+
+        @Nonnull
+        private final LocalizedMessage _description;
+        private final LocalizedMessage _cmdLine;
+        @CheckForNull
         private final ResampleFilter _filter;
-        private Upsampler(String sName, ResampleFilter filter) {
-            _name = new LocalizedMessage(sName);
+
+        private Upsampler(@Nonnull LocalizedMessage description,
+                          @Nonnull LocalizedMessage cmdLine,
+                          @CheckForNull ResampleFilter filter)
+        {
+            _description = description;
+            _cmdLine = cmdLine;
             _filter = filter;
         }
 
         public static Upsampler fromCmdLine(String sCmdLine) {
             Upsampler up = null;
             for (Upsampler upsampler : values()) {
-                if (upsampler.name().equalsIgnoreCase(sCmdLine)) {
+                if (upsampler.getCmdLine().equalsIgnoreCase(sCmdLine)) {
                     up = upsampler;
                     break;
                 }
@@ -91,14 +111,39 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
             return up;
         }
 
+        public LocalizedMessage getDescription() {
+            return _description;
+        }
+
+        public LocalizedMessage getCmdLine() {
+            return _cmdLine;
+        }
+
+        public LocalizedMessage getCmdLineHelp() {
+            if (_cmdLine.equals(_description))
+                return _cmdLine;
+            else
+                return I.CHROMA_UPSAMPLE_CMDLINE_HELP(_cmdLine, _description);
+        }
+
         /** {@inheritDoc}
          *<p>
          * Used in GUI list so must be localized. */
         @Override
         public String toString() {
-            return _name.getLocalizedMessage();
+            return getDescription().getLocalizedMessage();
         }
     }
+
+    // ====================================================================
+
+    /** Temp buffer for upsampled Cr. */
+    private final double[] _adblUpCr;
+    /** Temp buffer for upsampled Cb. */
+    private final double[] _adblUpCb;
+
+    private final ResampleOp _resampler;
+    private Upsampler _upsampler = Upsampler.Bicubic;
 
     public MdecDecoder_double_interpolate(IDCT_double idct, int iWidth, int iHeight) {
         super(idct, iWidth, iHeight);

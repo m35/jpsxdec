@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,9 +43,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedIOException;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedIOException;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorCrusader;
@@ -53,8 +56,16 @@ import jpsxdec.util.ExposedBAOS;
 import jpsxdec.util.IO;
 
 /** Demultiplexes audio and video from Crusader: No Remorse movies.
- * Can be used for decoding or for discovery of when movies start and end.
- * The object's life ends at the end of a movie and should be discarded. */
+ * Can be used for decoding or for discovery (indexing) of when movies start and end.
+ *
+ * <h3>Use for decoding</h3>
+ * Listeners must be set before using this object.
+ * The object's life ends at the end of a movie and should be discarded.
+ *
+ * <h3>Use for indexing</h3>
+ * Only the video listener should be set. Dimensions are found dynamically.
+ * Create a new demuxer once a movie ends.
+ */
 public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder {
 
     private static final Logger LOG = Logger.getLogger(CrusaderDemuxer.class.getName());
@@ -65,7 +76,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     
     private static final int CRUSADER_SAMPLES_PER_SECOND = 22050;
     private static final int SAMPLES_PER_SECTOR = CRUSADER_SAMPLES_PER_SECOND / 150;
-    {
+    static {
         if (CRUSADER_SAMPLES_PER_SECOND % 150 != 0)
             throw new RuntimeException("Crusader sample rate doesn't cleanly divide by sector rate");
     }
@@ -84,12 +95,15 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         AD20,
         AD21,
     }
-    
+
+    /** If this object was constructed for indexing. */
+    private final boolean _blnIndexing;
+
+    @Nonnull
     private ReadState _state = ReadState.MAGIC;
 
     // .. info about the movie ..
 
-    private final boolean _blnIndexing;
     /** Will be dynamic if indexing. */
     private int _iWidth, _iHeight;
     /** Will be dynamic if indexing. */
@@ -97,6 +111,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
 
     // .. payload parsing ..
 
+    @CheckForNull
     private PayloadType _ePayloadType;
     /** The starting offset in the sector of the first payload. */
     private int _iPayloadStartOffset;
@@ -127,10 +142,15 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     private final FrameNumber.FactoryWithHeader _frameNumberFactory = new FrameNumber.FactoryWithHeader();
 
     // ........................................................................
-    
+
+    /** Must be set before feeding sectors. */
+    @CheckForNull
     private ICompletedFrameListener _frameListener;
+    /** Must be set before feeding sectors, unless indexing. */
+    @CheckForNull
     private ISectorTimedAudioWriter _audioListener;
-    
+
+    @CheckForNull
     private final AudioFormat _audioFmt;
     
     public CrusaderDemuxer(int iWidth, int iHeight, int iStartSector, int iEndSector) {
@@ -143,9 +163,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     }
 
     /** Constructor used for indexing. It will discover the dimensions and
-     * start/end sector when it finds it. Use
-     * {@link #indexFeedSector(jpsxdec.sectors.IdentifiedSector)} to know
-     * if sectors are accepted. */
+     * start/end sector when it finds it. */
     public CrusaderDemuxer() {
         _iWidth = -1;
         _iHeight = -1;
@@ -170,7 +188,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         return _blnFoundAPayload;
     }
 
-    public boolean feedSector(IdentifiedSector identifiedSector, Logger log) throws IOException {
+    public boolean feedSector(@Nonnull IdentifiedSector identifiedSector, @Nonnull Logger log) throws IOException {
         
         if (!(identifiedSector instanceof SectorCrusader))
             return false;
@@ -206,7 +224,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     }
 
     /** Feed either a real sector or null if a sector is missing. */
-    private void feedSectorIteration(SectorCrusader cru, Logger log) throws IOException {
+    private void feedSectorIteration(@CheckForNull SectorCrusader cru, @Nonnull Logger log) throws IOException {
         int iCurSectorOffset = 0;
         
         while (iCurSectorOffset < SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE) {
@@ -268,9 +286,8 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
                         // payload is done
                         
                         if (_ePayloadType == PayloadType.MDEC) {
-                            if (_frameListener != null)
-                                videoPayload(_iPayloadSize - 16, log);
-                        } else if (_audioListener != null) {
+                            videoPayload(_iPayloadSize - 16, log);
+                        } else {
                             audioPayload(_iPayloadSize - 16, log);
                         }
                         _sectors.clear();
@@ -287,16 +304,19 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         }
     }
     
-    public void flush(Logger log) throws IOException {
+    public void flush(@Nonnull Logger log) throws IOException {
         if (!_sectors.isEmpty() && _state == ReadState.PAYLOAD) {
             _blnFoundAPayload = true;
             if (_ePayloadType == PayloadType.MDEC) {
-                if (_frameListener != null)
-                    videoPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
-            } else if (_audioListener != null) { // ad20, ad21
+                videoPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
+            } else {  // ad20, ad21 (audio)
                 audioPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
-                _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0,
-                                     _decodedAudBuffer.size(), _iCurrentAudioPresSector);
+                if (!_blnIndexing) {
+                    if (_audioListener == null)
+                        throw new IllegalStateException("Audio listener must be set before using object.");
+                    _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0,
+                                         _decodedAudBuffer.size(), _iCurrentAudioPresSector);
+                }
                 _iCurrentAudioPresSector = -1;
             }
             _sectors.clear();
@@ -308,7 +328,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     
     //-- Video stuff ---------------------------
     
-    private void videoPayload(int iSize, Logger log) throws IOException {
+    private void videoPayload(int iSize, @Nonnull Logger log) throws IOException {
         
         int iWidth = IO.readSInt16BE(_abHeader, 0);
         int iHeight = IO.readSInt16BE(_abHeader, 2);
@@ -317,13 +337,13 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         if (_blnIndexing && _iWidth == -1)
             _iWidth = iWidth;
         else if (_iWidth != iWidth)
-            throw new LocalizedIOException("Inconsistent width {0,number,#} != {1,number,#}", _iWidth, iWidth); // I18N
+            throw new LocalizedIOException(I.INCONSISTENT_WIDTH(_iWidth, iWidth));
         if (_blnIndexing && _iHeight == -1)
             _iHeight = iHeight;
         else if (_iHeight != iHeight)
-            throw new LocalizedIOException("Inconsistent height {0,number,#} != {1,number,#}", _iHeight, iHeight); // I18N
+            throw new LocalizedIOException(I.INCONSISTENT_HEIGHT(_iHeight, iHeight));
         if (iFrame < 0)
-            throw new LocalizedIOException("Invalid frame number {0,number,#}", iFrame); // I18N
+            throw new LocalizedIOException(I.INVALID_FRAME_NUM(iFrame));
 
         if (_iInitialPresentationSector < 0) {
             _iInitialPresentationSector = iFrame * 10;
@@ -343,6 +363,8 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         FrameNumber hdrFrame = _frameNumberFactory.next(_sectors.get(0).getSectorNumber(), iFrame);
         if (DEBUG)
             System.out.format("Writing frame %d to be presented at sector %d", iFrame, _iStartSector + iPresentationSector).println();
+        if (_frameListener == null)
+            throw new IllegalStateException("Frame listener must be set before using object.");
         _frameListener.frameComplete(new DemuxedCrusaderFrame(_iWidth, _iHeight, 
                                                               aoSects, iSize, 
                                                               _iPayloadStartOffset, 
@@ -357,18 +379,19 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         return _iWidth;
     }
 
-    public void setFrameListener(ICompletedFrameListener listener) {
+    public void setFrameListener(@Nonnull ICompletedFrameListener listener) {
         _frameListener = listener;
     }
 
     //-- Audio stuff ---------------------------
-    
+
+    @CheckForNull
     private byte[] _abAudioDemuxBuffer;
     private final SquareAdpcmDecoder _audDecoder = new SquareAdpcmDecoder(1.0);
     private final ExposedBAOS _decodedAudBuffer = new ExposedBAOS();
     private int _iCurrentAudioPresSector = 0;
     
-    private void audioPayload(final int iSize, Logger log) throws IOException {
+    private void audioPayload(final int iSize, @Nonnull Logger log) throws IOException {
 
         if (iSize % 2 != 0)
             throw new IllegalArgumentException("Uneven Crusader audio payload size " + iSize);
@@ -376,10 +399,10 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         // .. read the header values ...............................
         final long lngPresentationSample = IO.readSInt32BE(_abHeader, 0);
         if (lngPresentationSample < 0)
-            throw new LocalizedIOException("Invalid presentation sample {0,number,#}", lngPresentationSample); // I18N
+            throw new LocalizedIOException(I.CRUSADER_INVALID_PRESENTATION_SAMPLE(lngPresentationSample));
         final long lngAudioId = IO.readUInt32BE(_abHeader, 4);
         if (lngAudioId != AUDIO_ID)
-            throw new LocalizedIOException("Invalid Crusader audio id {0,number,#}", lngAudioId); // I18N
+            throw new LocalizedIOException(I.CRUSADER_INVALID_AUIDO_ID(lngAudioId));
 
         // .. copy the audio data out of the sectors ...............
         if (_abAudioDemuxBuffer == null || _abAudioDemuxBuffer.length < iSize)
@@ -430,12 +453,16 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
                     int iSamplesPad = SAMPLES_PER_SECTOR - iBufferedSamples;
                     IO.writeZeros(_decodedAudBuffer, iSamplesPad * BYTES_PER_SAMPLE);
                     // 2) write that
-                    _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0, SAMPLES_PER_SECTOR, _iCurrentAudioPresSector);
+                    if (!_blnIndexing) {
+                        if (_audioListener == null)
+                            throw new IllegalStateException("Audio listener must be set before using object.");
+                        _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0, SAMPLES_PER_SECTOR, _iCurrentAudioPresSector);
+                    }
                     _decodedAudBuffer.reset();
                 }
                 // 3) again add silence to align the incoming data to sector boundary
                 _iCurrentAudioPresSector = (int) (lngPresentationSample / SAMPLES_PER_SECTOR);
-                int iSamplesPad = (int) (lngPresentationSample - (_iCurrentAudioPresSector * SAMPLES_PER_SECTOR));
+                int iSamplesPad = (int) (lngPresentationSample - (_iCurrentAudioPresSector * (long)SAMPLES_PER_SECTOR));
                 IO.writeZeros(_decodedAudBuffer, iSamplesPad * BYTES_PER_SAMPLE);
             }
         }
@@ -483,7 +510,11 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
 
             if (DEBUG)
                 System.out.format("Writing %d bytes of audio to be presented at sector %d", iDataToPlay, _iStartSector + iPresentationSector).println();
-            _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0, iDataToPlay, _iStartSector + iPresentationSector);
+            if (!_blnIndexing) {
+                if (_audioListener == null)
+                    throw new IllegalStateException("Audio listener must be set before using object.");
+                _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0, iDataToPlay, _iStartSector + iPresentationSector);
+            }
         }
 
         // .. copy any remaing data to the head of the decoded buffer .....
@@ -500,7 +531,10 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     }
     
     
-    public void setAudioListener(ISectorTimedAudioWriter audioFeeder) {
+    /** Must be set before feeding sectors, unless indexing. */
+    public void setAudioListener(@Nonnull ISectorTimedAudioWriter audioFeeder) {
+        if (_blnIndexing)
+            throw new IllegalArgumentException("Adding audio listener during indexing?");
         _audioListener = audioFeeder;
     }
 
@@ -508,7 +542,9 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         return _iStartSector; 
    }
 
-    public AudioFormat getOutputFormat() {
+    public @Nonnull AudioFormat getOutputFormat() {
+        if (_blnIndexing)
+            throw new UnsupportedOperationException("Object being used for indexing");
         return _audioFmt;
     }
 
@@ -532,8 +568,8 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         _audDecoder.resetContext();
     }
     
-    public String[] getAudioDetails() {
-        return new String[] {I18N.S("Embedded Crusader audio {0,number,#}Hz", CRUSADER_SAMPLES_PER_SECOND)}; // I18N
+    public @Nonnull LocalizedMessage[] getAudioDetails() {
+        return new LocalizedMessage[] {I.EMBEDDED_CRUSADER_AUDIO_HZ(CRUSADER_SAMPLES_PER_SECOND)};
     }
     
 }

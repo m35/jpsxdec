@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,6 +43,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.discitems.AudioStreamsCombiner;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
@@ -50,6 +52,7 @@ import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemStrVideoStream;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.ISectorFrameDemuxer;
+import jpsxdec.i18n.I;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.TabularFeedback;
@@ -59,9 +62,10 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
 
     /** Hacky workaround to prevent constructor superclass resetting defaults. */
     private boolean _blnAudioInit = false;
+    @Nonnull
     private final DiscItemStrVideoStream _sourceVidItem;
 
-    public VideoSaverBuilderStr(DiscItemStrVideoStream vidItem) {
+    public VideoSaverBuilderStr(@Nonnull DiscItemStrVideoStream vidItem) {
         super(vidItem);
         _sourceVidItem = vidItem;
         if (vidItem.hasAudio()) {
@@ -91,7 +95,7 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
     }
 
     @Override
-    public boolean copySettingsTo(DiscItemSaverBuilder otherBuilder) {
+    public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder otherBuilder) {
         if (super.copySettingsTo(otherBuilder)) {
             if (otherBuilder instanceof VideoSaverBuilderStr) {
                 VideoSaverBuilderStr other = (VideoSaverBuilderStr) otherBuilder;
@@ -107,7 +111,7 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
         }
     }
 
-    public DiscItemSaverBuilderGui getOptionPane() {
+    public @Nonnull DiscItemSaverBuilderGui getOptionPane() {
         return new VideoSaverBuilderStrGui(this);
     }
 
@@ -120,13 +124,15 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
 
     // .........................................................................
 
+    @Nonnull
     private final List<DiscItemAudioStream> _parallelAudio;
+    @Nonnull
     private final boolean[] _ablnParallelAudio;
 
     public int getParallelAudioCount() {
         return _sourceVidItem.getChildCount();
     }
-    public DiscItemAudioStream getParallelAudio(int i) {
+    public @Nonnull DiscItemAudioStream getParallelAudio(int i) {
         return _parallelAudio.get(i);
     }
 
@@ -137,7 +143,7 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
             return false;
     }
 
-    public void setParallelAudio(DiscItemAudioStream parallelAudio, boolean blnSelected) {
+    public void setParallelAudio(@Nonnull DiscItemAudioStream parallelAudio, boolean blnSelected) {
         if (!_sourceVidItem.hasAudio())
             return;
 
@@ -212,7 +218,9 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
     ////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
+    public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, 
+                                                     @Nonnull FeedbackStream fbs)
+    {
         asArgs = super.commandLineOptions(asArgs, fbs);
         if (asArgs == null) return null;
         
@@ -239,22 +247,22 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
     }
 
     @Override
-    protected void makeHelpTable(TabularFeedback tfb) {
+    protected void makeHelpTable(@Nonnull TabularFeedback tfb) {
         super.makeHelpTable(tfb);
 
         if (_sourceVidItem.hasAudio()) {
             tfb.newRow();
-            tfb.print("-noaud").tab().print("Don't save audio."); // I18N
+            tfb.print(I.CMD_VIDEO_NOAUD()).tab().print(I.CMD_VIDEO_NOAUD_HELP());
         }
 
         if (_sourceVidItem.hasAudio()) {
             tfb.newRow();
-            tfb.print("-psxav").tab().print("Emulate PSX audio/video timing."); // I18N
+            tfb.print(I.CMD_VIDEO_PSXAV()).tab().print(I.CMD_VIDEO_PSXAV_HELP());
         }
     }
 
     @Override
-    protected SectorFeeder makeFeeder() {
+    protected @Nonnull SectorFeeder makeFeeder() {
         ISectorAudioDecoder audDecoder;
         if (getSavingAudio()) {
             ArrayList<DiscItemAudioStream> parallelAudio = new ArrayList<DiscItemAudioStream>();
@@ -275,13 +283,16 @@ public class VideoSaverBuilderStr extends VideoSaverBuilder {
 
     private static class StrSectorFeeder extends SectorFeeder {
 
-        public StrSectorFeeder(ISectorFrameDemuxer vidDemuxer, ISectorAudioDecoder audDecoder) {
-            videoDemuxer = vidDemuxer;
-            audioDecoder = audDecoder;
+        public StrSectorFeeder(@Nonnull ISectorFrameDemuxer vidDemuxer,
+                               @CheckForNull ISectorAudioDecoder audDecoder)
+        {
+            super(vidDemuxer, audDecoder);
         }
 
         @Override
-        public void feedSector(IdentifiedSector sector, Logger log) throws IOException {
+        public void feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) 
+                throws IOException
+        {
             videoDemuxer.feedSector(sector, log);
             if (audioDecoder != null)
                 audioDecoder.feedSector(sector, log);

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.IO;
 
@@ -51,7 +52,7 @@ public class SectorAliceVideo extends SectorAliceNullVideo
 {
 
 
-    public SectorAliceVideo(CdSector cdSector) {
+    public SectorAliceVideo(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -76,8 +77,8 @@ public class SectorAliceVideo extends SectorAliceNullVideo
         return "Alice";
     }
 
-    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
-                                int iMdecCodeCount, byte[] abSectUserData)
+    public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
+                                               int iMdecCodeCount, byte[] abSectUserData)
     {
         int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,9 @@ package jpsxdec.indexing;
 
 import java.util.Collection;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.CrusaderDemuxer;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemCrusader;
@@ -55,24 +58,23 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
 
     private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemCrusader> {
 
-        public VideoStreamIndex(Logger errLog, SectorCrusader vidSect) {
-            super(errLog, vidSect, false);
-
-            initDemuxer(new CrusaderDemuxer(),
-                        vidSect);
+        public VideoStreamIndex(@Nonnull CdFileSectorReader cd, @Nonnull Logger errLog,
+                                @Nonnull SectorCrusader vidSect)
+        {
+            super(cd, errLog, vidSect, false, new CrusaderDemuxer());
         }
 
         @Override
-        protected DiscItemCrusader createVideo(int iStartSector, int iEndSector,
-                                               int iWidth, int iHeight,
-                                               int iFrameCount,
-                                               FrameNumberFormat frameNumberFormat,
-                                               FrameNumber startFrame,
-                                               FrameNumber lastSeenFrameNumber,
-                                               int iSectors, int iPerFrame,
-                                               int iFrame1PresentationSector)
+        protected @Nonnull DiscItemCrusader createVideo(int iStartSector, int iEndSector,
+                                                        int iWidth, int iHeight,
+                                                        int iFrameCount,
+                                                        @Nonnull FrameNumberFormat frameNumberFormat,
+                                                        @Nonnull FrameNumber startFrame,
+                                                        @Nonnull FrameNumber lastSeenFrameNumber,
+                                                        int iSectors, int iPerFrame,
+                                                        int iFrame1PresentationSector)
         {
-            return new DiscItemCrusader(iStartSector, iEndSector,
+            return new DiscItemCrusader(_cd, iStartSector, iEndSector,
                                         iWidth, iHeight,
                                         iFrameCount,
                                         frameNumberFormat,
@@ -81,14 +83,16 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
 
     }
 
+    @Nonnull
     private final Logger _errLog;
+    @CheckForNull
     private VideoStreamIndex _currentStream;
 
-    public DiscIndexerCrusader(Logger errLog) {
+    public DiscIndexerCrusader(@Nonnull Logger errLog) {
         _errLog = errLog;
     }
 
-    public void indexingSectorRead(IdentifiedSector identifiedSector) {
+    public void indexingSectorRead(@Nonnull IdentifiedSector identifiedSector) {
         if (!(identifiedSector instanceof SectorCrusader))
             return;
 
@@ -104,7 +108,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
             }
         }
         if (_currentStream == null) {
-            _currentStream = new VideoStreamIndex(_errLog, vidSect);
+            _currentStream = new VideoStreamIndex(getCd(), _errLog, vidSect);
         }
 
     }
@@ -124,10 +128,10 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
     }
 
     @Override
-    public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine) {
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
         try {
-            if (DiscItemCrusader.TYPE_ID.equals(deserializedLine.getType())) {
-                return new DiscItemCrusader(deserializedLine);
+            if (DiscItemCrusader.TYPE_ID.equals(fields.getType())) {
+                return new DiscItemCrusader(getCd(), fields);
             }
         } catch (NotThisTypeException ex) {}
         return null;

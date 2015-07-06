@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,35 +37,56 @@
 
 package jpsxdec.util;
 
+import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.Version;
 
 
-/** Brief logging formatter.
+/** Formatting for the main debug.log.
  *<p>
- * Never localizes strings.
+ * Never localizes strings. Only logs English in a compact format.
  *<p>
  * Originally from the book "JDK 1.4 Tutorial" by Gregory M. Travis.
  * http://www.manning.com/travis/
  */
-public class BriefFormatter extends Formatter {
+public class DebugFormatter extends Formatter {
 
-    /** Line separator string.  This is the value of the line.separator
-     * property at the moment that the SimpleFormatter was created. */
+    @CheckForNull
+    private static final ResourceBundle _rootEnglishBundle;
+    static {
+        ResourceBundle rb = null;
+        try {
+            rb = ResourceBundle.getBundle(LocalizedMessage.getResourceBundleName(), new Locale(""));
+        } catch (MissingResourceException ex) {
+            Logger.getLogger(DebugFormatter.class.getName()).log(Level.SEVERE, "Unable to load root resource bundle", ex);
+        }
+        _rootEnglishBundle = rb;
+    }
+
+    /** Quick reference to this platforms line separator. */
     private final static String LINE_SEPARATOR = System.getProperty("line.separator");
 
     private final Date _date = new Date();
     private final SimpleDateFormat _timeFormatter = new SimpleDateFormat("HH:mm");
 
     @Override
-    public String getHead(Handler h) {
+    public @Nonnull String getHead(@Nonnull Handler h) {
         StringBuilder sb = new StringBuilder();
-        sb.append(Version.VerString.getEnglishMessage()).append(LINE_SEPARATOR);
+        sb.append(I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getEnglishMessage()).append(LINE_SEPARATOR);
         sb.append(System.getProperty("os.name")).append(' ').append(System.getProperty("os.version")).append(LINE_SEPARATOR);
         sb.append("Java ").append(System.getProperty("java.version")).append(LINE_SEPARATOR);
         SimpleDateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -79,7 +100,7 @@ public class BriefFormatter extends Formatter {
      * @param record the log record to be formatted.
      * @return a formatted log record
      */
-    public synchronized String format(LogRecord record) {
+    public synchronized @Nonnull String format(@Nonnull LogRecord record) {
 	StringBuilder sb = new StringBuilder();
 	// Minimize memory allocations here.
 	_date.setTime(record.getMillis());
@@ -90,12 +111,27 @@ public class BriefFormatter extends Formatter {
 	sb.append(record.getLevel().getName());
 	sb.append(": ");
         
-        // don't localize the message
+        // localize to English
         String sMsg = record.getMessage();
-        Object aoParams[] = record.getParameters();
-        if (aoParams != null && aoParams.length > 0)
-            sMsg = java.text.MessageFormat.format(sMsg, aoParams);
-	sb.append(sMsg);
+        if (sMsg != null) {
+            if (record.getResourceBundle() != null) {
+                if (_rootEnglishBundle != null)
+                    sMsg = _rootEnglishBundle.getString(sMsg);
+            }
+            Object aoParams[] = record.getParameters();
+            if (aoParams != null && aoParams.length > 0) {
+                Object aoParamsCopy[] = new Object[aoParams.length];
+                for (int i = 0; i < aoParams.length; i++) {
+                    Object param = aoParams[i];
+                    if (param instanceof LocalizedMessage)
+                        aoParamsCopy[i] = ((LocalizedMessage)param).getEnglishMessage();
+                    else
+                        aoParamsCopy[i] = param;
+                }
+                sMsg = MessageFormat.format(sMsg, aoParamsCopy);
+            }
+            sb.append(sMsg);
+        }
         
 	sb.append(LINE_SEPARATOR);
 	if (record.getThrown() != null) {

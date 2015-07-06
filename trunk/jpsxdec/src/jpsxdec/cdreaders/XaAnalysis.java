@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,8 @@ package jpsxdec.cdreaders;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.audio.XaAdpcmDecoder;
 
 /** Analyzes CD sectors to determine if they are XA audio sectors.
@@ -68,7 +70,7 @@ public class XaAnalysis {
     /** Analyzes a CD sector to determine if it is a XA audio sector.
      * @param iMaxValidChannel Max subheader channel that will be accepted as XA. 254 is a good value.
      * @return null if definitely not a XA audio sector. */
-    public static XaAnalysis analyze(CdSector cdSector, int iMaxValidChannel) {
+    public static @CheckForNull XaAnalysis analyze(@Nonnull CdSector cdSector, int iMaxValidChannel) {
 
         if (cdSector.isCdAudioSector()) return null;
 

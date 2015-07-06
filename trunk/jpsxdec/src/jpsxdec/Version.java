@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,10 +39,7 @@ package jpsxdec;
 
 public class Version {
 
-    public final static String Version = "0.99.4 (beta)";
-    public final static LocalizedMessage VerString = 
-            new LocalizedMessage("jPSXdec: PSX media decoder v{0}", Version); // I18N
-    public final static LocalizedMessage VerStringNonCommercial = 
-            new LocalizedMessage("jPSXdec: PSX media decoder (non-commercial) v{0}", Version); // I18N
+    public final static String Version = "0.99.5 (beta)";
+    public final static String IndexHeader = "[jPSXdec v"+Version+"]";
 
 }

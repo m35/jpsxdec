@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,24 +41,30 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.ListIterator;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 
 
 public class DemuxedUnidentifiedDataStream extends InputStream {
 
     private static class BufferedUnidentfifiedSectorWalker {
+        @Nonnull
         private final DiscriminatingSectorIterator _sectorReader;
 
         private final LinkedList<CdSector> _buffer =
                 new LinkedList<CdSector>();
 
-        /** Should never be null */
+        @Nonnull
         private ListIterator<CdSector> _iter;
 
+        @Nonnull
         private CdSector _currentSector;
+        @Nonnull
         private CdSector _currentHead;
 
-        public BufferedUnidentfifiedSectorWalker(DiscriminatingSectorIterator sectIter) throws IOException {
+        public BufferedUnidentfifiedSectorWalker(@Nonnull DiscriminatingSectorIterator sectIter) 
+                throws IOException
+        {
             _sectorReader = sectIter;
             _iter = _buffer.listIterator();
             _currentSector = _currentHead = _sectorReader.nextUnidentified();
@@ -68,7 +74,7 @@ public class DemuxedUnidentifiedDataStream extends InputStream {
             return !_buffer.isEmpty() || _sectorReader.hasNextUnidentified();
         }
 
-        public CdSector moveNextHead() throws IOException {
+        public @Nonnull CdSector moveNextHead() throws IOException {
             if (!headHasMore())
                 throw new RuntimeException();
             if (!_buffer.isEmpty()) {
@@ -85,7 +91,7 @@ public class DemuxedUnidentifiedDataStream extends InputStream {
         }
 
 
-        public CdSector currentHead() {
+        public @Nonnull CdSector currentHead() {
             return _currentHead;
         }
 
@@ -95,7 +101,7 @@ public class DemuxedUnidentifiedDataStream extends InputStream {
             return _iter.hasNext() || _sectorReader.hasNextUnidentified();
         }
 
-        public CdSector moveNext() throws IOException {
+        public @Nonnull CdSector moveNext() throws IOException {
             if (_iter.hasNext()) {
                 return _currentSector = _iter.next();
             } else {
@@ -105,13 +111,14 @@ public class DemuxedUnidentifiedDataStream extends InputStream {
             }
         }
 
-        public CdSector current() {
+        public @Nonnull CdSector current() {
             return _currentSector;
         }
 
     }
 
 
+    @Nonnull
     private final BufferedUnidentfifiedSectorWalker _readBuffer;
 
     private int _iStartingOffset;
@@ -120,7 +127,9 @@ public class DemuxedUnidentifiedDataStream extends InputStream {
     private boolean _blnHeadAtEnd;
     private boolean _blnAtEnd;
 
-    public DemuxedUnidentifiedDataStream(DiscriminatingSectorIterator sectorIterator) throws IOException {
+    public DemuxedUnidentifiedDataStream(@Nonnull DiscriminatingSectorIterator sectorIterator)
+            throws IOException
+    {
         _readBuffer = new BufferedUnidentfifiedSectorWalker(sectorIterator);
         _iCurrentOffset = _iStartingOffset = 0;
         _blnAtEnd = false;
@@ -216,7 +225,5 @@ public class DemuxedUnidentifiedDataStream extends InputStream {
         return n;
 
     }
-
-
 
 }

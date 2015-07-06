@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.cdreaders;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 
 /** When a portion of raw BIN/CUE disc image data is stored as a file,
@@ -56,7 +57,7 @@ public class CdxaRiffHeader {
 
     /** @param lngFileSize Size of the raw image data, excluding the RIFF header
      *                     (must be a multiple of 2352). */
-    public static void write(OutputStream os, long lngFileSize) throws IOException {
+    public static void write(@Nonnull OutputStream os, long lngFileSize) throws IOException {
         if (lngFileSize % 2352 != 0)
             throw new IllegalArgumentException(lngFileSize + " is not a multiple of 2352");
         if (lngFileSize > 0xffffffffL)

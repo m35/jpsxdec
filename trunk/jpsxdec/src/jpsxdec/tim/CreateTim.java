@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,6 +45,8 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
@@ -59,7 +61,9 @@ class CreateTim {
 
     /** Quickly reads a stream to determine if the data is a Tim image.
      * @return info about the Tim image, otherwise null. */
-    public static TimInfo isTim(InputStream inStream) throws IOException {
+    public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream) 
+            throws IOException
+    {
         // tag
         if (IO.readUInt8(inStream) != Tim.TAG_MAGIC)
             return null;
@@ -159,7 +163,8 @@ class CreateTim {
 
 
     /** Parse and deserialize a TIM file from a stream. */
-    public static Tim read(InputStream inStream) throws IOException, NotThisTypeException
+    public static @Nonnull Tim read(@Nonnull InputStream inStream)
+            throws IOException, NotThisTypeException
     {
         final boolean DBG = false;
         int iTag = IO.readUInt8(inStream);
@@ -246,7 +251,10 @@ class CreateTim {
      * @param iClutX CLUT X coordinate.
      * @param iClutY CLUT Y coordinate.
      */
-    public static Tim create(BufferedImage bi, int iTimX, int iTimY, int iClutX, int iClutY) {
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi,
+                                      int iTimX, int iTimY,
+                                      int iClutX, int iClutY)
+    {
         int iSrcBpp = findBitsPerPixel(bi);
         if (iSrcBpp == 32)
             iSrcBpp = 16; // use 16 BPP (instead of 24) since it's the most common
@@ -269,9 +277,9 @@ class CreateTim {
      * @param iTimY Tim Y coordinate.
      * @param iClutX CLUT X coordinate. Ignored if bpp is 16 or 24.
      * @param iClutY CLUT Y coordinate. Ignored if bpp is 16 or 24. */
-    public static Tim create(BufferedImage bi, int iBitsPerPixel,
-                             int iTimX, int iTimY,
-                             int iClutX, int iClutY)
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi, int iBitsPerPixel,
+                                      int iTimX, int iTimY,
+                                      int iClutX, int iClutY)
     {
         int iPaletteLength;
         switch (iBitsPerPixel) {
@@ -366,9 +374,9 @@ class CreateTim {
      * @param iClutX CLUT X coordinate.
      * @param iClutY CLUT Y coordinate.
      * @param iBitsPerPixel Either 4 or 8. */
-    public static Tim create(BufferedImage bi, int iTimX, int iTimY,
-                             BufferedImage clutImg, int iClutX, int iClutY,
-                             int iBitsPerPixel)
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi, int iTimX, int iTimY,
+                                      @Nonnull BufferedImage clutImg, int iClutX, int iClutY,
+                                      int iBitsPerPixel)
     {
         int iPaletteSize;
         if (iBitsPerPixel == 4)
@@ -412,7 +420,7 @@ class CreateTim {
 
     /** If image has a palette &lt;= 16 colors: 4bpp, &lt;= 256 colors: 8bpp, otherwise 32 bpp.
      * @return 4, 8, or 32. */
-    private static int findBitsPerPixel(BufferedImage bi) {
+    private static int findBitsPerPixel(@Nonnull BufferedImage bi) {
         if (bi.getColorModel() instanceof IndexColorModel) {
             IndexColorModel icm = (IndexColorModel) bi.getColorModel();
             int iPaletteSize = icm.getMapSize();
@@ -429,7 +437,9 @@ class CreateTim {
 
     /** Returns Tim image data consisting of 4 or 8 bpp indexes.
      * If 4 bpp, assumes image width is divisible by 2. */
-    private static byte[] extractIndexes(BufferedImage bi, boolean bln4bppOrNot8bpp) {
+    private static @Nonnull byte[] extractIndexes(@Nonnull BufferedImage bi, 
+                                                  boolean bln4bppOrNot8bpp)
+    {
         int[] aiIndexes = bi.getRaster().getPixels(0, 0, bi.getWidth(), bi.getHeight(), (int[])null);
 
         byte[] abIndexes;
@@ -462,7 +472,7 @@ class CreateTim {
 
     /** Returns ABGR1555 array with iLen length.
      * Ignores if palette is actually larger or smaller. */
-    private static short[] extractPalette(IndexColorModel icm, int iLen) {
+    private static @Nonnull short[] extractPalette(@Nonnull IndexColorModel icm, int iLen) {
         int[] aiPalette = new int[iLen];
         icm.getRGBs(aiPalette);
         // convert the 32bit ARGB8888 palette into TIM 16bit ABGR1555
@@ -474,7 +484,7 @@ class CreateTim {
     }
 
     /** Convert image to 16 bpp Tim. */
-    private static Tim create16(BufferedImage bi, int iTimX, int iTimY) {
+    private static @Nonnull Tim create16(@Nonnull BufferedImage bi, int iTimX, int iTimY) {
         int[] aiArgb = bi.getRGB(0, 0, bi.getWidth(), bi.getHeight(), null, 0, bi.getWidth());
         byte[] abTim16 = new byte[aiArgb.length * 2];
         for (int i = 0, o = 0; i < aiArgb.length; i++, o+=2) {
@@ -486,7 +496,7 @@ class CreateTim {
     }
 
     /** Convert image to 24 bpp Tim. */
-    private static Tim create24(BufferedImage bi, int iTimX, int iTimY) {
+    private static @Nonnull Tim create24(@Nonnull BufferedImage bi, int iTimX, int iTimY) {
         final int iWidth = bi.getWidth(), iHeight = bi.getHeight();
         int[] aiArgb = bi.getRGB(0, 0, iWidth, iHeight, null, 0, iWidth);
         byte[] abTim24;
@@ -506,8 +516,10 @@ class CreateTim {
      * Ignores its {@link IndexColorModel} if it has one.
      * @throws IllegalArgumentException if the image has too many colors to fit into the palette.
      */
-    private static Tim createPalettedTim(BufferedImage bi, boolean bln4bppOrNot8bpp,
-                                         int iTimX, int iTimY, int iClutX, int iClutY)
+    private static @Nonnull Tim createPalettedTim(@Nonnull BufferedImage bi,
+                                                  boolean bln4bppOrNot8bpp,
+                                                  int iTimX, int iTimY,
+                                                  int iClutX, int iClutY)
     {
         final int iWidth = bi.getWidth(), iHeight = bi.getHeight();
         
@@ -562,18 +574,20 @@ class CreateTim {
          * Either 16 (for 4bpp) or 256 (for 8bpp) in length.
          * Only the first {@link #_iColorCount} values are meaningful, the rest are 0.
          * The meaningful values are sorted for binary search lookup. */
+        @Nonnull
         public final short[] _asiPalette;
 
         /** Number of values in {@link #_asiPalette} that are meaningful. */
         private int _iColorCount;
 
         /** Image converted to ABGR1555 Tim colors. */
+        @Nonnull 
         private final short[] _asiTim16Image;
 
         /** Converts the image to ABGR1555 Tim colors and generates the palette.
          * @param aiArgb ARGB8888 image data.
          * @param iPaletteSize Palette size, 16 or 256. */
-        public PaletteMaker(int[] aiArgb, int iPaletteSize) {
+        public PaletteMaker(@Nonnull int[] aiArgb, int iPaletteSize) {
             // make 2 copies of the image data converted to Tim 16bpp
             _asiTim16Image = new short[aiArgb.length];
             for (int i = 0; i < aiArgb.length; i++) {
@@ -630,7 +644,7 @@ class CreateTim {
             return -1;
         }
 
-        public CLUT makeClut(int iClutX, int iClutY) {
+        public @Nonnull CLUT makeClut(int iClutX, int iClutY) {
             return new CLUT(_asiPalette, iClutX, iClutY, _asiPalette.length);
         }
     }

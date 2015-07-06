@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,6 +48,8 @@ import java.awt.RenderingHints;
 import java.awt.Transparency;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.util.Fraction;
 
 /** Video player thread manages the actual display of video frames. */
@@ -63,13 +65,19 @@ class VideoPlayer implements Runnable, IVideoTimer {
     private final int _iWidth, _iHeight;
 
     /** Only used for video only streams. */
+    @CheckForNull
     private Thread _thread;
 
+    @Nonnull
     private final VideoScreen _screen;
+    @Nonnull
     private final IVideoTimer _vidTimer;
+    @Nonnull
     private final PlayController _controller;
 
-    public VideoPlayer(IVideoTimer vidTimer, PlayController controller, int iWidth, int iHeight) {
+    public VideoPlayer(@CheckForNull IVideoTimer vidTimer, @Nonnull PlayController controller,
+                       int iWidth, int iHeight)
+    {
         if (vidTimer == null)
             _vidTimer = this;
         else
@@ -155,7 +163,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
         _frameDisplayQueue.writerClose();
     }
 
-    public Canvas getVideoCanvas() {
+    public @Nonnull Canvas getVideoCanvas() {
         return _screen;
     }
 
@@ -167,7 +175,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
     }
 
     /** Adjust the rendered frame with this aspect ratio. */
-    public void setAspectRatio(Fraction aspectRatio) {
+    public void setAspectRatio(@Nonnull Fraction aspectRatio) {
         _screen.setAspectRatio(aspectRatio);
     }
 
@@ -181,16 +189,21 @@ class VideoPlayer implements Runnable, IVideoTimer {
     private class VideoScreen extends Canvas {
 
         /** Adjust the rendered frame with this aspect ratio. */
+        @Nonnull
         private Fraction __aspectRatio = PlayController.PAL_ASPECT_RATIO;
 
+        @Nonnull
         private Dimension __minDims;
 
         /** Squash oversized frames to fit in TV. */
         private boolean __blnSquashWidth = false;
+        @Nonnull
         private Object __renderingHintInterpolation = 
                 RenderingHints.VALUE_INTERPOLATION_BILINEAR;
                 //RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+        @CheckForNull
         private BufferStrategy __buffStrategy;
+        @CheckForNull
         private VideoFrame __currentFrame;
 
         public VideoScreen() {
@@ -198,7 +211,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
             updateDims();
         }
 
-        public void setAspectRatio(Fraction aspectRatio) {
+        public void setAspectRatio(@Nonnull Fraction aspectRatio) {
             __aspectRatio = aspectRatio;
             updateDims();
         }
@@ -214,7 +227,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
                 (int)(_iHeight * __aspectRatio.getNumerator() / __aspectRatio.getDenominator()));
         }
 
-        private void updateImage(VideoFrame frame) {
+        private void updateImage(@Nonnull VideoFrame frame) {
             synchronized (getTreeLock()) {
                 if (__currentFrame != null)
                     __currentFrame.returnToPool();
@@ -226,7 +239,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
                     System.out.println("Trying to play frame when canvas is hidden");
                     return;
                 }
-                if (getWidth() == 0 || getHeight() == 0) {
+                if (this.getWidth() == 0 || this.getHeight() == 0) {
                     return;
                 }
 
@@ -251,9 +264,9 @@ class VideoPlayer implements Runnable, IVideoTimer {
         }
 
         @Override
-        public void paint(Graphics g) {
-            final int iWinW = getWidth();
-            final int iWinH = getHeight();
+        public void paint(@Nonnull Graphics g) {
+            final int iWinW = this.getWidth();
+            final int iWinH = this.getHeight();
             g.setColor(Color.black);
             g.fillRect(0, 0, iWinW, iWinH);
             float fltConvertAspectRatio = (getSrcWidth()  * __aspectRatio.getDenominator()  ) /
@@ -310,6 +323,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
 
 
     class VideoFrame {
+        @Nonnull
         public final BufferedImage Img;
         public long PresentationTime;
 
@@ -346,7 +360,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
         }
     }
 
-    public Object getSyncObject() {
+    public @Nonnull Object getSyncObject() {
         return _frameDisplayQueue.getSyncObject();
     }
 
@@ -365,7 +379,7 @@ class VideoPlayer implements Runnable, IVideoTimer {
     }
 
 
-    public boolean waitToPresent(VideoPlayer.VideoFrame frame) {
+    public boolean waitToPresent(@Nonnull VideoPlayer.VideoFrame frame) {
         try {
             synchronized (_frameDisplayQueue.getSyncObject()) {
                 while (true) {

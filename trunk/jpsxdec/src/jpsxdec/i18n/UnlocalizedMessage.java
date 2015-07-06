@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -34,52 +34,70 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+package jpsxdec.i18n;
 
-package jpsxdec;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 
-import java.io.FileNotFoundException;
-import java.text.MessageFormat;
+/** A localized string that doesn't need to be localized.
+ * <p>
+ * Some strings (primarily file paths) need to be presented to the user, but
+ * cannot or should not be localized. This represents those kinds of strings.
+ */
+public class UnlocalizedMessage extends LocalizedMessage {
 
-public class LocalizedFileNotFoundException extends FileNotFoundException {
+    @Nonnull
+    private final String _sMessage;
 
-    private final Object[] _aoArguments;
-    
-    public LocalizedFileNotFoundException() {
-        _aoArguments = null;
+    public UnlocalizedMessage(@Nonnull String sMessage) {
+        super(null, null);
+        _sMessage = sMessage;
     }
 
-    public LocalizedFileNotFoundException(String sMessage) {
-        super(sMessage);
-        _aoArguments = null;
+    @Override
+    public boolean equalsIgnoreCase(String s) {
+        return _sMessage.equalsIgnoreCase(s);
     }
 
-    public LocalizedFileNotFoundException(String sMessage, Object ... aoArguments) {
-        super(sMessage);
-        _aoArguments = aoArguments;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || getClass() != obj.getClass())
+            return false;
+        return _sMessage.equals(((UnlocalizedMessage)obj)._sMessage);
     }
-    
+
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 97 * hash + (this._sMessage != null ? this._sMessage.hashCode() : 0);
+        return hash;
+    }
+
+
+    @Override
+    public String toString() {
+        return _sMessage;
+    }
+
     @Override
     public String getLocalizedMessage() {
-        String sSuperMessage = super.getMessage();
-        if (sSuperMessage == null)
-            return null;
-        else {
-            if (_aoArguments == null)
-                return I18N.S(sSuperMessage);
-            else
-                return I18N.S(sSuperMessage, _aoArguments);
-        }
+        return _sMessage;
     }
 
     @Override
-    public String getMessage() {
-        String sSuperMessage = super.getMessage();
-        if (_aoArguments == null)
-            return sSuperMessage;
-        else if (sSuperMessage != null)
-            return MessageFormat.format(sSuperMessage, _aoArguments);
-        else
-            return null;
+    public String getEnglishMessage() {
+        return _sMessage;
     }
-    
+
+    @Override
+    public void log(Logger log, Level level, Throwable ex) {
+        log.log(level, _sMessage, ex);
+    }
+
+    @Override
+    public void log(Logger log, Level level) {
+        log.log(level, _sMessage);
+    }
+
 }

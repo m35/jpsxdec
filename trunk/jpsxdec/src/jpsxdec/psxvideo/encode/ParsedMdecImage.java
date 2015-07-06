@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,7 +43,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
@@ -210,7 +210,7 @@ public class ParsedMdecImage  {
             try {
                 currentMacBlk = _aoMacroBlocks[__iCurrentMacroBlock];
             } catch (ArrayIndexOutOfBoundsException ex) {
-                throw new MdecException.Read(I18N.S("End of stream")); // I18N
+                throw new MdecException.Read(I.END_OF_STREAM(), ex);
             }
 
             Block currentBlk = currentMacBlk.getBlock(__iCurrentBlock);

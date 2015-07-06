@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,10 +43,13 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import jpsxdec.LocalizedIOException;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.Version;
 import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
 
@@ -82,8 +85,6 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  */
 public abstract class AviWriter {
 
-    public static final String AVI_WRITER_ID = Version.VerString.getEnglishMessage();
-
     // -------------------------------------------------------------------------
     // -- Fields ---------------------------------------------------------------
     // -------------------------------------------------------------------------
@@ -106,12 +107,14 @@ public abstract class AviWriter {
     private long _lngFrameCount = 0;
 
     /** Audio format of the audio stream, or null if there is no audio. */
+    @CheckForNull
     private final AudioFormat _audioFormat;
 
     /** Number of audio samples written. */
     private long _lngSampleCount = 0;
 
     private final boolean _blnCompressedVideo;
+    @Nonnull
     private final String _sFourCCcodec;
     private final int _iCompression;
 
@@ -119,7 +122,7 @@ public abstract class AviWriter {
     // -- Properties -----------------------------------------------------------
     // -------------------------------------------------------------------------
     
-    public AudioFormat getAudioFormat() {
+    public @CheckForNull AudioFormat getAudioFormat() {
         return _audioFormat;
     }
 
@@ -161,7 +164,8 @@ public abstract class AviWriter {
     // -------------------------------------------------------------------------
     // -- AVI Structure Fields -------------------------------------------------
     // -------------------------------------------------------------------------
-    
+
+    @CheckForNull
     private RandomAccessFile _aviFile;
     
     private Chunk _RIFF_chunk;
@@ -189,6 +193,7 @@ public abstract class AviWriter {
             //RIFF_chunk
     
     /** Holds the 'idx' section index data. */
+    @Nonnull
     private ArrayList<AVIOLDINDEXENTRY> _indexList;
     
     
@@ -197,13 +202,13 @@ public abstract class AviWriter {
     // -------------------------------------------------------------------------
     
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    protected AviWriter(final File outputfile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond,
-                     final AudioFormat audioFormat,
-                     final boolean blnCompressedVideo,
-                     final String sFourCCcodec,
-                     final int iBytes)
+    protected AviWriter(final @Nonnull File outputfile,
+                        final int iWidth, final int iHeight,
+                        final long lngFrames, final long lngPerSecond,
+                        final @CheckForNull AudioFormat audioFormat,
+                        final boolean blnCompressedVideo,
+                        final @Nonnull String sFourCCcodec,
+                        final int iBytes)
             throws IOException
     {
 
@@ -293,7 +298,7 @@ public abstract class AviWriter {
             
             // some programs will use this to identify the program that wrote the avi
             Chunk JUNK_writerId = new Chunk(_aviFile, "JUNK");
-                _aviFile.writeBytes(AVI_WRITER_ID);
+                _aviFile.writeBytes(I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getEnglishMessage());
                 _aviFile.write(0);
             JUNK_writerId.endChunk(_aviFile);
 
@@ -334,8 +339,8 @@ public abstract class AviWriter {
     }
 
     /** Audio format must be signed 16-bit PCM in little-endian order. */
-    public void writeAudio(AudioInputStream audStream) throws IOException {
-        if (_aviFile == null) throw new LocalizedIOException("Avi file is closed"); // I18N
+    public void writeAudio(@Nonnull AudioInputStream audStream) throws IOException {
+        if (_aviFile == null) throw new LocalizedIOException(I.AVI_FILE_IS_CLOSED());
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
         
@@ -375,13 +380,13 @@ public abstract class AviWriter {
     }
 
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    public void writeAudio(byte[] abData) throws IOException {
+    public void writeAudio(@Nonnull byte[] abData) throws IOException {
         writeAudio(abData, 0, abData.length);
     }
 
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    public void writeAudio(byte[] abData, int iOfs, int iLen) throws IOException {
-        if (_aviFile == null) throw new LocalizedIOException("Avi file is closed"); // I18N
+    public void writeAudio(@Nonnull byte[] abData, int iOfs, int iLen) throws IOException {
+        if (_aviFile == null) throw new LocalizedIOException(I.AVI_FILE_IS_CLOSED());
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
 
@@ -409,29 +414,34 @@ public abstract class AviWriter {
         _indexList.add(idxentry);
     }
 
+    private static class ZeroInputStream extends InputStream {
+        @Override
+        public int read() throws IOException {
+            return 0;
+        }
+
+        @Override
+        public int read(@Nonnull byte[] b, int off, int len) throws IOException {
+            Arrays.fill(b, off, len, (byte)0);
+            return len;
+        }
+
+        @Override
+        public long skip(long n) throws IOException {
+            return n;
+        }
+    }
+
     public void writeSilentSamples(long lngSampleCount) throws IOException {
-        writeAudio(new AudioInputStream(new InputStream() {
-            @Override
-            public int read() throws IOException {
-                return 0;
-            }
-
-            @Override
-            public int read(byte[] b, int off, int len) throws IOException {
-                Arrays.fill(b, off, len, (byte)0);
-                return len;
-            }
-
-            @Override
-            public long skip(long n) throws IOException {
-                return n;
-            }
-        }, _audioFormat, lngSampleCount));
+        if (_audioFormat == null)
+            throw new IllegalStateException("Unable to write audio to video-only avi.");
+        
+        writeAudio(new AudioInputStream(new ZeroInputStream(), _audioFormat, lngSampleCount));
     }
 
     /** Subclasses will use this method to write each frame's data. */
-    protected void writeFrameChunk(byte[] abData, int iOfs, int iLen) throws IOException {
-        if (_aviFile == null) throw new LocalizedIOException("Avi file is closed"); // I18N
+    protected void writeFrameChunk(@Nonnull byte[] abData, int iOfs, int iLen) throws IOException {
+        if (_aviFile == null) throw new LocalizedIOException(I.AVI_FILE_IS_CLOSED());
 
         AVIOLDINDEXENTRY idxentry = new AVIOLDINDEXENTRY();
         idxentry.dwOffset = (int)(_aviFile.getFilePointer() - (LIST_movi.getStart() + 4));
@@ -470,7 +480,7 @@ public abstract class AviWriter {
      * This must be called and complete successfully for the AVI to be playable.
      */
     public void close() throws IOException {
-        if (_aviFile == null) throw new LocalizedIOException("Avi file is closed"); // I18N
+        if (_aviFile == null) throw new LocalizedIOException(I.AVI_FILE_IS_CLOSED());
         
             LIST_movi.endChunk(_aviFile);
             
@@ -662,18 +672,18 @@ public abstract class AviWriter {
      *  many bytes have been written. */
     private static class Chunk {
 
-        private static byte[] ZEROES3 = new byte[3];
+        private static final byte[] ZEROES3 = new byte[3];
 
-        final private long _lngPos;
+        private final long _lngPos;
         private int _iSize = -1;
         
-        Chunk(RandomAccessFile raf, String sChunkName) throws IOException {
+        Chunk(@Nonnull RandomAccessFile raf, @Nonnull String sChunkName) throws IOException {
             AVIstruct.write32LE(raf, AVIstruct.string2int(sChunkName));
             _lngPos = raf.getFilePointer();
             raf.writeInt(0);
         }
         
-         Chunk(RandomAccessFile raf, String sChunkName, String sSubChunkName) throws IOException {
+         Chunk(@Nonnull RandomAccessFile raf, @Nonnull String sChunkName, @Nonnull String sSubChunkName) throws IOException {
             this(raf, sChunkName);
             AVIstruct.write32LE(raf, AVIstruct.string2int(sSubChunkName));
         }
@@ -681,7 +691,7 @@ public abstract class AviWriter {
         /** Jumps back to saved position in the RandomAccessFile and writes
          *  how many bytes have passed since the position was saved, then
          *  returns to the current position again. Pads to a 4 byte boundary. */
-        public void endChunk(RandomAccessFile raf) throws IOException {
+        public void endChunk(@Nonnull RandomAccessFile raf) throws IOException {
             long lngCurPos = raf.getFilePointer(); // save this pos
             _iSize = (int)(lngCurPos - (_lngPos + 4)); // calculate number of bytes since start of chunk
 

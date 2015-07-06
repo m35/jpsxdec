@@ -58,7 +58,7 @@
                   <Image iconType="3" name="/jpsxdec/gui/media-optical-5.png"/>
                 </Property>
                 <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                  <ResourceString bundle="jpsxdec/Translations.properties" key="Open and Analyze File" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                  <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_OPEN_ANALYZE_DISC_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                 </Property>
                 <Property name="horizontalTextPosition" type="int" value="2"/>
                 <Property name="margin" type="java.awt.Insets" editor="org.netbeans.beaninfo.editors.InsetsEditor">
@@ -77,7 +77,7 @@
                   <Image iconType="3" name="/jpsxdec/gui/insert-numbers.png"/>
                 </Property>
                 <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                  <ResourceString bundle="jpsxdec/Translations.properties" key="Open Index" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                  <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_OPEN_INDEX_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                 </Property>
                 <Property name="focusable" type="boolean" value="false"/>
                 <Property name="horizontalTextPosition" type="int" value="2"/>
@@ -97,7 +97,7 @@
                   <Image iconType="3" name="/jpsxdec/gui/3floppy_unmount.png"/>
                 </Property>
                 <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                  <ResourceString bundle="jpsxdec/Translations.properties" key="Save Index" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                  <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_SAVE_INDEX_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                 </Property>
                 <Property name="enabled" type="boolean" value="false"/>
                 <Property name="focusable" type="boolean" value="false"/>
@@ -211,7 +211,7 @@
                 <Component class="javax.swing.JButton" name="_guiSelectAll">
                   <Properties>
                     <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                      <ResourceString bundle="jpsxdec/Translations.properties" key="Select ..." replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                      <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_SELECT_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                     </Property>
                     <Property name="enabled" type="boolean" value="false"/>
                   </Properties>
@@ -239,7 +239,7 @@
                 <Component class="javax.swing.JButton" name="_guiExpandAll">
                   <Properties>
                     <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                      <ResourceString bundle="jpsxdec/Translations.properties" key="Expand All" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                      <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_EXPAND_ALL_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                     </Property>
                   </Properties>
                   <Events>
@@ -254,7 +254,7 @@
                 <Component class="javax.swing.JButton" name="_guiCollapseAll">
                   <Properties>
                     <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                      <ResourceString bundle="jpsxdec/Translations.properties" key="Collapse All" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                      <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_COLLAPSE_ALL_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                     </Property>
                   </Properties>
                   <Events>
@@ -323,7 +323,7 @@
                     <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.support.JTabbedPaneSupportLayout" value="org.netbeans.modules.form.compat2.layouts.support.JTabbedPaneSupportLayout$JTabbedPaneConstraintsDescription">
                       <JTabbedPaneConstraints tabName="    Save    ">
                         <Property name="tabTitle" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                          <ResourceString bundle="jpsxdec/Translations.properties" key="    Save    " replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                          <ResourceString bundle="jpsxdec/Translations.properties" key="SAVE_TAB" replaceFormat="I.{key}().getLocalizedMessage()"/>
                         </Property>
                       </JTabbedPaneConstraints>
                     </Constraint>
@@ -352,7 +352,7 @@
                         <Component class="javax.swing.JLabel" name="_guiDirectoryLbl">
                           <Properties>
                             <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                              <ResourceString bundle="jpsxdec/Translations.properties" key="Directory:" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                              <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_DIRECTORY_LABEL" replaceFormat="I.{key}().getLocalizedMessage()"/>
                             </Property>
                           </Properties>
                           <Constraints>
@@ -371,7 +371,7 @@
                         <Component class="javax.swing.JButton" name="_guiChooseDir">
                           <Properties>
                             <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                              <ResourceString bundle="jpsxdec/Translations.properties" key="..." replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                              <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_DIR_CHOOSER_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                             </Property>
                             <Property name="margin" type="java.awt.Insets" editor="org.netbeans.beaninfo.editors.InsetsEditor">
                               <Insets value="[2, 3, 2, 2]"/>
@@ -418,7 +418,7 @@
                         <Component class="javax.swing.JButton" name="_guiApplyAll">
                           <Properties>
                             <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                              <ResourceString bundle="jpsxdec/Translations.properties" key="Apply to all {0}" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                              <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_APPLY_TO_ALL_BTN" replaceFormat="I.{key}(new UnlocalizedMessage(&quot;&quot;)).getLocalizedMessage()"/>
                             </Property>
                             <Property name="enabled" type="boolean" value="false"/>
                           </Properties>
@@ -429,7 +429,7 @@
                         <Component class="javax.swing.JButton" name="_guiSaveAll">
                           <Properties>
                             <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                              <ResourceString bundle="jpsxdec/Translations.properties" key="Save All Selected" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                              <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_SAVE_ALL_SELECTED_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                             </Property>
                             <Property name="enabled" type="boolean" value="false"/>
                           </Properties>
@@ -446,7 +446,7 @@
                     <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.support.JTabbedPaneSupportLayout" value="org.netbeans.modules.form.compat2.layouts.support.JTabbedPaneSupportLayout$JTabbedPaneConstraintsDescription">
                       <JTabbedPaneConstraints tabName="    Play    ">
                         <Property name="tabTitle" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                          <ResourceString bundle="jpsxdec/Translations.properties" key="    Play    " replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                          <ResourceString bundle="jpsxdec/Translations.properties" key="PLAY_TAB" replaceFormat="I.{key}().getLocalizedMessage()"/>
                         </Property>
                       </JTabbedPaneConstraints>
                     </Constraint>
@@ -457,7 +457,7 @@
                     <Component class="javax.swing.JButton" name="_guiPlayPauseBtn">
                       <Properties>
                         <Property name="text" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                          <ResourceString bundle="jpsxdec/Translations.properties" key="Play" replaceFormat="I18N.S(&quot;{key}&quot;)"/>
+                          <ResourceString bundle="jpsxdec/Translations.properties" key="GUI_PLAY_BTN" replaceFormat="I.{key}().getLocalizedMessage()"/>
                         </Property>
                       </Properties>
                       <Events>

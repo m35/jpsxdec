@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,8 @@ package jpsxdec.util.player;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -56,20 +58,25 @@ class AudioPlayer implements IVideoTimer {
     private static final int SECONDS_OF_BUFFER = 5;
     private static final int FRAME_DELAY_FUDGE_TIME = 50;
 
+    @CheckForNull
     private SourceDataLine _dataLine;
     private final PlayingState _state = new PlayingState(PlayingState.State.STOPPED);
 
+    @Nonnull
     private final AudioFormat _format;
     private final double _dblTimeConvert;
+    @Nonnull
     private final PlayController _controller;
 
-    public AudioPlayer(AudioFormat format, PlayController controller) {
+    public AudioPlayer(@Nonnull AudioFormat format, @Nonnull PlayController controller) {
         _format = format;
         _controller = controller;
         _dblTimeConvert = 1000000000. / _format.getSampleRate();
     }
 
-    private static SourceDataLine createOpenLine(AudioFormat format) throws LineUnavailableException {
+    private static @Nonnull SourceDataLine createOpenLine(@Nonnull AudioFormat format) 
+            throws LineUnavailableException
+    {
         
         final boolean blnUseDefault = true;
         SourceDataLine dataLine;
@@ -100,7 +107,7 @@ class AudioPlayer implements IVideoTimer {
     }
 
     /** Will block until all audio was written or there is a player state change. */
-    public void write(byte[] abData, int iStart, int iLength) {
+    public void write(@Nonnull byte[] abData, int iStart, int iLength) {
         try {
             int iTotalWritten = 0;
             while (iTotalWritten < iLength) {
@@ -128,6 +135,7 @@ class AudioPlayer implements IVideoTimer {
     }
 
     /** Buffer of zeros for writing lots of zeros. */
+    @CheckForNull
     private byte[] _abZeroBuff;
 
     public void writeSilence(long lngSamples) {
@@ -212,7 +220,7 @@ class AudioPlayer implements IVideoTimer {
         return (long)(_dataLine.getLongFramePosition() * _dblTimeConvert);
     }
 
-    public Object getSyncObject() {
+    public @Nonnull Object getSyncObject() {
         return _state;
     }
 
@@ -232,7 +240,7 @@ class AudioPlayer implements IVideoTimer {
         }
     }
 
-    public boolean waitToPresent(VideoFrame frame) {
+    public boolean waitToPresent(@Nonnull VideoFrame frame) {
         try {
             synchronized (_state) {
                 while (true) {

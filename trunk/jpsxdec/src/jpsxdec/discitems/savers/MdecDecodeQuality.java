@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,34 +37,31 @@
 
 package jpsxdec.discitems.savers;
 
-import jpsxdec.I18N;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_int;
-import jpsxdec.psxvideo.mdec.idct.simple_idct;
+import jpsxdec.psxvideo.mdec.idct.SimpleIDCT;
 
 
 public enum MdecDecodeQuality {
-    LOW("Fast (lower quality)", // I18N
-        "low") // I18N
-    {
+    LOW(I.QUALITY_FAST_DESCRIPTION(), I.QUALITY_FAST_COMMAND()) {
         public MdecDecoder makeDecoder(int iWidth, int iHeight) {
-            return new MdecDecoder_int(new simple_idct(), iWidth, iHeight);
+            return new MdecDecoder_int(new SimpleIDCT(), iWidth, iHeight);
         }
     },
-    HIGH_PLUS("High quality (slower)", // I18N
-              "high") // I18N
-    {
+    HIGH_PLUS(I.QUALITY_HIGH_DESCRIPTION(), I.QUALITY_HIGH_COMMAND()) {
         public MdecDecoder makeDecoder(int iWidth, int iHeight) {
             return new MdecDecoder_double_interpolate(new PsxMdecIDCT_double(), iWidth, iHeight);
         }
         public boolean canUpsample() { return true; }
     },
-    PSX("Emulate PSX (low) quality", // I18N
-        "psx") // I18N
-    {
+    PSX(I.QUALITY_PSX_DESCRIPTION(), I.QUALITY_PSX_COMMAND()) {
         public MdecDecoder makeDecoder(int iWidth, int iHeight) {
             return new MdecDecoder_int(new PsxMdecIDCT_int(), iWidth, iHeight);
         }
@@ -72,17 +69,7 @@ public enum MdecDecodeQuality {
 
     public boolean canUpsample() { return false; }
 
-    public static String getCmdLineList() {
-        StringBuilder sb = new StringBuilder();
-        for (MdecDecodeQuality dq : MdecDecodeQuality.values()) {
-            if (sb.length() > 0)
-                sb.append(", ");
-            sb.append(dq.getCmdLine());
-        }
-        return sb.toString();
-    }
-
-    public static MdecDecodeQuality fromCmdLine(String sCmdLine) {
+    public static @CheckForNull MdecDecodeQuality fromCmdLine(@Nonnull String sCmdLine) {
         for (MdecDecodeQuality dq : MdecDecodeQuality.values()) {
             if (dq.getCmdLine().equalsIgnoreCase(sCmdLine))
                 return dq;
@@ -90,16 +77,18 @@ public enum MdecDecodeQuality {
         return null;
     }
 
-    private final String _sGuiDescription;
-    private final String _sCmdLine;
+    @Nonnull
+    private final LocalizedMessage _guiDescription;
+    @Nonnull
+    private final LocalizedMessage _cmdLine;
 
-    private MdecDecodeQuality(String sDescription, String sCmdLine) {
-        _sGuiDescription = sDescription;
-        _sCmdLine = sCmdLine;
+    private MdecDecodeQuality(@Nonnull LocalizedMessage description, @Nonnull LocalizedMessage cmdLine) {
+        _guiDescription = description;
+        _cmdLine = cmdLine;
     }
 
-    abstract public MdecDecoder makeDecoder(int iWidth, int iHeight);
+    abstract public @Nonnull MdecDecoder makeDecoder(int iWidth, int iHeight);
 
-    public String getCmdLine() { return _sCmdLine; }
-    public String toString() { return I18N.S(_sGuiDescription); }
+    public @Nonnull LocalizedMessage getCmdLine() { return _cmdLine; }
+    public String toString() { return _guiDescription.getLocalizedMessage(); }
 }

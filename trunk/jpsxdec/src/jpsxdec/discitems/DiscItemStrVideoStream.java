@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,9 +45,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderStr;
 import jpsxdec.sectors.IdentifiedSector;
@@ -63,8 +67,10 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
 
     private static final String FRAMES_KEY = "Frames";
     /** First video frame number. */
+    @Nonnull
     private final FrameNumber _startFrame;
     /** Last video frame number. */
+    @Nonnull
     private final FrameNumber _endFrame;
 
     private static final String SECTORSPERFRAME_KEY = "Sectors/Frame";
@@ -83,15 +89,17 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     private final SortedSet<DiscItemAudioStream> _audioStreams =
             new TreeSet<DiscItemAudioStream>();
 
-    public DiscItemStrVideoStream(int iStartSector, int iEndSector,
+    public DiscItemStrVideoStream(@Nonnull CdFileSectorReader cd,
+                                  int iStartSector, int iEndSector,
                                   int iWidth, int iHeight,
                                   int iFrameCount,
-                                  FrameNumberFormat frameNumberFormat,
-                                  FrameNumber startFrame, FrameNumber endFrame,
+                                  @Nonnull FrameNumberFormat frameNumberFormat,
+                                  @Nonnull FrameNumber startFrame,
+                                  @Nonnull FrameNumber endFrame,
                                   int iSectors, int iPerFrame,
                                   int iFirstFrameLastSector)
     {
-        super(iStartSector, iEndSector, 
+        super(cd, iStartSector, iEndSector,
               iWidth, iHeight, 
               iFrameCount,
               frameNumberFormat);
@@ -107,9 +115,10 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         _iFirstFrameLastSector = iFirstFrameLastSector;
     }
 
-    public DiscItemStrVideoStream(SerializedDiscItem fields) throws NotThisTypeException
+    public DiscItemStrVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+            throws NotThisTypeException
     {
-        super(fields);
+        super(cd, fields);
 
         FrameNumber[] ao = FrameNumber.parseRange(fields.getString(FRAMES_KEY));
         _startFrame = ao[0];
@@ -124,7 +133,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     @Override
-    public SerializedDiscItem serialize() {
+    public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
         serial.addString(FRAMES_KEY, FrameNumber.toRange(_startFrame, _endFrame));
         serial.addFraction(SECTORSPERFRAME_KEY, _iSectors, _iPerFrame);
@@ -136,11 +145,11 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         return serial;
     }
 
-    public FrameNumber getStartFrame() {
+    public @Nonnull FrameNumber getStartFrame() {
         return _startFrame;
     }
 
-    public FrameNumber getEndFrame() {
+    public @Nonnull FrameNumber getEndFrame() {
         return _endFrame;
     }
 
@@ -157,16 +166,17 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
     
     @Override
-    public Fraction getSectorsPerFrame() {
+    public @Nonnull Fraction getSectorsPerFrame() {
         return new Fraction(_iSectors, _iPerFrame);
     }
     
 
     @Override
-    public boolean addChild(DiscItem other) {
+    public boolean addChild(@Nonnull DiscItem other) {
         if (getParentRating(other) == 0)
             return false;
 
+        // getParentRating should already confirm this is DiscItemAudioStream
         DiscItemAudioStream audItem = (DiscItemAudioStream) other;
 
         _audioStreams.add(audItem);
@@ -187,7 +197,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     @Override
-    public boolean setIndexId(IndexId id) {
+    public boolean setIndexId(@Nonnull IndexId id) {
         IndexId childId = id.createChild();
         super.setIndexId(id);
         for (DiscItemAudioStream audio : _audioStreams) {
@@ -206,7 +216,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
      * <p>
      * Actually returns Iterable<DiscItemAudioStream>. */
     @Override
-    public Iterable<DiscItem> getChildren() {
+    public @Nonnull Iterable<DiscItem> getChildren() {
         return (Iterable)_audioStreams;
     }
 
@@ -214,7 +224,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         return !_audioStreams.isEmpty();
     }
 
-    public List<DiscItemAudioStream> getParallelAudioStreams() {
+    public @CheckForNull List<DiscItemAudioStream> getParallelAudioStreams() {
         if (_audioStreams.isEmpty())
             return null;
         else
@@ -230,23 +240,23 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     @Override
-    public LocalizedMessage getInterestingDescription() {
+    public @Nonnull LocalizedMessage getInterestingDescription() {
         int iDiscSpeed = getDiscSpeed();
-        int iFrameRange = getFrameCount();
+        int iFrameCount = getFrameCount();
         if (iDiscSpeed > 0) {
             int iSectorsPerSecond = iDiscSpeed * 75;
             Date secs = new Date(0, 0, 0, 0, 0, Math.max(getSectorLength() / iSectorsPerSecond, 1));
-            return new LocalizedMessage("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#.###} fps = {4,time,m:ss}", // I18N
+            return I.GUI_STR_VIDEO_DETAILS(
                           getWidth(), getHeight(),
-                          iFrameRange,
+                          iFrameCount,
                           Fraction.divide(iSectorsPerSecond, getSectorsPerFrame()).asDouble(),
                           secs);
         } else {
-            Date secs150 = new Date(0, 0, 0, 0, 0, 150);
-            Date secs75 = new Date(0, 0, 0, 0, 0, 75);
-            return new LocalizedMessage("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#.###} fps = {4,time,m:ss} (or {5,number,#.###} fps = {6,time,m:ss})", // I18N
+            Date secs150 = new Date(0, 0, 0, 0, 0, Math.max(getSectorLength() / 150, 1));
+            Date secs75 = new Date(0, 0, 0, 0, 0, Math.max(getSectorLength() / 75, 1));
+            return I.GUI_STR_VIDEO_DETAILS_UNKNOWN_FPS(
                           getWidth(), getHeight(),
-                          iFrameRange,
+                          iFrameCount,
                           Fraction.divide(150, getSectorsPerFrame()).asDouble(),
                           secs150,
                           Fraction.divide(75, getSectorsPerFrame()).asDouble(),
@@ -256,13 +266,14 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     
 
     @Override
-    public VideoSaverBuilderStr makeSaverBuilder() {
+    public @Nonnull VideoSaverBuilderStr makeSaverBuilder() {
         return new VideoSaverBuilderStr(this);
     }
 
 
     private static class LongestStack {
 
+        @Nonnull
         private final DiscItemAudioStream[] _aoAudioStreams;
 
         private final ArrayList<DiscItemAudioStream> _stack =
@@ -275,16 +286,16 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         private final ArrayList<DiscItemAudioStream> _longestCopy =
                 new ArrayList<DiscItemAudioStream>();
 
-        public LongestStack(Collection<DiscItemAudioStream> audioStreams) {
+        public LongestStack(@Nonnull Collection<DiscItemAudioStream> audioStreams) {
             _aoAudioStreams = audioStreams.toArray(
                     new DiscItemAudioStream[audioStreams.size()]);
         }
 
-        private ArrayList<DiscItemAudioStream> getLongest() {
+        private @Nonnull ArrayList<DiscItemAudioStream> getLongest() {
             return _longestCopy;
         }
 
-        private void push(DiscItemAudioStream o) {
+        private void push(@Nonnull DiscItemAudioStream o) {
             _stack.add(o);
             _iCurLen += o.getSectorLength();
             if (_iCurLen > _iMaxLen) {
@@ -304,7 +315,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
             _iCurLen -= removed.getSectorLength();
         }
 
-        private boolean matchesFormat(DiscItemAudioStream potential) {
+        private boolean matchesFormat(@Nonnull DiscItemAudioStream potential) {
             return _stack.isEmpty() || _stack.get(0).hasSameFormat(potential);
         }
 
@@ -329,10 +340,11 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         }
     }
 
+    @CheckForNull
     private transient ArrayList<DiscItemAudioStream>
             _longestNonIntersectingAudioStreams;
 
-    public List<DiscItemAudioStream> getLongestNonIntersectingAudioStreams() {
+    public @CheckForNull List<DiscItemAudioStream> getLongestNonIntersectingAudioStreams() {
         if (!hasAudio())
             return null;
 
@@ -352,24 +364,32 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         
         _longestNonIntersectingAudioStreams = longest.getLongest();
 
-        // TODO: remove this message when this code has been well tested
-        System.out.println("Selected " + _longestNonIntersectingAudioStreams.size() +
-                " of the " + _audioStreams.size() + " audio streams:");
-        for (DiscItemAudioStream aud : _longestNonIntersectingAudioStreams) {
-            System.out.println("  " + aud.toString());
+        if (LOG.isLoggable(Level.INFO)) {
+            LOG.log(Level.INFO, "Selected {0,number,#} of the {1,number,#} audio streams:",
+                    new Object[] {
+                        _longestNonIntersectingAudioStreams.size(),
+                        _audioStreams.size()
+                    }
+            );
+            for (int i = 0; i < _longestNonIntersectingAudioStreams.size(); i++) {
+                LOG.log(Level.INFO, "{0,number,#}. {1}", new Object[] {
+                    i, _longestNonIntersectingAudioStreams.get(i)
+                });
+            }
         }
 
         return _longestNonIntersectingAudioStreams;
     }
 
-    abstract public int splitAudio(DiscItemXaAudioStream audio);
+    abstract public int splitAudio(@Nonnull DiscItemXaAudioStream audio);
     
-    abstract public void fpsDump(PrintStream ps) throws IOException;
+    abstract public void fpsDump(@Nonnull PrintStream ps) throws IOException;
 
-    public void fpsDump2(final PrintStream ps) throws IOException {
+    public void fpsDump2(@Nonnull final PrintStream ps) throws IOException {
         ISectorFrameDemuxer demuxer = makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
             public void frameComplete(IDemuxedFrame frame) throws IOException {
+                // for this disc item these must be DemuxedStrFrame
                 DemuxedStrFrame strFrame = (DemuxedStrFrame) frame;
                 ps.println((strFrame.getStartSector()-getStartSector())+"-"+
                            (strFrame.getPresentationSector()-getStartSector()));
@@ -378,17 +398,20 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         final int LENGTH = getSectorLength();
         for (int iSector = 0; iSector < LENGTH; iSector++) {
             IdentifiedSector isect = getRelativeIdentifiedSector(iSector);
-            demuxer.feedSector(isect, LOG);
+            if (isect != null)
+                demuxer.feedSector(isect, LOG);
         }
     }
 
 
     @Override
-    public PlayController makePlayController() {
+    public @Nonnull PlayController makePlayController() {
 
         if (hasAudio()) {
 
             List<DiscItemAudioStream> audios = getLongestNonIntersectingAudioStreams();
+            if (audios == null)
+                throw new IllegalStateException("Should never happen");
             ISectorAudioDecoder decoder;
             if (audios.size() == 1)
                 decoder = audios.get(0).makeDecoder(1.0);

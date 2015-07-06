@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,10 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.audio.SquareAdpcmDecoder;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
@@ -67,10 +70,11 @@ public class SectorChronoXAudio extends IdentifiedSector
     private int _iAudioChunksInFrame;        //  6    [2 bytes]
     private int _iFrameNumber;               //  8    [2 bytes]
     // 118 bytes unknown                     //  10   [118 bytes]
+    @CheckForNull
     private SquareAKAOstruct _akaoStruct;    //  128  [80 bytes]
     //   208 TOTAL
 
-    public SectorChronoXAudio(CdSector cdSector) {
+    public SectorChronoXAudio(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -102,6 +106,7 @@ public class SectorChronoXAudio extends IdentifiedSector
         _akaoStruct = new SquareAKAOstruct(cdSector, 128);
         // All Chrono Chross movies have an AKAO tag
         if (_akaoStruct.AKAO != SquareAKAOstruct.AKAO_ID) return;
+        if (_akaoStruct.BytesOfData > CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM2) return;
 
         setProbability(100);
     }
@@ -113,7 +118,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     }
 
     public int getAudioChannel() {
-        return (int)_iAudioChunkNumber;
+        return _iAudioChunkNumber;
     }
 
     public int getAudioChunksInFrame() {
@@ -150,12 +155,12 @@ public class SectorChronoXAudio extends IdentifiedSector
                 FRAME_AUDIO_CHUNK_HEADER_SIZE;
     }
 
-    public ByteArrayFPIS getIdentifiedUserDataStream() {
+    public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
         return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                 FRAME_AUDIO_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
     }
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "CX Audio";
     }
 
@@ -179,7 +184,7 @@ public class SectorChronoXAudio extends IdentifiedSector
             return 0;
     }
 
-    public boolean matchesPrevious(ISquareAudioSector prevSect) {
+    public boolean matchesPrevious(@Nonnull ISquareAudioSector prevSect) {
         if (!(prevSect instanceof SectorChronoXAudio))
             return false;
 

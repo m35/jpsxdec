@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,13 +38,16 @@
 package jpsxdec.cdreaders;
 
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import jpsxdec.util.ByteArrayFPIS;
 
 
 /** 2048 sectors are standard .iso size that excludes any raw header info. */
 public class CdSector2048 extends CdSector {
 
-    public CdSector2048(byte[] abSectorBytes, int iByteStartOffset, int iSectorIndex, long lngFilePointer) {
+    public CdSector2048(@Nonnull byte[] abSectorBytes, int iByteStartOffset, 
+                        int iSectorIndex, long lngFilePointer)
+    {
         super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);
     }
 
@@ -60,27 +63,31 @@ public class CdSector2048 extends CdSector {
     }
 
     /** Returns copy of the 'user data' portion of the sector. */
-    public byte[] getCdUserDataCopy() {
+    public @Nonnull byte[] getCdUserDataCopy() {
         byte[] ab = new byte[CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1];
         getCdUserDataCopy(0, ab, 0, CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1);
         return ab;
     }
 
-    public void getCdUserDataCopy(int iSourcePos, byte[] abOut, int iOutPos, int iLength) {
-        if (iLength > CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1) throw new IndexOutOfBoundsException();
+    public void getCdUserDataCopy(int iSourcePos, @Nonnull byte[] abOut, int iOutPos, int iLength) {
+        if (iSourcePos < 0 || iSourcePos + iLength > CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1 ||
+            iOutPos    < 0 || iOutPos    + iLength > abOut.length)
+        {
+            throw new IndexOutOfBoundsException();
+        }
         System.arraycopy(_abSectorBytes, _iByteStartOffset + iSourcePos, 
                 abOut, iOutPos,
                 iLength);
     }
     
     /** Returns an InputStream of the 'user data' portion of the sector. */
-    public ByteArrayFPIS getCdUserDataStream() {
+    public @Nonnull ByteArrayFPIS getCdUserDataStream() {
         return new ByteArrayFPIS(_abSectorBytes, _iByteStartOffset, CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1, _lngFilePointer);
     }
 
     /** Returns direct reference to the underlying sector data, with raw
      * header/footer and everything it has. */
-    public byte[] getRawSectorDataCopy() {
+    public @Nonnull byte[] getRawSectorDataCopy() {
         return getCdUserDataCopy();
     }
 
@@ -113,12 +120,12 @@ public class CdSector2048 extends CdSector {
     }
 
     @Override
-    public byte[] rebuildRawSector(byte[] abUserData) {
+    public @Nonnull byte[] rebuildRawSector(@Nonnull byte[] abUserData) {
         return abUserData.clone();
     }
     
     @Override
-    public void printErrors(Logger logger) {
+    public void printErrors(@Nonnull Logger logger) {
     }
 
     @Override

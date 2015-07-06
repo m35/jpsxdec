@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.indexing.psxvideofps;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.TreeSet;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.util.Misc;
 
 /** Detects whole-number (integer) sectors/frame rate of
@@ -72,11 +74,12 @@ public class WholeNumberSectorsPerFrame {
 
     /** 3 states:
      * <ol>
-     * <li>prior to the 2nd frame: <code>_startingPoints == null</code>
-     * <li>still possibilities: <code>_startingPoints.size() &gt; 0</code>
-     * <li>no more possibilities: <code>_startingPoints.size() == 0</code>
+     * <li>prior to the 2nd frame: {@code _startingPoints == null}
+     * <li>still possibilities: {@code _startingPoints.size() > 0}
+     * <li>no more possibilities: {@code _startingPoints.size() == 0}
      * </ol>
      */
+    @CheckForNull
     private TreeSet<SectorsPerFrameFromStart> _startingPoints;
 
     public WholeNumberSectorsPerFrame(int iFirstFrameEndSector) {
@@ -139,7 +142,7 @@ public class WholeNumberSectorsPerFrame {
      * Hopefully it will only return 1 number. In the case of multiple
      * numbers, the one with the highest value is probably the best.
      */
-    public int[] getPossibleSectorsPerFrame() {
+    public @CheckForNull int[] getPossibleSectorsPerFrame() {
         if (_startingPoints == null)
             return null;
         else if (_startingPoints.isEmpty())
@@ -149,7 +152,7 @@ public class WholeNumberSectorsPerFrame {
 
     /** Mostly for debugging. Returns all possible sectors/frame, including
      * redundant factors. */
-    int[] getAllPossibleSectorsPerFrame() {
+    @CheckForNull int[] getAllPossibleSectorsPerFrame() {
         if (_startingPoints == null)
             return null;
         else if (_startingPoints.isEmpty())
@@ -159,8 +162,9 @@ public class WholeNumberSectorsPerFrame {
 
     /** Combines all the possible sectors/frame into one collection.
      *  All duplicates are removed. */
-    private TreeSet<Integer> getCombined() {
+    private @Nonnull TreeSet<Integer> getCombined() {
         TreeSet<Integer> unique = new TreeSet<Integer>();
+        // caller must ensure _startingPoints != null
         for (SectorsPerFrameFromStart startAndInterval : _startingPoints) {
             if (startAndInterval._possibleSectorsPerFrame != null)
                 unique.addAll(startAndInterval._possibleSectorsPerFrame);
@@ -172,7 +176,8 @@ public class WholeNumberSectorsPerFrame {
     /** Removes Integer values that are just factors of other 
      *  Integer values in the Collection and returns the result.
      *  The original Collection is not modified. */
-    private static TreeSet<Integer> removeFactors(TreeSet<Integer> sourceValues) {
+    private static @Nonnull TreeSet<Integer> removeFactors(@Nonnull TreeSet<Integer> sourceValues)
+    {
         TreeSet<Integer> copy = (TreeSet<Integer>)sourceValues.clone();
 
         for (Iterator<Integer> it = copy.iterator(); it.hasNext();) {
@@ -189,7 +194,8 @@ public class WholeNumberSectorsPerFrame {
     }
 
     /** Converts Collection of Integer classes to int[]. */
-    private static int[] integerCollectionToIntArray(Collection<Integer> intIterable) {
+    private static @CheckForNull int[] integerCollectionToIntArray(@Nonnull Collection<Integer> intIterable)
+    {
         if (intIterable.isEmpty())
             return null;
         int[] ai = new int[intIterable.size()];
@@ -210,11 +216,12 @@ public class WholeNumberSectorsPerFrame {
 
         /** 3 states:
          * <ol>
-         * <li>no frame yet: <code>_possibleSectorsPerFrame == null</code>
-         * <li>still possibilities: <code>_possibleSectorsPerFrame.size() &gt; 0</code>
-         * <li>no possibilities: <code>_possibleSectorsPerFrame.size() == 0</code>
+         * <li>no frame yet: {@code _possibleSectorsPerFrame == null}
+         * <li>still possibilities: {@code _possibleSectorsPerFrame.size() > 0}
+         * <li>no possibilities: {@code _possibleSectorsPerFrame.size() == 0}
          * </ol>
          */
+        @CheckForNull
         private TreeSet<Integer> _possibleSectorsPerFrame;
 
         public SectorsPerFrameFromStart(int iFrame2StartSector) {
@@ -259,6 +266,7 @@ public class WholeNumberSectorsPerFrame {
         }
         
         /** Sort based on starting sector. */
+        // [implements Comparable]
         public int compareTo(SectorsPerFrameFromStart o) {
             return Misc.intCompare(_iFrame2StartSector, o._iFrame2StartSector);
         }

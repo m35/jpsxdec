@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,10 @@
 
 package jpsxdec.discitems;
 
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import static jpsxdec.discitems.FrameNumber.HEADER_PREFIX;
 import static jpsxdec.discitems.FrameNumber.SECTOR_PREFIX;
 import jpsxdec.util.Misc;
@@ -57,7 +60,7 @@ public class FrameNumberFormat {
         private int _iMaxHeaderFrame = 0;
         private int _iMaxHeaderDuplicate = 0;
 
-        public void addFrame(FrameNumber frameNumber) {
+        public void addFrame(@Nonnull FrameNumber frameNumber) {
             if (frameNumber.getIndex() > _iMaxFrameIndex)
                 _iMaxFrameIndex = frameNumber.getIndex();
             if (frameNumber.getSector()> _iMaxSector)
@@ -70,7 +73,7 @@ public class FrameNumberFormat {
                 _iMaxHeaderDuplicate = frameNumber.getHeaderFrameDuplicate();
         }
 
-        public FrameNumberFormat getFormat() {
+        public @Nonnull FrameNumberFormat getFormat() {
             return new FrameNumberFormat(_iMaxFrameIndex, _iMaxSector, _iMaxSectorDuplicate,
                                          _iMaxHeaderFrame, _iMaxHeaderDuplicate);
         }
@@ -79,37 +82,32 @@ public class FrameNumberFormat {
     //==========================================================================
 
     public static enum Type {
-        Index("Index", null), // I18N
-        Sector("Sector", FrameNumber.SECTOR_PREFIX), // I18N
-        Header("Header", FrameNumber.HEADER_PREFIX), // I18N
+        Index(I.FRAME_NUM_FMT_INDEX(), null),
+        Sector(I.FRAME_NUM_FMT_SECTOR(), FrameNumber.SECTOR_PREFIX),
+        Header(I.FRAME_NUM_FMT_HEADER(), FrameNumber.HEADER_PREFIX),
         ;
 
+        @Nonnull
         private final LocalizedMessage _str;
+        @CheckForNull
         private final Character _oChar;
 
-        private Type(String sStr, Character oChar) {
-            _str = new LocalizedMessage(sStr);
+        private Type(@Nonnull LocalizedMessage str, @CheckForNull Character oChar) {
+            _str = str;
             _oChar = oChar;
         }
 
-        public static String getCmdLineList() {
-            StringBuilder sb = new StringBuilder();
+        public static @CheckForNull Type fromCmdLine(@Nonnull String sCmdLine) {
             for (Type t : Type.values()) {
-                if (sb.length() > 0)
-                    sb.append(", ");
-                sb.append(t.toString());
-            }
-            return sb.toString();
-        }
-
-        public static Type fromCmdLine(String sCmdLine) {
-            for (Type t : Type.values()) {
-                if (t._str.getEnglishMessage().equalsIgnoreCase(sCmdLine) ||
-                    t._str.getLocalizedMessage().equalsIgnoreCase(sCmdLine) ||
+                if (t._str.equalsIgnoreCase(sCmdLine) ||
                     (sCmdLine.length() == 1 && t._oChar != null && t._oChar.charValue() == sCmdLine.charAt(0)))
                     return t;
             }
             return null;
+        }
+
+        public @Nonnull LocalizedMessage getLocalizedName() {
+            return _str;
         }
 
         @Override
@@ -143,12 +141,12 @@ public class FrameNumberFormat {
     }
 
     /** Deserialize. */
-    FrameNumberFormat(String sSerialized) throws NotThisTypeException {
+    FrameNumberFormat(@Nonnull String sSerialized) throws NotThisTypeException {
         String[] as = Misc.regex(
                 "^(\\d+)/"+SECTOR_PREFIX+"(\\d+)(\\.(\\d+))?(/"+HEADER_PREFIX+"(\\d+)(\\.(\\d+))?)?$",
                 sSerialized);
         if (as == null)
-            throw new NotThisTypeException("Invalid frame number format {0}", sSerialized); // I18N
+            throw new NotThisTypeException(I.INVALID_FRAME_NUMBER_FORMAT(sSerialized));
 
         try {
             _iIndexDigitCount = Integer.parseInt(as[1]);
@@ -158,7 +156,7 @@ public class FrameNumberFormat {
             _iHeaderDuplicateDigitCount = Misc.parseIntOrDefault(as[8],
                                           _iHeaderFrameDigitCount == -1 ? -1 : 0);
         } catch (NumberFormatException ex) {
-            throw new NotThisTypeException("Invalid frame number format {0}", sSerialized); // I18N
+            throw new NotThisTypeException(I.INVALID_FRAME_NUMBER_FORMAT(sSerialized));
         }
     }
 
@@ -167,7 +165,7 @@ public class FrameNumberFormat {
      * <p>
      * Format: index,@sector.dup,#header.dup
      */
-    public String serialize() {
+    public @Nonnull String serialize() {
         StringBuilder sb = new StringBuilder();
         sb.append(_iIndexDigitCount);
         sb.append('/');
@@ -187,7 +185,7 @@ public class FrameNumberFormat {
         return sb.toString();
     }
 
-    public FrameNumberFormatter makeFormatter(Type type) {
+    public @Nonnull FrameNumberFormatter makeFormatter(@Nonnull Type type) {
         switch (type) {
             case Index:
                 return new FrameNumberFormatter.Index(_iIndexDigitCount);

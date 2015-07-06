@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,9 @@ package jpsxdec.psxvideo.bitstreams;
 import java.io.EOFException;
 import java.io.PrintStream;
 import java.util.Arrays;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
@@ -54,7 +57,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** Enable to print the detailed decoding process. */
     public static boolean DEBUG = false;
 
-    public static BitStreamUncompressor identifyUncompressor(byte[] abHeaderBytes) {
+    public static @CheckForNull BitStreamUncompressor identifyUncompressor(@Nonnull byte[] abHeaderBytes)
+    {
         if (BitStreamUncompressor_STRv2.checkHeader(abHeaderBytes))
             return new BitStreamUncompressor_STRv2();
         else if(BitStreamUncompressor_STRv3.checkHeader(abHeaderBytes))
@@ -72,7 +76,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** Longest AC variable-length (Huffman) bit code, in bits. */
     public final static int AC_LONGEST_VARIABLE_LENGTH_CODE = 17;
 
-    public static BitStreamCompressor identifyCompressor(byte[] abHeaderBytes) {
+    public static @CheckForNull BitStreamCompressor identifyCompressor(@Nonnull byte[] abHeaderBytes)
+    {
         if (BitStreamUncompressor_STRv2.checkHeader(abHeaderBytes))
             return new BitStreamUncompressor_STRv2.BitstreamCompressor_STRv2();
         else if(BitStreamUncompressor_STRv3.checkHeader(abHeaderBytes))
@@ -90,6 +95,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** Holds the mapping of bit string to Zero-Run Length + AC Coefficient. */
     protected static class AcBitCode {
         /** Readable string of bits of this code. */
+        @Nonnull
         final public String BitString;
         /** Number of AC coefficient zero values, 
          * or <code>Integer.MIN_VALUE</code> if N/A.  */
@@ -102,7 +108,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
         final public int BitLength;
 
         /** Create a bit code with valid {@link #Run} and {@link Ac} values. */
-        private AcBitCode(String sBitString, int iZeroRun, int iAcCoefficient) {
+        private AcBitCode(@Nonnull String sBitString, int iZeroRun, int iAcCoefficient) {
             BitString = sBitString;
             ZeroRun = iZeroRun;
             AcCoefficient = iAcCoefficient;
@@ -131,15 +137,33 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
         }
     }
 
+    /** A bit code that doesn't have meaningful
+     * {@link #ZeroRun} and {@link #AcCoefficient} values.
+     * Superclass fields are effectively ignored. */
     private static class SpecialAcBitCode extends AcBitCode {
 
+        @Nonnull
         private final String _sId;
 
-        /** Create a bit code that doesn't have meaningful
-         * {@link #ZeroRun} and {@link #AcCoefficient} values. */
-        private SpecialAcBitCode(String sBitString, String sId) {
+        private SpecialAcBitCode(@Nonnull String sBitString, @Nonnull String sId) {
             super(sBitString, Integer.MIN_VALUE, Integer.MIN_VALUE);
             _sId = sId;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null || getClass() != obj.getClass())
+                return false;
+            final SpecialAcBitCode other = (SpecialAcBitCode) obj;
+            // no need to check superclass fields since the id is the only important value
+            return (_sId == null) ? (other._sId == null) : _sId.equals(other._sId);
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 5;
+            hash = 89 * hash + (_sId != null ? _sId.hashCode() : 0);
+            return hash;
         }
 
         @Override
@@ -363,7 +387,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             }
         }
 
-        public Iterable<AcBitCode> getCodeList() {
+        public @Nonnull Iterable<AcBitCode> getCodeList() {
             return Arrays.asList(_aoAcBitCodes);
         }
 
@@ -386,7 +410,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
          *
          * @param i17bits  Integer containing 17 bits to decode.
          */
-        private AcBitCode lookup(final int i17bits) throws MdecException.Uncompress {
+        private @Nonnull AcBitCode lookup(final int i17bits) throws MdecException.Uncompress {
             if        ((i17bits & b10000000000000000) != 0) {
                 assert !DEBUG || debugPrintln("Table 0 offset " + ((i17bits >> 14) & 3));
                 return       Table_1xx[(i17bits >> 14) & 3];
@@ -400,8 +424,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                 assert !DEBUG || debugPrintln("Table 3 offset " + (i17bits & 0xff));
                 return       Table_000000000xxxxxxxx[i17bits & 0xff];
             } else {
-                throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
-                        Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
+                throw new MdecException.Uncompress(I.UNMATCHED_AC_VLC(
+                        Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE)));
             }
         }
 
@@ -432,8 +456,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                     array =      Table_000000000xxxxxxxx;
                     c = i17bits & 0xff;
                 } else {
-                    throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
-                            Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
+                    throw new MdecException.Uncompress(I.UNMATCHED_AC_VLC(
+                            Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE)));
                 }
                 return array[c];
             }
@@ -457,8 +481,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                 } else if ((i17bits & b00000000011100000) != 0) {
                     return       Table_000000000xxxxxxxx[i17bits & 0xff];
                 } else {
-                    throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
-                            Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
+                    throw new MdecException.Uncompress(I.UNMATCHED_AC_VLC(
+                            Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE)));
                 }
             }
         }
@@ -489,8 +513,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
                     array =      Table_000000000xxxxxxxx;
                     c = i17bits & 0xff;
                 } else {
-                    throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
-                            Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
+                    throw new MdecException.Uncompress(I.UNMATCHED_AC_VLC(
+                            Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE)));
                 }
                 return array[c];
             }
@@ -560,8 +584,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             } else if ((i17bits & b0000000000010000_) != 0) {      // "000000000001xxxx"
                 vlc = _aoAcBitCodes[95 + (int)((i17bits >>> 1) & 15)];
             } else {
-                throw new MdecException.Uncompress("Unmatched AC variable length code: {0}", // I18N
-                        Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE));
+                throw new MdecException.Uncompress(I.UNMATCHED_AC_VLC(
+                        Misc.bitsToString(i17bits, AC_LONGEST_VARIABLE_LENGTH_CODE)));
             }
 
             code.setTop6Bits(vlc.ZeroRun);
@@ -581,7 +605,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
         // </editor-fold>
 
 
-        public void print(PrintStream ps) {
+        public void print(@Nonnull PrintStream ps) {
             for (int i = 0; i < Table_1xx.length; i++) {
                 ps.println("Table_1xx["+i+"] = "+Table_1xx[i]);
             }
@@ -597,7 +621,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
         }
     }
 
-    private static boolean debugPrintln(String s) {
+    private static boolean debugPrintln(@Nonnull String s) {
         System.out.println(s);
         return true;
     }
@@ -605,14 +629,13 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** Class to gather debugging info for display on each read. */
     public static class MdecDebugger {
         public long Position;
-        private StringBuilder Bits = new StringBuilder();
-        public boolean append(String s) {
+        private final StringBuilder Bits = new StringBuilder();
+        public boolean append(@Nonnull String s) {
             Bits.append(s);
             return true;
         }
-        public boolean print(MdecCode code) {
-            System.out.format("@%d %s -> %s", Position, Bits, code);
-            System.out.println();
+        public boolean print(int iVectorPosition, @Nonnull MdecCode code) {
+            System.out.format("@%d %s -> [%d] %s", Position, Bits, iVectorPosition, code).println();
             Bits.setLength(0);
             return true;
         }
@@ -621,17 +644,24 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             Position = iPosition;
             return true;
         }
+
+        private boolean printBlock(int iCurrentMacroBlock, int iCurrentMacroBlockSubBlock) {
+            System.out.format("==== MB %d Block %d ====", iCurrentMacroBlock, iCurrentMacroBlockSubBlock).println();
+            return true;
+        }
     }
 
     // #########################################################################
     // #########################################################################
 
     /** Table for looking up AC Coefficient bit codes. */
+    @Nonnull
     private final AcLookup _lookupTable;
     /** Binary input stream being read. */
     protected final ArrayBitReader _bitReader = new ArrayBitReader();
 
-    /** HOlds the debugger when debugging is enabled. */
+    /** Holds the debugger when debugging is enabled. */
+    @CheckForNull
     protected final MdecDebugger _debug;
 
     /** Indicates if the next read will be the Quantization Scale and DC Coefficient. */
@@ -652,7 +682,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     private int _iMdecCodeCount;
     public int getMdecCodeCount() { return _iMdecCodeCount; }
 
-    protected BitStreamUncompressor(AcLookup lookupTable) {
+    protected BitStreamUncompressor(@Nonnull AcLookup lookupTable) {
         _lookupTable = lookupTable;
         if (DEBUG)
             _debug = new MdecDebugger();
@@ -661,7 +691,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     }
 
     /** Resets this instance as if a new object was created. */
-    final public void reset(byte[] abBitstream, int iBitstreamSize, int iStart) throws NotThisTypeException {
+    final public void reset(@Nonnull byte[] abBitstream, int iBitstreamSize, int iStart) throws NotThisTypeException {
         readHeader(abBitstream, iBitstreamSize, _bitReader);
         _blnBlockStart = true;
         _iMdecCodeCount = 0;
@@ -672,18 +702,20 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
 
 
     /** Resets this instance as if a new object was created. */
-    final public void reset(byte[] abBitstream, int iBitstreamSize) throws NotThisTypeException {
+    final public void reset(@Nonnull byte[] abBitstream, int iBitstreamSize) throws NotThisTypeException {
         reset(abBitstream, iBitstreamSize, 0);
     }
 
-    /** @throws NullPointerException if {@link #reset(byte[])} has not been called. */
-    final public boolean readMdecCode(MdecCode code) throws MdecException.Uncompress {
+    /** @throws NullPointerException if {@code reset()} has not been called. */
+    final public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.Uncompress {
 
         assert !DEBUG || _debug.setPosition(_bitReader.getWordPosition());
 
         try {
 
             if (_blnBlockStart) {
+                assert !DEBUG || _debug.printBlock(_iCurrentMacroBlock, _iCurrentMacroBlockSubBlock);
+
                 readQscaleAndDC(code);
                 _blnBlockStart = false;
             } else {
@@ -713,8 +745,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
 
                     _iCurrentBlockVectorPos += code.getTop6Bits() + 1;
                     if (_iCurrentBlockVectorPos >= 64) {
-                        throw new MdecException.Uncompress("Run length out of bounds: {0,number,#}", // I18N
-                                _iCurrentBlockVectorPos);
+                        throw new MdecException.Uncompress(I.RLC_OOB_IN_MB_BLOCK(_iCurrentBlockVectorPos, _iCurrentMacroBlock, _iCurrentMacroBlockSubBlock));
                     }
                 }
 
@@ -724,7 +755,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             throw new MdecException.Uncompress(ex);
         }
 
-        assert !DEBUG || _debug.print(code);
+        assert !DEBUG || _debug.print(_iCurrentBlockVectorPos, code);
 
         // _blnBlockStart will be set to true if an EOB code was read
         _iMdecCodeCount++;
@@ -749,18 +780,18 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
 
     /** Validates the frame header and initializes for reading
      * (including resetting the bit reader to the proper start byte and endian). */
-    abstract protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) throws NotThisTypeException;
+    abstract protected void readHeader(@Nonnull byte[] abFrameData, int iDataSize, @Nonnull ArrayBitReader bitReader) throws NotThisTypeException;
 
     /** Read the quantization scale and DC coefficient from the bitstream. */
-    abstract protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress, EOFException;
+    abstract protected void readQscaleAndDC(@Nonnull MdecCode code) throws MdecException.Uncompress, EOFException;
 
     /** Read an AC Coefficient escaped (zero-run, AC level) value. */
-    abstract protected void readEscapeAcCode(MdecCode code) throws MdecException.Uncompress, EOFException;
+    abstract protected void readEscapeAcCode(@Nonnull MdecCode code) throws MdecException.Uncompress, EOFException;
 
     /** Create an equivalent bitstream compressor. */
-    abstract public BitStreamCompressor makeCompressor();
+    abstract public @Nonnull BitStreamCompressor makeCompressor();
 
-    abstract public String getName();
+    abstract public @Nonnull String getName();
 
     @Override
     abstract public String toString();

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,11 +49,15 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
@@ -70,27 +74,33 @@ public class DiscItemISO9660File extends DiscItem {
 
     private final static String SIZE_KEY = "Size";
     private final static String PATH_KEY = "Path";
+    @Nonnull
     private final File _path;
     private final long _lngSize;
 
     private final SortedSet<DiscItem> _children = new TreeSet<DiscItem>();
     
-    public DiscItemISO9660File(int iStartSector, int iEndSector, File path, long lngSize) {
-        super(iStartSector, iEndSector);
+    public DiscItemISO9660File(@Nonnull CdFileSectorReader cd,
+                               int iStartSector, int iEndSector,
+                               @Nonnull File path, long lngSize)
+    {
+        super(cd, iStartSector, iEndSector);
         _path = path;
         _lngSize = lngSize;
         // we already know the IndexId, so set it now
         super.setIndexId(new IndexId(path));
     }
 
-    public DiscItemISO9660File(SerializedDiscItem fields) throws NotThisTypeException {
-        super(fields);
+    public DiscItemISO9660File(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields) 
+            throws NotThisTypeException
+    {
+        super(cd, fields);
         _lngSize = fields.getLong(SIZE_KEY);
         _path = new File(fields.getString(PATH_KEY));
     }
 
     @Override
-    public SerializedDiscItem serialize() {
+    public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
         fields.addNumber(SIZE_KEY, _lngSize);
         fields.addString(PATH_KEY, Misc.forwardSlashPath(_path));
@@ -98,7 +108,7 @@ public class DiscItemISO9660File extends DiscItem {
     }
 
     @Override
-    public String getSerializationTypeId() {
+    public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
 
@@ -106,7 +116,7 @@ public class DiscItemISO9660File extends DiscItem {
      * <p>
      * Also set all the child {@link IndexId}s. */
     @Override
-    public boolean setIndexId(IndexId id) {
+    public boolean setIndexId(@Nonnull IndexId id_ignored) {
         IndexId childId = getIndexId().createChild();
         for (DiscItem child : _children) {
             if (child.setIndexId(childId))
@@ -118,7 +128,7 @@ public class DiscItemISO9660File extends DiscItem {
     }
 
     @Override
-    public int getParentRating(DiscItem child) {
+    public int getParentRating(@Nonnull DiscItem child) {
         if (child instanceof DiscItemISO9660File)
             return 0;
 
@@ -126,7 +136,7 @@ public class DiscItemISO9660File extends DiscItem {
     }
     
     @Override
-    public boolean addChild(DiscItem child) {
+    public boolean addChild(@Nonnull DiscItem child) {
         if (getParentRating(child) == 0)
             return false;
         _children.add(child);
@@ -139,11 +149,11 @@ public class DiscItemISO9660File extends DiscItem {
     }
 
     @Override
-    public Iterable<DiscItem> getChildren() {
+    public @Nonnull Iterable<DiscItem> getChildren() {
         return _children;
     }
 
-    public File getPath() {
+    public @Nonnull File getPath() {
         return _path;
     }
 
@@ -151,7 +161,7 @@ public class DiscItemISO9660File extends DiscItem {
         return _lngSize;
     }
 
-    public ISO9660SaverBuilder makeSaverBuilder() {
+    public @Nonnull ISO9660SaverBuilder makeSaverBuilder() {
         return new ISO9660SaverBuilder();
     }
 
@@ -161,7 +171,7 @@ public class DiscItemISO9660File extends DiscItem {
      * So the stream will end with the full data of the file's last sector
      * since it may be impossible to determine exactly how many bytes should be
      * read from the final sector.  */
-    public InputStream getUserDataStream() {
+    public @Nonnull InputStream getUserDataStream() {
         return new DemuxedSectorInputStream(getSourceCd(), getStartSector(), 0, getEndSector());
     }
 
@@ -169,7 +179,7 @@ public class DiscItemISO9660File extends DiscItem {
      * Also does special a bit of checking for items that break file boundaries.
      */
     @Override
-    public int getOverlap(DiscItem other) {
+    public int getOverlap(@Nonnull DiscItem other) {
         int iOverlap = super.getOverlap(other);
         if (iOverlap > 0) {
             // if there is overlap, then the other item should technically fall
@@ -183,13 +193,13 @@ public class DiscItemISO9660File extends DiscItem {
 
 
     @Override
-    public GeneralType getType() {
+    public @Nonnull GeneralType getType() {
         return GeneralType.File;
     }
 
     @Override
-    public LocalizedMessage getInterestingDescription() {
-        return new LocalizedMessage("{0} bytes", _lngSize); // I18N
+    public @Nonnull LocalizedMessage getInterestingDescription() {
+        return I.GUI_ISOFILE_DETAILS(_lngSize);
     }
 
     public class ISO9660SaverBuilder extends DiscItemSaverBuilder {
@@ -203,7 +213,7 @@ public class DiscItemISO9660File extends DiscItem {
         }
 
         @Override
-        public boolean copySettingsTo(DiscItemSaverBuilder other) {
+        public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder other) {
             if (other instanceof ISO9660SaverBuilder) {
                 ISO9660SaverBuilder o = (ISO9660SaverBuilder) other;
                 o.setSaveRaw(getSaveRaw());
@@ -214,7 +224,7 @@ public class DiscItemISO9660File extends DiscItem {
 
         // ............................................
 
-        public String getFileName() {
+        public @Nonnull String getFileName() {
             return _path.getPath();
         }
 
@@ -234,15 +244,17 @@ public class DiscItemISO9660File extends DiscItem {
 
         // ............................................
         
-        public DiscItemSaverBuilderGui getOptionPane() {
+        public @Nonnull DiscItemSaverBuilderGui getOptionPane() {
             return new ISO9660FileSaverBuilderGui(this);
         }
 
-        public IDiscItemSaver makeSaver(File directory) {
+        public @Nonnull IDiscItemSaver makeSaver(@CheckForNull File directory) {
             return new ISO9660FileSaver(__blnSaveRaw, directory);
         }
 
-        public String[] commandLineOptions(String[] asArgs, FeedbackStream infoStream) {
+        public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, 
+                                                         @Nonnull FeedbackStream infoStream)
+        {
             if (asArgs == null) return null;
 
             ArgParser parser = new ArgParser("", false);
@@ -250,28 +262,25 @@ public class DiscItemISO9660File extends DiscItem {
             BooleanHolder save2048 = new BooleanHolder();
             parser.addOption("-iso %v", save2048);
 
-            String[] asRemain = null;
-            asRemain = parser.matchAllArgs(asArgs, 0, 0);
+            String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
 
             setSaveRaw(!save2048.value);
 
             return asRemain;
         }
 
-        public void printHelp(FeedbackStream fbs) {
-            fbs.indent();
+        public void printHelp(@Nonnull FeedbackStream fbs) {
             if (getSourceCd().hasSectorHeader())
-                fbs.println("-iso   save as 2048 sectors (default raw 2352 sectors)"); // I18N
+                fbs.println(I.CMD_ISOFILE_ISO_HELP());
             else
-                fbs.println("[no options available]"); // I18N
-            fbs.outdent();
+                fbs.println(I.CMD_ISOFILE_HELP_NO_OPTIONS());
         }
 
     }
 
     private static class ISO9660FileSaverBuilderGui extends DiscItemSaverBuilderGui<ISO9660SaverBuilder> {
 
-        public ISO9660FileSaverBuilderGui(ISO9660SaverBuilder sourceBldr) {
+        public ISO9660FileSaverBuilderGui(@Nonnull ISO9660SaverBuilder sourceBldr) {
             super(sourceBldr, new ParagraphLayout());
             setParagraphLayoutPanel(this);
             addListeners(
@@ -281,8 +290,8 @@ public class DiscItemISO9660File extends DiscItem {
         }
 
         private class FileName implements ChangeListener {
-            JLabel __label = new JLabel(I18N.S("Save as:")); // I18N
-            JLabel __name;
+            final JLabel __label = new JLabel(I.GUI_SAVE_AS_LABEL().getLocalizedMessage());
+            @Nonnull final JLabel __name;
             public FileName() {
                 __name = new JLabel(_writerBuilder.getFileName());
                 add(__label, ParagraphLayout.NEW_PARAGRAPH);
@@ -296,7 +305,7 @@ public class DiscItemISO9660File extends DiscItem {
 
         private class SaveRaw extends AbstractCheck {
 
-            public SaveRaw() { super(I18N.S("Save raw:")); } // I18N
+            public SaveRaw() { super(I.GUI_ISOFILE_SAVE_RAW_LABEL()); }
             public boolean isSelected() { return _writerBuilder.getSaveRaw(); }
             public void setSelected(boolean b) { _writerBuilder.setSaveRaw(b); }
             public boolean isEnabled() { return _writerBuilder.getSaveRaw_enabled(); }
@@ -307,27 +316,29 @@ public class DiscItemISO9660File extends DiscItem {
 
     private class ISO9660FileSaver implements IDiscItemSaver {
         private final boolean __blnSaveRaw;
+        @CheckForNull
         private final File __outputDir;
+        @CheckForNull
         private File __generatedFile;
 
-        public ISO9660FileSaver(boolean blnSaveRaw, File outputDir) {
+        public ISO9660FileSaver(boolean blnSaveRaw, @CheckForNull File outputDir) {
             __blnSaveRaw = blnSaveRaw;
             __outputDir = outputDir;
         }
 
-        public String getInput() {
+        public @Nonnull String getInput() {
             return getIndexId().toString();
         }
 
-        public DiscItemISO9660File getDiscItem() {
+        public @Nonnull DiscItemISO9660File getDiscItem() {
             return DiscItemISO9660File.this;
         }
 
-        public String getOutputSummary() {
-            return getPath().getPath();
+        public @Nonnull LocalizedMessage getOutputSummary() {
+            return new UnlocalizedMessage(getPath().getPath());
         }
 
-        public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
+        public void startSave(@Nonnull ProgressListenerLogger pll) throws IOException, TaskCanceledException {
             File outputFile = new File(__outputDir, _path.getPath());
 
             IO.makeDirsForFile(outputFile);
@@ -336,28 +347,35 @@ public class DiscItemISO9660File extends DiscItem {
             final int iStartSect = getStartSector();
             final int iEndSect = getEndSector();
             FileOutputStream fos = new FileOutputStream(outputFile);
-            __generatedFile = outputFile;
-            pll.progressStart();
-            for (int iSector = iStartSect; iSector <= iEndSect; iSector++) {
-                CdSector cdSector = getSourceCd().getSector(iSector);
-                if (__blnSaveRaw)
-                    fos.write(cdSector.getRawSectorDataCopy());
-                else
-                    fos.write(cdSector.getCdUserDataCopy());
-                pll.progressUpdate((iSector - iStartSect) / dblSectLen);
+            try {
+                __generatedFile = outputFile;
+                pll.progressStart();
+                for (int iSector = iStartSect; iSector <= iEndSect; iSector++) {
+                    CdSector cdSector = getSourceCd().getSector(iSector);
+                    if (__blnSaveRaw)
+                        fos.write(cdSector.getRawSectorDataCopy());
+                    else
+                        fos.write(cdSector.getCdUserDataCopy());
+                    pll.progressUpdate((iSector - iStartSect) / dblSectLen);
+                }
+            } finally {
+                try {
+                    fos.close();
+                } catch (IOException ex) {
+                    LOG.log(Level.SEVERE, null, ex);
+                }
             }
-            fos.close();
             pll.progressEnd();
         }
 
-        public void printSelectedOptions(PrintStream ps) {
+        public void printSelectedOptions(@Nonnull PrintStream ps) {
             if (__blnSaveRaw)
-                ps.println(I18N.S("Saving with raw sectors")); // I18N
+                ps.println(I.CMD_ISOFILE_SAVING_RAW());
             else
-                ps.println(I18N.S("Saving with iso sectors")); // I18N
+                ps.println(I.CMD_ISOFILE_SAVING_ISO());
         }
 
-        public File[] getGeneratedFiles() {
+        public @CheckForNull File[] getGeneratedFiles() {
             if (__generatedFile == null)
                 return null;
             else

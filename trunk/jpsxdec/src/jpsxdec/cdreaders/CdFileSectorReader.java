@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,9 +44,11 @@ import java.io.RandomAccessFile;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedIOException;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedIOException;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
@@ -89,15 +91,19 @@ public class CdFileSectorReader {
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
+    @Nonnull
     private RandomAccessFile _inputFile;
+    @Nonnull
     private final File _sourceFile;
     /** Creates sectors from the data based on the type of disc image it is. */
+    @Nonnull
     private final SectorFactory _sectorFactory;
     /** Number of full sectors in the disc image. */
     private final int _iSectorCount;
 
     private int _iCachedSectorStart;
     private int _iSectorsToCache;
+    @CheckForNull
     private byte[] _abBulkReadCache;
     private long _lngCacheFileOffset;
 
@@ -105,28 +111,28 @@ public class CdFileSectorReader {
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public CdFileSectorReader(File inputFile)
+    public CdFileSectorReader(@Nonnull File inputFile)
         throws IOException, CdFileNotFoundException
     {
         this(inputFile, false, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    public CdFileSectorReader(File inputFile, boolean blnAllowWrites)
+    public CdFileSectorReader(@Nonnull File inputFile, boolean blnAllowWrites)
         throws IOException, CdFileNotFoundException
     {
 
         this(inputFile, blnAllowWrites, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    public CdFileSectorReader(File inputFile, int iSectorSize) 
+    public CdFileSectorReader(@Nonnull File inputFile, int iSectorSize)
             throws IOException, CdFileNotFoundException
     {
         this(inputFile, iSectorSize, false, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
     /** Opens a CD file for reading. Tries to guess the CD size. */
-    public CdFileSectorReader(File sourceFile,
-            boolean blnAllowWrites, int iSectorsToBuffer)
+    public CdFileSectorReader(@Nonnull File sourceFile,
+                              boolean blnAllowWrites, int iSectorsToBuffer)
             throws IOException, CdFileNotFoundException
     {
         LOG.info(sourceFile.getPath());
@@ -164,7 +170,7 @@ public class CdFileSectorReader {
     /** Opens a CD file for reading using the provided sector size. 
      * If the disc image doesn't match the sector size, IOException is thrown.
      */
-    public CdFileSectorReader(File sourceFile,
+    public CdFileSectorReader(@Nonnull File sourceFile,
             int iSectorSize, boolean blnAllowWrites, int iSectorsToBuffer)
             throws IOException
     {
@@ -199,18 +205,18 @@ public class CdFileSectorReader {
         _iSectorCount = calculateSectorCount();
     }
 
-    public CdFileSectorReader(String sSerialization, boolean blnAllowWrites)
+    public CdFileSectorReader(@Nonnull String sSerialization, boolean blnAllowWrites)
             throws IOException, NotThisTypeException
     {
         this(sSerialization, blnAllowWrites, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    public CdFileSectorReader(String sSerialization, boolean blnAllowWrites, int iSectorsToBuffer)
+    public CdFileSectorReader(@Nonnull String sSerialization, boolean blnAllowWrites, int iSectorsToBuffer)
             throws IOException, NotThisTypeException
     {
         String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
         if (asValues == null || asValues.length != 5)
-            throw new NotThisTypeException("Failed to deserialize CD string: {0}", sSerialization); // I18N
+            throw new NotThisTypeException(I.DESERIALIZE_CD_FAIL(sSerialization));
 
         try {
             _iSectorCount = Integer.parseInt(asValues[3]);
@@ -234,7 +240,7 @@ public class CdFileSectorReader {
                     throw new NotThisTypeException();
             }
         } catch (NumberFormatException ex) {
-            throw new NotThisTypeException();
+            throw new NotThisTypeException(ex);
         }
 
         _sourceFile = new File(asValues[1]);
@@ -246,8 +252,7 @@ public class CdFileSectorReader {
         int iActualSectorCount = calculateSectorCount();
         if (_iSectorCount != iActualSectorCount) {
             _inputFile.close();
-            throw new NotThisTypeException("Serialized sector count {0,number,#} does not match actual {1,number,#}", // I18N
-                    _iSectorCount, iActualSectorCount);
+            throw new NotThisTypeException(I.SECTOR_COUNT_MISMATCH(_iSectorCount, iActualSectorCount));
         }
 
     }
@@ -265,7 +270,7 @@ public class CdFileSectorReader {
     private static final String SERIALIZATION =
             SERIALIZATION_START + "%s|Sector size:%d|Sector count:%d|First sector offset:%d";
 
-    public String serialize() {
+    public @Nonnull String serialize() {
         return String.format(SERIALIZATION,
                 _sourceFile.getPath(),
                 _sectorFactory.getRawSectorSize(),
@@ -273,7 +278,7 @@ public class CdFileSectorReader {
                 _sectorFactory.get1stSectorOffset());
     }
 
-    public boolean matchesSerialization(String sSerialization) {
+    public boolean matchesSerialization(@Nonnull String sSerialization) {
         String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
         if (asValues == null)
             return false;
@@ -308,7 +313,7 @@ public class CdFileSectorReader {
         return _sectorFactory.hasSectorHeader();
     }
 
-    public File getSourceFile() {
+    public @Nonnull File getSourceFile() {
         return _sourceFile;
     }
 
@@ -323,13 +328,13 @@ public class CdFileSectorReader {
         return _iSectorCount;
     }
 
-    public LocalizedMessage getTypeDescription() {
+    public @Nonnull LocalizedMessage getTypeDescription() {
         return _sectorFactory.getTypeDescription();
     }
 
     //..........................................................................
 
-    public CdSector getSector(int iSector) throws IOException {
+    public @Nonnull CdSector getSector(int iSector) throws IOException {
         if (iSector < 0 || iSector >= _iSectorCount)
             throw new IndexOutOfBoundsException("Sector "+iSector+" not in bounds of CD");
 
@@ -343,7 +348,7 @@ public class CdFileSectorReader {
             int iBytesRead = _inputFile.read(_abBulkReadCache);
             if (iBytesRead < _sectorFactory.getRawSectorSize()) {
                 _abBulkReadCache = null;
-                throw new LocalizedIOException("Failed to read at least 1 entire sector."); // I18N
+                throw new LocalizedIOException(I.FAILED_TO_READ_1_SECTOR());
             }
         }
 
@@ -355,7 +360,7 @@ public class CdFileSectorReader {
     //..........................................................................
 
     /** Will fail if CD was not opened with write access. */
-    public void writeSector(int iSector, byte[] abSrcUserData)
+    public void writeSector(int iSector, @Nonnull byte[] abSrcUserData)
             throws IOException
     {
 
@@ -390,8 +395,8 @@ public class CdFileSectorReader {
     /* ---------------------------------------------------------------------- */
     
     private interface SectorFactory {
-        CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer);
-        LocalizedMessage getTypeDescription();
+        @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer);
+        @Nonnull LocalizedMessage getTypeDescription();
         boolean hasSectorHeader();
         long get1stSectorOffset();
         int getRawSectorSize();
@@ -409,13 +414,13 @@ public class CdFileSectorReader {
             _lng1stSectorOffset = lngStartOffset;
         }
 
-        public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer) {
+        public @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer) {
             return new CdSector2048(abSectorBuff, iOffset, iSector, lngFilePointer);
         }
 
 
-        public LocalizedMessage getTypeDescription() {
-            return new LocalizedMessage(".iso (2048 bytes/sector) format"); // I18N
+        public @Nonnull LocalizedMessage getTypeDescription() {
+            return I.ISO_EXTENSION();
         }
 
         public boolean hasSectorHeader() {
@@ -439,7 +444,7 @@ public class CdFileSectorReader {
          *<p>
          *  Note: This assumes the input file has the data aligned at every 4 bytes!
          */
-        public Cd2336Factory(RandomAccessFile cdFile) throws IOException, NotThisTypeException {
+        public Cd2336Factory(@Nonnull RandomAccessFile cdFile) throws IOException, NotThisTypeException {
             if (cdFile.length() < SECTOR_SIZE_2336_BIN_NOSYNC)
                 throw new NotThisTypeException();
 
@@ -499,13 +504,13 @@ public class CdFileSectorReader {
             _lng1stSectorOffset = lngStartOffset;
         }
 
-        public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer) {
+        public @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer) {
             CdSector2336 sector = new CdSector2336(abSectorBuff, iOffset, iSector, lngFilePointer);
             return sector;
         }
 
-        public LocalizedMessage getTypeDescription() {
-            return new LocalizedMessage("partial header (2336 bytes/sector) format"); // I18N
+        public @Nonnull LocalizedMessage getTypeDescription() {
+            return I.DISC_FMT_2336();
         }
         public boolean hasSectorHeader() {
             return true;
@@ -530,7 +535,9 @@ public class CdFileSectorReader {
          *  the type depending on if {@code blnCheck2352} or {@code blnCheck2448}
          *  should be checked.
          */
-        public Cd2352or2448Factory(RandomAccessFile cdFile, boolean blnCheck2352, boolean blnCheck2448) throws IOException, NotThisTypeException {
+        public Cd2352or2448Factory(@Nonnull RandomAccessFile cdFile, boolean blnCheck2352, boolean blnCheck2448)
+                throws IOException, NotThisTypeException
+        {
 
             long lngFileLength = cdFile.length();
             if (lngFileLength < CdxaHeader.SECTOR_SYNC_HEADER.length)
@@ -562,7 +569,7 @@ public class CdFileSectorReader {
         }
 
         /** Check for 10 more seek headers after the initial one just to be sure. */
-        private boolean checkMore(int iSectorSize, RandomAccessFile cdFile, long lngSectStart, byte[] abSyncHeader) 
+        private boolean checkMore(int iSectorSize, @Nonnull RandomAccessFile cdFile, long lngSectStart, @Nonnull byte[] abSyncHeader)
                 throws IOException
         {
             // but make sure we don't check past the end of the file
@@ -587,15 +594,15 @@ public class CdFileSectorReader {
             _lng1stSectorOffset = lngStartOffset;
         }
 
-        public CdSector createSector(int iSector, byte[] abSectorBuff, int iOffset, long lngFilePointer) {
+        public @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer) {
             CdSector2352 sector = new CdSector2352(abSectorBuff, iOffset, iSector, lngFilePointer);
             return sector;
         }
 
-        public LocalizedMessage getTypeDescription() {
+        public @Nonnull LocalizedMessage getTypeDescription() {
             return _bln2352 ?
-                new LocalizedMessage("BIN/CUE (2352 bytes/sector) format") : // I18N
-                new LocalizedMessage("BIN/CUE + Sub Channel (2448 bytes/sector) format"); // I18N
+                    I.DISC_FMT_2352() :
+                    I.DISC_FMT_2448();
         }
         public boolean hasSectorHeader() {
             return true;

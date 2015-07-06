@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,10 @@ package jpsxdec.discitems;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 
 /** Formats a {@link FrameNumber} for consistent display.
  * Adds padding zeros as needed to consistently keep the same character length.
@@ -48,11 +51,12 @@ import jpsxdec.LocalizedMessage;
 public abstract class FrameNumberFormatter {
     private static final Logger LOG = Logger.getLogger(FrameNumberFormatter.class.getName());
 
-    abstract public String formatNumber(FrameNumber frameNumber, Logger log);
-    abstract public String getNumber(FrameNumber frameNumber);
-    abstract public LocalizedMessage getDescription(FrameNumber frameNumber);
+    abstract public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log);
+    abstract public @Nonnull String getNumber(@Nonnull FrameNumber frameNumber);
+    abstract public @Nonnull LocalizedMessage getDescription(@Nonnull FrameNumber frameNumber);
 
     static class Index extends FrameNumberFormatter {
+        @Nonnull
         private final String _sFormat;
 
         Index(int iIndexDigitCount) {
@@ -60,22 +64,23 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public String getNumber(FrameNumber frameNumber) {
+        public @Nonnull String getNumber(@Nonnull FrameNumber frameNumber) {
             return frameNumber.getIndexString();
         }
 
         @Override
-        public String formatNumber(FrameNumber frameNumber, Logger log) {
+        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log) {
             return String.format(_sFormat, frameNumber.getIndex());
         }
 
         @Override
-        public LocalizedMessage getDescription(FrameNumber frameNumber) {
-            return new LocalizedMessage("Frame {0}", getNumber(frameNumber)); // I18N
+        public @Nonnull LocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
+            return I.FRM_NUM_FMTR_FRAME(getNumber(frameNumber));
         }
     }
 
     static class Sector extends FrameNumberFormatter {
+        @Nonnull
         private final String _sFormat;
         private final int _iSectorDigitCount, _iSectorDuplicateDigitCount;
 
@@ -91,19 +96,19 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public String getNumber(FrameNumber frameNumber) {
+        public @Nonnull String getNumber(@Nonnull FrameNumber frameNumber) {
             return frameNumber.getSectorString();
         }
 
         @Override
-        public String formatNumber(FrameNumber frameNumber, Logger log) {
+        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log) {
             if (frameNumber.getSectorDuplicate()> 0) {
                 if (_iSectorDuplicateDigitCount > 0) {
                     return String.format(_sFormat, frameNumber.getSector(), frameNumber.getSectorDuplicate());
                 } else {
                     if (log == null)
                         log = LOG;
-                    log.log(Level.WARNING, "Not expecting duplicate sector number {0}", frameNumber); // I18N
+                    I.NOT_EXPECTING_DUP_SECT_NUM(frameNumber).log(log, Level.WARNING);
                     return String.format("%0" + _iSectorDigitCount + "d.%d",
                             frameNumber.getSector(), frameNumber.getSectorDuplicate());
                 }
@@ -113,12 +118,13 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public LocalizedMessage getDescription(FrameNumber frameNumber) {
-            return new LocalizedMessage("Sector {0}", getNumber(frameNumber)); // I18N
+        public @Nonnull LocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
+            return I.FRM_NUM_FMTR_SECTOR(getNumber(frameNumber));
         }
     }
 
     static class Header extends FrameNumberFormatter {
+        @Nonnull
         private final String _sFormat;
         private final int _iHeaderFrameDigitCount, _iHeaderDuplicateDigitCount;
 
@@ -134,19 +140,19 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public String getNumber(FrameNumber frameNumber) {
+        public @Nonnull String getNumber(@Nonnull FrameNumber frameNumber) {
             return frameNumber.getHeaderFrameString();
         }
 
         @Override
-        public String formatNumber(FrameNumber frameNumber, Logger log) {
+        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log) {
             if (frameNumber.getHeaderFrameDuplicate() > 0) {
                 if (_iHeaderDuplicateDigitCount > 0) {
                     return String.format(_sFormat, frameNumber.getHeaderFrameNumber(), frameNumber.getHeaderFrameDuplicate());
                 } else {
                     if (log == null)
                         log = LOG;
-                    log.log(Level.WARNING, "Not expecting duplicate frame number {0}", frameNumber); // I18N
+                    I.NOT_EXPECTING_DUP_FRM_NUM(frameNumber).log(log, Level.WARNING);
                     return String.format("%0" + _iHeaderFrameDigitCount + "d.%d",
                             frameNumber.getHeaderFrameNumber(), frameNumber.getHeaderFrameDuplicate());
                 }
@@ -156,8 +162,8 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public LocalizedMessage getDescription(FrameNumber frameNumber) {
-            return new LocalizedMessage("Frame {0}", getNumber(frameNumber)); // I18N
+        public @Nonnull LocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
+            return I.FRM_NUM_FMTR_FRAME(getNumber(frameNumber));
         }
     }
 

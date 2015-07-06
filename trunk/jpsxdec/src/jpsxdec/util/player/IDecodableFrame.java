@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,9 +37,11 @@
 
 package jpsxdec.util.player;
 
+import javax.annotation.Nonnull;
+
 public interface IDecodableFrame {
 
-    void decodeVideo(int[] aiDrawHere);
+    void decodeVideo(@Nonnull int[] aiDrawHere);
 
     /** Returns the time the frame should be displayed, in milliseconds
      *  from the beginning of the movie. */

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,9 +42,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedEOFException;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedEOFException;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 
@@ -54,7 +56,9 @@ import jpsxdec.util.IO;
  *  would of course be faster. */
 public final class SquareAdpcmDecoder {
 
+    @Nonnull
     private final SoundUnit _leftSoundUnit;
+    @Nonnull
     private final SoundUnit _rightSoundUnit;
 
     public SquareAdpcmDecoder(double dblVolume) {
@@ -81,10 +85,10 @@ public final class SquareAdpcmDecoder {
      *  The necessary size can be determined using
      *  {@link #calculateOutputBufferSize(int)}.
      */
-    public int decode(InputStream leftStream,
-                      InputStream rightStream,
-                      int iNumBytes, OutputStream out,
-                      Logger log)
+    public int decode(@Nonnull InputStream leftStream,
+                      @Nonnull InputStream rightStream,
+                      int iNumBytes, @Nonnull OutputStream out,
+                      @CheckForNull Logger log)
             throws IOException
     {
         if ((iNumBytes % SoundUnit.SIZE_IN_BYTES) > 0)
@@ -133,6 +137,7 @@ public final class SquareAdpcmDecoder {
         
         private byte _bParameter_Range;
         private byte _bParameter_FilterIndex;
+        @Nonnull
         private final AdpcmContext _adpcmContext;
         private final short[] _asiPcmSampleBuffer = new short[SAMPLES_PER_SOUND_UNIT];
 
@@ -157,7 +162,8 @@ public final class SquareAdpcmDecoder {
             -0.9375  // one more possible value than standard XA audio
         };
 
-        public short[] readSoundUnit(InputStream inStream, Logger log) throws IOException
+        public @Nonnull short[] readSoundUnit(@Nonnull InputStream inStream, @CheckForNull Logger log)
+                throws IOException
         {
             readSoundParamter(inStream, log);
 
@@ -165,7 +171,7 @@ public final class SquareAdpcmDecoder {
                 // read a byte
                 int iByte = inStream.read();
                 if (iByte < 0)
-                    throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
+                    throw new LocalizedEOFException(I.UNEXPECTED_END_OF_AUDIO());
                 
                 // get the two ADPCM samples from it
                 // shift the nibble into the top of a short
@@ -189,11 +195,12 @@ public final class SquareAdpcmDecoder {
         }
 
 
-        private void readSoundParamter(InputStream inStream, Logger log) throws IOException
+        private void readSoundParamter(@Nonnull InputStream inStream, @CheckForNull Logger log)
+                throws IOException
         {
             int iSoundParameter = inStream.read();
             if (iSoundParameter < 0)
-                throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
+                throw new LocalizedEOFException(I.UNEXPECTED_END_OF_AUDIO());
 
             _bParameter_Range       = (byte)(iSoundParameter & 0xF);
             _bParameter_FilterIndex = (byte)((iSoundParameter >>> 4) & 0xF);
@@ -201,18 +208,14 @@ public final class SquareAdpcmDecoder {
             if (_bParameter_FilterIndex > 4) {
                 if (log != null) {
                     if (inStream instanceof ByteArrayFPIS) {
-                        log.log(Level.WARNING, "Square ADPCM Sound Parameter Filter Index > 4 ({0,number,#}) [sound parameter 0x{1} at {2,number,#}]", // I18N
-                                new Object[]{
-                                    _bParameter_FilterIndex,
-                                    Integer.toHexString(iSoundParameter), 
-                                    ((ByteArrayFPIS)inStream).getFilePointer()-1
-                                });
+                        I.SQUARE_ADPCM_FILTER_IDX_GT_4_FP(
+                                _bParameter_FilterIndex,
+                                Integer.toHexString(iSoundParameter),
+                                ((ByteArrayFPIS)inStream).getFilePointer()-1).log(log, Level.WARNING);
                     } else {
-                        log.log(Level.WARNING, "Square ADPCM Sound Parameter Filter Index > 4 ({0,number,#}) [sound parameter 0x{1}]", // I18N
-                                new Object[]{
-                                    _bParameter_FilterIndex, 
-                                    Integer.toHexString(iSoundParameter)
-                                });
+                        I.SQUARE_ADPCM_FILTER_IDX_GT_4(
+                                _bParameter_FilterIndex,
+                                Integer.toHexString(iSoundParameter)).log(log, Level.WARNING);
                     }
                 }
                 _bParameter_FilterIndex = (byte)(_bParameter_FilterIndex & 3);
@@ -220,7 +223,7 @@ public final class SquareAdpcmDecoder {
 
             // for some reason this byte isn't used?
             if (inStream.skip(1) != 1)
-                throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
+                throw new LocalizedEOFException(I.UNEXPECTED_END_OF_AUDIO());
         }
 
 
@@ -237,7 +240,7 @@ public final class SquareAdpcmDecoder {
         }
     }
 
-    public AudioFormat getOutputFormat(int iSampleRate) {
+    public @Nonnull AudioFormat getOutputFormat(int iSampleRate) {
         return new AudioFormat(iSampleRate, 16, 2, true, false);
     }
 

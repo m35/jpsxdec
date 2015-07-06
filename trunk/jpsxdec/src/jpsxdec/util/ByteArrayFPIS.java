@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-201  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.util;
 
 import java.io.ByteArrayInputStream;
+import javax.annotation.Nonnull;
 
 /** Custom ByteArrayInputStream with file pointer 
  *  tracking and quick sub-stream generation. */
@@ -46,41 +47,41 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
     private long _lngFP = 0;
     private final int _iBufStart;
     
-    public ByteArrayFPIS(byte[] buf, int offset, int length) {
+    public ByteArrayFPIS(@Nonnull byte[] buf, int offset, int length) {
         super(buf, offset, length);
         _iBufStart = super.pos;
     }
 
-    public ByteArrayFPIS(byte[] buf) {
+    public ByteArrayFPIS(@Nonnull byte[] buf) {
         super(buf);
         _iBufStart = super.pos;
     }
     
-    public ByteArrayFPIS(byte[] buf, int offset, int length, long filePos) {
+    public ByteArrayFPIS(@Nonnull byte[] buf, int offset, int length, long filePos) {
         super(buf, offset, length);
         _lngFP = filePos;
         _iBufStart = super.pos;
     }
 
-    public ByteArrayFPIS(byte[] buf, long filePos) {
+    public ByteArrayFPIS(@Nonnull byte[] buf, long filePos) {
         super(buf);
         _lngFP = filePos;
         _iBufStart = super.pos;
     }
 
-    public ByteArrayFPIS(ByteArrayFPIS bafp, int offset, int length, long filePos) {
+    public ByteArrayFPIS(@Nonnull ByteArrayFPIS bafp, int offset, int length, long filePos) {
         super(bafp.buf, bafp.pos + offset, length);
         _lngFP = filePos;
         _iBufStart = super.pos;
     }
     
-    public ByteArrayFPIS(ByteArrayFPIS bafp, int offset, int length) {
+    public ByteArrayFPIS(@Nonnull ByteArrayFPIS bafp, int offset, int length) {
         super(bafp.buf, bafp.pos + offset, length);
         _lngFP = bafp._lngFP;
         _iBufStart = super.pos;
     }
 
-    public ByteArrayFPIS(ByteArrayFPIS bafp) {
+    public ByteArrayFPIS(@Nonnull ByteArrayFPIS bafp) {
         this(bafp, 0, bafp.available());
     }
     
@@ -94,7 +95,7 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
         return super.pos - _iBufStart;
     }
     
-    public ByteArrayFPIS copy() {
+    public @Nonnull ByteArrayFPIS copy() {
         return new ByteArrayFPIS(super.buf, super.pos, super.count, _lngFP);
     }
     

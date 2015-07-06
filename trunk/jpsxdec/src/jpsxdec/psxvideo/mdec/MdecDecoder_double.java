@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.psxvideo.mdec;
 
 import java.util.Arrays;
+import jpsxdec.i18n.I;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.Rec601YCbCr;
 import jpsxdec.formats.YCbCrImage;
@@ -127,9 +128,10 @@ public class MdecDecoder_double extends MdecDecoder {
                                 // Reverse Zig-Zag
                                 iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                             } catch (ArrayIndexOutOfBoundsException ex) {
-                                throw new MdecException.Decode("[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} ({2,number,#}, {3,number,#}) block {4,number,#} ({5})", // I18N
+                                throw new MdecException.Decode(I.RLC_OOB_IN_BLOCK_NAME(
                                                iCurrentBlockVectorPosition,
-                                               iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]);
+                                               iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]),
+                                               ex);
                             }
                             assert !DEBUG || setPrequantValue(iRevZigZagPos, _code.getBottom10Bits());
                             // Dequantize
@@ -157,8 +159,7 @@ public class MdecDecoder_double extends MdecDecoder {
             if (ex instanceof MdecException.Decode) {
                 mdecEx = (MdecException.Decode)ex;
             } else {
-                mdecEx = new MdecException.Decode(ex, "Error decoding macro block {0,number,#} block {1,number,#}",// I18N
-                                                  iMacBlk, iBlock);
+                mdecEx = new MdecException.Decode(I.BLOCK_DECODE_ERR(iMacBlk, iBlock), ex);
             }
             // fill in the remaining data with zeros
             int iTotalMacBlks = _iMacBlockWidth * _iMacBlockHeight;
@@ -328,7 +329,7 @@ public class MdecDecoder_double extends MdecDecoder {
 
 
     /**
-     * @see PsxYCbCr#toRecJfifYCbCr(Rec601YCbCr)
+     * @see PsxYCbCr#toRec_JFIF_YCbCr(jpsxdec.formats.Rec601YCbCr)
      */
     public void readDecoded_JFIF_YCbCr420(YCbCrImage ycc) {
 

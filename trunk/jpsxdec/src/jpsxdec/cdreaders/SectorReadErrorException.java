@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,12 +37,14 @@
 
 package jpsxdec.cdreaders;
 
-import jpsxdec.LocalizedIOException;
+import javax.annotation.CheckForNull;
+import jpsxdec.i18n.LocalizedIOException;
+import jpsxdec.i18n.LocalizedMessage;
 
 /** Something bad happened when reading a sector. */
 public class SectorReadErrorException extends LocalizedIOException {
 
-    public SectorReadErrorException(String message) {
+    public SectorReadErrorException(@CheckForNull LocalizedMessage message) {
         super(message);
     }
    

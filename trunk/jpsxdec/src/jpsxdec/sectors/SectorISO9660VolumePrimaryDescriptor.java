@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,8 @@
 package jpsxdec.sectors;
 
 import java.io.IOException;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.iso9660.VolumePrimaryDescriptor;
 import jpsxdec.util.ByteArrayFPIS;
@@ -47,9 +49,10 @@ import jpsxdec.util.NotThisTypeException;
  * this usually falls at sector 16 in the disc image. */
 public class SectorISO9660VolumePrimaryDescriptor extends IdentifiedSector {
     
+    @CheckForNull
     private VolumePrimaryDescriptor _primaryDescriptor;
     
-    public SectorISO9660VolumePrimaryDescriptor(CdSector cdSector) {
+    public SectorISO9660VolumePrimaryDescriptor(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -71,15 +74,17 @@ public class SectorISO9660VolumePrimaryDescriptor extends IdentifiedSector {
         return super.getCdSector().getCdUserDataSize();
     }
 
-    public ByteArrayFPIS getIdentifiedUserDataStream() {
+    public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
         return super.getCdSector().getCdUserDataStream();
     }
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "ISO9660 Volume Primary Descriptor";
     }
 
-    public VolumePrimaryDescriptor getVPD() {
+    public @Nonnull VolumePrimaryDescriptor getVPD() {
+        if (_primaryDescriptor == null)
+            throw new IllegalStateException();
         return _primaryDescriptor;
     }
 

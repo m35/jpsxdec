@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems.savers;
 
+import javax.annotation.Nonnull;
 import jpsxdec.util.Fraction;
 
 /** Used to ensure the writing of video frames matches the timing of the
@@ -49,15 +50,17 @@ public class VideoSync {
 
     /** Either 75 (single speed) or 150 (double speed). */
     private final int _iSectorsPerSecond;
+    @Nonnull
     private final Fraction _sectorsPerFrame;
 
     /** Precalculated from {@link #_iSectorsPerSecond} and {@link #_sectorsPerFrame}
      * for quick reference. */
+    @Nonnull
     private final Fraction _secondsPerFrame;
     
     public VideoSync(int iFirstPresentationSector,
                      int iSectorsPerSecond,
-                     Fraction sectorsPerFrame)
+                     @Nonnull Fraction sectorsPerFrame)
     {
         _iFirstPresentationSector = iFirstPresentationSector;
         _iSectorsPerSecond = iSectorsPerSecond;
@@ -70,11 +73,11 @@ public class VideoSync {
         return _iSectorsPerSecond;
     }
 
-    public Fraction getSecondsPerFrame() {
+    public @Nonnull Fraction getSecondsPerFrame() {
         return _secondsPerFrame;
     }
 
-    public Fraction getSectorsPerFrame() {
+    public @Nonnull Fraction getSectorsPerFrame() {
         return _sectorsPerFrame;
     }
 
@@ -91,7 +94,7 @@ public class VideoSync {
         Fraction timeDiff = presentationTime.subtract(movieTime);
         Fraction framesDiff = timeDiff.divide(_secondsPerFrame);
 
-        int iFrameCatchupNeeded = 0;
+        int iFrameCatchupNeeded;
 
         // [0.5, infinity) -> write frames to catch up
         // (-0.5, 0.5) -> Movie time == presentation time

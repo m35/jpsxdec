@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,63 +35,45 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec;
+package jpsxdec.i18n;
 
 import java.io.IOException;
-import java.text.MessageFormat;
+import javax.annotation.CheckForNull;
 
 public class LocalizedIOException extends IOException {
 
-    private final Object[] _aoArguments;
-    
+    @CheckForNull
+    private final LocalizedMessage _msg;
+
     public LocalizedIOException() {
-        _aoArguments = null;
+        _msg = null;
     }
 
-    public LocalizedIOException(String sMessage) {
-        super(sMessage);
-        _aoArguments = null;
+    public LocalizedIOException(@CheckForNull LocalizedMessage msg) {
+        super(msg == null ? null : msg.getEnglishMessage());
+        _msg = msg;
     }
 
-    public LocalizedIOException(String sMessage, Object ... aoArguments) {
-        super(sMessage);
-        _aoArguments = aoArguments;
-    }
-
-    public LocalizedIOException(Throwable cause) {
+    public LocalizedIOException(@CheckForNull Throwable cause) {
         super();
         initCause(cause);
-        _aoArguments = null;
-    }
-    
-    public LocalizedIOException(Throwable cause, String sMessage, Object ... aoArguments) {
-        super(sMessage);
-        initCause(cause);
-        _aoArguments = aoArguments;
+        _msg = null;
     }
 
     @Override
-    public String getLocalizedMessage() {
-        String sSuperMessage = super.getMessage();
-        if (sSuperMessage == null)
-            return null;
-        else {
-            if (_aoArguments == null)
-                return I18N.S(sSuperMessage);
-            else
-                return I18N.S(sSuperMessage, _aoArguments);
-        }
-    }
-
-    @Override
-    public String getMessage() {
-        String sSuperMessage = super.getMessage();
-        if (_aoArguments == null)
-            return sSuperMessage;
-        else if (sSuperMessage != null)
-            return MessageFormat.format(sSuperMessage, _aoArguments);
+    public @CheckForNull String getLocalizedMessage() {
+        if (_msg == null)
+            return super.getLocalizedMessage();
         else
-            return null;
+            return _msg.getLocalizedMessage();
+    }
+
+    @Override
+    public @CheckForNull String getMessage() {
+        if (_msg == null)
+            return super.getMessage();
+        else
+            return _msg.getEnglishMessage();
     }
     
 }

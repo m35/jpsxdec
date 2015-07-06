@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,9 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.sectors.IVideoSectorWithFrameNumber;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.NotThisTypeException;
@@ -50,16 +53,17 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
 
     public static final String TYPE_ID = "Video";
 
-    public DiscItemStrVideoWithFrame(int iStartSector, int iEndSector,
+    public DiscItemStrVideoWithFrame(@Nonnull CdFileSectorReader cd,
+                                     int iStartSector, int iEndSector,
                                      int iWidth, int iHeight,
                                      int iFrameCount,
-                                     FrameNumberFormat frameNumberFormat,
-                                     FrameNumber startFrame,
-                                     FrameNumber endFrame,
+                                     @Nonnull FrameNumberFormat frameNumberFormat,
+                                     @Nonnull FrameNumber startFrame,
+                                     @Nonnull FrameNumber endFrame,
                                      int iSectors, int iPerFrame,
                                      int iFirstFrameLastSector)
     {
-        super(iStartSector, iEndSector,
+        super(cd, iStartSector, iEndSector,
               iWidth, iHeight,
               iFrameCount,
               frameNumberFormat,
@@ -68,19 +72,20 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
               iFirstFrameLastSector);
     }
 
-    public DiscItemStrVideoWithFrame(SerializedDiscItem fields) throws NotThisTypeException
+    public DiscItemStrVideoWithFrame(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+            throws NotThisTypeException
     {
-        super(fields);
+        super(cd, fields);
     }
 
 
     @Override
-    public String getSerializationTypeId() {
+    public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
 
     @Override
-    public int getParentRating(DiscItem child) {
+    public int getParentRating(@Nonnull DiscItem child) {
         if (!(child instanceof DiscItemAudioStream))
             return 0;
 
@@ -92,7 +97,7 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
 
     private static final int AUDIO_SPLIT_THRESHOLD = 32;
     
-    public int splitAudio(DiscItemXaAudioStream audio) {
+    public int splitAudio(@Nonnull DiscItemXaAudioStream audio) {
         int iStartSector = getStartSector();
         // if audio crosses the start sector
         if (audio.getStartSector() < iStartSector - AUDIO_SPLIT_THRESHOLD &&
@@ -105,7 +110,7 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
     }
     
     @Override
-    public void fpsDump(PrintStream ps) throws IOException {
+    public void fpsDump(@Nonnull PrintStream ps) throws IOException {
         final int LENGTH = getSectorLength();
         for (int iSector = 0; iSector < LENGTH; iSector++) {
             IdentifiedSector isect = getRelativeIdentifiedSector(iSector);
@@ -126,7 +131,7 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
     }
 
     @Override
-    public ISectorFrameDemuxer makeDemuxer() {
+    public @Nonnull ISectorFrameDemuxer makeDemuxer() {
         return new Demuxer(getStartSector(), getEndSector(), getWidth(), getHeight());
     }
     
@@ -142,26 +147,26 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
             _iHeight = iHeight;
         }
 
-        protected IVideoSectorWithFrameNumber isVideoSector(IdentifiedSector sector) {
+        protected @CheckForNull IVideoSectorWithFrameNumber isVideoSector(@Nonnull IdentifiedSector sector) {
             if (!(sector instanceof IVideoSectorWithFrameNumber))
                 return null;
             return (IVideoSectorWithFrameNumber) sector;
         }
 
         @Override
-        protected boolean isPartOfVideo(IVideoSectorWithFrameNumber chunk) {
+        protected boolean isPartOfVideo(@Nonnull IVideoSectorWithFrameNumber chunk) {
             return super.isPartOfVideo(chunk) &&
                    chunk.getWidth() == _iWidth &&
                    chunk.getHeight() == _iHeight;
         }
 
         @Override
-        protected int getHeaderFrameNumber(IVideoSectorWithFrameNumber chunk) {
+        protected int getHeaderFrameNumber(@Nonnull IVideoSectorWithFrameNumber chunk) {
             return chunk.getFrameNumber();
         }
 
         @Override
-        protected int getChunksInFrame(IVideoSectorWithFrameNumber chunk) {
+        protected int getChunksInFrame(@Nonnull IVideoSectorWithFrameNumber chunk) {
             return chunk.getChunksInFrame();
         }
 

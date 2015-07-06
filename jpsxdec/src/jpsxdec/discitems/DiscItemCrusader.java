@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,10 @@
 package jpsxdec.discitems;
 
 import java.util.Date;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderCrusader;
 import jpsxdec.util.Fraction;
@@ -54,17 +57,21 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     
     private static final String FRAMES_KEY = "Frames";
     /** First video frame number. */
+    @Nonnull
     private final FrameNumber _startFrame;
     /** Last video frame number. */
+    @Nonnull
     private final FrameNumber _endFrame;
     
-    public DiscItemCrusader(int iStartSector, int iEndSector, 
+    public DiscItemCrusader(@Nonnull CdFileSectorReader cd,
+                            int iStartSector, int iEndSector,
                             int iWidth, int iHeight,
                             int iFrameCount,
-                            FrameNumberFormat frameNumberFormat,
-                            FrameNumber startFrame, FrameNumber endFrame)
+                            @Nonnull FrameNumberFormat frameNumberFormat,
+                            @Nonnull FrameNumber startFrame,
+                            @Nonnull FrameNumber endFrame)
     {
-        super(iStartSector, iEndSector,
+        super(cd, iStartSector, iEndSector,
               iWidth, iHeight,
               iFrameCount,
               frameNumberFormat);
@@ -72,8 +79,10 @@ public class DiscItemCrusader extends DiscItemVideoStream {
         _endFrame = endFrame;
     }
     
-    public DiscItemCrusader(SerializedDiscItem fields) throws NotThisTypeException {
-        super(fields);
+    public DiscItemCrusader(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+            throws NotThisTypeException
+    {
+        super(cd, fields);
 
         FrameNumber[] ao = FrameNumber.parseRange(fields.getString(FRAMES_KEY));
         _startFrame = ao[0];
@@ -81,36 +90,34 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     }
 
     @Override
-    public SerializedDiscItem serialize() {
+    public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
         serial.addString(FRAMES_KEY, FrameNumber.toRange(_startFrame, _endFrame));
         return serial;
     }
 
     @Override
-    public String getSerializationTypeId() {
+    public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
 
-    public FrameNumber getStartFrame() {
+    public @Nonnull FrameNumber getStartFrame() {
         return _startFrame;
     }
 
-    public FrameNumber getEndFrame() {
+    public @Nonnull FrameNumber getEndFrame() {
         return _endFrame;
     }
 
     @Override
-    public LocalizedMessage getInterestingDescription() {
+    public @Nonnull LocalizedMessage getInterestingDescription() {
         int iFrames = getFrameCount();
         Date secs = new Date(0, 0, 0, 0, 0, Math.max(iFrames / FPS, 1));
-        return new LocalizedMessage("{0,number,#}x{1,number,#}, {2,number,#} frames, {3,number,#} fps = {4,time,m:ss}", // I18N
-                             getWidth() ,getHeight(),
-                             iFrames, FPS, secs);
+        return I.GUI_CRUSADER_VID_DETAILS(getWidth() ,getHeight(), iFrames, FPS, secs);
     }
     
     @Override
-    public DiscItemSaverBuilder makeSaverBuilder() {
+    public @Nonnull DiscItemSaverBuilder makeSaverBuilder() {
         return new VideoSaverBuilderCrusader(this);
     }
     
@@ -120,7 +127,7 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     }
 
     @Override
-    public Fraction getSectorsPerFrame() {
+    public @Nonnull Fraction getSectorsPerFrame() {
         return SECTORS_PER_FRAME;
     }
 
@@ -135,13 +142,13 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     }
 
     @Override
-    public CrusaderDemuxer makeDemuxer() {
+    public @Nonnull CrusaderDemuxer makeDemuxer() {
         // TODO: how to expose the audio volume
         return new CrusaderDemuxer(getWidth(), getHeight(), getStartSector(), getEndSector());
     }
 
     @Override
-    public PlayController makePlayController() {
+    public @Nonnull PlayController makePlayController() {
         CrusaderDemuxer demuxer = makeDemuxer();
         return new PlayController(new MediaPlayer(this, demuxer, demuxer, getStartSector(), getEndSector()));
     }

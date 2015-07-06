@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.sectors;
 
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
@@ -47,14 +48,13 @@ import jpsxdec.util.ByteArrayFPIS;
 public class SectorChronoXVideoNull extends IdentifiedSector {
     
     private static final Logger LOG = Logger.getLogger(SectorChronoXVideoNull.class.getName());
-    protected Logger log() { return LOG; }
 
     private long _lngMagic;
     private int _iChunkNumber;
     private int _iChunksInThisFrame;
     private int _iFrameNumber;
 
-    public SectorChronoXVideoNull(CdSector cdSector) {
+    public SectorChronoXVideoNull(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -88,7 +88,7 @@ public class SectorChronoXVideoNull extends IdentifiedSector {
 
     // .. Public functions .................................................
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "CX Video Null";
     }
 
@@ -96,8 +96,8 @@ public class SectorChronoXVideoNull extends IdentifiedSector {
         return 0;
     }
 
-    public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return null;
+    public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
+        throw new UnsupportedOperationException("Should not be getting user data of Chrono Cross null sector.");
     }
 
     @Override

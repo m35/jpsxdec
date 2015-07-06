@@ -1,4 +1,7 @@
 package jpsxdec.util;
+
+import javax.annotation.Nonnull;
+
 /*
   File: Fraction.java
 
@@ -47,7 +50,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
   }
 
   /** Create a fraction with the same value as Fraction f **/
-  public Fraction(Fraction f) {
+  public Fraction(@Nonnull Fraction f) {
     numerator_ = f.getNumerator();
     denominator_ = f.getDenominator();
   }
@@ -59,7 +62,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
       return String.format("%d/%d (%3f)", getNumerator(), getDenominator(), asDouble());
   }
 
-  public Fraction clone() { return new Fraction(this); }
+  public @Nonnull Fraction clone() { return new Fraction(this); }
 
   /** Return the value of the Fraction as a double **/
   public double asDouble() { 
@@ -93,7 +96,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
     return x;
   }
 
-  public static Fraction divide(long a, Fraction b) {
+  public static @Nonnull Fraction divide(long a, Fraction b) {
     long an = a;
     long ad = 1;
     long bn = b.getNumerator();
@@ -102,14 +105,14 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
   }
 
   /** return a Fraction representing the negated value of this Fraction **/
-  public Fraction negative() {
+  public @Nonnull Fraction negative() {
     long an = getNumerator();
     long ad = getDenominator();
     return new Fraction(-an, ad);
   }
 
   /** return a Fraction representing 1 / this Fraction **/
-  public Fraction reciprocal() {
+  public @Nonnull Fraction reciprocal() {
     long an = getNumerator();
     long ad = getDenominator();
     return new Fraction(ad, an);
@@ -117,7 +120,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
 
 
   /** return a Fraction representing this Fraction plus b **/
-  public Fraction add(Fraction b) {
+  public @Nonnull Fraction add(Fraction b) {
     long an = getNumerator();
     long ad = getDenominator();
     long bn = b.getNumerator();
@@ -126,7 +129,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
   }
 
   /** return a Fraction representing this Fraction plus n **/
-  public Fraction add(long n) {
+  public @Nonnull Fraction add(long n) {
     long an = getNumerator();
     long ad = getDenominator();
     long bn = n;
@@ -135,7 +138,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
   }
 
   /** return a Fraction representing this Fraction minus b **/
-  public Fraction subtract(Fraction b) {
+  public @Nonnull Fraction subtract(Fraction b) {
     long an = getNumerator();
     long ad = getDenominator();
     long bn = b.getNumerator();
@@ -144,7 +147,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
   }
 
   /** return a Fraction representing this Fraction minus n **/
-  public Fraction subtract(long n) {
+  public @Nonnull Fraction subtract(long n) {
     long an = getNumerator();
     long ad = getDenominator();
     long bn = n;
@@ -154,7 +157,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
 
 
   /** return a Fraction representing this Fraction times b **/
-  public Fraction multiply(Fraction b) {
+  public @Nonnull Fraction multiply(Fraction b) {
     long an = getNumerator();
     long ad = getDenominator();
     long bn = b.getNumerator();
@@ -163,7 +166,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
   }
 
   /** return a Fraction representing this Fraction times n **/
-  public Fraction multiply(long n) {
+  public @Nonnull Fraction multiply(long n) {
     long an = getNumerator();
     long ad = getDenominator();
     long bn = n;
@@ -176,7 +179,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
   }
 
   /** return a Fraction representing this Fraction divided by b **/
-  public Fraction divide(Fraction b) {
+  public @Nonnull Fraction divide(@Nonnull Fraction b) {
     long an = getNumerator();
     long ad = getDenominator();
     long bn = b.getNumerator();
@@ -185,7 +188,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
   }
 
   /** return a Fraction representing this Fraction divided by n **/
-  public Fraction divide(long n) {
+  public @Nonnull Fraction divide(long n) {
     long an = getNumerator();
     long ad = getDenominator();
     long bn = n;
@@ -193,7 +196,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
     return new Fraction(an*bd, ad*bn);
   }
 
-  public Fraction abs() {
+  public @Nonnull Fraction abs() {
       return new Fraction(Math.abs(numerator_), denominator_);
   }
 

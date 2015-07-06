@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,9 +50,9 @@ public abstract class MdecInputStream {
     /** 16-bit MDEC code indicating the end of a block. 
      * The equivalent MDEC value is (63, -512). */
     public final static int MDEC_END_OF_DATA = 0xFE00;
-    /** Top 6 bits of {@link MDEC_END_OF_DATA}. */
+    /** Top 6 bits of {@link #MDEC_END_OF_DATA}. */
     public final static int MDEC_END_OF_DATA_TOP6 = (MDEC_END_OF_DATA >> 10) & 63;
-    /** Bottom 10 bits of {@link MDEC_END_OF_DATA}. */
+    /** Bottom 10 bits of {@link #MDEC_END_OF_DATA}. */
     public final static int MDEC_END_OF_DATA_BOTTOM10 = (short)(MDEC_END_OF_DATA | 0xFC00);
 
     /** Standard quantization matrix for MDEC frames. */

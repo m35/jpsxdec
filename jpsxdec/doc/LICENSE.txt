@@ -50,14 +50,26 @@ Some individual components are licensed under compatible licenses:
 
 ................................................................................
 
-jpsxdec/plugins/psx/video/mdec/idct/StephensIDCT.java
+The jPSXdec translations
+Specifically src/jpsxdec/i18n/I.java and Translations*.properties
+Copyright Michael Sabin, Víctor González
+
+English and Japanese by Michael Sabin
+Spanish by Víctor González
+
+Licensed under the Apache License, Version 2.0
+The text of this license is contained in the file apache-2.0.txt
+
+................................................................................
+
+src/jpsxdec/psxvideo/mdec/idct/StephensIDCT.java
 Originally from code written by Stephen Manley.
 http://www.nyx.net/~smanley/
 He generously offers his code free, without restriction.
 
 ................................................................................
 
-argparser/*
+src/argparser/*
 Argparser library
 http://people.cs.ubc.ca/~lloyd/java/argparser.html
 * Copyright John E. Lloyd, 2004. All rights reserved. Permission to use,
@@ -73,12 +85,12 @@ http://people.cs.ubc.ca/~lloyd/java/argparser.html
 
 ................................................................................
 
-jpsxdec/util/Fraction.java
+src/jpsxdec/util/Fraction.java
 Originally written by Doug Lea and released into the public domain.
 
 ................................................................................
 
-com/l2fprod/common/*
+src/com/l2fprod/common/*
 L2FProd.com Common Components 7.3 (directory chooser)
 http://www.l2fprod.com/
 Copyright 2005-2007 L2FProd.com
@@ -87,7 +99,7 @@ The text of this license is contained in the file apache-2.0.txt
 
 ................................................................................
 
-com/jhlabs/awt/*
+src/com/jhlabs/awt/*
 Paragraph Layout
 Copyright (C) Jerry Huxtable 1998-2001. All rights reserved.
 Licensed under the Apache License, Version 2.0
@@ -95,7 +107,7 @@ The text of this license is contained in the file apache-2.0.txt
 
 ................................................................................
 
-org/openide/*
+src/org/openide/*
 From Netbeans IDE
 http://netbeans.org/
 Copyright 1997-2010 Oracle and/or its affiliates. All rights reserved.
@@ -106,7 +118,16 @@ The text of this dual license can be found in the file CDDL-GPL-2-CP.txt
 
 ................................................................................
 
-com/pdfjet/*
+src/javax/*
+JSR 305: Annotations for Software Defect Detection in Java
+Copyright (c) 2007-2009, JSR305 expert group
+All rights reserved.
+Licensed under the New BSD License.
+The text of this license can be found in the file New-BSD.txt
+
+................................................................................
+
+src/com/pdfjet/*
 PDFJet - Open Source Edition
 http://pdfjet.com/os/edition.html
 Copyright (c) 2007, 2008, 2009 Innovatics Inc.
@@ -136,8 +157,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ................................................................................
 
-jpsxdec/film.png
-jpsxdec/insert-numbers.png
+src/jpsxdec/gui/film.png
+src/jpsxdec/gui/insert-numbers.png
 From Silk Icon set
 http://www.famfamfam.com/lab/icons/silk/
 Copyright (c) Mark James
@@ -147,8 +168,8 @@ http://creativecommons.org/licenses/by/2.5/
 
 ................................................................................
 
-jpsxdec/media-optical-5.png
-jpsxdec/image-x-generic.png
+src/jpsxdec/gui/media-optical-5.png
+src/jpsxdec/gui/image-x-generic.png
 From Tango Icon Library
 http://tango.freedesktop.org/Tango_Icon_Library
 Released into Public Domain
@@ -156,38 +177,38 @@ Released into Public Domain
 ################################################################################
 
 The following files are Licensed under the
-GNU Lesser General Public License Version 2.1, and must be included in a
-separate .jar with binary distributions so as to comply with the LGPL.
+GNU Lesser General Public License Version 2.1, and are included in a
+separate .jar with binary distributions to ensure compliance with the LGPL.
 The text of this license is contained in the file lgpl-2.1.txt
 
 
-jpsxdec/plugins/psx/video/mdec/idct/simple_idct.java
+src-lgpl/jpsxdec/psxvideo/idct/simple_idct.java
 Copyright (c) Michael Niedermayer
 Originally from ffmpeg (ported by Alexander Strange)
 
-com/mortennobel/imagescaling/*
+src-lgpl/com/mortennobel/imagescaling/*
 Java Image Scaling Library
 http://code.google.com/p/java-image-scaling/
 Copyright 2009, Morten Nobel-Joergensen
 
-org/jdesktop/beans/*
-org/jdesktop/swingx/*
+src-lgpl/org/jdesktop/beans/*
+src-lgpl/org/jdesktop/swingx/*
 SwingLabs SwingX Project
 http://swinglabs.org/
 Copyright (c) 2005-2006 Sun Microsystems, Inc. All rights reserved.
 
-org/jdesktop/swingworker/*
+src-lgpl/org/jdesktop/swingworker/*
 SwingWorker library
 https://swingworker.dev.java.net/
 Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
 
-jpsxdec/knotify.png
-jpsxdec/layer-new-3.png
+src-lgpl/jpsxdec/gui/knotify.png
+src-lgpl/jpsxdec/gui/layer-new-3.png
 From The Crystal Project icons set
 http://everaldo.com/crystal/
 Copyright (c)  2006-2007  Everaldo Coelho
 
-jpsxdec/3floppy_unmount.png
+src-lgpl/jpsxdec/gui/3floppy_unmount.png
 From Nuvola icon set
 http://www.icon-king.com/projects/nuvola/
 Copyright (c)  2003-2004  David Vignoni

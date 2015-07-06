@@ -15,6 +15,8 @@
 */
 package jpsxdec.cdreaders;
 
+import javax.annotation.Nonnull;
+
 /**
  * Code ported from sector.d from project http://code.google.com/p/dutils/
  * which claims to be under Apache license. Hopefully it is true
@@ -110,7 +112,9 @@ public class SectorErrorCorrection {
     
 
     /** Generate sector EDC. It is a 32-but value, unsigned in a long. */
-    public static long generateErrorDetectionAndCorrection(byte[] data, int iStart, int iEnd) {
+    public static long generateErrorDetectionAndCorrection(@Nonnull byte[] data, 
+                                                           int iStart, int iEnd)
+    {
         long edc_i = 0;
         for (int i = iStart; i < iEnd; i++) {
             edc_i = EDC_crctable[(int)((edc_i ^ data[i]) & 0xFF)] ^ (edc_i >> 8);
@@ -119,8 +123,12 @@ public class SectorErrorCorrection {
         return edc_i;
     }
     
-    /** Generate sector ECC P. */
-    public static void generateErrorCorrectionCode_P(byte[] data, int data_p, byte[] output, int output_p) {
+    /** Generate sector ECC P.
+     * @param data_p Start pointer to {@code data}.
+     * @param output_p Start pointer to {@code output}. */
+    public static void generateErrorCorrectionCode_P(@Nonnull byte[] data, int data_p, 
+                                                     @Nonnull byte[] output, int output_p)
+    {
         assert data.length - data_p >= 43 * 24 * 2;
         assert output.length - output_p >= L2_P;
 
@@ -146,8 +154,12 @@ public class SectorErrorCorrection {
         }
     }
 
-    /** Generate sector ECC Q. */
-    public static void generateErrorCorrectionCode_Q(byte[] data, int data_p, byte[] output, int output_p) {
+    /** Generate sector ECC Q.
+     * @param data_p Start pointer to {@code data}.
+     * @param output_p Start pointer to {@code output}. */
+    public static void generateErrorCorrectionCode_Q(@Nonnull byte[] data, int data_p, 
+                                                     @Nonnull byte[] output, int output_p)
+    {
         assert data.length - data_p >= 4 + 0x800 + 4 + 8 + L2_P;
         assert output.length - output_p >= L2_Q;
 

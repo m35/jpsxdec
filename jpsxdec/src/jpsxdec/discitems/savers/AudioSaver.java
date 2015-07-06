@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,8 +41,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.logging.Level;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.I18N;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.discitems.ISectorAudioDecoder;
@@ -57,15 +61,22 @@ import jpsxdec.util.TaskCanceledException;
  * {@link AudioSaverBuilder}. */
 public class AudioSaver implements IDiscItemSaver  {
 
+    @Nonnull
     private final DiscItemAudioStream _audItem;
+    @Nonnull
     private final ISectorAudioDecoder _decoder;
+    @CheckForNull
     private final File _outputDir;
+    @Nonnull
     private final File _fileRelativePath;
+    @Nonnull
     private final JavaAudioFormat _containerFormat;
+    @CheckForNull
     private File _generatedFile;
 
-    public AudioSaver(DiscItemAudioStream audItem, File outputDir, File fileRelativePath,
-                       JavaAudioFormat containerFormat, double dblVolume)
+    public AudioSaver(@Nonnull DiscItemAudioStream audItem,
+                      @CheckForNull File outputDir, @Nonnull File fileRelativePath,
+                      @Nonnull JavaAudioFormat containerFormat, double dblVolume)
     {
         _audItem = audItem;
         _outputDir = outputDir;
@@ -74,28 +85,28 @@ public class AudioSaver implements IDiscItemSaver  {
         _containerFormat = containerFormat;
     }
 
-    public String getInput() {
+    public @Nonnull String getInput() {
         return _audItem.getIndexId().toString();
     }
 
-    public DiscItemAudioStream getDiscItem() {
+    public @Nonnull DiscItemAudioStream getDiscItem() {
         return _audItem;
     }
 
-    public String getOutputSummary() {
-        return _fileRelativePath.getPath();
+    public @Nonnull LocalizedMessage getOutputSummary() {
+        return new UnlocalizedMessage(_fileRelativePath.getPath());
     }
 
-    public void printSelectedOptions(PrintStream ps) {
-        ps.println(I18N.S("Format: {0}", _containerFormat)); // I18N
-        ps.println(I18N.S("Volume: {0}%", Math.round(_decoder.getVolume() * 100))); // I18N
-        ps.println(I18N.S("Filename: {0}", _fileRelativePath)); // I18N
+    public void printSelectedOptions(@Nonnull PrintStream ps) {
+        ps.println(I.CMD_AUDIO_FORMAT(_containerFormat));
+        ps.println(I.CMD_VOLUME_PERCENT(_decoder.getVolume()));
+        ps.println(I.CMD_FILENAME(_fileRelativePath));
     }
 
 
-    public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
+    public void startSave(@Nonnull ProgressListenerLogger pll) throws IOException, TaskCanceledException {
 
-         File outputFile = new File(_outputDir, _fileRelativePath.getPath());
+        File outputFile = new File(_outputDir, _fileRelativePath.getPath());
 
         IO.makeDirsForFile(outputFile);
 
@@ -114,7 +125,8 @@ public class AudioSaver implements IDiscItemSaver  {
             final int SECTOR_LENGTH = _audItem.getSectorLength();
             for (int iSector = 0; iSector < SECTOR_LENGTH; iSector++) {
                 IdentifiedSector identifiedSect = _audItem.getRelativeIdentifiedSector(iSector);
-                _decoder.feedSector(identifiedSect, pll);
+                if (identifiedSect != null)
+                    _decoder.feedSector(identifiedSect, pll);
                 pll.progressUpdate(iSector / (double)SECTOR_LENGTH);
             }
             pll.progressEnd();
@@ -122,12 +134,12 @@ public class AudioSaver implements IDiscItemSaver  {
             try {
                 audioWriter.close();
             } catch (Throwable ex) {
-                pll.log(Level.SEVERE, "Error closing audio writer", ex); // I18N
+                I.ERR_CLOSING_AUDIO_WRITER().log(pll, Level.SEVERE, ex);
             }
         }
     }
 
-    public File[] getGeneratedFiles() {
+    public @CheckForNull File[] getGeneratedFiles() {
         if (_generatedFile == null)
             return null;
         else

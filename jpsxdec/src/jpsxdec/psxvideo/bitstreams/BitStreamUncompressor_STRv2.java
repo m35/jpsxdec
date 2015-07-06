@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,9 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.discitems.FrameNumber;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
@@ -203,7 +205,8 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         super(AC_VARIABLE_LENGTH_CODES_MPEG1);
     }
 
-    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader)
+    protected void readHeader(@Nonnull byte[] abFrameData, int iDataSize,
+                              @Nonnull ArrayBitReader bitReader)
             throws NotThisTypeException
     {
         if (iDataSize < 8)
@@ -222,7 +225,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     }
 
     /** Returns if this is a v2 frame. */
-    public static boolean checkHeader(byte[] abFrameData) {
+    public static boolean checkHeader(@Nonnull byte[] abFrameData) {
         if (abFrameData.length < 8)
             return false;
 
@@ -235,21 +238,23 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                  iVersion != 2 || _iHalfVlcCountCeil32 < 0);
     }
 
-    public static int getQscale(byte[] abFrameData) {
-        if (checkHeader(abFrameData))
-            return IO.readSInt16LE(abFrameData, 4);
-        else
-            return -1;
+    public static int getQscale(@Nonnull byte[] abFrameData) throws MdecException.Uncompress {
+        if (!checkHeader(abFrameData))
+            throw new MdecException.Uncompress(I.FRAME_NOT_STRV2());
+
+        return IO.readSInt16LE(abFrameData, 4);
     }
 
-    protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress, EOFException {
+    protected void readQscaleAndDC(@Nonnull MdecCode code)
+            throws MdecException.Uncompress, EOFException
+    {
         code.setTop6Bits(_iQscale);
         code.setBottom10Bits(_bitReader.readSignedBits(10));
         assert !DEBUG || _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10));
         assert !code.isEOD(); // a Qscale of 63 and DC of -512 would look like EOD
     }
 
-    protected void readEscapeAcCode(MdecCode code) throws EOFException {
+    protected void readEscapeAcCode(@Nonnull MdecCode code) throws EOFException {
         // Normal playstation encoding stores the escape code in 16 bits:
         // 6 for run of zeros, 10 for AC Coefficient
         int iRunAndAc = _bitReader.readUnsignedBits(6 + 10);
@@ -272,12 +277,12 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     }
 
     @Override
-    public BitstreamCompressor_STRv2 makeCompressor() {
+    public @Nonnull BitstreamCompressor_STRv2 makeCompressor() {
         return new BitstreamCompressor_STRv2();
     }
 
     @Override
-    public String getName() {
+    public @Nonnull String getName() {
         return "STRv2";
     }
 
@@ -313,13 +318,14 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         private int _iQscale;
         private int _iMdecCodeCount;
 
-        public byte[] compressFull(byte[] abOriginal, FrameNumber frame,
-                                   MdecEncoder encoder, FeedbackStream fbs)
+        public @CheckForNull byte[] compressFull(@Nonnull byte[] abOriginal,
+                                                 @Nonnull FrameNumber frame,
+                                                 @Nonnull MdecEncoder encoder, 
+                                                 @Nonnull FeedbackStream fbs)
                 throws MdecException
         {
-            byte[] abNewDemux = null;
             for (int iQscale = 1; iQscale < 64; iQscale++) {
-                fbs.println(I18N.S("Trying {0,number,#}", iQscale)); // I18N
+                fbs.println(I.TRYING_QSCALE(iQscale));
 
                 int[] aiNewQscale = { iQscale, iQscale, iQscale,
                                       iQscale, iQscale, iQscale };
@@ -328,30 +334,29 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                     macblk.setToFullEncode(aiNewQscale);
                 }
 
-                abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
+                byte[] abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 if (abNewDemux.length <= abOriginal.length) {
-                    fbs.indent1().println(I18N.S("New frame {0} demux size {1,number,#} <= max source {2,number,#}", // I18N
-                                                 frame, abNewDemux.length, abOriginal.length));
-                    break;
+                    fbs.indent1().println(I.NEW_FRAME_FITS(frame, abNewDemux.length, abOriginal.length));
+                    return abNewDemux;
                 } else {
-                    fbs.indent1().println(I18N.S("!!! New frame {0} demux size {1,number,#} > max source {2,number,#} !!!", // I18N
-                                                 frame, abNewDemux.length, abOriginal.length));
+                    fbs.indent1().println(I.NEW_FRAME_DOES_NOT_FIT(frame, abNewDemux.length, abOriginal.length));
                 }
             }
-            return abNewDemux;
+            return null;
         }
 
-        public byte[] compressPartial(byte[] abOriginal, FrameNumber frame,
-                                      MdecEncoder encoder, FeedbackStream fbs)
+        public @CheckForNull byte[] compressPartial(@Nonnull byte[] abOriginal,
+                                                    @Nonnull FrameNumber frame,
+                                                    @Nonnull MdecEncoder encoder,
+                                                    @Nonnull FeedbackStream fbs)
                 throws MdecException
         {
-            byte[] abNewDemux = null;
-            final int iFrameQscale = BitStreamUncompressor_STRv2.getQscale(abOriginal);
+            final int iFrameQscale = getQscale(abOriginal);
             int[] aiOriginalQscale = { iFrameQscale, iFrameQscale, iFrameQscale,
                                        iFrameQscale, iFrameQscale, iFrameQscale };
-            int iNewQscale = iFrameQscale;
-            while (iNewQscale < 64) {
-                fbs.println(I18N.S("Trying {0,number,#}", iNewQscale)); // I18N
+            
+            for (int iNewQscale = iFrameQscale; iNewQscale < 64; iNewQscale++) {
+                fbs.println(I.TRYING_QSCALE(iNewQscale));
 
                 int[] aiNewQscale = { iNewQscale, iNewQscale, iNewQscale,
                                       iNewQscale, iNewQscale, iNewQscale };
@@ -360,20 +365,19 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                     macblk.setToPartialEncode(aiOriginalQscale, aiNewQscale);
                 }
 
-                abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
+                byte[] abNewDemux = compress(encoder.getStream(), encoder.getPixelWidth(), encoder.getPixelHeight());
                 if (abNewDemux.length <= abOriginal.length) {
-                    fbs.indent1().println(I18N.S("New demux size {0,number,#} <= max source {1,number,#}", // I18N
-                                                 abNewDemux.length, abOriginal.length));
-                    break;
+                    fbs.indent1().println(I.NEW_FRAME_FITS(frame, abNewDemux.length, abOriginal.length));
+                    return abNewDemux;
                 } else {
-                    fbs.indent1().println(I18N.S("!!! New demux size {0,number,#} > max source {1,number,#} !!!", // I18N
-                                                 abNewDemux.length, abOriginal.length));
+                    fbs.indent1().println(I.NEW_FRAME_DOES_NOT_FIT(frame, abNewDemux.length, abOriginal.length));
                 }
             }
-            return abNewDemux;
+            return null;
         }
 
-        public byte[] compress(MdecInputStream inStream, int iWidth, int iHeight)
+        public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream,
+                                        int iWidth, int iHeight)
                 throws MdecException
         {
             _iMdecCodeCount = -1;
@@ -381,14 +385,14 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                 throw new IllegalArgumentException("Invalid dimensions " + iWidth + "x" + iHeight);
             final int iMacroBlockCount = Calc.macroblocks(iWidth, iHeight);
 
-            _iQscale = -1;
+            _iQscale = -1; // qscale will be set on first block read
 
             ByteArrayOutputStream bits = new ByteArrayOutputStream();
 
             BitStreamWriter bitStream = new BitStreamWriter(bits);
             bitStream.setLittleEndian(isBitstreamLittleEndian());
 
-            MdecCode code = new MdecCode();
+            final MdecCode code = new MdecCode();
             int iMdecCodeCount = 0;
 
             try {
@@ -446,18 +450,18 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return true;
         }
 
-        protected void codeRead(MdecCode code) throws MdecException.Compress, MdecException.Read {
+        protected void codeRead(@Nonnull MdecCode code) throws MdecException.Compress, MdecException.Read {
             if (code.isEOD()) {
                 if (_iQscale < 0) {
                     _iQscale = code.getTop6Bits();
                     if (_iQscale < 1 || _iQscale > 63)
-                        throw new MdecException.Read("Invalid quantization scale {0,number,#}", _iQscale); // I18N
+                        throw new MdecException.Read(I.INVALID_QSCALE(_iQscale));
                 } else if (_iQscale != code.getTop6Bits())
-                    throw new MdecException.Compress("Inconsistent quantization scale"); // I18N
+                    throw new MdecException.Compress(I.INCONSISTENT_QSCALE(_iQscale, code.getTop6Bits()));
             }
         }
 
-        protected void addTrailingBits(BitStreamWriter bitStream) throws IOException {
+        protected void addTrailingBits(@Nonnull BitStreamWriter bitStream) throws IOException {
             bitStream.write(END_OF_FRAME_EXTRA_BITS);
         }
 
@@ -465,12 +469,12 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             if (_iQscale < 0) {
                 _iQscale = iQscale;
                 if (_iQscale < 1 || _iQscale > 63)
-                    throw new MdecException.Encode("Invalid quantization scale {0,number,#}", _iQscale); // I18N
+                    throw new MdecException.Encode(I.INVALID_QSCALE(_iQscale));
             } else if (_iQscale != iQscale)
-                throw new MdecException.Compress("Inconsistent quantization scale"); // I18N
+                throw new MdecException.Compress(I.INCONSISTENT_QSCALE(_iQscale, iQscale));
         }
 
-        protected String encodeDC(int iDC, int iBlock) {
+        protected @Nonnull String encodeDC(int iDC, int iBlock) {
             if (iDC < -1024 || iDC > 1023)
                 throw new IllegalArgumentException("Invalid DC code " + iDC);
             if (iBlock < 0 || iBlock > 5)
@@ -479,7 +483,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return Misc.bitsToString(iDC, 10);
         }
 
-        private String encodeAC(MdecCode code)throws MdecException.Compress {
+        private String encodeAC(@Nonnull MdecCode code)throws MdecException.Compress {
             if (code.getTop6Bits() < 0 || code.getTop6Bits() > 63)
                 throw new IllegalArgumentException("Invalid AC zero run length " + code.getTop6Bits());
             if (code.getBottom10Bits() < -512 || code.getBottom10Bits() > 511)
@@ -494,11 +498,11 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return encodeAcEscape(code);
         }
 
-        protected AcLookup getAcVaribleLengthCodeList() {
+        protected @Nonnull AcLookup getAcVaribleLengthCodeList() {
             return AC_VARIABLE_LENGTH_CODES_MPEG1;
         }
 
-        protected String encodeAcEscape(MdecCode code) throws MdecException.Compress {
+        protected @Nonnull String encodeAcEscape(@Nonnull MdecCode code) throws MdecException.Compress {
             if (code.getTop6Bits() < 0 || code.getTop6Bits() > 63)
                 throw new IllegalArgumentException("Invalid AC zero run length " + code.getTop6Bits());
             if (code.getBottom10Bits() < -1024 || code.getBottom10Bits() > 1023)
@@ -509,7 +513,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                     Misc.bitsToString(code.getBottom10Bits(), 10);
         }
 
-        protected byte[] createHeader(int iMdecCodeCount) {
+        protected @Nonnull byte[] createHeader(int iMdecCodeCount) {
             byte[] ab = new byte[8];
 
             IO.writeInt16LE(ab, 0, calculateHalfCeiling32(iMdecCodeCount));
@@ -521,7 +525,10 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         }
 
         protected int getHeaderVersion() { return 2; }
-
+        
+        protected int getQscale(@Nonnull byte[] abFrameData) throws MdecException.Uncompress {
+            return BitStreamUncompressor_STRv2.getQscale(abFrameData);
+        }
     }
 
 

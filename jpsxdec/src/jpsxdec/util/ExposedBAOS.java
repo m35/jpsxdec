@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.util;
 
 import java.io.ByteArrayOutputStream;
+import javax.annotation.Nonnull;
 
 /** Subclass of {@link ByteArrayOutputStream} to expose the raw buffer data.
  *  This can save copying the buffer if it only has one use. */
@@ -54,13 +55,13 @@ public class ExposedBAOS extends ByteArrayOutputStream {
      * <p>
      * Overridden to remove {@link java.io.IOException}. */
     @Override
-    public void write(byte[] b) {
+    public void write(@Nonnull byte[] b) {
 	write(b, 0, b.length);
     }
 
     /** Returns a direct reference to the underlying buffer.
      *  Can save time and memory if you know exactly where it is going. */
-    public byte[] getBuffer() {
+    public @Nonnull byte[] getBuffer() {
         return super.buf;
     }
 }

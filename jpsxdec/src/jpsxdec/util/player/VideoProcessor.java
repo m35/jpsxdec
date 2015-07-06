@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,9 @@
 
 package jpsxdec.util.player;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+
 /** Video processor thread manages the conversion of video source data
  * to a presentation image. */
 class VideoProcessor implements Runnable {
@@ -47,12 +50,15 @@ class VideoProcessor implements Runnable {
 
     private final ObjectPlayStream<IDecodableFrame> _framesProcessingQueue =
             new ObjectPlayStream<IDecodableFrame>(CAPACITY);
+    @CheckForNull
     private Thread _thread;
-    
+
+    @Nonnull
     private final IVideoTimer _vidTimer;
+    @Nonnull
     private final VideoPlayer _vidPlayer;
 
-    public VideoProcessor(IVideoTimer timer, VideoPlayer player) {
+    public VideoProcessor(@Nonnull IVideoTimer timer, @Nonnull VideoPlayer player) {
         _vidTimer = timer;
         _vidPlayer = player;
         _framesProcessingQueue.writerClose();
@@ -90,7 +96,7 @@ class VideoProcessor implements Runnable {
         }
     }
 
-    public void writeFrame(IDecodableFrame frame) {
+    public void writeFrame(@Nonnull IDecodableFrame frame) {
         try {
             _framesProcessingQueue.write(frame);
         } catch (InterruptedException ex) {

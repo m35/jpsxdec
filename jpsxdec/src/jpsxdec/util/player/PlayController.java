@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,8 @@ package jpsxdec.util.player;
 
 import java.awt.Canvas;
 import java.util.WeakHashMap;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.LineUnavailableException;
 import jpsxdec.util.Fraction;
@@ -52,17 +54,22 @@ public class PlayController {
 
     private static final boolean DEBUG = false;
 
+    @Nonnull
     private AudioVideoReader _demuxReader;
 
+    @CheckForNull
     private AudioPlayer _audPlayer;
 
+    @CheckForNull
     private VideoProcessor _vidProcessor;
+    @CheckForNull
     private VideoPlayer _vidPlayer;
 
+    @Nonnull
     private IVideoTimer _vidTimer;
     
 
-    public PlayController(AudioVideoReader reader) {
+    public PlayController(@Nonnull AudioVideoReader reader) {
         AudioFormat format = reader.getAudioFormat();
         if (format == null && !reader.hasVideo())
             throw new IllegalArgumentException("No audio or video?");
@@ -143,7 +150,7 @@ public class PlayController {
         }
     }
 
-    public Canvas getVideoScreen() {
+    public @CheckForNull Canvas getVideoScreen() {
         if (_vidPlayer != null)
             return _vidPlayer.getVideoCanvas();
         else
@@ -159,7 +166,7 @@ public class PlayController {
     }
 
     /** Adjust the rendered frame with this aspect ratio. */
-    public void setAspectRatio(Fraction aspectRatio) {
+    public void setAspectRatio(@Nonnull Fraction aspectRatio) {
         if (_vidPlayer != null)
             _vidPlayer.setAspectRatio(aspectRatio);
     }
@@ -183,14 +190,15 @@ public class PlayController {
     // -------------------------------------------------------------------------
     // Listeners
 
+    @CheckForNull
     private WeakHashMap<PlayerListener, Boolean> _listeners;
 
-    public void addLineListener(PlayerListener listener) {
+    public void addLineListener(@Nonnull PlayerListener listener) {
         if (_listeners == null)
             _listeners = new WeakHashMap<PlayerListener, Boolean>();
         _listeners.put(listener, Boolean.TRUE);
     }
-    public void removeLineListener(PlayerListener listener) {
+    public void removeLineListener(@Nonnull PlayerListener listener) {
         if (_listeners != null)
             _listeners.remove(listener);
     }
@@ -202,13 +210,13 @@ public class PlayController {
         Unpause
     }
     public static interface PlayerListener {
-        void update(Event eEvent);
+        void update(@Nonnull Event eEvent);
     }
 
     private class NotifyLater implements Runnable {
         private final Event _eEvent;
-        public NotifyLater(Event _eEvent) {
-            this._eEvent = _eEvent;
+        public NotifyLater(@Nonnull Event eEvent) {
+            _eEvent = eEvent;
         }
         public void run() {
             if (_listeners == null)

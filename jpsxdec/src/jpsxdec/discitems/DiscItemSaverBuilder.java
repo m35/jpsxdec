@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,8 @@ package jpsxdec.discitems;
 
 import java.io.File;
 import java.util.WeakHashMap;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import jpsxdec.util.FeedbackStream;
@@ -49,20 +51,22 @@ import jpsxdec.util.FeedbackStream;
  *  Accepts the command-line text to parse and interpret as the saving options,
  *  and/or creates a dialog interface for visually selecting saving options.
  *<p>
- *  Call {@link #makeSaver()} when ready to save.  */
+ *  Call {@link #makeSaver(java.io.File)} when ready to save.  */
 public abstract class DiscItemSaverBuilder {
 
+    @CheckForNull
     private WeakHashMap<ChangeListener, Boolean> _changeListeners;
+    @CheckForNull
     private ChangeEvent _event;
 
 
-    final public void addChangeListener(ChangeListener listener) {
+    final public void addChangeListener(@CheckForNull ChangeListener listener) {
         if (_changeListeners == null)
             _changeListeners = new WeakHashMap<ChangeListener, Boolean>();
         _changeListeners.put(listener, Boolean.TRUE);
     }
 
-    public void removeChangeListener(ChangeListener listener) {
+    public void removeChangeListener(@CheckForNull ChangeListener listener) {
         if (_changeListeners == null)
             return;
         _changeListeners.remove(listener);
@@ -80,14 +84,14 @@ public abstract class DiscItemSaverBuilder {
     }
 
     /** Create a GUI for options that can be placed in a window. */
-    abstract public DiscItemSaverBuilderGui getOptionPane();
+    abstract public @Nonnull DiscItemSaverBuilderGui getOptionPane();
     /** Prints the item's specific possible command-line options. */
-    abstract public void printHelp(FeedbackStream fbs);
+    abstract public void printHelp(@Nonnull FeedbackStream fbs);
     /** Parse command-line options from an array of command-line arguments. */
-    abstract public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs);
+    abstract public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, @Nonnull FeedbackStream fbs);
     abstract public void resetToDefaults();
-    abstract public boolean copySettingsTo(DiscItemSaverBuilder other);
+    abstract public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder other);
     /** Creates the saver using a snapshot of current options. */
-    abstract public IDiscItemSaver makeSaver(File directory);
+    abstract public @Nonnull IDiscItemSaver makeSaver(@CheckForNull File directory);
     
 }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,6 +53,8 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
@@ -73,18 +75,19 @@ public class Tim {
 
     /** Quickly reads a stream to determine if the data is a Tim image.
      * @return info about the Tim image, otherwise null. */
-    public static TimInfo isTim(InputStream inStream) throws IOException {
+    public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream) throws IOException {
         return CreateTim.isTim(inStream);
     }
 
     /** Parse and deserialize a TIM file from a stream. */
-    public static Tim read(InputStream inStream) throws IOException, NotThisTypeException
+    public static @Nonnull Tim read(@Nonnull InputStream inStream)
+            throws IOException, NotThisTypeException
     {
         return CreateTim.read(inStream);
     }
 
     /** Creates a TIM with the same or similar color-model of a BufferedImage. */
-    public static Tim create(BufferedImage bi) {
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi) {
         return CreateTim.create(bi, 0, 0, 0, 0);
     }
 
@@ -93,14 +96,17 @@ public class Tim {
      * @param iTimY Tim Y coordinate.
      * @param iClutX CLUT X coordinate.
      * @param iClutY CLUT Y coordinate.  */
-    public static Tim create(BufferedImage bi, int iTimX, int iTimY, int iClutX, int iClutY) {
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi,
+                                      int iTimX, int iTimY,
+                                      int iClutX, int iClutY)
+    {
         return CreateTim.create(bi, iTimX, iTimY, iClutX, iClutY);
     }
 
     /** Creates a TIM from a BufferedImage with the specified bits-per-pixel.
      * @throws IllegalArgumentException if anything is weird.
      * @param iBitsPerPixel 4, 8, 16, or 24. */
-    public static Tim create(BufferedImage bi, int iBitsPerPixel) {
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi, int iBitsPerPixel) {
         return CreateTim.create(bi, iBitsPerPixel, 0, 0, 0, 0);
     }
 
@@ -111,9 +117,9 @@ public class Tim {
      * @param iTimY Tim Y coordinate.
      * @param iClutX CLUT X coordinate. Ignored if bpp is 16 or 24.
      * @param iClutY CLUT Y coordinate. Ignored if bpp is 16 or 24. */
-    public static Tim create(BufferedImage bi, int iBitsPerPixel,
-                             int iTimX, int iTimY,
-                             int iClutX, int iClutY)
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi, int iBitsPerPixel,
+                                      int iTimX, int iTimY,
+                                      int iClutX, int iClutY)
     {
         return CreateTim.create(bi, iBitsPerPixel, iTimX, iTimY, iClutX, iClutY);
     }
@@ -122,7 +128,9 @@ public class Tim {
      * This is the most advanced method of creating a TIM image.
      * It allows one to create a TIM with multiple CLUT palettes.
      * @param iBitsPerPixel Either 4 or 8. */
-    public static Tim create(BufferedImage bi, BufferedImage clutImg, int iBitsPerPixel)
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi,
+                                      @Nonnull BufferedImage clutImg,
+                                      int iBitsPerPixel)
     {
         return CreateTim.create(bi, 0, 0, clutImg, 0, 0, iBitsPerPixel);
     }
@@ -135,9 +143,9 @@ public class Tim {
      * @param iClutX CLUT X coordinate.
      * @param iClutY CLUT Y coordinate.
      * @param iBitsPerPixel Either 4 or 8. */
-    public static Tim create(BufferedImage bi, int iTimX, int iTimY,
-                             BufferedImage clutImg, int iClutX, int iClutY,
-                             int iBitsPerPixel)
+    public static @Nonnull Tim create(@Nonnull BufferedImage bi, int iTimX, int iTimY,
+                                      @Nonnull BufferedImage clutImg, int iClutX, int iClutY,
+                                      int iBitsPerPixel)
     {
         return CreateTim.create(bi, iTimX, iTimY, clutImg, iClutX, iClutY, iBitsPerPixel);
     }
@@ -165,6 +173,7 @@ public class Tim {
     static final int VERSION_0 = 0;
     
     /** The color lookup table for the TIM. null if none. */
+    @CheckForNull
     private final CLUT _clut;
     
     /** X position of the Tim in pixels.
@@ -190,6 +199,7 @@ public class Tim {
      * </ul>
      * @see #_iBitsPerPixel
      */
+    @Nonnull
     private final byte[] _abImageData;
     
     //--------------------------------------------------------------------------
@@ -204,9 +214,9 @@ public class Tim {
       * @param iBitsPerPixel 4, 8, 16, or 24.
       * @param clut Can be null if no color look-up table.
       */
-    Tim(byte[] abTimImageData, int iTimX, int iTimY,
+    Tim(@Nonnull byte[] abTimImageData, int iTimX, int iTimY,
         int iPixelWidth, int iPixelHeight, int iBitsPerPixel,
-        CLUT clut)
+        @CheckForNull CLUT clut)
     {
         if (iPixelWidth < 1 || iPixelHeight < 1)
             throw new IllegalArgumentException("Invalid dimensions " + iPixelWidth + "x" + iPixelHeight);
@@ -269,7 +279,7 @@ public class Tim {
      * may change the palette order and indexes in the saved image.
      * @param iPalette  Which palette to use for the decoded image.
      * @see #getPaletteCount() */
-    public BufferedImage toBufferedImage(int iPalette) {
+    public @Nonnull BufferedImage toBufferedImage(int iPalette) {
 
         if (iPalette < 0 || iPalette >= getPaletteCount())
             throw new IllegalArgumentException("Palette index "+iPalette+" out of bounds");
@@ -286,7 +296,7 @@ public class Tim {
 
     /** Converts the CLUT  to a {@link BufferedImage}.
      * @return null if image has no CLUT. */
-    public BufferedImage getClutImage() {
+    public @CheckForNull BufferedImage getClutImage() {
         if (_clut != null)
             return _clut.toBufferedImage();
         else
@@ -297,11 +307,13 @@ public class Tim {
      * with the image data of the buffered image.
      * @throws IllegalArgumentException if the BufferedImage data is incompatible.
      */
-    public void replaceImageData(BufferedImage bi) {
+    public void replaceImageData(@Nonnull BufferedImage bi) {
         Tim newTim = create(bi, _iBitsPerPixel);
         System.arraycopy(newTim._abImageData, 0, _abImageData, 0, _abImageData.length);
-        if (_clut != null)
+        if (_clut != null) {
+            // if this has a CLUT, then the newly created tim should also have a CLUT
             System.arraycopy(newTim._clut._asiColorData, 0, _clut._asiColorData, 0, _clut._asiColorData.length);
+        }
     }
 
     /** Tries to replace this TIM's image data and palette data
@@ -309,16 +321,17 @@ public class Tim {
      * @throws IllegalArgumentException if the BufferedImage data is incompatible
      *                                  or there is no CLUT.
      */
-    public void replaceImageData(BufferedImage bi, BufferedImage clut) {
+    public void replaceImageData(@Nonnull BufferedImage bi, @Nonnull BufferedImage clut) {
         if (_clut == null)
             throw new IllegalArgumentException("Can't change the CLUT when Tim doesn't have a CLUT");
         Tim newTim = CreateTim.create(bi, _iTimX, _iTimY, clut, _clut.getX(), _clut.getY(), _iBitsPerPixel);
         System.arraycopy(newTim._abImageData, 0, _abImageData, 0, _abImageData.length);
+        // if this has a CLUT, then the newly created tim should also have a CLUT
         System.arraycopy(newTim._clut._asiColorData, 0, _clut._asiColorData, 0, _clut._asiColorData.length);
     }
 
     /** Writes TIM image to the stream. */
-    public void write(OutputStream os) throws IOException {
+    public void write(@Nonnull OutputStream os) throws IOException {
         os.write(TAG_MAGIC);
         os.write(VERSION_0);
         IO.writeInt16LE(os, 0); // Unknown 1
@@ -408,7 +421,7 @@ public class Tim {
 
     /** Fills buffer with RGBA8888 grayscale values.
      * Assumes buffer is 16*4 bytes long. */
-    private static void build16GrayRgbaPalette(byte[] abPalette) {
+    private static void build16GrayRgbaPalette(@Nonnull byte[] abPalette) {
         for (int i = 0; i < 16; i++) {
             byte bClr = CONVERT_4_TO_8_BIT[i];
             abPalette[i*4+0] = bClr; // r
@@ -420,7 +433,7 @@ public class Tim {
 
     /** Fills buffer with RGBA8888 grayscale values.
      * Assumes buffer is 256*4 bytes long. */
-    private static void build256GrayRgbaPalette(byte[] abPalette) {
+    private static void build256GrayRgbaPalette(@Nonnull byte[] abPalette) {
         for (int i = 0; i < 256; i++) {
             byte bClr = (byte)i;
             abPalette[i*4+0] = bClr; // r
@@ -431,7 +444,7 @@ public class Tim {
     }
 
     /** Convert this 4 bpp Tim to a BufferedImage. */
-    private BufferedImage toBi4(int iPalette) {
+    private @Nonnull BufferedImage toBi4(int iPalette) {
 
         byte[] abRgbaPalette = new byte[16 * 4];
         if (_clut == null) {
@@ -462,7 +475,7 @@ public class Tim {
     }
 
     /** Convert this 8 bpp Tim to a BufferedImage. */
-    private BufferedImage toBi8(int iPalette) {
+    private @Nonnull BufferedImage toBi8(int iPalette) {
         byte[] abRgbaPalette = new byte[256 * 4];
         if (_clut == null) {
             build256GrayRgbaPalette(abRgbaPalette);
@@ -490,7 +503,7 @@ public class Tim {
     }
 
     /** Convert this 24 bpp Tim to a BufferedImage. */
-    private BufferedImage toBi24() {
+    private @Nonnull BufferedImage toBi24() {
         ColorSpace cs = ColorSpace.getInstance(ColorSpace.CS_sRGB);
         int[] aiBits = {8, 8, 8};
         int[] aiChannelIdxes = {0, 1, 2};
@@ -512,7 +525,7 @@ public class Tim {
     }
 
     /** Convert this 16 bpp Tim to a BufferedImage. */
-    private BufferedImage toBi16() {
+    private @Nonnull BufferedImage toBi16() {
         BufferedImage bi = new BufferedImage(_iPixelWidth, _iPixelHeight, BufferedImage.TYPE_INT_ARGB);
         int[] aiBufferRgba = ((DataBufferInt)bi.getRaster().getDataBuffer()).getData();
         // convert 16-bit ABGR1555 image data to 32-bit ARGB8888

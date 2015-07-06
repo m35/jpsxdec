@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.CrusaderDemuxer;
@@ -56,7 +57,7 @@ public class SectorCrusader extends IdentifiedSector {
     
     private int _iCrusaderSectorNumber;
     
-    public SectorCrusader(CdSector cdSector) {
+    public SectorCrusader(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
         
@@ -76,7 +77,7 @@ public class SectorCrusader extends IdentifiedSector {
     }
 
     
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "Crusader";
     }
 
@@ -88,7 +89,7 @@ public class SectorCrusader extends IdentifiedSector {
         return CRUSADER_IDENTIFIED_USER_DATA_SIZE;
     }
 
-    public ByteArrayFPIS getIdentifiedUserDataStream() {
+    public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
         return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(), 
                                  HEADER_SIZE, getIdentifiedUserDataSize());
     }
@@ -101,7 +102,7 @@ public class SectorCrusader extends IdentifiedSector {
 
     /** Copies the identified user data portion of the sector data to the
      *  output buffer. */
-    public void copyIdentifiedUserData(int iSrcPos, byte[] abOut, int iOutPos, int iSize) {
+    public void copyIdentifiedUserData(int iSrcPos, @Nonnull byte[] abOut, int iOutPos, int iSize) {
         if (iSize < 0 || iSize > getIdentifiedUserDataSize())
             throw new IndexOutOfBoundsException();
         super.getCdSector().getCdUserDataCopy(HEADER_SIZE + iSrcPos, abOut,
@@ -114,7 +115,7 @@ public class SectorCrusader extends IdentifiedSector {
     }
 
     /** Used by {@link CrusaderDemuxer} to read demuxed chunk identifier (4 chars). */
-    public String readMagic(int iIdentifiedUserDataOffset) {
+    public @Nonnull String readMagic(int iIdentifiedUserDataOffset) {
         if (iIdentifiedUserDataOffset < 0 || iIdentifiedUserDataOffset > getIdentifiedUserDataSize()-4)
             throw new IndexOutOfBoundsException();
         byte[] abMagic = new byte[4];

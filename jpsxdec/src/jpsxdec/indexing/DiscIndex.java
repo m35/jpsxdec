@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,8 +53,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
@@ -78,19 +79,22 @@ public class DiscIndex implements Iterable<DiscItem> {
 
     private static final Logger LOG = Logger.getLogger(DiscIndex.class.getName());
 
-    private static final String INDEX_HEADER = "[" + Version.VerString + "]";
-
     private static final String COMMENT_LINE_START = ";";
-    
-    private CdFileSectorReader _sourceCD;
+
+    @Nonnull
+    private final CdFileSectorReader _sourceCD;
+    @CheckForNull
     private String _sDiscName = null;
+    @Nonnull
     private final ArrayList<DiscItem> _root;
     private final List<DiscItem> _iterate = new LinkedList<DiscItem>();
 
     private final LinkedHashMap<Object, DiscItem> _lookup = new LinkedHashMap<Object, DiscItem>();
 
     /** Finds all the interesting items on the CD. */
-    public DiscIndex(CdFileSectorReader cdReader, final ProgressListenerLogger pl) throws TaskCanceledException {
+    public DiscIndex(@Nonnull CdFileSectorReader cdReader, @Nonnull final ProgressListenerLogger pl) 
+            throws TaskCanceledException
+    {
         _sourceCD = cdReader;
         
         final DiscIndexer[] aoIndexers = DiscIndexer.createIndexers(pl);
@@ -99,7 +103,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         final List<DiscIndexer.Static> staticIndexers = new ArrayList<DiscIndexer.Static>();
 
         for (DiscIndexer indexer : aoIndexers) {
-            indexer.putYourCompletedItemsHere(_iterate);
+            indexer.indexInit(_iterate, _sourceCD);
             
             if (indexer instanceof DiscIndexer.Identified)
                 identifiedIndexers.add((DiscIndexer.Identified) indexer);
@@ -122,8 +126,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                     int iNewSectNumber = sect.getHeaderSectorNumber();
                     if (iCurrentSectorNumber >= 0) {
                         if (iCurrentSectorNumber + 1 != iNewSectNumber)
-                            pl.log(Level.WARNING, "Non-continuous sector header number: {0,number,#} -> {1,number,#}", // I18N
-                                   new Object[]{iCurrentSectorNumber, iNewSectNumber});
+                            I.INDEX_SECTOR_HEADER_NUM_BREAK(iCurrentSectorNumber, iNewSectNumber).log(pl, Level.WARNING);
                     }
                     iCurrentSectorNumber = iNewSectNumber;
                 } else {
@@ -131,8 +134,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                 }
                 if (sect.isMode1()) {
                     if (iMode1Count < iMode2Count)
-                        pl.log(Level.WARNING, "Sector {0,number,#} is Mode 1 found among Mode 2 sectors",  // I18N
-                               sect.getSectorNumberFromStart());
+                        I.INDEX_MODE1_AMONG_MODE2(sect.getSectorNumberFromStart()).log(pl, Level.WARNING);
                     iMode1Count++;
                 } else if (!sect.isCdAudioSector())
                     iMode2Count++;
@@ -145,8 +147,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                 }
 
                 if (pl.seekingEvent())
-                    pl.event(new LocalizedMessage("Sector {0,number,#} / {1,number,#}  {2,number,#} items found", // I18N
-                            iSector, _sourceCD.getLength(), _iterate.size()));
+                    pl.event(I.INDEX_SECTOR_ITEM_PROGRESS(iSector, _sourceCD.getLength(), _iterate.size()));
             }
         });
 
@@ -197,7 +198,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             }
 
         } catch (IOException ex) {
-            pl.log(Level.SEVERE, "Error while indexing disc", ex); // I18N
+            I.INDEXING_ERROR().log(pl, Level.SEVERE, ex);
         }
 
         // notify indexers that the disc is finished
@@ -228,15 +229,14 @@ public class DiscIndex implements Iterable<DiscItem> {
         }
 
         if (pl.seekingEvent())
-            pl.event(new LocalizedMessage("Sector {0,number,#} / {1,number,#}  {2,number,#} items found", // I18N
-                    _sourceCD.getLength(), _sourceCD.getLength(), _iterate.size()));
+            pl.event(I.INDEX_SECTOR_ITEM_PROGRESS(_sourceCD.getLength(), _sourceCD.getLength(), _iterate.size()));
 
         pl.progressEnd();
 
     }
 
 
-    private ArrayList<DiscItem> buildTree(Collection<DiscItem> allItems) {
+    private @Nonnull ArrayList<DiscItem> buildTree(@Nonnull Collection<DiscItem> allItems) {
 
         ArrayList<DiscItem> rootItems = new ArrayList<DiscItem>();
 
@@ -273,7 +273,7 @@ public class DiscIndex implements Iterable<DiscItem> {
      * it requires too much awareness of other types, and is really outside the
      * scope of disc items which aren't really aware of an index. Also it's nice
      * to have it here in a central place. */
-    private static int typeHierarchyLevel(DiscItem item) {
+    private static int typeHierarchyLevel(@Nonnull DiscItem item) {
         if (item instanceof DiscItemISO9660File)
             return 1;
         else if (item instanceof DiscItemStrVideoStream)
@@ -303,49 +303,46 @@ public class DiscIndex implements Iterable<DiscItem> {
     };
 
     /** Deserializes the CD index file, and tries to open the CD listed in the index. */
-    public DiscIndex(String sIndexFile, Logger errLog)
+    public DiscIndex(@Nonnull String sIndexFile, @Nonnull Logger errLog)
             throws IOException, NotThisTypeException
     {
         this(sIndexFile, (CdFileSectorReader)null, errLog);
     }
 
     /** Deserializes the CD index file, and creates a list of items on the CD */
-    public DiscIndex(String sIndexFile, boolean blnAllowWrites, Logger errLog)
+    public DiscIndex(@Nonnull String sIndexFile, boolean blnAllowWrites, @Nonnull Logger errLog)
             throws IOException, NotThisTypeException
     {
         this(sIndexFile, null, blnAllowWrites, errLog);
     }
 
     /** Deserializes the CD index file, and creates a list of items on the CD */
-    public DiscIndex(String sIndexFile, CdFileSectorReader cdReader, Logger errLog)
+    public DiscIndex(@Nonnull String sIndexFile, @CheckForNull CdFileSectorReader cdReader, @Nonnull Logger errLog)
             throws IOException, NotThisTypeException
     {
         this(sIndexFile, cdReader, false, errLog);
     }
 
-    private DiscIndex(String sIndexFile, CdFileSectorReader cdReader, boolean blnAllowWrites, Logger errLog)
+    private DiscIndex(@Nonnull String sIndexFile, @CheckForNull CdFileSectorReader cdReader,
+                      boolean blnAllowWrites, @Nonnull Logger errLog)
             throws IOException, NotThisTypeException
     {
         File indexFile = new File(sIndexFile);
 
-        ArrayList<DiscIndexer> indexers = new ArrayList<DiscIndexer>();
+        CdFileSectorReader sourceCd = null;
         BufferedReader reader = new BufferedReader(new FileReader(indexFile));
-        boolean blnExceptionThrown = true;
+        boolean blnExceptionThrown = true; // hacky way to catch all exceptions in finally block
         try {
-            indexers.addAll(Arrays.asList(DiscIndexer.createIndexers(errLog)));
-            indexers.add(new DiscIndexerTim());
-
-            for (DiscIndexer indexer : indexers) {
-                indexer.putYourCompletedItemsHere(_iterate);
-            }
-
             // make sure the first line matches the current version
             String sLine = reader.readLine();
-            if (!INDEX_HEADER.equals(sLine)) {
+            if (!Version.IndexHeader.equals(sLine)) {
                 reader.close();
-                throw new NotThisTypeException("Missing proper index header."); // I18N
+                throw new NotThisTypeException(I.INDEX_HEADER_MISSING());
             }
 
+            ArrayList<SerializedDiscItem> readLines = new ArrayList<SerializedDiscItem>();
+
+            // read all the lines, checking for errors and searching for the source CD
             while ((sLine = reader.readLine()) != null) {
 
                 // comments
@@ -354,50 +351,87 @@ public class DiscIndex implements Iterable<DiscItem> {
 
                 // blank lines
                 if (sLine.matches("^\\s*$"))
-                    throw new NotThisTypeException("Empty serialized string"); // I18N
+                    continue;
                 
                 // source file
                 if (sLine.startsWith(CdFileSectorReader.SERIALIZATION_START)) {
                     if (cdReader != null) {
                         // verify that the source file matches
                         if (!cdReader.matchesSerialization(sLine)) {
-                            errLog.log(Level.WARNING, "Disc format does not match what index says."); // I18N
+                            I.DISC_FORMAT_MISMATCH(cdReader, sLine).log(errLog, Level.WARNING);
                         }
                     } else {
-                        _sourceCD = new CdFileSectorReader(sLine, blnAllowWrites);
+                        sourceCd = new CdFileSectorReader(sLine, blnAllowWrites);
                     }
                     continue;
                 }
 
                 try {
-                    SerializedDiscItem deserializedLine = new SerializedDiscItem(sLine);
-
-                    boolean blnLineHandled = false;
-                    for (DiscIndexer indexer : indexers) {
-                        // first parse the indexid
-                        DiscItem item = indexer.deserializeLineRead(deserializedLine);
-                        if (item != null) {
-                            blnLineHandled = true;
-                            _iterate.add(item);
-                        }
-                    }
-                    if (!blnLineHandled)
-                        errLog.log(Level.WARNING, "Failed to do anything with {0}", sLine); // I18N
-                } catch (NotThisTypeException e) {
-                    errLog.log(Level.WARNING, "Failed to parse line: {0}", sLine); // I18N
+                    // save the line for deserializing later
+                    readLines.add(new SerializedDiscItem(sLine));
+                } catch (NotThisTypeException ex) {
+                    I.INDEX_PARSE_LINE_FAIL(sLine).log(errLog, Level.WARNING, ex);
                 }
             }
             
+            if (sourceCd == null) {
+                if (cdReader == null)
+                    throw new NotThisTypeException(I.INDEX_NO_CD()); // TODO: find better exception
+                _sourceCD = cdReader;
+            } else {
+                _sourceCD = sourceCd;
+            }
+
+            // setup indexers
+            DiscIndexer[] aoIndexers = DiscIndexer.createIndexers(errLog);
+
+            for (DiscIndexer indexer : aoIndexers) {
+                indexer.indexInit(_iterate, _sourceCD);
+            }
+
+            // now create the disc items
+            for (SerializedDiscItem deserializedLine : readLines) {
+
+                boolean blnLineHandled = false;
+                for (DiscIndexer indexer : aoIndexers) {
+                    // first parse the indexid
+                    DiscItem item = indexer.deserializeLineRead(deserializedLine);
+                    if (item != null) {
+                        blnLineHandled = true;
+                        _iterate.add(item);
+                    }
+                }
+                if (!blnLineHandled)
+                    I.INDEX_UNHANDLED_LINE(deserializedLine).log(errLog, Level.WARNING);
+            }
+
+            _root = recreateTree(_iterate, errLog);
+
+            // copy the items to this class
+            for (DiscItem item : _iterate) {
+                addLookupItem(item);
+            }
+            // notify the indexers that the list has been generated
+            for (DiscIndexer indexer : aoIndexers) {
+                indexer.indexGenerated(this);
+            }
+
+
+            // debug print the list contents
+            if (LOG.isLoggable(Level.FINE)) {
+                for (DiscItem item : this) LOG.fine(item.toString());
+            }
+
+            // no exception thrown, don't close the CD in finally block
             blnExceptionThrown = false;
-            
+
         } finally {
             // something bad happened? close CD reader only if we opened it
-            if (blnExceptionThrown && cdReader == null && _sourceCD != null) {
+            if (blnExceptionThrown && cdReader == null && sourceCd != null) {
                 try {
-                    _sourceCD.close();
+                    sourceCd.close();
                 } catch (IOException ex) {
                     errLog.log(Level.SEVERE, null, ex);
-                    LOG.log(Level.SEVERE, null, ex);
                 }
             }
             
@@ -405,36 +439,12 @@ public class DiscIndex implements Iterable<DiscItem> {
                 reader.close();
             } catch (IOException ex) {
                 errLog.log(Level.SEVERE, null, ex);
-                LOG.log(Level.SEVERE, null, ex);
             }
-        }
-        
-        if (_sourceCD == null) {
-            if (cdReader == null)
-                throw new IllegalArgumentException("Index is missing source CD file and no source file was supplied.");
-            _sourceCD = cdReader;
-        }
-        
-        _root = recreateTree(_iterate, errLog);
-
-        // copy the items to this class
-        for (DiscItem item : _iterate) {
-            addLookupItem(item);
-        }
-        // notify the indexers that the list has been generated
-        for (DiscIndexer indexer : indexers) {
-            indexer.indexGenerated(this);
-        }
-
-
-        // debug print the list contents
-        if (LOG.isLoggable(Level.FINE)) {
-            for (DiscItem item : this) LOG.fine(item.toString());
         }
 
     }
 
-    private ArrayList<DiscItem> recreateTree(Collection<DiscItem> allItems, Logger log) {
+    private @Nonnull ArrayList<DiscItem> recreateTree(@Nonnull Collection<DiscItem> allItems, @Nonnull Logger log) {
         ArrayList<DiscItem> rootItems = new ArrayList<DiscItem>();
 
         Outside:
@@ -450,7 +460,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                     continue;
                 if (itemId.isParent(possibleParent.getIndexId())) {
                     if (!possibleParent.addChild(child)) {
-                        log.log(Level.WARNING, "{0} rejected {1}", new Object[]{possibleParent, child}); // I18N
+                        I.INDEX_REBUILD_PARENT_REJECTED_CHILD(possibleParent, child).log(log, Level.WARNING);
                     }
                     continue Outside;
                 }
@@ -463,19 +473,18 @@ public class DiscIndex implements Iterable<DiscItem> {
 
 
     /** Adds item to the internal hash. */
-    private void addLookupItem(DiscItem item) {
-        item.setSourceCd(_sourceCD);
+    private void addLookupItem(@Nonnull DiscItem item) {
         _lookup.put(Integer.valueOf(item.getIndex()), item);
         _lookup.put(item.getIndexId().serialize(), item);
     }
 
 
     /** Serializes the list of disc items to a stream. */
-    public void serializeIndex(PrintStream ps)
+    public void serializeIndex(@Nonnull PrintStream ps)
             throws IOException
     {
-        ps.println(INDEX_HEADER);
-        ps.println(I18N.S("{0} Lines that begin with {0} are ignored", COMMENT_LINE_START)); // I18N
+        ps.println(Version.IndexHeader);
+        ps.println(I.INDEX_COMMENT(COMMENT_LINE_START));
         // TODO: Serialize the CD file location relative to where this index file is being saved
         ps.println(_sourceCD.serialize());
         for (DiscItem item : this) {
@@ -484,19 +493,19 @@ public class DiscIndex implements Iterable<DiscItem> {
         ps.close();
     }
 
-    public void setDiscName(String sName) {
+    public void setDiscName(@Nonnull String sName) {
         _sDiscName = sName;
     }
 
-    public List<DiscItem> getRoot() {
+    public @Nonnull List<DiscItem> getRoot() {
         return _root;
     }
 
-    public DiscItem getByIndex(int iIndex) {
+    public @CheckForNull DiscItem getByIndex(int iIndex) {
         return _lookup.get(Integer.valueOf(iIndex));
     }
 
-    public DiscItem getById(String sId) {
+    public @CheckForNull DiscItem getById(@Nonnull String sId) {
         return _lookup.get(sId);
     }
     
@@ -504,7 +513,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         return _lookup.containsKey(Integer.valueOf(iIndex));
     }
 
-    public CdFileSectorReader getSourceCd() {
+    public @Nonnull CdFileSectorReader getSourceCd() {
         return _sourceCD;
     }
     
@@ -513,7 +522,7 @@ public class DiscIndex implements Iterable<DiscItem> {
     }
     
     //[implements Iterable]
-    public Iterator<DiscItem> iterator() {
+    public @Nonnull Iterator<DiscItem> iterator() {
         return _iterate.iterator();
     }
 

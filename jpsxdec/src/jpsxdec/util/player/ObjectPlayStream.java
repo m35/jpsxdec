@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,8 @@
 package jpsxdec.util.player;
 
 import java.util.Arrays;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 
 /** Very powerful, thread-safe, blocking queue with the ability to specify 
  * behavior when taking and adding items.  */
@@ -61,7 +63,8 @@ class ObjectPlayStream<T> {
     private volatile WRITE _eWriteState = WRITE.OPEN;
     private volatile READ _eReadState = READ.PAUSED;
 
-    protected T[] _aoQueue;
+    @Nonnull
+    protected final T[] _aoQueue;
     protected int _iHeadPos;
     protected int _iTailPos;
     private int _iSize;
@@ -73,7 +76,7 @@ class ObjectPlayStream<T> {
 
     //////////////////////////////////
 
-    public Object getSyncObject() {
+    public @Nonnull Object getSyncObject() {
         return _eventSync;
     }
 
@@ -132,7 +135,7 @@ class ObjectPlayStream<T> {
 
     /** Returns true if object was added, or false if it wasn't.
      * This method may block. The object must not be null. */
-    public boolean write(T o) throws InterruptedException {
+    public boolean write(@Nonnull T o) throws InterruptedException {
         if (o == null)
             throw new IllegalArgumentException();
 
@@ -162,7 +165,7 @@ class ObjectPlayStream<T> {
         return _iSize >= _aoQueue.length;
     }
 
-    protected void enqueue(T o) {
+    protected void enqueue(@Nonnull T o) {
         _aoQueue[_iTailPos] = o;
         _iTailPos++;
         if (_iTailPos >= _aoQueue.length) {
@@ -172,7 +175,7 @@ class ObjectPlayStream<T> {
 
     /** Retrieves the head of the queue. May return null if no object is removed.
      * This method may block. */
-    public T read() throws InterruptedException {
+    public @CheckForNull T read() throws InterruptedException {
         if (DEBUG) System.out.println(Thread.currentThread().getName() + " enter take()");
         
         synchronized (_eventSync) {
@@ -204,7 +207,7 @@ class ObjectPlayStream<T> {
     }
 
     /** Always called within <code>syncronized (_eventSync)</code> */
-    private T dequeue() {
+    private @Nonnull T dequeue() {
         T o = _aoQueue[_iHeadPos];
         if (DEBUG) System.out.println(Thread.currentThread().getName() + " removing object: " + o.toString());
         _aoQueue[_iHeadPos] = null;

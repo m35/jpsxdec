@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,7 @@ import java.awt.image.DataBufferInt;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
@@ -60,10 +61,11 @@ class CLUT {
         * Not sure how it is used in the PSX, but it is often 0. */
     private final int _iClutY;
     /** Tim ABGR1555. */
+    @Nonnull
     final short[] _asiColorData;
 
     /** Read a CLUT from an InputStream. */
-    public CLUT(InputStream is) throws IOException, NotThisTypeException {
+    public CLUT(@Nonnull InputStream is) throws IOException, NotThisTypeException {
         long lngLength = IO.readUInt32LE(is);
         if (lngLength == 0) throw new NotThisTypeException();
         _iClutX = IO.readUInt16LE(is);
@@ -82,7 +84,7 @@ class CLUT {
     }
 
     /** Create a CLUT based on a ready-made CLUT palette. */
-    public CLUT(short[] asiPalette, int iX, int iY, int iPixelWidth) {
+    public CLUT(@Nonnull short[] asiPalette, int iX, int iY, int iPixelWidth) {
         if (iX < 0 || iY < 0)
             throw new IllegalArgumentException("Invalid CLUT X,Y (" + iX + ", " + iY + ")");
         if (iPixelWidth < 1)
@@ -98,7 +100,7 @@ class CLUT {
     }
 
     /** Write the CLUT to a stream. */
-    public void write(OutputStream os) throws IOException {
+    public void write(@Nonnull OutputStream os) throws IOException {
         IO.writeInt32LE(os, calculateLength());
         IO.writeInt16LE(os, _iClutX);
         IO.writeInt16LE(os, _iClutY);
@@ -137,7 +139,7 @@ class CLUT {
         return _iClutWidth;
     }
 
-    public BufferedImage toBufferedImage() {
+    public @Nonnull BufferedImage toBufferedImage() {
         BufferedImage bi = new BufferedImage(_iClutWidth, _iClutHeight, BufferedImage.TYPE_INT_ARGB);
         int[] aiBufferArgb = ((DataBufferInt)bi.getRaster().getDataBuffer()).getData();
         for (int i = 0; i < aiBufferArgb.length; i++) {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -201,7 +201,7 @@ public class BitReader {
             ArrayBitReader reader = aoReaders[i];
             long lngStart, lngEnd;
             lngStart = System.currentTimeMillis();
-            for (int iTimes = 0; iTimes < 1000; iTimes++) {
+            for (int iTimes = 0; iTimes < 5000; iTimes++) {
                 reader.reset(abData, abData.length, true, 0);
                 try {
                     int iSkipBits = 0;
@@ -219,8 +219,8 @@ public class BitReader {
             System.out.println(aoReaders[i].getClass()+" "+alngDuration[i]);
         }
 
-        assertTrue(alngDuration[2] < alngDuration[0]);
-        assertTrue(alngDuration[2] < alngDuration[1]);
+        assertTrue(alngDuration[2] + " !< " + alngDuration[0], alngDuration[2] < alngDuration[0]);
+        assertTrue(alngDuration[2] + " !< " + alngDuration[1], alngDuration[2] < alngDuration[1]);
 
     }
     

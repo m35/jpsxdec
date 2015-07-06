@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,9 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
@@ -56,16 +59,16 @@ public abstract class DiscIndexer {
      * Most common indexer. */
     public interface Identified {
         /** Sectors are passed to this function in sequential order. */
-        public void indexingSectorRead(IdentifiedSector identifiedSector);
+        public void indexingSectorRead(@Nonnull IdentifiedSector identifiedSector);
     }
 
     /** Indexer is interested in unidentified sectors demuxed into a stream. */
     public interface Static {
         /** Process a stream of data. */
-        public void staticRead(DemuxedUnidentifiedDataStream is) throws IOException;
+        public void staticRead(@Nonnull DemuxedUnidentifiedDataStream is) throws IOException;
     }
 
-    public static DiscIndexer[] createIndexers(Logger log) {
+    public static @Nonnull DiscIndexer[] createIndexers(@Nonnull Logger log) {
         return new DiscIndexer[] {
             new DiscIndexerISO9660(log),
             new DiscIndexerSquare(log),
@@ -78,23 +81,35 @@ public abstract class DiscIndexer {
         };
     }
 
+    @CheckForNull
     private Collection<DiscItem> _mediaList;
+    @CheckForNull
+    private CdFileSectorReader _sourceCd;
 
-    /** The indexer needs a place to put the created disc items. */
-    final public void putYourCompletedItemsHere(Collection<DiscItem> items) {
+    /** Called by {@link DiscIndex} right away. */
+    final void indexInit(@Nonnull Collection<DiscItem> items,
+                         @Nonnull CdFileSectorReader cd)
+    {
         _mediaList = items;
+        _sourceCd = cd;
     }
 
 
     /** Subclasses should call this method when an item is ready to be added. */
-    protected void addDiscItem(DiscItem discItem) {
+    protected void addDiscItem(@CheckForNull DiscItem discItem) {
         if (discItem == null) {
             LOG.log(Level.WARNING, "Something tried to add a null disc item.", new Exception());
             return;
         }
-        if (LOG.isLoggable(Level.INFO))
-            LOG.log(Level.INFO, "Adding media item {0}", discItem);
+        if (LOG.isLoggable(Level.FINE))
+            LOG.log(Level.FINE, "Adding disc item {0}", discItem);
         _mediaList.add(discItem);
+    }
+
+    protected @Nonnull CdFileSectorReader getCd() {
+        if (_sourceCd == null)
+            throw new IllegalStateException("CD should have been set before use");
+        return _sourceCd;
     }
 
     /** Signals to the indexers that no more sectors will be passed, and that
@@ -103,12 +118,12 @@ public abstract class DiscIndexer {
 
     /** Lines from the index file as passed to be handled by the indexers.
      * @return  if the line successfully created a disc item. */
-    abstract public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine);
+    abstract public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields);
 
-    abstract public void listPostProcessing(Collection<DiscItem> allItems);
+    abstract public void listPostProcessing(@Nonnull Collection<DiscItem> allItems);
 
     /** Called after the entire indexing process is complete. The DiscIndex
      * will not be changing any further, but indexers can tweak individual items
      * as necessary. */
-    abstract public void indexGenerated(DiscIndex index);
+    abstract public void indexGenerated(@Nonnull DiscIndex index);
 }

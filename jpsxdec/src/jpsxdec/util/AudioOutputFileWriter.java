@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,6 +43,8 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -52,24 +54,32 @@ import javax.sound.sampled.AudioSystem;
  *  to pushing the data. */
 public class AudioOutputFileWriter implements Runnable {
 
+    @Nonnull
     private final PipedInputStream _threadStream;
+    @Nonnull
     private final AudioInputStream _threadAudioStream;
+    @Nonnull
     private final PipedOutputStream _feedStream;
+    @Nonnull
     private final AudioFormat _format;
+    @Nonnull
     private final Thread _writingThread;
+    @Nonnull
     private final AudioFileFormat.Type _eFileFormat;
+    @Nonnull
     private final File _outFile;
+    @CheckForNull
     private Throwable _writingError;
 
-    public AudioOutputFileWriter(String sFile, AudioFormat format,
-                                 AudioFileFormat.Type eFileFormat)
+    public AudioOutputFileWriter(@Nonnull String sFile, @Nonnull AudioFormat format,
+                                 @Nonnull AudioFileFormat.Type eFileFormat)
             throws IOException
     {
         this(new File(sFile), format, eFileFormat);
     }
 
-    public AudioOutputFileWriter(File file, AudioFormat format,
-                                 AudioFileFormat.Type eFileFormat)
+    public AudioOutputFileWriter(@Nonnull File file, @Nonnull AudioFormat format,
+                                 @Nonnull AudioFileFormat.Type eFileFormat)
              throws IOException
     {
         // set everything up
@@ -104,11 +114,11 @@ public class AudioOutputFileWriter implements Runnable {
 
     }
 
-    public AudioFormat getFormat() {
+    public @Nonnull AudioFormat getFormat() {
         return _format;
     }
 
-    public void write(AudioFormat inFormat, byte[] abData,
+    public void write(@Nonnull AudioFormat inFormat, @Nonnull byte[] abData,
                       int iOffset, int iLength)
             throws IOException
     {

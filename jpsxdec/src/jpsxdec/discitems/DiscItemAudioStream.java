@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,11 @@
 
 package jpsxdec.discitems;
 
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.AudioSaverBuilder;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.util.NotThisTypeException;
@@ -48,17 +52,22 @@ import jpsxdec.util.player.PlayController;
  * runs parallel to the video. */
 public abstract class DiscItemAudioStream extends DiscItem {
 
+    /** Volatile flag regenerated each time. */
     private boolean _blnIsPartOfVideo = false;
 
-    public DiscItemAudioStream(SerializedDiscItem fields) throws NotThisTypeException {
-        super(fields);
+    public DiscItemAudioStream(@Nonnull CdFileSectorReader cd,
+                               int iStartSector, int iEndSector)
+    {
+        super(cd, iStartSector, iEndSector);
     }
 
-    public DiscItemAudioStream(int iStartSector, int iEndSector) {
-        super(iStartSector, iEndSector);
+    public DiscItemAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+            throws NotThisTypeException
+    {
+        super(cd, fields);
     }
 
-    public boolean overlaps(DiscItemAudioStream other) {
+    public boolean overlaps(@Nonnull DiscItemAudioStream other) {
         //  [ this ]  < [ other ]
         if (getEndSector() + getSectorsPastEnd() < other.getStartSector())
             return false;
@@ -76,7 +85,7 @@ public abstract class DiscItemAudioStream extends DiscItem {
     }
 
     @Override
-    public GeneralType getType() {
+    public @Nonnull GeneralType getType() {
         return GeneralType.Audio;
     }
 
@@ -89,9 +98,9 @@ public abstract class DiscItemAudioStream extends DiscItem {
     /** Creates a decoder capable of converting IdentifiedSectors into audio
      *  data which will then be fed to a {@link ISectorAudioDecoder.ISectorTimedAudioWriter}.
      * @see ISectorAudioDecoder#setAudioListener(ISectorAudioDecoder.ISectorTimedAudioWriter)  */
-    abstract public ISectorAudioDecoder makeDecoder(double dblVolume);
+    abstract public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume);
 
-    abstract public AudioFormat getAudioFormat(boolean blnBigEndian);
+    abstract public @Nonnull AudioFormat getAudioFormat(boolean blnBigEndian);
 
     abstract public int getSectorsPastEnd();
 
@@ -101,16 +110,20 @@ public abstract class DiscItemAudioStream extends DiscItem {
      *  Intended for use with audio playback progress bar. */
     abstract public double getApproxDuration();
 
-    public PlayController makePlayController() {
+    public LocalizedMessage getDetails() {
+        return new UnlocalizedMessage(serialize().serialize());
+    }
+
+    public @Nonnull PlayController makePlayController() {
         return new PlayController(new MediaPlayer(this));
     }
 
     @Override
-    public AudioSaverBuilder makeSaverBuilder() {
+    public @Nonnull AudioSaverBuilder makeSaverBuilder() {
         return new AudioSaverBuilder(this);
     }
 
-    public boolean hasSameFormat(DiscItemAudioStream other) {
+    public boolean hasSameFormat(@Nonnull DiscItemAudioStream other) {
         return getSampleRate() == other.getSampleRate() && isStereo() == other.isStereo();
     }
 

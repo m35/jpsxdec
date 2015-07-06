@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,23 +44,28 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.image.BufferedImage;
+import javax.annotation.Nonnull;
 import javax.swing.JToggleButton.ToggleButtonModel;
-import jpsxdec.I18N;
+import jpsxdec.i18n.I;
 import jpsxdec.tim.Tim;
 
 
 public class TimPaletteSelector extends javax.swing.JPanel {
-    
+
+    @Nonnull
     private final Tim _tim;
     private final int _iPalette;
+    @Nonnull
     private final TimSaverBuilder _writerBuilder;
+    @Nonnull
     private final Mod _btnModel;
     
     /** Creates new form TIMPaletteCheck */
-    public TimPaletteSelector(Tim bi, int iPalette, TimSaverBuilder builder) {
+    public TimPaletteSelector(@Nonnull Tim tim, int iPalette, @Nonnull TimSaverBuilder builder)
+    {
         initComponents();
         
-        _tim = bi;
+        _tim = tim;
         _iPalette = iPalette;
         _guiPalChk.setText(Integer.toString(iPalette));
         _writerBuilder = builder;
@@ -159,7 +164,7 @@ public class TimPaletteSelector extends javax.swing.JPanel {
         add(_guiPalChk, gridBagConstraints);
 
         _guiCopyBtn.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jpsxdec/discitems/savers/edit-paste-4.png"))); // NOI18N
-        _guiCopyBtn.setToolTipText(I18N.S("Copy to clipboard")); // I18N
+        _guiCopyBtn.setToolTipText(I.GUI_COPY_TO_CLIPBOARD_TOOLTIP().getLocalizedMessage()); // NOI18N
         _guiCopyBtn.setAlignmentY(0.0F);
         _guiCopyBtn.setMargin(new java.awt.Insets(0, 0, 0, 0));
         _guiCopyBtn.addActionListener(new java.awt.event.ActionListener() {
@@ -186,15 +191,16 @@ public class TimPaletteSelector extends javax.swing.JPanel {
     // End of variables declaration//GEN-END:variables
     
 
-    private static void copyToClipboard(Image image) {
-        ImageTransferable transferable = new ImageTransferable( image );
+    private static void copyToClipboard(@Nonnull Image image) {
+        ImageTransferable transferable = new ImageTransferable(image);
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(transferable, null);
     }
 
     private static class ImageTransferable implements Transferable {
+        @Nonnull
         private final Image _image;
 
-        public ImageTransferable (Image image) {
+        public ImageTransferable (@Nonnull Image image) {
             _image = image;
         }
 

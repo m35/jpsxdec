@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,17 +43,22 @@ import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 
 /** Miscellaneous helper functions. */
 public final class Misc {
 
-    public static String[] regex(String regex, String s) {
+    public static @CheckForNull String[] regex(@Nonnull String regex, @Nonnull String s) {
         return regex(Pattern.compile(regex), s);
     }
 
-    public static String[] regex(Pattern regex, String s) {
+    public static @CheckForNull String[] regex(@Nonnull Pattern regex, @Nonnull String s) {
         Matcher m = regex.matcher(s);
         if (!m.find()) return null;
         String as[] = new String[m.groupCount()+1];
@@ -64,7 +69,7 @@ public final class Misc {
     }
 
     /** Returns an array of all matches of all groups. */
-    public static String[] regexAll(Pattern regex, String s) {
+    public static @Nonnull String[] regexAll(@Nonnull Pattern regex, @Nonnull String s) {
         Matcher m = regex.matcher(s);
         ArrayList<String> matches = new ArrayList<String>();
         while (m.find()) {
@@ -77,7 +82,7 @@ public final class Misc {
 
     /** Converts the String to int via {@link Integer#parseInt(java.lang.String)},
      * unless it is null, then returns the default. */
-    public static int parseIntOrDefault(String sInt, int iDefault) throws NumberFormatException {
+    public static int parseIntOrDefault(@CheckForNull String sInt, int iDefault) throws NumberFormatException {
         if (sInt == null)
             return iDefault;
         else
@@ -85,7 +90,7 @@ public final class Misc {
     }
 
     /** http://www.rgagnon.com/javadetails/java-0029.html */
-    public static String stack2string(Throwable e) {
+    public static @Nonnull String stack2string(@Nonnull Throwable e) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         e.printStackTrace(pw);
@@ -94,16 +99,16 @@ public final class Misc {
     }
 
     public static int intCompare(int i1, int i2) {
-            if (i1 < i2)
-                return -1;
-            else if (i1 > i2)
-                return 1;
-            else
-                return 0;
+        if (i1 < i2)
+            return -1;
+        else if (i1 > i2)
+            return 1;
+        else
+            return 0;
     }
     
     
-    public static String dup(String s, int count) {
+    public static @Nonnull String dup(@Nonnull String s, int count) {
         if (count == 0)
             return "";
         StringBuilder sb = new StringBuilder(s.length() * count);
@@ -113,7 +118,7 @@ public final class Misc {
         return sb.toString();
     }
 
-    public static String dup(char c, int count) {
+    public static @Nonnull String dup(char c, int count) {
         if (count == 0)
             return "";
         char[] ac = new char[count];
@@ -123,7 +128,7 @@ public final class Misc {
     
     /** Manual implementation of the Java 6 Array.copyOfRange function. 
      *  Borrowed from some older Apache code. */
-    public static byte[] copyOfRange(byte[] original, int from, int to) {
+    public static @Nonnull byte[] copyOfRange(@Nonnull byte[] original, int from, int to) {
         int newLength = to - from;
         if (newLength < 0)
             throw new IllegalArgumentException(from + " > " + to);
@@ -137,7 +142,7 @@ public final class Misc {
     }
 
     
-    public static String getBaseName(String txt) {
+    public static @Nonnull String getBaseName(@Nonnull String txt) {
         int i = txt.lastIndexOf('.');
         if (i >= 0)
             return txt.substring(0, i);
@@ -145,7 +150,7 @@ public final class Misc {
             return txt;
     }
     
-    public static String getExt(String txt) {
+    public static @Nonnull String getExt(@Nonnull String txt) {
         int i = txt.lastIndexOf('.');
         if (i >= 0)
             return txt.substring(i+1);
@@ -154,7 +159,7 @@ public final class Misc {
     }
     
     
-    public static String join(Iterable ao, String sBetween) {
+    public static @Nonnull String join(@Nonnull Iterable ao, @Nonnull String sBetween) {
         StringBuilder sb = new StringBuilder();
         boolean blnFirst = true;
         for (Object o : ao) {
@@ -165,7 +170,7 @@ public final class Misc {
     }
 
     
-    public static String join(Object[] ao, String sBetween) {
+    public static @Nonnull String join(@Nonnull Object[] ao, @Nonnull String sBetween) {
         StringBuilder sb = new StringBuilder();
         boolean blnFirst = true;
         for (Object o : ao) {
@@ -177,12 +182,12 @@ public final class Misc {
 
     /** Splits a string into an array of ints. 
      *  Returns null if non-int values encountered. */
-    public static int[] splitInt(String s, String regex) {
+    public static @CheckForNull int[] splitInt(@Nonnull String s, @Nonnull String regex) {
         String[] asSplit = s.split(regex);
         return stringArrayToIntArray(asSplit);
     }
     
-    public static long[] splitLong(String s, String regex) {
+    public static @CheckForNull long[] splitLong(@Nonnull String s, @Nonnull String regex) {
         String[] split = s.split(regex);
         long[] ai = new long[split.length];
         
@@ -199,7 +204,7 @@ public final class Misc {
     
     /** Parses an array of strings into an array of ints. If there is any
      *  error, or if any of the values are negative, null is returned. */
-    public static int[] stringArrayToIntArray(String[] as) {
+    public static @CheckForNull int[] stringArrayToIntArray(@Nonnull String[] as) {
         try {
             int[] aiVals = new int[as.length];
             for (int i = 0; i < as.length; i++) {
@@ -213,7 +218,7 @@ public final class Misc {
         }
     }
     
-    public static String[] parseFilename(String s) {
+    public static @Nonnull String[] parseFilename(@Nonnull String s) {
         int i = s.lastIndexOf('.');
         if (i >= 0) {
             return new String[] {s.substring(0, i), s.substring(i)};
@@ -235,7 +240,7 @@ public final class Misc {
         "000000000000000000000000000000", "0000000000000000000000000000000",
         "00000000000000000000000000000000"
     };
-    public static String bitsToString(long val, int iCount) {
+    public static @Nonnull String bitsToString(long val, int iCount) {
         String sBin = Long.toBinaryString(val);
         int len = sBin.length();
 
@@ -248,9 +253,19 @@ public final class Misc {
     }
 
     private static final URI CURRENT_URI = new File(".").toURI();
-    public static String forwardSlashPath(File f) {
+    public static @Nonnull String forwardSlashPath(@Nonnull File f) {
         return CURRENT_URI.relativize(f.toURI()).toString();
     }
 
+    public static void log(@Nonnull Logger log, @Nonnull Level level,
+                           @CheckForNull Throwable cause,
+                           @Nonnull String sMessage, Object ... aoArguments)
+    {
+        LogRecord lr = new LogRecord(level, sMessage);
+        lr.setLoggerName(log.getName());
+        lr.setParameters(aoArguments);
+        lr.setThrown(cause);
+        log.log(lr);
+    }
 
 }

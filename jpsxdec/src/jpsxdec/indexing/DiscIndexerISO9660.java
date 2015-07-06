@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,8 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.Collection;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemISO9660File;
@@ -64,13 +66,14 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
     private final ArrayList<SectorISO9660VolumePrimaryDescriptor> _primaryDescriptors =
             new ArrayList<SectorISO9660VolumePrimaryDescriptor>();
 
+    @Nonnull
     private final Logger _errLog;
 
-    public DiscIndexerISO9660(Logger errLog) {
+    public DiscIndexerISO9660(@Nonnull Logger errLog) {
         _errLog = errLog;
     }
 
-    public void indexingSectorRead(IdentifiedSector identifiedSect) {
+    public void indexingSectorRead(@Nonnull IdentifiedSector identifiedSect) {
         if (identifiedSect instanceof SectorISO9660DirectoryRecords) {
             SectorISO9660DirectoryRecords oDirRectSect =
                     (SectorISO9660DirectoryRecords) identifiedSect;
@@ -115,7 +118,7 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
      * disc image is used. */
     private int _iSectorNumberDiff = 0;
     
-    private void getFileList(DirectoryRecord rec, File parentDir) {
+    private void getFileList(@Nonnull DirectoryRecord rec, @CheckForNull File parentDir) {
 
         // return if this isn't a directory, or if an empty directory
         if ((rec.flags & DirectoryRecord.FLAG_IS_DIRECTORY) == 0 || 
@@ -142,6 +145,7 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
                 {
                     int iSectLength = (int)((childDr.size+2047) / 2048); // round up to nearest sector
                     super.addDiscItem(new DiscItemISO9660File(
+                            getCd(),
                             (int)childDr.extent, (int)(childDr.extent + iSectLength - 1),
                             drDir, childDr.size));
                 }
@@ -151,20 +155,20 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
     }
     
     @Override
-    public DiscItem deserializeLineRead(SerializedDiscItem fields) {
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
         try {
             if (DiscItemISO9660File.TYPE_ID.equals(fields.getType())) {
-                return new DiscItemISO9660File(fields);
+                return new DiscItemISO9660File(getCd(), fields);
             }
         } catch (NotThisTypeException ex) {}
         return null;
     }
 
-    public ArrayList<SectorISO9660DirectoryRecords> getDirectoryRecords() {
+    public @Nonnull ArrayList<SectorISO9660DirectoryRecords> getDirectoryRecords() {
         return _dirRecords;
     }
 
-    public ArrayList<SectorISO9660VolumePrimaryDescriptor> getPrimaryDescriptors() {
+    public @Nonnull ArrayList<SectorISO9660VolumePrimaryDescriptor> getPrimaryDescriptors() {
         return _primaryDescriptors;
     }
 
@@ -173,12 +177,12 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
     }
 
     @Override
-    public void indexGenerated(DiscIndex discIndex) {
+    public void indexGenerated(@Nonnull DiscIndex discIndex) {
         if (_primaryDescriptors.size() > 0)
             discIndex.setDiscName(_primaryDescriptors.get(0).getVPD().volume_id.trim());
     }
     
-    private SectorISO9660DirectoryRecords getDirRecSect(int iSector) {
+    private @CheckForNull SectorISO9660DirectoryRecords getDirRecSect(int iSector) {
         for (SectorISO9660DirectoryRecords oDirRec : _dirRecords) {
             if (oDirRec.getSectorNumber() == iSector)
                 return oDirRec;

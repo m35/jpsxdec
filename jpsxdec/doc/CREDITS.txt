@@ -41,8 +41,7 @@ emulators (http://www.pcsx.net/).
 The MAME emulator team for their efforts to document and accurately
 emulate hardware, and for their license (http://mamedev.org/).
 
-Developers of the pSX emulator. While not open source, at least it is 
-still under development and provides a very nice debugger for reverse 
+Developers of the pSX emulator for very nice debugger for reverse 
 engineering games (http://psxemulator.gazaxian.com/). 
 
 "Fyiro", the Japanese fellow that wrote the source code for the PsxMC 
@@ -69,6 +68,8 @@ is doing an impeccable job.
 
 John O. for verifying that jPSXdec video encoder is at least as good as
 Sony's official SDK movconv tool.
+
+Víctor González for the Spanish translation.
 
 ................................................................................
 Thanks to those who wrote code that I've used at some point during development:
@@ -114,5 +115,4 @@ Sun for the Java platform, SwingWorker and SwingX libraries, and the Netbeans ID
 Finally, a very special thanks to all the PlayStation hackers who
 thought it was a good idea to keep their decoders/emulators/hacking 
 tools closed source, then completely stop working on them. Extra thanks 
-to those who now provide a 404 page for a web site. You sirs are real 
-men of genius. 
+to those who now provide a 404 page for a web site.

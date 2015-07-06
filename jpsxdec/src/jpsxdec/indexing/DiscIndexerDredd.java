@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,9 @@ package jpsxdec.indexing;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemDreddVideo;
 import jpsxdec.discitems.FrameNumberFormat;
@@ -56,26 +59,27 @@ public class DiscIndexerDredd extends DiscIndexer implements DiscIndexer.Identif
 
     private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemDreddVideo> {
 
-        public VideoStreamIndex(Logger errLog, SectorDreddVideo vidSect) {
-            super(errLog, vidSect, true);
-
-            initDemuxer(new DiscItemDreddVideo.Demuxer(
+        public VideoStreamIndex(@Nonnull CdFileSectorReader cd, @Nonnull Logger errLog,
+                                @Nonnull SectorDreddVideo vidSect)
+        {
+            super(cd, errLog, vidSect, true,
+                  new DiscItemDreddVideo.Demuxer(
                                 vidSect.getSectorNumber(), Integer.MAX_VALUE,
-                                vidSect.getWidth(), vidSect.getHeight()),
-                        (IdentifiedSector)vidSect);
+                                vidSect.getWidth(), vidSect.getHeight()));
         }
 
         @Override
-        protected DiscItemDreddVideo createVideo(int iStartSector, int iEndSector,
-                                                 int iWidth, int iHeight,
-                                                 int iFrameCount,
-                                                 FrameNumberFormat frameNumberFormat,
-                                                 FrameNumber startFrame,
-                                                 FrameNumber lastSeenFrameNumber,
-                                                 int iSectors, int iPerFrame,
-                                                 int iFrame1PresentationSector)
+        protected @Nonnull DiscItemDreddVideo createVideo(int iStartSector, int iEndSector,
+                                                          int iWidth, int iHeight,
+                                                          int iFrameCount,
+                                                          @Nonnull FrameNumberFormat frameNumberFormat,
+                                                          @Nonnull FrameNumber startFrame,
+                                                          @Nonnull FrameNumber lastSeenFrameNumber,
+                                                          int iSectors, int iPerFrame,
+                                                          int iFrame1PresentationSector)
         {
             return new DiscItemDreddVideo(
+                    _cd,
                     iStartSector, iEndSector,
                     iWidth, iHeight,
                     iFrameCount,
@@ -87,25 +91,27 @@ public class DiscIndexerDredd extends DiscIndexer implements DiscIndexer.Identif
     }
 
 
+    @Nonnull
     private final Logger _errLog;
+    @CheckForNull
     private VideoStreamIndex _currentStream;
     private final Collection<DiscItemDreddVideo> _completedVideos = new ArrayList<DiscItemDreddVideo>();
 
-    public DiscIndexerDredd(Logger errLog) {
+    public DiscIndexerDredd(@Nonnull Logger errLog) {
         _errLog = errLog;
     }
 
     @Override
-    public DiscItem deserializeLineRead(SerializedDiscItem deserializedLine) {
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
         try {
-            if (DiscItemDreddVideo.TYPE_ID.equals(deserializedLine.getType())) {
-                return new DiscItemDreddVideo(deserializedLine);
+            if (DiscItemDreddVideo.TYPE_ID.equals(fields.getType())) {
+                return new DiscItemDreddVideo(getCd(), fields);
             }
         } catch (NotThisTypeException ex) {}
         return null;
     }
 
-    public void indexingSectorRead(IdentifiedSector sector) {
+    public void indexingSectorRead(@Nonnull IdentifiedSector sector) {
         if (!(sector instanceof SectorDreddVideo))
             return;
 
@@ -123,7 +129,7 @@ public class DiscIndexerDredd extends DiscIndexer implements DiscIndexer.Identif
             }
         }
         if (_currentStream == null) {
-            _currentStream = new VideoStreamIndex(_errLog, vidSect);
+            _currentStream = new VideoStreamIndex(getCd(), _errLog, vidSect);
         }
     }
 
@@ -140,7 +146,7 @@ public class DiscIndexerDredd extends DiscIndexer implements DiscIndexer.Identif
     }
 
     @Override
-    public void listPostProcessing(Collection<DiscItem> allItems) {
+    public void listPostProcessing(@Nonnull Collection<DiscItem> allItems) {
         if (_completedVideos.size() > 0)
             DiscIndexerStrVideoWithFrame.audioSplit(_completedVideos, allItems);
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,11 +44,14 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import jpsxdec.I18N;
+import java.util.logging.Logger;
+import jpsxdec.i18n.I;
 import jpsxdec.util.IO;
 
 /** Wraps an InputStream (or creates a FileInputStream) to read MDEC values from. */
 public class MdecInputStreamReader extends MdecInputStream {
+
+    private static final Logger LOG = Logger.getLogger(MdecInputStreamReader.class.getName());
 
     private final InputStream _inStream;
     private int _iBlock = 0;
@@ -76,7 +79,7 @@ public class MdecInputStreamReader extends MdecInputStream {
                 return false;
             }
         } catch (EOFException ex) {
-            throw new MdecException.Read(I18N.S("Unexpected end of stream in block {0,number,#}", _iBlock)); // I18N
+            throw new MdecException.Read(I.UNEXPECTED_STREAM_END_IN_BLOCK(_iBlock), ex);
         } catch (IOException ex) {
             throw new MdecException.Read(ex);
         }
@@ -98,7 +101,9 @@ public class MdecInputStreamReader extends MdecInputStream {
         writeMdecBlocks(mdecIn, streamOut, iBlockCount);
     }
     /** Writes a number of blocks from an
-     * {@link MdecInputStream} to an {@link OutputStream}. */
+     * {@link MdecInputStream} to an {@link OutputStream}.
+     * Errors are monitored, but does not throw exceptions on bad data
+     * (although source and destination streams might). */
     public static void writeMdecBlocks(MdecInputStream mdecIn, OutputStream streamOut,
                                        int iBlockCount)
             throws MdecException, IOException
@@ -106,9 +111,27 @@ public class MdecInputStreamReader extends MdecInputStream {
         MdecCode code = new MdecCode();
         int iBlock = 0;
         while (iBlock < iBlockCount) {
-            if (mdecIn.readMdecCode(code)) {
-                iBlock++;
+            // read Qscale+DC
+            boolean blnIsEod = mdecIn.readMdecCode(code);
+            if (blnIsEod)
+                LOG.warning("Qscale+DC code returns as EOD!");
+            if (code.isEOD())
+                LOG.warning("Qscale+DC = EOD!");
+            IO.writeInt16LE(streamOut, code.toMdecWord());
+            if (!blnIsEod) {
+                int iCurrentBlockVectorPosition = 0;
+                while (!mdecIn.readMdecCode(code)) {
+                    if (code.isEOD())
+                        LOG.warning("EOD code found in at non-EOD position!");
+                    iCurrentBlockVectorPosition += code.getTop6Bits() + 1;
+                    if (iCurrentBlockVectorPosition >= 64)
+                        LOG.warning("Run length out of bounds!");
+                    IO.writeInt16LE(streamOut, code.toMdecWord());
+                }
             }
+            iBlock++;
+            if (!code.isEOD())
+                LOG.warning("non-EOD code found in at EOD position!");
             IO.writeInt16LE(streamOut, code.toMdecWord());
         }
     }

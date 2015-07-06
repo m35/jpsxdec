@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,11 +37,15 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv3;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
+import jpsxdec.util.IncompatibleException;
 
 
 /** Shared super class of several video sector types. */
@@ -51,7 +55,7 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
 
     // .. Constructor .....................................................
 
-    public SectorAbstractVideo(CdSector cdSector) {
+    public SectorAbstractVideo(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -73,28 +77,33 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
 
 
     final public int getIdentifiedUserDataSize() {
-            return super.getCdSector().getCdUserDataSize() -
-                getSectorHeaderSize();
+        return super.getCdSector().getCdUserDataSize() -
+            getSectorHeaderSize();
     }
 
-    final public ByteArrayFPIS getIdentifiedUserDataStream() {
+    final public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
         return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                 getSectorHeaderSize(), getIdentifiedUserDataSize());
     }
 
-    final public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
+    final public void copyIdentifiedUserData(@Nonnull byte[] abOut, int iOutPos) {
         super.getCdSector().getCdUserDataCopy(getSectorHeaderSize(), abOut,
                 iOutPos, getIdentifiedUserDataSize());
     }
 
-    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
-                                               int iMdecCodeCount, byte[] abSectUserData)
+    public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
+                                               int iMdecCodeCount, @Nonnull byte[] abSectUserData)
+            throws IncompatibleException
     {
         int iQscale;
-        if ((iQscale = BitStreamUncompressor_STRv2.getQscale(abDemuxData)) < 1 &&
-            (iQscale = BitStreamUncompressor_STRv3.getQscale(abDemuxData)) < 1)
-        {
-            throw new IllegalArgumentException("Frame type is not v2 or v3");
+        try {
+            iQscale = BitStreamUncompressor_STRv2.getQscale(abDemuxData);
+        } catch (MdecException.Uncompress ex) {
+            try {
+                iQscale = BitStreamUncompressor_STRv3.getQscale(abDemuxData);
+            } catch (MdecException.Uncompress ex1) {
+                throw new IncompatibleException(I.REPLACE_FRAME_TYPE_NOT_V2_V3(), ex1);
+            }
         }
 
         int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;

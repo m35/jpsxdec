@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,12 +37,16 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
+import jpsxdec.util.IncompatibleException;
 
 
 /** Base class for Final Fantasy 9 movie (audio/video) sectors. */
@@ -54,15 +58,10 @@ public abstract class SectorFF9 extends IdentifiedSector {
     protected int  _iFrameNumber;          //  8    [4 bytes]
 
     /** Reads the header common to both audio and video sectors.
-     *  The iForm parameter is the Mode 1 Form ?, since audio and video
-     *  sectors use different form. Also, the magic number is different
-     *  between audio and videos sectors.
-     *
-     * @param iForm        Check for correct Mode 1 Form ?
-     * @param iMagicNumber Magic number to check for.
-     * @return             The input stream positioned just after the header.
+     *  @param iMagicNumber The magic number to check for since it is different
+     *                      between audio and videos sectors.
      */
-    public SectorFF9(CdSector cdSector, int iMagicNumber) {
+    public SectorFF9(@Nonnull CdSector cdSector, int iMagicNumber) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -126,7 +125,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         private long _lngFourBytes;          //  28   [4 bytes] usually zero
         //   32 TOTAL
 
-        public SectorFF9Video(CdSector cdSector) {
+        public SectorFF9Video(@Nonnull CdSector cdSector) {
             // Read the shared header, requesting video magic number
             super(cdSector, VIDEO_CHUNK_MAGIC);
             if (isSuperInvalidElseReset()) return;
@@ -205,26 +204,30 @@ public abstract class SectorFF9 extends IdentifiedSector {
                     FRAME_CHUNK_HEADER_SIZE;
         }
 
-        public ByteArrayFPIS getIdentifiedUserDataStream() {
+        public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
             return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     FRAME_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
         }
 
-        public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
+        public void copyIdentifiedUserData(@Nonnull byte[] abOut, int iOutPos) {
             super.getCdSector().getCdUserDataCopy(FRAME_CHUNK_HEADER_SIZE, abOut,
                     iOutPos, getIdentifiedUserDataSize());
         }
         
-        public String getTypeName() {
+        public @Nonnull String getTypeName() {
             return "FF9Video";
         }
 
-        public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
-                                    int iMdecCodeCount, byte[] abSectUserData)
+        public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
+                                                   int iMdecCodeCount, @Nonnull byte[] abSectUserData)
+                throws IncompatibleException
         {
-            int iQscale;
-            if ((iQscale = BitStreamUncompressor_STRv2.getQscale(abDemuxData)) < 1)
-                throw new IllegalArgumentException("Frame type is not v2 or v3");
+            final int iQscale;
+            try {
+                iQscale = BitStreamUncompressor_STRv2.getQscale(abDemuxData);
+            } catch (MdecException.Uncompress ex) {
+                throw new IncompatibleException(I.REPLACE_FRAME_TYPE_NOT_V2(), ex);
+            }
 
             int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
 
@@ -264,7 +267,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         private SquareAKAOstruct _akaoStruct;     // [80 bytes]
         //   208 TOTAL
 
-        public SectorFF9Audio(CdSector cdSector) {
+        public SectorFF9Audio(@Nonnull CdSector cdSector) {
             super(cdSector, FF9_AUDIO_CHUNK_MAGIC);
             if (isSuperInvalidElseReset()) return;
             
@@ -313,7 +316,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
                     FRAME_AUDIO_CHUNK_HEADER_SIZE;
         }
 
-        public ByteArrayFPIS getIdentifiedUserDataStream() {
+        public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
             return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     FRAME_AUDIO_CHUNK_HEADER_SIZE, getIdentifiedUserDataSize());
         }
@@ -330,7 +333,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
             return 2; // there are always only 2
         }
         
-        public String getTypeName() {
+        public @Nonnull String getTypeName() {
             return "FF9Audio";
         }
 
@@ -354,13 +357,13 @@ public abstract class SectorFF9 extends IdentifiedSector {
                 return 0;
         }
 
-        public boolean matchesPrevious(ISquareAudioSector prevSect) {
+        public boolean matchesPrevious(@Nonnull ISquareAudioSector prevSect) {
             if (!(prevSect instanceof SectorFF9Audio))
                 return false;
 
-            SectorFF9Audio oPrevFF9Aud = (SectorFF9Audio) prevSect;
+            SectorFF9Audio prevFF9Aud = (SectorFF9Audio) prevSect;
 
-            if (getSamplesPerSecond() != oPrevFF9Aud.getSamplesPerSecond())
+            if (getSamplesPerSecond() != prevFF9Aud.getSamplesPerSecond())
                 return false;
 
             if (prevSect.getAudioChunkNumber() == 0) {

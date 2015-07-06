@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,9 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.sectors.IVideoSector;
 import jpsxdec.sectors.IdentifiedSector;
 
@@ -57,6 +60,7 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
 
     /** Sector type used in this video.
      * Set by first video sector accepted. All other sector types are ignored. */
+    @CheckForNull
     private Class _videoSectorType = null;
     /** Sector number of the last accepted video sector.
      * Too much gap between video sectors causes problems with frame rate calc. */
@@ -66,13 +70,16 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
 
     /** Chunks of the current frame.
      * Created and grown as needed. */
+    @CheckForNull
     private IVideoSector[] _aoCurrent;
+    @CheckForNull
     private FrameNumber _currentFrame = null;
     private int _iChunksInFrame = -1;
     private int _iChunksReceived = 0;
 
     private final FrameNumber.FactoryWithHeader _frameNumberFactory = new FrameNumber.FactoryWithHeader();
 
+    @CheckForNull
     private ICompletedFrameListener _listener;
 
     /* ---------------------------------------------------------------------- */
@@ -112,7 +119,7 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
         }
     }
 
-    public boolean feedSector(IdentifiedSector sector, Logger log) throws IOException {
+    public boolean feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) throws IOException {
         T chunk = isVideoSector(sector);
         if (chunk == null)
             return false;
@@ -131,18 +138,17 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
         int iChunksInFrame = getChunksInFrame(chunk);
 
         if (_iChunksInFrame >= 0 &&_iChunksInFrame != iChunksInFrame)
-            log.log(Level.WARNING, "Chunks in frame {0} changed from {1} to {2}", // I18N
-                    new Object[]{_currentFrame, _iChunksInFrame, iChunksInFrame});
+            I.DEMUX_FRAME_CHUNKS_CHANGED_FROM_TO(_currentFrame, _iChunksInFrame, iChunksInFrame).log(log, Level.WARNING);
         _iChunksInFrame = iChunksInFrame;
 
         // now add the chunk
         if (chunk.getChunkNumber() >= iChunksInFrame) {
-            log.log(Level.WARNING, "Chunk number {0} is >= chunks in frame {1}", // I18N
-                    new Object[]{chunk.getChunkNumber(), iChunksInFrame});
+            I.DEMUX_CHUNK_NUM_GTE_CHUNKS_IN_FRAME(chunk.getChunkNumber(), _currentFrame).log(log, Level.WARNING);
             ensureCapacity(chunk.getChunkNumber());
         } else {
             ensureCapacity(iChunksInFrame);
         }
+        // ensureCapacity() already ensured _aoCurrent is not null
         _aoCurrent[chunk.getChunkNumber()] = chunk;
         _iChunksReceived++;
         // really must push frames once all chunks are received,
@@ -153,8 +159,11 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
         return true;
     }
 
-    final public void flush(Logger log) throws IOException {
+    final public void flush(@Nonnull Logger log) throws IOException {
         if (_iChunksReceived > 0) {
+            if (_listener == null)
+                throw new IllegalStateException("Frame listener must be set before feeding data");
+            // _currentFrame and _aoCurrent should not be null if chunks are received
             _listener.frameComplete(
                 new DemuxedStrFrame(_currentFrame,
                                     getWidth(), getHeight(),
@@ -167,7 +176,7 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
         }
     }
 
-    public void setFrameListener(ICompletedFrameListener listener) {
+    public void setFrameListener(@Nonnull ICompletedFrameListener listener) {
         _listener = listener;
     }
 
@@ -175,12 +184,12 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
     /* Protected Functions -------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    abstract protected T isVideoSector(IdentifiedSector sector);
-    abstract protected int getHeaderFrameNumber(T chunk);
-    abstract protected int getChunksInFrame(T chunk);
+    abstract protected @CheckForNull T isVideoSector(@Nonnull IdentifiedSector sector);
+    abstract protected int getHeaderFrameNumber(@Nonnull T chunk);
+    abstract protected int getChunksInFrame(@Nonnull T chunk);
 
     /** Override to add additional checks. */
-    protected boolean isPartOfVideo(T chunk) {
+    protected boolean isPartOfVideo(@Nonnull T chunk) {
         if (chunk.getSectorNumber() < _iVideoStartSector)
             return false;
         if (chunk.getSectorNumber() > _iVideoEndSector)
@@ -202,7 +211,7 @@ public abstract class FrameDemuxer<T extends IVideoSector> implements ISectorFra
     }
 
     /** Override to add additional checks. */
-    protected boolean isPartOfFrame(T chunk) {
+    protected boolean isPartOfFrame(@Nonnull T chunk) {
         // different frame number
         if (_currentFrame != null && _currentFrame.getHeaderFrameNumber() != getHeaderFrameNumber(chunk))
             return false;

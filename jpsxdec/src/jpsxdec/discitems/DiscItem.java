@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,10 @@ package jpsxdec.discitems;
 
 import java.io.File;
 import java.io.IOException;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.sectors.IdentifiedSector;
@@ -54,28 +57,31 @@ import jpsxdec.util.NotThisTypeException;
  * generate a {@link DiscItemSaverBuilder} which provides options on how the
  * disc item can be converted and saved.
  * <p>
- * DiscItems also can (and usually should) hold an {@link IndexId} indicating
- * where this DiscItem falls within a list of DiscItems. This id can also
- * contain a suggested name that this DiscItem might use when extracting and
- * saving (e.g. if it's part of a file on a disc, use that file name).
- */
+ * DiscItems holds an {@link IndexId} indicating where this DiscItem falls
+ * within a list of DiscItems. This id can also contain a suggested name
+ * that this DiscItem might use when extracting and saving
+ * (e.g. if it's part of a file on a disc, use that file name).
+ * <p>
+ * IndexId ({@link #setIndexId(jpsxdec.discitems.IndexId)}) and
+ * Index# ({@link #setIndex(int)}) must be set before using this object. */
 public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Basic types of {@link DiscItem}s. */
     public static enum GeneralType {
-        Audio("Audio"), // I18N
-        Video("Video"), // I18N
-        Image("Image"), // I18N
-        File ("File" ), // I18N
+        Audio(I.ITEM_TYPE_AUDIO()),
+        Video(I.ITEM_TYPE_VIDEO()),
+        Image(I.ITEM_TYPE_IMAGE()),
+        File (I.ITEM_TYPE_FILE() ),
         ;
 
+        @Nonnull
         private final LocalizedMessage _localizedName;
 
-        private GeneralType(String sName) {
-            _localizedName = new LocalizedMessage(sName);
+        private GeneralType(@Nonnull LocalizedMessage name) {
+            _localizedName = name;
         }
 
-        public LocalizedMessage getMessage() {
+        public @Nonnull LocalizedMessage getName() {
             return _localizedName;
         }
     }
@@ -83,19 +89,25 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     private final int _iStartSector;
     private final int _iEndSector;
-    private CdFileSectorReader _cdReader;
+    @Nonnull
+    private final CdFileSectorReader _cdReader;
 
     /** Often sequential and hopefully unique number identifying this {@link DiscItem}. */
     private int _iIndex = -1;
+    @CheckForNull
     private IndexId _indexId;
 
-    protected DiscItem(int iStartSector, int iEndSector) {
+    protected DiscItem(@Nonnull CdFileSectorReader cd, int iStartSector, int iEndSector) {
+        _cdReader = cd;
         _iStartSector = iStartSector;
         _iEndSector = iEndSector;
     }
 
     /** Deserializes the basic information about this {@link DiscItem}. */
-    protected DiscItem(SerializedDiscItem fields) throws NotThisTypeException {
+    protected DiscItem(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields) 
+            throws NotThisTypeException
+    {
+        _cdReader = cd;
         int[] aiRng = fields.getSectorRange();
         _iStartSector = aiRng[0];
         _iEndSector   = aiRng[1];
@@ -103,22 +115,23 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         _indexId = new IndexId(fields.getId());
     }
 
-    /** Child classes should override and add their own fields. */
-    public SerializedDiscItem serialize() {
+    /** This is what is written to the index file.
+     * <p>
+     * Child classes should override, call {@code super}, and add their own fields.
+     * <p>
+     * If object is still under construction (i.e. id# and index id are not set)
+     * a usable serialization will be returned, but cannot be deserialized.
+     */
+    public @Nonnull SerializedDiscItem serialize() {
         return new SerializedDiscItem(getSerializationTypeId(),
                    _iIndex, _indexId == null ? null : _indexId.serialize(),
                    _iStartSector, _iEndSector);
     }
 
     /** String of the 'Type:' value in the serialization string. */
-    abstract public String getSerializationTypeId();
+    abstract public @Nonnull String getSerializationTypeId();
 
-    // TODO: see if this can be removed
-    public void setSourceCd(CdFileSectorReader cd) {
-        _cdReader = cd;
-    }
-
-    public CdFileSectorReader getSourceCd() {
+    public @Nonnull CdFileSectorReader getSourceCd() {
         return _cdReader;
     }
 
@@ -127,27 +140,31 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     }
 
     public int getIndex() {
+        if (_iIndex == -1)
+            throw new IllegalStateException("Index# should have been set before use.");
         return _iIndex;
     }
 
     /** @return if {@link IndexId} was accepted. */
-    public boolean setIndexId(IndexId id) {
+    public boolean setIndexId(@Nonnull IndexId id) {
         _indexId = id;
         return true;
     }
 
-    public IndexId getIndexId() {
+    final public @Nonnull IndexId getIndexId() {
+        if (_indexId == null)
+            throw new IllegalStateException("IndexId should have been set before use.");
         return _indexId;
     }
     
     /** Returns how likely the supplied {@link DiscItem} 
      * is a child of this item. */
-    public int getParentRating(DiscItem child) {
+    public int getParentRating(@Nonnull DiscItem child) {
         return 0;
     }
     /** Attempts to add the child item to this item.
      * @return if the item was accepted as a child.  */
-    public boolean addChild(DiscItem child) {
+    public boolean addChild(@Nonnull DiscItem child) {
         return false;
     }
 
@@ -158,12 +175,12 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Children of this item.
      * @return null if no children. */
-    public Iterable<DiscItem> getChildren() {
+    public @CheckForNull Iterable<DiscItem> getChildren() {
         return null;
     }
 
     /** Returns how many sectors this item and the supplied disc item overlap. */
-    public int getOverlap(DiscItem other) {
+    public int getOverlap(@Nonnull DiscItem other) {
         // does not overlap this item at all
         if (other.getEndSector() < getStartSector() || other.getStartSector() > getEndSector())
             return 0;
@@ -194,13 +211,13 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Returns the iIndex'th sector of this media item (beginning from
      *  the first sector of the media item). */
-    public CdSector getRelativeSector(int iIndex) throws IOException {
+    public @Nonnull CdSector getRelativeSector(int iIndex) throws IOException {
         if (iIndex > getSectorLength())
             throw new IllegalArgumentException("Sector index out of bounds of this disc item");
         return _cdReader.getSector(getStartSector() + iIndex);
     }
 
-    public IdentifiedSector getRelativeIdentifiedSector(int iIndex) throws IOException {
+    public @CheckForNull IdentifiedSector getRelativeIdentifiedSector(int iIndex) throws IOException {
         return identifySector(getRelativeSector(iIndex));
     }
 
@@ -224,7 +241,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     /** Because the media items knows what sectors are used,
      *  it can reduce the number of tests to identify a CD sector type.
      *  @return Identified sector, or null if no match. */
-    public IdentifiedSector identifySector(CdSector sector) {
+    public @CheckForNull IdentifiedSector identifySector(@Nonnull CdSector sector) {
         return IdentifiedSector.identifySector(sector);
         /* // this is nice in theory, but I don't think I'll mess with it
         for (Class<IdentifiedSector> sectorType : _aoSectorsUsed) {
@@ -240,20 +257,20 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         */
     }
 
-    /** Returns the serialization. This is what is written to the index file. */
+    /** Returns the serialization. */
     public String toString() {
         return serialize().serialize();
     }
 
     /** General type of the disc item (audio, video, file, image, etc.) */
-    abstract public GeneralType getType();
+    abstract public @Nonnull GeneralType getType();
 
     /** Description of various details about the disc item. */
-    abstract public LocalizedMessage getInterestingDescription();
+    abstract public @Nonnull LocalizedMessage getInterestingDescription();
 
-    abstract public DiscItemSaverBuilder makeSaverBuilder();
+    abstract public @Nonnull DiscItemSaverBuilder makeSaverBuilder();
 
-    public File getSuggestedBaseName() {
+    public @Nonnull File getSuggestedBaseName() {
         File suggestedBaseName;
         if (_indexId == null) {
             // use the source CD filename as the base name
@@ -266,7 +283,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     }
 
     // [implements Comparable]
-    public int compareTo(DiscItem other) {
+    public int compareTo(@Nonnull DiscItem other) {
         if (getStartSector() < other.getStartSector())
             return -1;
         else if (getStartSector() > other.getStartSector())
@@ -277,7 +294,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@CheckForNull Object obj) {
         if (obj == null || getClass() != obj.getClass()) {
             return false;
         }

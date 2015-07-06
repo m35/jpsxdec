@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,18 +38,22 @@
 package jpsxdec.cdreaders;
 
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import jpsxdec.util.ByteArrayFPIS;
 
 /** Represents a single sector on a CD. */
 public abstract class  CdSector {
 
     protected final int _iSectorIndex;
+    /** Byte offset of this sector in the source file. */
     protected final long _lngFilePointer;
+    @Nonnull
     protected final byte[] _abSectorBytes;
+    /** Offset in {@link #_abSectorBytes} where this sector begins. */
     protected final int _iByteStartOffset;
 
 
-    protected CdSector(byte[] abSectorBytes, int iByteStartOffset,
+    protected CdSector(@Nonnull byte[] abSectorBytes, int iByteStartOffset,
                        int iSectorIndex, long lngFilePointer)
     {
         _iSectorIndex = iSectorIndex;
@@ -65,35 +69,32 @@ public abstract class  CdSector {
         return _iSectorIndex;
     }
 
-    /**
-     * Returns copy of the 'user data' portion of the sector.
-     */
-    abstract public byte[] getCdUserDataCopy();
+    /** Returns copy of the 'user data' portion of the sector. */
+    abstract public @Nonnull byte[] getCdUserDataCopy();
 
-    abstract public void getCdUserDataCopy(int iSourcePos, byte[] abOut, int iOutPos, int iLength);
+    /** Copies a block of bytes out of the user data portion of this CD sector to the supplied array.
+     * @throws IndexOutOfBoundsException If the source or destination bounds are violated. */
+    abstract public void getCdUserDataCopy(int iSourcePos, @Nonnull byte[] abOut, int iOutPos, int iLength)
+            throws IndexOutOfBoundsException;
 
-    /**
-     * Returns the size of the 'user data' portion of the sector.
-     */
+    /** Returns the size of the 'user data' portion of the sector. */
     abstract public int getCdUserDataSize();
 
 
-    /**
-     * Returns the actual offset in bytes from the start of the file/CD
-     * to the start of the sector userdata.
-     * [implements IGetFilePointer]
-     */
+    /** Returns the actual offset in bytes from the start of the file/CD
+     * to the start of the sector userdata. */
+    //[implements IGetFilePointer]
     abstract public long getUserDataFilePointer();
     
     /**
      * Returns direct reference to the underlying sector data, with raw
      * header/footer and everything it has.
      */
-    abstract public byte[] getRawSectorDataCopy();
+    abstract public @Nonnull byte[] getRawSectorDataCopy();
 
     abstract public byte readUserDataByte(int i);
 
-    abstract public ByteArrayFPIS getCdUserDataStream();
+    abstract public @Nonnull ByteArrayFPIS getCdUserDataStream();
 
     abstract public boolean isCdAudioSector();
 
@@ -101,7 +102,7 @@ public abstract class  CdSector {
 
     /** Given this sector and the new user data provided, regenerates the 
      * sector header and error correction data and returns the result. */
-    abstract public byte[] rebuildRawSector(byte[] abNewUserData);
+    abstract public @Nonnull byte[] rebuildRawSector(@Nonnull byte[] abNewUserData);
 
     /**
      * @throws UnsupportedOperationException when the sector doesn't have a header.
@@ -129,12 +130,12 @@ public abstract class  CdSector {
     /**
      * @throws UnsupportedOperationException when the sector doesn't {@link #hasSubHeader()}.
      */
-    public CdxaSubHeader.SubMode getSubMode() {
+    public @Nonnull CdxaSubHeader.SubMode getSubMode() {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * @throws UnsupportedOperationException when the sector doesn't {@link #hasSubmode()}.
+     * @throws UnsupportedOperationException when the sector doesn't {@link #hasSubHeader()}.
      */
     public int subModeMask(int i) {
         throw new UnsupportedOperationException();
@@ -143,12 +144,12 @@ public abstract class  CdSector {
     /**
      * @throws UnsupportedOperationException when the sector doesn't have a header.
      */
-    public CdxaSubHeader.CodingInfo getCodingInfo() {
+    public @Nonnull CdxaSubHeader.CodingInfo getCodingInfo() {
         throw new UnsupportedOperationException();
     }
 
     abstract public int getErrorCount();
-    abstract public void printErrors(Logger logger);
+    abstract public void printErrors(@Nonnull Logger logger);
 
     public short readSInt16LE(int i) {
         int b1 = readUserDataByte(i  ) & 0xFF;

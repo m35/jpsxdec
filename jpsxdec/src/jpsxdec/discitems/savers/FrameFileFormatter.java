@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.discitems.savers;
 
 import java.io.File;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.FrameNumberFormat;
 import jpsxdec.discitems.FrameNumber;
@@ -53,7 +55,9 @@ public class FrameFileFormatter {
     // sequence + sector
 
     /** Single file format, never includes the frame number. */
-    public static File makeFile(File directory, VideoFormat vf, DiscItemVideoStream vid) {
+    public static @Nonnull File makeFile(@CheckForNull File directory, @Nonnull VideoFormat vf,
+                                         @Nonnull DiscItemVideoStream vid)
+    {
         File baseName = vid.getSuggestedBaseName();
         StringBuilder sb = new StringBuilder(baseName.getName());
         if (vf.needsDims())
@@ -67,7 +71,10 @@ public class FrameFileFormatter {
     }
 
     /** Formatter that only generates a single file, regardless of frame number. */
-    public static FrameFileFormatter makeFormatter(String sBaseName, VideoFormat vf, int iWidth, int iHeight) {
+    public static @Nonnull FrameFileFormatter makeFormatter(@Nonnull String sBaseName,
+                                                            @Nonnull VideoFormat vf,
+                                                            int iWidth, int iHeight)
+    {
         StringBuilder sb = new StringBuilder(sBaseName.replace("%", "%%"));
         if (vf.needsDims())
             sb.append('_').append(iWidth).append('x').append(iHeight);
@@ -79,7 +86,10 @@ public class FrameFileFormatter {
     // -------------------------------------------------------------------------
 
 
-    public static FrameFileFormatter makeFormatter(VideoFormat vf, DiscItemVideoStream videoItem, FrameNumberFormat.Type type) {
+    public static @Nonnull FrameFileFormatter makeFormatter(@Nonnull VideoFormat vf,
+                                                            @Nonnull DiscItemVideoStream videoItem,
+                                                            @Nonnull FrameNumberFormat.Type type)
+    {
         File fmtFile = makeFormat(videoItem, vf);
         File dir = fmtFile.getParentFile();
         if (dir == null)
@@ -87,7 +97,11 @@ public class FrameFileFormatter {
         else
             return new FrameFileFormatter(dir, fmtFile.getName(), videoItem.getFrameNumberFormat().makeFormatter(type));
     }
-    public static FrameFileFormatter makeFormatter(File directory, VideoFormat vf, DiscItemVideoStream videoItem, FrameNumberFormat.Type type) {
+    public static @Nonnull FrameFileFormatter makeFormatter(@Nonnull File directory,
+                                                            @Nonnull VideoFormat vf,
+                                                            @Nonnull DiscItemVideoStream videoItem,
+                                                            @Nonnull FrameNumberFormat.Type type)
+    {
         File fmtFile = makeFormat(videoItem, vf);
         String sFmtDir = fmtFile.getParent();
         if (sFmtDir == null)
@@ -96,7 +110,9 @@ public class FrameFileFormatter {
             return new FrameFileFormatter(new File(directory, sFmtDir), fmtFile.getName(), videoItem.getFrameNumberFormat().makeFormatter(type));
     }
     
-    private static File makeFormat(DiscItemVideoStream vid, VideoFormat vf) {
+    private static @Nonnull File makeFormat(@Nonnull DiscItemVideoStream vid,
+                                            @Nonnull VideoFormat vf)
+    {
         File baseName = vid.getSuggestedBaseName();
         StringBuilder sb = new StringBuilder(baseName.getName().replace("%", "%%"));
         if (vf.needsDims())
@@ -108,19 +124,34 @@ public class FrameFileFormatter {
 
     //--------------------------------------------------------------------------
 
+    @CheckForNull
     private final File _directory;
+    @Nonnull
     private final String _sFileNameFormat;
+    @CheckForNull
     private final FrameNumberFormatter _numberFormatter;
 
-    private FrameFileFormatter(File directory, String sFileNameFormat, FrameNumberFormatter numberFormatter) {
+    private FrameFileFormatter(@CheckForNull File directory, @Nonnull String sFileNameFormat, 
+                               @CheckForNull FrameNumberFormatter numberFormatter)
+    {
         _directory = directory;
         _sFileNameFormat = sFileNameFormat;
         _numberFormatter = numberFormatter;
     }
 
-    public File format(FrameNumber frameNumber, Logger log) {
+    /** Generates a file name for the given frame number.
+     * Note that if this instance was created using
+     * {@link #makeFormatter(java.lang.String, jpsxdec.discitems.savers.VideoFormat, int, int) }
+     * then the frameNumber argument is ignored.
+     * @throws NullPointerException if frameNumber is null and this formatter needs it.
+     */
+    public @Nonnull File format(@CheckForNull FrameNumber frameNumber,
+                                @CheckForNull Logger log)
+    {
         if (_numberFormatter == null)
             return new File(_directory, _sFileNameFormat);
+        else if (frameNumber == null)
+            throw new NullPointerException("Frame number required for this formatter");
         else
             return new File(_directory,
                             String.format(_sFileNameFormat,

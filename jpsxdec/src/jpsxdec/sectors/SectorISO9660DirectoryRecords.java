@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.sectors;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.iso9660.DirectoryRecord;
 import jpsxdec.util.ByteArrayFPIS;
@@ -50,6 +52,7 @@ public class SectorISO9660DirectoryRecords extends IdentifiedSector
         implements Iterable<DirectoryRecord>
 {
 
+    @CheckForNull
     private ArrayList<DirectoryRecord> _dirRecords;
     
     public SectorISO9660DirectoryRecords(CdSector cdSector) {
@@ -83,19 +86,23 @@ public class SectorISO9660DirectoryRecords extends IdentifiedSector
         return super.getCdSector().getCdUserDataSize();
     }
 
-    public ByteArrayFPIS getIdentifiedUserDataStream() {
+    public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
         return super.getCdSector().getCdUserDataStream();
     }
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "ISO9660 Directory Records";
     }
 
-    public Iterator<DirectoryRecord> iterator() {
+    public @Nonnull Iterator<DirectoryRecord> iterator() {
+        if (_dirRecords == null)
+            throw new IllegalStateException();
         return _dirRecords.iterator();
     }
 
-    public ArrayList<DirectoryRecord> getRecords() {
+    public @Nonnull ArrayList<DirectoryRecord> getRecords() {
+        if (_dirRecords == null)
+            throw new IllegalStateException();
         return _dirRecords;
     }
 

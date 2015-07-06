@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,8 @@
 package jpsxdec.sectors;
 
 import java.io.PrintStream;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 
 /** Abstract base class for all identified sector types. Encapsulates CD sectors
@@ -46,7 +48,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
 
     /** Attempts to identify the sector.
      * @return null if sector could not be identified. */
-    public static IdentifiedSector identifySector(CdSector cdSector) {
+    public static @CheckForNull IdentifiedSector identifySector(@Nonnull CdSector cdSector) {
         IdentifiedSector s;
         // sorted in order of likelyhood of encountering (my best guess)
         if ((s = new SectorXaAudio(cdSector)).getProbability() > 0) return s;
@@ -85,10 +87,11 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         return null;
     }
 
+    @Nonnull
     private final CdSector _sourceCdSector;
     private int _iProbability = 1;
     
-    public IdentifiedSector(CdSector cdSector) {
+    public IdentifiedSector(@Nonnull CdSector cdSector) {
         _sourceCdSector = cdSector;
     }
 
@@ -120,7 +123,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         return _sourceCdSector.getSectorNumberFromStart();
     }
     
-    public CdSector getCdSector() {
+    public @Nonnull CdSector getCdSector() {
         return _sourceCdSector;
     }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,9 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import javax.annotation.Nonnull;
+import jpsxdec.util.IncompatibleException;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.psxvideoencode.ReplaceFrames;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
@@ -63,22 +66,26 @@ public abstract class DiscItemVideoStream extends DiscItem {
     private final int _iFrameCount;
 
     private static final String FORMAT_KEY = "Digits";
+    @Nonnull
     private final FrameNumberFormat _frameNumberFormat;
 
-    public DiscItemVideoStream(int iStartSector, int iEndSector, 
+    public DiscItemVideoStream(@Nonnull CdFileSectorReader cd,
+                               int iStartSector, int iEndSector,
                                int iWidth, int iHeight,
                                int iFrameCount,
-                               FrameNumberFormat frameNumberFormat)
+                               @Nonnull FrameNumberFormat frameNumberFormat)
     {
-        super(iStartSector, iEndSector);
+        super(cd, iStartSector, iEndSector);
         _iWidth = iWidth;
         _iHeight = iHeight;
         _iFrameCount = iFrameCount;
         _frameNumberFormat = frameNumberFormat;
     }
     
-    public DiscItemVideoStream(SerializedDiscItem fields) throws NotThisTypeException {
-        super(fields);
+    public DiscItemVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+            throws NotThisTypeException
+    {
+        super(cd, fields);
         
         int[] ai = fields.getDimensions(DIMENSIONS_KEY);
         _iWidth = ai[0];
@@ -90,7 +97,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
     }
     
     @Override
-    public SerializedDiscItem serialize() {
+    public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
         serial.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
         serial.addNumber(FRAMECOUNT_KEY, _iFrameCount);
@@ -106,15 +113,15 @@ public abstract class DiscItemVideoStream extends DiscItem {
         return _iHeight;
     }
     
-    abstract public FrameNumber getStartFrame();
+    abstract public @Nonnull FrameNumber getStartFrame();
 
-    abstract public FrameNumber getEndFrame();
+    abstract public @Nonnull FrameNumber getEndFrame();
 
     public int getFrameCount() {
         return _iFrameCount;
     }
 
-    final public FrameNumberFormat getFrameNumberFormat() {
+    final public @Nonnull FrameNumberFormat getFrameNumberFormat() {
         return _frameNumberFormat;
     }
     
@@ -124,19 +131,19 @@ public abstract class DiscItemVideoStream extends DiscItem {
     }
 
     @Override
-    public GeneralType getType() {
+    public @Nonnull GeneralType getType() {
         return GeneralType.Video;
     }
 
     /** 1 for 1x (75 sectors/second), 2 for 2x (150 sectors/second), or -1 if unknown. */
     abstract public int getDiscSpeed();
     
-    abstract public PlayController makePlayController();
+    abstract public @Nonnull PlayController makePlayController();
 
     /** Creates a demuxer that can handle frames in this video. */
-    abstract public ISectorFrameDemuxer makeDemuxer();
+    abstract public @Nonnull ISectorFrameDemuxer makeDemuxer();
     
-    abstract public Fraction getSectorsPerFrame();
+    abstract public @Nonnull Fraction getSectorsPerFrame();
     
     abstract public int getPresentationStartSector();
 
@@ -145,7 +152,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
     abstract public double getApproxDuration();
 
 
-    public void frameInfoDump(final FeedbackStream fbs) throws IOException {
+    public void frameInfoDump(@Nonnull final FeedbackStream fbs) throws IOException {
         DiscItemVideoStream vidItem = this;
 
         ISectorFrameDemuxer demuxer = makeDemuxer();
@@ -218,8 +225,8 @@ public abstract class DiscItemVideoStream extends DiscItem {
         }
     }
 
-    public void replaceFrames(FeedbackStream Feedback, String sXmlFile) 
-            throws IOException, NotThisTypeException, MdecException
+    public void replaceFrames(@Nonnull FeedbackStream Feedback, @Nonnull String sXmlFile)
+            throws IOException, NotThisTypeException, MdecException, IncompatibleException
     {
         ReplaceFrames replacers = new ReplaceFrames(sXmlFile);
         replacers.replaceFrames(this, getSourceCd(), Feedback);

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,6 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import jpsxdec.I18N;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
@@ -80,13 +79,13 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
 
     }
 
-    public MdecEncoder(ParsedMdecImage origional, PsxYCbCrImage newYcbcr, List<Point> replaceMbs) {
+    public MdecEncoder(ParsedMdecImage original, PsxYCbCrImage newYcbcr, List<Point> replaceMbs) {
 
         if (newYcbcr.getLumaWidth() % 16 != 0 || newYcbcr.getLumaHeight() % 16 != 0)
             throw new IllegalArgumentException();
 
-        _iPixWidth = origional.getWidth();
-        _iPixHeight = origional.getHeight();
+        _iPixWidth = original.getWidth();
+        _iPixHeight = original.getHeight();
         _iMacBlockWidth = Calc.macroblockDim(newYcbcr.getLumaWidth());
         _iMacBlockHeight = Calc.macroblockDim(newYcbcr.getLumaHeight());
 
@@ -102,7 +101,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
                     _replaceMbs.add(e);
                     enc = e;
                 } else {
-                    enc = origional.getMacroBlockCodes(iMbX, iMbY);
+                    enc = original.getMacroBlockCodes(iMbX, iMbY);
                 }
                 _aoMacroBlocks[iMbX * _iMacBlockHeight + iMbY] = enc;
             }
@@ -150,14 +149,11 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
         public boolean readMdecCode(MdecCode code) throws MdecException.Read {
 
             if (!__curMb.hasNext()) {
+                // end of current macroblock, move to next
                 if (__iCurMacBlk >= _aoMacroBlocks.length)
-                    throw new MdecException.Read(I18N.S("Read beyond EncodedMdecInputStream")); // I18N
+                    throw new IllegalStateException("Read beyond EncodedMdecInputStream");
                 __iCurMacBlk++;
-                try {
-                    __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
             }
             code.set(__curMb.next());
             return code.isEOD(); // hopefully no bad EOD codes are part of the list

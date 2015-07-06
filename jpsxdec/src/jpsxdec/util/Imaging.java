@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,7 @@ import java.awt.image.DataBuffer;
 import java.awt.image.DirectColorModel;
 import java.awt.image.IndexColorModel;
 import java.awt.image.WritableRaster;
+import javax.annotation.Nonnull;
 
 /** Creates more predictable image color spaces.
  *<p>
@@ -72,7 +73,7 @@ public class Imaging {
                 abPal.length,
                 abPal, abPal, abPal);
     }
-    public static BufferedImage createLinearRgbInt(int[] aiRgb, int iWidth, int iHeight) {
+    public static @Nonnull BufferedImage createLinearRgbInt(@Nonnull int[] aiRgb, int iWidth, int iHeight) {
         WritableRaster oRaster = LINEAR_RGB_INT.createCompatibleWritableRaster(iWidth, iHeight);
         oRaster.setDataElements(0, 0, iWidth, iHeight, aiRgb);
         return new BufferedImage(
@@ -81,7 +82,7 @@ public class Imaging {
                 false,  // isRasterPremultiplied : no difference if true or false
                 null); // properties
     }
-    public static BufferedImage createLinearGrayIndexed256(byte[] abGray, int iWidth, int iHeight) {
+    public static @Nonnull BufferedImage createLinearGrayIndexed256(@Nonnull byte[] abGray, int iWidth, int iHeight) {
         WritableRaster raster = LINEAR_GRAY_INDEXED.createCompatibleWritableRaster(iWidth, iHeight);
         raster.setDataElements(0, 0, iWidth, iHeight, abGray);
         return new BufferedImage(

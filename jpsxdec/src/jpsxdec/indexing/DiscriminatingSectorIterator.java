@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,8 @@
 package jpsxdec.indexing;
 
 import java.io.IOException;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.sectors.IdentifiedSector;
@@ -46,26 +48,32 @@ import jpsxdec.sectors.IdentifiedSector;
 public class DiscriminatingSectorIterator {
 
     public static interface SectorReadListener {
-        public void sectorRead(CdSector sect);
+        public void sectorRead(@Nonnull CdSector sect);
     }
 
+    @Nonnull
     private final CdFileSectorReader _cd;
 
     private int _iNextSector;
+    /** Will be either {@link IdentifiedSector} or
+     * {@link CdSector} if sector cannot be identified. */
+    @CheckForNull
     private Object _nextSector;
 
+    /** Optional listener that is notified only once for each sector read. */
+    @CheckForNull
     private SectorReadListener _listener;
 
-    public DiscriminatingSectorIterator(CdFileSectorReader cd) {
+    public DiscriminatingSectorIterator(@Nonnull CdFileSectorReader cd) {
         this(cd, 0);
     }
 
-    public DiscriminatingSectorIterator(CdFileSectorReader cd, int iSector) {
+    public DiscriminatingSectorIterator(@Nonnull CdFileSectorReader cd, int iSector) {
         _cd = cd;
         _iNextSector = iSector;
     }
 
-    public void setListener(SectorReadListener listener) {
+    public void setListener(@Nonnull SectorReadListener listener) {
         _listener = listener;
     }
 
@@ -82,18 +90,20 @@ public class DiscriminatingSectorIterator {
 
     // ..........................................................
 
-    public CdSector nextUnidentified() throws IOException {
+    public @Nonnull CdSector nextUnidentified() throws IOException {
         if (!hasNextUnidentified())
             throw new RuntimeException();
 
+        // hasNextUnidentified() confirms _nextSector != null
         CdSector cdSector = (CdSector) _nextSector;
         _nextSector = null;
         return cdSector;
     }
-    public IdentifiedSector nextIdentified() throws IOException {
+    public @Nonnull IdentifiedSector nextIdentified() throws IOException {
         if (!hasNextIdentified())
             throw new RuntimeException();
 
+        // hasNextIdentified() confirms _nextSector != null
         IdentifiedSector identifiedSector = (IdentifiedSector) _nextSector;
         _nextSector = null;
         return identifiedSector;

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,8 +44,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.LocalizedEOFException;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedEOFException;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
@@ -87,8 +90,8 @@ public abstract class XaAdpcmDecoder {
      * @param blnIsStereo     true for stereo, false for mono.
      * @param dblVolume       Audio scaled by this amount.
      */
-    public static XaAdpcmDecoder create(int iBitsPerSample, boolean blnIsStereo,
-                                        double dblVolume)
+    public static @Nonnull XaAdpcmDecoder create(int iBitsPerSample, boolean blnIsStereo,
+                                                 double dblVolume)
     {
         if (blnIsStereo)
             return new XaAdpcmDecoder_Stereo(iBitsPerSample, dblVolume);
@@ -102,10 +105,10 @@ public abstract class XaAdpcmDecoder {
         switch (iBitsPerSample) {
             case 4: return ADPCM_SOUND_GROUPS_PER_SECTOR * 
                            AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT *
-                           SoundGroup4BitsPerSample.SOUND_UNITS_IN_4_BIT_SECTOR;
+                           AdpcmSoundGroup.SOUND_UNITS_IN_4_BIT_SOUND_GROUP;
             case 8: return ADPCM_SOUND_GROUPS_PER_SECTOR * 
                            AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT *
-                           SoundGroup8BitsPerSample.SOUND_UNITS_IN_8_BIT_SECTOR;
+                           AdpcmSoundGroup.SOUND_UNITS_IN_8_BIT_SOUND_GROUP;
             default: throw new IllegalArgumentException("Invalid bits/sample " + iBitsPerSample);
         }
     }
@@ -124,6 +127,7 @@ public abstract class XaAdpcmDecoder {
     ////////////////////////////////////////////////////////////////////////////
 
     /** Class to decode all the sound groups in the ADPCM stream. */
+    @Nonnull
     private final AdpcmSoundGroup _soundGroup;
 
     /** Number of ADPCM sample frames read from the input.
@@ -142,15 +146,15 @@ public abstract class XaAdpcmDecoder {
     }
 
     /** Temporarily stores a logger to log errors when decoding. */
+    @CheckForNull
     private Logger _log;
     /** Temporarily stores a source sector number for log purposes. */
     private int _iSourceSector = -1;
 
     /** Decodes a sector's worth of ADPCM data.
-     *  Reads 2304 bytes and writes either 4032 or 8064 bytes. 
-     * @param sLogContext String to prepend when logging. May be null.
-     */
-    public void decode(InputStream inStream, OutputStream out, Logger log, int iSourceSector)
+     *  Reads 2304 bytes and writes either 4032 or 8064 bytes.  */
+    public void decode(@Nonnull InputStream inStream, @Nonnull OutputStream out,
+                       @CheckForNull Logger log, int iSourceSector)
             throws IOException
     {
         // There are 18 sound groups,
@@ -171,7 +175,7 @@ public abstract class XaAdpcmDecoder {
     }
 
     /** Finishes converting the ADPCM samples to PCM and writes them to the buffer. */
-    abstract protected void adpcmSoundGroupToPcm(AdpcmSoundGroup soundGroup, OutputStream out)
+    abstract protected void adpcmSoundGroupToPcm(@Nonnull AdpcmSoundGroup soundGroup, @Nonnull OutputStream out)
             throws IOException;
 
     /** Returns the volume scale that PCM samples are multiplied by before being clamped. */
@@ -186,7 +190,7 @@ public abstract class XaAdpcmDecoder {
     /** Resets the decoding context(s). */
     abstract public void resetContext();
 
-    abstract public AudioFormat getOutputFormat(int iSampleRate);
+    abstract public @Nonnull AudioFormat getOutputFormat(int iSampleRate);
     
     //########################################################################//
     //## Concrete implementations ############################################//
@@ -195,6 +199,7 @@ public abstract class XaAdpcmDecoder {
     /** Mono implementation. */
     private static class XaAdpcmDecoder_Mono extends XaAdpcmDecoder {
 
+        @Nonnull
         private final AdpcmContext _monoContext;
 
         public XaAdpcmDecoder_Mono(int iBitsPerSample, double dblVolume) {
@@ -202,25 +207,30 @@ public abstract class XaAdpcmDecoder {
             _monoContext = new AdpcmContext(dblVolume);
         }
 
+        @Override
         public void resetContext() {
             _lngSamplesRead = 0;
             _monoContext.reset();
         }
 
+        @Override
         public boolean isStereo() {
             return false;
         }
 
+        @Override
         public double getVolume() {
             return _monoContext.getVolumeScale();
         }
 
+        @Override
         public void setVolume(double dblVolume) {
             _monoContext.setVolumeScale(dblVolume);
         }
 
 
-        public void adpcmSoundGroupToPcm(AdpcmSoundGroup soundGroup, OutputStream out) 
+        @Override
+        public void adpcmSoundGroupToPcm(@Nonnull AdpcmSoundGroup soundGroup, @Nonnull OutputStream out)
                 throws IOException
         {
             for (int iSoundUnitIdx = 0; iSoundUnitIdx < soundGroup.getSoundUnitCount(); iSoundUnitIdx++) {
@@ -231,7 +241,8 @@ public abstract class XaAdpcmDecoder {
             }
         }
 
-        public AudioFormat getOutputFormat(int iSampleRate) {
+        @Override
+        public @Nonnull AudioFormat getOutputFormat(int iSampleRate) {
             return new AudioFormat(iSampleRate, 16, 1, true, false);
         }
     }
@@ -241,7 +252,9 @@ public abstract class XaAdpcmDecoder {
     /** Stereo implementation. */
     private static class XaAdpcmDecoder_Stereo extends XaAdpcmDecoder {
 
+        @Nonnull
         private final AdpcmContext _leftContext;
+        @Nonnull
         private final AdpcmContext _rightContext;
 
         public XaAdpcmDecoder_Stereo(int iBitsPerSample, double dblVolume) {
@@ -250,27 +263,32 @@ public abstract class XaAdpcmDecoder {
             _rightContext = new AdpcmContext(dblVolume);
         }
 
+        @Override
         public void resetContext() {
             _lngSamplesRead = 0;
             _leftContext.reset();
             _rightContext.reset();
         }
 
+        @Override
         public boolean isStereo() {
             return true;
         }
 
+        @Override
         public double getVolume() {
             // assume same volume for right channel as well (if it has one)
             return _leftContext.getVolumeScale();
         }
 
+        @Override
         public void setVolume(double dblVolume) {
             _leftContext.setVolumeScale(dblVolume);
             _rightContext.setVolumeScale(dblVolume);
         }
 
-        public void adpcmSoundGroupToPcm(AdpcmSoundGroup soundGroup, OutputStream out)
+        @Override
+        public void adpcmSoundGroupToPcm(@Nonnull AdpcmSoundGroup soundGroup, @Nonnull OutputStream out)
                 throws IOException
         {
             for (int iSoundUnitIdx = 0; iSoundUnitIdx < soundGroup.getSoundUnitCount(); iSoundUnitIdx+=2) {
@@ -283,7 +301,8 @@ public abstract class XaAdpcmDecoder {
             }
         }
 
-        public AudioFormat getOutputFormat(int iSampleRate) {
+        @Override
+        public @Nonnull AudioFormat getOutputFormat(int iSampleRate) {
             return new AudioFormat(iSampleRate, 16, 2, true, false);
         }
     }
@@ -291,9 +310,12 @@ public abstract class XaAdpcmDecoder {
 
     /** A sound group has 16 bytes of sound parameters, followed by 112 bytes
      *  of interleaved ADPCM audio data. */
-    protected abstract class AdpcmSoundGroup {
+    abstract class AdpcmSoundGroup {
+        static final int SOUND_UNITS_IN_8_BIT_SOUND_GROUP = 4;
+        static final int SOUND_UNITS_IN_4_BIT_SOUND_GROUP = 8;
 
         /** Length will be the number of sound units per sound group. */
+        @Nonnull
         protected final AdpcmSoundUnit _aoSoundUnits[];
         protected final byte[] _abParameterBuffer = new byte[16];
 
@@ -305,7 +327,7 @@ public abstract class XaAdpcmDecoder {
             }
         }
 
-        public AdpcmSoundUnit getSoundUnit(int i) {
+        public @Nonnull AdpcmSoundUnit getSoundUnit(int i) {
             return _aoSoundUnits[i];
         }
 
@@ -316,7 +338,7 @@ public abstract class XaAdpcmDecoder {
         /** Reads 16 bytes of sound parameters, followed by
          *  112 bytes of interleaved sound units.
          *  Each sound unit will produce 28 PCM samples. */
-        abstract protected void readSoundGroup(InputStream inStream)
+        abstract protected void readSoundGroup(@Nonnull InputStream inStream)
                 throws IOException;
 
     }
@@ -331,11 +353,9 @@ public abstract class XaAdpcmDecoder {
      * between 4 sound units. */
     private class SoundGroup8BitsPerSample extends AdpcmSoundGroup {
 
-        public static final int SOUND_UNITS_IN_8_BIT_SECTOR = 4;
-
         public SoundGroup8BitsPerSample() {
             // 4 sound units when 8 bits/sample
-            super(SOUND_UNITS_IN_8_BIT_SECTOR);
+            super(SOUND_UNITS_IN_8_BIT_SOUND_GROUP);
         }
 
         /** {@inheritDoc}
@@ -343,7 +363,8 @@ public abstract class XaAdpcmDecoder {
          * For 8 bits/sample, there are only 4 sound units that each
          * produce 28 PCM samples.
          */
-        protected void readSoundGroup(InputStream inStream)
+        @Override
+        protected void readSoundGroup(@Nonnull InputStream inStream)
                 throws IOException
         {
             // Process the 16 byte sound parameters at the
@@ -371,7 +392,7 @@ public abstract class XaAdpcmDecoder {
                 for (int iSoundUnit = 0; iSoundUnit < 4;  iSoundUnit++) {
                     int iByte = inStream.read();
                     if (iByte < 0)
-                        throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
+                        throw new LocalizedEOFException(I.UNEXPECTED_END_OF_AUDIO());
                     // sound unit bytes are interleaved like this
                     // 0,1,2,3, 0,1,2,3, 0,1,2,3 ...
                     // 1 sample for one sound unit per byte
@@ -390,18 +411,17 @@ public abstract class XaAdpcmDecoder {
      * between 8 sound units. */
     private class SoundGroup4BitsPerSample extends AdpcmSoundGroup {
 
-        public static final int SOUND_UNITS_IN_4_BIT_SECTOR = 8;
-
         public SoundGroup4BitsPerSample() {
             // 8 sound units when 4 bits/sample
-            super(SOUND_UNITS_IN_4_BIT_SECTOR);
+            super(SOUND_UNITS_IN_4_BIT_SOUND_GROUP);
         }
 
         /** {@inheritDoc}
          *
          * For 4 bits/sample, there are 8 sound units that each
          * produce 28 PCM samples. */
-        protected void readSoundGroup(InputStream inStream)
+        @Override
+        protected void readSoundGroup(@Nonnull InputStream inStream)
                 throws IOException
         {
             // Process the 16 byte sound parameters at the
@@ -432,7 +452,7 @@ public abstract class XaAdpcmDecoder {
                 {
                     int iByte = inStream.read();
                     if (iByte < 0)
-                        throw new LocalizedEOFException("Unexpected end of audio data"); // I18N
+                        throw new LocalizedEOFException(I.UNEXPECTED_END_OF_AUDIO());
 
                     // sound unit bytes are interleaved like this
                     // 1/0,3/2,5/4,7/6, 1/0,3/2,5/4,7/6, ...
@@ -454,7 +474,7 @@ public abstract class XaAdpcmDecoder {
     }
 
     /** Standard K0 multiplier (don't ask me, it's just how it is). */
-    private static final double[] SoundUnit_K0 = {
+    static final double[] SoundUnit_K0 = {
         0.0,
         0.9375,
         1.796875,
@@ -462,7 +482,7 @@ public abstract class XaAdpcmDecoder {
     };
 
     /** Standard K1 multiplier (don't ask me, it's just how it is). */
-    private static final double[] SoundUnit_K1 = {
+    static final double[] SoundUnit_K1 = {
         0.0,
         0.0,
         -0.8125,
@@ -521,22 +541,22 @@ public abstract class XaAdpcmDecoder {
          *  unit, and the decoding context (for the previous 2 samples read),
          *  we can convert an entire sound unit.
          * Converts sound samples as they are read. */
-        public short readPCMSample(AdpcmContext context) {
-            short siADPCM_sample = _asiAdpcmSamples[_iReadPos];
+        public short readPCMSample(@Nonnull AdpcmContext context) {
+            short siAdpcmShortTopSample = _asiAdpcmSamples[_iReadPos];
             _iReadPos++;
             _iWritePos = 0;
 
             // shift sound data according to the range, keeping the sign
-            long lngResult = (siADPCM_sample >> _bParameter_Range);
+            int iUnRanged = (siAdpcmShortTopSample >> _bParameter_Range);
 
             // adjust according to the filter
-            double dblResult = lngResult +
+            double dblDecodedPcm = iUnRanged +
                 SoundUnit_K0[_bParameter_FilterIndex] * context.getPreviousPCMSample1() +
                 SoundUnit_K1[_bParameter_FilterIndex] * context.getPreviousPCMSample2();
 
             // let the context scale, round, and clamp
             // fianlly return the polished sample
-            return context.saveScaleRoundClampPCMSample(dblResult);
+            return context.saveScaleRoundClampPCMSample(dblDecodedPcm);
         }
     }
 
@@ -563,8 +583,8 @@ public abstract class XaAdpcmDecoder {
             SoundParameter param = _aoParameterPool[_iPoolIndex];
             _iPoolIndex++;
             param.set(iValue);
-            for (int i = 0; i < _uniqueParameters.size(); i++) {
-                if (_uniqueParameters.get(i).addIfEquals(param))
+            for (SoundParameter uniqueParam : _uniqueParameters) {
+                if (uniqueParam.addIfEquals(param))
                     return;
             }
             _uniqueParameters.add(param);
@@ -585,18 +605,15 @@ public abstract class XaAdpcmDecoder {
             blnCorruption = blnCorruption || !_uniqueParameters.get(0).isValid();
             if (blnCorruption && _log != null) {
                 // corruption!
-                _log.log(Level.WARNING, 
-                    "Sector {0,number,#} sound parameter corrupted: [{1}{2,choice,0# (bad)|1#}, {3}{4,choice,0# (bad)|1#}, {5}{6,choice,0# (bad)|1#}, {7}{8,choice,0# (bad)|1#}]. Chose {9}. Affects samples starting at {10}.", // I18N
-                    new Object[] {
-                        _iSourceSector,
-                        _aoParameterPool[0].getValue(), _aoParameterPool[0].isValid() ? 1 : 0,
-                        _aoParameterPool[1].getValue(), _aoParameterPool[1].isValid() ? 1 : 0,
-                        _aoParameterPool[2].getValue(), _aoParameterPool[2].isValid() ? 1 : 0,
-                        _aoParameterPool[3].getValue(), _aoParameterPool[3].isValid() ? 1 : 0,
-                        iChosen,
-                        _lngSamplesRead
-                    }
-                );
+                I.XA_SOUND_PARAMETER_CORRUPTED(
+                    _iSourceSector,
+                    _aoParameterPool[0].getValue(), _aoParameterPool[0].isValid() ? 1 : 0,
+                    _aoParameterPool[1].getValue(), _aoParameterPool[1].isValid() ? 1 : 0,
+                    _aoParameterPool[2].getValue(), _aoParameterPool[2].isValid() ? 1 : 0,
+                    _aoParameterPool[3].getValue(), _aoParameterPool[3].isValid() ? 1 : 0,
+                    iChosen,
+                    _lngSamplesRead
+                ).log(_log, Level.WARNING);
             }
             _uniqueParameters.clear();
             _iPoolIndex = 0;
@@ -638,7 +655,7 @@ public abstract class XaAdpcmDecoder {
             /** Checks if other SoundParameter has the same value. If so, add it
              * to the internal list of duplicates.
              * @return if other SoundParameter has the same value. */
-            public boolean addIfEquals(SoundParameter other) {
+            public boolean addIfEquals(@Nonnull SoundParameter other) {
                 if (other._iValue == _iValue) {
                     _duplicates.add(other);
                     return true;
@@ -656,8 +673,8 @@ public abstract class XaAdpcmDecoder {
              * @return Never 0.
              */
             // [implements Comparable]
-            public int compareTo(SoundParameter other) {
-                if (_iValue == other._iValue)
+            public int compareTo(@CheckForNull SoundParameter other) {
+                if (other == null || _iValue == other._iValue)
                     throw new IllegalStateException("Logic of RobustSoundParameter.add() must be wrong.");
                 
                 if (_blnIsValid && !other._blnIsValid)
@@ -687,14 +704,14 @@ public abstract class XaAdpcmDecoder {
 
             @Override
             public int hashCode() {
-                throw new UnsupportedOperationException();
+                throw new UnsupportedOperationException("Should never happen");
             }
 
             public String toString() {
                 StringBuilder sb = new StringBuilder();
                 sb.append('[').append(_iIndex).append(']');
-                for (int i = 0; i < _duplicates.size(); i++) {
-                    sb.append(",[").append(_duplicates.get(i)._iIndex).append(']');
+                for (SoundParameter dup : _duplicates) {
+                    sb.append(",[").append(dup._iIndex).append(']');
                 }
                 sb.append('=').append(Misc.bitsToString(_iValue, 8));
                 if (!_blnIsValid)

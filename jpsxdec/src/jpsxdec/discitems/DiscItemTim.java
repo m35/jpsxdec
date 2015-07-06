@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,8 +41,12 @@ package jpsxdec.discitems;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.util.IncompatibleException;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.TimSaverBuilder;
 import jpsxdec.tim.Tim;
@@ -66,11 +70,12 @@ public class DiscItemTim extends DiscItem {
     private static final String DIMENSIONS_KEY = "Dimensions";
     private final int _iWidth, _iHeight;
     
-    public DiscItemTim(int iStartSector, int iEndSector, 
+    public DiscItemTim(@Nonnull CdFileSectorReader cd,
+                       int iStartSector, int iEndSector,
                        int iStartOffset, int iPaletteCount, int iBitsPerPixel,
                        int iWidth, int iHeight)
     {
-        super(iStartSector, iEndSector);
+        super(cd, iStartSector, iEndSector);
         _iStartOffset = iStartOffset;
         _iPaletteCount = iPaletteCount;
         _iBitsPerPixel = iBitsPerPixel;
@@ -78,8 +83,10 @@ public class DiscItemTim extends DiscItem {
         _iHeight = iHeight;
     }
     
-    public DiscItemTim(SerializedDiscItem fields) throws NotThisTypeException {
-        super(fields);
+    public DiscItemTim(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+            throws NotThisTypeException
+    {
+        super(cd, fields);
         _iStartOffset = fields.getInt(START_OFFSET_KEY);
         _iPaletteCount = fields.getInt(PALETTE_COUNT_KEY);
         _iBitsPerPixel = fields.getInt(BITSPERPIXEL_KEY);
@@ -89,7 +96,7 @@ public class DiscItemTim extends DiscItem {
     }
     
     @Override
-    public SerializedDiscItem serialize() {
+    public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
         fields.addNumber(START_OFFSET_KEY, _iStartOffset);
         fields.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
@@ -98,22 +105,21 @@ public class DiscItemTim extends DiscItem {
         return fields;
     }
     
-    public String getSerializationTypeId() {
+    public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
 
     @Override
-    public LocalizedMessage getInterestingDescription() {
-        return new LocalizedMessage("{0,number,#}x{1,number,#}, Palettes: {2,number,#}", // I18N
-                                    _iWidth, _iHeight, _iPaletteCount);
+    public @Nonnull LocalizedMessage getInterestingDescription() {
+        return I.GUI_TIM_IMAGE_DETAILS(_iWidth, _iHeight, _iPaletteCount);
     }
 
-    public TimSaverBuilder makeSaverBuilder() {
+    public @Nonnull TimSaverBuilder makeSaverBuilder() {
         return new TimSaverBuilder(this);
     }
 
     @Override
-    public GeneralType getType() {
+    public @Nonnull GeneralType getType() {
         return GeneralType.Image;
     }
 
@@ -133,7 +139,7 @@ public class DiscItemTim extends DiscItem {
         return _iBitsPerPixel;
     }
 
-    public Tim readTim() throws IOException, NotThisTypeException {
+    public @Nonnull Tim readTim() throws IOException, NotThisTypeException {
         DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
                 getSourceCd(), getStartSector(), getStartOffset());
         return Tim.read(stream);
@@ -148,7 +154,7 @@ public class DiscItemTim extends DiscItem {
     }
 
     @Override
-    public int compareTo(DiscItem other) {
+    public int compareTo(@Nonnull DiscItem other) {
         if (other instanceof DiscItemTim) {
             DiscItemTim otherTim = (DiscItemTim) other;
             int i = Misc.intCompare(getStartSector(), otherTim.getStartSector());
@@ -163,19 +169,27 @@ public class DiscItemTim extends DiscItem {
 
     /** Attempts to replace the TIM image on the disc with the a new TIM created
      * from a BufferedImage. */
-    public void replace(FeedbackStream Feedback, BufferedImage bi) 
-            throws IOException, NotThisTypeException 
+    public void replace(@Nonnull FeedbackStream Feedback, @Nonnull BufferedImage bi)
+            throws IOException, NotThisTypeException, IncompatibleException
     {
         if (bi.getWidth() != _iWidth || bi.getHeight() != _iHeight)
-            throw new IllegalArgumentException(String.format(
-                    "New TIM dimensions (%dx%d) do not match existing TIM dimensions (%dx%d).",
+            throw new IncompatibleException(I.TIM_REPLACE_DIMENSIONS_MISMATCH(
                     bi.getWidth(), bi.getHeight(), _iWidth, _iHeight));
         if (_iPaletteCount != 1)
-            throw new IllegalArgumentException("Unable to replace a multi-paletted TIM with a simple image.");
+            throw new IncompatibleException(I.TIM_REPLACE_MULTI_CLUT_UNABLE());
         
         DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
                 getSourceCd(), getStartSector(), getStartOffset());
-        Tim tim = Tim.read(stream);
+        Tim tim;
+        try {
+            tim = Tim.read(stream);
+        } finally {
+            try {
+                stream.close();
+            } catch (IOException ex) {
+                Logger.getLogger(DiscItemTim.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
         tim.replaceImageData(bi);
         
         // get the byte size of the current tim
@@ -186,7 +200,7 @@ public class DiscItemTim extends DiscItem {
         writeNewTimData(abNewTim, Feedback);
     }
     
-    private void writeNewTimData(byte[] abNewTim, FeedbackStream Feedback) throws IOException {
+    private void writeNewTimData(@Nonnull byte[] abNewTim, @Nonnull FeedbackStream Feedback) throws IOException {
         // write to the first sector
         CdFileSectorReader cd = getSourceCd();
         int iSector = getStartSector();
@@ -194,7 +208,7 @@ public class DiscItemTim extends DiscItem {
         int iBytesToWrite = abNewTim.length;
         if (_iStartOffset + iBytesToWrite > abUserData.length)
             iBytesToWrite = abUserData.length - _iStartOffset;
-        Feedback.println(I18N.S("Writing {0,number,#} bytes to sector {1,number,#}", iBytesToWrite, iSector)); // I18N
+        Feedback.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
         System.arraycopy(abNewTim, 0, abUserData, _iStartOffset, iBytesToWrite);
         cd.writeSector(iSector, abUserData);
         
@@ -209,7 +223,7 @@ public class DiscItemTim extends DiscItem {
             iBytesToWrite = abNewTim.length - iBytesWritten;
             if (iBytesToWrite > abUserData.length)
                 iBytesToWrite = abUserData.length;
-            Feedback.println(I18N.S("Writing {0,number,#} bytes to sector {1,number,#}", iBytesToWrite, iSector)); // I18N
+            Feedback.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
             System.arraycopy(abNewTim, iBytesWritten, abUserData, 0, iBytesToWrite);
             cd.writeSector(iSector, abUserData);
             iBytesWritten += iBytesToWrite;

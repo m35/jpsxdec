@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
+import javax.annotation.Nonnull;
 
 
 /** Super-class of the C structures used in the AVI file format. This provides
@@ -48,28 +49,28 @@ import java.io.UnsupportedEncodingException;
  *  in the AVI file. */
 abstract class AVIstruct {
 
-    public static void write32LE(RandomAccessFile raf, int i) throws IOException {
+    public static void write32LE(@Nonnull RandomAccessFile raf, int i) throws IOException {
         raf.write(i & 0xFF);
         raf.write((i >>>  8) & 0xFF);
         raf.write((i >>> 16) & 0xFF);
         raf.write((i >>> 24) & 0xFF);
     }
     
-    public static void write16LE(RandomAccessFile raf, short si) throws IOException {
+    public static void write16LE(@Nonnull RandomAccessFile raf, short si) throws IOException {
         raf.write(si& 0xFF);
         raf.write((si >>> 8) & 0xFF);
     }
     
-    public static int string2int(String s) {
+    public static int string2int(@Nonnull String s) {
         if (s.length() != 4) throw new IllegalArgumentException();
         try {
             return bytes2int(s.getBytes("US-ASCII"));
         } catch (UnsupportedEncodingException ex) {
-            throw new RuntimeException(ex.getMessage());
+            throw new RuntimeException(ex.getMessage(), ex);
         }
     }
     
-    public static int bytes2int(byte[] ab) {
+    public static int bytes2int(@Nonnull byte[] ab) {
         if (ab.length != 4) throw new IllegalArgumentException();
         
         return (ab[0] & 0xff) |
@@ -78,17 +79,17 @@ abstract class AVIstruct {
                ((ab[3] & 0xff) << 24);
     }
     
-    public abstract void write(RandomAccessFile raf) throws IOException;
+    public abstract void write(@Nonnull RandomAccessFile raf) throws IOException;
     public abstract int sizeof();
     
     private long _lngPlaceholder;
     
-    public void makePlaceholder(RandomAccessFile raf) throws IOException {
+    public void makePlaceholder(@Nonnull RandomAccessFile raf) throws IOException {
         _lngPlaceholder = raf.getFilePointer();
         raf.write(new byte[this.sizeof()]);
     }
     
-    public void goBackAndWrite(RandomAccessFile raf) throws IOException {
+    public void goBackAndWrite(@Nonnull RandomAccessFile raf) throws IOException {
         long lngCurPos = raf.getFilePointer(); // save this pos
         raf.seek(_lngPlaceholder); // go back
         this.write(raf); // write the data

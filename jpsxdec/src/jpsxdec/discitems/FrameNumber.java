@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,9 @@
 
 package jpsxdec.discitems;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -54,6 +55,7 @@ public class FrameNumber {
     /** Generates sequence of {@link FrameNumber}s.
      * Duplicates are automatically detected. */
     public static class FactoryWithHeader {
+        @CheckForNull
         private FrameNumber _lastNumber;
 
         public FrameNumber next(int iSector, int iHeaderFrameNumber) {
@@ -80,15 +82,15 @@ public class FrameNumber {
     }
 
     /** For serialization. */
-    public static String toRange(FrameNumber start, FrameNumber end) {
+    public static @Nonnull String toRange(@Nonnull FrameNumber start, @Nonnull FrameNumber end) {
         return start.serialize()+ "-" + end.serialize();
     }
 
     /** For serialization. */
-    public static FrameNumber[] parseRange(String sHeaderFrameRange) throws NotThisTypeException {
+    public static @Nonnull FrameNumber[] parseRange(@Nonnull String sHeaderFrameRange) throws NotThisTypeException {
         String[] as = sHeaderFrameRange.split("\\-");
         if (as.length != 2)
-            throw new NotThisTypeException("Invalid frame range {0}", sHeaderFrameRange); // I18N
+            throw new NotThisTypeException(I.INVALID_FRAME_RANGE(sHeaderFrameRange));
         FrameNumber[] ao = new FrameNumber[2];
         ao[0] = new FrameNumber(as[0]);
         ao[1] = new FrameNumber(as[1]);
@@ -117,10 +119,10 @@ public class FrameNumber {
     }
 
     /** Deserialize/parse a header number from a string. */
-    public FrameNumber(String sSerialized) throws NotThisTypeException {
+    public FrameNumber(@Nonnull String sSerialized) throws NotThisTypeException {
         String[] as = Misc.regex("^(\\d+)/"+SECTOR_PREFIX+"(\\d+)(\\.(\\d+))?(/"+HEADER_PREFIX+"(\\d+)(\\.(\\d+))?)?$", sSerialized);
         if (as == null)
-            throw new NotThisTypeException("Invalid frame number {0}", sSerialized); // I18N
+            throw new NotThisTypeException(I.INVALID_FRAME_NUMBER(sSerialized));
 
         try {
             _iIndex = Integer.parseInt(as[1]);
@@ -130,7 +132,7 @@ public class FrameNumber {
             _iHeaderDuplicateIndex = Misc.parseIntOrDefault(as[8],
                                      _iHeaderFrameNumber >= 0 ? 0 : -1);
         } catch (NumberFormatException ex) {
-            throw new NotThisTypeException("Invalid frame number {0}", sSerialized); // I18N
+            throw new NotThisTypeException(I.INVALID_FRAME_NUMBER(sSerialized));
         }
     }
 
@@ -138,7 +140,7 @@ public class FrameNumber {
         return _iIndex;
     }
 
-    public String getIndexString() {
+    public @Nonnull String getIndexString() {
         return String.valueOf(_iIndex);
     }
 
@@ -150,7 +152,7 @@ public class FrameNumber {
         return _iStartSectorDuplicateIndex;
     }
 
-    public String getSectorString() {
+    public @Nonnull String getSectorString() {
         StringBuilder sb = new StringBuilder();
         sb.append(_iStartSector);
         if (_iStartSectorDuplicateIndex > 0) {
@@ -168,7 +170,7 @@ public class FrameNumber {
         return _iHeaderDuplicateIndex;
     }
 
-    public String getHeaderFrameString() {
+    public @Nonnull String getHeaderFrameString() {
         StringBuilder sb = new StringBuilder();
         sb.append(_iHeaderFrameNumber);
         if (_iHeaderDuplicateIndex > 0) {
@@ -182,7 +184,7 @@ public class FrameNumber {
      * <p>
      * Format: index,@sector[.dup][,#header[.dup]]
      */
-    public String serialize() {
+    public @Nonnull String serialize() {
         StringBuilder sb = new StringBuilder();
         sb.append(_iIndex);
         sb.append('/');

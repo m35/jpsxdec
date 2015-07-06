@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,8 @@ import java.util.Enumeration;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
@@ -54,14 +56,16 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
     private static final Logger LOG = Logger.getLogger(DemuxedSectorInputStream.class.getName());
     
     private static class SectorEnumerator implements Enumeration<InputStream> {
+        @Nonnull
         public final CdFileSectorReader _cd;
         private final int _iOffset;
         private final int _iStartSector;
         private final int _iEndSector;
         public int _iSector;
+        @CheckForNull
         private ByteArrayFPIS _currentStream;
 
-        public SectorEnumerator(CdFileSectorReader cd, int iSector, int iOffset, int iEndSector) {
+        public SectorEnumerator(@Nonnull CdFileSectorReader cd, int iSector, int iOffset, int iEndSector) {
             _cd = cd;
             _iStartSector = _iSector = iSector;
             _iOffset = iOffset;
@@ -72,7 +76,7 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
             return _iSector <= _iEndSector;
         }
 
-        public InputStream nextElement() {
+        public @Nonnull InputStream nextElement() {
             if (!hasMoreElements())
                 throw new NoSuchElementException();
             try {
@@ -99,11 +103,11 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
         
     }
 
-    public DemuxedSectorInputStream(CdFileSectorReader cd, int iStartSector, int iOffset) {
+    public DemuxedSectorInputStream(@Nonnull CdFileSectorReader cd, int iStartSector, int iOffset) {
         this(cd, iStartSector, iOffset, cd.getLength()-1);
     }
     
-    public DemuxedSectorInputStream(CdFileSectorReader cd, int iStartSector, int iOffset, int iEndSector) {
+    public DemuxedSectorInputStream(@Nonnull CdFileSectorReader cd, int iStartSector, int iOffset, int iEndSector) {
         super(new SectorEnumerator(cd, iStartSector, iOffset, iEndSector));
     }
     

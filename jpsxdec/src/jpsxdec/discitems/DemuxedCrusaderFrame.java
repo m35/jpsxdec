@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,28 +40,35 @@ package jpsxdec.discitems;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.sectors.SectorCrusader;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IncompatibleException;
 
 public class DemuxedCrusaderFrame implements IDemuxedFrame {
 
     private static final Logger LOG = Logger.getLogger(DemuxedCrusaderFrame.class.getName());
     
     private final int _iWidth, _iHeight;
+    @Nonnull
     private final SectorCrusader[] _aoSectors;
     private final int _iStartSector, _iEndSector;
     private final int _iSize;
     private final int _iStartOffset;
+    @Nonnull
     private final FrameNumber _frameNumber;
     /** The sector the frame should be presented.
      * This will be many sectors after the frame was read. */
     private final int _iPresentationSector;
 
     public DemuxedCrusaderFrame(int iWidth, int iHeight, 
-                                SectorCrusader[] aoSectors, 
+                                @Nonnull SectorCrusader[] aoSectors,
                                 int iByteSize, int iFirstSectorStartOffset, 
-                                FrameNumber frameNumber,
+                                @Nonnull FrameNumber frameNumber,
                                 int iPresentationSector)
     {
         _iWidth = iWidth;
@@ -87,7 +94,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         _iEndSector = iMax;
     }
     
-    public byte[] copyDemuxData(byte[] abBuffer) {
+    public @Nonnull byte[] copyDemuxData(@CheckForNull byte[] abBuffer) {
         if (abBuffer == null || abBuffer.length < getDemuxSize())
             abBuffer = new byte[getDemuxSize()];
 
@@ -105,7 +112,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
                 chunk.copyIdentifiedUserData(0, abBuffer, iPos, iLen);
                 iPos += iLen;
             } else {
-                LOG.log(Level.WARNING, "Frame {0} chunk {1,number,#} missing.", new Object[]{_frameNumber, iChunk}); // I18N
+                I.MISSING_CHUNK(_frameNumber, iChunk).log(LOG, Level.WARNING); // TODO: log this for user
             }
         }
         return abBuffer;
@@ -127,7 +134,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         return _iEndSector;
     }
 
-    public FrameNumber getFrame() {
+    public @Nonnull FrameNumber getFrame() {
         return _frameNumber;
     }
 
@@ -143,7 +150,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         return _iPresentationSector;
     }
 
-    public void printSectors(FeedbackStream fbs) {
+    public void printSectors(@Nonnull FeedbackStream fbs) {
         int iDemuxOfs = getDemuxSize();
         for (int i=0; i < getChunksInFrame(); i++) {
             fbs.print(_aoSectors[i]);
@@ -159,19 +166,22 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         }
     }
 
-    public void writeToSectors(byte[] abNewDemux,
+    public void writeToSectors(@Nonnull byte[] abNewDemux,
                                int iUsedSize_ignore, int iMdecCodeCount_ignore,
-                               CdFileSectorReader cd, FeedbackStream fbs)
-             throws IOException 
+                               @Nonnull CdFileSectorReader cd,
+                               @Nonnull FeedbackStream fbs)
+             throws IOException, IncompatibleException
     {
         if (abNewDemux.length > _iSize)
-            throw new IllegalArgumentException("Unable to fit new demux size " + abNewDemux.length + " into " + _iSize + " bytes");
+            throw new IncompatibleException(I.NEW_FRAME_DOES_NOT_FIT(_frameNumber, abNewDemux.length, _iSize));
+
+        // not going to check that the bitstream is of any version
 
         int iDemuxOfs = 0;
         for (int iChunk = 0; iChunk < _aoSectors.length; iChunk++) {
             SectorCrusader vidSector = _aoSectors[iChunk];
             if (vidSector == null) {
-                fbs.printlnWarn("Trying to replace a frame with missing chunks??");
+                fbs.printlnWarn(I.CMD_FRAME_TO_REPLACE_MISSING_CHUNKS());
                 continue;
             }
             byte[] abSectUserData = vidSector.getCdSector().getCdUserDataCopy();

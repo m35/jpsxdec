@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
@@ -52,16 +53,16 @@ public class SectorAliceNullVideo extends IdentifiedSector {
 
     // .. Instance fields ..................................................
 
-    // Magic 0x00000160                  //  0    [4 bytes]
-    private int  _iChunkNumber;          //  4    [2 bytes]
-    private int  _iChunksInThisFrame;    //  6    [2 bytes]
-    protected int  _iFrameNumber;        //  8    [4 bytes]
-    private long _lngUsedDemuxSize;      //  12   [4 bytes]
-    // 16 bytes -- all zeros             //  16   [16 bytes]
+    // Magic 0x00000160                    //  0    [4 bytes]
+    private int    _iChunkNumber;          //  4    [2 bytes]
+    private int    _iChunksInThisFrame;    //  6    [2 bytes]
+    protected int  _iFrameNumber;          //  8    [4 bytes]
+    private long   _lngUsedDemuxSize;      //  12   [4 bytes]
+    // 16 bytes -- all zeros               //  16   [16 bytes]
     //   32 TOTAL
 
 
-    public SectorAliceNullVideo(CdSector cdSector) {
+    public SectorAliceNullVideo(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -141,17 +142,17 @@ public class SectorAliceNullVideo extends IdentifiedSector {
             ALICE_VIDEO_SECTOR_HEADER_SIZE;
     }
 
-    public ByteArrayFPIS getIdentifiedUserDataStream() {
+    public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
         return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                 ALICE_VIDEO_SECTOR_HEADER_SIZE, getIdentifiedUserDataSize());
     }
 
-    public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
+    public void copyIdentifiedUserData(@Nonnull byte[] abOut, int iOutPos) {
         super.getCdSector().getCdUserDataCopy(ALICE_VIDEO_SECTOR_HEADER_SIZE, abOut,
                 iOutPos, getIdentifiedUserDataSize());
     }
     
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "AliceNull";
     }
 

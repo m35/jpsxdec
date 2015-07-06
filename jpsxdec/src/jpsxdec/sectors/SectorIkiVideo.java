@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,11 +37,15 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Iki;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.IO;
+import jpsxdec.util.IncompatibleException;
 
 
 public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorWithFrameNumber {
@@ -64,7 +68,7 @@ public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorW
     @Override
     protected int getSectorHeaderSize() { return 32; }
     
-    public SectorIkiVideo(CdSector cdSector) {
+    public SectorIkiVideo(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
         
@@ -105,7 +109,7 @@ public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorW
 
     // .. Public methods ...................................................
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "IKI Video";
     }
 
@@ -147,18 +151,21 @@ public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorW
 
 
     @Override
-    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
-                                               int iMdecCodeCount, byte[] abSectUserData)
+    public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
+                                               int iMdecCodeCount, @Nonnull byte[] abSectUserData)
+            throws IncompatibleException
     {
-        if (!BitStreamUncompressor_Iki.checkHeader(abDemuxData)) {
-            throw new IllegalArgumentException("Frame type is not iki");
+        final int[] aiDimensions;
+        try {
+            aiDimensions = BitStreamUncompressor_Iki.getDimensions(abDemuxData);
+        } catch (MdecException.Uncompress ex) {
+            throw new IncompatibleException(I.REPLACE_FRAME_TYPE_NOT_IKI(), ex);
         }
-        int iWidth = BitStreamUncompressor_Iki.getWidth(abDemuxData);
-        int iHeight = BitStreamUncompressor_Iki.getHeight(abDemuxData);
+        int iWidth = aiDimensions[0];
+        int iHeight = aiDimensions[1];
         if (iWidth != _iWidth || iHeight != _iHeight) {
-            //throw new IllegalArgumentException(String.format(
-            //        "Iki frame dimentions do not match sector dimensions: %dx%d != %dx%d", 
-            //        iWidth, iHeight, _iWidth, _iHeight));
+            throw new IncompatibleException(I.REPLACE_FRAME_IKI_DIMENSIONS_MISMATCH(
+                                            iWidth, iHeight, _iWidth, _iHeight));
         }
 
         IO.writeInt16LE(abDemuxData, 4, (short)_iWidth);

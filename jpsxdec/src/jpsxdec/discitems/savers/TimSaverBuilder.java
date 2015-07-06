@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,9 +51,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemTim;
@@ -101,12 +104,13 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             PALETTE_FORMAT_LIST = paletted;
         }
         
+        @CheckForNull
         private final JavaImageFormat _javaFmt;
         
         private TimSaveFormat() {
             _javaFmt = null;
         }
-        private TimSaveFormat(JavaImageFormat eJavaFmt) {
+        private TimSaveFormat(@Nonnull JavaImageFormat eJavaFmt) {
             _javaFmt = eJavaFmt;
         }
 
@@ -122,14 +126,17 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             return (_javaFmt == null) || _javaFmt.hasAlpha();
         }
 
-        private String getId() {
+        private @Nonnull String getId() {
             if (_javaFmt == null)
                 return "tim";
             else
                 return _javaFmt.getId();
         }
 
-        public JavaImageFormat getJavaFormat() {
+        /** @throws UnsupportedOperationException if this is {@link #TIM}. */
+        public @Nonnull JavaImageFormat getJavaFormat() {
+            if (_javaFmt == null)
+                throw new UnsupportedOperationException("TIM does not have a Java image format");
             return _javaFmt;
         }
         
@@ -140,7 +147,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                 return _javaFmt.toString();
         }
 
-        public static List<TimSaveFormat> getValidFormats(int iBpp) {
+        public static @Nonnull List<TimSaveFormat> getValidFormats(int iBpp) {
             switch (iBpp) {
                 case 4:
                 case 8:
@@ -149,27 +156,38 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                     return TRUE_COLOR_ALPHA_FORMAT_LIST;
                 case 24:
                     return TRUE_COLOR_FORMAT_LIST;
-                default: throw new RuntimeException("Impossible Tim bpp");
+                default: throw new IllegalArgumentException("Impossible Tim bpp " + iBpp);
             }
+        }
+
+        public String getExtension() {
+            if (_javaFmt == null)
+                return "tim";
+            else
+                return _javaFmt.getExtension();
         }
     }
 
     // -----------------------------------------------------------------------
 
+    @Nonnull
     private final DiscItemTim _timItem;
+    @Nonnull
     private final List<TimSaveFormat> _validFormats;
 
+    @Nonnull
     private final boolean[] _ablnSavePalette;
+    @Nonnull
     private TimSaveFormat _saveFormat;
 
-    public TimSaverBuilder(DiscItemTim timItem) {
+    public TimSaverBuilder(@Nonnull DiscItemTim timItem) {
         _timItem = timItem;
         _ablnSavePalette = new boolean[_timItem.getPaletteCount()];
         _validFormats = TimSaveFormat.getValidFormats(_timItem.getBitsPerPixel());
         resetToDefaults();
     }
 
-    Tim readTim() throws IOException, NotThisTypeException {
+    @Nonnull Tim readTim() throws IOException, NotThisTypeException {
         return _timItem.readTim();
     }
 
@@ -180,7 +198,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     }
 
     @Override
-    public boolean copySettingsTo(DiscItemSaverBuilder other) {
+    public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder other) {
         if (!(other instanceof TimSaverBuilder))
             return false;
         TimSaverBuilder otherTim = (TimSaverBuilder) other;
@@ -188,7 +206,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         return true;
     }
 
-    public DiscItemSaverBuilderGui getOptionPane() {
+    public @Nonnull DiscItemSaverBuilderGui getOptionPane() {
         return new TimSaverBuilderGui(this);
     }
 
@@ -212,11 +230,11 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         return _saveFormat != TimSaveFormat.TIM;
     }
 
-    public void setImageFormat(TimSaveFormat fmt) {
+    public void setImageFormat(@Nonnull TimSaveFormat fmt) {
         _saveFormat = fmt;
         firePossibleChange();
     }
-    public TimSaveFormat getImageFormat() {
+    public @Nonnull TimSaveFormat getImageFormat() {
         return _saveFormat;
     }
     public int getImageFormat_listSize() {
@@ -229,61 +247,49 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     // .................................................................
 
 
-    public String getOutputFilesSummary() {
+    public @Nonnull LocalizedMessage getOutputFilesSummary() {
         if (_saveFormat == TimSaveFormat.TIM)
-            return makeTimFileName();
+            return new UnlocalizedMessage(makeTimFileName());
+
+        // _saveFormat.getJavaFormat() should != null for non-Tim formats
         JavaImageFormat format = _saveFormat.getJavaFormat();
 
-        StringBuilder sb = new StringBuilder();
-        int iRunStart;
-        int iCurrentImage = 0;
-        while (iCurrentImage < _ablnSavePalette.length) {
-            for (; iCurrentImage < _ablnSavePalette.length && !_ablnSavePalette[iCurrentImage]; iCurrentImage++) {
+        int iCount = 0;
+        String sStartFile = null, sEndFile = null;
+        for (int iCurrentImage = 0; iCurrentImage < _ablnSavePalette.length; iCurrentImage++) {
+            if (_ablnSavePalette[iCurrentImage]) {
+                iCount++;
+                String sFile = makePaletteFileName(iCurrentImage, format);
+                if (sStartFile == null)
+                    sStartFile = sFile;
+                sEndFile = sFile;
             }
-            if (iCurrentImage >= _ablnSavePalette.length)
-                break;
-            iRunStart = iCurrentImage;
-            iCurrentImage++;
-            for (; iCurrentImage < _ablnSavePalette.length && _ablnSavePalette[iCurrentImage]; iCurrentImage++) {
-            }
-            if (sb.length() > 0) sb.append(", ");
-            if (iRunStart == iCurrentImage - 1) {
-                sb.append(makePaletteFileName(iRunStart, format));
-            } else {
-                sb.append(makePaletteFileName(iRunStart, format));
-                sb.append('-');
-                sb.append(makePaletteFileName(iCurrentImage - 1, format));
-            }
-            iCurrentImage++;
         }
-        return sb.toString();
+        
+        if (iCount == 0)
+            return I.TIM_OUTPUT_FILES_NONE();
+        else if (sStartFile == sEndFile)
+            return new UnlocalizedMessage(sStartFile); // just 1 file
+        else
+            return I.TIM_OUTPUT_FILES(iCount, sStartFile, sEndFile);
     }
 
-    private String makePaletteFileName(int iFile, JavaImageFormat format) {
+    private @Nonnull String makePaletteFileName(int iFile, @Nonnull JavaImageFormat format) {
         return String.format("%s_p%02d.%s",
                 _timItem.getSuggestedBaseName(),
                 iFile,
                 format.getExtension());
     }
 
-    private String makeTimFileName() {
+    private @Nonnull String makeTimFileName() {
         return _timItem.getSuggestedBaseName() + ".tim";
     }
 
 
     // .................................................................
 
-    private String getCmdLineList() {
-        StringBuilder sb = new StringBuilder();
-        for (TimSaveFormat fmt : _validFormats) {
-            if (sb.length() > 0)
-                sb.append(", ");
-            sb.append(fmt.getId());
-        }
-        return sb.toString();
-    }
 
-    private TimSaveFormat fromCmdLine(String sCmdLine) {
+    private @CheckForNull TimSaveFormat fromCmdLine(@Nonnull String sCmdLine) {
         for (TimSaveFormat fmt : _validFormats) {
             if (fmt.getId().equalsIgnoreCase(sCmdLine))
                 return fmt;
@@ -291,7 +297,9 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         return null;
     }
 
-    public String[] commandLineOptions(String[] asArgs, FeedbackStream fbs) {
+    public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, 
+                                                     @Nonnull FeedbackStream fbs)
+    {
         if (asArgs == null) return null;
 
         ArgParser parser = new ArgParser("", false);
@@ -302,14 +310,13 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         StringHolder format = new StringHolder();
         parser.addOption("-imgfmt,-if %s", format);
 
-        String[] asRemain = null;
-        asRemain = parser.matchAllArgs(asArgs, 0, 0);
+        String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
 
         // parse args for which palettes to save
         if (timpalettes.value != null) {
             boolean[] ablnNewValues = parseNumberListRange(timpalettes.value, getPaletteCount());
             if (ablnNewValues == null) {
-                fbs.printlnWarn(I18N.S("Invalid list of palettes {0}", timpalettes.value)); // I18N
+                fbs.printlnWarn(I.CMD_PALETTE_LIST_INVALID(timpalettes.value));
             } else {
                 System.arraycopy(ablnNewValues, 0, _ablnSavePalette, 0, getPaletteCount());
             }
@@ -318,7 +325,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         if (format.value != null) {
             TimSaveFormat fmt = fromCmdLine(format.value);
             if (fmt == null) {
-                fbs.printlnWarn(I18N.S("Invalid format {0}", format.value)); // I18N
+                fbs.printlnWarn(I.CMD_TIM_SAVE_FORMAT_INVALID(format.value));
             } else {
                 setImageFormat(fmt);
             }
@@ -331,7 +338,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     /** Parse a string of comma-delimited numbers and ranges, then creates an
      *  array with indexes toggled based on the numbers.
      *  e.g. 3,6-9,15 */
-    private static boolean[] parseNumberListRange(String s, int iMax) {
+    private static boolean[] parseNumberListRange(@Nonnull String s, int iMax) {
         try {
             boolean[] abln = new boolean[iMax];
             Arrays.fill(abln, false);
@@ -353,28 +360,32 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     }
 
 
-    public void printHelp(FeedbackStream fbs) {
+    public void printHelp(@Nonnull FeedbackStream fbs) {
         TabularFeedback tfb = new TabularFeedback();
         tfb.setRowSpacing(1);
 
-        tfb.print("-pal <#,#-#>").tab().print("Palettes to save (default all)."); // I18N
+        tfb.print(I.CMD_TIM_PAL()).tab().print(I.CMD_TIM_PAL_HELP());
         tfb.newRow();
-        tfb.print("-imgfmt,-if <format>").tab().println("Output image format (default "+_validFormats.get(0)+"). Options:"); // I18N
-        tfb.indent().print(getCmdLineList());
+        tfb.print(I.CMD_TIM_IF()).tab().print(I.CMD_TIM_IF_HELP(_validFormats.get(0).getExtension()));
+        tfb.indent();
+        for (TimSaveFormat fmt : _validFormats) {
+            tfb.ln().print(new UnlocalizedMessage(fmt.getExtension()));
+        }
 
         tfb.write(fbs);
     }
 
-    public IDiscItemSaver makeSaver(File directory) {
+    public @Nonnull IDiscItemSaver makeSaver(@CheckForNull File directory) {
         if (_saveFormat == TimSaveFormat.TIM)
             return new TimRawSaver(_timItem, directory, makeTimFileName());
         else {
+            // _saveFormat.getJavaFormat() should != null for non-Tim formats
             String[] asOutputFiles = new String[_ablnSavePalette.length];
             for (int i = 0; i < asOutputFiles.length; i++) {
                 if (_ablnSavePalette[i])
                     asOutputFiles[i] = makePaletteFileName(i, _saveFormat.getJavaFormat());
             }
-            return new TimImageSaver(_saveFormat.getJavaFormat(), _timItem,
+            return new TimImageSaver(_saveFormat, _timItem,
                                      directory, asOutputFiles, getOutputFilesSummary());
         }
     }
@@ -383,20 +394,22 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
     private static class TimRawSaver implements IDiscItemSaver {
 
+        @Nonnull
         private final DiscItemTim _timItem;
+        @Nonnull
         private final File _outputFile;
 
-        public TimRawSaver(DiscItemTim tim, File outputDir, String sOutputFile) {
+        public TimRawSaver(@Nonnull DiscItemTim tim, @CheckForNull File outputDir, @Nonnull String sOutputFile) {
             _timItem = tim;
             _outputFile = new File(outputDir, sOutputFile);
         }
         
-        public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
+        public void startSave(@Nonnull ProgressListenerLogger pll) throws IOException, TaskCanceledException {
             OutputStream os = null;
             try {
                 pll.progressStart();
                 Tim tim = _timItem.readTim();
-                pll.event(new LocalizedMessage("Writing {0}", _outputFile.getName())); // I18N
+                pll.event(I.CMD_WRITING(_outputFile.getName()));
                 IO.makeDirsForFile(_outputFile);
                 os = new BufferedOutputStream(new FileOutputStream(_outputFile));
                 tim.write(os);
@@ -415,23 +428,23 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             }
         }
 
-        public String getInput() {
+        public @Nonnull String getInput() {
             return _timItem.getIndexId().serialize();
         }
 
-        public DiscItemTim getDiscItem() {
+        public @Nonnull DiscItemTim getDiscItem() {
             return _timItem;
         }
 
-        public String getOutputSummary() {
-            return _outputFile.getName();
+        public @Nonnull LocalizedMessage getOutputSummary() {
+            return new UnlocalizedMessage(_outputFile.getName());
         }
 
-        public void printSelectedOptions(PrintStream ps) {
-            ps.println(I18N.S("Format: {0}", TimSaveFormat.TIM)); // I18N
+        public void printSelectedOptions(@Nonnull PrintStream ps) {
+            ps.println(I.CMD_TIM_SAVE_FORMAT(TimSaveFormat.TIM.getExtension()));
         }
 
-        public File[] getGeneratedFiles() {
+        public @Nonnull File[] getGeneratedFiles() {
             return new File[] {_outputFile};
         }
     }
@@ -439,37 +452,46 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     
     private static class TimImageSaver implements IDiscItemSaver {
 
+        @Nonnull
+        private final TimSaveFormat _timFormat;
+        @Nonnull
         private final JavaImageFormat _imageFormat;
+        @Nonnull
         private final DiscItemTim _timItem;
+        @CheckForNull
         private final File _outputDir;
+        @Nonnull
         private final String[] _asOutputFiles;
-        private final String _sOutputSummary;
+        @Nonnull
+        private final LocalizedMessage _outputSummary;
+        @CheckForNull
         private ArrayList<File> _generatedFiles;
 
-        public TimImageSaver(JavaImageFormat imageFormat, DiscItemTim timItem, 
-                             File outputDir, String[] asOutputFiles,
-                             String sOutputSummary)
+        public TimImageSaver(@Nonnull TimSaveFormat timFormat, @Nonnull DiscItemTim timItem,
+                             @CheckForNull File outputDir, @Nonnull String[] asOutputFiles,
+                             @Nonnull LocalizedMessage outputSummary)
         {
-            _imageFormat = imageFormat;
+            _timFormat = timFormat;
+            _imageFormat = _timFormat.getJavaFormat();
             _timItem = timItem;
             _outputDir = outputDir;
             _asOutputFiles = asOutputFiles;
-            _sOutputSummary = sOutputSummary;
+            _outputSummary = outputSummary;
         }
 
-        public String getInput() {
+        public @Nonnull String getInput() {
             return _timItem.getIndexId().serialize();
         }
 
-        public DiscItemTim getDiscItem() {
+        public @Nonnull DiscItemTim getDiscItem() {
             return _timItem;
         }
 
-        public String getOutputSummary() {
-            return _sOutputSummary;
+        public @Nonnull LocalizedMessage getOutputSummary() {
+            return _outputSummary;
         }
 
-        public void startSave(ProgressListenerLogger pll) throws TaskCanceledException {
+        public void startSave(@Nonnull ProgressListenerLogger pll) throws TaskCanceledException {
 
             try {
                 Tim tim = _timItem.readTim();
@@ -479,7 +501,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                 for (int i = 0; i < _asOutputFiles.length; i++) {
                     if (_asOutputFiles[i] != null) {
                         String sFile = _asOutputFiles[i];
-                        pll.event(new LocalizedMessage("Writing {0}", sFile)); // I18N
+                        pll.event(I.CMD_WRITING(sFile));
                         BufferedImage bi = tim.toBufferedImage(i);
                         File f = new File(_outputDir, sFile);
                         IO.makeDirsForFile(f);
@@ -487,7 +509,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                         if (blnOk)
                             _generatedFiles.add(f);
                         else
-                            pll.log(Level.WARNING, "Unable to write image for palette {0,number,#}", i); // I18N
+                            I.CMD_PALETTE_IMAGE_SAVE_FAIL(f, i).log(pll, Level.SEVERE);
                         pll.progressUpdate((double)i / _timItem.getPaletteCount());
                     }
                 }
@@ -499,12 +521,12 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             }
         }
 
-        public void printSelectedOptions(PrintStream ps) {
-            ps.println(I18N.S("Palette files: {0}", _sOutputSummary)); // I18N
-            ps.println(I18N.S("Format: {0}", _imageFormat.getExtension())); // I18N
+        public void printSelectedOptions(@Nonnull PrintStream ps) {
+            ps.println(I.CMD_PALETTE_FILES(_outputSummary));
+            ps.println(I.CMD_TIM_SAVE_FORMAT(_timFormat.getExtension()));
         }
 
-        public File[] getGeneratedFiles() {
+        public @CheckForNull File[] getGeneratedFiles() {
             if (_generatedFiles == null)
                 return null;
             else

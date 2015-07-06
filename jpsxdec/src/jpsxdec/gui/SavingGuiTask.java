@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,8 +42,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.gui.SavingGuiTable.Row;
 import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
@@ -54,36 +56,44 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
 {
     public static final String ALL_DONE = "alldone";
 
+    @Nonnull
     private final ArrayList<Row> _rows;
+    @CheckForNull
     private Row _currentRow;
 
     
     final ProgressListenerLogger _progressLog = new ProgressListenerLogger("save")
     {
 
-        public void progressStart(LocalizedMessage msg) throws TaskCanceledException {
-            publish(new Event_Message(_currentRow, msg));
+        public void progressStart(@CheckForNull LocalizedMessage msg) throws TaskCanceledException {
+            if (_currentRow != null && msg != null)
+                publish(new Event_Message(_currentRow, msg));
             setProgress(0);
         }
 
         public void progressStart() throws TaskCanceledException {
             if (isCancelled())
                 throw new TaskCanceledException();
-            EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_STARTED));
+            if (_currentRow != null)
+                EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_STARTED));
         }
 
         public void progressEnd() throws TaskCanceledException {
-            EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_DONE));
+            if (_currentRow != null)
+                EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_DONE));
         }
 
         public void progressUpdate(double dblPercentComplete) throws TaskCanceledException {
             if (isCancelled())
                 throw new TaskCanceledException();
-            EventQueue.invokeLater(new Event_Progress(_currentRow, (int)Math.round(dblPercentComplete * 100)));
+            if (_currentRow != null)
+                EventQueue.invokeLater(new Event_Progress(_currentRow,
+                                                          (int)Math.round(dblPercentComplete * 100)));
         }
 
-        public void event(LocalizedMessage msg) {
-            publish(new Event_Message(_currentRow, msg));
+        public void event(@Nonnull LocalizedMessage msg) {
+            if (_currentRow != null)
+                publish(new Event_Message(_currentRow, msg));
         }
 
         public boolean seekingEvent() {
@@ -97,17 +107,19 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     };
 
 
-    public SavingGuiTask(ArrayList<Row> rows, String sCd) {
+    public SavingGuiTask(@Nonnull ArrayList<Row> rows, @Nonnull String sCd) {
         _rows = rows;
 
         _progressLog.info(sCd);
 
         _progressLog.setListener(new UserFriendlyLogger.OnWarnErr() {
             public void onWarn(LogRecord record) {
-                EventQueue.invokeLater(new Event_Warning(_currentRow));
+                if (_currentRow != null)
+                    EventQueue.invokeLater(new Event_Warning(_currentRow));
             }
             public void onErr(LogRecord record) {
-                EventQueue.invokeLater(new Event_Error(_currentRow));
+                if (_currentRow != null)
+                    EventQueue.invokeLater(new Event_Error(_currentRow));
             }
         });
     }
@@ -125,7 +137,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
                 break;
             } catch (Throwable ex) {
                 // uncool
-                _progressLog.log(Level.SEVERE, I18N.S("Unhandled error"), ex); // I18N
+                I.GUI_UNHANDLED_ERROR().log(_progressLog, Level.SEVERE, ex);
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 if (ex instanceof InterruptedException)
                     break;
@@ -140,7 +152,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         return null;
     }
 
-    final protected void process(List<Event_Message> events) {
+    final protected void process(@Nonnull List<Event_Message> events) {
         // only process the last event
         events.get(events.size()-1).run();
     }
@@ -148,26 +160,28 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     // -- Event types -------------------------------------------------------
 
     private abstract static class Event implements Runnable {
+        @Nonnull
         protected final Row _row;
-        public Event(Row row) { _row = row; }
+        public Event(@Nonnull Row row) { _row = row; }
         abstract public void run();
     }
     private class Event_Warning extends Event {
-        public Event_Warning(Row row) { super(row); }
+        public Event_Warning(@Nonnull Row row) { super(row); }
         public void run() { _row.incWarn(); }
     }
     private class Event_Error extends Event {
-        public Event_Error(Row row) { super(row); }
+        public Event_Error(@Nonnull Row row) { super(row); }
         public void run() { _row.incErr(); }
     }
     private static class Event_Progress extends Event {
         private final int _val;
-        public Event_Progress(Row row, int val) { super(row); _val = val; }
+        public Event_Progress(@Nonnull Row row, int val) { super(row); _val = val; }
         public void run() { _row.setProgress(_val); }
     }
     public static class Event_Message extends Event {
+        @Nonnull
         private final LocalizedMessage _val;
-        public Event_Message(Row row, LocalizedMessage val) { super(row); _val = val; }
+        public Event_Message(@Nonnull Row row, @Nonnull LocalizedMessage val) { super(row); _val = val; }
         public void run() { _row.setMessage(_val.getLocalizedMessage()); }
     }
 

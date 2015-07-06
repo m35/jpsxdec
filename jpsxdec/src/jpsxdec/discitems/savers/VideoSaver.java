@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,9 +42,12 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.logging.Level;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemVideoStream;
@@ -69,22 +72,33 @@ public abstract class VideoSaver
                    VDP.GeneratedFileListener
 {
 
+    @CheckForNull
     protected final FrameLookup _startFrame, _endFrame;
+    @Nonnull
     protected final DiscItemVideoStream _videoItem;
+    @Nonnull
     protected final VideoSaverBuilder.SectorFeeder _sectorFeeder;
     protected final int _iCroppedWidth, _iCroppedHeight;
     protected final ArrayList<LocalizedMessage> _selectedOptions = new ArrayList<LocalizedMessage>();
+    @Nonnull
     protected VDP.IBitstreamListener _bsListener;
     /** Reusable buffer to temporarily hold bitstream. */
+    @CheckForNull
     private byte[] _abBitstreamBuf;
+    @CheckForNull
     protected FrameNumber _currentFrame;
     /** Initially null. {@link #startSave(jpsxdec.util.ProgressListenerLogger)}
      * implementations need to create it before starting saving. */
+    @CheckForNull
     protected ArrayList<File> _generatedFiles;
 
+    @Nonnull
     protected final FrameNumberFormatter _numberFormatter;
 
-    public VideoSaver(DiscItemVideoStream videoItem, SectorFeeder fdr, VideoSaverBuilder vsb) {
+    public VideoSaver(@Nonnull DiscItemVideoStream videoItem, @Nonnull SectorFeeder fdr, 
+                      @Nonnull VideoSaverBuilder vsb)
+    {
+        // _bsListener initialized in subclasses
         _videoItem = videoItem;
         _sectorFeeder = fdr;
         
@@ -99,10 +113,9 @@ public abstract class VideoSaver
             _iCroppedHeight = Calc.fullDimension(videoItem.getHeight());
         }
         if (vsb.getCrop_enabled())
-            _selectedOptions.add(
-                    new LocalizedMessage("Cropping: {0,choice,0#No|1#Yes}", vsb.getCrop() ? 1 : 0)); // I18N
+            _selectedOptions.add(I.CMD_CROPPING(vsb.getCrop() ? 1 : 0));
 
-        _selectedOptions.add(new LocalizedMessage("Video format: {0}", vsb.getVideoFormat())); // I18N
+        _selectedOptions.add(I.CMD_VIDEO_FORMAT(vsb.getVideoFormat()));
 
         _numberFormatter = videoItem.getFrameNumberFormat().makeFormatter(vsb.getFileNumberType());
 
@@ -110,33 +123,34 @@ public abstract class VideoSaver
     }
 
     /** Assumes {@link #_generatedFiles} was created before this is called. */
-    final public void fileGenerated(File f) {
+    final public void fileGenerated(@Nonnull File f) {
+        if (_generatedFiles == null)
+            throw new IllegalStateException("Attempting to add generated files before start of saving");
         _generatedFiles.add(f);
     }
 
-    final public File[] getGeneratedFiles() {
+    final public @CheckForNull File[] getGeneratedFiles() {
         if (_generatedFiles == null)
             return null;
         else
             return _generatedFiles.toArray(new File[_generatedFiles.size()]);
     }
 
-    public DiscItem getDiscItem() {
+    public @Nonnull DiscItem getDiscItem() {
         return _videoItem;
     }
 
     public String getInput() {
-        // TODO: handling when index id is null
         return _videoItem.getIndexId().serialize();
     }
 
-    public void printSelectedOptions(PrintStream ps) {
+    public void printSelectedOptions(@Nonnull PrintStream ps) {
         for (LocalizedMessage line : _selectedOptions) {
             ps.println(line.getLocalizedMessage());
         }
     }
 
-    final public void frameComplete(IDemuxedFrame frame) throws IOException {
+    final public void frameComplete(@Nonnull IDemuxedFrame frame) throws IOException {
         _currentFrame = frame.getFrame();
         if (!savingAudio() && ((_startFrame != null && _startFrame.compareTo(_currentFrame) > 0) ||
                                (_endFrame   != null && _endFrame.compareTo(_currentFrame)   < 0)))
@@ -147,13 +161,15 @@ public abstract class VideoSaver
 
     abstract protected boolean savingAudio();
 
-    protected MdecDecoder makeVideoDecoder(VideoSaverBuilder vsb) {
+    /** Call only when the target video format has decoders. */
+    protected @Nonnull MdecDecoder makeVideoDecoder(@Nonnull VideoSaverBuilder vsb) {
+        // quality should != null for the target format
         MdecDecodeQuality quality = vsb.getDecodeQuality();
-        _selectedOptions.add(new LocalizedMessage("Decode quality: {0}", quality)); // I18N
+        _selectedOptions.add(I.CMD_DECODE_QUALITY(quality));
         MdecDecoder vidDecoder = quality.makeDecoder(_videoItem.getWidth(), _videoItem.getHeight());
         if (vidDecoder instanceof MdecDecoder_double_interpolate) {
             Upsampler chroma = vsb.getChromaInterpolation();
-            _selectedOptions.add(new LocalizedMessage("Chroma upsampling: {0}", chroma)); // I18N
+            _selectedOptions.add(I.CMD_UPSAMPLE_QUALITY(chroma));
             ((MdecDecoder_double_interpolate)vidDecoder).setResampler(chroma);
         }
         return vidDecoder;
@@ -161,17 +177,20 @@ public abstract class VideoSaver
 
     protected void addSkipFrameSelectedOptions() {
         if (_startFrame != null)
-            _selectedOptions.add(new LocalizedMessage("Skip frames before {0}", _startFrame)); // I18N
+            _selectedOptions.add(I.CMD_FRAME_RANGE_BEFORE(_startFrame));
         if (_endFrame != null)
-            _selectedOptions.add(new LocalizedMessage("Skip frames after {0}", _endFrame)); // I18N
+            _selectedOptions.add(I.CMD_FRAME_RANGE_AFTER(_endFrame));
     }
 
     // =========================================================================
 
     public static class Sequence extends VideoSaver {
-        private final String _sOutSummary;
+        @Nonnull
+        private final LocalizedMessage _outSummary;
 
-        public Sequence(DiscItemVideoStream videoItem, File directory, SectorFeeder fdr, VideoSaverBuilder vsb) {
+        public Sequence(@Nonnull DiscItemVideoStream videoItem, @Nonnull File directory,
+                        @Nonnull SectorFeeder fdr, @Nonnull VideoSaverBuilder vsb)
+        {
             super(videoItem, fdr, vsb);
             
             VideoFormat vf = vsb.getVideoFormat();
@@ -185,32 +204,27 @@ public abstract class VideoSaver
                 } break;
                 case IMGSEQ_MDEC:
                 {
-                    VDP.Bitstream2Mdec bs2mdec = new VDP.Bitstream2Mdec();
                     VDP.Mdec2File mdec2file = new VDP.Mdec2File(outFileFormat,
                             videoItem.getWidth(), videoItem.getHeight());
                     mdec2file.setGenFileListener(this);
-                    _bsListener = bs2mdec;
-                    bs2mdec.setMdec(mdec2file);
+                    _bsListener = new VDP.Bitstream2Mdec(mdec2file);
                 } break;
                 case IMGSEQ_JPG:
                 {
-                    VDP.Bitstream2Mdec bs2mdec = new VDP.Bitstream2Mdec();
                     VDP.Mdec2Jpeg mdec2jpeg = new VDP.Mdec2Jpeg(outFileFormat,
                             videoItem.getWidth(), videoItem.getHeight());
                     mdec2jpeg.setGenFileListener(this);
-                    _bsListener = bs2mdec;
-                    bs2mdec.setMdec(mdec2jpeg);
+                    _bsListener = new VDP.Bitstream2Mdec(mdec2jpeg);
                 } break;
                 case IMGSEQ_BMP:
                 case IMGSEQ_PNG:
                 {
-                    VDP.Bitstream2Mdec bs2mdec = new VDP.Bitstream2Mdec();
+                    // vf.getImgFmt() should != null for these image formats
                     VDP.Mdec2Decoded mdec2decode = new VDP.Mdec2Decoded(makeVideoDecoder(vsb));
                     VDP.Decoded2JavaImage decode2img = new VDP.Decoded2JavaImage(
                             outFileFormat, vf.getImgFmt(), _iCroppedWidth, _iCroppedHeight);
                     decode2img.setGenFileListener(this);
-                    _bsListener = bs2mdec;
-                    bs2mdec.setMdec(mdec2decode);
+                    _bsListener = new VDP.Bitstream2Mdec(mdec2decode);
                     mdec2decode.setDecoded(decode2img);
                 } break;
                 default:
@@ -219,17 +233,17 @@ public abstract class VideoSaver
 
             File[] aoOutRng = vsb.getOutputFileRange();
             if (aoOutRng.length == 1) {
-                _sOutSummary = aoOutRng[0].toString();
-                _selectedOptions.add(new LocalizedMessage("Output file: {0}", aoOutRng[0])); // I18N
+                _outSummary = new UnlocalizedMessage(aoOutRng[0].toString());
+                _selectedOptions.add(I.CMD_OUTPUT_FILE(aoOutRng[0]));
             } else {
-                _sOutSummary = I18N.S("{0}-{1}", aoOutRng[0], aoOutRng[1]); // I18N
-                _selectedOptions.add(new LocalizedMessage("Output files: {0}-{1}", aoOutRng[0], aoOutRng[1])); // I18N
+                _outSummary = I.VID_RANGE_OF_FILES_TO_SAVE(aoOutRng[0], aoOutRng[1]);
+                _selectedOptions.add(I.CMD_OUTPUT_FILES(aoOutRng[0], aoOutRng[1]));
             }
             addSkipFrameSelectedOptions();
         }
 
-        public String getOutputSummary() {
-            return _sOutSummary;
+        public @Nonnull LocalizedMessage getOutputSummary() {
+            return _outSummary;
         }
 
         @Override
@@ -237,33 +251,38 @@ public abstract class VideoSaver
             return false;
         }
 
-        public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
+        public void startSave(@Nonnull ProgressListenerLogger pll) throws IOException, TaskCanceledException {
 
-            pll.progressStart();
-            final int iSectorLen = _videoItem.getSectorLength();
+            _bsListener.setLog(pll);
+            try {
+                pll.progressStart();
+                final int iSectorLen = _videoItem.getSectorLength();
 
-            _generatedFiles = new ArrayList<File>();
-            for (int iSector = 0; iSector < iSectorLen; iSector++) {
+                _generatedFiles = new ArrayList<File>();
+                for (int iSector = 0; iSector < iSectorLen; iSector++) {
 
-                IdentifiedSector identifiedSector = _videoItem.getRelativeIdentifiedSector(iSector);
-                if (identifiedSector != null) {
-                    _sectorFeeder.feedSector(identifiedSector, pll);
+                    IdentifiedSector identifiedSector = _videoItem.getRelativeIdentifiedSector(iSector);
+                    if (identifiedSector != null) {
+                        _sectorFeeder.feedSector(identifiedSector, pll);
+                    }
+
+                    if (pll.seekingEvent() && _currentFrame != null)
+                        pll.event(_numberFormatter.getDescription(_currentFrame));
+
+                    pll.progressUpdate(iSector / (double)iSectorLen);
+
+                    // if we've already handled the frames we want to save
+                    // break early
+                    if (_endFrame != null && _currentFrame != null && _endFrame.compareTo(_currentFrame) < 0)
+                        break;
                 }
-
+                _sectorFeeder.flush(pll);
                 if (pll.seekingEvent() && _currentFrame != null)
-                    pll.event(_numberFormatter.getDescription(_currentFrame)); // I18N
-
-                pll.progressUpdate(iSector / (double)iSectorLen);
-
-                // if we've already handled the frames we want to save
-                // break early
-                if (_endFrame != null && _currentFrame != null && _endFrame.compareTo(_currentFrame) < 0)
-                    break;
+                    pll.event(_numberFormatter.getDescription(_currentFrame));
+                pll.progressEnd();
+            } finally {
+                _bsListener.setLog(null);
             }
-            _sectorFeeder.flush(pll);
-            if (pll.seekingEvent() && _currentFrame != null)
-                pll.event(_numberFormatter.getDescription(_currentFrame)); // I18N
-            pll.progressEnd();
         }
 
     }
@@ -271,22 +290,23 @@ public abstract class VideoSaver
     // =========================================================================
     
     public static class Avi extends VideoSaver {
+        @Nonnull
         private final VDP.ToAvi _2avi;
 
-        public Avi(DiscItemVideoStream videoItem, File directory, SectorFeeder fdr, VideoSaverBuilder vsb) {
+        public Avi(@Nonnull DiscItemVideoStream videoItem, @CheckForNull File directory,
+                   @Nonnull SectorFeeder fdr, @Nonnull VideoSaverBuilder vsb)
+        {
             super(videoItem, fdr, vsb);
 
             VideoFormat vf = vsb.getVideoFormat();
 
-            _selectedOptions.add(new LocalizedMessage("Disc speed: {0,choice,1#1x|2#2x} ({1} fps)", // I18N
-                                 vsb.getSingleSpeed() ? 1 : 2,
+            _selectedOptions.add(I.CMD_DISC_SPEED(vsb.getSingleSpeed() ? 1 : 2,
                                  vsb.getFps().asDouble()));
 
-            VDP.Bitstream2Mdec bs2mdec = new VDP.Bitstream2Mdec();
             int iSectorsPerSecond = vsb.getSingleSpeed() ? 75 : 150;
             File outFile = FrameFileFormatter.makeFile(directory, vf, videoItem);
             if (fdr.audioDecoder == null) {
-                _selectedOptions.add(new LocalizedMessage("No audio")); // I18N
+                _selectedOptions.add(I.CMD_NO_AUDIO());
                 VideoSync vidSync = new VideoSync(_videoItem.getPresentationStartSector(),
                                                   iSectorsPerSecond,
                                                   _videoItem.getSectorsPerFrame());
@@ -307,12 +327,11 @@ public abstract class VideoSaver
                     default: throw new UnsupportedOperationException(vf + " not implemented yet.");
                 }
             } else {
-                _selectedOptions.add(new LocalizedMessage("With audio item(s):")); // I18N
-                for (String sDetails : fdr.audioDecoder.getAudioDetails()) {
-                    _selectedOptions.add(new LocalizedMessage("{0}", sDetails));
+                _selectedOptions.add(I.CMD_SAVING_WITH_AUDIO_ITEMS());
+                for (LocalizedMessage details : fdr.audioDecoder.getAudioDetails()) {
+                    _selectedOptions.add(details);
                 }
-                _selectedOptions.add(new LocalizedMessage("Emulate PSX audio/video sync: {0,choice,0#No|1#Yes}", // I18N
-                        vsb.getEmulatePsxAvSync() ? 1 : 0));
+                _selectedOptions.add(I.CMD_EMULATE_PSX_AV_SYNC_NY(vsb.getEmulatePsxAvSync() ? 1 : 0));
 
                 AudioVideoSync avSync = new AudioVideoSync(
                         _videoItem.getPresentationStartSector(),
@@ -344,19 +363,18 @@ public abstract class VideoSaver
             _2avi.setGenFileListener(this);
 
             if (_2avi instanceof VDP.IMdecListener) {
-                bs2mdec.setMdec((VDP.IMdecListener)_2avi);
+                _bsListener = new VDP.Bitstream2Mdec((VDP.IMdecListener)_2avi);
             } else if (_2avi instanceof VDP.IDecodedListener) {
                 VDP.Mdec2Decoded mdec2decode = new VDP.Mdec2Decoded(makeVideoDecoder(vsb));
-                bs2mdec.setMdec(mdec2decode);
+                _bsListener = new VDP.Bitstream2Mdec(mdec2decode);
                 mdec2decode.setDecoded((VDP.IDecodedListener)_2avi);
             }
-            _bsListener = bs2mdec;
-            _selectedOptions.add(new LocalizedMessage("Saving as: {0}", _2avi.getOutputFile())); // I18N
+            _selectedOptions.add(I.CMD_SAVING_AS(_2avi.getOutputFile()));
             addSkipFrameSelectedOptions();
         }
 
-        public String getOutputSummary() {
-            return _2avi.getOutputFile().getName();
+        public @Nonnull LocalizedMessage getOutputSummary() {
+            return new UnlocalizedMessage(_2avi.getOutputFile().getName());
         }
 
         @Override
@@ -364,7 +382,7 @@ public abstract class VideoSaver
             return _sectorFeeder.audioDecoder != null;
         }
 
-        public void startSave(ProgressListenerLogger pll) throws IOException, TaskCanceledException {
+        public void startSave(@Nonnull ProgressListenerLogger pll) throws IOException, TaskCanceledException {
             final int iStartSector, iEndSector;
             if (_sectorFeeder.audioDecoder == null) {
                 iStartSector = _videoItem.getStartSector();
@@ -394,25 +412,26 @@ public abstract class VideoSaver
                     }
 
                     if (pll.seekingEvent() && _currentFrame != null)
-                        pll.event(_numberFormatter.getDescription(_currentFrame)); // I18N
+                        pll.event(_numberFormatter.getDescription(_currentFrame));
 
                     pll.progressUpdate((iSector - iStartSector) / SECTOR_LENGTH);
 
                     // if we've already handled the frames we want to save
                     // break early
-                    if (_sectorFeeder.audioDecoder == null && _endFrame != null && _currentFrame != null && _endFrame.compareTo(_currentFrame) < 0)
+                    if (_sectorFeeder.audioDecoder == null &&
+                        _endFrame != null && _currentFrame != null && _endFrame.compareTo(_currentFrame) < 0)
                         break;
                 }
 
                 _sectorFeeder.flush(pll);
                 if (pll.seekingEvent() && _currentFrame != null)
-                    pll.event(_numberFormatter.getDescription(_currentFrame)); // I18N
+                    pll.event(_numberFormatter.getDescription(_currentFrame));
                 pll.progressEnd();
             } finally {
                 try {
                     _2avi.close();
                 } catch (Throwable ex) {
-                    pll.log(Level.SEVERE, "Error closing AVI", ex); // I18N
+                    I.AVI_CLOSE_ERR().log(pll, Level.SEVERE, ex);
                 }
                 _bsListener.setLog(null);
             }

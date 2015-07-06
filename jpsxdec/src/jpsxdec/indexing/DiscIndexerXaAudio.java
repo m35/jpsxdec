@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,9 @@ package jpsxdec.indexing;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemXaAudioStream;
@@ -58,9 +61,10 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerXaAudio.class.getName());
 
+    @Nonnull
     private final Logger _errLog;
 
-    public DiscIndexerXaAudio(Logger errLog) {
+    public DiscIndexerXaAudio(@Nonnull Logger errLog) {
         _errLog = errLog;
     }
 
@@ -69,25 +73,26 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
     }
 
     @Override
-    public void indexGenerated(DiscIndex aThis) {
-        
+    public void indexGenerated(DiscIndex index) {        
     }
 
     /** Tracks the indexing of one audio stream in one channel. */
     private static class AudioStreamIndex {
 
         /** First sector of the audio stream. */
-        private int _iStartSector;
+        private final int _iStartSector;
 
         /** Last sector before {@link #_currentXA} that was a part of this stream. */
+        @CheckForNull
         private SectorXaAudio _previousXA;
         /** Last sector (or 'current' sector, if you will) that was a part of this stream.
          *  Is never null. */
+        @Nonnull
         private SectorXaAudio _currentXA;
 
         /** Get the last (or 'current') sector that was part of this stream.
          *  May be null. */
-        public SectorXaAudio getCurrent() { return _currentXA; }
+        public @Nonnull SectorXaAudio getCurrent() { return _currentXA; }
 
         /** Number of sectors between XA sectors that are part of this stream.
          * Should only ever be 1, 2, 4, 8, 16, or 32
@@ -95,9 +100,10 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
          * Is -1 until 2nd sector is discovered. */
         private int _iAudioStride = -1;
 
+        @Nonnull
         private final Logger _errLog;
 
-        public AudioStreamIndex(SectorXaAudio first, Logger errLog) {
+        public AudioStreamIndex(@Nonnull SectorXaAudio first, @Nonnull Logger errLog) {
             _currentXA = first;
             _iStartSector = first.getSectorNumber();
             _errLog = errLog;
@@ -107,7 +113,7 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
          * @return true if the sector was accepted as part of this stream,
          *         or false if the stream is finished.
          */
-        public boolean sectorRead(SectorXaAudio newCurrent) {
+        public boolean sectorRead(@Nonnull SectorXaAudio newCurrent) {
 
             if (!newCurrent.matchesPrevious(_currentXA))
                 return false;
@@ -125,39 +131,18 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
             return true; // the sector was accepted
         }
 
-        public void createMediaItemFromCurrent(DiscIndexer adder) {
+        public void createMediaItem(@Nonnull DiscIndexer adder) {
             if (_previousXA == null && _currentXA.isSilent()) {
-                if (_errLog.isLoggable(Level.INFO)) {
-                    _errLog.log(Level.INFO, "Ignoring a silent XA audio stream that is only 1 sector long at sector {0,number,#}, channel {1,number,#}", // I18N
-                            new Object[]{_iStartSector, _currentXA.getChannel()});
-                }
+                I.IGNORING_SILENT_XA_SECTOR(_iStartSector, _currentXA.getChannel()).log(_errLog, Level.INFO);
                 return;
             }
             adder.addDiscItem(new DiscItemXaAudioStream(
+                              adder.getCd(),
                               _iStartSector, _currentXA.getSectorNumber(),
                               _currentXA.getChannel(),
                               _currentXA.getSamplesPerSecond(),
                               _currentXA.isStereo(), _currentXA.getBitsPerSample(),
                               _iAudioStride));
-        }
-
-        public void createMediaItemFromPrevious(DiscIndexer adder) {
-            if (_previousXA == null) {
-                // this should only happen due to programmer error
-                if (LOG.isLoggable(Level.WARNING))
-                    LOG.log(Level.WARNING, "Trying to create XA item from non-existant previous sector! Current sector is {0,number,#}", _iStartSector);
-                return;
-            } 
-            DiscItemXaAudioStream ret = new DiscItemXaAudioStream(
-                _iStartSector, _previousXA.getSectorNumber(),
-                _currentXA.getChannel(),
-                _currentXA.getSamplesPerSecond(),
-                _currentXA.isStereo(), _currentXA.getBitsPerSample(),
-                _iAudioStride);
-            _previousXA = null;
-            _iStartSector = _currentXA.getSectorNumber();
-            _iAudioStride = -1;
-            adder.addDiscItem(ret);
         }
 
         public boolean ended(int iSectorNum) {
@@ -171,16 +156,16 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
             new AudioStreamIndex[SectorXaAudio.MAX_VALID_CHANNEL+1];
 
     @Override
-    public DiscItem deserializeLineRead(SerializedDiscItem oSerial) {
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem serial) {
         try {
-            if (DiscItemXaAudioStream.TYPE_ID.equals(oSerial.getType())) {
-                return new DiscItemXaAudioStream(oSerial);
+            if (DiscItemXaAudioStream.TYPE_ID.equals(serial.getType())) {
+                return new DiscItemXaAudioStream(getCd(), serial);
             }
         } catch (NotThisTypeException ex) {}
         return null;
     }
 
-    public void indexingSectorRead(IdentifiedSector sector) {
+    public void indexingSectorRead(@Nonnull IdentifiedSector sector) {
         if (sector instanceof SectorXaAudio) {
 
             SectorXaAudio audSect = (SectorXaAudio)sector;
@@ -189,7 +174,7 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
             if (audStream == null) {
                 _aoChannels[audSect.getChannel()] = new AudioStreamIndex(audSect, _errLog);
             } else if (!audStream.sectorRead(audSect)) {
-                audStream.createMediaItemFromCurrent(this);
+                audStream.createMediaItem(this);
                 _aoChannels[audSect.getChannel()] = new AudioStreamIndex(audSect, _errLog);
             }
         } else {
@@ -198,19 +183,22 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
             for (int i = 0; i < _aoChannels.length; i++) {
                 AudioStreamIndex audStream = _aoChannels[i];
                 if (audStream != null && audStream.ended(sector.getSectorNumber())) {
-                    audStream.createMediaItemFromCurrent(this);
+                    audStream.createMediaItem(this);
                     _aoChannels[i] = null;
                 }
             }
         }
 
         CdSector cdSector = sector.getCdSector();
-        if (cdSector.hasSubHeader() && cdSector.getSubMode().getEofMarker()) {
+        if (cdSector.hasSubHeader()              &&
+            cdSector.getSubMode().getEofMarker() &&
+            cdSector.getSubHeaderChannel() < _aoChannels.length)
+        {
             // if the sector's EOF bit was set, this stream is closed
             // this is important for many games
             AudioStreamIndex audStream = _aoChannels[cdSector.getSubHeaderChannel()];
             if (audStream != null) {
-                audStream.createMediaItemFromCurrent(this);
+                audStream.createMediaItem(this);
                 _aoChannels[cdSector.getSubHeaderChannel()] = null;
             }
         }
@@ -222,7 +210,7 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
         for (int i = 0; i < _aoChannels.length; i++) {
             AudioStreamIndex audStream = _aoChannels[i];
             if (audStream != null) {
-                audStream.createMediaItemFromCurrent(this);
+                audStream.createMediaItem(this);
                 _aoChannels[i] = null;
             }
         }

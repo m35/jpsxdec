@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,9 +46,11 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.swing.JOptionPane;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.ProgressListenerLogger;
@@ -62,16 +64,21 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     private static final Logger LOG = Logger.getLogger(IndexingGui.class.getName());
 
     /** The task to perform. */
+    @Nonnull
     private ProgresGuiTask _task;
     /** Holds any exception thrown by the task. */
+    @CheckForNull
     private Throwable _exception;
 
     private int _iWarningCount;
     private int _iErrorCount;
 
+    @CheckForNull
     public DiscIndex _index;
+    @Nonnull
     public CdFileSectorReader _cd;
 
+    @Nonnull
     private State _eState = State.NOT_STARTED;
 
     private enum State {
@@ -84,18 +91,18 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
 
     /** Creates new form Progress */
-    public IndexingGui(java.awt.Dialog parent, CdFileSectorReader cd) {
+    public IndexingGui(@Nonnull java.awt.Dialog parent, @Nonnull CdFileSectorReader cd) {
         super(parent, true);
         sharedConstructor(parent, cd);
     }
 
     /** Creates new form Progress */
-    public IndexingGui(java.awt.Frame parent, CdFileSectorReader cd) {
+    public IndexingGui(@Nonnull java.awt.Frame parent, @Nonnull CdFileSectorReader cd) {
         super(parent, true);
         sharedConstructor(parent, cd);
     }
 
-    private void sharedConstructor(java.awt.Window parent, CdFileSectorReader cd)
+    private void sharedConstructor(@Nonnull java.awt.Window parent, @Nonnull CdFileSectorReader cd)
     {
         initComponents();
 
@@ -116,14 +123,17 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
 
 
-    public void propertyChange(PropertyChangeEvent evt) {
+    public void propertyChange(@Nonnull PropertyChangeEvent evt) {
         // update the progress bar
         if (ProgresGuiTask.PROGRESS_VALUE.equals(evt.getPropertyName())) {
             _guiProgress.setValue((Integer)evt.getNewValue());
         } else if (ProgresGuiTask.EXCEPTION.equals(evt.getPropertyName()) ) {
             // fatal/unhandled exception
+            // we know getNewValue() != null since we created the event
             _exception = (Throwable)evt.getNewValue();
-            JOptionPane.showMessageDialog(this, _exception.toString(), I18N.S("Exception"), JOptionPane.ERROR_MESSAGE); // I18N
+            JOptionPane.showMessageDialog(this, _exception.toString(), 
+                    I.GUI_INDEX_EXCEPTION_DIALOG_TITLE().getLocalizedMessage(),
+                    JOptionPane.ERROR_MESSAGE);
             _exception.printStackTrace(System.err); // debug
             taskComplete();
         } else if (ProgresGuiTask.DONE.equals(evt.getPropertyName()) ) {
@@ -134,17 +144,17 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     private void taskComplete() {
         _eState = State.ENDED;
         _guiCancelBtn.setEnabled(true);
-        _guiCancelBtn.setText(I18N.S("Close")); // I18N
+        _guiCancelBtn.setText(I.GUI_CLOSE_BTN().getLocalizedMessage());
         if (wasCanceled()) {
-            _guiResultLbl.setText(I18N.S("Canceled")); // I18N
+            _guiResultLbl.setText(I.GUI_INDEX_RESULT_CANCELED().getLocalizedMessage());
             _guiResultLbl.setForeground(Color.orange);
         } else if (getException() != null) {
-            _guiResultLbl.setText(I18N.S("Failure - See {0} for details", _task.__progressLog.getFileName())); // I18N
+            _guiResultLbl.setText(I.GUI_INDEX_RESULT_FAILURE(_task.__progressLog.getFileName()).getLocalizedMessage());
             _guiResultLbl.setForeground(Color.red);
         } else if (_iWarningCount > 0 || _iErrorCount > 0) {
-            _guiResultLbl.setText(I18N.S("Success with messages - See {0} for details", _task.__progressLog.getFileName())); // I18N
+            _guiResultLbl.setText(I.GUI_INDEX_RESULT_OK_MSGS(_task.__progressLog.getFileName()).getLocalizedMessage());
         } else {
-            _guiResultLbl.setText(I18N.S("Success!")); // I18N
+            _guiResultLbl.setText(I.GUI_INDEX_RESULT_SUCCESS().getLocalizedMessage());
         }
     }
 
@@ -155,11 +165,11 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     }
 
     /** Returns the exception thrown by the task (or null if none). */
-    public Throwable getException() {
+    public @CheckForNull Throwable getException() {
         return _exception;
     }
 
-    public DiscIndex getIndex() {
+    public @CheckForNull DiscIndex getIndex() {
         return _index;
     }
 
@@ -186,7 +196,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiCancelBtn = new javax.swing.JButton();
         _guiResultLbl = new javax.swing.JLabel();
 
-        setTitle(I18N.S("Progress...")); // I18N
+        setTitle(I.GUI_INDEX_TITLE().getLocalizedMessage()); // NOI18N
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent evt) {
                 formWindowClosing(evt);
@@ -196,7 +206,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiMarginPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
         _guiMarginPanel.setLayout(new java.awt.GridBagLayout());
 
-        _guiSavingLbl.setText(I18N.S("Indexing:")); // I18N
+        _guiSavingLbl.setText(I.GUI_INDEXING_LABEL().getLocalizedMessage()); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.anchor = java.awt.GridBagConstraints.WEST;
         _guiMarginPanel.add(_guiSavingLbl, gridBagConstraints);
@@ -227,7 +237,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiBottomPanel.setLayout(new java.awt.GridBagLayout());
 
         _guiWarningsLbl.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        _guiWarningsLbl.setText(I18N.S("Warnings:")); // I18N
+        _guiWarningsLbl.setText(I.GUI_INDEX_WARNINGS_LABEL().getLocalizedMessage()); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = 0;
@@ -245,7 +255,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiBottomPanel.add(_guiWarningsCount, gridBagConstraints);
 
         _guiErrorsLbl.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        _guiErrorsLbl.setText(I18N.S("Errors:")); // I18N
+        _guiErrorsLbl.setText(I.GUI_INDEX_ERRORS_LABEL().getLocalizedMessage()); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = 1;
@@ -262,7 +272,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         gridBagConstraints.weightx = 1.0;
         _guiBottomPanel.add(_guiErrorsCount, gridBagConstraints);
 
-        _guiCancelBtn.setText(I18N.S("Start")); // I18N
+        _guiCancelBtn.setText(I.GUI_START_BTN().getLocalizedMessage()); // NOI18N
         _guiCancelBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 _guiCancelBtnActionPerformed(evt);
@@ -282,7 +292,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTH;
         _guiMarginPanel.add(_guiBottomPanel, gridBagConstraints);
 
-        _guiResultLbl.setText(I18N.S("Success!")); // I18N
+        _guiResultLbl.setText(I.GUI_INDEX_RESULT_SUCCESS().getLocalizedMessage()); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = 5;
@@ -298,7 +308,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     private void _guiCancelBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiCancelBtnActionPerformed
         switch (_eState) {
             case NOT_STARTED:
-                _guiCancelBtn.setText(I18N.S("Cancel")); // I18N
+                _guiCancelBtn.setText(I.GUI_CANCEL_BTN().getLocalizedMessage());
                 _task.execute();
                 _eState = State.RUNNING;
                 break;
@@ -338,25 +348,23 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
     // run in separate thread
 
-    private class ProgresGuiTask extends SwingWorker<Void, LocalizedMessage>
-    {
+    private class ProgresGuiTask extends SwingWorker<Void, LocalizedMessage> {
 
         public static final String PROGRESS_VALUE = "progress";
         public static final String EXCEPTION = "exception";
         public static final String DONE = "done";
 
         private final ProgressListenerLogger __progressLog = new ProgressListenerLogger("index") {
-            public void progressStart(LocalizedMessage msg) throws TaskCanceledException {
+            public void progressStart(@CheckForNull LocalizedMessage msg) throws TaskCanceledException {
                 if (isCancelled())
                     throw new TaskCanceledException();
-                publish(msg);
+                if (msg != null)
+                    publish(msg);
                 setProgress(0);
             }
 
             public void progressStart() throws TaskCanceledException {
-                if (isCancelled())
-                    throw new TaskCanceledException();
-                setProgress(0);
+                progressStart(null);
             }
 
             public void progressEnd() throws TaskCanceledException {
@@ -369,7 +377,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 setProgress((int)Math.round(dblPercentComplete * 100));
             }
 
-            public void event(LocalizedMessage msg) {
+            public void event(@Nonnull LocalizedMessage msg) {
                 publish(msg);
             }
 
@@ -391,17 +399,17 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                     EventQueue.invokeLater(new ExceptionLater(false));
                 }
             });
-            
-            __progressLog.log(Level.INFO, "Indexing {0}", _cd.getSourceFile()); // I18N
+
+            I.CMD_GUI_INDEXING(_cd).log(__progressLog, Level.INFO);
         }
 
         @Override
-        final protected void process(List<LocalizedMessage> chunks) {
+        final protected void process(@Nonnull List<LocalizedMessage> chunks) {
             _guiProgressDescription.setText(chunks.get(chunks.size()-1).getLocalizedMessage());
         }
 
         @Override
-        final protected Void doInBackground() {
+        final protected @CheckForNull Void doInBackground() {
             try {
                 _index = new DiscIndex(_cd, __progressLog);
             } catch (TaskCanceledException ex) {
@@ -410,7 +418,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 // uncool
                 _exception = ex;
                 firePropertyChange(EXCEPTION, null, ex); // calls IndexingGui#propertyChange()
-                __progressLog.log(Level.SEVERE, "Unhandled error", ex); // I18N
+                I.GUI_UNHANDLED_ERROR().log(__progressLog, Level.SEVERE, ex);
                 return null;
             }
             firePropertyChange(DONE, null, null); // calls IndexingGui#propertyChange()

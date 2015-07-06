@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,8 +39,10 @@ package jpsxdec.cmdline;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.sectors.IdentifiedSector;
@@ -48,20 +50,21 @@ import jpsxdec.sectors.IdentifiedSector;
 
 class Command_SectorDump extends Command {
 
+    @Nonnull
     private String _sOutfile;
 
     public Command_SectorDump() {
         super("-sectordump");
     }
 
-    protected LocalizedMessage validate(String s) {
+    protected @CheckForNull LocalizedMessage validate(@Nonnull String s) {
         _sOutfile = s;
         return null;
     }
 
-    public void execute(String[] asRemainingArgs) throws CommandLineException {
+    public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
         CdFileSectorReader cdReader = getCdReader();
-        _fbs.println(I18N.S("Generating sector list")); // I18N
+        _fbs.println(I.CMD_GENERATING_SECTOR_LIST());
         PrintStream ps = null;
         try {
             if (_sOutfile.equals("-")) {

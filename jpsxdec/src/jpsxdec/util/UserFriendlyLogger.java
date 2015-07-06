@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,7 +53,10 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.Version;
 
 
@@ -65,8 +68,8 @@ public class UserFriendlyLogger extends Logger {
     /** Listener will be notified of any {@link Level#WARNING} or
      * {@link Level#SEVERE} (errors). */
     public static interface OnWarnErr {
-        void onWarn(LogRecord record);
-        void onErr(LogRecord record);
+        void onWarn(@Nonnull LogRecord record);
+        void onErr(@Nonnull LogRecord record);
     }
     
     private static final class FriendlyFormatter extends Formatter {
@@ -76,61 +79,110 @@ public class UserFriendlyLogger extends Logger {
             throw new UnsupportedOperationException("Should never be called");
         }
 
-        public void print(LogRecord record, PrintStream ps) {
-            ps.print('[');
-            ps.print(record.getLevel().getLocalizedName());
-            ps.print("] ");
-            if (record.getMessage() != null) {
-                ps.print(formatMessage(record)); // localizes the message
+        private final static int HAS_MESSAGE = 1;
+        private final static int HAS_EXCEPTION = 2;
+        private final static int HAS_EXCEPTION_MSG = 4;
+
+        public void print(@Nonnull LogRecord record, @Nonnull PrintStream ps) {
+
+            int iFlags = 0;
+            if (record.getMessage() != null)
+                iFlags |= HAS_MESSAGE;
+            
+            Throwable ex = record.getThrown();
+            String sExMsg = null;
+            if (ex != null) {
+                iFlags |= HAS_EXCEPTION;
+                sExMsg = ex.getLocalizedMessage();
+                if (sExMsg != null)
+                    iFlags |= HAS_EXCEPTION_MSG;
             }
-            ps.println();
-            if (record.getThrown() != null) {
-                ps.print("[^EX^] "); // I18N
-                record.getThrown().printStackTrace(ps);
+
+            switch (iFlags) {
+                default:
+                case 0:
+                    // ???
+                    ps.println("Unexpected log record state " + iFlags);
+                    break;
+                case HAS_MESSAGE:
+                    ps.println(I.USER_LOG_MESSAGE(
+                               record.getLevel().getLocalizedName(),
+                               formatMessage(record)));
+                    break;
+
+                case HAS_EXCEPTION:
+                    ps.println(I.USER_LOG_EXCEPTION(
+                               record.getLevel().getLocalizedName(),
+                               ex.getClass().getSimpleName()));
+                    break;
+                case HAS_EXCEPTION | HAS_EXCEPTION_MSG:
+                    ps.println(I.USER_LOG_EXCEPTION_MSG(
+                               record.getLevel().getLocalizedName(),
+                               ex.getClass().getSimpleName(),
+                               sExMsg));
+                    break;
+                    
+                case HAS_MESSAGE | HAS_EXCEPTION:
+                    ps.println(I.USER_LOG_MESSAGE_EXCEPTION(
+                               record.getLevel().getLocalizedName(),
+                               formatMessage(record),
+                               ex.getClass().getSimpleName()));
+                    break;
+                case HAS_MESSAGE | HAS_EXCEPTION | HAS_EXCEPTION_MSG:
+                    ps.println(I.USER_LOG_MESSAGE_EXCEPTION_MSG(
+                               record.getLevel().getLocalizedName(),
+                               formatMessage(record),
+                               ex.getClass().getSimpleName(),
+                               sExMsg));
+                    break;
+                    
             }
         }
     }
     private static final FriendlyFormatter FORMATTER = new FriendlyFormatter();
 
     /** Filename of the logger file. Null if logging to a PrintStream. */
+    @CheckForNull
     private File _file;
     /** Stream where all logging goes to. */
+    @CheckForNull
     private PrintStream _ps;
     /** Name of the log. */
+    @Nonnull
     private final String _sBaseName;
 
+    @Nonnull
     private final Logger _globalLogger;
     
     /** Listener for warnings and errors. */
+    @CheckForNull
     private OnWarnErr _listener;
 
     /** Logger will create a logging file upon first log. */
-    public UserFriendlyLogger(String sBaseName) {
+    public UserFriendlyLogger(@Nonnull String sBaseName) {
         super(sBaseName, null);
         _sBaseName = sBaseName;
         _globalLogger = Logger.getLogger(_sBaseName);
     }
 
     /** Logger will not create a file but write to supplied PrintStream. */
-    public UserFriendlyLogger(String sBaseName, PrintStream ps) {
+    public UserFriendlyLogger(@Nonnull String sBaseName, @Nonnull PrintStream ps) {
         this(sBaseName);
-        if (ps == null)
-            throw new NullPointerException();
         _ps = ps;
     }
 
-    public void setListener(OnWarnErr listener) {
+    public void setListener(@CheckForNull OnWarnErr listener) {
         _listener = listener;
     }
 
     /** Returns the file name of the log file. */
-    public String getFileName() {
-        return String.valueOf(_file);
+    public @Nonnull String getFileName() {
+        return _file == null ? "stderr" : _file.toString();
     }
 
     @Override
-    public void log(LogRecord record) {
-        _globalLogger.log(record);
+    public void log(@Nonnull LogRecord record) {
+        _globalLogger.log(record); // also log to normal logging
         if (_ps == null)
             openOutputFile();
 
@@ -145,6 +197,9 @@ public class UserFriendlyLogger extends Logger {
         _ps.flush();
     }
 
+    /** Attempts to open the target log file.
+     * If fails, tries to create a temp file with the same base name.
+     * If that fails, logs to System.err.  */
     private void openOutputFile() {
         File file = new File(_sBaseName + ".log");
         FileOutputStream fos = null;
@@ -155,8 +210,8 @@ public class UserFriendlyLogger extends Logger {
                 file = File.createTempFile(_sBaseName, ".log", new File("."));
                 fos = new FileOutputStream(file);
             } catch (IOException ex) {
-                Logger.getLogger(UserFriendlyLogger.class.getName()).log(
-                        Level.SEVERE, "Unable to create custom logger file {0}", _file);
+                Misc.log(Logger.getLogger(UserFriendlyLogger.class.getName()),
+                        Level.SEVERE, ex, "Unable to create custom logger file {0}", file);
                 _ps = System.err;
             }
         }
@@ -173,8 +228,8 @@ public class UserFriendlyLogger extends Logger {
         }
     }
 
-    private void writeFileHeader(PrintStream ps) {
-        ps.println(Version.VerString.getLocalizedMessage());
+    private void writeFileHeader(@Nonnull PrintStream ps) {
+        ps.println(I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getLocalizedMessage());
         ps.print(System.getProperty("os.name")); ps.print(' '); ps.println(System.getProperty("os.version"));
         ps.print("Java "); ps.println(System.getProperty("java.version"));
         ps.println(_dateFormat.format(Calendar.getInstance().getTime()));
@@ -183,16 +238,6 @@ public class UserFriendlyLogger extends Logger {
     public void close() {
         if (_file != null)
             _ps.close();
-    }
-
-    @Override
-    public String getResourceBundleName() {
-        return I18N.getResourceBundleName();
-    }
-
-    @Override
-    public ResourceBundle getResourceBundle() {
-        return I18N.getResourceBundle();
     }
 
     // -----------------------------------------------------------------------

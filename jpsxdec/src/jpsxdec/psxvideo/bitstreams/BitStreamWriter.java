@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,18 +39,20 @@ package jpsxdec.psxvideo.bitstreams;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import javax.annotation.Nonnull;
 
 /** Rather sloppy bit writer to an output stream.
  *  Writes bits to an OutputStream, 16 bits at a time,
  *  in little-endian or big-endian order. */
 public class BitStreamWriter {
 
-    private OutputStream _os;
+    @Nonnull
+    private final OutputStream _os;
     private int _iNextWrite = 0;
     protected int _iIndex;
     private boolean _blnIsBigEndian = true;
 
-    public BitStreamWriter(OutputStream os) {
+    public BitStreamWriter(@Nonnull OutputStream os) {
         _os = os;
     }
 
@@ -58,7 +60,7 @@ public class BitStreamWriter {
      * @param s  String consisting of '1' or '0'.
      * @throws IllegalArgumentException if string contains anything besides '1' or '0'.
      */
-    public void write(String s) throws IOException {
+    public void write(@Nonnull String s) throws IOException {
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (c == '0') {
@@ -126,7 +128,7 @@ public class BitStreamWriter {
         _blnIsBigEndian = !bln;
     }
 
-    public void write(byte[] ab) throws IOException {
+    public void write(@Nonnull byte[] ab) throws IOException {
         for (byte b : ab) {
             write(b, 8);
         }

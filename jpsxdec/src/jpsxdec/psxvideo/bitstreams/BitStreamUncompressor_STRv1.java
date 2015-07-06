@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,9 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import java.io.EOFException;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.IO;
 import jpsxdec.util.NotThisTypeException;
 
@@ -57,7 +59,10 @@ import jpsxdec.util.NotThisTypeException;
 public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
 
     @Override
-    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) throws NotThisTypeException {
+    protected void readHeader(@Nonnull byte[] abFrameData, int iDataSize,
+                              @Nonnull ArrayBitReader bitReader)
+            throws NotThisTypeException
+    {
         if (iDataSize < 8)
             throw new NotThisTypeException();
         
@@ -73,7 +78,7 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
         bitReader.reset(abFrameData, iDataSize, true, 8);
     }
 
-    public static boolean checkHeader(byte[] abFrameData) {
+    public static boolean checkHeader(@Nonnull byte[] abFrameData) {
         if (abFrameData.length < 8)
             return false;
 
@@ -86,13 +91,20 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
                  iVersion != 1 || _iHalfVlcCountCeil32 < 0);
     }
 
+    public static int getQscale(@Nonnull byte[] abFrameData) throws MdecException.Uncompress {
+        if (!checkHeader(abFrameData))
+            throw new MdecException.Uncompress(I.FRAME_NOT_STRV1());
+
+        return IO.readSInt16LE(abFrameData, 4);
+    }
+    
     @Override
-    public String getName() {
+    public @Nonnull String getName() {
         return "STRv1";
     }
 
     @Override
-    public BitStreamCompressor_STRv1 makeCompressor() {
+    public @Nonnull BitStreamCompressor_STRv1 makeCompressor() {
         return new BitStreamCompressor_STRv1();
     }
 
@@ -100,6 +112,11 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
 
         @Override
         protected int getHeaderVersion() { return 1; }
+
+        @Override
+        protected int getQscale(@Nonnull byte[] abFrameData) throws MdecException.Uncompress {
+            return BitStreamUncompressor_STRv1.getQscale(abFrameData);
+        }
 
     }
 

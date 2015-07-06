@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.util.aviwriter;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 
 /** AVI Writer for Rec.601 YCbCr with 4:2:0 chroma subsampling, i.e. 
@@ -49,9 +51,9 @@ public class AviWriterYV12 extends AviWriter {
     private final int _iFrameByteSize, _iFrameYByteSize, _iFrameCByteSize;
 
     /** Dimensions must be a multiple of 2. */
-    public AviWriterYV12(final File outFile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond)
+    public AviWriterYV12(final @Nonnull File outFile,
+                         final int iWidth, final int iHeight,
+                         final long lngFrames, final long lngPerSecond)
             throws IOException
     {
         this(outFile,
@@ -62,10 +64,10 @@ public class AviWriterYV12 extends AviWriter {
 
     /** Dimensions must be a multiple of 2.
      * Audio data must be signed 16-bit PCM in little-endian order. */
-    public AviWriterYV12(final File outFile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond,
-                     final AudioFormat audioFormat)
+    public AviWriterYV12(final @Nonnull File outFile,
+                         final int iWidth, final int iHeight,
+                         final long lngFrames, final long lngPerSecond,
+                         final @CheckForNull AudioFormat audioFormat)
             throws IOException
     {
         super(outFile, iWidth, iHeight, lngFrames, lngPerSecond, audioFormat,
@@ -80,7 +82,9 @@ public class AviWriterYV12 extends AviWriter {
         _iFrameByteSize = _iFrameYByteSize + _iFrameCByteSize * 2;
     }
 
-    public void write(byte[] abY, byte[] abCb, byte[] abCr) throws IOException {
+    public void write(@Nonnull byte[] abY, @Nonnull byte[] abCb, @Nonnull byte[] abCr)
+            throws IOException
+    {
 
         if (abY.length < _iFrameYByteSize)
             throw new IllegalArgumentException("Y data wrong size.");

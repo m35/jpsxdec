@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.util.aviwriter;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import javax.annotation.Nonnull;
 
 /** Represents the 
  * <a href="http://msdn2.microsoft.com/en-us/library/ms779634(VS.85).aspx">AVIOLDINDEX</a>
@@ -55,7 +56,7 @@ class AVIOLDINDEX extends AVIstruct {
         public /*DWORD*/ int dwSize    = 0;
         
         @Override
-        public void write(RandomAccessFile raf) throws IOException {
+        public void write(@Nonnull RandomAccessFile raf) throws IOException {
             write32LE(raf, dwChunkId);
             write32LE(raf, dwFlags  );
             write32LE(raf, dwOffset );
@@ -67,7 +68,7 @@ class AVIOLDINDEX extends AVIstruct {
             return 16;
         }
         
-        public static AVIOLDINDEXENTRY[] newarray(int i) {
+        public static @Nonnull AVIOLDINDEXENTRY[] newarray(int i) {
             AVIOLDINDEXENTRY[] a = new AVIOLDINDEXENTRY[i];
             for (int j = 0; j < a.length; j++) {
                 a[j] = new AVIOLDINDEXENTRY();
@@ -80,15 +81,16 @@ class AVIOLDINDEX extends AVIstruct {
     
     public /*FOURCC*/ final int fcc    = string2int("idx1");
     public /*DWORD */ final int cb     ;
-    public AVIOLDINDEXENTRY aIndex[] = null;    
+    @Nonnull
+    public final AVIOLDINDEXENTRY aIndex[];
     
-    public AVIOLDINDEX(AVIOLDINDEXENTRY[] a) {
+    public AVIOLDINDEX(@Nonnull AVIOLDINDEXENTRY[] a) {
         aIndex = a;
         cb = sizeof() - 8;
     }
     
     @Override
-    public void write(RandomAccessFile raf) throws IOException {
+    public void write(@Nonnull RandomAccessFile raf) throws IOException {
         write32LE(raf, fcc);
         write32LE(raf, cb );
         for (AVIOLDINDEXENTRY e : aIndex) {
@@ -98,7 +100,7 @@ class AVIOLDINDEX extends AVIstruct {
 
     @Override
     public int sizeof() {
-        if (aIndex != null && aIndex.length > 0)
+        if (aIndex.length > 0)
             return 8 + aIndex.length * aIndex[0].sizeof();
         else
             return 8;

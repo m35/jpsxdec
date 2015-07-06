@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,11 +37,14 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Lain;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.IncompatibleException;
 
 
 public class SectorLainVideo extends SectorAbstractVideo implements IVideoSectorWithFrameNumber {
@@ -64,7 +67,7 @@ public class SectorLainVideo extends SectorAbstractVideo implements IVideoSector
     public int getSectorHeaderSize() { return 32; }
 
 
-    public SectorLainVideo(CdSector cdSector) {
+    public SectorLainVideo(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -130,20 +133,25 @@ public class SectorLainVideo extends SectorAbstractVideo implements IVideoSector
             );
     }
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "Lain Video";
     }
 
     /** {@inheritDoc}
      * Lain needs special handling due to its unique header. */
     @Override
-    public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
-                                int iMdecCodeCount, byte[] abSectUserData)
+    public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
+                                               int iMdecCodeCount, @Nonnull byte[] abSectUserData)
+            throws IncompatibleException
     {
-        int iQscaleLuma = BitStreamUncompressor_Lain.getQscaleLuma(abDemuxData);
-        int iQscaleChroma = BitStreamUncompressor_Lain.getQscaleChroma(abDemuxData);
-        if (iQscaleLuma < 0 || iQscaleChroma < 0)
-            throw new IllegalArgumentException("Incompatable frame data for Lain");
+        final int[] aiFrameQscale;
+        try {
+            aiFrameQscale = BitStreamUncompressor_Lain.getQscale(abDemuxData);
+        } catch (MdecException.Uncompress ex) {
+            throw new IncompatibleException(I.REPLACE_FRAME_TYPE_NOT_LAIN(), ex);
+        }
+        int iQscaleLuma = aiFrameQscale[0];
+        int iQscaleChroma = aiFrameQscale[1];
 
         // no need to update the demux size because it won't be any different
         // as it is just the total number of bytes of demuxed data available

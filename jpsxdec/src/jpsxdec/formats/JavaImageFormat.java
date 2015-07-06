@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.formats;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
 
 /** Keeps track of Java framework's image formats. */
@@ -48,12 +49,13 @@ public enum JavaImageFormat {
     BMP("bmp", true, false),
     GIF("gif", false, false);
 
+    @Nonnull
     private final String _sExtension;
     private final boolean _blnTrueColor;
     private final boolean _blnAlpha;
     private final boolean _blnAvailable;
 
-    JavaImageFormat(String id, boolean blnTrueColor, boolean blnAlpha) {
+    JavaImageFormat(@Nonnull String id, boolean blnTrueColor, boolean blnAlpha) {
         _sExtension = id;
         _blnTrueColor = blnTrueColor;
         _blnAlpha = blnAlpha;
@@ -72,11 +74,11 @@ public enum JavaImageFormat {
 
     /** Unique id identifying this image format.
      * Also the id used for ImageIO operations. */
-    public String getId() {
+    public @Nonnull String getId() {
         return _sExtension;
     }
 
-    public String getExtension() {
+    public @Nonnull String getExtension() {
         return _sExtension;
     }
 
@@ -97,7 +99,7 @@ public enum JavaImageFormat {
         return _sExtension;
     }
 
-    public static List<JavaImageFormat> getAvailable() {
+    public static @Nonnull List<JavaImageFormat> getAvailable() {
         JavaImageFormat[] aeFormats = JavaImageFormat.values();
         ArrayList<JavaImageFormat> available = new ArrayList<JavaImageFormat>(aeFormats.length);
         for (JavaImageFormat fmt : aeFormats) {

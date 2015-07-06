@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,47 +39,51 @@ package jpsxdec.cdreaders;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 
     
 /** Represents a raw CD header without a sync header and sector header. */
 public class CdxaSubHeader {
 
     private static enum IssueType {
-        EQUAL_BOTH_GOOD(0) {public String msg(int iConfidenceBalance) {return null;}},
-        EQUAL_BOTHBAD(0) {public String msg(int iConfidenceBalance) {
-            return "Sector {0,number,#} {1} corrupted: {2} (bad) == {3} (bad)"; // I18N
+        EQUAL_BOTH_GOOD(0) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
+            throw new IllegalStateException("Should never happen");
         }},
-        DIFF_BOTHGOOD(0) {public String msg(int iConfidenceBalance) {
+        EQUAL_BOTHBAD(0) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
+            return I.SECT_CORRUPT_EQUAL_BOTHBAD(iSector, name, val1, val2);
+        }},
+        DIFF_BOTHGOOD(0) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
             if (iConfidenceBalance < 0)
-                return "Sector {0,number,#} {1} corrupted: {2} != {3} (chose {2} by confidence)"; // I18N
+                return I.SECT_CORRUPT_DIFF_BOTHGOOD_1CONFIDENCE(iSector, name, val1, val2);
             else if (iConfidenceBalance > 0)
-                return "Sector {0,number,#} {1} corrupted: {2} != {3} (chose {3} by confidence)"; // I18N
+                return I.SECT_CORRUPT_DIFF_BOTHGOOD_2CONFIDENCE(iSector, name, val1, val2);
             else
-                return "Sector {0,number,#} {1} corrupted: {2} != {3} (chose {2} by default)"; // I18N
+                return I.SECT_CORRUPT_DIFF_BOTHGOOD_1DEFAULT(iSector, name, val1, val2);
         }},
-        DIFF_1GOOD2BAD(-1) {public String msg(int iConfidenceBalance) {
-            return "Sector {0,number,#} {1} corrupted: {2} != {3} (bad) (chose {2})"; // I18N
+        DIFF_1GOOD2BAD(-1) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
+            return I.SECT_CORRUPT_DIFF_1GOOD2BAD(iSector, name, val1, val2);
         }},
-        DIFF_1BAD2GOOD(+1) {public String msg(int iConfidenceBalance) {
-            return "Sector {0,number,#} {1} corrupted: {2} (bad) != {3} (chose {3})"; // I18N
+        DIFF_1BAD2GOOD(+1) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
+            return I.SECT_CORRUPT_DIFF_1BAD2GOOD(iSector, name, val1, val2);
         }},
-        DIFF_BOTHBAD(0) {public String msg(int iConfidenceBalance) {
+        DIFF_BOTHBAD(0) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
             if (iConfidenceBalance < 0)
-                return "Sector {0,number,#} {1} corrupted: {2} (bad) != {3} (bad) (chose {2} by confidence)"; // I18N
+                return I.SECT_CORRUPT_DIFF_BOTHBAD_1CONFIDENCE(iSector, name, val1, val2);
             else if (iConfidenceBalance > 0)
-                return "Sector {0,number,#} {1} corrupted: {2} (bad) != {3} (bad) (chose {3} by confidence)"; // I18N
+                return I.SECT_CORRUPT_DIFF_BOTHBAD_2CONFIDENCE(iSector, name, val1, val2);
             else
-                return "Sector {0,number,#} {1} corrupted: {2} (bad) != {3} (bad) (chose {2} by default)"; // I18N
+                return I.SECT_CORRUPT_DIFF_BOTHBAD_2DEFAULT(iSector, name, val1, val2);
         }};
 
         public final int Balance;
         IssueType(int i) { Balance = i; }
-        abstract public String msg(int iConfidenceBalance);
+        abstract public @Nonnull LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2);
 
         // .........................................
 
-        public static IssueType diffIssue(boolean blnValid1, boolean blnValid2) {
+        public static @Nonnull IssueType diffIssue(boolean blnValid1, boolean blnValid2) {
             if (blnValid1) {
                 if (blnValid2) {
                     return IssueType.DIFF_BOTHGOOD;
@@ -105,7 +109,7 @@ public class CdxaSubHeader {
     private final int _iFileNum1;            // [1 byte] used to identify sectors
                                              //          belonging to the same file
     private final int _iFileNum2;
-    private final IssueType _eFileIssue;
+    @Nonnull private final IssueType _eFileIssue;
     public int getFileNumber() {
         switch (_eFileIssue) {
             case DIFF_1BAD2GOOD:
@@ -118,9 +122,9 @@ public class CdxaSubHeader {
         }
     }
 
-    private final int _iChannel1;         // [1 byte] 0-31 for ADPCM audio
+    private final int _iChannel1;                // [1 byte] 0-31 for ADPCM audio
     private final int _iChannel2;
-    private final IssueType _eChannelIssue;
+    @Nonnull private final IssueType _eChannelIssue;
     public int getChannel() { 
         switch (_eChannelIssue) {
             case DIFF_1BAD2GOOD:
@@ -133,10 +137,10 @@ public class CdxaSubHeader {
         }
     }
 
-    private final SubMode _submode1;            // [1 byte]
-    private final SubMode _submode2;
-    private final IssueType _eSubModeIssue;
-    public SubMode getSubMode() { 
+    @Nonnull private final SubMode _submode1;   // [1 byte]
+    @Nonnull private final SubMode _submode2;
+    @Nonnull private final IssueType _eSubModeIssue;
+    public @Nonnull SubMode getSubMode() {
         switch (_eChannelIssue) {
             case DIFF_1BAD2GOOD:
                 return _submode2;
@@ -150,8 +154,8 @@ public class CdxaSubHeader {
 
     private final CodingInfo _codingInfo1;     // [1 byte]
     private final CodingInfo _codingInfo2;
-    private final IssueType _eCodingInfoIssue;
-    public CodingInfo getCodingInfo() { 
+    @Nonnull private final IssueType _eCodingInfoIssue;
+    public @Nonnull CodingInfo getCodingInfo() {
         switch (_eChannelIssue) {
             case DIFF_1BAD2GOOD:
                 return _codingInfo2;
@@ -177,7 +181,7 @@ public class CdxaSubHeader {
     }
 
 
-    public CdxaSubHeader(byte[] abSectorData, int iStartOffset) {
+    public CdxaSubHeader(@Nonnull byte[] abSectorData, int iStartOffset) {
 
         _iFileNum1 = abSectorData[iStartOffset+0] & 0xff;
         _iFileNum2 = abSectorData[iStartOffset+0+4] & 0xff;
@@ -240,30 +244,22 @@ public class CdxaSubHeader {
         return i;
     }
 
-    void printErrors(int iSector, Logger logger) {
+    void printErrors(int iSector, @Nonnull Logger logger) {
         if (_eFileIssue != IssueType.EQUAL_BOTH_GOOD) {
-            logger.log(Level.WARNING, _eFileIssue.msg(_iConfidenceBalance),
-                    new Object[]{ iSector, 
-                        I18N.S("File Number"), // I18N
-                        _iFileNum1, _iFileNum2});
+            _eFileIssue.msg(_iConfidenceBalance, iSector, I.SUB_HEADER_FILE_NUMBER(),
+                            _iFileNum1, _iFileNum2).log(logger, Level.WARNING);
         }
         if (_eChannelIssue != IssueType.EQUAL_BOTH_GOOD) {
-            logger.log(Level.WARNING, _eChannelIssue.msg(_iConfidenceBalance),
-                    new Object[]{ iSector,
-                        I18N.S("Channel Number"), // I18N
-                        _iChannel1, _iChannel2});
+            _eChannelIssue.msg(_iConfidenceBalance, iSector, I.SUB_HEADER_CHANNEL_NUMBER(),
+                               _iChannel1, _iChannel2).log(logger, Level.WARNING);
         }
         if (_eSubModeIssue != IssueType.EQUAL_BOTH_GOOD) {
-            logger.log(Level.WARNING, _eSubModeIssue.msg(_iConfidenceBalance),
-                    new Object[]{ iSector,
-                        I18N.S("Submode"), // I18N
-                        _submode1, _submode2});
+            _eSubModeIssue.msg(_iConfidenceBalance, iSector, I.SUB_HEADER_SUBMODE(),
+                               _submode1, _submode2).log(logger, Level.WARNING);
         }
         if (_eCodingInfoIssue != IssueType.EQUAL_BOTH_GOOD) {
-            logger.log(Level.WARNING, _eCodingInfoIssue.msg(_iConfidenceBalance),
-                    new Object[]{ iSector,
-                        I18N.S("Coding Info"), // I18N
-                        _codingInfo1, _codingInfo2});
+            _eCodingInfoIssue.msg(_iConfidenceBalance, iSector, I.SUB_HEADER_CODING_INFO(),
+                                  _codingInfo1, _codingInfo2).log(logger, Level.WARNING);
         }
     }
 

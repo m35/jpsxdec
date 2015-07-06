@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.cdreaders;
 
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import jpsxdec.util.ByteArrayFPIS;
 
 
@@ -49,11 +50,13 @@ public class CdSector2336 extends CdSector {
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
+    @Nonnull
     private final CdxaSubHeader _subHeader;
     private final int _iUserDataOffset;
     private final int _iUserDataSize;
 
-    public CdSector2336(byte[] abSectorBytes, int iByteStartOffset, int iSectorIndex, long lngFilePointer)
+    public CdSector2336(@Nonnull byte[] abSectorBytes, int iByteStartOffset,
+                        int iSectorIndex, long lngFilePointer)
     {
         super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);
 
@@ -76,26 +79,30 @@ public class CdSector2336 extends CdSector {
     }
 
     /** Returns copy of the 'user data' portion of the sector. */
-    public byte[] getCdUserDataCopy() {
+    public @Nonnull byte[] getCdUserDataCopy() {
         byte[] ab = new byte[_iUserDataSize];
         getCdUserDataCopy(0, ab, 0, _iUserDataSize);
         return ab;
     }
 
-    public void getCdUserDataCopy(int iSourcePos, byte[] abOut, int iOutPos, int iLength) {
-        if (iSourcePos < 0 || iSourcePos + iLength > _iUserDataSize) throw new IndexOutOfBoundsException();
+    public void getCdUserDataCopy(int iSourcePos, @Nonnull byte[] abOut, int iOutPos, int iLength) {
+        if (iSourcePos < 0 || iSourcePos + iLength > _iUserDataSize ||
+            iOutPos    < 0 || iOutPos    + iLength > abOut.length)
+        {
+            throw new IndexOutOfBoundsException();
+        }
         System.arraycopy(_abSectorBytes, _iUserDataOffset + iSourcePos,
                 abOut, iOutPos,
                 iLength);
     }
     
     /** Returns an InputStream of the 'user data' portion of the sector. */
-    public ByteArrayFPIS getCdUserDataStream() {
+    public @Nonnull ByteArrayFPIS getCdUserDataStream() {
         return new ByteArrayFPIS(_abSectorBytes, _iUserDataOffset, _iUserDataSize, _lngFilePointer);
     }
 
     @Override
-    public byte[] getRawSectorDataCopy() {
+    public @Nonnull byte[] getRawSectorDataCopy() {
         byte[] ab = new byte[CdFileSectorReader.SECTOR_SIZE_2336_BIN_NOSYNC];
         System.arraycopy(_abSectorBytes, _iByteStartOffset, ab, 0, ab.length);
         return ab;
@@ -138,7 +145,7 @@ public class CdSector2336 extends CdSector {
     //..........................................................................
 
     @Override
-    public CdxaSubHeader.SubMode getSubMode() {
+    public @Nonnull CdxaSubHeader.SubMode getSubMode() {
         return _subHeader.getSubMode();
     }
 
@@ -148,7 +155,7 @@ public class CdSector2336 extends CdSector {
     }
 
     @Override
-    public CdxaSubHeader.CodingInfo getCodingInfo() {
+    public @Nonnull CdxaSubHeader.CodingInfo getCodingInfo() {
         return _subHeader.getCodingInfo();
     }
 
@@ -162,7 +169,7 @@ public class CdSector2336 extends CdSector {
     }
 
     @Override
-    public void printErrors(Logger logger) {
+    public void printErrors(@Nonnull Logger logger) {
         _subHeader.printErrors(_iSectorIndex, logger);
     }
 
@@ -176,8 +183,12 @@ public class CdSector2336 extends CdSector {
     }
 
     @Override
-    public byte[] rebuildRawSector(byte[] abUserData) {
-        throw new UnsupportedOperationException("ECC generation not supported for CdSector2336");
+    public @Nonnull byte[] rebuildRawSector(@Nonnull byte[] abNewUserData) {
+        byte[] abRawData = getRawSectorDataCopy();
+        System.arraycopy(abNewUserData, 0, abRawData, _subHeader.getSize(), _iUserDataSize);
+        Logger.getLogger(CdSector2336.class.getName()).info("No need to rebuild 2336 EDC");
+
+        return abRawData;
     }
     
     

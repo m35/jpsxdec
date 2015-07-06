@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,8 @@ import java.awt.Color;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.swing.JLabel;
 import javax.swing.JProgressBar;
 import javax.swing.JTable;
@@ -50,52 +52,58 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
-import jpsxdec.I18N;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.discitems.IDiscItemSaver;
 
 
 public class SavingGuiTable extends AbstractTableModel {
 
     private static enum COLUMNS {
-        Source(String.class) { 
+        Source(String.class, I.GUI_SRC_COLUMN()) {
             Object val(Row row) { return row._saver.getInput(); }
-            public String toString() { return I18N.S("Source"); } // I18N
         },
-        SaveAs(String.class) { 
+        SaveAs(String.class, I.GUI_SAVE_AS_COLUMN()) {
             Object val(Row row) { return row._saver.getOutputSummary(); }
-            public String toString() { return I18N.S("Save As"); } // I18N
         },
-        Progress(Integer.class) { 
+        Progress(Integer.class, I.GUI_PROGRESS_COLUMN()) {
             Object val(Row row) { return row.Progress; }
-            public String toString() { return I18N.S("Progress"); } // I18N
         },
-        Message(String.class) { 
+        Message(String.class, I.GUI_MESSAGE_COLUMN()) {
             Object val(Row row) { return row.Message; }
-            public String toString() { return I18N.S("Message"); } // I18N
         },
-        Warn(Integer.class) { 
+        Warn(Integer.class, I.GUI_WARN_COLUMN()) {
             Object val(Row row) { return row.Warnings; }
-            public String toString() { return I18N.S("Warn"); } // I18N
         },
-        Err(Integer.class) { 
+        Err(Integer.class, I.GUI_ERR_COLUMN()) {
             Object val(Row row) { return row.Errors; }
-            public String toString() { return I18N.S("Err"); } // I18N
         };
 
+        @Nonnull
         private final Class _type;
-        COLUMNS(Class type) {
+        @Nonnull
+        private final LocalizedMessage _name;
+        COLUMNS(@Nonnull Class type, @Nonnull LocalizedMessage name) {
             _type = type;
+            _name = name;
         }
-        abstract Object val(Row item);
+        abstract @CheckForNull Object val(Row item);
 
         @Override
-        abstract public String toString();
+        final public String toString() {
+            return _name.getLocalizedMessage();
+        }
     }
 
     private static class WarnErrRenderer extends DefaultTableCellRenderer {
 
         @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        public Component getTableCellRendererComponent(JTable table,
+                                                       @Nonnull Object value,
+                                                       boolean isSelected,
+                                                       boolean hasFocus,
+                                                       int row, int column)
+        {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             if (((Integer)value) > 0)
                 setForeground(Color.red);
@@ -120,23 +128,28 @@ public class SavingGuiTable extends AbstractTableModel {
         }
 
         @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        public Component getTableCellRendererComponent(JTable table,
+                                                       @Nonnull Object value,
+                                                       boolean isSelected,
+                                                       boolean hasFocus,
+                                                       int row, int column)
+        {
             int i = (Integer)value;
-            String sText;
+            LocalizedMessage text;
             if(i == PROGRESS_FAILED)
-                sText = I18N.S("Failed!"); // I18N
+                text = I.GUI_SAVE_STATUS_FAILED();
             else if (i == PROGRESS_CANCELED)
-                sText = I18N.S("Canceled"); // I18N
+                text = I.GUI_SAVE_STATUS_CANCELED();
             else if (i == PROGRESS_WAITING)
-                sText = I18N.S("Waiting"); // I18N
+                text = I.GUI_SAVE_STATUS_WAITING();
             else if (i >= PROGRESS_DONE)
-                sText = I18N.S("Done"); // I18N
+                text = I.GUI_SAVE_STATUS_DONE();
             else { // >= PROGRESS_STARTED
                 _bar.setValue(i);
                 return _bar;
             }
 
-            return super.getTableCellRendererComponent(table, sText, isSelected, hasFocus, row, column);
+            return super.getTableCellRendererComponent(table, text, isSelected, hasFocus, row, column);
         }
 
     }
@@ -144,14 +157,16 @@ public class SavingGuiTable extends AbstractTableModel {
 
     public class Row {
 
+        @Nonnull
         public final IDiscItemSaver _saver;
         private int Progress = 0;
         private int Warnings = 0;
         private int Errors = 0;
+        @CheckForNull
         private String Message;
 
 
-        private Row(IDiscItemSaver saver) {
+        private Row(@Nonnull IDiscItemSaver saver) {
             _saver = saver;
         }
 
@@ -162,7 +177,7 @@ public class SavingGuiTable extends AbstractTableModel {
             }
         }
 
-        public void setMessage(String s) {
+        public void setMessage(@Nonnull String s) {
             if (!s.equals(Message)) {
                 Message = s;
                 update(this, COLUMNS.Message);
@@ -183,20 +198,19 @@ public class SavingGuiTable extends AbstractTableModel {
 
     public final ArrayList<Row> _rows = new ArrayList<Row>();
 
-    public SavingGuiTable(List<IDiscItemSaver> savers, JTable table) {
+    public SavingGuiTable(@Nonnull List<IDiscItemSaver> savers, @Nonnull JTable table) {
         for (IDiscItemSaver saver : savers) {
             _rows.add(new Row(saver));
         }
 
         table.setModel(this);
-        table.getColumn(COLUMNS.Progress.toString()).setCellRenderer(new ProgressRenderer());
-        table.getColumn(COLUMNS.Warn.toString()).setCellRenderer(new WarnErrRenderer());
-        table.getColumn(COLUMNS.Err.toString()).setCellRenderer(new WarnErrRenderer());
+        table.getColumnModel().getColumn(COLUMNS.Progress.ordinal()).setCellRenderer(new ProgressRenderer());
+        table.getColumnModel().getColumn(COLUMNS.Warn.ordinal()).setCellRenderer(new WarnErrRenderer());
+        table.getColumnModel().getColumn(COLUMNS.Err.ordinal()).setCellRenderer(new WarnErrRenderer());
         autoResizeColWidth(table);
-        //table.getColumn(COLUMNS.Saving.name()).setPreferredWidth(200);
     }
 
-    private void update(Row row, COLUMNS col) {
+    private void update(@Nonnull Row row, @Nonnull COLUMNS col) {
         fireTableCellUpdated(_rows.indexOf(row), col.ordinal());
     }
 
@@ -208,21 +222,21 @@ public class SavingGuiTable extends AbstractTableModel {
         return COLUMNS.values().length;
     }
 
-    public Object getValueAt(int rowIndex, int columnIndex) {
+    public @CheckForNull Object getValueAt(int rowIndex, int columnIndex) {
         return COLUMNS.values()[columnIndex].val(_rows.get(rowIndex));
     }
 
-    public Class<?> getColumnClass(int columnIndex) {
+    public @Nonnull Class<?> getColumnClass(int columnIndex) {
         return COLUMNS.values()[columnIndex]._type;
     }
 
-    public String getColumnName(int column) {
-        return COLUMNS.values()[column].toString();
+    public @Nonnull String getColumnName(int column) {
+        return COLUMNS.values()[column]._name.getLocalizedMessage();
     }
 
 
     // http://www.pikopong.com/blog/2008/08/13/auto-resize-jtable-column-width/
-    public static void autoResizeColWidth(JTable table) {
+    public static void autoResizeColWidth(@Nonnull JTable table) {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
         int margin = 5;

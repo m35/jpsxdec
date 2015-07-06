@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.discitems.savers;
 
+import javax.annotation.Nonnull;
 import jpsxdec.discitems.FrameNumber;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
@@ -44,7 +45,7 @@ import jpsxdec.util.NotThisTypeException;
 
 public abstract class FrameLookup {
 
-    public static FrameLookup deserialize(String s) throws NotThisTypeException {
+    public static @Nonnull FrameLookup deserialize(@Nonnull String s) throws NotThisTypeException {
         String[] as = Misc.regex("^(["+FrameNumber.SECTOR_PREFIX+FrameNumber.HEADER_PREFIX+"])?(\\d+)$", s);
         if (as == null)
             throw new NotThisTypeException();
@@ -66,7 +67,7 @@ public abstract class FrameLookup {
         }
     }
 
-    public static FrameLookup[] parseRange(String sRange) throws NotThisTypeException {
+    public static @Nonnull FrameLookup[] parseRange(@Nonnull String sRange) throws NotThisTypeException {
         String[] as = sRange.split("\\-", 2);
         FrameLookup[] ret;
         if (as.length > 2)
@@ -79,7 +80,7 @@ public abstract class FrameLookup {
         return ret;
     }
 
-    public static FrameLookup byHeader(int iFrame) {
+    public static @Nonnull FrameLookup byHeader(int iFrame) {
         return new Header(iFrame);
     }
 
@@ -88,12 +89,12 @@ public abstract class FrameLookup {
     private static class Index extends FrameLookup {
         private final int _iIndex;
 
-        public Index(int _iIndex) {
-            this._iIndex = _iIndex;
+        public Index(int iIndex) {
+            _iIndex = iIndex;
         }
 
         @Override
-        public int compareTo(FrameNumber fn) {
+        public int compareTo(@Nonnull FrameNumber fn) {
             return Misc.intCompare(_iIndex, fn.getIndex());
         }
 
@@ -128,7 +129,7 @@ public abstract class FrameLookup {
         }
 
         @Override
-        public int compareTo(FrameNumber fn) {
+        public int compareTo(@Nonnull FrameNumber fn) {
             return Misc.intCompare(_iHeaderNumber, fn.getHeaderFrameNumber());
         }
 
@@ -158,11 +159,11 @@ public abstract class FrameLookup {
     private static class Sector extends FrameLookup {
         private final int _iSector;
 
-        public Sector(int _iHeaderNumber) {
-            this._iSector = _iHeaderNumber;
+        public Sector(int iHeaderNumber) {
+            _iSector = iHeaderNumber;
         }
         @Override
-        public int compareTo(FrameNumber fn) {
+        public int compareTo(@Nonnull FrameNumber fn) {
             return Misc.intCompare(_iSector, fn.getSector());
         }
 
@@ -189,7 +190,7 @@ public abstract class FrameLookup {
         }
     }
 
-    abstract public int compareTo(FrameNumber fn);
+    abstract public int compareTo(@Nonnull FrameNumber fn);
 
     @Override
     abstract public boolean equals(Object o);

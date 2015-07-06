@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.util.aviwriter;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 
 /**
@@ -60,22 +62,22 @@ public class AviWriterDIB extends AviWriter {
     // -- Constructors ---------------------------------------------------------
     // -------------------------------------------------------------------------
     
-    public AviWriterDIB(final File oOutputfile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond)
+    public AviWriterDIB(final @Nonnull File outputfile,
+                        final int iWidth, final int iHeight,
+                        final long lngFrames, final long lngPerSecond)
             throws IOException
     {
-        this(oOutputfile,
+        this(outputfile,
              iWidth, iHeight,
              lngFrames, lngPerSecond,
              null);
     }
     
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    public AviWriterDIB(final File outputfile,
-                     final int iWidth, final int iHeight,
-                     final long lngFrames, final long lngPerSecond,
-                     final AudioFormat audioFormat)
+    public AviWriterDIB(final @Nonnull File outputfile,
+                        final int iWidth, final int iHeight,
+                        final long lngFrames, final long lngPerSecond,
+                        final @CheckForNull AudioFormat audioFormat)
             throws IOException
     {
        // Write 'DIB ' for Microsoft Device Independent Bitmap.  Note: Unfortunately,
@@ -96,7 +98,7 @@ public class AviWriterDIB extends AviWriter {
     // -------------------------------------------------------------------------
     
     /** @param abData  RGB image data stored at 24 bits/pixel (3 bytes/pixel) */
-    public void writeFrameRGB(byte[] abData, int iStart, int iLineStride) throws IOException {
+    public void writeFrameRGB(@Nonnull byte[] abData, int iStart, int iLineStride) throws IOException {
         final int WIDTH = getWidth(), HEIGHT = getHeight();
 
         if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameByteSize)
@@ -126,7 +128,7 @@ public class AviWriterDIB extends AviWriter {
     }
 
     /** @param aiData  RGB image data stored at RGB in the lower bytes of an int. */
-    public void writeFrameRGB(int[] aiData, int iStart, int iLineStride) throws IOException {
+    public void writeFrameRGB(@Nonnull int[] aiData, int iStart, int iLineStride) throws IOException {
         final int WIDTH = getWidth(), HEIGHT = getHeight();
 
         if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameByteSize)

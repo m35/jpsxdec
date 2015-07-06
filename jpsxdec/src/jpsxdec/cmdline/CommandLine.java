@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2014  Michael Sabin
+ * Copyright (C) 2013-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,8 +49,10 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileNotFoundException;
 import jpsxdec.cdreaders.CdFileSectorReader;
@@ -70,7 +72,7 @@ public class CommandLine {
 
         asArgs = checkVerbosity(asArgs, Feedback);
 
-        Feedback.println(Version.VerStringNonCommercial);
+        Feedback.println(I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version));
 
         ArgParser ap = new ArgParser("", false);
 
@@ -97,8 +99,8 @@ public class CommandLine {
 
         String sErr = ap.getErrorMessage();
         if (sErr != null) {
-            Feedback.printlnErr(I18N.S("Error: {0}", sErr)); // I18N
-            Feedback.printlnErr(I18N.S("Try -? for help.")); // I18N
+            Feedback.printlnErr(I.CMD_ARGPARSE_ERR(sErr));
+            Feedback.printlnErr(I.CMD_TRY_HELP());
             return 1;
         }
 
@@ -106,8 +108,8 @@ public class CommandLine {
         for (Command command : aoCommands) {
             if(command.found()) {
                 if (mainCommand != null) {
-                    Feedback.printlnErr(I18N.S("Too many main commands.")); // I18N
-                    Feedback.printlnErr(I18N.S("Try -? for help.")); // I18N
+                    Feedback.printlnErr(I.CMD_TOO_MANY_MAIN_COMMANDS());
+                    Feedback.printlnErr(I.CMD_TRY_HELP());
                     return 1;
                 }
                 mainCommand = command;
@@ -122,27 +124,29 @@ public class CommandLine {
                     if (inputFileArg.value != null && indexFileArg.value != null) {
                         createAndSaveIndex(inputFileArg.value, indexFileArg.value, Feedback);
                     } else {
-                        Feedback.printlnErr(I18N.S("Need a main command.")); // I18N
-                        Feedback.printlnErr(I18N.S("Try -? for help.")); // I18N
+                        Feedback.printlnErr(I.CMD_NEED_MAIN_COMMAND());
+                        Feedback.printlnErr(I.CMD_TRY_HELP());
                         return 1;
                     }
                 }
             } else {
                 LocalizedMessage errMsg = mainCommand.validate();
                 if (errMsg != null) {
-                    Feedback.printlnErr(errMsg.getLocalizedMessage());
-                    Feedback.printlnErr(I18N.S("Try -? for help.")); // I18N
+                    Feedback.printlnErr(errMsg);
+                    Feedback.printlnErr(I.CMD_TRY_HELP());
                     return 1;
                 } else {
                     mainCommand.execute(asArgs);
                 }
             }
         } catch (CommandLineException ex) {
-            ex.printError(Feedback);
-            LOG.log(Level.SEVERE, null, ex);
+            Feedback.printlnErr(ex.getLocalizedMessage());
+            LocalizedMessage msg = ex.getSourceMessage();
+            if (msg != null)
+                msg.log(LOG, Level.SEVERE, ex);
             return 1;
         } catch (Throwable ex) {
-            Feedback.printlnErr(I18N.S("ERROR: {0} ({1})", ex, ex.getClass().getSimpleName())); // I18N
+            Feedback.printlnErr(I.CMD_ERR_EX_CLASS(ex, ex.getClass().getSimpleName()));
             LOG.log(Level.SEVERE, "Unhandled exception", ex);
             return 1;
         }
@@ -151,7 +155,9 @@ public class CommandLine {
 
     // -------------------------------------------------------------
     
-    private static String[] checkVerbosity(String[] asArgs, FeedbackStream fbs) {
+    private static @CheckForNull String[] checkVerbosity(@Nonnull String[] asArgs,
+                                                         @Nonnull FeedbackStream fbs)
+    {
         ArgParser ap = new ArgParser("", false);
 
         StringHolder verbose = new StringHolder();
@@ -164,16 +170,16 @@ public class CommandLine {
                 if (iValue >= FeedbackStream.NONE && iValue <= FeedbackStream.MORE)
                     fbs.setLevel(iValue);
                 else
-                    fbs.printlnWarn(I18N.S("Invalid verbosity level {0,number,#}", iValue)); // I18N
+                    fbs.printlnWarn(I.CMD_VERBOSE_LVL_INVALID_NUM(iValue));
             } catch (NumberFormatException ex) {
-                fbs.printlnWarn(I18N.S("Invalid verbosity level {0}", verbose.value)); // I18N
+                fbs.printlnWarn(I.CMD_VERBOSE_LVL_INVALID_STR(verbose.value));
             }
         }
 
         return asArgs;
     }
     
-    public static boolean checkForMainHelp(String[] asArgs) {
+    public static boolean checkForMainHelp(@CheckForNull String[] asArgs) {
         if (asArgs == null)
             return false;
 
@@ -186,8 +192,8 @@ public class CommandLine {
         return help.value;
     }
 
-    private static void printMainHelp(PrintStream ps) {
-        InputStream is = CommandLine.class.getResourceAsStream("main_cmdline_help.dat");
+    private static void printMainHelp(@Nonnull PrintStream ps) {
+        InputStream is = LocalizedMessage.class.getResourceAsStream("main_cmdline_help.dat");
         if (is == null)
             throw new RuntimeException("Unable to find help resource " +
                     CommandLine.class.getResource("main_cmdline_help.dat"));
@@ -210,8 +216,9 @@ public class CommandLine {
 
     // -------------------------------------------------------------
 
-    private static void createAndSaveIndex(String sDiscFile, String sIndexFile,
-                                           FeedbackStream Feedback)
+    private static void createAndSaveIndex(@CheckForNull String sDiscFile,
+                                           @Nonnull String sIndexFile,
+                                           @Nonnull FeedbackStream Feedback)
             throws CommandLineException
     {
         CdFileSectorReader cd = loadDisc(sDiscFile, Feedback);
@@ -227,60 +234,64 @@ public class CommandLine {
         }
     }
 
-    static CdFileSectorReader loadDisc(String sDiscFile, FeedbackStream Feedback) 
+    static @Nonnull CdFileSectorReader loadDisc(@CheckForNull String sDiscFile,
+                                                @Nonnull FeedbackStream Feedback)
             throws CommandLineException
     {
         if (sDiscFile == null)
-            throw new CommandLineException("Command needs disc file"); // I18N
-        Feedback.println(I18N.S("Opening {0}", sDiscFile)); // I18N
+            throw new CommandLineException(I.CMD_COMMAND_NEEDS_DISC());
+        Feedback.println(I.CMD_OPENING(sDiscFile));
         try {
             CdFileSectorReader cd = new CdFileSectorReader(new File(sDiscFile));
-            Feedback.println(I18N.S("Identified as {0}", cd.getTypeDescription())); // I18N
+            Feedback.println(I.CMD_DISC_IDENTIFIED(cd.getTypeDescription()));
             return cd;
         } catch (CdFileNotFoundException ex) {
-            throw new CommandLineException(ex.getFile(), "File not found"); // I18N
+            throw new CommandLineException(I.CMD_FILE_NOT_FOUND_FILE(ex.getFile()), ex);
         } catch (IOException ex) {
-            throw new CommandLineException(ex, "Disc read error."); // I18N
+            throw new CommandLineException(I.CMD_DISC_READ_ERROR(), ex);
         }
     }
 
-    static DiscIndex buildIndex(CdFileSectorReader cd, FeedbackStream Feedback) {
-        Feedback.println(I18N.S("Building index")); // I18N
+    static DiscIndex buildIndex(@Nonnull CdFileSectorReader cd,
+                                @Nonnull FeedbackStream Feedback)
+    {
+        Feedback.println(I.CMD_BUILDING_INDEX());
         DiscIndex index = null;
-        ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger("index", Feedback);
+        ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage(), Feedback);
         try {
-            cpll.log(Level.INFO, "Indexing {0}", cd); // I18N
+            I.CMD_GUI_INDEXING(cd).log(cpll, Level.INFO);
             index = new DiscIndex(cd, cpll);
         } catch (TaskCanceledException ex) {
-            throw new RuntimeException("Impossible TaskCanceledException during commandline indexing");
+            throw new RuntimeException("Impossible TaskCanceledException during commandline indexing", ex);
         } finally {
             cpll.close();
         }
-        Feedback.println(I18N.S("{0,number,#} items found", index.size())); // I18N
+        Feedback.println(I.CMD_NUM_ITEMS_FOUND(index.size()));
         return index;
     }
 
-    static void saveIndex(DiscIndex index, String sIndexFile, FeedbackStream Feedback) 
+    static void saveIndex(@Nonnull DiscIndex index, @Nonnull String sIndexFile,
+                          @Nonnull FeedbackStream Feedback)
             throws CommandLineException
     {
         if (index.size() < 1) {
-            Feedback.println(I18N.S("No items found, not saving index file")); // I18N
+            Feedback.println(I.CMD_NOT_SAVING_EMPTY_INDEX());
         } else if (sIndexFile.equals("-")) {
             try {
                 index.serializeIndex(System.out);
             } catch (IOException ex) {
-                throw new CommandLineException(ex, "Error writing index file."); // I18N
+                throw new CommandLineException(I.WRITING_INDEX_FILE_ERR(), ex);
             }
         } else {
-            Feedback.println(I18N.S("Saving index as {0}", sIndexFile)); // I18N
+            Feedback.println(I.CMD_SAVING_INDEX(sIndexFile));
             PrintStream printer = null;
             try {
                 printer = new PrintStream(sIndexFile);
                 index.serializeIndex(printer);
             } catch (FileNotFoundException ex) {
-                throw new CommandLineException(ex, "Error opening file for saving"); // I18N
+                throw new CommandLineException(I.CMD_SAVE_OPEN_ERR(), ex);
             } catch (IOException ex) {
-                throw new CommandLineException(ex, "Error writing index file."); // I18N
+                throw new CommandLineException(I.WRITING_INDEX_FILE_ERR(), ex);
             } finally {
                 if (printer != null)
                     printer.close();

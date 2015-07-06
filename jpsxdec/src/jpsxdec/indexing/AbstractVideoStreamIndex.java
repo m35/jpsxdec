@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014  Michael Sabin
+ * Copyright (C) 2014-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,10 @@ package jpsxdec.indexing;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.FrameNumberFormat;
 import jpsxdec.discitems.IDemuxedFrame;
@@ -56,27 +60,36 @@ public abstract class AbstractVideoStreamIndex<T extends DiscItemVideoStream>
     
     private static final Logger LOG = Logger.getLogger(AbstractVideoStreamIndex.class.getName());
 
+    @Nonnull
+    protected final CdFileSectorReader _cd;
+    @Nonnull
     protected final Logger _errLog;
     private final int _iStartSector;
-    private ISectorFrameDemuxer _demuxer;
+    @Nonnull
+    private final ISectorFrameDemuxer _demuxer;
     private final boolean _blnCalcFps;
 
     private int _iEndSector;
     private int _iFrame1PresentationSector = -1;
+    @CheckForNull
     private FrameNumber _startFrame = null;
+    @CheckForNull
     private FrameNumber _lastSeenFrameNumber = null;
     private int _iFrameCount = 0;
+    @CheckForNull
     private StrFrameRateCalc _fpsCalc;
 
     private final FrameNumberFormat.Builder _frameNumFormatBldr = new FrameNumberFormat.Builder();
 
-    public AbstractVideoStreamIndex(Logger errLog, IdentifiedSector vidSect, boolean blnCalcFps) {
+    public AbstractVideoStreamIndex(@Nonnull CdFileSectorReader cd, @Nonnull Logger errLog,
+                                    @Nonnull IdentifiedSector vidSect, boolean blnCalcFps,
+                                    @Nonnull ISectorFrameDemuxer demuxer)
+    {
+        _cd = cd;
         _errLog = errLog;
         _iEndSector = _iStartSector = vidSect.getSectorNumber();
         _blnCalcFps = blnCalcFps;
-    }
-
-    protected void initDemuxer(ISectorFrameDemuxer demuxer, IdentifiedSector vidSect) {
+        
         _demuxer = demuxer;
         _demuxer.setFrameListener(this);
 
@@ -86,11 +99,11 @@ public abstract class AbstractVideoStreamIndex<T extends DiscItemVideoStream>
         } catch (IOException ex) {
             // we know where the completed frames are going
             // so this should never happen
-            throw new RuntimeException(ex);
+            throw new RuntimeException("Should never happen", ex);
         }
     }
 
-    public boolean sectorRead(IdentifiedSector vidSect) {
+    public boolean sectorRead(@Nonnull IdentifiedSector vidSect) {
 
         try {
             if (!_demuxer.feedSector(vidSect, _errLog))
@@ -98,18 +111,18 @@ public abstract class AbstractVideoStreamIndex<T extends DiscItemVideoStream>
         } catch (IOException ex) {
             // we know where the completed frames are going
             // so this should never happen
-            throw new RuntimeException(ex);
+            throw new RuntimeException("Should never happen", ex);
         }
 
         return true;
     }
 
-    public void frameComplete(IDemuxedFrame frame) {
+    public void frameComplete(@Nonnull IDemuxedFrame frame) {
 
         if (_iFrame1PresentationSector < 0)
             _iFrame1PresentationSector = frame.getPresentationSector() - _iStartSector;
         if (frame.getFrame().getHeaderFrameDuplicate() > 0) {
-            _errLog.log(Level.INFO, "Duplicate header frame number {0,number,0}", frame.getFrame().getHeaderFrameNumber()); // I18N
+            I.DUP_HDR_FRM_NUM(frame.getFrame().getHeaderFrameNumber()).log(_errLog, Level.INFO);
         }
         if (_blnCalcFps) {
             if (_fpsCalc == null) {
@@ -130,17 +143,17 @@ public abstract class AbstractVideoStreamIndex<T extends DiscItemVideoStream>
         _iFrameCount++;
     }
 
-    abstract protected T createVideo(
+    abstract protected @Nonnull T createVideo(
                     int iStartSector, int iEndSector,
                     int iWidth, int iHeight,
                     int iFrameCount,
-                    FrameNumberFormat frameNumberFormat,
-                    FrameNumber startFrame,
-                    FrameNumber lastSeenFrameNumber,
+                    @Nonnull FrameNumberFormat frameNumberFormat,
+                    @Nonnull FrameNumber startFrame,
+                    @Nonnull FrameNumber lastSeenFrameNumber,
                     int iSectors, int iPerFrame,
                     int iFrame1PresentationSector);
 
-    public T endOfMovie() {
+    public @CheckForNull T endOfMovie() {
         try {
             _demuxer.flush(_errLog);
         } catch (IOException ex) {
@@ -162,6 +175,7 @@ public abstract class AbstractVideoStreamIndex<T extends DiscItemVideoStream>
             iPerFrame = _iFrameCount;
         }
 
+        // _startFrame and _lastSeenFrameNumber != null because _iFrameCount > 0
         return createVideo(_iStartSector, _iEndSector,
                            _demuxer.getWidth(), _demuxer.getHeight(),
                            _iFrameCount,

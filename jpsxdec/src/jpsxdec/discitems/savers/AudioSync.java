@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,18 +37,19 @@
 
 package jpsxdec.discitems.savers;
 
+import javax.annotation.Nonnull;
 import jpsxdec.util.Fraction;
 
 /** Used to ensure the writing of audio samples matches the timing of the
  * reading of audio samples. */
 public class AudioSync {
 
-
     private final int _iFirstPresentationSector;
 
     private final int _iSectorsPerSecond;
-    private int _iSamplesPerSecond;
-    
+    private final int _iSamplesPerSecond;
+
+    @Nonnull
     private final Fraction _samplesPerSector;
 
     public AudioSync(int iFirstPresentationSector,
@@ -71,7 +72,7 @@ public class AudioSync {
         return _iSamplesPerSecond;
     }
 
-    public Fraction getSamplesPerSector() {
+    public @Nonnull Fraction getSamplesPerSector() {
         return _samplesPerSector;
     }
 

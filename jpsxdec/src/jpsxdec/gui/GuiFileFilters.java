@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,21 +38,22 @@
 package jpsxdec.gui;
 
 import java.io.File;
+import javax.annotation.Nonnull;
 import javax.swing.filechooser.FileFilter;
-import jpsxdec.I18N;
+import jpsxdec.i18n.I;
 import jpsxdec.gui.BetterFileChooser.SaveFileFilter;
 
 
 public class GuiFileFilters {
 
     public static final SaveFileFilter INDEX_FILE_FILTER = new SaveFileFilter() {
-        public boolean accept(File f) {
+        public boolean accept(@Nonnull File f) {
             return f.isFile() ? f.getName().toLowerCase().endsWith(getExtension().toLowerCase()) : true;
         }
-        public String getDescription() {
-            return I18N.S("Index files (*.idx)"); // I18N
+        public @Nonnull String getDescription() {
+            return I.GUI_INDEX_EXTENSION().getLocalizedMessage();
         }
-        public String getExtension() {
+        public @Nonnull String getExtension() {
             return ".idx";
         }
     };
@@ -60,7 +61,7 @@ public class GuiFileFilters {
 
     static final FileFilter[] DISC_OPEN_FILTERS = {
         new FileFilter() {
-            public String getDescription() { return I18N.S("All compatible types"); } // I18N
+            public String getDescription() { return I.GUI_ALL_COMPATIBLE_EXTENSIONS().getLocalizedMessage(); }
             public boolean accept(File f) {
                 String s = f.getName().toLowerCase();
                 return f.isDirectory() ||
@@ -76,7 +77,7 @@ public class GuiFileFilters {
             }
         },
         new FileFilter() {
-            public String getDescription() { return I18N.S("CD images (*.iso, *.bin, *.img, *.mdf)"); } // I18N
+            public String getDescription() { return I.GUI_CD_IMAGE_EXTENSIONS().getLocalizedMessage(); }
             public boolean accept(File f) {
                 String s = f.getName().toLowerCase();
                 return f.isDirectory() ||
@@ -87,7 +88,7 @@ public class GuiFileFilters {
             }
         },
         new FileFilter() {
-            public String getDescription() { return I18N.S("PlayStation video (*.str, *.mov, *.iki, *.ik2)"); } // I18N
+            public String getDescription() { return I.GUI_PSX_VIDEO_EXTENSIONS().getLocalizedMessage(); }
             public boolean accept(File f) {
                 String s = f.getName().toLowerCase();
                 return f.isDirectory() ||
@@ -98,7 +99,7 @@ public class GuiFileFilters {
             }
         },
         new FileFilter() {
-            public String getDescription() { return I18N.S("PlayStation/CD-i audio (*.xa, *.xai)"); } // I18N
+            public String getDescription() { return I.GUI_XA_EXTENSION().getLocalizedMessage(); }
             public boolean accept(File f) {
                 String s = f.getName().toLowerCase();
                 return f.isDirectory() ||

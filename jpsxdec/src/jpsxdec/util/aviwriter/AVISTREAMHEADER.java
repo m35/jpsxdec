@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.util.aviwriter;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import javax.annotation.Nonnull;
         
 /** Represents the 
  * <a href="http://msdn2.microsoft.com/en-us/library/ms779638(VS.85).aspx">AVISTREAMHEADER</a>
@@ -72,7 +73,7 @@ class AVISTREAMHEADER extends AVIstruct {
      //}  rcFrame    
     
     @Override
-    public void write(RandomAccessFile raf) throws IOException {
+    public void write(@Nonnull RandomAccessFile raf) throws IOException {
         write32LE(raf, fcc);
         write32LE(raf, cb);
         write32LE(raf, fccType);

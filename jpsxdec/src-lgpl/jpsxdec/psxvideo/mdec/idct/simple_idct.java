@@ -5,8 +5,9 @@ package jpsxdec.psxvideo.mdec.idct;
  *
  * Copyright (c) 2001 Michael Niedermayer <michaelni@gmx.at>
  * quick lame Java port by Alexander Strange
+ * small enhancements by Michael Sabin
  *
- * This file was part of FFmpeg, but is now part of jPSXdec.
+ * This file origionally came from FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,21 +22,17 @@ package jpsxdec.psxvideo.mdec.idct;
  * You should have received a copy of the GNU Lesser General Public
  * License along with FFmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
- *
- * ##  Note that this file must be included in a separate .jar with  ##
- * ## binary distributions of jPSXdec so as not to violate the LGPL. ##
- *
  */
 
 /**
  based upon some outcommented c code from mpeg2dec (idct_mmx.c
- written <a href="mailto:aholtzma@ess.engr.uvic.ca">by Aaron Holtzman</a> )
+ written by <a href="mailto:aholtzma@ess.engr.uvic.ca">Aaron Holtzman</a> )
  */
 
-public final class simple_idct implements IDCT_int {
+public class simple_idct {
 
 	final static int W1 = 22725, W2 = 21407, W3 = 19266, W4 = 16383,
-			  W5 = 12873, W6 =  8867, W7 = 4520;
+					 W5 = 12873, W6 =  8867, W7 = 4520;
 	
 	final static int ROW_SHIFT = 11, COL_SHIFT = 20;
 		
@@ -103,21 +100,21 @@ public final class simple_idct implements IDCT_int {
 		outbuff[outoff+off+4*stride] = (e3-o3) >> shift;
 	}
 	
-    public simple_idct() {
-    }
-
-    public void IDCT(int[] aiIdctMatrix, int iOutputOffset, int[] aiOutput) {
-        int i;
-        for (i = 0; i < 8; i++) idct1D(aiIdctMatrix, i*8, 1, ROW_SHIFT,             0, aiIdctMatrix);
-        for (i = 0; i < 8; i++) idct1D(aiIdctMatrix, i  , 8, COL_SHIFT, iOutputOffset, aiOutput);
-    }
-
-    public void IDCT_1NonZero(int[] aiIdctMatrix, int iNonZeroPos, int iOutputOffset, int[] aiOutput) {
-        int i;
-        for (i = 0; i <= (iNonZeroPos >>> 3); i++) idct1D(aiIdctMatrix, i*8, 1, ROW_SHIFT, 0, aiIdctMatrix);
-        for (i = 0; i < 8; i++) idct1D(aiIdctMatrix, i, 8, COL_SHIFT, iOutputOffset, aiOutput);
-    }
-
+	public void invers_dct(int[] coeff, int outoff, int[] outbuff) {
+		int i;
+		
+		for (i = 0; i < 8; i++) idct1D(coeff, i*8, 1, ROW_SHIFT,      0, coeff);
+		for (i = 0; i < 8; i++) idct1D(coeff, i, 8, COL_SHIFT, outoff, outbuff);
+	}
+	
+	public void invers_dct_special(int[] coeff, int nonzero_pos, int outoff, int[] outbuff) {
+		int i;
+		
+		for (i = 0; i <= (nonzero_pos >>> 3); i++) idct1D(coeff, i*8, 1, ROW_SHIFT, 0, coeff);
+		for (i = 0; i < 8; i++) idct1D(coeff, i, 8, COL_SHIFT, outoff, outbuff);
+	}
+	
+	
 	/*public static void main(String args[]) {
 		int dct[] = new int[64];
 		simple_idct id = new simple_idct();
@@ -133,5 +130,4 @@ public final class simple_idct implements IDCT_int {
 			System.out.print(""+dct[i]+" ");
 		}
 	}*/
-
 }

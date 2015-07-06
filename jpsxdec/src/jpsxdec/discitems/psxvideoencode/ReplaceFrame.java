@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,8 +40,15 @@ package jpsxdec.discitems.psxvideoencode;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
+import jpsxdec.i18n.I;
+import jpsxdec.util.IncompatibleException;
+import jpsxdec.i18n.LocalizedFileNotFoundException;
+import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.savers.FrameLookup;
@@ -59,65 +66,75 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 public class ReplaceFrame {
+    @Nonnull
     private final FrameLookup _frameNum;
+    @CheckForNull
     private String _sFormat;
+    @CheckForNull
     private File _imageFile;
 
     public static final String XML_TAG_NAME = "replace";
 
-    public ReplaceFrame(Element element) throws NotThisTypeException {
+    public ReplaceFrame(@Nonnull Element element) throws NotThisTypeException, FileNotFoundException {
         this(element.getAttribute("frame"));
         setImageFile(element.getFirstChild().getNodeValue());
         setFormat(element.getAttribute("format"));
     }
-    public Element serialize(Document document) {
+    public @Nonnull Element serialize(@Nonnull Document document) {
         Element node = document.createElement(XML_TAG_NAME);
         node.setAttribute("frame", getFrame().toString());
-        node.setTextContent(getImageFile().toString());
-        if (getFormat() != null)
-            node.setAttribute("format", getFormat());
+        File imgFile = getImageFile();
+        if (imgFile != null)
+            node.setTextContent(imgFile.toString());
+        String fmt = getFormat();
+        if (fmt != null)
+            node.setAttribute("format", fmt);
         return node;
     }
 
-    public ReplaceFrame(FrameLookup frameNumber) {
+    public ReplaceFrame(@Nonnull FrameLookup frameNumber) {
         _frameNum = frameNumber;
     }
 
-    public ReplaceFrame(String sFrameNumber) throws NotThisTypeException {
+    public ReplaceFrame(@Nonnull String sFrameNumber) throws NotThisTypeException {
         _frameNum = FrameLookup.deserialize(sFrameNumber.trim());
     }
 
-    public FrameLookup getFrame() {
+    public @Nonnull FrameLookup getFrame() {
         return _frameNum;
     }
 
-    public File getImageFile() {
+    public @CheckForNull File getImageFile() {
         return _imageFile;
     }
 
-    final public void setImageFile(String sImageFile) {
+    final public void setImageFile(@Nonnull String sImageFile) throws FileNotFoundException {
         setImageFile(new File(sImageFile.trim()));
     }
-    public void setImageFile(File imageFile) {
+    public void setImageFile(@Nonnull File imageFile) throws FileNotFoundException {
         _imageFile = imageFile;
         if (!_imageFile.exists())
-            throw new IllegalArgumentException("Unable to find " + _imageFile); // I18N
+            throw new LocalizedFileNotFoundException(I.REPLACE_UNABLE_TO_FIND_FILE(_imageFile));
     }
 
-    public String getFormat() {
+    public @CheckForNull String getFormat() {
         return _sFormat;
     }
 
-    final public void setFormat(String sFormat) {
+    final public void setFormat(@CheckForNull String sFormat) {
         _sFormat = sFormat;
     }
 
-    public void replace(IDemuxedFrame frame, CdFileSectorReader cd, FeedbackStream fbs) 
-            throws IOException, NotThisTypeException, MdecException
+    public void replace(@Nonnull IDemuxedFrame frame, @Nonnull CdFileSectorReader cd,
+                        @Nonnull FeedbackStream fbs)
+            throws IOException, NotThisTypeException, MdecException, IncompatibleException
     {
         // identify existing frame bs format
         byte[] abExistingFrame = frame.copyDemuxData(null);
-        BitStreamCompressor compressor = BitStreamUncompressor.identifyCompressor(abExistingFrame);
+        BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(abExistingFrame);
+        if (bsu == null)
+            throw new MdecException.Uncompress(I.CMD_UNABLE_TO_IDENTIFY_FRAME_TYPE());
+        BitStreamCompressor compressor = bsu.makeCompressor();
 
         byte[] abNewFrame;
 
@@ -129,29 +146,31 @@ public class ReplaceFrame {
         } else {
             BufferedImage bi = ImageIO.read(_imageFile);
             if (bi == null)
-                throw new IllegalArgumentException("Unable to read " + _imageFile + " as an image. Did you forget 'format'?"); // I18N
+                throw new LocalizedIOException(I.REPLACE_FILE_NOT_JAVA_IMAGE(_imageFile));
 
             if (bi.getWidth()  != Calc.fullDimension(frame.getWidth()) ||
                 bi.getHeight() != Calc.fullDimension(frame.getHeight()))
-                throw new IllegalArgumentException("Replacement frame dimensions do not match frame to replace: " + // I18N
-                        bi.getWidth() + "x" + bi.getHeight() + " != " + frame.getWidth() + "x" + frame.getHeight());
+                throw new IncompatibleException(I.REPLACE_FRAME_DIMENSIONS_MISMATCH(bi.getWidth(), bi.getHeight(), frame.getWidth(), frame.getHeight()));
 
             PsxYCbCrImage psxImage = new PsxYCbCrImage(bi);
             MdecEncoder encoder = new MdecEncoder(psxImage, frame.getWidth(), frame.getHeight());
             abNewFrame = compressor.compressFull(abExistingFrame, frame.getFrame(), encoder, fbs);
         }
 
-        if (abNewFrame.length > frame.getDemuxSize())
-            throw new MdecException.Compress("Demux data does fit in frame {0}!! Available size {1,number,#}, needed size {2,number,#}", // I18N
-                    getFrame(), frame.getDemuxSize(), abNewFrame.length);
+        if (abNewFrame == null)
+            throw new MdecException.Compress(I.CMD_UNABLE_TO_COMPRESS_FRAME_SMALL_ENOUGH(
+                    frame.getFrame(), frame.getDemuxSize()));
+        else if (abNewFrame.length > frame.getDemuxSize()) // for bs or mdec formats
+            throw new MdecException.Compress(I.NEW_FRAME_DOES_NOT_FIT(
+                    frame.getFrame(), abNewFrame.length, frame.getDemuxSize()));
 
         // find out how many bytes and mdec codes are used by the new frame
-        BitStreamUncompressor bsu = BitStreamUncompressor.identifyUncompressor(abNewFrame);
         bsu.reset(abNewFrame, abNewFrame.length);
         bsu.readToEnd(frame.getWidth(), frame.getHeight());
         bsu.skipPaddingBits();
 
-        frame.writeToSectors(abNewFrame, ((bsu.getBitPosition() + 15) / 16) * 2, bsu.getMdecCodeCount(), cd, fbs);
+        int iUsedSize = ((bsu.getBitPosition() + 15) / 16) * 2; // rounded up to nearest word
+        frame.writeToSectors(abNewFrame, iUsedSize, bsu.getMdecCodeCount(), cd, fbs);
     }
 
 }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.util.ByteArrayFPIS;
@@ -48,7 +49,7 @@ import jpsxdec.util.ByteArrayFPIS;
  * and are often full of zeros. */
 public class SectorXaNull extends IdentifiedSector {
 
-    public SectorXaNull(CdSector cdSector) {
+    public SectorXaNull(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
         
@@ -85,11 +86,11 @@ public class SectorXaNull extends IdentifiedSector {
             return 0;
     }
 
-    public ByteArrayFPIS getIdentifiedUserDataStream() {
-        return null;
+    public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
+        throw new UnsupportedOperationException("Should not be getting user data of XA null sector.");
     }
     
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "Null";
     }
 

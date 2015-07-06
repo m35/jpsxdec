@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.formats;
 
 import java.awt.image.BufferedImage;
+import javax.annotation.Nonnull;
 
 /** Basic YCbCr image format with 4:2:0 chroma subsampling.
  * That means there are 4 luma pixels for each chroma blue and chroma red pixel.
@@ -78,11 +79,14 @@ public class YCbCrImage {
     private int _iChromaHeight;
     
     /** Holds luminance values. */
-    private byte[] _abY;
+    @Nonnull
+    private final byte[] _abY;
     /** Holds chroma blue values with 4:2:0 subsampling. */
-    private byte[] _abCb;
+    @Nonnull
+    private final byte[] _abCb;
     /** Holds chorma red values with 4:2:0 subsampling. */
-    private byte[] _abCr;
+    @Nonnull
+    private final byte[] _abCr;
     
     /** Creates a new instance of Rec601YCbCrImage
      * @param iWidth   Width of image (in luma pixels)
@@ -103,7 +107,7 @@ public class YCbCrImage {
     }
 
     /** Very slow and wasteful conversion. */
-    public YCbCrImage(BufferedImage rgb) {
+    public YCbCrImage(@Nonnull BufferedImage rgb) {
         this(rgb.getWidth(), rgb.getHeight());
         
         for (int x = 0; x < _iLumaWidth; x+=2) {
@@ -141,13 +145,13 @@ public class YCbCrImage {
         return _iLumaHeight;
     }
 
-    public byte[] getY() {
+    public @Nonnull byte[] getY() {
         return _abY;
     }
-    public byte[] getCb() {
+    public @Nonnull byte[] getCb() {
         return _abCb;
     }
-    public byte[] getCr() {
+    public @Nonnull byte[] getCr() {
         return _abCr;
     }
 
@@ -184,7 +188,7 @@ public class YCbCrImage {
     public void setY(int iDestX, int iDestY,
                      int iSrcOfs, int iSrcWidth,
                      int iCopyWidth, int iCopyHeight,
-                     byte[] abY)
+                     @Nonnull byte[] abY)
     {
         set(_abY, iDestX + iDestY * _iLumaWidth, _iLumaHeight,
             abY, iSrcOfs, iSrcWidth,
@@ -194,7 +198,7 @@ public class YCbCrImage {
     public void setCb(int iDestX, int iDestY,
                      int iSrcOfs, int iSrcWidth,
                      int iCopyWidth, int iCopyHeight,
-                     byte[] abCb)
+                     @Nonnull byte[] abCb)
     {
         set(_abCb, iDestX + iDestY * _iChromaWidth, _iChromaWidth,
             abCb, iSrcOfs, iSrcWidth,
@@ -204,7 +208,7 @@ public class YCbCrImage {
     public void setCr(int iDestX, int iDestY,
                      int iSrcOfs, int iSrcWidth, 
                      int iCopyWidth, int iCopyHeight,
-                     byte[] abCr)
+                     @Nonnull byte[] abCr)
     {
         set(_abCr, iDestX + iDestY * _iChromaWidth, _iChromaWidth,
             abCr, iSrcOfs, iSrcWidth,
@@ -212,8 +216,8 @@ public class YCbCrImage {
     }
 
 
-    private void set(byte[] abDest, int iDestOfs, int iDestWidth,
-                     byte[] abSrc, int iSrcOfs, int iSrcWidth,
+    private void set(@Nonnull byte[] abDest, int iDestOfs, int iDestWidth,
+                     @Nonnull byte[] abSrc, int iSrcOfs, int iSrcWidth,
                      int iCopyWidth, int iCopyHeight)
     {
         for (int iLine = 0; iLine < iCopyHeight;

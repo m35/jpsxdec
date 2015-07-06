@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,6 +47,9 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.Version;
 
 /** Maintains GUI settings persistent between program runs. */
@@ -57,16 +60,19 @@ public class GuiSettings {
     private static final String INI_FILE_NAME = "jpsxdec.ini";
 
     private static final String SAVING_DIR_KEY = "SavingDir";
+    @CheckForNull
     private String _sSavingDir;
 
     private static final String IMAGE_DIR_KEY = "ImageDir";
+    @CheckForNull
     private String _sImageDir;
 
     private static final String INDEX_DIR_KEY = "IndexDir";
+    @CheckForNull
     private String _sIndexDir;
 
     private static final String PREVIOUS_IMAGE_KEY = "PreviousImage";
-    private LinkedList<String> _previousImages = new LinkedList<String>();
+    private final LinkedList<String> _previousImages = new LinkedList<String>();
 
     private static final String PREVIOUS_IMAGE_COUNT_KEY = "PrevousImageCount";
     private int _iPreviousImageCount;
@@ -83,7 +89,7 @@ public class GuiSettings {
         try {
             prop.load(propFile = new FileInputStream(INI_FILE_NAME));
         } catch (FileNotFoundException ex) {
-            LOG.info("ini file not found");
+            LOG.log(Level.INFO, "ini file not found", ex);
         } catch (Throwable ex) {
             LOG.log(Level.WARNING, "Error loading ini file", ex);
         } finally {
@@ -126,9 +132,12 @@ public class GuiSettings {
 
     public void save() throws IOException {
         Properties prop = new Properties();
-        prop.setProperty(SAVING_DIR_KEY, _sSavingDir);
-        prop.setProperty(IMAGE_DIR_KEY, _sImageDir);
-        prop.setProperty(INDEX_DIR_KEY, _sIndexDir);
+        if (_sSavingDir != null)
+            prop.setProperty(SAVING_DIR_KEY, _sSavingDir);
+        if (_sImageDir != null)
+            prop.setProperty(IMAGE_DIR_KEY, _sImageDir);
+        if (_sIndexDir != null)
+            prop.setProperty(INDEX_DIR_KEY, _sIndexDir);
         prop.setProperty(PREVIOUS_IMAGE_COUNT_KEY, String.valueOf(_iPreviousImageCount));
         for (int i=0; i < _previousImages.size(); i++) {
             prop.setProperty(PREVIOUS_IMAGE_KEY + i, _previousImages.get(i));
@@ -139,7 +148,7 @@ public class GuiSettings {
         }
         FileOutputStream fos = new FileOutputStream(INI_FILE_NAME);
         try {
-            prop.store(fos, Version.VerString.getEnglishMessage());
+            prop.store(fos, I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getEnglishMessage());
         } finally {
             fos.close();
         }
@@ -149,70 +158,70 @@ public class GuiSettings {
         return _iPreviousImageCount;
     }
 
-    public void setPreviousImageCount(int _iPreviousImageCount) {
-        this._iPreviousImageCount = _iPreviousImageCount;
+    public void setPreviousImageCount(int iPreviousImageCount) {
+        _iPreviousImageCount = iPreviousImageCount;
     }
 
     public int getPreviousIndexCount() {
         return _iPreviousIndexCount;
     }
 
-    public void setPreviousIndexCount(int _iPreviousIndexCount) {
-        this._iPreviousIndexCount = _iPreviousIndexCount;
+    public void setPreviousIndexCount(int iPreviousIndexCount) {
+        _iPreviousIndexCount = iPreviousIndexCount;
     }
 
-    public List<String> getPreviousImages() {
+    public @Nonnull List<String> getPreviousImages() {
         return _previousImages;
     }
 
-    public void addPreviousImage(String sImagePath) {
+    public void addPreviousImage(@Nonnull String sImagePath) {
         _previousImages.remove(sImagePath);
         _previousImages.addFirst(sImagePath);
         while (_previousImages.size() >= _iPreviousImageCount)
             _previousImages.removeLast();
     }
 
-    public void removePreviousImage(String sImagePath) {
+    public void removePreviousImage(@Nonnull String sImagePath) {
         _previousImages.remove(sImagePath);
     }
 
-    public List<String> getPreviousIndexes() {
+    public @Nonnull List<String> getPreviousIndexes() {
         return _previousIndexes;
     }
 
-    public void addPreviousIndex(String sIndexPath) {
+    public void addPreviousIndex(@Nonnull String sIndexPath) {
         _previousIndexes.remove(sIndexPath);
         _previousIndexes.addFirst(sIndexPath);
         while (_previousIndexes.size() >= _iPreviousIndexCount)
             _previousIndexes.removeLast();
     }
 
-    public void removePreviousIndex(String sIndexPath) {
+    public void removePreviousIndex(@Nonnull String sIndexPath) {
         _previousIndexes.remove(sIndexPath);
     }
 
-    public String getImageDir() {
+    public @CheckForNull String getImageDir() {
         return _sImageDir;
     }
 
-    public void setImageDir(String _sImageDir) {
-        this._sImageDir = _sImageDir;
+    public void setImageDir(@Nonnull String sImageDir) {
+        this._sImageDir = sImageDir;
     }
 
-    public String getIndexDir() {
+    public @CheckForNull String getIndexDir() {
         return _sIndexDir;
     }
 
-    public void setIndexDir(String _sIndexDir) {
-        this._sIndexDir = _sIndexDir;
+    public void setIndexDir(@Nonnull String sIndexDir) {
+        _sIndexDir = sIndexDir;
     }
 
-    public String getSavingDir() {
+    public @CheckForNull String getSavingDir() {
         return _sSavingDir;
     }
 
-    public void setSavingDir(String _sSavingDir) {
-        this._sSavingDir = _sSavingDir;
+    public void setSavingDir(@Nonnull String sSavingDir) {
+        _sSavingDir = sSavingDir;
     }
 
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.formats;
 import java.awt.image.*;
 import java.io.*;
 import java.util.Random;
+import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
 
 /** Simplest image format containing a buffer and dimensions. */
@@ -47,16 +48,17 @@ public class RgbIntImage {
 
 
     private final int _iWidth, _iHeight;
+    @Nonnull
     private int[] _aiData;
 
-    public RgbIntImage(BufferedImage bi) {
+    public RgbIntImage(@Nonnull BufferedImage bi) {
         this(bi.getWidth(), bi.getHeight());
         _aiData = new int[_iWidth * _iHeight];
         // TODO: I'm still uncertain about colormode/colormodel stuff
         bi.getRGB(0, 0, _iWidth, _iHeight, _aiData, 0, _iWidth);
     }
 
-    public RgbIntImage(int iWidth, int iHeight, int[] aiData) {
+    public RgbIntImage(int iWidth, int iHeight, @Nonnull int[] aiData) {
         _iWidth = iWidth;
         _iHeight = iHeight;
         _aiData = aiData;
@@ -72,7 +74,7 @@ public class RgbIntImage {
 
     public int getWidth() { return _iWidth; }
     public int getHeight() { return _iHeight; }
-    public int[] getData() { return _aiData; }
+    public @Nonnull int[] getData() { return _aiData; }
     
     public int get(int x, int y) {
         return _aiData[x + y * _iWidth];
@@ -82,7 +84,7 @@ public class RgbIntImage {
         _aiData[x + y * _iWidth] = i;
     }
 
-    public BufferedImage toBufferedImage() {
+    public @Nonnull BufferedImage toBufferedImage() {
         BufferedImage bi = new BufferedImage(_iWidth, _iHeight, BufferedImage.TYPE_INT_RGB);
         WritableRaster raster = bi.getRaster();
         raster.setDataElements(0, 0, _iWidth, _iHeight, _aiData);

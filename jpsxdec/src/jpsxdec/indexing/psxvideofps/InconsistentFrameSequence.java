@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,8 @@ import java.io.InputStreamReader;
 import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.util.Fraction;
 
 /** There are some unique frame rates that just don't make any sense.
@@ -70,7 +72,9 @@ public class InconsistentFrameSequence {
         "DREDD15FPS.dat",
     };
 
-    public static LinkedList<InconsistentFrameSequence> generate(int iFirstFrameStartSector, int iFirstFrameEndSector) {
+    public static @Nonnull LinkedList<InconsistentFrameSequence> generate(int iFirstFrameStartSector,
+                                                                          int iFirstFrameEndSector)
+    {
         LinkedList<InconsistentFrameSequence> possibles = new LinkedList<InconsistentFrameSequence>();
         for (String sResource : FPS_LISTS) {
             possibles.add(new InconsistentFrameSequence(sResource));
@@ -91,7 +95,7 @@ public class InconsistentFrameSequence {
                          iAudStride,
                          iLoopSector;
 
-        public HeaderParse(String sLine) {
+        public HeaderParse(@Nonnull String sLine) {
             String[] asValues = sLine.split("\\D+");
             iSectors    = Integer.parseInt(asValues[0]);
             iPerFrame   = Integer.parseInt(asValues[1]);
@@ -115,7 +119,7 @@ public class InconsistentFrameSequence {
        public final int iFrameStartSector,
                         iFrameEndSector;
 
-       public LineParse(String sLine) {
+       public LineParse(@Nonnull String sLine) {
             // parse out the sector#,frame#,chunk#, and chunk count
             String[] asValues = sLine.split("\\D+");
             iFrameStartSector = Integer.parseInt(asValues[0]);
@@ -127,12 +131,15 @@ public class InconsistentFrameSequence {
     // --  Instance stuff  -----------------------------------------------------
     // -------------------------------------------------------------------------
 
+    @Nonnull
     private BufferedReader _reader;
+    @Nonnull
     private final String _sSourceResource;
+    @Nonnull
     private final HeaderParse _header;
     private int _iLoopStartSector;
 
-    private InconsistentFrameSequence(String sSourceResource) {
+    private InconsistentFrameSequence(@Nonnull String sSourceResource) {
         _sSourceResource = sSourceResource;
         try {
             InputStream is = InconsistentFrameSequence.class.getResourceAsStream(sSourceResource);
@@ -140,13 +147,14 @@ public class InconsistentFrameSequence {
                 throw new RuntimeException("Unable to find inconsistent frame resource " + sSourceResource);
             _reader = new BufferedReader(new InputStreamReader(is));
             String sLine = _reader.readLine(); // read header
+            // resource file should have at least 1 line
             _header = new HeaderParse(sLine);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
     }
     
-    private String readNextLine() throws IOException {
+    private @CheckForNull String readNextLine() throws IOException {
         String sLine = _reader.readLine();
         if (sLine == null) { 
             // if at the end of the resource, but we're looping
@@ -194,7 +202,7 @@ public class InconsistentFrameSequence {
         }
     }
 
-    public Fraction getSectorsPerFrame() {
+    public @Nonnull Fraction getSectorsPerFrame() {
         return new Fraction(_header.iSectors, _header.iPerFrame);
     }
 

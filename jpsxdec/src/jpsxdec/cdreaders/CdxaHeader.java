@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,8 @@ package jpsxdec.cdreaders;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 
 /** Represents a raw CD header with a sync header and sector header. */
 public class CdxaHeader {
@@ -78,10 +80,11 @@ public class CdxaHeader {
     private final boolean _blnMode_ok;
     
     private final int _iByteErrorCount;
-    
+
+    @Nonnull
     private final Type _eType;
 
-    public CdxaHeader(byte[] abSectorData, int iStartOffset) {
+    public CdxaHeader(@Nonnull byte[] abSectorData, int iStartOffset) {
         int iByteErrorCount = 0;
         for (int i = 0; i < SECTOR_SYNC_HEADER.length; i++) {
             if (abSectorData[iStartOffset + i] != SECTOR_SYNC_HEADER[i])
@@ -113,7 +116,7 @@ public class CdxaHeader {
             _eType = _iMode == 1 ? Type.MODE1 : Type.MODE2;
     }
 
-    Type getType() {
+    @Nonnull Type getType() {
         return _eType;
     }
 
@@ -155,25 +158,20 @@ public class CdxaHeader {
                 _iMode, _iMinutesBCD, _iSecondsBCD, _iSectorsBCD, calculateSectorNumber());
     }
 
-    void printErrors(int iSector, Logger logger) {
+    void printErrors(int iSector, @Nonnull Logger logger) {
         if (_eType == Type.CD_AUDIO)
             return;
         
         if (_iSyncHeaderErrorCount > 0)
-            logger.log(Level.WARNING, "Sector {0,number,#} {1,number,#} bytes in the sync header are corrupted", // I18N
-                    new Object[]{iSector, _iSyncHeaderErrorCount});
+            I.SECTOR_CORRUPTED_SYNC_HEADER(iSector, _iSyncHeaderErrorCount).log(logger, Level.WARNING);
         if (!_blnMode_ok)
-            logger.log(Level.WARNING, "Sector {0,number,#} Mode number is corrupted {1,number,#}", // I18N
-                    new Object[]{iSector, _iMode});
+            I.SECTOR_CORRUPTED_MODE_NUMBER(iSector, _iMode).log(logger, Level.WARNING);
         if (!_blnMinutesBCD_ok)
-            logger.log(Level.WARNING, "Sector {0,number,#} Minutes number is corrupted {1,number,#}", // I18N
-                    new Object[]{iSector, String.format("%02x", _iMinutesBCD)});
+            I.SECTOR_CORRUPTED_MINUTES(iSector, String.format("%02x", _iMinutesBCD)).log(logger, Level.WARNING);
         if (!_blnSecondsBCD_ok)
-            logger.log(Level.WARNING, "Sector {0,number,#} Seconds number is corrupted {1,number,#}", // I18N
-                    new Object[]{iSector, String.format("%02x", _iSecondsBCD)});
+            I.SECTOR_CORRUPTED_SECONDS(iSector, String.format("%02x", _iSecondsBCD)).log(logger, Level.WARNING);
         if (!_blnSectorsBCD_ok)
-            logger.log(Level.WARNING, "Sector {0,number,#} Sectors number is corrupted {1,number,#}", // I18N
-                    new Object[]{iSector, String.format("%02x", _iSectorsBCD)});
+            I.SECTOR_CORRUPTED_SECTOR_NUMBER(iSector, String.format("%02x", _iSectorsBCD)).log(logger, Level.WARNING);;
     }
 
     int getErrorCount() {

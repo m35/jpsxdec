@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2014  Michael Sabin
+ * Copyright (C) 2012-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,93 +39,85 @@ package jpsxdec.discitems.savers;
 
 import java.util.ArrayList;
 import java.util.List;
-import jpsxdec.LocalizedMessage;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.formats.JavaImageFormat;
 
 
 public enum VideoFormat {
-    AVI_MJPG("AVI: Compressed (MJPG)", // I18N
-             "avi:mjpg") // I18N
-    {
+    AVI_MJPG(I.VID_AVI_MJPG_DESCRIPTION(), I.VID_AVI_MJPG_COMMAND()) {
         public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 0; }
-        public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { throw new IndexOutOfBoundsException(); }
     },
-    AVI_RGB("AVI: Uncompressed RGB", // I18N
-            "avi:rgb") // I18N
-    {
+    AVI_RGB(I.VID_AVI_RGB_DESCRIPTION(), I.VID_AVI_RGB_COMMAND()) {
         public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
     },
-    AVI_YUV("AVI: YUV", // I18N
-            "avi:yuv") // I18N
-    {
+    AVI_YUV(I.VID_AVI_YUV_DESCRIPTION(), I.VID_AVI_YUV_COMMAND()) {
         public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 1; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH_PLUS; }
     },
-    AVI_JYUV("AVI: YUV with [0-255] range", // I18N
-             "avi:jyuv") // I18N
-    {
+    AVI_JYUV(I.VID_AVI_JYUV_DESCRIPTION(), I.VID_AVI_JYUV_COMMAND()) {
         public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 1; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH_PLUS; }
     },
-    IMGSEQ_PNG("Image sequence: png", // I18N
-               "png", // I18N
+    IMGSEQ_PNG(I.VID_IMG_SEQ_PNG_DESCRIPTION(), I.VID_IMG_SEQ_PNG_COMMAND(),
                JavaImageFormat.PNG)
     {
-        public String getExtension() { return "." + getImgFmt().getExtension(); }
+        public String getExtension() { return "." + JavaImageFormat.PNG.getExtension(); }
     },
-    IMGSEQ_JPG("Image sequence: jpg", // I18N
-               "jpg") // I18N
-    {
+    IMGSEQ_JPG(I.VID_IMG_SEQ_JPG_DESCRIPTION(), I.VID_IMG_SEQ_JPG_COMMAND()) {
         public String getExtension() { return ".jpg"; }
         public int getDecodeQualityCount() { return 0; }
-        public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { throw new IndexOutOfBoundsException(); }
     },
-    IMGSEQ_BMP("Image sequence: bmp", // I18N
-               "bmp", // I18N
+    IMGSEQ_BMP(I.VID_IMG_SEQ_BMP_DESCRIPTION(), I.VID_IMG_SEQ_BMP_COMMAND(),
                JavaImageFormat.BMP)
     {
-        public String getExtension() { return "." + getImgFmt().getExtension(); }
+        public String getExtension() { return "." + JavaImageFormat.BMP.getExtension(); }
     },
-    IMGSEQ_BITSTREAM("Image sequence: bitstream", // I18N
-                     "bs") // I18N
-    {
+    IMGSEQ_BITSTREAM(I.VID_IMG_SEQ_BS_DESCRIPTION(), I.VID_IMG_SEQ_BS_COMMAND()) {
         public String getExtension() { return ".bs"; }
         public int getDecodeQualityCount() { return 0; }
-        public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { throw new IndexOutOfBoundsException(); }
         public boolean isCroppable() { return false; }
         public boolean needsDims() { return true; }
     },
-    IMGSEQ_MDEC ("Image sequence: mdec", // I18N
-                 "mdec") // I18N
-    {
+    IMGSEQ_MDEC(I.VID_IMG_SEQ_MDEC_DESCRIPTION(), I.VID_IMG_SEQ_MDEC_COMMAND()) {
         public String getExtension() { return ".mdec"; }
         public int getDecodeQualityCount() { return 0; }
-        public MdecDecodeQuality getMdecDecodeQuality(int i) { return null; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { throw new IndexOutOfBoundsException(); }
         public boolean isCroppable() { return false; }
         public boolean needsDims() { return true; }
     },
     ;
 
     /** How the format will be displayed in the GUI. */
+    @Nonnull
     private final LocalizedMessage _guiName;
     /** How the format will be displayed on the command line. */
+    @Nonnull
     private final LocalizedMessage _cmdLineId;
+    @CheckForNull
     private final JavaImageFormat _eImgFmt;
 
-    private VideoFormat(String sGui, String sCmdLine) {
-        this(sGui, sCmdLine, null);
+    private VideoFormat(@Nonnull LocalizedMessage description, @Nonnull LocalizedMessage cmdLine) {
+        this(description, cmdLine, null);
     }
 
-    private VideoFormat(String sGui, String sCmdLine, JavaImageFormat imgFormat) {
-        _guiName = new LocalizedMessage(sGui);
-        _cmdLineId = new LocalizedMessage(sCmdLine);
+    private VideoFormat(@Nonnull LocalizedMessage description, @Nonnull LocalizedMessage cmdLine,
+                        @CheckForNull JavaImageFormat imgFormat)
+    {
+        _guiName = description;
+        _cmdLineId = cmdLine;
         _eImgFmt = imgFormat;
     }
 
@@ -133,7 +125,7 @@ public enum VideoFormat {
      *<p>
      *  Must be localized because this object is used directly. */
     public String toString() { return _guiName.getLocalizedMessage(); }
-    public LocalizedMessage getCmdLine() { return _cmdLineId; }
+    public @Nonnull LocalizedMessage getCmdLine() { return _cmdLineId; }
     public boolean isAvailable() {
         return _eImgFmt == null ? true : _eImgFmt.isAvailable();
     }
@@ -141,43 +133,30 @@ public enum VideoFormat {
     public boolean isCroppable() { return true; }
 
     public int getDecodeQualityCount() { return MdecDecodeQuality.values().length; }
-    public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.values()[i]; }
+    public @Nonnull MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.values()[i]; }
 
     /** If AVI, it means it can save audio, otherwise it is an image sequence. */
     public boolean isAvi() { return false; }
     public boolean isSequence() { return !isAvi(); }
 
-    public JavaImageFormat getImgFmt() { return _eImgFmt; }
+    public @CheckForNull JavaImageFormat getImgFmt() { return _eImgFmt; }
 
     /** If the output filename should include frame dimensions. */
     public boolean needsDims() { return false; }
     /** Filename extension with '.'. */
-    abstract public String getExtension();
+    abstract public @Nonnull String getExtension();
 
     /////////////////////////////////////////////////////////
 
-    public static VideoFormat fromCmdLine(String sCmdLine) {
+    public static @CheckForNull VideoFormat fromCmdLine(@Nonnull String sCmdLine) {
         for (VideoFormat fmt : getAvailable()) {
-            if (fmt.getCmdLine().getEnglishMessage().equalsIgnoreCase(sCmdLine) ||
-                fmt.getCmdLine().getLocalizedMessage().equalsIgnoreCase(sCmdLine))
+            if (fmt.getCmdLine().equalsIgnoreCase(sCmdLine))
                 return fmt;
         }
         return null;
     }
 
-    public static String getCmdLineList() {
-        StringBuilder sb = new StringBuilder();
-        for (VideoFormat fmt : values()) {
-            if (fmt.isAvailable()) {
-                if (sb.length() > 0)
-                    sb.append(", ");
-                sb.append(fmt.getCmdLine());
-            }
-        }
-        return sb.toString();
-    }
-
-    public static List<VideoFormat> getAvailable() {
+    public static @Nonnull List<VideoFormat> getAvailable() {
         ArrayList<VideoFormat> avalable = new ArrayList<VideoFormat>();
         for (VideoFormat fmt : values()) {
             if (fmt.isAvailable())

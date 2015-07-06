@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemTim;
 import jpsxdec.discitems.SerializedDiscItem;
@@ -57,16 +59,16 @@ public class DiscIndexerTim extends DiscIndexer implements DiscIndexer.Static {
     private static final Logger LOG = Logger.getLogger(DiscIndexerTim.class.getName());
 
     @Override
-    public DiscItem deserializeLineRead(SerializedDiscItem serial) {
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem serial) {
         try {
             if (DiscItemTim.TYPE_ID.equals(serial.getType())) {
-                return new DiscItemTim(serial);
+                return new DiscItemTim(getCd(), serial);
             }
         } catch (NotThisTypeException ex) {}
         return null;
     }
 
-    public void staticRead(DemuxedUnidentifiedDataStream inStream) throws IOException {
+    public void staticRead(@Nonnull DemuxedUnidentifiedDataStream inStream) throws IOException {
 
         final int iStartSector = inStream.getCurrentSector();
         final int iStartOffset = inStream.getCurrentSectorOffset();
@@ -75,6 +77,7 @@ public class DiscIndexerTim extends DiscIndexer implements DiscIndexer.Static {
             TimInfo info;
             if ((info = Tim.isTim(inStream)) != null) {
                 super.addDiscItem(new DiscItemTim(
+                        getCd(),
                         iStartSector, inStream.getCurrentSector(),
                         iStartOffset, info.iPaletteCount, info.iBitsPerPixel,
                         info.iPixelWidth, info.iPixelHeight));

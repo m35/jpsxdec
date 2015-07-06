@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,9 +37,12 @@
 
 package jpsxdec.discitems;
 
-import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.regex.Pattern;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.util.NotThisTypeException;
 
 
@@ -57,161 +60,205 @@ public class SerializedDiscItem {
     private static final String FIELD_DELIMITER = "|";
 
     private static final String INDEX_KEY = "#";
-    private static final String ID_KEY = "Id";
+    private static final String ID_KEY = "ID";
     private static final String TYPE_KEY = "Type";
     private static final String SECTOR_RANGE_KEY = "Sectors";
 
-    private LinkedHashMap<String, String> _fields = new LinkedHashMap<String, String>();
-    private String _sSerizedString = null;
-    
-    /** Creates a new serialization class to accept information. */
-    public SerializedDiscItem(String sType, int iIndex, String sId, int iSectorStart, int iSectorEnd) {
+    private final LinkedHashMap<String, String> _fields = new LinkedHashMap<String, String>();
+
+    /** Creates a new serialization class to accept information.
+     * <p>
+     * If {@code iIndex} and/or {@code sIndexId} are not provided,
+     * this object will still work and can be serialized. However, the resulting
+     * serialization cannot be deserialized.
+     *
+     * @param iIndex if {@code < 0} then index number is not included. 
+     * @param sIndexId if {@code null} then index id is not included. */
+    public SerializedDiscItem(@Nonnull String sType, int iIndex,
+                              @CheckForNull String sIndexId,
+                              int iSectorStart, int iSectorEnd)
+    {
         if (iIndex >= 0)
-            addNumber(INDEX_KEY, iIndex);
-        if (sId != null)
-            addString(ID_KEY, sId);
-        addString(TYPE_KEY, sType);
-        addRange(SECTOR_RANGE_KEY, iSectorStart, iSectorEnd);
+            addNumberNoKeyNameCheck(INDEX_KEY, iIndex);
+        if (sIndexId != null)
+            addStringNoKeyNameCheck(ID_KEY, sIndexId);
+        addStringNoKeyNameCheck(TYPE_KEY, sType);
+        addRangeNoKeyNameCheck(SECTOR_RANGE_KEY, iSectorStart, iSectorEnd);
     }
     
     /** Parses a serialization string and makes the information available
      *  through the accessors. */
-    public SerializedDiscItem(String sSerialized) throws NotThisTypeException {
+    public SerializedDiscItem(@Nonnull String sSerialized) throws NotThisTypeException {
         if (sSerialized.matches("^\\s*$"))
-            throw new NotThisTypeException("Empty serialized string"); // I18N
-        // TODO: For 1.0 make index and id normal keys: #:1|Id:FISH.STR|...
+            throw new NotThisTypeException(I.EMPTY_SERIALIZED_STRING());
         String[] asFields = sSerialized.split(Pattern.quote(FIELD_DELIMITER));
-        String[] asIndexId = asFields[0].split(" ");
-        if (asIndexId.length > 2)
-            throw new NotThisTypeException("Improperly formatted serialization: {0}", sSerialized); // I18N
-        try {
-            // remove leading #
-            int iIndex = Integer.parseInt(asIndexId[0].substring(1));
-            addNumber(INDEX_KEY, iIndex);
-        } catch (NumberFormatException ex) {
-            throw new NotThisTypeException("Improperly formatted serialization: {0}", sSerialized); // I18N
+        for (String sField : asFields) {
+            String[] asParts = sField.split(KEY_VALUE_DELIMITER);
+            if (asParts.length != 2)
+                throw new NotThisTypeException(I.SERIALIZATION_FIELD_IMPROPERLY_FORMATTED(sField));
+            String sKey = asParts[0];
+            String sValue = asParts[1];
+            _fields.put(sKey, sValue);
         }
-        if (asIndexId.length > 1)
-            addString(ID_KEY, asIndexId[1]);
-
-        for (int i = 1; i < asFields.length; i++) {
-            deserializeField(asFields[i]);
-        }
+        if (!_fields.containsKey(INDEX_KEY) || !_fields.containsKey(ID_KEY) ||
+            !_fields.containsKey(TYPE_KEY)  || !_fields.containsKey(SECTOR_RANGE_KEY))
+            throw new NotThisTypeException(I.SERIALIZATION_MISSING_REQUIRED_FIELDS(sSerialized));
     }
 
-    private void deserializeField(String sSerialized) throws NotThisTypeException {
-        String[] asParts = sSerialized.split(KEY_VALUE_DELIMITER);
-        if (asParts.length != 2)
-            throw new NotThisTypeException("Improperly formatted field serialization: {0}", sSerialized); // I18N
-        String sKey = asParts[0];
-        String sValue = asParts[1];
-        _fields.put(sKey, sValue);
-    }
-    
     /** Converts the data into a string. No additional data may be added to the
      *  object without throwing an exception. */
-    public String serialize() {
+    public @Nonnull String serialize() {
         
-        if (_sSerizedString != null) return _sSerizedString;
+        LinkedHashMap<String, String> fieldsCopy = new LinkedHashMap<String, String>(_fields);
         
         StringBuilder sb = new StringBuilder();
-        if (_fields.containsKey(ID_KEY))
-            sb.append(INDEX_KEY).append(_fields.remove(INDEX_KEY));
-        if (_fields.containsKey(ID_KEY))
-            sb.append(' ').append(_fields.remove(ID_KEY));
-        if (sb.length() > 0)
-            sb.append(FIELD_DELIMITER);
 
         // want to handle the required fields first
+        if (fieldsCopy.containsKey(INDEX_KEY)) {
+            sb.append(INDEX_KEY);
+            sb.append(KEY_VALUE_DELIMITER);
+            sb.append(fieldsCopy.remove(INDEX_KEY));
+            sb.append(FIELD_DELIMITER);
+        }
+        if (fieldsCopy.containsKey(ID_KEY)) {
+            sb.append(ID_KEY);
+            sb.append(KEY_VALUE_DELIMITER);
+            sb.append(fieldsCopy.remove(ID_KEY));
+            sb.append(FIELD_DELIMITER);
+        }
+
         sb.append(SECTOR_RANGE_KEY);
         sb.append(KEY_VALUE_DELIMITER);
-        sb.append(_fields.remove(SECTOR_RANGE_KEY));
+        sb.append(fieldsCopy.remove(SECTOR_RANGE_KEY));
 
         sb.append(FIELD_DELIMITER);
 
         sb.append(TYPE_KEY);
         sb.append(KEY_VALUE_DELIMITER);
-        sb.append(_fields.remove(TYPE_KEY));
+        sb.append(fieldsCopy.remove(TYPE_KEY));
 
-        // add each field/value pair
-        for (Iterator<String> it = _fields.keySet().iterator(); it.hasNext();) {
-            String sKey = it.next();
-            
+        // add remaining field/value pair
+        for (Map.Entry<String, String> entry : fieldsCopy.entrySet()) {
             sb.append(FIELD_DELIMITER);
-            
-            sb.append(sKey);
-            sb.append(KEY_VALUE_DELIMITER);
-            sb.append(_fields.get(sKey));
-        }
-        
-        _sSerizedString = sb.toString();
-        
-        _fields = null; // save some memory
-        
-        return _sSerizedString;
-    }
-    
-    final public void addString(String sFieldName, String sValue) {
-        if (_sSerizedString != null) throw new IllegalStateException("Serialization object locked.");
-        if (sValue != null) {
-            if (sValue.contains(":")) throw new IllegalArgumentException(
-                    String.format(
-                    "String cannot contain '%s' or '%s', they are used as delimters.",
-                    FIELD_DELIMITER, KEY_VALUE_DELIMITER ));
 
-            _fields.put(sFieldName, sValue);
+            sb.append(entry.getKey());
+            sb.append(KEY_VALUE_DELIMITER);
+            sb.append(entry.getValue());
         }
+        
+        return sb.toString();
     }
     
-    final public void addNumber(String sFieldName, long lngValue) {
-        if (_sSerizedString != null) throw new IllegalStateException("Serialization object locked.");
+    // =========================================================================
+
+    final public void addString(@Nonnull String sFieldName, @Nonnull String sValue) {
+        checkValidKeyName(sFieldName);
+        addStringNoKeyNameCheck(sFieldName, sValue);
+    }
+    private void addStringNoKeyNameCheck(@Nonnull String sFieldName, @Nonnull String sValue) {
+        checkValidKey(sFieldName);
+        checkValidValue(sValue);
+        _fields.put(sFieldName, sValue);
+    }
+
+    
+    final public void addNumber(@Nonnull String sFieldName, long lngValue) {
+        checkValidKeyName(sFieldName);
+        addNumberNoKeyNameCheck(sFieldName, lngValue);
+    }
+    private void addNumberNoKeyNameCheck(@Nonnull String sFieldName, long lngValue) {
+        checkValidKey(sFieldName);
         _fields.put(sFieldName, String.format("%d", lngValue));
     }
-    
-    final public void addRange(String sFieldName, long lngStart, long lngEnd) {
-        if (_sSerizedString != null) throw new IllegalStateException("Serialization object locked.");
+
+    /**
+     * @param lngStart Must be {@code >= 0}
+     * @param lngEnd   Must be {@code >= 0}
+     */
+    final public void addRange(@Nonnull String sFieldName, long lngStart, long lngEnd) {
+        checkValidKeyName(sFieldName);
+        addRangeNoKeyNameCheck(sFieldName, lngStart, lngEnd);
+    }
+
+    /**
+     * @param lngStart Must be {@code >= 0}
+     * @param lngEnd   Must be {@code >= 0}
+     */
+    public void addRangeNoKeyNameCheck(@Nonnull String sFieldName, long lngStart, long lngEnd) {
         if (lngStart < 0 || lngEnd < 0) throw new IllegalArgumentException("Range values must be >= 0");
+        checkValidKey(sFieldName);
         _fields.put(sFieldName, String.format("%d-%d", lngStart, lngEnd) );
     }
 
-    public void addFraction(String sFieldName, long lngNumerator, long lngDenominator) {
-        if (_sSerizedString != null) throw new IllegalStateException("Serialization object locked.");
+    /**
+     * @param lngNumerator   Must be {@code >= 0}
+     * @param lngDenominator Must be {@code >= 0}
+     */
+    public void addFraction(@Nonnull String sFieldName, long lngNumerator, long lngDenominator) {
+        if (lngNumerator < 0 || lngDenominator < 0) throw new IllegalArgumentException("Fraction values must be >= 0");
+        checkValidKey(sFieldName);
+        checkValidKeyName(sFieldName);
         _fields.put(sFieldName, String.format("%d/%d", lngNumerator, lngDenominator) );
     }
     
-    public void addDimensions(String sFieldName, long lngWidth, long lngHeight) {
-        if (_sSerizedString != null) throw new IllegalStateException("Serialization object locked.");
-        if (lngWidth < 0 || lngHeight < 0) throw new IllegalArgumentException("Range values must be >= 0");
-        _fields.put(sFieldName, String.format("%dx%d", lngWidth, lngHeight) );
+    /**
+     * @param iWidth  Must be {@code >= 0}
+     * @param iHeight Must be {@code >= 0}
+     */
+    public void addDimensions(@Nonnull String sFieldName, int iWidth, int iHeight) {
+        if (iWidth < 0 || iHeight < 0) throw new IllegalArgumentException("Range values must be >= 0");
+        checkValidKey(sFieldName);
+        checkValidKeyName(sFieldName);
+        _fields.put(sFieldName, String.format("%dx%d", iWidth, iHeight) );
     }
-    
-    public String getString(String sFieldName) {
-        return _fields.get(sFieldName);
+
+    private static void checkValidValue(String sValue) {
+        if (sValue.matches(".*[:\\|].*"))
+            throw new IllegalArgumentException("Keys and Values cannot contain ':' or '|'");
     }
+    private void checkValidKeyName(String sKey) {
+        if ((INDEX_KEY.equals(sKey) || ID_KEY.equals(sKey) || TYPE_KEY.equals(sKey) || SECTOR_RANGE_KEY.equals(sKey)))
+            throw new IllegalArgumentException("Key cannot be one of the default required ones " + sKey);
+    }
+    private void checkValidKey(String sKey) {
+        if (sKey.length() == 0)
+            throw new IllegalArgumentException("Empty key or value?");
+        if (sKey.matches(".*[:\\|].*"))
+            throw new IllegalArgumentException("Keys and Values cannot contain ':' or '|'");
+        if (_fields.containsKey(sKey))
+            throw new IllegalArgumentException("Key already exists " + sKey);
+    }
+
+    // =========================================================================
+    // Reading fields
     
-    public long getLong(String sFieldName) throws NotThisTypeException {
+    public @Nonnull String getString(@Nonnull String sFieldName) throws NotThisTypeException {
         String sValue = _fields.get(sFieldName);
-        if (sValue == null) throw new NotThisTypeException("{0} field not found.", sFieldName); // I18N
+        if (sValue == null) throw new NotThisTypeException(I.FIELD_NOT_FOUND(sFieldName));
+        return sValue;
+    }
+    
+    public long getLong(@Nonnull String sFieldName) throws NotThisTypeException {
+        String sValue = getString(sFieldName);
         
         try {
             return Long.parseLong(sValue);
         } catch (NumberFormatException e) {
-            throw new NotThisTypeException("Failed to convert serialized field to long: {0}", sValue); // I18N
+            throw new NotThisTypeException(I.SERIALIZATION_FAILED_TO_CONVERT_TO_LONG(sValue));
         }
     }
     
-    public int getInt(String sFieldName) throws NotThisTypeException {
-        String sValue = _fields.get(sFieldName);
-        if (sValue == null) throw new NotThisTypeException("{0} field not found.", sFieldName); // I18N
+    public int getInt(@Nonnull String sFieldName) throws NotThisTypeException {
+        String sValue = getString(sFieldName);
         
         try {
             return Integer.parseInt(sValue);
         } catch (NumberFormatException e) {
-            throw new NotThisTypeException("Failed to convert serialized field to long: {0}", sValue); // I18N
+            throw new NotThisTypeException(I.SERIALIZATION_FAILED_TO_CONVERT_TO_INT(sValue));
         }
     }
 
-    public int getInt(String sFieldName, int iDefault) throws NotThisTypeException {
+    public int getInt(@Nonnull String sFieldName, int iDefault) throws NotThisTypeException {
         String sValue = _fields.get(sFieldName);
         if (sValue == null)
             return iDefault;
@@ -219,43 +266,43 @@ public class SerializedDiscItem {
         try {
             return Integer.parseInt(sValue);
         } catch (NumberFormatException e) {
-            throw new NotThisTypeException("Failed to convert serialized field to long: {0}", sValue); // I18N
+            throw new NotThisTypeException(I.SERIALIZATION_FAILED_TO_CONVERT_TO_INT(sValue));
         }
     }
 
-    public int[] getIntRange(String sFieldName) throws NotThisTypeException {
-        String sValue = _fields.get(sFieldName);
+    public @Nonnull int[] getIntRange(@Nonnull String sFieldName) throws NotThisTypeException {
+        String sValue = getString(sFieldName);
         int[] ai = jpsxdec.util.Misc.splitInt(sValue, "\\D+");
         if (ai == null || ai.length != 2) throw new NotThisTypeException(
-                "Failed to convert serialized value to range: {0}", sValue); // I18N
+                I.SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(sValue));
 
         return ai;
     }
 
-    public long[] getLongRange(String sFieldName) throws NotThisTypeException {
-        String sValue = _fields.get(sFieldName);
+    public @Nonnull long[] getLongRange(@Nonnull String sFieldName) throws NotThisTypeException {
+        String sValue = getString(sFieldName);
         long[] alng = jpsxdec.util.Misc.splitLong(sValue, "\\D+");
         if (alng == null || alng.length != 2) throw new NotThisTypeException(
-                "Failed to convert serialized value to range: {0}", sValue); // I18N
+                I.SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(sValue));
 
         return alng;
     }
 
-    public int[] getDimensions(String sFieldName) throws NotThisTypeException {
+    public @Nonnull int[] getDimensions(@Nonnull String sFieldName) throws NotThisTypeException {
         return getIntRange(sFieldName);
     }
 
-    public long[] getFraction(String sFieldName) throws NotThisTypeException {
+    public @Nonnull long[] getFraction(@Nonnull String sFieldName) throws NotThisTypeException {
         return getLongRange(sFieldName);
     }
 
     // -- required fields --------------
     
-    public String getType() {
-        return getString(TYPE_KEY);
+    public @Nonnull String getType() {
+        return _fields.get(TYPE_KEY);
     }
 
-    public int[] getSectorRange() throws NotThisTypeException {
+    public @Nonnull int[] getSectorRange() throws NotThisTypeException {
         return getIntRange(SECTOR_RANGE_KEY);
     }
 
@@ -263,13 +310,31 @@ public class SerializedDiscItem {
         return getInt(INDEX_KEY);
     }
 
-    public String getId() {
+    public @Nonnull String getId() throws NotThisTypeException {
         return getString(ID_KEY);
     }
 
     @Override
     public String toString() {
         return _fields.toString();
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 23 * hash + (this._fields != null ? this._fields.hashCode() : 0);
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || getClass() != obj.getClass())
+            return false;
+        final SerializedDiscItem other = (SerializedDiscItem) obj;
+        if (this._fields != other._fields && (this._fields == null || !this._fields.equals(other._fields))) {
+            return false;
+        }
+        return true;
     }
 
 }

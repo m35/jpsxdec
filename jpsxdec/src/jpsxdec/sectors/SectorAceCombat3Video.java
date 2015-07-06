@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 
 /** Represents a video sector from the game Ace Combat 3 Electrosphere. */
@@ -57,7 +58,7 @@ public class SectorAceCombat3Video extends SectorAbstractVideo {
     public int getSectorHeaderSize() { return 32; }
 
 
-    public SectorAceCombat3Video(CdSector cdSector) {
+    public SectorAceCombat3Video(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -106,7 +107,7 @@ public class SectorAceCombat3Video extends SectorAbstractVideo {
             );
     }
 
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "AC3";
     }
 

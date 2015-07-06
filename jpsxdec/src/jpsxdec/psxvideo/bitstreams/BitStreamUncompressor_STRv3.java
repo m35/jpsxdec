@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,9 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
@@ -62,17 +65,18 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
      * to/from a bit stream. */
     private static abstract class DcVariableLengthCode {
         /** The DC variable length code. */
+        @Nonnull
         public final String VariableLengthCode;
         /** Number of bits to read for the differential. */
         protected final int _iDifferentialBitLen;
 
-        public DcVariableLengthCode(String sCode, int iDifferentialBitLen) {
+        public DcVariableLengthCode(@Nonnull String sCode, int iDifferentialBitLen) {
             VariableLengthCode = sCode;
             _iDifferentialBitLen = iDifferentialBitLen;
         }
 
         /** Populates a lookup array indexes that match this variable length code. */
-        public void fillLookupArray(DcVariableLengthCode[] aoLookup, int iLongestCode) {
+        public void fillLookupArray(@Nonnull DcVariableLengthCode[] aoLookup, int iLongestCode) {
             int iUnimportantBits = iLongestCode - VariableLengthCode.length();
             int iStart = Integer.parseInt(VariableLengthCode+Misc.dup('0', iUnimportantBits), 2);
             int iEnd = Integer.parseInt(VariableLengthCode+Misc.dup('1', iUnimportantBits), 2);
@@ -83,18 +87,20 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             }
         }
 
-        abstract public int readDc(ArrayBitReader bitReader, MdecDebugger debug) throws EOFException;
+        abstract public int readDc(@Nonnull ArrayBitReader bitReader, 
+                                   @CheckForNull MdecDebugger debug)
+                throws EOFException;
         /** Attempts to encode a DC value that has already been diff'ed from
          *  the previous value and divided by 4.
          * @return bit string or null if could not encode with this VLC. */
-        abstract public String encode(int iDCdiffFromPrevDiv4);
+        abstract public @CheckForNull String encode(int iDCdiffFromPrevDiv4);
     }
 
     /** v3 DC variable length code for 0 value. */
     private static class DcVlc0 extends DcVariableLengthCode {
         private final int _iDifferential;
 
-        public DcVlc0(String sCode, int iDifferentialBitLen, int iDifferential) {
+        public DcVlc0(@Nonnull String sCode, int iDifferentialBitLen, int iDifferential) {
             super(sCode, iDifferentialBitLen);
             if (iDifferentialBitLen != 0)
                 throw new IllegalArgumentException();
@@ -102,12 +108,12 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         }
 
         @Override
-        public int readDc(ArrayBitReader bitReader, MdecDebugger debug) {
+        public int readDc(@Nonnull ArrayBitReader bitReader, @CheckForNull MdecDebugger debug) {
             return _iDifferential;
         }
 
         @Override
-        public String encode(int i) {
+        public @CheckForNull String encode(int i) {
             if (i == _iDifferential)
                 return VariableLengthCode;
             return null;
@@ -122,11 +128,11 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         private final int _iPositiveDifferentialMax;
         private final int _iTopBitMask;
 
-        public DcVlc_(String sCode, int iDifferentialBitLen, int iPositiveDifferential) {
+        public DcVlc_(@Nonnull String sCode, int iDifferentialBitLen, int iPositiveDifferential) {
             this(sCode, iDifferentialBitLen, iPositiveDifferential, iPositiveDifferential);
         }
 
-        public DcVlc_(String sCode, int iDifferentialBitLen,
+        public DcVlc_(@Nonnull String sCode, int iDifferentialBitLen,
                       int iPositiveDifferentialMin, int iPositiveDifferentialMax)
         {
             super(sCode, iDifferentialBitLen);
@@ -138,7 +144,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         }
 
         @Override
-        public int readDc(ArrayBitReader bitReader, MdecDebugger debug) throws EOFException {
+        public int readDc(@Nonnull ArrayBitReader bitReader, @CheckForNull MdecDebugger debug)
+                throws EOFException
+        {
             int iDC_Differential = bitReader.readUnsignedBits(_iDifferentialBitLen);
             assert !DEBUG || debug.append(Misc.bitsToString(iDC_Differential, _iDifferentialBitLen));
             // top bit == 0 means it's negative
@@ -152,17 +160,19 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             return iDC_Differential * 4;
         }
 
-        public String encode(int iDCdiffFromPrevDiv4) {
+        public @CheckForNull String encode(int iDCdiffFromPrevDiv4) {
             if (iDCdiffFromPrevDiv4 >= _iNegativeDifferentialMin &&
                 iDCdiffFromPrevDiv4 <= _iNegativeDifferentialMax)
+            {
                 return VariableLengthCode +
                        Misc.bitsToString(iDCdiffFromPrevDiv4 - _iNegativeDifferentialMin,
                                          _iDifferentialBitLen);
-            else if (iDCdiffFromPrevDiv4 >= _iPositiveDifferentialMin &&
-                     iDCdiffFromPrevDiv4 <= _iPositiveDifferentialMax)
+            } else if (iDCdiffFromPrevDiv4 >= _iPositiveDifferentialMin &&
+                      iDCdiffFromPrevDiv4 <= _iPositiveDifferentialMax)
+            {
                 return VariableLengthCode +
                        Misc.bitsToString(iDCdiffFromPrevDiv4, _iDifferentialBitLen);
-            else
+            } else
                 return null;
         }
     }
@@ -249,7 +259,8 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
                 _iPreviousY_DC;
 
     @Override
-    protected void readHeader(byte[] abFrameData, int iDataSize, ArrayBitReader bitReader) 
+    protected void readHeader(@Nonnull byte[] abFrameData, int iDataSize,
+                              @Nonnull ArrayBitReader bitReader)
             throws NotThisTypeException
     {
         if (iDataSize < 8)
@@ -269,7 +280,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     }
 
     /** Returns if this is a v3 frame. */
-    public static boolean checkHeader(byte[] abFrameData) {
+    public static boolean checkHeader(@Nonnull byte[] abFrameData) {
         if (abFrameData.length < 8)
             return false;
         
@@ -282,16 +293,16 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
                  iVersion != 3  || iHalfVlcCountCeil32 < 0);
     }
 
-    public static int getQscale(byte[] abFrameData) {
-        if (checkHeader(abFrameData))
-            return IO.readSInt16LE(abFrameData, 4);
-        else
-            return -1;
+    public static int getQscale(@Nonnull byte[] abFrameData) throws MdecException.Uncompress {
+        if (!checkHeader(abFrameData))
+            throw new MdecException.Uncompress(I.FRAME_NOT_STRV3());
+        
+        return IO.readSInt16LE(abFrameData, 4);
     }
     
     @Override
-    protected void readQscaleAndDC(MdecCode code) throws MdecException.Uncompress, 
-                                                         EOFException
+    protected void readQscaleAndDC(@Nonnull MdecCode code)
+            throws MdecException.Uncompress, EOFException
     {
         code.setTop6Bits(_iQscale);
         switch (getCurrentMacroBlockSubBlock()) {
@@ -317,9 +328,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         DcVariableLengthCode dcVlc = CHROMA_LOOKUP[iBits];
         
         if (dcVlc == null) {
-            throw new MdecException.Uncompress("Error uncompressing macro block {0,number,#}.{1,number,#}: Unknown chroma DC variable length code {2}", // I18N
+            throw new MdecException.Uncompress(I.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC(
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE));
+                    Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE)));
         }
 
         assert !DEBUG || _debug.append(dcVlc.VariableLengthCode);
@@ -330,9 +341,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         iPreviousDC += dcVlc.readDc(_bitReader, _debug);
 
         if (iPreviousDC < -512 || iPreviousDC > 511) {
-            throw new MdecException.Uncompress("Error uncompressing macro block {0,number,#}.{1,number,#}: Chroma DC out of bounds: {2,number,#}", // I18N
+            throw new MdecException.Uncompress(I.STRV3_BLOCK_UNCOMPRESS_ERR_CHROMA_DC_OOB(
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    iPreviousDC);
+                    iPreviousDC));
         }
 
         return iPreviousDC;
@@ -345,9 +356,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         DcVariableLengthCode dcVlc = LUMA_LOOKUP[iBits];
         
         if (dcVlc == null) {
-            throw new MdecException.Uncompress("Error uncompressing macro block {0,number,#}.{1,number,#}: Unknown luma DC variable length code {2}", // I18N
+            throw new MdecException.Uncompress(I.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_LUMA_DC_VLC(
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    Misc.bitsToString(iBits, DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE));
+                    Misc.bitsToString(iBits, DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE)));
         }
             
         assert !DEBUG || _debug.append(dcVlc.VariableLengthCode);
@@ -358,9 +369,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         _iPreviousY_DC += dcVlc.readDc(_bitReader, _debug);
 
         if (_iPreviousY_DC < -512 || _iPreviousY_DC > 511) {
-            throw new MdecException.Uncompress("Error uncompressing macro block {0,number,#}.{1,number,#}: Luma DC out of bounds: {2,number,#}", // I18N
+            throw new MdecException.Uncompress(I.STRV3_BLOCK_UNCOMPRESS_ERR_LUMA_DC_OOB(
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    _iPreviousY_DC);
+                    _iPreviousY_DC));
         }
     }
 
@@ -374,61 +385,75 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     }
 
     @Override
-    public String getName() {
+    public @Nonnull String getName() {
         return "STRv3";
     }
     
     @Override
-    public BitstreamCompressor_STRv3 makeCompressor() {
+    public @Nonnull BitstreamCompressor_STRv3 makeCompressor() {
         return new BitstreamCompressor_STRv3();
     }
 
+    // =========================================================================
+    
     public static class BitstreamCompressor_STRv3 extends BitstreamCompressor_STRv2 {
 
         @Override
         protected int getHeaderVersion() { return 3; }
 
         @Override
-        public byte[] compress(MdecInputStream inStream, int iWidth, int iHeight) throws MdecException {
-            _iPreviousCr_DC4 = _iPreviousCb_DC4 = _iPreviousY_DC4 = 0;
+        protected int getQscale(@Nonnull byte[] abFrameData) throws MdecException.Uncompress {
+            return BitStreamUncompressor_STRv3.getQscale(abFrameData);
+        }
+        
+        
+
+        @Override
+        public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream,
+                                        int iWidth, int iHeight)
+                throws MdecException
+        {
+            _iPreviousCr_DcRound4 = _iPreviousCb_DcRound4 = _iPreviousY_DcRound4 = 0;
             return super.compress(inStream, iWidth, iHeight);
         }
 
-        private int _iPreviousCr_DC4, _iPreviousCb_DC4, _iPreviousY_DC4;
+        /** Store the prior DC coefficients written. The value will always be
+         *  a multiple of 4 since the value is divided by 4 before writing. */
+        private int _iPreviousCr_DcRound4,
+                    _iPreviousCb_DcRound4,
+                    _iPreviousY_DcRound4;
 
         @Override
-        protected String encodeDC(int iDC, int iBlock) {
-            int iDCdiff;
-            int iDC4 = 0;
-            switch (iDC % 4) {
-                case 0: iDC4 = iDC    ; break;
-                case 1: iDC4 = iDC - 1; break;
-                case 2: iDC4 = iDC - 2; break;
-                case 3: iDC4 = iDC + 1; break;
-            }
+        protected @Nonnull String encodeDC(int iDC, int iBlock) {
+            // round to the nearest multiple of 4
+            // TODO: Maybe try to expose this quality loss somehow
+            int iDcRound4 = (int)Math.round(iDC / 4.0) * 4;
+            
+            // diff it against the previous DC that was rounded 
+            // to the nearest multiple of 4, and divide by 4
+            // and save the rounded DC for the next iteration
             DcVariableLengthCode[] lookupTable;
+            int iDcDiffRound4Div4;
             switch (iBlock) {
                 case 0:
-                    iDCdiff = iDC4 - _iPreviousCr_DC4;
-                    _iPreviousCr_DC4 = iDC4;
+                    iDcDiffRound4Div4 = (iDcRound4 - _iPreviousCr_DcRound4) / 4;
+                    _iPreviousCr_DcRound4 = iDcRound4;
                     lookupTable = DC_Chroma_VarLenCodes;
                     break;
                 case 1:
-                    iDCdiff = iDC4 - _iPreviousCb_DC4;
-                    _iPreviousCb_DC4 = iDC4;
+                    iDcDiffRound4Div4 = (iDcRound4 - _iPreviousCb_DcRound4) / 4;
+                    _iPreviousCb_DcRound4 = iDcRound4;
                     lookupTable = DC_Chroma_VarLenCodes;
                     break;
                 default:
-                    iDCdiff = iDC4 - _iPreviousY_DC4;
-                    _iPreviousY_DC4 = iDC4;
+                    iDcDiffRound4Div4 = (iDcRound4 - _iPreviousY_DcRound4) / 4;
+                    _iPreviousY_DcRound4 = iDcRound4;
                     lookupTable = DC_Luma_VarLenCodes;
                     break;
             }
 
-            // TODO: Maybe try to expose this quality loss somehow
-            iDCdiff = (int) Math.round(iDCdiff / 4.0);
             for (DcVariableLengthCode dcCodeBits : lookupTable) {
-                String sEncodedBits = dcCodeBits.encode(iDCdiff);
+                String sEncodedBits = dcCodeBits.encode(iDcDiffRound4Div4);
                 if (sEncodedBits != null)
                     return sEncodedBits;
             }
@@ -436,7 +461,9 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         }
 
         @Override
-        protected void addTrailingBits(BitStreamWriter bitStream) throws IOException {
+        protected void addTrailingBits(@Nonnull BitStreamWriter bitStream) 
+                throws IOException
+        {
             bitStream.write(END_OF_FRAME_EXTRA_BITS);
         }
 

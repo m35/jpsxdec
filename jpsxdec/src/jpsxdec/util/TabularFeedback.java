@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,11 +40,13 @@ package jpsxdec.util;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.LocalizedMessage;
 
 /** Hopefully makes it easier to print information in a table like design. */
 public class TabularFeedback {
 
-    private ArrayList<ArrayList<ArrayList<StringBuilder>>> _rows = 
+    private final ArrayList<ArrayList<ArrayList<StringBuilder>>> _rows =
             new ArrayList<ArrayList<ArrayList<StringBuilder>>>();
 
     private int _iRowSpacing = 0, _iColSpacing = 2;
@@ -58,16 +60,16 @@ public class TabularFeedback {
         addRow();
     }
 
-    private ArrayList<ArrayList<StringBuilder>> curRow() {
+    private @Nonnull ArrayList<ArrayList<StringBuilder>> curRow() {
         return _rows.get(_rows.size() - 1);
     }
 
-    private ArrayList<StringBuilder> curCell() {
+    private @Nonnull ArrayList<StringBuilder> curCell() {
         ArrayList<ArrayList<StringBuilder>> curRow = curRow();
         return curRow.get(curRow.size() - 1);
     }
 
-    private StringBuilder curLine() {
+    private @Nonnull StringBuilder curLine() {
         ArrayList<StringBuilder> curCell = curCell();
         return curCell.get(curCell.size() - 1);
     }
@@ -96,42 +98,47 @@ public class TabularFeedback {
         addRow();
     }
 
-    public TabularFeedback print(String s) {
+    public @Nonnull TabularFeedback print(@Nonnull LocalizedMessage s) {
         StringBuilder curLine = curLine();
         if (curLine.length() == 0 && _iCurCellIndent > 0)
             curLine.append(Misc.dup(' ', _iCurCellIndent));
-        curLine.append(s);
+        String[] asLines = s.getLocalizedMessage().split("\\r\\n?|\\n");
+        for (int i = 0; i < asLines.length-1; i++) {
+            curLine().append(asLines[i]);
+            addLine();
+        }
+        curLine().append(asLines[asLines.length-1]);
         return this;
     }
 
-    public TabularFeedback ln() {
+    public @Nonnull TabularFeedback ln() {
         addLine();
         return this;
     }
-    public TabularFeedback println(String s) {
+    public @Nonnull TabularFeedback println(@Nonnull LocalizedMessage s) {
         print(s);
         addLine();
         return this;
     }
 
-    public TabularFeedback tab() {
+    public @Nonnull TabularFeedback tab() {
         addCell();
         return this;
     }
 
-    public TabularFeedback indent() {
+    public @Nonnull TabularFeedback indent() {
         _iCurCellIndent += 2;
         return this;
     }
 
-    public TabularFeedback outdent() {
+    public @Nonnull TabularFeedback outdent() {
         _iCurCellIndent -= 2;
         if (_iCurCellIndent < 0)
             _iCurCellIndent = 0;
         return this;
     }
 
-    public void write(PrintStream ps) {
+    public void write(@Nonnull PrintStream ps) {
         int[] aiRowHeights = new int[_rows.size()];
         int iColCount = 0;
         for (int i = 0; i < _rows.size(); i++) {

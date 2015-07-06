@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.sectors;
 
+import javax.annotation.Nonnull;
 import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
@@ -52,7 +53,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
     protected int        _iSectorsInAVFrame;       // [1 byte]
     protected int        _iFrameNumber;            // [2 bytes]
     
-    public SectorFF8(CdSector cdSector) {
+    public SectorFF8(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
@@ -112,7 +113,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
             implements IVideoSectorWithFrameNumber
     {
 
-        public SectorFF8Video(CdSector cdSector) {
+        public SectorFF8Video(@Nonnull CdSector cdSector) {
             super(cdSector);
             if (isSuperInvalidElseReset()) return;
 
@@ -144,12 +145,12 @@ public abstract class SectorFF8 extends IdentifiedSector {
                    SectorFF8.SHARED_HEADER_SIZE;
         }
 
-        public ByteArrayFPIS getIdentifiedUserDataStream() {
+        public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
             return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     SHARED_HEADER_SIZE, getIdentifiedUserDataSize());
         }
 
-        public void copyIdentifiedUserData(byte[] abOut, int iOutPos) {
+        public void copyIdentifiedUserData(@Nonnull byte[] abOut, int iOutPos) {
             super.getCdSector().getCdUserDataCopy(SHARED_HEADER_SIZE, abOut,
                     iOutPos, getIdentifiedUserDataSize());
         }
@@ -158,12 +159,12 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return String.format("VideoFF8 %s 320x224", super.toString());
         }
 
-        public String getTypeName() {
+        public @Nonnull String getTypeName() {
             return "FF8Video";
         }
 
-        public int checkAndPrepBitstreamForReplace(byte[] abDemuxData, int iUsedSize,
-                                                   int iMdecCodeCount, byte[] abSectUserData)
+        public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
+                                                   int iMdecCodeCount, @Nonnull byte[] abSectUserData)
         {
             // none of the FF8 video sector headers need to be modified
             // so just return the size of the header so the caller
@@ -181,7 +182,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
 
         private static final int FF8_AUDIO_SECTOR_BYTE_DATA_SIZE = 1680;
         
-        /*
+        /* // shared header
         protected final char _achHead[] = new char[4]; // [4 bytes] "SM_\1"
         protected int        _iSectorNumber;           // [1 byte]
         protected int        _iSectorsInAVFrame;       // [1 byte]
@@ -191,32 +192,48 @@ public abstract class SectorFF8 extends IdentifiedSector {
         public final static int AUDIO_ADDITIONAL_HEADER_SIZE = 360;
 
         // 232 bytes; unknown
-        private final char _acSHUN_MORIYA[] = new char[16];
+        private String _sSHUN_MORIYA;
         // 10 bytes; unknown
         private SquareAKAOstruct _AKAOstruct;
         // 76 bytes; unknown
         
-        public SectorFF8Audio(CdSector cdSector) {
+        public SectorFF8Audio(@Nonnull CdSector cdSector) {
             super(cdSector);
             if (isSuperInvalidElseReset()) return;
             
             if (super._achHead[2] != 'N' && super._achHead[2] != 'R')
                 return;
 
+            StringBuilder sb = new StringBuilder(16*2);
+            boolean blnOnly0xff = true;
             for (int i = 0; i < 16; i++) {
-                _acSHUN_MORIYA[i] = (char)cdSector.readUserDataByte(240 + i);
+                byte b = cdSector.readUserDataByte(240 + i);
+                if (b == -1)
+                    sb.append("ff");
+                else {
+                    sb.append((char)b);
+                    blnOnly0xff = false;
+                }
             }
 
-            String sShunMoriya = new String(_acSHUN_MORIYA);
-            if (!(sShunMoriya.startsWith("MORIYA") || sShunMoriya.startsWith("SHUN.MORIYA")))
+            _sSHUN_MORIYA = sb.toString();
+            if (!(
+                  blnOnly0xff || // demo disc has all 0xff for MORIYA field
+                  _sSHUN_MORIYA.startsWith("MORIYA") || 
+                  _sSHUN_MORIYA.startsWith("SHUN.MORIYA")
+                ))
+            {
                 return;
+            }
 
             _AKAOstruct = new SquareAKAOstruct(cdSector, 256);
 
-            if (_AKAOstruct.AKAO != SquareAKAOstruct.AKAO_ID)
+            if (!(_AKAOstruct.AKAO == SquareAKAOstruct.AKAO_ID ||
+                  _AKAOstruct.AKAO == 0xffffffffL)) // demo disc has all 0xff for AKAO struct
                 return;
 
-            if (_AKAOstruct.BytesOfData != FF8_AUDIO_SECTOR_BYTE_DATA_SIZE)
+            if (!(_AKAOstruct.BytesOfData == FF8_AUDIO_SECTOR_BYTE_DATA_SIZE ||
+                  _AKAOstruct.BytesOfData == 0xffffffffL)) // demo disc has all 0xff for AKAO struct
                 return;
 
             // TODO: check Sound Parameters values that the parameter index is valid
@@ -232,7 +249,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return FF8_AUDIO_SECTOR_BYTE_DATA_SIZE;
         }
 
-        public ByteArrayFPIS getIdentifiedUserDataStream() {
+        public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
             return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     SectorFF8.SHARED_HEADER_SIZE + AUDIO_ADDITIONAL_HEADER_SIZE,
                     getIdentifiedUserDataSize());
@@ -240,9 +257,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
 
         public String toString() {
             return String.format("AudioFF8 %s MORIYA:%s %s", 
-                   super.toString(),
-                   new String(_acSHUN_MORIYA),
-                   _AKAOstruct.toString());
+                   super.toString(), _sSHUN_MORIYA, _AKAOstruct);
         }
 
         public int getAudioDataSize() {
@@ -257,7 +272,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return 2;
         }
 
-        public String getTypeName() {
+        public @Nonnull String getTypeName() {
             return "FF8Audio";
         }
 
@@ -283,7 +298,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
                 return 0;
         }
 
-         public boolean matchesPrevious(ISquareAudioSector prevSect) {
+         public boolean matchesPrevious(@Nonnull ISquareAudioSector prevSect) {
             if (!(prevSect instanceof SectorFF8Audio))
                 return false;
 

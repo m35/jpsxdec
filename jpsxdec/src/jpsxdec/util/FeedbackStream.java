@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.util;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Locale;
+import javax.annotation.Nonnull;
+import jpsxdec.i18n.LocalizedMessage;
 
 /** Filters outputting text based on verbosity level. */
 public class FeedbackStream extends PrintStream {
@@ -61,7 +63,7 @@ public class FeedbackStream extends PrintStream {
         this(System.out, NORM);
     }
 
-    public FeedbackStream(OutputStream out, int iVerboseLevel) {
+    public FeedbackStream(@Nonnull OutputStream out, int iVerboseLevel) {
         super(out);
         _iVerboseLevel = iVerboseLevel;
     }
@@ -287,26 +289,26 @@ public class FeedbackStream extends PrintStream {
 
     //========================================================================
 
-    public void printMore(String s) {
+    public void printMore(@Nonnull LocalizedMessage s) {
         if (_iVerboseLevel >= MORE) {
             printIndentIfAny();
             super.print(s);
         }
     }
-    public void printlnMore(String s) {
+    public void printlnMore(@Nonnull LocalizedMessage s) {
         if (_iVerboseLevel >= MORE) {
             printIndentIfAny();
             super.println(s);
             _blnNewLine = true;
         }
     }
-    public void printWarn(String s) {
+    public void printWarn(@Nonnull LocalizedMessage s) {
         if (_iVerboseLevel >= WARN) {
             printIndentIfAny();
             super.print(s);
         }
     }
-    public void printlnWarn(String s) {
+    public void printlnWarn(@Nonnull LocalizedMessage s) {
         if (_iVerboseLevel >= WARN) {
             printIndentIfAny();
             super.println(s);
@@ -314,20 +316,27 @@ public class FeedbackStream extends PrintStream {
         }
     }
 
-    public void printErr(String s)  {
+    public void printErr(@Nonnull LocalizedMessage s)  {
         if (_iVerboseLevel >= ERR) {
             printIndentIfAny();
             super.print(s);
         }
     }
-    public void printlnErr(String s)  {
+    public void printlnErr(@Nonnull String s)  {
         if (_iVerboseLevel >= ERR) {
             printIndentIfAny();
             super.println(s);
             _blnNewLine = true;
         }
     }
-    public void printlnErr(Throwable ex)  {
+    public void printlnErr(@Nonnull LocalizedMessage s)  {
+        if (_iVerboseLevel >= ERR) {
+            printIndentIfAny();
+            super.println(s);
+            _blnNewLine = true;
+        }
+    }
+    public void printlnErr(@Nonnull Throwable ex)  {
         if (_iVerboseLevel >= MORE) {
             // if MORE verbosity is wanted, then print the entire stack trace
             ex.printStackTrace(this);
@@ -348,30 +357,30 @@ public class FeedbackStream extends PrintStream {
         }
     }
 
-    public FeedbackStream indent() {
+    public @Nonnull FeedbackStream indent() {
         _iIndentLevel += INDENT_AMOUNT;
         return this;
     }
 
-    public FeedbackStream indent1() {
+    public @Nonnull FeedbackStream indent1() {
         super.print("  ");
         _blnNewLine = true;
         return this;
     }
 
-    public FeedbackStream indent(int iAmount) {
+    public @Nonnull FeedbackStream indent(int iAmount) {
         _iIndentLevel += iAmount * INDENT_AMOUNT;
         return this;
     }
 
-    public FeedbackStream outdent() {
+    public @Nonnull FeedbackStream outdent() {
         _iIndentLevel -= INDENT_AMOUNT;
         if (_iIndentLevel < 0)
             _iIndentLevel = 0;
         return this;
     }
 
-    public FeedbackStream outdent(int iAmount) {
+    public @Nonnull FeedbackStream outdent(int iAmount) {
         _iIndentLevel -= iAmount * INDENT_AMOUNT;
         if (_iIndentLevel < 0)
             _iIndentLevel = 0;

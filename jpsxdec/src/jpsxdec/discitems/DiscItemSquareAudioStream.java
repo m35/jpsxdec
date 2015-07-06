@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2014  Michael Sabin
+ * Copyright (C) 2007-2015  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,10 +41,13 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.I18N;
-import jpsxdec.LocalizedMessage;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.audio.SquareAdpcmDecoder;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.ExposedBAOS;
@@ -70,11 +73,12 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     private static final String SECTORS_PAST_END_KEY = "Sectors past end";
     private final int _iSectorsPastEnd;
     
-    public DiscItemSquareAudioStream(int iStartSector, int iEndSector,
-            long lngLeftSampleCount, long lngRightSampleCount, 
-            int iSamplesPerSecond, int iSectorsPastEnd)
+    public DiscItemSquareAudioStream(@Nonnull CdFileSectorReader cd,
+                                     int iStartSector, int iEndSector,
+                                     long lngLeftSampleCount, long lngRightSampleCount,
+                                     int iSamplesPerSecond, int iSectorsPastEnd)
     {
-        super(iStartSector, iEndSector);
+        super(cd, iStartSector, iEndSector);
 
         _lngLeftSampleCount = lngLeftSampleCount;
         _lngRightSampleCount = lngRightSampleCount;
@@ -86,9 +90,10 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
                     new Object[]{_lngLeftSampleCount, _lngRightSampleCount});
     }
     
-    public DiscItemSquareAudioStream(SerializedDiscItem fields) throws NotThisTypeException
+    public DiscItemSquareAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+            throws NotThisTypeException
     {
-        super(fields);
+        super(cd, fields);
         
         _iSamplesPerSecond = fields.getInt(SAMPLES_PER_SEC_KEY);
         _lngLeftSampleCount = fields.getLong(SAMPLE_COUNT_LEFT_KEY);
@@ -101,7 +106,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     }
     
     @Override
-    public SerializedDiscItem serialize() {
+    public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
         fields.addNumber(SAMPLES_PER_SEC_KEY, _iSamplesPerSecond);
         fields.addNumber(SAMPLE_COUNT_LEFT_KEY, _lngLeftSampleCount);
@@ -110,7 +115,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return fields;
     }
 
-    public String getSerializationTypeId() {
+    public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
 
@@ -138,7 +143,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return lngSampleCount / (double)_iSamplesPerSecond;
     }
 
-    public AudioFormat getAudioFormat(boolean blnBigEndian) {
+    public @Nonnull AudioFormat getAudioFormat(boolean blnBigEndian) {
         return new AudioFormat(_iSamplesPerSecond, 16, 2, true, blnBigEndian);
     }
 
@@ -147,16 +152,15 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     }
 
     @Override
-    public LocalizedMessage getInterestingDescription() {
+    public @Nonnull LocalizedMessage getInterestingDescription() {
         long lngSampleCount = _lngLeftSampleCount > _lngRightSampleCount ?
                               _lngLeftSampleCount : _lngRightSampleCount;
         // unable to find ANY sources of info about how to localize durations
         Date secs = new Date(0, 0, 0, 0, 0, (int)Math.max(lngSampleCount / _iSamplesPerSecond, 1));
-        return new LocalizedMessage("{0,time,m:ss}, {1,number,#} Hz Stereo", // I18N
-                                    secs, _iSamplesPerSecond);
+        return I.GUI_SQUARE_AUDIO_DETAILS(secs, _iSamplesPerSecond);
     }
 
-    public ISectorAudioDecoder makeDecoder(double dblVolume) {
+    public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume) {
         return new SquareConverter(new SquareAdpcmDecoder(dblVolume));
     }
 
@@ -164,24 +168,29 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
 
     private class SquareConverter implements ISectorAudioDecoder {
 
+        @Nonnull
         private final SquareAdpcmDecoder __decoder;
+        @Nonnull
         private final AudioFormat __format;
+        @Nonnull
         private final ExposedBAOS __tempBuffer;
+        @CheckForNull
         private ISectorTimedAudioWriter __audioWriter;
+        @CheckForNull
         private ISquareAudioSector __leftAudioSector, __rightAudioSector;
 
-        public SquareConverter(SquareAdpcmDecoder decoder) {
+        public SquareConverter(@Nonnull SquareAdpcmDecoder decoder) {
             __decoder = decoder;
             // 1840 is the most # of ADPCM bytes found in any Square game sector (FF9)
             __tempBuffer = new ExposedBAOS(SquareAdpcmDecoder.calculateOutputBufferSize(1840));
             __format = __decoder.getOutputFormat(_iSamplesPerSecond);
         }
 
-        public void setAudioListener(ISectorTimedAudioWriter audioOut) {
+        public void setAudioListener(@Nonnull ISectorTimedAudioWriter audioOut) {
             __audioWriter = audioOut;
         }
 
-        public boolean feedSector(IdentifiedSector sector, Logger log) throws IOException {
+        public boolean feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) throws IOException {
             if (!(sector instanceof ISquareAudioSector))
                 return false;
 
@@ -189,6 +198,9 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             if (audSector.getAudioChannel() == 0) {
                 __leftAudioSector = audSector;
             } else if (audSector.getAudioChannel() == 1) {
+                if (__leftAudioSector == null)
+                    throw new IllegalStateException("Received right audio sector before left audio sector.");
+                
                 __rightAudioSector = audSector;
 
                 if (__leftAudioSector.getAudioDataSize() != __rightAudioSector.getAudioDataSize() ||
@@ -200,6 +212,8 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
                         __rightAudioSector.getIdentifiedUserDataStream(),
                         __rightAudioSector.getAudioDataSize(), __tempBuffer,
                         log);
+                if (__audioWriter == null)
+                    throw new IllegalStateException("Must set audio listener before feeding sectors.");
                 __audioWriter.write(__format, __tempBuffer.getBuffer(), 0, __tempBuffer.size(), __rightAudioSector.getSectorNumber());
             } else {
                 throw new RuntimeException("Invalid audio channel " + audSector.getAudioChannel());
@@ -215,7 +229,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             __decoder.setVolume(dblVolume);
         }
 
-        public AudioFormat getOutputFormat() {
+        public @Nonnull AudioFormat getOutputFormat() {
             return __format;
         }
 
@@ -243,8 +257,8 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             return DiscItemSquareAudioStream.this.getPresentationStartSector();
         }
 
-        public String[] getAudioDetails() {
-            return new String[] { DiscItemSquareAudioStream.this.toString() };
+        public @Nonnull LocalizedMessage[] getAudioDetails() {
+            return new LocalizedMessage[] { DiscItemSquareAudioStream.this.getDetails() };
         }
     }
 

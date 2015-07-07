@@ -1,0 +1,241 @@
+      Modding the Lain PSX Game for Fun, and At Your Own Personal Expense
+
+For the Serial Experiments Lain Playstation Game Translation Project
+(MtLPGfFaTA-SELPGTP?) 
+
+--------------------------------------------------------------------------------
+
+__Disc 1__		_Sectors occupied_
+SLPS_016.03 	23-324
+SYSTEM.CNF 		325-325
+LAIN_1.INF 		326-326
+BIN.BIN 		327-451
+LAPKS.BIN 		452-7256
+SND.BIN 		7257-7470
+SITEA.BIN 		7471-10916
+VOICE.BIN 		10917-18089
+MOVES\
+XA\
+
+__Disc 2__		_Sectors occupied_
+SLPS_016.04 	23-324
+SYSTEM.CNF 		325-325
+LAIN_2.INF		326-326
+BIN.BIN 		327-451
+LAPKS.BIN 		452-7256
+SND.BIN 		7257-7470
+SITEB.BIN 		7471-10072
+VOICE.BIN 		10073-17245
+MOVES\
+MOVES2\
+XA\
+
+  ________________________
+ /
+(   MOVES\ and MOVIES2\
+ \________________________
+
+Movies, and final movie.
+
+The exact movie format can be found in the PlayStation_STR_format.txt document.
+
+Only a small portion of the movies actually contain spoken Japanese.
+
+The goal of course is to sub-title these movies. I see three ways to tackle this, (1) a simple approach, but lower quality, (2) a more complex approach but higher quality (3) a very smple approach, but loss of a portion of the screen.   
+
+There is no known way to associate movie files on the disc with movie id's in the game. You just have to compare what plays in the game with which movies are decoded off the disc. But it is not really necessary to determine the relationship for translation purposes.  
+
+  _______
+ /
+(   XA\
+ \_______
+
+Audio clips.
+
+Most audio clips are played with the Lain audio player interface, with 1 to 3 images being shown in the background. These images can be replaced, potentially with simple images containing the translation text.
+
+This should work for most of those audio clips, but some are extrmely long. The longest is 3:38 (Eda005), and it is full of non-stop talking. Hopefully 3 images will be able to contain all that text. 
+
+These background images are found in SITEA.BIN and SITEB.BIN, and are indexed in the SLPS_016.03 file.
+
+There are however a number of audio clips that are not played with the audio player interface. These clips are spoken by Lain Herself in a simple animation of just her head. There are currently no ideas how to display the translation of these audio clips.
+
+Like the movie clips, there is no known way to associate the audio clips with the audio id's in the game. This relationship, however, is very necessary for translation. Thankfully most of them go in order.
+
+
+  _______
+ /
+(   SITEA.BIN & SITEB.BIN
+ \_______
+
+Images used in the background while playing audio clips. Unique to each disc. 
+
+Each image starts at a sector boundary (every 2048), and runs through as many sectors as it needs.
+
+SITEA.BIN Holds 790 images. All are compressed except for 6.
+          The position and size of the images are listed in the 'SITEA index table' found in SLPS_016.03.
+SITEB.BIN
+
+It is helpful to know that when images are displayed in the Lain audio player, that they are cropped slightly: 6 px from left, 3 (if even height) or 2 (if odd height) px from top, 12 px from right, and 1 px from bottom. 
+
+The center of the image is at 162 (163rd pixel) pixels from the left, and 119 (120th pixel) pixels from the top.
+
+This cropping is consistent regardless of image size.
+
+Also the animated lof image is always displayed in the top left corner of the image.
+It is a compressed TIM found in BIN.BIN at offset ????
+
+  _______
+ /
+(   SND.BIN, VOICE.BIN
+ \_______
+
+I believe these files are related to pronoucing the player's name. Identical on both discs. Also must contain the background 'musack' and the various game sound-effects. These don't need to be modified for the translation.
+
+  _______
+ /
+(   LAPKS.BIN
+ \_______
+
+All Lain animation cells ("poses"), as well as the images for the sequences when Lain talks to the player. Not necessary for translation, but fun to know anyway.
+
+There are 59 animation sequences.
+
+Each animation sequence has the following structure:
+	LaPk header
+		* 4 bytes; 'lapk'
+		* 4 bytes; size of entire lapk (starting after this value)
+		* 4 bytes; number of cells
+		* 12 * (number of cells); LaPk Cell descriptor
+			* 4 bytes; offset of cell (after LaPk header)
+			* 2 bytes; negitive X position
+			* 2 bytes; negitive Y position
+			* 4 bytes; unknown. sound effect?
+	
+	LaPk Cell header
+		* 2 bytes; image width
+		* 2 bytes; image height
+		* 2 bytes; chrominance quantization scale  
+		* 2 bytes; luminance quantization scale
+		* 4 bytes; length of cell data in bytes (after this header)
+		* 4 bytes; number of run length codes?
+		*
+		* (length of cell data) bytes; width/16*height/16 compressed macro blocks
+		* 
+		* Compressed Bit Mask <- Starts at 12+(length of cell data)
+			* 4 bytes; Bit mask size
+			* (size) bytes; Bit Mask data
+
+  _______
+ /
+(   SYSTEM.CNF
+ \_______
+ 
+Boot prameters for the executable? Identical on both discs except 1 byte.
+
+  _______
+ /
+(   SLPS_016.03
+ \_______
+
+The actual executable program. This file is identical on both discs.
+
+There are a few tables of data found in the code that are important for the Translation project.
+
+SITEA image index table <bytes 568416 to 574736, 790 entries>
+	* 4 bytes; Offset to the image (in sectors)
+	* 4 bytes; Size of the data
+
+SITEB image index table <bytes 574736 to ?, 558 entries>
+	* 4 bytes; Offset to the image (in sectors)
+	* 4 bytes; Size of the data
+
+Data Node table <bytes 411544 to 440184, 716 entries>
+	* 8 bytes; Name of bubble (null term string)
+	* 2 bytes; unknown
+	* 2 bytes; unknown
+	* 2 bytes; unknown
+	* 2 bytes; unknown
+	* 2 bytes; Word table index 1
+	* 2 bytes; Word table index 2
+	* 2 bytes; Word table index 3
+	* 2 bytes; SITEA/B index table index 1, or -1 if n/a
+	* 2 bytes; SITEA/B index table index 2, or -1 if n/a
+	* 2 bytes; SITEA/B index table index 3, or -1 if n/a
+	* 2 bytes; Media table index number
+	* 2 bytes; Top bit: Site A or B; Rest: spatial location
+	* 2 bytes; always 0
+	* 1 byte; Node type and upgrade requirement
+	* 1 byte; Is initially hidden?
+	* 2 bytes; unlocks index number, or -1 if n/a 
+	* 2 bytes; always 0
+
+Media table <bytes 402024 to 407888, 733 entries>
+If STR
+	* 2 bytes; always 0
+	* 2 bytes; File
+	* 4 bytes; Frame count
+If XA
+	* 2 bytes; LAIN##.XA file number
+	* 2 bytes; XA channel (0-31)
+	* 4 bytes; Sector count?
+	
+	
+Lain talking images table <bytes 8772 to 8791>
+	* 2 bytes; Site A image index
+	* 2 bytes; Site B image index
+	
+Site A Env Equivalence table <bytes 408056 to , 10 entries>
+	* 2 bytes; Site A Env image 0
+	* 2 bytes; Site A Env image 1
+	* 2 bytes; Site A Env image 2
+
+Site B Env Equivalence table <bytes 408116 to , 10 entries>
+	* 2 bytes; Site A Env image 0
+	* 2 bytes; Site A Env image 1
+	* 2 bytes; Site A Env image 2
+
+File table <bytes 401016 to 402024, 126 entries>
+    * 4 bytes: File sector start
+    * 4 bytes: File size (minor differences to the ISO9660 file sizes)
+
+SiteA alt. file table <bytes 400216 to 400768, 13 entries>
+    * 4 bytes: Site A XA file sector start
+    * 4 bytes: unknown
+
+BIN.BIN table <bytes 562920 to ??, ? entries>
+	* 4 bytes: Sector offset
+	* 4 bytes: size
+
+	
+  _______
+ /
+(   BIN.BIN
+ \_______
+
+Contains various compressed and uncompressed images (TIM files) used in the game. This file is identical on both discs.
+
+The katakana table is found in this file. It could optionally be replaced with a new image of the romaji equivalents.
+
+The animated lof image shown in the Lain audio player could also be replaced with a completely transparent image so more of the background image can be seen.
+
+The credits list is also in this file as a comrpessed TIM.
+
+  _______
+ /
+(   LAIN_1.INF & LAIN_2.INF
+ \_______
+
+Small ASCII file with the text
+	LAIN SITE A DISC
+	LAIN SITE B DISC
+
+
+  _______
+ /
+(   Appendix: Lain compression
+ \_______
+
+Used in SITEA.BIN, SITEB.BIN, BIN.BIN, and LAPKS.BIN.
+
+Reference implementation in Lain_Pk.java

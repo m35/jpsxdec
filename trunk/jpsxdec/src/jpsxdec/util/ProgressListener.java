@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,22 +39,23 @@ package jpsxdec.util;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 public interface ProgressListener {
 
-    public void progressStart(@CheckForNull LocalizedMessage msg) throws TaskCanceledException;
+    public void progressStart(@CheckForNull ILocalizedMessage msg) throws TaskCanceledException;
 
     public void progressStart() throws TaskCanceledException;
 
     public void progressEnd() throws TaskCanceledException;
 
+    /** @param dblPercentComplete Between 0.0 - 1.0 */
     public void progressUpdate(double dblPercentComplete) throws TaskCanceledException;
 
     /** Report progress event. */
-    public void event(@Nonnull LocalizedMessage msg);
+    public void event(@Nonnull ILocalizedMessage msg);
     /** If the progress listener is wanting an event. */
     public boolean seekingEvent();
 
-    public void progressInfo(@Nonnull LocalizedMessage msg);
+    public void progressInfo(@Nonnull ILocalizedMessage msg);
 }

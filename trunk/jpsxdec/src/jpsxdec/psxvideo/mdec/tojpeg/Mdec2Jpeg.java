@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,6 +45,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.i18n.I;
 import jpsxdec.Version;
+import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.psxvideo.mdec.Ac0Cleaner;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
@@ -96,8 +98,8 @@ public class Mdec2Jpeg {
     //--------------------------------------------------------------------------
 
     /** Special JPEG quantization table.
-     * For indexes where ((default PSX quanization) % 8) == 0,
-     * use (default PSX quanization) / 8). This results in the following
+     * For indexes where ((default PSX quantization) % 8) == 0,
+     * use (default PSX quantization) / 8). This results in the following
      * quantization table.
      * <pre>
      *  [ 1, 2, 1, 1, 1, 1, 1, 1 ]
@@ -109,6 +111,12 @@ public class Mdec2Jpeg {
      *  [ 1, 1, 1, 1, 1, 1, 7, 1 ]
      *  [ 1, 1, 1, 1, 1, 7, 1, 1 ]
      * </pre> */
+    // TODO: can optimize output size by picking the GCD quantization
+    // Perform an initial scan of the entire image and pick the GCD of every
+    // coefficient. That resulting GCD will be the quantization table
+    // for this image.
+    // In the process we can also ensure the resulting coefficients aren't too
+    // big and adjust the table as necessary.
     private static final int[] JPEG_QUANTIZATION_TABLE_ZIGZAG = new int[64];
     
     /** PSX standard quantization table in zig-zag order. */
@@ -206,7 +214,12 @@ public class Mdec2Jpeg {
 
 
     /** Reads and buffers the MDEC data. */
-    public void readMdec(MdecInputStream mdecInStream) throws MdecException.Decode {
+    public void readMdec(MdecInputStream mdecInStream) 
+            throws MdecException.Read, MdecException.TooMuchEnergyToCompress
+    {
+        // while jpgs with AC=0 codes seem to be fine, still would like to avoid it
+        Ac0Cleaner cleanStream = (mdecInStream instanceof Ac0Cleaner) ?
+                (Ac0Cleaner)mdecInStream : new Ac0Cleaner(mdecInStream);
 
         final MdecInputStream.MdecCode code = new MdecInputStream.MdecCode();
 
@@ -218,85 +231,78 @@ public class Mdec2Jpeg {
         int iMacBlk = 0, iBlock = 0;
         int iMacBlkX=-1, iMacBlkY=-1;
 
-        try {
+        // decode all the macro blocks of the image
+        for (iMacBlkX = 0; iMacBlkX < _iMacBlockWidth; iMacBlkX++) {
+            for (iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY++) {
 
-            // decode all the macro blocks of the image
-            for (iMacBlkX = 0; iMacBlkX < _iMacBlockWidth; iMacBlkX++) {
-                for (iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY++) {
+                for (iBlock = 0; iBlock < 6; iBlock++) {
+                    Component comp;
+                    if (iBlock == PSX_CB_COMPONENT)
+                        comp = _aoComponents[JPEG_CB_COMPONENT];
+                    else if (iBlock == PSX_CR_COMPONENT)
+                        comp = _aoComponents[JPEG_CR_COMPONENT];
+                    else
+                        comp = _aoComponents[JPEG_Y_COMPONENT];
 
-                    for (iBlock = 0; iBlock < 6; iBlock++) {
-                        Component comp;
-                        if (iBlock == PSX_CB_COMPONENT)
-                            comp = _aoComponents[JPEG_CB_COMPONENT];
-                        else if (iBlock == PSX_CR_COMPONENT)
-                            comp = _aoComponents[JPEG_CR_COMPONENT];
-                        else
-                            comp = _aoComponents[JPEG_Y_COMPONENT];
+                    cleanStream.readMdecCode(code);
 
-                        mdecInStream.readMdecCode(code);
+                    // normally would multiply by PSX_QUANTIZATION_TABLE_ZIGZAG[0]
+                    // but JPEG_QUANTIZATION_TABLE_ZIGZAG[0] will take care of that
+                    comp.DctCoffZZ[comp.WriteIndex] = code.getBottom10Bits();
+                    // note that so long as the MDEC codes are valid,
+                    // the DC diff can never overflow the 11 bits it must fit in
+                    //      MDEC DC 10 bit: -512 to 511
+                    //      max diff = 511 + 512 = 1023
+                    //      11 bits: +/- 2047
 
-                        // normally would multiply by PSX_QUANTIZATION_TABLE_ZIGZAG[0]
-                        // but JPEG_QUANTIZATION_TABLE_ZIGZAG[0] will take care of that
-                        comp.DctCoffZZ[comp.WriteIndex] = code.getBottom10Bits();
-                        // note that so long as the MDEC codes are valid,
-                        // the DC diff can never overflow the 11 bits it must fit in
-                        //      MDEC DC 10 bit: -512 to 511
-                        //      max diff = 511 + 512 = 1023
-                        //      11 bits: +/- 2047
-                        
-                        final int iCurrentBlockQscale = code.getTop6Bits();
-                        int iCurrentBlockVectorPosition = 0;
+                    final int iCurrentBlockQscale = code.getTop6Bits();
+                    int iCurrentBlockVectorPosition = 0;
 
-                        while (!mdecInStream.readMdecCode(code)) {
+                    while (!cleanStream.readMdecCode(code)) {
 
-                            ////////////////////////////////////////////////////////
-                            iCurrentBlockVectorPosition += code.getTop6Bits() + 1;
+                        ////////////////////////////////////////////////////////
+                        iCurrentBlockVectorPosition += code.getTop6Bits() + 1;
 
-                            if (iCurrentBlockVectorPosition >= 64) {
-                                throw new MdecException.Decode(I.RLC_OOB_IN_MB_XY_BLOCK(
-                                               iCurrentBlockVectorPosition,
-                                               iMacBlk, iMacBlkX, iMacBlkY, iBlock));
-                            }
-
-                            // Dequantize
-                            int iJpegQScale = JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition];
-                            int iVal;
-                            if (iJpegQScale == 1) {
-                                iVal = (code.getBottom10Bits()
-                                        * PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                                        * iCurrentBlockQscale + 4) >> 3;
-                            } else {
-                                // normally would multiply by
-                                // PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                                // and divide by 8, but
-                                // JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                                // will take care of that
-                                iVal = code.getBottom10Bits() * iCurrentBlockQscale;
-                            }
-                            // TODO: can optimize output size by picking the GCD quantization
-                            if (iVal < -1023 || iVal > 1023) {
-                                throw new MdecException.TooMuchEnergyToCompress(
-                                        I.RLC_OOB_IN_MB_XY_BLOCK(
-                                        iVal, iMacBlk, iMacBlkX, iMacBlkY, iBlock));
-                            }
-                            comp.DctCoffZZ[comp.WriteIndex+iCurrentBlockVectorPosition] = iVal;
-
-                            ////////////////////////////////////////////////////////
+                        if (iCurrentBlockVectorPosition >= 64) {
+                            throw new MdecException.BlockVectorIndexOutOfBounds(I.RLC_OOB_IN_MB_XY_BLOCK(
+                                           iCurrentBlockVectorPosition,
+                                           iMacBlk, iMacBlkX, iMacBlkY, iBlock));
                         }
 
-                        comp.WriteIndex += 64;
+                        // Dequantize
+                        int iJpegQScale = JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition];
+                        int iVal;
+                        if (iJpegQScale == 1) {
+                            iVal = (code.getBottom10Bits()
+                                    * PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
+                                    * iCurrentBlockQscale + 4) >> 3;
+                        } else {
+                            // normally would multiply by
+                            // PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
+                            // and divide by 8, but
+                            // JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
+                            // will take care of that
+                            iVal = code.getBottom10Bits() * iCurrentBlockQscale;
+                        }
+                        if (iVal < -1023 || iVal > 1023) {
+                            // TODO: this is an internal failure, don't use localized message interface
+                            throw new MdecException.TooMuchEnergyToCompress(
+                                    new UnlocalizedMessage(String.format(
+                                    "[JPG] Too much energy to encode %d in macroblock %d (%d, %d) block %d",
+                                    iVal, iMacBlk, iMacBlkX, iMacBlkY, iBlock)));
+                        }
+                        comp.DctCoffZZ[comp.WriteIndex+iCurrentBlockVectorPosition] = iVal;
+
+                        ////////////////////////////////////////////////////////
                     }
 
-                    iMacBlk++;
+                    comp.WriteIndex += 64;
                 }
-            }
 
-        } catch (MdecException ex) {
-            if (ex instanceof MdecException.Decode)
-                throw (MdecException.Decode)ex;
-            else
-                throw new MdecException.Decode(I.JPEG_ERR_READING_MB(iMacBlk, iMacBlkX, iMacBlkY, iBlock), ex);
+                iMacBlk++;
+            }
         }
+
     }
 
     /** Writes the translated JPEG to the output. */

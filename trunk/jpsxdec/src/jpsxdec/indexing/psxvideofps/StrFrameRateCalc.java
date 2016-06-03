@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -176,37 +176,49 @@ public class StrFrameRateCalc {
 
     @Override
     public String toString() {
-        if (_wholeFrameRate == null) {
-            return "No matching variable rates.";
-        } else if (_inconsistentFrameRate != null) {
-            return "Possible variable rates: " + _inconsistentFrameRate;
+        StringBuilder sb = new StringBuilder();
+        if (_wholeFrameRate != null || _inconsistentFrameRate != null) {
+            sb.append("Possible frame rates: ");
+            if (_wholeFrameRate != null)
+                sb.append(Arrays.toString(_wholeFrameRate.getAllPossibleSectorsPerFrame()));
+            if (_inconsistentFrameRate != null)
+                sb.append(_inconsistentFrameRate);
         } else {
-            return "Possible variable rates: " + Arrays.toString(_wholeFrameRate.getAllPossibleSectorsPerFrame());
+            sb.append("No matching variable rates.");
         }
+        return sb.toString();
     }
 
     //--------------------------------------------------------------------------
     
     public @CheckForNull Fraction getSectorsPerFrame() {
+        StringBuilder sbLog = null;
+        if (LOG.isLoggable(Level.INFO)) {
+            sbLog = new StringBuilder(toString());
+        }
+
         Fraction sectorsPerFrame = null;
         if (_wholeFrameRate != null) {
             int[] aiPossibleSectorsPerFrame = _wholeFrameRate.getPossibleSectorsPerFrame();
             if (aiPossibleSectorsPerFrame != null) {
-                if (aiPossibleSectorsPerFrame.length > 1) {
-                    LOG.log(Level.INFO, "All possible sectors/frame {0}",
-                            Arrays.toString(aiPossibleSectorsPerFrame));
-                }
                 sectorsPerFrame = new Fraction(aiPossibleSectorsPerFrame[aiPossibleSectorsPerFrame.length-1]);
             }
         } else if (_inconsistentFrameRate != null) {
             for (InconsistentFrameSequence frameSeq : _inconsistentFrameRate) {
+                Fraction frmSeqSpf = frameSeq.getSectorsPerFrame();
                 if (sectorsPerFrame == null)
-                    sectorsPerFrame = frameSeq.getSectorsPerFrame();
+                    sectorsPerFrame = frmSeqSpf;
                 else {
-                    if (frameSeq.getSectorsPerFrame().compareTo(sectorsPerFrame) > 0)
-                        sectorsPerFrame = frameSeq.getSectorsPerFrame();
+                    if (frmSeqSpf.getNumerator() < sectorsPerFrame.getNumerator())
+                        sectorsPerFrame = frmSeqSpf;
                 }
             }
+        }
+
+        if (sbLog != null) {
+            if (sectorsPerFrame != null)
+                sbLog.append(" Chose ").append(sectorsPerFrame);
+            LOG.info(sbLog.toString());
         }
         return sectorsPerFrame;
     }

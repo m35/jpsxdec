@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,23 +48,24 @@ import java.util.ArrayList;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.i18n.I;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.savers.FrameLookup;
 import jpsxdec.formats.RgbIntImage;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
+import jpsxdec.psxvideo.mdec.Ac0Cleaner;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.NotThisTypeException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -94,7 +95,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
     @Override
     public @Nonnull Element serialize(@Nonnull Document document) {
         Element node = document.createElement(XML_TAG_NAME);
-        node.setAttribute("frame", getFrame().toString());
+        node.setAttribute("frame", getFrameLookup().toString());
         File imgFile = getImageFile();
         if (imgFile != null)
             node.setTextContent(imgFile.toString());
@@ -186,7 +187,7 @@ public class ReplaceFramePartial extends ReplaceFrame {
             throw new MdecException.Uncompress(I.CMD_UNABLE_TO_IDENTIFY_FRAME_TYPE());
         uncompressor.reset(origBitstream, frame.getDemuxSize());
         ParsedMdecImage parsedOrig = new ParsedMdecImage(WIDTH, HEIGHT);
-        parsedOrig.readFrom(uncompressor);
+        parsedOrig.readFrom(new Ac0Cleaner(uncompressor));
 
         // 2. convert both to RGB
         // TODO: use best quality to decode, but same as encode
@@ -255,6 +256,8 @@ public class ReplaceFramePartial extends ReplaceFrame {
         BufferedImage maskImg = null;
         if (_imageMaskFile != null) {
             maskImg = ImageIO.read(_imageMaskFile);
+            if (maskImg == null)
+                throw new LocalizedIOException(I.REPLACE_UNABLE_READ_IMAGE(_imageMaskFile));
         }
 
         Point macblk = new Point();

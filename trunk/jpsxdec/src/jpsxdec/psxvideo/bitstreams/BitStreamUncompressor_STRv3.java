@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -89,7 +88,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
         abstract public int readDc(@Nonnull ArrayBitReader bitReader, 
                                    @CheckForNull MdecDebugger debug)
-                throws EOFException;
+                throws MdecException.EndOfStream;
         /** Attempts to encode a DC value that has already been diff'ed from
          *  the previous value and divided by 4.
          * @return bit string or null if could not encode with this VLC. */
@@ -145,7 +144,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
         @Override
         public int readDc(@Nonnull ArrayBitReader bitReader, @CheckForNull MdecDebugger debug)
-                throws EOFException
+                throws MdecException.EndOfStream
         {
             int iDC_Differential = bitReader.readUnsignedBits(_iDifferentialBitLen);
             assert !DEBUG || debug.append(Misc.bitsToString(iDC_Differential, _iDifferentialBitLen));
@@ -153,6 +152,8 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             if ((iDC_Differential & _iTopBitMask) == 0) {
                 iDC_Differential += _iNegativeDifferentialMin;
             }
+            // value will be between -255 <= iDC_Differential <= 255
+
             // because v3 encoding only uses 8 bits of precision for DC,
             // it needs to be shifted up by 2 bits to be ready for
             // the Qtable[0] multiplication of 2 which will fill up it to the full
@@ -302,7 +303,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     
     @Override
     protected void readQscaleAndDC(@Nonnull MdecCode code)
-            throws MdecException.Uncompress, EOFException
+            throws MdecException.Uncompress, MdecException.EndOfStream
     {
         code.setTop6Bits(_iQscale);
         switch (getCurrentMacroBlockSubBlock()) {
@@ -320,7 +321,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
     
     private int readV3DcChroma(int iPreviousDC)
-            throws MdecException.Uncompress, EOFException
+            throws MdecException.Uncompress, MdecException.EndOfStream
     {
         // Peek enough bits
         int iBits = _bitReader.peekUnsignedBits(DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE);
@@ -349,7 +350,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         return iPreviousDC;
     }
     
-    private void readV3DcLuma() throws MdecException.Uncompress, EOFException {
+    private void readV3DcLuma() throws MdecException.Uncompress, MdecException.EndOfStream {
         // Peek enough bits
         int iBits = _bitReader.peekUnsignedBits(DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE);
         
@@ -377,7 +378,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
 
     @Override
-    public void skipPaddingBits() throws EOFException {
+    public void skipPaddingBits() throws MdecException.EndOfStream {
         int iPaddingBits = _bitReader.readUnsignedBits(11);
         if (iPaddingBits != b11111111110) {
             LOG.log(Level.WARNING, "Incorrect padding bits {0}", Misc.bitsToString(iPaddingBits, 11));
@@ -390,13 +391,15 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     }
     
     @Override
-    public @Nonnull BitstreamCompressor_STRv3 makeCompressor() {
-        return new BitstreamCompressor_STRv3();
+    public @Nonnull BitStreamCompressor_STRv3 makeCompressor() {
+        return new BitStreamCompressor_STRv3();
     }
 
     // =========================================================================
     
-    public static class BitstreamCompressor_STRv3 extends BitstreamCompressor_STRv2 {
+    /** Note unlike all other compressors, STRv3 is LOSSY when encoding
+     * DC coefficients. */
+    public static class BitStreamCompressor_STRv3 extends BitStreamCompressor_STRv2 {
 
         @Override
         protected int getHeaderVersion() { return 3; }
@@ -424,7 +427,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
                     _iPreviousY_DcRound4;
 
         @Override
-        protected @Nonnull String encodeDC(int iDC, int iBlock) {
+        protected @Nonnull String encodeDC(int iDC, int iBlock) throws MdecException.Compress {
             // round to the nearest multiple of 4
             // TODO: Maybe try to expose this quality loss somehow
             int iDcRound4 = (int)Math.round(iDC / 4.0) * 4;
@@ -457,7 +460,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
                 if (sEncodedBits != null)
                     return sEncodedBits;
             }
-            throw new IllegalArgumentException("Unable to encode DC value " + iDC);
+            throw new MdecException.Compress(I.STRV3_COMPRESS_DC_FAIL(iDC, iDcDiffRound4Div4));
         }
 
         @Override

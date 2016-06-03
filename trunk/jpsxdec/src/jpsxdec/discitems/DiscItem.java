@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,11 +41,11 @@ import java.io.File;
 import java.io.IOException;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -68,21 +68,31 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Basic types of {@link DiscItem}s. */
     public static enum GeneralType {
-        Audio(I.ITEM_TYPE_AUDIO()),
-        Video(I.ITEM_TYPE_VIDEO()),
-        Image(I.ITEM_TYPE_IMAGE()),
-        File (I.ITEM_TYPE_FILE() ),
+        Audio(I.ITEM_TYPE_AUDIO(), I.ITEM_TYPE_AUDIO_APPLY()),
+        Video(I.ITEM_TYPE_VIDEO(), I.ITEM_TYPE_VIDEO_APPLY()),
+        Image(I.ITEM_TYPE_IMAGE(), I.ITEM_TYPE_IMAGE_APPLY()),
+        File (I.ITEM_TYPE_FILE() , I.ITEM_TYPE_FILE_APPLY() ),
         ;
 
         @Nonnull
-        private final LocalizedMessage _localizedName;
+        private final ILocalizedMessage _localizedName;
+        @Nonnull
+        private final ILocalizedMessage _localizedApplyToName;
 
-        private GeneralType(@Nonnull LocalizedMessage name) {
+        private GeneralType(@Nonnull ILocalizedMessage name, 
+                            @Nonnull ILocalizedMessage applyToName)
+        {
             _localizedName = name;
+            _localizedApplyToName = applyToName;
         }
 
-        public @Nonnull LocalizedMessage getName() {
+        public @Nonnull ILocalizedMessage getName() {
             return _localizedName;
+        }
+
+        /** Could be different when used in the phrase "Apply to all {0}". */
+        public @Nonnull ILocalizedMessage getApplyToName() {
+            return _localizedApplyToName;
         }
     }
 
@@ -217,8 +227,8 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         return _cdReader.getSector(getStartSector() + iIndex);
     }
 
-    public @CheckForNull IdentifiedSector getRelativeIdentifiedSector(int iIndex) throws IOException {
-        return identifySector(getRelativeSector(iIndex));
+    public @Nonnull IdentifiedSectorIterator identifiedSectorIterator() {
+        return IdentifiedSectorIterator.create(_cdReader, _iStartSector, _iEndSector);
     }
 
     /** First sector of the source disc that holds data related to this disc item.
@@ -238,25 +248,6 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         return _iEndSector - _iStartSector + 1;
     }
 
-    /** Because the media items knows what sectors are used,
-     *  it can reduce the number of tests to identify a CD sector type.
-     *  @return Identified sector, or null if no match. */
-    public @CheckForNull IdentifiedSector identifySector(@Nonnull CdSector sector) {
-        return IdentifiedSector.identifySector(sector);
-        /* // this is nice in theory, but I don't think I'll mess with it
-        for (Class<IdentifiedSector> sectorType : _aoSectorsUsed) {
-            try {
-                Constructor<IdentifiedSector> construct = sectorType.getConstructor(CdSector.class);
-                return construct.newInstance(sector);
-            }
-            catch (InstantiationException ex) {throw new RuntimeException(ex);}
-            catch (IllegalAccessException ex) {throw new RuntimeException(ex);}
-            catch (InvocationTargetException ex) {throw new RuntimeException(ex);}
-            catch (NoSuchMethodException ex) {throw new RuntimeException(ex);}
-        }
-        */
-    }
-
     /** Returns the serialization. */
     public String toString() {
         return serialize().serialize();
@@ -266,7 +257,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     abstract public @Nonnull GeneralType getType();
 
     /** Description of various details about the disc item. */
-    abstract public @Nonnull LocalizedMessage getInterestingDescription();
+    abstract public @Nonnull ILocalizedMessage getInterestingDescription();
 
     abstract public @Nonnull DiscItemSaverBuilder makeSaverBuilder();
 

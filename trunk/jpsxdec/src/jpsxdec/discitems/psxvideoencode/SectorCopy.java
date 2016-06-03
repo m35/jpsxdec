@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,7 +52,7 @@ public class SectorCopy {
         sectorCopy(args[0], args[1], Integer.parseInt(args[2]));
     }
     public static void sectorCopy(@Nonnull String sSource, @Nonnull String sDest,
-                                  int iStartSector)
+                                  int iDestStartSector)
             throws IOException
     {
         
@@ -62,13 +62,13 @@ public class SectorCopy {
         if (src.getLength() > dest.getLength())
             throw new IllegalArgumentException("Source file is larger than dest file");
         
-        if (iStartSector + src.getLength() > dest.getLength())
+        if (iDestStartSector + src.getLength() > dest.getLength())
             throw new IllegalArgumentException("Source file will run off the end of dest file");
         
         for (int iOfsSect = 0; iOfsSect < src.getLength(); iOfsSect++) {
             byte[] abSrcUserData = src.getSector(iOfsSect).getCdUserDataCopy();
-            System.out.println("Overriting sector " + (iStartSector + iOfsSect));
-            dest.writeSector(iStartSector + iOfsSect, abSrcUserData);
+            System.out.println("Overriting sector " + (iDestStartSector + iOfsSect));
+            dest.writeSector(iDestStartSector + iOfsSect, abSrcUserData);
         }
         
         System.out.println(src.getLength() + " sectors overwritten.");

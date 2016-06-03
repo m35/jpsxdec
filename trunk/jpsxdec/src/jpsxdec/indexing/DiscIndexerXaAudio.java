@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,11 +42,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemXaAudioStream;
 import jpsxdec.discitems.SerializedDiscItem;
+import jpsxdec.i18n.I;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorXaAudio;
 import jpsxdec.util.NotThisTypeException;
@@ -165,10 +165,12 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
         return null;
     }
 
-    public void indexingSectorRead(@Nonnull IdentifiedSector sector) {
-        if (sector instanceof SectorXaAudio) {
+    public void indexingSectorRead(@Nonnull CdSector cdSector,
+                                   @CheckForNull IdentifiedSector idSector)
+    {
+        if (idSector instanceof SectorXaAudio) {
 
-            SectorXaAudio audSect = (SectorXaAudio)sector;
+            SectorXaAudio audSect = (SectorXaAudio)idSector;
 
             AudioStreamIndex audStream = _aoChannels[audSect.getChannel()];
             if (audStream == null) {
@@ -179,17 +181,16 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
             }
         } else {
 
-            // check for streams that are beyond their stride
+            // check for streams that are beyond their stride and close them
             for (int i = 0; i < _aoChannels.length; i++) {
                 AudioStreamIndex audStream = _aoChannels[i];
-                if (audStream != null && audStream.ended(sector.getSectorNumber())) {
+                if (audStream != null && audStream.ended(cdSector.getSectorNumberFromStart())) {
                     audStream.createMediaItem(this);
                     _aoChannels[i] = null;
                 }
             }
         }
 
-        CdSector cdSector = sector.getCdSector();
         if (cdSector.hasSubHeader()              &&
             cdSector.getSubMode().getEofMarker() &&
             cdSector.getSubHeaderChannel() < _aoChannels.length)

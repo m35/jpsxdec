@@ -38,14 +38,9 @@
 package jpsxdec.psxvideo.bitstreams;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.zip.GZIPInputStream;
 import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.mdec.MdecException.Uncompress;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import jpsxdec.util.IO;
-import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -54,7 +49,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 /** Test bitstream decoding. */
-public class Bitstreams {
+public class STRv2 {
 
     /** Represents an AC variable length code. */
     private static class AcVariableLengthCode {
@@ -207,7 +202,7 @@ public class Bitstreams {
 /*110 */new AcVariableLengthCode("0000000000011111"  , 27, 1  )
     };
 
-    public Bitstreams() {
+    public STRv2() {
     }
 
     @BeforeClass
@@ -226,7 +221,7 @@ public class Bitstreams {
     public void tearDown() {
     }
 
-    private static BitStreamWriter writeHeader(ByteArrayOutputStream baos, int iVersion) 
+    static BitStreamWriter writeHeader(ByteArrayOutputStream baos, int iVersion)
             throws IOException
     {
         baos.reset();
@@ -240,7 +235,7 @@ public class Bitstreams {
     }
 
     @Test
-    public void v2Dc() throws IOException, NotThisTypeException, MdecException {
+    public void v2Dc() throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
@@ -257,7 +252,7 @@ public class Bitstreams {
     }
 
     @Test
-    public void v2Ac() throws IOException, NotThisTypeException, MdecException {
+    public void v2Ac() throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
@@ -280,7 +275,7 @@ public class Bitstreams {
     }
 
     @Test
-    public void v2AcEscape() throws IOException, NotThisTypeException, MdecException {
+    public void v2AcEscape() throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
@@ -303,7 +298,7 @@ public class Bitstreams {
     }
 
     @Test
-    public void badCode14() throws MdecException, IOException, NotThisTypeException {
+    public void badCode14() throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BitStreamWriter bw = writeHeader(baos, 2);
         bw.write(1,  10); // DC
@@ -318,220 +313,13 @@ public class Bitstreams {
         try {
             v2.readMdecCode(code); // AC
             fail("Expected exception");
-        } catch (MdecException ex) {
+        } catch (MdecException.Read ex) {
             // expected fail
         }
     }
 
 
-    @Test
-    public void v3ChromaDc() throws IOException, NotThisTypeException {
-        testStreamFile("v3_DC_CHROMA.txt.gz");
-    }
-
-    @Test
-    public void v3LumaDc() throws IOException, NotThisTypeException {
-        testStreamFile("v3_DC_LUMA.txt.gz");
-    }
-
-    public static void testStreamFile(String sFile) throws IOException, NotThisTypeException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        BitStreamUncompressor_STRv3 v3 = new BitStreamUncompressor_STRv3();
-        MdecCode code = new MdecCode();
-
-        InputStream is = Bitstreams.class.getResourceAsStream(sFile);
-        is = new GZIPInputStream(is);
-        BufferedReader br = new BufferedReader(new InputStreamReader(is));
-        String sLine;
-        while ((sLine = br.readLine()) != null) {
-            //System.out.println(sLine);
-            String[] as = sLine.split("\t", -1);
-            assertEquals(sLine, 2, as.length);
-            String sBits = as[0].replace("+", "");
-            String[] asCodes = as[1].split("\\+");
-            BitStreamWriter bw = writeHeader(baos, 3);
-            bw.write(sBits);
-            bw.close();
-            v3.reset(baos.toByteArray(), baos.size());
-            for (String sCode : asCodes) {
-                try {
-                    v3.readMdecCode(code);
-                    assertEquals(sLine, sCode, code.toString());
-                } catch (Uncompress ex) {
-                    assertEquals(sLine, "!", sCode);
-                    break;
-                }
-            }
-        }
-        br.close();
-    }
 
 
 
-    private static abstract class DcGenerator {
-        private final BitStreamUncompressor_STRv3 _v3 = new BitStreamUncompressor_STRv3();
-        private final MdecCode _code = new MdecCode();
-        private final StringBuilder _sb = new StringBuilder();
-        private final ByteArrayOutputStream _baos = new ByteArrayOutputStream();
-        private BitStreamWriter _bw;
-        private final ArrayList<String> _bitsWritten = new ArrayList<String>();
-
-
-        abstract protected int getDcCodeBitLength();
-
-        abstract protected void adjustPrev(boolean pos) throws IOException;
-
-        abstract protected boolean shouldFail(int iBits);
-        
-        abstract protected void writePre() throws IOException;
-
-        private MdecCode nextCode() throws Uncompress {
-            _v3.readMdecCode(_code);
-            if (!_code.isValid())
-                throw new AssertionError();
-            if (_sb.length() > 0)
-                _sb.append('+');
-            _sb.append(_code);
-            if (_code.getBottom10Bits() % 4 != 0)
-                throw new IllegalStateException(_code.toString());
-            return _code;
-        }
-
-        private void initFrame() throws IOException {
-            _bw = writeHeader(_baos, 3);
-            _bitsWritten.clear();
-            _sb.setLength(0);
-        }
-
-        private void closeAndReset() throws IOException, NotThisTypeException {
-            _bw.close();
-            _v3.reset(_baos.toByteArray(), _baos.size());
-            _baos.reset();
-            _sb.setLength(0);
-        }
-
-        protected void writeBits(String ... asBits) throws IOException {
-            for (String s : asBits) {
-                _bitsWritten.add(s);
-                _bw.write(s);
-            }
-       }
-
-        public void gen(String sFile) throws Exception {
-            PrintStream ps = new PrintStream(
-                    new BufferedOutputStream(
-                    new FileOutputStream(sFile)));
-
-            for (int iBits = 0; iBits < 1 << getDcCodeBitLength(); iBits++) {
-                ps.print(gen1(iBits));
-                ps.print('\n');
-            }
-            ps.close();
-        }
-
-        private String gen1(int iBits) throws Exception {
-            String sBits = Misc.bitsToString(iBits, getDcCodeBitLength());
-            initFrame();
-            writePre();
-            writeBits(sBits);
-            closeAndReset();
-            try {
-                for (int i = 0; i < _bitsWritten.size()-1; i++) {
-                    nextCode();
-                }
-                try {
-                    nextCode();
-                    return getLine();
-                } catch (AssertionError ex) {}
-
-                for (boolean pos : new boolean[] {true, false}) {
-                    initFrame();
-                    writePre();
-                    adjustPrev(pos);
-                    writeBits(sBits);
-                    closeAndReset();
-                    for (int i = 0; i < _bitsWritten.size()-1; i++) {
-                        nextCode();
-                    }
-                    try {
-                        nextCode();
-                        return getLine();
-                    } catch (AssertionError ex) {}
-                }
-            } catch (Uncompress ex) {
-                assertTrue(shouldFail(iBits));
-                String sLine = getLine();
-                if (sLine.endsWith("\t"))
-                    return sLine + "!";
-                else
-                    return sLine + "+!";
-            }
-
-            throw new RuntimeException();
-        }
-
-        private String getLine() {
-            return Misc.join(_bitsWritten, "+") +'\t'+_sb;
-        }
-
-    }
-
-
-    private static class DcGeneratorChroma extends DcGenerator {
-        protected int getDcCodeBitLength() {
-            return 16;
-        }
-
-        protected void adjustPrev(boolean pos) throws IOException {
-            if (pos) { // cr
-                writeBits("1111110"+"1111111");
-            } else {
-                writeBits("11111110"+"01111111");
-            }
-            writeBits("10");  // eob
-
-            writeBits("00" , "10"); // cb
-            writeBits("100", "10"); // y1
-            writeBits("100", "10"); // y2
-            writeBits("100", "10"); // y3
-            writeBits("100", "10"); // y4
-        }
-        
-        protected boolean shouldFail(int iBits) {
-            return (iBits & 0xff00) == 0xff00;
-        }
-
-        protected void writePre() throws IOException {
-        }
-
-    }
-
-
-    private static class DcGeneratorLuma extends DcGenerator {
-        protected int getDcCodeBitLength() {
-            return 15;
-        }
-
-        protected void adjustPrev(boolean pos) throws IOException {
-            if (pos) { // y1
-                writeBits("111110"+"1111111", "10");
-            } else {
-                writeBits("1111110"+"01111111", "10");
-            }
-        }
-
-        protected boolean shouldFail(int iBits) {
-            return (iBits & 0x7f00) == 0x7f00;
-        }
-
-        protected void writePre() throws IOException {
-            writeBits("00", "10",  // cr
-                      "00", "10"); // cb
-        }
-    }
-
-    public static void main(String[] args) throws Exception {
-        new DcGeneratorChroma().gen("v3_DC_CHROMA.txt");
-        new DcGeneratorLuma().gen("v3_DC_LUMA.txt");
-    }
 }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -135,7 +135,7 @@ public abstract class MdecDecoder {
     /** Reads an image from the MdecInputStream and decodes it to an internal
      *  PSX YCbCr buffer. */
     abstract public void decode(MdecInputStream mdecStream)
-            throws MdecException.Decode;
+            throws MdecException.Read;
     
     /** Retrieve the contents of the internal PSX YCbCr buffer converted to RGB. */
     abstract public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,

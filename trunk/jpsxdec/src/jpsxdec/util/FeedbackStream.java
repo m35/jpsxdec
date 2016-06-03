@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Locale;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 /** Filters outputting text based on verbosity level. */
 public class FeedbackStream extends PrintStream {
@@ -289,26 +289,26 @@ public class FeedbackStream extends PrintStream {
 
     //========================================================================
 
-    public void printMore(@Nonnull LocalizedMessage s) {
+    public void printMore(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= MORE) {
             printIndentIfAny();
             super.print(s);
         }
     }
-    public void printlnMore(@Nonnull LocalizedMessage s) {
+    public void printlnMore(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= MORE) {
             printIndentIfAny();
             super.println(s);
             _blnNewLine = true;
         }
     }
-    public void printWarn(@Nonnull LocalizedMessage s) {
+    public void printWarn(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= WARN) {
             printIndentIfAny();
             super.print(s);
         }
     }
-    public void printlnWarn(@Nonnull LocalizedMessage s) {
+    public void printlnWarn(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= WARN) {
             printIndentIfAny();
             super.println(s);
@@ -316,7 +316,7 @@ public class FeedbackStream extends PrintStream {
         }
     }
 
-    public void printErr(@Nonnull LocalizedMessage s)  {
+    public void printErr(@Nonnull ILocalizedMessage s)  {
         if (_iVerboseLevel >= ERR) {
             printIndentIfAny();
             super.print(s);
@@ -329,7 +329,7 @@ public class FeedbackStream extends PrintStream {
             _blnNewLine = true;
         }
     }
-    public void printlnErr(@Nonnull LocalizedMessage s)  {
+    public void printlnErr(@Nonnull ILocalizedMessage s)  {
         if (_iVerboseLevel >= ERR) {
             printIndentIfAny();
             super.println(s);

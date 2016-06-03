@@ -1,0 +1,82 @@
+Modo de empleo:
+
+java -jar jpsxdec.jar [ <archivo_de_entrada> o <archivo_de_indice> ]
+  Muestra el GUI, abriendo de forma opcional un <archivo_de_entrada> o un
+  <archivo-de_indice> (detectado automáticamente)
+
+java -jar jpsxdec.jar <-?, -h, -help>
+  Muestra esta ventana de ayuda
+
+java -jar jpsxdec.jar -f <archivo_de_entrada> -x <archivo_de_indice>
+  Genera un índice del <archivo_de_entrada> y lo guarda como
+  un <archivo_de_indice>
+
+java -jar jpsxdec.jar [ -x <archivo_de_indice> ] [ -f <archivo_de_entrada> ]
+                      <comando_principal_y_opciones>
+  Comandos principales que necesitan un archivo de indice.
+  Utiliza un <archivo_de_indice> ya existente (se puede anular de forma
+  opcional el <archivo_de_entrada> indicado en el) o genera un indice
+  para el <archivo_de_entrada> (puede guardarse de forma opcional como
+  un <archivo_de_indice>) y ejecuta uno de los siguientes
+  <comando_principal_y_opciones>
+
+    -item/-i <#, id> <comando_de_objeto_y_opciones>
+    -all/-a <vídeo, sonido, imagen, archivo> <comando_de_objeto_y_opciones>
+      Ejecuta <item_command_and_options> en un objeto del indice o en
+      todos los objetos de un mismo tipo (video, sonido, imagen, archivo)
+
+        Si no se especifica otro comando:
+          Extrae el objeto del indice mediante las opciones adicionales de
+          procesado (ver la ayuda del objeto para revisar sus opciones).
+
+        -help/-h/-?
+          Muestra la ayuda del objeto del indice.
+
+        -play
+          Muestra el reproductor para el objeto del indice
+          (solo videos y/o sonidos)
+
+        (ver el manual o la ayuda del objeto para revisar la lista completa de
+        comandos disponibles)
+
+    -visualize <archivo_de_salida_pdf>
+      Muestra la disposición de sectores y objetos del indice.
+
+java -jar jpsxdec.jar -f <archivo_de_entrada> <comando_principal_y_opciones>
+  Comandos principales que solo necesitan un archivo de entrada
+
+    -copysect <#, #-#>
+      Copiar sectores a otro archivo
+
+    -sectordump <archivo_de_salida>
+      Escribe una lista de tipos de sector al <archivo_de_salida>
+      (para depuración).
+
+    -static <tim, bs, mdec> <opciones_de_mdec_o_bs>
+        Para bs o mdec (no hay opciones adicionales para tim):
+
+        -dim <ancho>x<alto>
+          Dimensiones del fotograma (necesario)
+
+        -quality/-q <low, high, psx>
+          Calidad de decodificación (baja, alta, psx; alta por defecto).
+
+        -fmt <mdec, png, bmp, jpg>
+          Formato de salida (png por defecto).
+
+        -up <upsampling>
+          Metodo de remuestreo de croma (Bicúbico por defecto).
+          Opciones: NearestNeighbor, Bilinear, Bicubic, Bell,
+                    Mitchell, BSpline, Lanczos3, Hermite
+
+        -debug
+          Muestra los pasos detallados de decodificación
+          (necesita que Java esté iniciado con -ea).
+
+Opcion universal (opcional):
+    -verbose/-v #
+    Cuanta informacion se debe escribir:
+      0 = nada, 1 = solo errores, 2 = errores y advertencias,
+      3 = normal, 4 = extra
+
+Revisa el manual para conocer todos los comandos disponibles.

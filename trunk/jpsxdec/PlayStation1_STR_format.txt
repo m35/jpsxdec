@@ -1,5 +1,5 @@
                       The PlayStation 1 Video (STR) Format
-                               v1.11, ? 2014?
+                               v1.11, ? 2016?
                            http://jpsxdec.kenai.com/
                           http://jpsxdec.blogspot.com/
 
@@ -75,6 +75,7 @@ v1.10
     - ch 3.11: Added Crusader: No Remorse
 v1.11
     - ch 3.8. Improved Ace Combat 3 Electrosphere
+    - ch 3.12: Added Gran Turismo
     - other minor tweaks
 
 Left to do:
@@ -1921,15 +1922,15 @@ Offset   Size   Endian --------------------------------------------------------
 
 Yep, that's it.
 
-Type B frames follow the standard v3 demultiplexed frame format. Type A starts with 40 extra bytes before the frame data starts.
+Type A starts with 40 extra bytes before the frame data starts.
 
-Most video frames are normal v3 format, but some are full of 0xff.
+Most video frames are normal v3 format, but some v2, and some are full of 0xff.
 
 ################################################################################
 ## 3.11. Crusader: No Remorse
 ################################################################################
 
-Crusader: No Remorse is the only gave I've seen that doesn't stream its movies using the standard 'real-time' sector method.
+Crusader: No Remorse is the only game I've seen that doesn't stream its movies using the standard 'real-time' sector method.
 
 :: Crusader Sector ::
 
@@ -1966,6 +1967,32 @@ Video frames are standard v2.
 Audio is encoded using Square's special format found in section 3.3. The audio plays back at 22050Hz stereo, with the left channel in the first half of the payload, and the right channel is in the second half. The 'ad21' identifier indicates the last audio chunk in the stream.
 
 ################################################################################
+## 3.12. Gran Turismo
+################################################################################
+
+Gran Turismo 1 and 2 use the same method to store video. The most unique part is the lack of dimensions in the sector header.
+
+:: Gran Turismo Sector Header ::
+
+Offset   Size   Endian --------------------------------------------------------
+  0 . . . 4 . . little . Always 0x60014953
+  4 . . . 2 . . little . Multiplexed chunk number of this video frame
+                           0 to (Number of multiplexed chunks) - 1
+  6 . . . 2 . . little . Number of multiplexed chunks in this frame
+  8 . . . 4 . . little . Frame number: Starts at 1
+ 12 . . . 4 . . little . Bytes of data used in demuxed frame, rounded up to a
+                           multiple of 4 (if not already a multiple of 4)
+ 16 . . . 2 . . little . Total number of frames in video
+ 18 . . . 2 . . little . Bit flags for this chunk
+                          0x8000 for the first chunk of the frame
+                          0x4000 for last chunk of the frame
+                          0xc000 for both (when frame is only 1 chunk)
+ 20 . .  12 . .  n/a . . zeroes
+ 32 ---------------------------------------------------------------------------
+
+Frames are in .iki format so the frame dimensions can be found there.
+
+################################################################################
 ## 4. Thanks, credits, etc.
 ################################################################################
 
@@ -1987,7 +2014,8 @@ Perhaps the most valuable reference for any kind of PSX hacking,
 especially the PSX assembly instruction set. 
 
 smf, developer for MAME, for figuring out that everyone was getting the 
-order of CrCb wrong (http://smf.mameworld.info/?p=12).
+order of CrCb wrong.
+http://www.twingalaxies.com/showthread.php/140003-M-A-M-E-Mr-Driller-DRI1-VER-A2-1000M-Mode-918-940-Nick-Vis?p=752883&viewfull=1#post752883
 
 Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error,
 verifying that jPSXdec is doing things right, and for
@@ -1998,18 +2026,16 @@ Jonathan Atkins for his open source cdxa code and documentation.
 http://jcatki.no-ip.org:8080/cdxa/ 
 http://jonatkins.org:8080/cdxa/)
 
-The PCSX Team, creators of one of the two open source PlayStation
-emulators (http://www.pcsx.net/).
+The PCSX Team, creators of one of the two open source PlayStation emulators.
 
 The MAME emulator team for their efforts to document and accurately
 emulate hardware (http://mamedev.org/).
 
-Developers of the pSX emulator. While not open source, at least it is 
-still under development and provides a very nice debugger for reverse 
+Developers of the pSX emulator for very nice debugger for reverse 
 engineering games (http://psxemulator.gazaxian.com/). 
 
 "Fyiro", the Japanese fellow that wrote the source code for the PsxMC 
-FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/). 
+FF8 plugin. 
 
 T_chan for sharing a bit of his knowledge about the FF9 format 
 (http://www.network54.com/Forum/119865/thread/1196268797). 

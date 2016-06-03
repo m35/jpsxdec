@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 /** Hopefully makes it easier to print information in a table like design. */
 public class TabularFeedback {
@@ -98,7 +98,7 @@ public class TabularFeedback {
         addRow();
     }
 
-    public @Nonnull TabularFeedback print(@Nonnull LocalizedMessage s) {
+    public @Nonnull TabularFeedback print(@Nonnull ILocalizedMessage s) {
         StringBuilder curLine = curLine();
         if (curLine.length() == 0 && _iCurCellIndent > 0)
             curLine.append(Misc.dup(' ', _iCurCellIndent));
@@ -115,7 +115,7 @@ public class TabularFeedback {
         addLine();
         return this;
     }
-    public @Nonnull TabularFeedback println(@Nonnull LocalizedMessage s) {
+    public @Nonnull TabularFeedback println(@Nonnull ILocalizedMessage s) {
         print(s);
         addLine();
         return this;

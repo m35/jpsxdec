@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,11 +47,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaRiffHeader;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.util.Misc;
 
 
@@ -66,7 +66,7 @@ class Command_CopySect extends Command {
     @Nonnull
     private int[] _aiStartEndSectors;
 
-    protected @CheckForNull LocalizedMessage validate(@Nonnull String s) {
+    protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         _aiStartEndSectors = parseNumberRange(s);
         if (_aiStartEndSectors == null) {
             return I.CMD_SECTOR_RANGE_INVALID(s);
@@ -78,7 +78,7 @@ class Command_CopySect extends Command {
     public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
         CdFileSectorReader cdReader = getCdReader();
         String sOutputFile = String.format("%s%d-%d.dat",
-                Misc.getBaseName(cdReader.getSourceFile().getName()),
+                Misc.removeExt(cdReader.getSourceFile().getName()),
                 _aiStartEndSectors[0], _aiStartEndSectors[1]);
         _fbs.println(I.CMD_COPYING_SECTOR(_aiStartEndSectors[0], _aiStartEndSectors[1], sOutputFile));
         OutputStream os = null;

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,9 +43,9 @@ import java.io.File;
 import java.io.IOException;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.NotThisTypeException;
@@ -87,13 +87,13 @@ public abstract class Command {
 
     /** If issue, returns an error message and the caller should fail,
      * otherwise null if there is no issue. */
-    final public @CheckForNull LocalizedMessage validate() {
+    final public @CheckForNull ILocalizedMessage validate() {
         return validate(_receiver.value);
     }
 
     /** Checks that the option value is valid.
         *  Returns {@code null} if OK, or error message if invalid. */
-    abstract protected @CheckForNull LocalizedMessage validate(@Nonnull String sOptionValue);
+    abstract protected @CheckForNull ILocalizedMessage validate(@Nonnull String sOptionValue);
 
     protected @Nonnull CdFileSectorReader getCdReader() throws CommandLineException {
         if (inputFileArg.value != null) {

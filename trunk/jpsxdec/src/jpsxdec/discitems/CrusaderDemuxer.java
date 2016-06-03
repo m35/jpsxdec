@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2015  Michael Sabin
+ * Copyright (C) 2012-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,10 +46,10 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedIOException;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.audio.SquareAdpcmDecoder;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorCrusader;
 import jpsxdec.util.ExposedBAOS;
@@ -286,7 +286,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
                         // payload is done
                         
                         if (_ePayloadType == PayloadType.MDEC) {
-                            videoPayload(_iPayloadSize - 16, log);
+                            videoPayload(_iPayloadSize - 16);
                         } else {
                             audioPayload(_iPayloadSize - 16, log);
                         }
@@ -308,7 +308,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         if (!_sectors.isEmpty() && _state == ReadState.PAYLOAD) {
             _blnFoundAPayload = true;
             if (_ePayloadType == PayloadType.MDEC) {
-                videoPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
+                videoPayload(_iPayloadSize - 16 - _iRemainingPayload);
             } else {  // ad20, ad21 (audio)
                 audioPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
                 if (!_blnIndexing) {
@@ -328,7 +328,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     
     //-- Video stuff ---------------------------
     
-    private void videoPayload(int iSize, @Nonnull Logger log) throws IOException {
+    private void videoPayload(int iSize) throws IOException {
         
         int iWidth = IO.readSInt16BE(_abHeader, 0);
         int iHeight = IO.readSInt16BE(_abHeader, 2);
@@ -568,8 +568,8 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         _audDecoder.resetContext();
     }
     
-    public @Nonnull LocalizedMessage[] getAudioDetails() {
-        return new LocalizedMessage[] {I.EMBEDDED_CRUSADER_AUDIO_HZ(CRUSADER_SAMPLES_PER_SECOND)};
+    public @Nonnull ILocalizedMessage[] getAudioDetails() {
+        return new ILocalizedMessage[] {I.EMBEDDED_CRUSADER_AUDIO_HZ(CRUSADER_SAMPLES_PER_SECOND)};
     }
     
 }

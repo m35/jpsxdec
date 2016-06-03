@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015  Michael Sabin
+ * Copyright (C) 2015-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,7 @@
 package jpsxdec.util;
 
 import jpsxdec.i18n.LocalizedException;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 import javax.annotation.CheckForNull;
 
 /** Indicates that the supplied data is incompatible with the existing data. */
@@ -47,7 +47,7 @@ public class IncompatibleException extends LocalizedException {
     public IncompatibleException() {
     }
 
-    public IncompatibleException(@CheckForNull LocalizedMessage msg) {
+    public IncompatibleException(@CheckForNull ILocalizedMessage msg) {
         super(msg);
     }
 
@@ -55,7 +55,7 @@ public class IncompatibleException extends LocalizedException {
         super(cause);
     }
 
-    public IncompatibleException(@CheckForNull LocalizedMessage msg, @CheckForNull Throwable cause) {
+    public IncompatibleException(@CheckForNull ILocalizedMessage msg, @CheckForNull Throwable cause) {
         super(msg, cause);
     }
 

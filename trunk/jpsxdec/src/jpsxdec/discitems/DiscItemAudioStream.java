@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,11 +39,11 @@ package jpsxdec.discitems;
 
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.i18n.LocalizedMessage;
-import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.AudioSaverBuilder;
 import jpsxdec.discitems.savers.MediaPlayer;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.player.PlayController;
 
@@ -110,7 +110,7 @@ public abstract class DiscItemAudioStream extends DiscItem {
      *  Intended for use with audio playback progress bar. */
     abstract public double getApproxDuration();
 
-    public LocalizedMessage getDetails() {
+    public ILocalizedMessage getDetails() {
         return new UnlocalizedMessage(serialize().serialize());
     }
 

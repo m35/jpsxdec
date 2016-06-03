@@ -41,9 +41,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.text.MessageFormat;
-import java.util.logging.Level;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import jpsxdec.cdreaders.CdFileSectorReader;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -80,10 +81,10 @@ public class XaAdpcmDecoderTest {
     public void testDecode() throws Exception {
         testDecode1(55, 1,
                 1, 0x80, 3, 0xff,
-                "Sector 55 sound parameter corrupted: [1, 128 (bad), 3, 255 (bad)]. Chose 1. Affects samples starting at 28.");
+                "Sector 55 sound parameter corrupted: [1, 128 (bad), 3, 255 (bad)]. Chose 1. Affects samples starting at 56.");
         testDecode1(42, 3,
                 1, 3, 4, 4,
-                "Sector 42 sound parameter corrupted: [1, 3, 4, 4]. Chose 4. Affects samples starting at 84.");
+                "Sector 42 sound parameter corrupted: [1, 3, 4, 4]. Chose 4. Affects samples starting at 168.");
         testDecode1(7, 0,
                 0xa3, 0x61, 0x7f, 0x7f,
                 "Sector 7 sound parameter corrupted: [163 (bad), 97, 127, 127]. Chose 127. Affects samples starting at 0.");
@@ -95,33 +96,45 @@ public class XaAdpcmDecoderTest {
             throws Exception
     {
         final int iBitsPerSample = 8;
-        byte[] abTest = new byte[XaAdpcmDecoder.bytesGeneratedFromXaAdpcmSector(iBitsPerSample)];
+        byte[] abTest = new byte[CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM2 - 20];
         abTest[XaAdpcmDecoder.SIZE_OF_SOUND_GROUP*iSoundGroup+0] = (byte) iParam1;
         abTest[XaAdpcmDecoder.SIZE_OF_SOUND_GROUP*iSoundGroup+4] = (byte) iParam2;
         abTest[XaAdpcmDecoder.SIZE_OF_SOUND_GROUP*iSoundGroup+8] = (byte) iParam3;
         abTest[XaAdpcmDecoder.SIZE_OF_SOUND_GROUP*iSoundGroup+12] = (byte) iParam4;
         InputStream inStream = new ByteArrayInputStream(abTest);
         OutputStream out = new ByteArrayOutputStream();
-        Logger log = new LogTest() {
+        LogTest handler = new LogTest() {
             @Override
-            public void log(Level level, String msg, Object[] params) {
-                String s = MessageFormat.format(msg, params);
+            public void publish(LogRecord record) {
+                String s = record.getMessage();
                 System.out.println(sExpected);
                 System.out.println(s);
                 assertEquals(sExpected, s);
             }
         };
+        Logger log = Logger.getLogger(XaAdpcmDecoder.class.getName());
         XaAdpcmDecoder instance = XaAdpcmDecoder.create(iBitsPerSample, true, 1.0);
-        instance.decode(inStream, out, log, iSector);
+        log.addHandler(handler);
+        try {
+            instance.decode(inStream, out, iSector);
+            assertTrue(instance.hadCorruption());
+        } finally {
+            log.removeHandler(handler);
+        }
+        assertEquals(1008, instance.getSamplesWritten());
+        assertEquals(1008*2, XaAdpcmDecoder.pcmSamplesGeneratedFromXaAdpcmSector(iBitsPerSample));
     }
     
-    private abstract static class LogTest extends Logger {
-        public LogTest() {
-            super("", null);
-        }
+    private static abstract class LogTest extends Handler {
         @Override
-        abstract public void log(Level level, String msg, Object[] params);
+        abstract public void publish(LogRecord record);
+
+        @Override
+        public void flush() {
+        }
+
+        @Override
+        public void close() throws SecurityException {
+        }
     }
-
-
 }

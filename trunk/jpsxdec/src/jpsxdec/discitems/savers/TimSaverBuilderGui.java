@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,9 +40,7 @@ package jpsxdec.discitems.savers;
 
 import com.jhlabs.awt.ParagraphLayout;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
-import java.awt.Font;
 import java.awt.GridLayout;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -53,12 +51,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.i18n.I;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
+import jpsxdec.i18n.I;
 import jpsxdec.tim.Tim;
 
 

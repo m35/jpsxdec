@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,12 +39,12 @@ package jpsxdec.psxvideo.mdec;
 
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.LocalizedException;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 /** Superclass of the different MDEC conversion and bitstream exceptions. */
 public abstract class MdecException extends LocalizedException {
 
-    public MdecException(@Nonnull LocalizedMessage msg) {
+    public MdecException(@Nonnull ILocalizedMessage msg) {
         super(msg);
     }
 
@@ -52,7 +52,7 @@ public abstract class MdecException extends LocalizedException {
         super(cause);
     }
 
-    public MdecException(@Nonnull LocalizedMessage msg, @Nonnull Throwable cause) {
+    public MdecException(@Nonnull ILocalizedMessage msg, @Nonnull Throwable cause) {
         super(msg, cause);
     }
 
@@ -62,7 +62,7 @@ public abstract class MdecException extends LocalizedException {
     /** Error related to reading from an MDEC stream. */
     public static class Read extends MdecException {
 
-        public Read(@Nonnull LocalizedMessage message) {
+        public Read(@Nonnull ILocalizedMessage message) {
             super(message);
         }
 
@@ -70,24 +70,24 @@ public abstract class MdecException extends LocalizedException {
             super(cause);
         }
 
-        public Read(@Nonnull LocalizedMessage msg, @Nonnull Throwable cause) {
+        public Read(@Nonnull ILocalizedMessage msg, @Nonnull Throwable cause) {
             super(msg, cause);
         }
 
     }
 
     /** Error related to decoding an MDEC stream. */
-    public static class Decode extends Read {
+    public static class BlockVectorIndexOutOfBounds extends Read {
 
-        public Decode(@Nonnull LocalizedMessage message) {
+        public BlockVectorIndexOutOfBounds(@Nonnull ILocalizedMessage message) {
             super(message);
         }
 
-        public Decode(@Nonnull Throwable cause) {
+        public BlockVectorIndexOutOfBounds(@Nonnull Throwable cause) {
             super(cause);
         }
 
-        public Decode(@Nonnull LocalizedMessage message, @Nonnull Throwable cause) {
+        public BlockVectorIndexOutOfBounds(@Nonnull ILocalizedMessage message, @Nonnull Throwable cause) {
             super(message, cause);
         }
 
@@ -96,7 +96,7 @@ public abstract class MdecException extends LocalizedException {
     /** Error related to uncompressing an MDEC bitstream. */
     public static class Uncompress extends Read {
 
-        public Uncompress(@Nonnull LocalizedMessage message) {
+        public Uncompress(@Nonnull ILocalizedMessage message) {
             super(message);
         }
 
@@ -106,12 +106,29 @@ public abstract class MdecException extends LocalizedException {
 
     }
 
+    /** Exception thrown at the end of an MDEC stream. */
+    public static class EndOfStream extends Read {
+
+        public EndOfStream(@Nonnull ILocalizedMessage message) {
+            super(message);
+        }
+
+        public EndOfStream(@Nonnull Throwable cause) {
+            super(cause);
+        }
+
+        public EndOfStream(ILocalizedMessage msg, Throwable cause) {
+            super(msg, cause);
+        }
+
+    }
+
     // ======================================================================
 
     /** Error related to writing to an MDEC stream. */
     public static class Write extends MdecException {
 
-        public Write(@Nonnull LocalizedMessage message) {
+        public Write(@Nonnull ILocalizedMessage message) {
             super(message);
         }
 
@@ -124,7 +141,7 @@ public abstract class MdecException extends LocalizedException {
     /** Error related to encoding to an MDEC stream. */
     public static class Encode extends Write {
 
-        public Encode(@Nonnull LocalizedMessage message) {
+        public Encode(@Nonnull ILocalizedMessage message) {
             super(message);
         }
 
@@ -133,7 +150,7 @@ public abstract class MdecException extends LocalizedException {
     /** Error related to compressing an MDEC bitstream. */
     public static class Compress extends Write {
 
-        public Compress(@Nonnull LocalizedMessage message) {
+        public Compress(@Nonnull ILocalizedMessage message) {
             super(message);
         }
 
@@ -146,7 +163,7 @@ public abstract class MdecException extends LocalizedException {
      * but is a general concept among video bitstream encoders (e.g. MPEG1). */
     public static class TooMuchEnergyToCompress extends Compress {
 
-        public TooMuchEnergyToCompress(@Nonnull LocalizedMessage message) {
+        public TooMuchEnergyToCompress(@Nonnull ILocalizedMessage message) {
             super(message);
         }
 

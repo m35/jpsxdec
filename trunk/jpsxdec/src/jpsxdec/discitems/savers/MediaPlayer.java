@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,19 +42,19 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.ISectorFrameDemuxer;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.idct.SimpleIDCT;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.player.AudioVideoReader;
 import jpsxdec.util.player.IDecodableFrame;
 import jpsxdec.util.player.ObjectPool;
@@ -171,13 +171,12 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
 
         try {
 
-            final int SECTOR_LENGTH = _iMovieEndSector - _iMovieStartSector + 1;
+            final int iSectorLength = _iMovieEndSector - _iMovieStartSector + 1;
 
-            for (int iSector = _iMovieStartSector; iSector <= _iMovieEndSector && stillPlaying(); iSector++)
+            IdentifiedSectorIterator it = IdentifiedSectorIterator.create(_cdReader, _iMovieStartSector, _iMovieEndSector);
+            for (int iSector = 0; it.hasNext() && stillPlaying(); iSector++)
             {
-
-                CdSector cdSector = _cdReader.getSector(iSector);
-                IdentifiedSector identifiedSector = IdentifiedSector.identifySector(cdSector);
+                IdentifiedSector identifiedSector = it.next();
                 if (identifiedSector != null) {
                     if (_demuxer != null) {
                         _demuxer.feedSector(identifiedSector, LOG);
@@ -189,8 +188,8 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
                         _audioDecoder.feedSector(identifiedSector, LOG);
                     }
                 }
-
-                setReadProgress((iSector - _iMovieStartSector)*100 / SECTOR_LENGTH);
+                
+                setReadProgress(iSector*100 / iSectorLength);
 
             }
 
@@ -305,7 +304,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
             decoder.readDecodedRgb(getVideoWidth(), getVideoHeight(), __aiDrawHere);
         }
 
-        public void error(@Nonnull LocalizedMessage errMsg,
+        public void error(@Nonnull ILocalizedMessage errMsg,
                           @CheckForNull FrameNumber frameNumber,
                           int iFrameEndSector)
         {

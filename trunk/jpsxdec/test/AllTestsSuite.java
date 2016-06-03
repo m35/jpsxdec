@@ -50,9 +50,12 @@ import org.junit.runners.Suite;
     jpsxdec.discitems.SerializedDiscItemTest.class,
     jpsxdec.discitems.savers.FrameLookupTest.class,
     jpsxdec.indexing.DiscIndexerXaAudioTest.class,
+    jpsxdec.indexing.psxvideofps.Fps.class,
     jpsxdec.psxvideo.bitstreams.BitReader.class,
-    jpsxdec.psxvideo.bitstreams.Bitstreams.class,
-    jpsxdec.psxvideo.bitstreams.Iki.class
+    jpsxdec.psxvideo.bitstreams.STRv2.class,
+    jpsxdec.psxvideo.bitstreams.Iki.class,
+    jpsxdec.psxvideo.bitstreams.STRv3.class,
+    jpsxdec.psxvideo.mdec.tojpeg.Mdec2JpegTest.class
 })
 public class AllTestsSuite {
 

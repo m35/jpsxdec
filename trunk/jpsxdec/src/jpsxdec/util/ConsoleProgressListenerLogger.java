@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,14 +42,14 @@ import java.util.logging.LogRecord;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
 
     private static final int BAR_WIDTH = 20;
 
     @CheckForNull
-    private LocalizedMessage _lastEvent = null;
+    private ILocalizedMessage _lastEvent = null;
     private double _dblNextProgressMark = 0;
     private int _iWarnCount = 0;
     private int _iErrCount = 0;
@@ -70,11 +70,11 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
         });
     }
 
-    public void event(@Nonnull LocalizedMessage msg) {
+    public void event(@Nonnull ILocalizedMessage msg) {
         _lastEvent = msg;
     }
 
-    public void progressInfo(@Nonnull LocalizedMessage msg) {
+    public void progressInfo(@Nonnull ILocalizedMessage msg) {
         _progressStream.println(msg.getLocalizedMessage());
     }
 
@@ -84,7 +84,7 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
     }
 
     public void progressStart() { progressStart(null); }
-    public void progressStart(@CheckForNull LocalizedMessage msg) {
+    public void progressStart(@CheckForNull ILocalizedMessage msg) {
         if (msg != null)
             _progressStream.println(msg.getLocalizedMessage());
         _dblNextProgressMark = 0;
@@ -103,7 +103,7 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
             return;
         }
 
-        LocalizedMessage line = buildProgress(dblPercentComplete);
+        ILocalizedMessage line = buildProgress(dblPercentComplete);
 
         // a carriage return after the string \r
         // resets the cursor position back to the beginning of the line
@@ -113,7 +113,7 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
         _dblNextProgressMark = Math.round((dblPercentComplete + 0.05) * 10.0) / 10.0;
     }
 
-    private @Nonnull LocalizedMessage buildProgress(double dblPercentComplete) {
+    private @Nonnull ILocalizedMessage buildProgress(double dblPercentComplete) {
 
         StringBuilder progressBar = new StringBuilder();
         for (double dblProgress = 0; dblProgress < 1.0; dblProgress += 1.0/BAR_WIDTH) {

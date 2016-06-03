@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -79,7 +79,7 @@ public class MdecInputStreamReader extends MdecInputStream {
                 return false;
             }
         } catch (EOFException ex) {
-            throw new MdecException.Read(I.UNEXPECTED_STREAM_END_IN_BLOCK(_iBlock), ex);
+            throw new MdecException.EndOfStream(I.UNEXPECTED_STREAM_END_IN_BLOCK(_iBlock), ex);
         } catch (IOException ex) {
             throw new MdecException.Read(ex);
         }
@@ -95,7 +95,7 @@ public class MdecInputStreamReader extends MdecInputStream {
      * {@link MdecInputStream} to an {@link OutputStream}. */
     public static void writeMdecDims(MdecInputStream mdecIn, OutputStream streamOut,
                                      int iWidth, int iHeight)
-            throws MdecException, IOException
+            throws MdecException.Read, IOException
     {
         int iBlockCount = Calc.blocks(iWidth, iHeight);
         writeMdecBlocks(mdecIn, streamOut, iBlockCount);
@@ -106,7 +106,7 @@ public class MdecInputStreamReader extends MdecInputStream {
      * (although source and destination streams might). */
     public static void writeMdecBlocks(MdecInputStream mdecIn, OutputStream streamOut,
                                        int iBlockCount)
-            throws MdecException, IOException
+            throws MdecException.Read, IOException
     {
         MdecCode code = new MdecCode();
         int iBlock = 0;

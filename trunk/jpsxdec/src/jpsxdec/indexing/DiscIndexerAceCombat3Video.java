@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,18 +37,21 @@
 
 package jpsxdec.indexing;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.TreeMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.discitems.Ac3Demuxer;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAceCombat3VideoStream;
-import jpsxdec.discitems.FrameNumberFormat;
-import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.discitems.FrameNumber;
+import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorAceCombat3Video;
 import jpsxdec.util.NotThisTypeException;
@@ -59,51 +62,105 @@ import jpsxdec.util.NotThisTypeException;
  */
 public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndexer.Identified {
 
-    
-    private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemAceCombat3VideoStream> {
-        
-        private final int _iChannel;
-        
-        public VideoStreamIndex(@Nonnull CdFileSectorReader cd, @Nonnull Logger errLog,
-                                @Nonnull SectorAceCombat3Video vidSect)
-        {
-            super(cd, errLog, vidSect, true,
-                  new DiscItemAceCombat3VideoStream.Demuxer(
-                                    vidSect.getSectorNumber(), Integer.MAX_VALUE,
-                                    vidSect.getWidth(), vidSect.getHeight(),
-                                    vidSect.getInvertedFrameNumber(), vidSect.getChannel()));
+    private static class VidBuilder {
 
-            _iChannel = vidSect.getChannel();
+        private final FrameNumber.FactoryWithHeader _frameNumberFactory = new FrameNumber.FactoryWithHeader();
+        @Nonnull
+        private final FullFrameTracker _frameTracker;
+        private final int _iEndFrame;
+        private final int _iChannel;
+        @Nonnull
+        private final Logger _errLog;
+        private int _iLastInvertedFrameNumber;
+
+        public VidBuilder(@Nonnull Ac3Demuxer.DemuxedAc3Frame firstFrame, @Nonnull Logger errLog) {
+            _errLog = errLog;
+            _iEndFrame = _iLastInvertedFrameNumber = firstFrame.getInvertedHeaderFrameNumber();
+            _frameTracker = new FullFrameTracker(
+                    firstFrame.getWidth(), firstFrame.getHeight(),
+                    _frameNumberFactory.next(firstFrame.getStartSector(),
+                                             _iEndFrame - firstFrame.getInvertedHeaderFrameNumber()),
+                    firstFrame.getEndSector());
+            _iChannel = firstFrame.getChannel();
         }
 
-        @Override
-        protected @Nonnull DiscItemAceCombat3VideoStream createVideo(int iStartSector, int iEndSector,
-                                                                     int iWidth, int iHeight,
-                                                                     int iFrameCount,
-                                                                     @Nonnull FrameNumberFormat frameNumberFormat,
-                                                                     @Nonnull FrameNumber startFrame,
-                                                                     @Nonnull FrameNumber lastSeenFrameNumber,
-                                                                     int iSectors, int iPerFrame,
-                                                                     int iFrame1PresentationSector)
-        {
-            return new DiscItemAceCombat3VideoStream(
-                    _cd,
-                    iStartSector, iEndSector,
-                    iWidth, iHeight,
-                    iFrameCount,
-                    frameNumberFormat,
-                    iSectors, iPerFrame,
-                    iFrame1PresentationSector,
-                    startFrame, lastSeenFrameNumber,
+        /** @return if the frame was accepted as part of this video, otherwise start a new video. */
+        public boolean addFrame(@Nonnull Ac3Demuxer.DemuxedAc3Frame frame) {
+            if (frame.getWidth() != _frameTracker.getWidth() ||
+                frame.getHeight() != _frameTracker.getHeight() ||
+                frame.getStartSector() > _frameTracker.getEndSector() + 100 ||
+                frame.getInvertedHeaderFrameNumber() > _iLastInvertedFrameNumber)
+            {
+                return false;
+            }
+            _iLastInvertedFrameNumber = frame.getInvertedHeaderFrameNumber();
+            _frameTracker.next(_frameNumberFactory.next(frame.getStartSector(), 
+                                                        _iEndFrame - frame.getInvertedHeaderFrameNumber()),
+                               frame.getEndSector());
+            return true;
+        }
+
+        public @Nonnull DiscItemAceCombat3VideoStream endOfMovie(@Nonnull CdFileSectorReader cd) {
+            int[] aiSectorsPerFrame = _frameTracker.getSectorsPerFrame();
+            return new DiscItemAceCombat3VideoStream(cd,
+                    _frameTracker.getStartSector(), _frameTracker.getEndSector(),
+                    _frameTracker.getWidth(), _frameTracker.getHeight(),
+                    _frameTracker.getFrameCount(),
+                    _frameTracker.getFormat(),
+                    aiSectorsPerFrame[0], aiSectorsPerFrame[1],
+                    _frameTracker.getFrame1PresentationSector(),
+                    _frameTracker.getStartFrame(), _frameTracker.getEndFrame(),
                     _iChannel);
         }
 
     }
 
+    /** Takes care of demuxing and generating videos for a particular channel. */
+    private static class Ac3Channel implements Ac3Demuxer.Listener {
+
+        @Nonnull
+        private final DiscIndexerAceCombat3Video _indexer;
+        @Nonnull
+        private final Ac3Demuxer _demuxer;
+        @CheckForNull
+        private VidBuilder _videoBuilder;
+
+        public Ac3Channel(@Nonnull DiscIndexerAceCombat3Video indexer, int iChannel) {
+            _indexer = indexer;
+            _demuxer = new Ac3Demuxer(iChannel);
+            _demuxer.setFrameListener(this);
+        }
+
+        public void feedSector(@Nonnull SectorAceCombat3Video vidSector) throws IOException {
+            if (!_demuxer.feedSector(vidSector, _indexer._errLog))
+                throw new IllegalArgumentException("AC3 sector was not accepted for some reason.");
+        }
+
+        // [implements Ac3Demuxer.Listener]
+        public void frameComplete(@Nonnull Ac3Demuxer.DemuxedAc3Frame frame) {
+            if (_videoBuilder != null && !_videoBuilder.addFrame(frame))
+                endVideo();
+            if (_videoBuilder == null)
+                _videoBuilder = new VidBuilder(frame, _indexer._errLog);
+        }
+
+        public void endVideo() {
+            if (_videoBuilder == null)
+                return;
+
+            DiscItemAceCombat3VideoStream video = _videoBuilder.endOfMovie(_indexer.getCd());
+            _indexer._completedVideos.add(video);
+            _indexer.addDiscItem(video);
+            _videoBuilder = null;
+        }
+
+    }
+
+
 
     @Nonnull
     private final Logger _errLog;
-    private final TreeMap<Integer, VideoStreamIndex> _activeStreams = new TreeMap<Integer, VideoStreamIndex>();
+    private final TreeMap<Integer, Ac3Channel> _activeStreams = new TreeMap<Integer, Ac3Channel>();
     private final Collection<DiscItemAceCombat3VideoStream> _completedVideos = new ArrayList<DiscItemAceCombat3VideoStream>();
 
     public DiscIndexerAceCombat3Video(@Nonnull Logger errLog) {
@@ -121,41 +178,30 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndex
         return null;
     }
 
-    public void indexingSectorRead(@Nonnull IdentifiedSector sector) {
-        if (!(sector instanceof SectorAceCombat3Video)) {
+    public void indexingSectorRead(@Nonnull CdSector cdSector, 
+                                   @CheckForNull IdentifiedSector idSector)
+    {
+        if (!(idSector instanceof SectorAceCombat3Video))
             return;
+        SectorAceCombat3Video vidSector = (SectorAceCombat3Video) idSector;
+        Integer oiChannel = vidSector.getChannel();
+        Ac3Channel channel = _activeStreams.get(oiChannel);
+        if (channel == null) {
+            channel = new Ac3Channel(this, oiChannel);
+            _activeStreams.put(oiChannel, channel);
         }
-
-        SectorAceCombat3Video vidSect = (SectorAceCombat3Video)sector;
-        
-        Integer oiChannel = Integer.valueOf(vidSect.getChannel());
-        VideoStreamIndex stream = _activeStreams.get(oiChannel);
-        if (stream != null) {
-            boolean blnAccepted = stream.sectorRead(vidSect);
-            if (!blnAccepted) {
-                DiscItemAceCombat3VideoStream vid = stream.endOfMovie();
-                if (vid != null) {
-                    _completedVideos.add(vid);
-                    super.addDiscItem(vid);
-                }
-                _activeStreams.remove(oiChannel);
-                stream = null;
-            }
-        }
-        if (stream == null) {
-            stream = new VideoStreamIndex(getCd(), _errLog, vidSect);
-            _activeStreams.put(oiChannel, stream);
+        try {
+            channel.feedSector(vidSector);
+        } catch (IOException ex) {
+            _errLog.log(Level.SEVERE, null, ex);
         }
     }
 
+
     @Override
     public void indexingEndOfDisc() {
-        for (VideoStreamIndex videoStreamIndex : _activeStreams.values()) {
-            DiscItemAceCombat3VideoStream vid = videoStreamIndex.endOfMovie();
-            if (vid != null) {
-                _completedVideos.add(vid);
-                super.addDiscItem(vid);
-            }
+        for (Ac3Channel channel : _activeStreams.values()) {
+            channel.endVideo();
         }
         _activeStreams.clear();
     }
@@ -167,7 +213,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndex
     }
 
     @Override
-    public void indexGenerated(DiscIndex index) {
+    public void indexGenerated(@Nonnull DiscIndex index) {
     }
 
 }

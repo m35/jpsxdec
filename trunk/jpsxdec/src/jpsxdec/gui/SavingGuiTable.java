@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,9 +52,9 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 
 
 public class SavingGuiTable extends AbstractTableModel {
@@ -82,8 +82,8 @@ public class SavingGuiTable extends AbstractTableModel {
         @Nonnull
         private final Class _type;
         @Nonnull
-        private final LocalizedMessage _name;
-        COLUMNS(@Nonnull Class type, @Nonnull LocalizedMessage name) {
+        private final ILocalizedMessage _name;
+        COLUMNS(@Nonnull Class type, @Nonnull ILocalizedMessage name) {
             _type = type;
             _name = name;
         }
@@ -135,7 +135,7 @@ public class SavingGuiTable extends AbstractTableModel {
                                                        int row, int column)
         {
             int i = (Integer)value;
-            LocalizedMessage text;
+            ILocalizedMessage text;
             if(i == PROGRESS_FAILED)
                 text = I.GUI_SAVE_STATUS_FAILED();
             else if (i == PROGRESS_CANCELED)

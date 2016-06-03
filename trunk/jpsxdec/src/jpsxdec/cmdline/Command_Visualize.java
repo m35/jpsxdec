@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,12 +46,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.sectors.UnidentifiedSector;
 
 
@@ -63,7 +64,7 @@ class Command_Visualize extends Command {
         super("-visualize");
     }
 
-    protected @CheckForNull LocalizedMessage validate(@Nonnull String s) {
+    protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         _sOutfile = s;
         return null;
     }
@@ -106,17 +107,18 @@ class Command_Visualize extends Command {
             com.pdfjet.Font pdfFont = new com.pdfjet.Font(pdf, "Helvetica");
             pdfFont.setSize(6 * SCALE);
             com.pdfjet.Page pdfPage = new com.pdfjet.Page(pdf, new double[]{iWidth * SCALE, iHeight * SCALE});
-            for (int iSector = 0; iSector < cd.getLength(); iSector++) {
+            IdentifiedSectorIterator it = IdentifiedSectorIterator.create(cd);
+            for (int iSector = 0; it.hasNext(); iSector++) {
                 try {
-                    IdentifiedSector sector = IdentifiedSector.identifySector(cd.getSector(iSector));
+                    IdentifiedSector sector = it.next();
                     Color c;
-                    if (sector == null) {
+                    if (sector == null)
                         c = classToColor(UnidentifiedSector.class);
-                    } else {
+                    else
                         c = classToColor(sector.getClass());
-                    }
-                    com.pdfjet.Box pdfBox = new com.pdfjet.Box(0 * SCALE, iSector * SCALE, SECTOR_SECTION_SIZE * SCALE, 1 * SCALE);
                     int[] aiRgb = {c.getRed(), c.getGreen(), c.getBlue()};
+                    
+                    com.pdfjet.Box pdfBox = new com.pdfjet.Box(0 * SCALE, iSector * SCALE, SECTOR_SECTION_SIZE * SCALE, 1 * SCALE);
                     pdfBox.setFillShape(true);
                     pdfBox.setLineWidth(0);
                     pdfBox.setColor(aiRgb);

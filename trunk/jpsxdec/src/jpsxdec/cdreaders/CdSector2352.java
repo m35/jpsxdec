@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,6 @@
 package jpsxdec.cdreaders;
 
 import java.util.Arrays;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.util.ByteArrayFPIS;
@@ -73,7 +72,7 @@ public class CdSector2352 extends CdSector {
                         int iSectorIndex, long lngFilePointer)
     {
         super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);
-        _header = new CdxaHeader(abSectorBytes, iByteStartOffset);
+        _header = new CdxaHeader(iSectorIndex, abSectorBytes, iByteStartOffset);
         // TODO: if the sync header is imperfect (but passable), but the subheader is all errors -> it's cd audio
         switch (_header.getType()) {
             case CD_AUDIO:
@@ -88,7 +87,7 @@ public class CdSector2352 extends CdSector {
                 _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1;
                 break;
             default: // mode 2
-                _subHeader = new CdxaSubHeader(abSectorBytes, _iByteStartOffset + CdxaHeader.SIZE);
+                _subHeader = new CdxaSubHeader(iSectorIndex, abSectorBytes, _iByteStartOffset + CdxaHeader.SIZE);
                 _iHeaderSize = _header.getSize() + _subHeader.getSize();
                 if (_subHeader.getSubMode().getForm() == 1)
                     _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1;
@@ -217,10 +216,9 @@ public class CdSector2352 extends CdSector {
     }
     
     @Override
-    public void printErrors(@Nonnull Logger logger) {
-        _header.printErrors(_iSectorIndex, logger);
-        if (_subHeader != null)
-            _subHeader.printErrors(_iSectorIndex, logger);
+    public boolean hasHeaderErrors() {
+        return _header.hasErrors() ||
+               (_subHeader != null && _subHeader.hasErrors());
     }
 
     @Override

@@ -11,14 +11,24 @@
 .....................
 
 * Verify Loggers and LogRecords and ResourceBundles, use another log system?
-* Finish RbGen
-* Localize Main help
-* VDP null frameNumber
-* Finish XA encoder
+// Finish RbGen
+// Localize Main help
+/ VDP null frameNumber
+! Finish XA encoder
 * Look into adding ErrorHandler to my Loggers
-* 
+* Use Java 6 Console to print proper encoding
+x Remove need for video frame dimensions to be in sector
+x  Demuxer should provide frame dimensions either from the sector or from checking the demuxed frame
+x  Applies to: Dredd, Gran Turismo 2, Crusader already does this?
+// Ensure cleaning AC=0 codes doesn't affect decoded output
+* Cleanup IllegalArgumentException and IllegalStateExceptions
+* Look into Star Wars - Rebel Assault II
+* Look into Discworld 2
+* Look into BrainDead 13
+* Look into Syphon Filter 3
 
 Self contained
+! Implement a fixed SourceDataLine
 // XA replace: give better feedback what stopped the replace
 * Only show dropdown button when there are list entries
 * Save isofile: display output size for raw/normal
@@ -31,8 +41,8 @@ Self contained
 * New video GUI
 * Proper handling when directory box is empty
 * Finish testing LoD iki: GOAST.IKI (end of disc 2), DENIN2.INI (middle of disc 3), DRAGON1.IKI
-* Update dir chooser
-* Update launch4j
+x Update dir chooser
+// Update launch4j
 * Print bs format in -static
 * Bug when saving: leftover text in Message column
 * Add About button
@@ -53,12 +63,14 @@ Self contained
     * Unit tests require Java 6 while jPSXdec is built with Java 5 ...
       can use 2 different Javas in ant?
     * Create unit test subproject?
+* Add tooltips for everything
 * Find better dropdown button (test on Mac)
 * Experiment with other tree tables (need Mac)
 * Create mac app bundle: need a Mac to test!
+? Digimon World 2 has island directory records, use them?
 
 General
-! Findbug fixes
+* Findbug fixes
 * Replace package.html with package-info.java
 * Code coverage/unit testing
     * Make unit tests for the various layers of decoding:
@@ -106,7 +118,6 @@ Redesign
 * Bug: Ubuntu: only tree column is white, but text boxes have gray background
 * Figure out how to better organize all the RGB and YCbCr pixel formats
 * Add -psxfps
-* Add tooltips for everything
 ? Combine [Open & Analyze Disc] with [Open Index]?
 ? Try to automate the release process
 ? When displaying progress, setup a timer to only update the display at most every second
@@ -130,7 +141,7 @@ Indexing
     * ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
       When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
 Video encoder
-    ! remove/merge redundant MDEC codes with AC=0 (FF7)
+    // remove/merge redundant MDEC codes with AC=0 (FF7)
     * What to do when partial replace detects the entire frame is different
 Real-time media playback/preview
     ! Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player (ff tactics FFTST.STR)

@@ -123,7 +123,7 @@ public class Lain_LAPKS {
                 //biscreen = addImage(oCell.BitMask, (int)x, (int)y, (int)w, (int)h);
                 ImageIO.write(cell.BitMask, "png", new File(s + "_mask.png"));
             }
-        } catch (MdecException ex) {
+        } catch (MdecException.Read ex) {
             ex.printStackTrace();
             return -1;
         } catch (NotThisTypeException ex) {

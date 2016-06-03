@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -55,10 +55,10 @@ class CLUT {
     /** Dimensions of the CLUT in pixels. */
     private final int _iClutWidth, _iClutHeight;
     /** X position of the CLUT in pixels.
-        * Not sure how it is used in the PSX, but it is often 0. */
+     * Not sure how it is used in the PSX, but it is often 0. */
     private final int _iClutX;
     /** Y position of the CLUT in pixels.
-        * Not sure how it is used in the PSX, but it is often 0. */
+     * Not sure how it is used in the PSX, but it is often 0. */
     private final int _iClutY;
     /** Tim ABGR1555. */
     @Nonnull

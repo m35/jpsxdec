@@ -9,7 +9,8 @@ java -jar jpsxdec.jar <-?, -h, -help>
 java -jar jpsxdec.jar -f <in_file> -x <index_file>
   Build an index of <in_file> and save it as <index_file>
 
-java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
+java -jar jpsxdec.jar [ -x <index_file> ] [ -f <in_file> ]
+                      <main_command_and_options>
   Main commands that require an index file.
   Use an existing <index_file> (optionally overriding the <in_file> listed in
   it) or generate an index on the fly for <in_file> (optionally saving it as
@@ -21,7 +22,7 @@ java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
       or all index items of a type (audio, video, file, image)
 
         If no other command is specified:
-          Extracts index item using optional processing options 
+          Extracts index item using optional processing options
           (see item's help for options)
 
         -help/-h/-?
@@ -35,7 +36,7 @@ java -jar [ -x <index_file> ] [ -f <in_file> ] <main_command_and_options>
     -visualize <pdf_out_file>
       Display the layout of sectors and index items
 
-java -jar -f <in_file> <main_command_and_options>
+java -jar jpsxdec.jar -f <in_file> <main_command_and_options>
   Main commands that only require an input file
 
     -copysect <#, #-#>
@@ -58,7 +59,7 @@ java -jar -f <in_file> <main_command_and_options>
 
         -up <upsampling>
           Chroma upsampling method (default Bicubic).
-          Options: NearestNeighbor, Bilinear, Bicubic, Bell, 
+          Options: NearestNeighbor, Bilinear, Bicubic, Bell,
                    Mitchell, BSpline, Lanczos3, Hermite
 
         -debug

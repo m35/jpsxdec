@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ import java.util.Collection;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSquareAudioStream;
 import jpsxdec.discitems.SerializedDiscItem;
@@ -83,11 +84,13 @@ public class DiscIndexerSquare extends DiscIndexer implements DiscIndexer.Identi
      * All known games that use Square audio run their streaming media at 2x
      * speed.
      */
-    public void indexingSectorRead(@Nonnull IdentifiedSector identifiedSector) {
-        if (!(identifiedSector instanceof ISquareAudioSector))
+    public void indexingSectorRead(@Nonnull CdSector cdSector,
+                                   @CheckForNull IdentifiedSector idSector)
+    {
+        if (!(idSector instanceof ISquareAudioSector))
             return;
 
-        ISquareAudioSector audioSect = (ISquareAudioSector)identifiedSector;
+        ISquareAudioSector audioSect = (ISquareAudioSector)idSector;
 
         // FF9 has some movies without audio
         if (audioSect.getLeftSampleCount() == 0 && audioSect.getRightSampleCount() == 0)

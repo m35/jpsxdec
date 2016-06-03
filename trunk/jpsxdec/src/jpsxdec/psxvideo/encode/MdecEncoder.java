@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -57,6 +57,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     private final int _iPixWidth, _iPixHeight;
     private final int _iMacBlockHeight;
 
+    /** Used for full frame replace. */
     public MdecEncoder(PsxYCbCrImage ycbcr, int iWidth, int iHeight) {
 
         if (ycbcr.getLumaWidth() % 16 != 0 || ycbcr.getLumaHeight() % 16 != 0)
@@ -79,6 +80,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
 
     }
 
+    /** Used for partial replace. */
     public MdecEncoder(ParsedMdecImage original, PsxYCbCrImage newYcbcr, List<Point> replaceMbs) {
 
         if (newYcbcr.getLumaWidth() % 16 != 0 || newYcbcr.getLumaHeight() % 16 != 0)
@@ -108,7 +110,8 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
         }
 
     }
-    
+
+    /** Iterator for only the macro blocks that will be replaced. */
     public Iterator<MacroBlockEncoder> iterator() {
         return _replaceMbs.iterator();
     }

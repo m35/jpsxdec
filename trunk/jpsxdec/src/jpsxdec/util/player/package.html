@@ -11,16 +11,18 @@
     <p>
     The player utilizes several threads perform different tasks
     <ol>
-        <li>Demuxer thread ({@link jpsxdec.util.player.DemuxReader})
+        <li>Demuxer thread ({@link jpsxdec.util.player.AudioVideoReader})
         <li>Video processor thread ({@link jpsxdec.util.player.VideoProcessor})
-        <li>Audio processor thread ({@link jpsxdec.util.player.AudioProcessor})
         <li>Video player thread ({@link jpsxdec.util.player.VideoPlayer})
         <li>Audio player thread ({@link jpsxdec.util.player.AudioPlayer} wraps the
                          {@link javax.sound.sampled.SourceDataLine})
     </ol>
     <p>
+        Audio processing is done in the demuxer thread.
+    </p>
+    <p>
     Packets of data are passed between these threads via
-    {@link jpsxdec.util.player.MultiStateBlockingQueue}s.
+    {@link jpsxdec.util.player.ObjectPlayStream}s.
 
     <p>
     There is also the external Controller thread 

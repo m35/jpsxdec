@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,9 +51,10 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.Version;
+import jpsxdec.i18n.Bundle;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 
 
 /** Formatting for the main debug.log.
@@ -70,7 +71,7 @@ public class DebugFormatter extends Formatter {
     static {
         ResourceBundle rb = null;
         try {
-            rb = ResourceBundle.getBundle(LocalizedMessage.getResourceBundleName(), new Locale(""));
+            rb = ResourceBundle.getBundle(Bundle.getResourceBundleName(), new Locale(""));
         } catch (MissingResourceException ex) {
             Logger.getLogger(DebugFormatter.class.getName()).log(Level.SEVERE, "Unable to load root resource bundle", ex);
         }
@@ -123,8 +124,8 @@ public class DebugFormatter extends Formatter {
                 Object aoParamsCopy[] = new Object[aoParams.length];
                 for (int i = 0; i < aoParams.length; i++) {
                     Object param = aoParams[i];
-                    if (param instanceof LocalizedMessage)
-                        aoParamsCopy[i] = ((LocalizedMessage)param).getEnglishMessage();
+                    if (param instanceof ILocalizedMessage)
+                        aoParamsCopy[i] = ((ILocalizedMessage)param).getEnglishMessage();
                     else
                         aoParamsCopy[i] = param;
                 }

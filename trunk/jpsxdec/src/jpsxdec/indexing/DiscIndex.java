@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,11 +39,11 @@ package jpsxdec.indexing;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -55,7 +55,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
@@ -65,6 +64,7 @@ import jpsxdec.discitems.DiscItemISO9660File;
 import jpsxdec.discitems.DiscItemStrVideoStream;
 import jpsxdec.discitems.IndexId;
 import jpsxdec.discitems.SerializedDiscItem;
+import jpsxdec.i18n.I;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
@@ -80,6 +80,8 @@ public class DiscIndex implements Iterable<DiscItem> {
     private static final Logger LOG = Logger.getLogger(DiscIndex.class.getName());
 
     private static final String COMMENT_LINE_START = ";";
+    
+    private static final String INDEX_CODEPAGE = "UTF-8";
 
     @Nonnull
     private final CdFileSectorReader _sourceCD;
@@ -110,91 +112,35 @@ public class DiscIndex implements Iterable<DiscItem> {
             if (indexer instanceof DiscIndexer.Static)
                 staticIndexers.add((DiscIndexer.Static) indexer);
         }
-        
-        DiscriminatingSectorIterator sectIter =
-                new DiscriminatingSectorIterator(cdReader, 0);
 
-        final TaskCanceledException[] aoTaskCanceled = { null };
-
-        sectIter.setListener(new DiscriminatingSectorIterator.SectorReadListener() {
-            int iCurrentSectorNumber = -1;
-            int iMode1Count = 0;
-            int iMode2Count = 0;
-            public void sectorRead(CdSector sect) {
-                sect.printErrors(pl);
-                if (sect.hasHeaderSectorNumber()) {
-                    int iNewSectNumber = sect.getHeaderSectorNumber();
-                    if (iCurrentSectorNumber >= 0) {
-                        if (iCurrentSectorNumber + 1 != iNewSectNumber)
-                            I.INDEX_SECTOR_HEADER_NUM_BREAK(iCurrentSectorNumber, iNewSectNumber).log(pl, Level.WARNING);
-                    }
-                    iCurrentSectorNumber = iNewSectNumber;
-                } else {
-                    iCurrentSectorNumber = -1;
-                }
-                if (sect.isMode1()) {
-                    if (iMode1Count < iMode2Count)
-                        I.INDEX_MODE1_AMONG_MODE2(sect.getSectorNumberFromStart()).log(pl, Level.WARNING);
-                    iMode1Count++;
-                } else if (!sect.isCdAudioSector())
-                    iMode2Count++;
-
-                int iSector = sect.getSectorNumberFromStart();
-                try {
-                    pl.progressUpdate(iSector / (double)_sourceCD.getLength());
-                } catch (TaskCanceledException ex) {
-                    aoTaskCanceled[0] = ex;
-                }
-
-                if (pl.seekingEvent())
-                    pl.event(I.INDEX_SECTOR_ITEM_PROGRESS(iSector, _sourceCD.getLength(), _iterate.size()));
-            }
-        });
+        UnidentifiedSectorIteratorListener iterListener =
+                new UnidentifiedSectorIteratorListener(cdReader, pl, identifiedIndexers);
 
         pl.progressStart();
-        
+        long lngStart, lngEnd;
+        lngStart = System.currentTimeMillis();
+
         try {
+            while (iterListener.seekToNextUnidentified()) {
+                DemuxedUnidentifiedDataStream staticStream = new DemuxedUnidentifiedDataStream(iterListener);
 
-            while (!sectIter.isEndOfDisc()) {
+                do {
+                    // do the first static indexer first
+                    staticIndexers.get(0).staticRead(staticStream);
+                    iterListener.checkTaskCanceled();
 
-                while (sectIter.hasNextIdentified()) {
-
-                    IdentifiedSector idSect = sectIter.nextIdentified();
-                    
-                    for (DiscIndexer.Identified indexer : identifiedIndexers) {
-
-                        indexer.indexingSectorRead(idSect);
-
-                        if (aoTaskCanceled[0] != null)
-                            throw aoTaskCanceled[0];
+                    // only if there is more than one should we resetMark()
+                    for (int i = 1; i < staticIndexers.size(); i++) {
+                        // reset+mark the stream
+                        staticStream.resetMark();
+                        iterListener.checkTaskCanceled();
+                        // pass it to the next static indexer
+                        staticIndexers.get(i).staticRead(staticStream);
+                        iterListener.checkTaskCanceled();
                     }
-                }
 
-                if (sectIter.hasNextUnidentified() && !staticIndexers.isEmpty()) {
-                    DemuxedUnidentifiedDataStream staticStream = new DemuxedUnidentifiedDataStream(sectIter);
-
-                    for (; staticStream.headHasMore(); staticStream.incrementStartAndReset(4)) {
-
-                        staticIndexers.get(0).staticRead(staticStream);
-
-                        if (aoTaskCanceled[0] != null)
-                            throw aoTaskCanceled[0];
-
-                        for (int i = 1; i < staticIndexers.size(); i++) {
-                            // reset the stream
-                            staticStream.reset();
-
-                            // pass it the stream to try
-                            staticIndexers.get(i).staticRead(staticStream);
-
-                            if (aoTaskCanceled[0] != null)
-                                throw aoTaskCanceled[0];
-                        }
-
-                    }
-                    
-                }
-
+                } while (staticStream.resetSkipMark(4));
+                iterListener.checkTaskCanceled();
             }
 
         } catch (IOException ex) {
@@ -231,6 +177,8 @@ public class DiscIndex implements Iterable<DiscItem> {
         if (pl.seekingEvent())
             pl.event(I.INDEX_SECTOR_ITEM_PROGRESS(_sourceCD.getLength(), _sourceCD.getLength(), _iterate.size()));
 
+        lngEnd = System.currentTimeMillis();
+        I.PROCESS_TIME((lngEnd - lngStart) / 1000.0).log(pl, Level.INFO);
         pl.progressEnd();
 
     }
@@ -330,7 +278,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         File indexFile = new File(sIndexFile);
 
         CdFileSectorReader sourceCd = null;
-        BufferedReader reader = new BufferedReader(new FileReader(indexFile));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(indexFile), INDEX_CODEPAGE));
         boolean blnExceptionThrown = true; // hacky way to catch all exceptions in finally block
         try {
             // make sure the first line matches the current version
@@ -479,8 +427,20 @@ public class DiscIndex implements Iterable<DiscItem> {
     }
 
 
+    /** Serializes the list of disc items to a file. */
+    public void serializeIndex(@Nonnull File file)
+            throws IOException
+    {
+        PrintStream ps = new PrintStream(file, INDEX_CODEPAGE);
+        try {
+            serializeIndex(ps);
+        } finally {
+            ps.close();
+        }
+    }
+    
     /** Serializes the list of disc items to a stream. */
-    public void serializeIndex(@Nonnull PrintStream ps)
+    private void serializeIndex(@Nonnull PrintStream ps)
             throws IOException
     {
         ps.println(Version.IndexHeader);
@@ -529,5 +489,66 @@ public class DiscIndex implements Iterable<DiscItem> {
     @Override
     public String toString() {
         return String.format("%s (%s) %d items", _sourceCD.getSourceFile(), _sDiscName, _iterate.size());
+    }
+
+    private class UnidentifiedSectorIteratorListener extends UnidentifiedSectorIterator {
+
+        @Nonnull
+        private final ProgressListenerLogger _pl;
+        @Nonnull
+        private final List<DiscIndexer.Identified> _identifiedIndexers;
+        private int iCurrentHeaderSectorNumber = -1;
+        private int iMode1Count = 0;
+        private int iMode2Count = 0;
+
+        public UnidentifiedSectorIteratorListener(@Nonnull CdFileSectorReader cd,
+                                                  @Nonnull ProgressListenerLogger pl,
+                                                  @Nonnull List<DiscIndexer.Identified> identifiedIndexers)
+        {
+            super(cd);
+            _pl = pl;
+            _identifiedIndexers = identifiedIndexers;
+        }
+
+        public void sectorRead(@Nonnull CdSector cdSector, @CheckForNull IdentifiedSector idSector) 
+                throws TaskCanceledException
+        {
+            if (cdSector.hasHeaderErrors())
+                I.INDEX_SECTOR_CORRUPTED(cdSector.getSectorNumberFromStart())
+                        .log(_pl, Level.WARNING);
+
+            if (cdSector.hasHeaderSectorNumber()) {
+                int iNewSectNumber = cdSector.getHeaderSectorNumber();
+                if (iNewSectNumber != -1) {
+                    if (iCurrentHeaderSectorNumber >= 0) {
+                        if (iCurrentHeaderSectorNumber + 1 != iNewSectNumber)
+                            I.INDEX_SECTOR_HEADER_NUM_BREAK(iCurrentHeaderSectorNumber, iNewSectNumber).log(_pl, Level.WARNING);
+                    }
+                    iCurrentHeaderSectorNumber = iNewSectNumber;
+                } else {
+                    iCurrentHeaderSectorNumber = -1;
+                }
+            } else {
+                iCurrentHeaderSectorNumber = -1;
+            }
+
+            if (cdSector.isMode1()) {
+                if (iMode1Count < iMode2Count)
+                    I.INDEX_MODE1_AMONG_MODE2(cdSector.getSectorNumberFromStart()).log(_pl, Level.WARNING);
+                iMode1Count++;
+            } else if (!cdSector.isCdAudioSector())
+                iMode2Count++;
+
+            for (DiscIndexer.Identified indexer : _identifiedIndexers) {
+                indexer.indexingSectorRead(cdSector, idSector);
+            }
+
+            int iSector = cdSector.getSectorNumberFromStart();
+            _pl.progressUpdate(iSector / (double)_sourceCD.getLength());
+
+            if (_pl.seekingEvent())
+                _pl.event(I.INDEX_SECTOR_ITEM_PROGRESS(iSector, _sourceCD.getLength(), _iterate.size()));
+        }
+
     }
 }

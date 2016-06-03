@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,7 @@ import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import static jpsxdec.psxvideo.mdec.MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 
-
+/** Encodes a single macroblock into MDEC codes. */
 public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
 
     private static final boolean DEBUG = false;
@@ -166,14 +166,20 @@ public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
     }
     
     public void setToFullEncode(int[] aiQscales) {
-        _aiSquashQscales = _aiQscales = aiQscales;
+        if (aiQscales.length != 6)
+            throw new IllegalArgumentException();
+        _aiSquashQscales = _aiQscales = aiQscales.clone();
     }
     public void setToPartialEncode(int[] aiQscales, int[] aiSquashQscales) {
-        _aiQscales = aiQscales;
-        _aiSquashQscales = aiSquashQscales;
+        if (aiQscales.length != 6)
+            throw new IllegalArgumentException();
+        _aiQscales = aiQscales.clone();
+        _aiSquashQscales = aiSquashQscales.clone();
     }
 
     public Iterator<MdecCode> iterator() {
+        if (_aiQscales == null || _aiSquashQscales == null)
+            throw new IllegalStateException();
         ArrayList<MdecInputStream.MdecCode> codes = new ArrayList<MdecInputStream.MdecCode>();
         encodeBlock(_adblCrBlockVector, codes, _aiQscales[0], _aiSquashQscales[0]);
         encodeBlock(_adblCbBlockVector, codes, _aiQscales[1], _aiSquashQscales[1]);
@@ -193,7 +199,7 @@ public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
         final MdecInputStream.MdecCode code = new MdecInputStream.MdecCode();
         code.setTop6Bits(iQscale);
         code.setBottom10Bits((int)Math.round(adblVector[0]));
-        out.add(code.clone());
+        out.add(code.copy());
         if (DEBUG)
             System.out.println(code);
 
@@ -220,14 +226,14 @@ public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
             
             code.setTop6Bits(iZeroCount);
             code.setBottom10Bits(iQuantVal);
-            out.add(code.clone());
+            out.add(code.copy());
             iVectorPos++;
             if (DEBUG)
                 System.out.println(code);
         }
         // end of block
         code.setToEndOfData();
-        out.add(code.clone());
+        out.add(code.copy());
         if (DEBUG)
             System.out.println(code);
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,14 +38,13 @@
 package jpsxdec.psxvideo.bitstreams;
 
 import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
 import jpsxdec.discitems.FrameNumber;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.Calc;
@@ -246,7 +245,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     }
 
     protected void readQscaleAndDC(@Nonnull MdecCode code)
-            throws MdecException.Uncompress, EOFException
+            throws MdecException.Uncompress, MdecException.EndOfStream
     {
         code.setTop6Bits(_iQscale);
         code.setBottom10Bits(_bitReader.readSignedBits(10));
@@ -254,7 +253,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         assert !code.isEOD(); // a Qscale of 63 and DC of -512 would look like EOD
     }
 
-    protected void readEscapeAcCode(@Nonnull MdecCode code) throws EOFException {
+    protected void readEscapeAcCode(@Nonnull MdecCode code) throws MdecException.EndOfStream {
         // Normal playstation encoding stores the escape code in 16 bits:
         // 6 for run of zeros, 10 for AC Coefficient
         int iRunAndAc = _bitReader.readUnsignedBits(6 + 10);
@@ -270,15 +269,15 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     }
 
     @Override
-    public void skipPaddingBits() throws EOFException {
+    public void skipPaddingBits() throws MdecException.EndOfStream {
         int iPaddingBits = _bitReader.readUnsignedBits(11);
         if (iPaddingBits != b01111111110)
             LOG.log(Level.WARNING, "Incorrect padding bits {0}", Misc.bitsToString(iPaddingBits, 11));
     }
 
     @Override
-    public @Nonnull BitstreamCompressor_STRv2 makeCompressor() {
-        return new BitstreamCompressor_STRv2();
+    public @Nonnull BitStreamCompressor_STRv2 makeCompressor() {
+        return new BitStreamCompressor_STRv2();
     }
 
     @Override
@@ -313,7 +312,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
 
 
-    public static class BitstreamCompressor_STRv2 implements BitStreamCompressor {
+    public static class BitStreamCompressor_STRv2 implements BitStreamCompressor {
         
         private int _iQscale;
         private int _iMdecCodeCount;
@@ -400,7 +399,10 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                 int iBlock = 0;
                 for (int iMacroBlock = 0; iMacroBlock < iMacroBlockCount;) {
                     String sBitsToWrite;
-                    if (inStream.readMdecCode(code)) {
+                    boolean blnEod = inStream.readMdecCode(code);
+                    if (!code.isValid())
+                        throw new MdecException.Read(I.COMPRESS_INVALID_MDEC_CODE(code));
+                    if (blnEod) {
                         sBitsToWrite = AcLookup.END_OF_BLOCK.BitString;
                         blnNewBlk = true;
                         iBlock = (iBlock + 1) % 6;
@@ -408,7 +410,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                             iMacroBlock++;
                     } else {
                         if (blnNewBlk) {
-                            validateQscale(iBlock, code.getTop6Bits());
+                            setBlockQscale(iBlock, code.getTop6Bits());
                             sBitsToWrite = encodeDC(code.getBottom10Bits(), iBlock);
                             blnNewBlk = false;
                         } else {
@@ -450,32 +452,23 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return true;
         }
 
-        protected void codeRead(@Nonnull MdecCode code) throws MdecException.Compress, MdecException.Read {
-            if (code.isEOD()) {
-                if (_iQscale < 0) {
-                    _iQscale = code.getTop6Bits();
-                    if (_iQscale < 1 || _iQscale > 63)
-                        throw new MdecException.Read(I.INVALID_QSCALE(_iQscale));
-                } else if (_iQscale != code.getTop6Bits())
-                    throw new MdecException.Compress(I.INCONSISTENT_QSCALE(_iQscale, code.getTop6Bits()));
-            }
-        }
-
         protected void addTrailingBits(@Nonnull BitStreamWriter bitStream) throws IOException {
             bitStream.write(END_OF_FRAME_EXTRA_BITS);
         }
 
-        protected void validateQscale(int iBlock, int iQscale) throws MdecException.Write {
-            if (_iQscale < 0) {
+        /** Sets the quantization scale for the current block being encoded.
+         * Performs any necessary preparations for encoding the block.
+         * Ensures the quantization scale is compatible with the bitstream.
+         * Caller will ensure parameters are valid. */
+        protected void setBlockQscale(int iBlock, int iQscale) throws MdecException.Compress {
+            if (_iQscale < 0)
                 _iQscale = iQscale;
-                if (_iQscale < 1 || _iQscale > 63)
-                    throw new MdecException.Encode(I.INVALID_QSCALE(_iQscale));
-            } else if (_iQscale != iQscale)
+            else if (_iQscale != iQscale)
                 throw new MdecException.Compress(I.INCONSISTENT_QSCALE(_iQscale, iQscale));
         }
 
-        protected @Nonnull String encodeDC(int iDC, int iBlock) {
-            if (iDC < -1024 || iDC > 1023)
+        protected @Nonnull String encodeDC(int iDC, int iBlock) throws MdecException.Compress {
+            if (iDC < -512 || iDC > 511)
                 throw new IllegalArgumentException("Invalid DC code " + iDC);
             if (iBlock < 0 || iBlock > 5)
                 throw new IllegalArgumentException("Invalid block " + iBlock);
@@ -483,11 +476,11 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return Misc.bitsToString(iDC, 10);
         }
 
-        private String encodeAC(@Nonnull MdecCode code)throws MdecException.Compress {
-            if (code.getTop6Bits() < 0 || code.getTop6Bits() > 63)
-                throw new IllegalArgumentException("Invalid AC zero run length " + code.getTop6Bits());
-            if (code.getBottom10Bits() < -512 || code.getBottom10Bits() > 511)
-                throw new IllegalArgumentException("Invalid AC code " + code.getBottom10Bits());
+        private String encodeAC(@Nonnull MdecCode code) 
+                throws MdecException.TooMuchEnergyToCompress
+        {
+            if (!code.isValid())
+                throw new IllegalArgumentException("Invalid MDEC code " + code);
 
             for (AcBitCode vlc : getAcVaribleLengthCodeList().getCodeList()) {
                 if (code.getTop6Bits() == vlc.ZeroRun && Math.abs(code.getBottom10Bits()) == vlc.AcCoefficient) {
@@ -502,11 +495,11 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return AC_VARIABLE_LENGTH_CODES_MPEG1;
         }
 
-        protected @Nonnull String encodeAcEscape(@Nonnull MdecCode code) throws MdecException.Compress {
-            if (code.getTop6Bits() < 0 || code.getTop6Bits() > 63)
-                throw new IllegalArgumentException("Invalid AC zero run length " + code.getTop6Bits());
-            if (code.getBottom10Bits() < -1024 || code.getBottom10Bits() > 1023)
-                throw new IllegalArgumentException("Invalid AC code " + code.getBottom10Bits());
+        protected @Nonnull String encodeAcEscape(@Nonnull MdecCode code)
+                throws MdecException.TooMuchEnergyToCompress
+        {
+            if (!code.isValid())
+                throw new IllegalArgumentException("Invalid MDEC code " + code);
 
             return AcLookup.ESCAPE_CODE.BitString +
                     Misc.bitsToString(code.getTop6Bits(), 6) +

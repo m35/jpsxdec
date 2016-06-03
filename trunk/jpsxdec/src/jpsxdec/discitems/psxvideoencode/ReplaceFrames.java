@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -55,17 +55,18 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import jpsxdec.i18n.I;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.ISectorFrameDemuxer;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.NotThisTypeException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -176,7 +177,7 @@ public class ReplaceFrames {
     /** Returns null if no match. */
     protected @CheckForNull ReplaceFrame getFrameToReplace(@Nonnull FrameNumber frame) {
         for (ReplaceFrame replacer : _replacers) {
-            if (replacer.getFrame().compareTo(frame) == 0)
+            if (replacer.getFrameLookup().compareTo(frame) == 0)
                 return replacer;
         }
         return null;
@@ -193,8 +194,7 @@ public class ReplaceFrames {
     {
         final Throwable[] exception = new Throwable[1];
         
-        ISectorFrameDemuxer demuxer;
-        demuxer = vidItem.makeDemuxer();
+        ISectorFrameDemuxer demuxer = vidItem.makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
 
             public void frameComplete(@Nonnull IDemuxedFrame frame) throws IOException {
@@ -222,8 +222,9 @@ public class ReplaceFrames {
         
         Logger log = Logger.getLogger("replace");
 
-        for (int iSector = 0; iSector < vidItem.getSectorLength(); iSector++) {
-            IdentifiedSector sector = vidItem.getRelativeIdentifiedSector(iSector);
+        IdentifiedSectorIterator it = vidItem.identifiedSectorIterator();
+        while (it.hasNext()) {
+            IdentifiedSector sector = it.next();
             if (sector != null)
                 demuxer.feedSector(sector, log);
 

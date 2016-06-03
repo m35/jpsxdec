@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,68 +37,85 @@
 
 package jpsxdec.indexing;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemDreddVideo;
-import jpsxdec.discitems.FrameNumberFormat;
+import jpsxdec.discitems.DreddDemuxer;
 import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.sectors.SectorDreddVideo;
 import jpsxdec.util.NotThisTypeException;
 
 
-public class DiscIndexerDredd extends DiscIndexer implements DiscIndexer.Identified {
+public class DiscIndexerDredd extends DiscIndexer
+        implements DiscIndexer.Identified, DreddDemuxer.Listener
+{
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerDredd.class.getName());
 
-    private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemDreddVideo> {
+    private static class VidBuilder {
 
-        public VideoStreamIndex(@Nonnull CdFileSectorReader cd, @Nonnull Logger errLog,
-                                @Nonnull SectorDreddVideo vidSect)
-        {
-            super(cd, errLog, vidSect, true,
-                  new DiscItemDreddVideo.Demuxer(
-                                vidSect.getSectorNumber(), Integer.MAX_VALUE,
-                                vidSect.getWidth(), vidSect.getHeight()));
+        private final FrameNumber.FactoryNoHeader _frameNumberFactory = new FrameNumber.FactoryNoHeader();
+        @Nonnull
+        private final FullFrameTracker _frameTracker;
+        @Nonnull
+        private final Logger _errLog;
+
+        public VidBuilder(@Nonnull DreddDemuxer.DemuxedDreddFrame firstFrame, @Nonnull Logger errLog) {
+            _errLog = errLog;
+            _frameTracker = new FullFrameTracker(
+                    firstFrame.getWidth(), firstFrame.getHeight(),
+                    _frameNumberFactory.next(firstFrame.getStartSector()),
+                    firstFrame.getEndSector());
         }
 
-        @Override
-        protected @Nonnull DiscItemDreddVideo createVideo(int iStartSector, int iEndSector,
-                                                          int iWidth, int iHeight,
-                                                          int iFrameCount,
-                                                          @Nonnull FrameNumberFormat frameNumberFormat,
-                                                          @Nonnull FrameNumber startFrame,
-                                                          @Nonnull FrameNumber lastSeenFrameNumber,
-                                                          int iSectors, int iPerFrame,
-                                                          int iFrame1PresentationSector)
-        {
-            return new DiscItemDreddVideo(
-                    _cd,
-                    iStartSector, iEndSector,
-                    iWidth, iHeight,
-                    iFrameCount,
-                    frameNumberFormat,
-                    startFrame, lastSeenFrameNumber,
-                    iSectors, iPerFrame,
-                    iFrame1PresentationSector);
+        /** @return if the frame was accepted as part of this video, otherwise start a new video. */
+        public boolean addFrame(@Nonnull DreddDemuxer.DemuxedDreddFrame frame) {
+            if (frame.getWidth() != _frameTracker.getWidth() ||
+                frame.getHeight() != _frameTracker.getHeight() ||
+                frame.getStartSector() > _frameTracker.getEndSector() + 100)
+            {
+                return false;
+            }
+            _frameTracker.next(_frameNumberFactory.next(frame.getStartSector()),
+                               frame.getEndSector());
+            return true;
         }
+
+        public @Nonnull DiscItemDreddVideo endOfMovie(@Nonnull CdFileSectorReader cd) {
+            int[] aiSectorsPerFrame = _frameTracker.getSectorsPerFrame();
+
+            return new DiscItemDreddVideo(cd,
+                    _frameTracker.getStartSector(), _frameTracker.getEndSector(),
+                    _frameTracker.getWidth(), _frameTracker.getHeight(),
+                    _frameTracker.getFrameCount(),
+                    _frameTracker.getFormat(),
+                    _frameTracker.getStartFrame(), _frameTracker.getEndFrame(),
+                    aiSectorsPerFrame[0], aiSectorsPerFrame[1],
+                    _frameTracker.getFrame1PresentationSector());
+        }
+
     }
-
-
+    
     @Nonnull
     private final Logger _errLog;
-    @CheckForNull
-    private VideoStreamIndex _currentStream;
     private final Collection<DiscItemDreddVideo> _completedVideos = new ArrayList<DiscItemDreddVideo>();
+    private final DreddDemuxer _videoDemuxer = new DreddDemuxer();
+    @CheckForNull
+    private VidBuilder _videoBuilder;
+
 
     public DiscIndexerDredd(@Nonnull Logger errLog) {
         _errLog = errLog;
+        _videoDemuxer.setFrameListener(this);
     }
 
     @Override
@@ -111,38 +128,40 @@ public class DiscIndexerDredd extends DiscIndexer implements DiscIndexer.Identif
         return null;
     }
 
-    public void indexingSectorRead(@Nonnull IdentifiedSector sector) {
-        if (!(sector instanceof SectorDreddVideo))
+    public void indexingSectorRead(@Nonnull CdSector cdSector,
+                                   @CheckForNull IdentifiedSector idSector)
+    {
+        try {
+            // will check if it's a sector we care about
+            // if not, the sector will be ignored
+            _videoDemuxer.feedSector(cdSector, idSector, _errLog);
+        } catch (IOException ex) {
+            _errLog.log(Level.SEVERE, null, ex);
+        }
+    }
+
+    // [implements DreddDemuxer.Listener]
+    public void frameComplete(@Nonnull DreddDemuxer.DemuxedDreddFrame frame) {
+        if (_videoBuilder != null && !_videoBuilder.addFrame(frame))
+            endVideo();
+        if (_videoBuilder == null)
+            _videoBuilder = new VidBuilder(frame, _errLog);
+    }
+
+    // [implements DreddDemuxer.Listener]
+    public void endVideo() {
+        if (_videoBuilder == null)
             return;
 
-        SectorDreddVideo vidSect = (SectorDreddVideo)sector;
-        
-        if (_currentStream != null) {
-            boolean blnAccepted = _currentStream.sectorRead(vidSect);
-            if (!blnAccepted) {
-                DiscItemDreddVideo vid = _currentStream.endOfMovie();
-                if (vid != null) {
-                    _completedVideos.add(vid);
-                    super.addDiscItem(vid);
-                }
-                _currentStream = null;
-            }
-        }
-        if (_currentStream == null) {
-            _currentStream = new VideoStreamIndex(getCd(), _errLog, vidSect);
-        }
+        DiscItemDreddVideo video = _videoBuilder.endOfMovie(getCd());
+        _completedVideos.add(video);
+        super.addDiscItem(video);
+        _videoBuilder = null;
     }
 
     @Override
     public void indexingEndOfDisc() {
-        if (_currentStream != null) {
-            DiscItemDreddVideo vid = _currentStream.endOfMovie();
-            if (vid != null) {
-                _completedVideos.add(vid);
-                super.addDiscItem(vid);
-            }
-            _currentStream = null;
-        }
+        endVideo();
     }
 
     @Override
@@ -152,7 +171,8 @@ public class DiscIndexerDredd extends DiscIndexer implements DiscIndexer.Identif
     }
 
     @Override
-    public void indexGenerated(DiscIndex index) {
+    public void indexGenerated(@Nonnull DiscIndex index) {
     }
 
 }
+

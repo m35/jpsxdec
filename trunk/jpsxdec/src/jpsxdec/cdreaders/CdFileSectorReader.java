@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,8 +47,8 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.LocalizedIOException;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
@@ -328,7 +328,7 @@ public class CdFileSectorReader {
         return _iSectorCount;
     }
 
-    public @Nonnull LocalizedMessage getTypeDescription() {
+    public @Nonnull ILocalizedMessage getTypeDescription() {
         return _sectorFactory.getTypeDescription();
     }
 
@@ -396,7 +396,7 @@ public class CdFileSectorReader {
     
     private interface SectorFactory {
         @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer);
-        @Nonnull LocalizedMessage getTypeDescription();
+        @Nonnull ILocalizedMessage getTypeDescription();
         boolean hasSectorHeader();
         long get1stSectorOffset();
         int getRawSectorSize();
@@ -419,8 +419,8 @@ public class CdFileSectorReader {
         }
 
 
-        public @Nonnull LocalizedMessage getTypeDescription() {
-            return I.ISO_EXTENSION();
+        public @Nonnull ILocalizedMessage getTypeDescription() {
+            return I.DISC_FMT_2048();
         }
 
         public boolean hasSectorHeader() {
@@ -463,14 +463,7 @@ public class CdFileSectorReader {
                  lngSectStart < iMaxSearch - abTestSectorData.length;
                  lngSectStart+=4)
             {
-                cdFile.seek(lngSectStart);
-                IO.readByteArray(cdFile, abTestSectorData);
-                CdSector cdSector = new CdSector2336(abTestSectorData, 0, -1, -1);
-                if (cdSector.getSubMode().getForm() != 2 || cdSector.isCdAudioSector())
-                    continue;
-
-                XaAnalysis xa = XaAnalysis.analyze(cdSector, 254);
-                if (xa != null && xa.iProbability == 100) {
+                if (isXaSector(cdFile, lngSectStart, abTestSectorData)) {
                     // we've found an XA audio sector
                     // maybe try to find another just to be sure?
 
@@ -484,11 +477,7 @@ public class CdFileSectorReader {
                          lngAdditionalOffset+=SECTOR_SIZE_2336_BIN_NOSYNC,
                          iTimes++)
                     {
-                        cdFile.seek(lngSectStart + lngAdditionalOffset);
-                        IO.readByteArray(cdFile, abTestSectorData, 0, SECTOR_SIZE_2336_BIN_NOSYNC);
-
-                        xa = XaAnalysis.analyze(cdSector, 254);
-                        if (xa != null && xa.iProbability == 100) {
+                        if (isXaSector(cdFile, lngSectStart + lngAdditionalOffset, abTestSectorData)) {
                             // sweet, we found another one. we're done.
                             // backup to the first sector
                             _lng1stSectorOffset = lngSectStart % SECTOR_SIZE_2336_BIN_NOSYNC;
@@ -500,6 +489,21 @@ public class CdFileSectorReader {
             throw new NotThisTypeException();
         }
 
+        private static boolean isXaSector(@Nonnull RandomAccessFile cdFile,
+                                          long lngSectorStart,
+                                          @Nonnull byte[] abReusableBuffer)
+                throws IOException
+        {
+            cdFile.seek(lngSectorStart);
+            IO.readByteArray(cdFile, abReusableBuffer);
+            CdSector cdSector = new CdSector2336(abReusableBuffer, 0, 0, lngSectorStart);
+            if (cdSector.isCdAudioSector() || cdSector.getSubMode().getForm() != 2)
+                return false;
+
+            XaAnalysis xa = XaAnalysis.analyze(cdSector, 254);
+            return (xa != null && xa.iProbability == 100);
+        }
+
         private Cd2336Factory(long lngStartOffset) {
             _lng1stSectorOffset = lngStartOffset;
         }
@@ -509,7 +513,7 @@ public class CdFileSectorReader {
             return sector;
         }
 
-        public @Nonnull LocalizedMessage getTypeDescription() {
+        public @Nonnull ILocalizedMessage getTypeDescription() {
             return I.DISC_FMT_2336();
         }
         public boolean hasSectorHeader() {
@@ -599,7 +603,7 @@ public class CdFileSectorReader {
             return sector;
         }
 
-        public @Nonnull LocalizedMessage getTypeDescription() {
+        public @Nonnull ILocalizedMessage getTypeDescription() {
             return _bln2352 ?
                     I.DISC_FMT_2352() :
                     I.DISC_FMT_2448();

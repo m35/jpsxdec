@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,8 +38,6 @@
 package jpsxdec.psxvideo.bitstreams;
 
 import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Comparator;
 import java.util.TreeSet;
@@ -47,13 +45,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
 import jpsxdec.discitems.FrameNumber;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.mdec.MdecException.Write;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import jpsxdec.util.FeedbackStream;
@@ -104,7 +101,11 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         if (_abQscaleDcLookupTable == null || _abQscaleDcLookupTable.length < iQscaleDcLookupTableSize)
             _abQscaleDcLookupTable = new byte[iQscaleDcLookupTableSize];
 
-        ikiLzssUncompress(abFrameData, 10, _abQscaleDcLookupTable, iQscaleDcLookupTableSize);
+        try {
+            ikiLzssUncompress(abFrameData, 10, _abQscaleDcLookupTable, iQscaleDcLookupTableSize);
+        } catch (ArrayIndexOutOfBoundsException ex) {
+            throw new NotThisTypeException(ex);
+        }
 
         bitReader.reset(abFrameData, iDataSize, true, 10 + _iCompressedDataSize);
 
@@ -149,6 +150,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
         _iCurrentBlock++;
     }
 
+    /** Looks up the given block's quantization scale and DC coefficient. */
     private void readBlockQscaleAndDC(@Nonnull MdecCode code, int iBlock) {
         if (_abQscaleDcLookupTable == null)
             throw new IllegalStateException("_abQscaleDcLookupTable not set");
@@ -158,11 +160,18 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
     }
 
     @Override
-    public void skipPaddingBits() throws EOFException {
+    public void skipPaddingBits() {
     }
 
     /** .iki videos utilize yet another LZSS compression format that is
-     * different from both FF7 and Lain.   */
+     * different from both FF7 and Lain.
+     *<p>
+     * Note that if the ArrayIndexOutOfBoundsException is thrown a lot,
+     * it may stop having stack trace or index.
+     * This is due to a Sun VM optimization.
+     * See VM option OmitStackTraceInFastThrow.
+     * @throws ArrayIndexOutOfBoundsException 
+     *              if there was an error uncompressing the data. */
     private static void ikiLzssUncompress(@Nonnull byte[] abSrc, int iSrcPosition,
                                           @Nonnull byte[] abDest, int iUncompressedSize)
             throws ArrayIndexOutOfBoundsException
@@ -347,17 +356,19 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
                 if(iQscale > iMaxQscale)
                     iMaxQscale = iQscale;
             }
-            return String.format("%s Qscale=%d-%d Offset=%d MB=%d.%d Mdec count=%d",
+            return String.format("%s Qscale=%d-%d Offset=%d MB=%d.%d Mdec count=%d %dx%d",
                     getName(), iMinQscale, iMaxQscale,
                     _bitReader.getWordPosition(),
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    getMdecCodeCount());
+                    getMdecCodeCount(),
+                    _iWidth, _iHeight);
         } else {
-            return String.format("%s Offset=%d MB=%d.%d Mdec count=%d",
+            return String.format("%s Offset=%d MB=%d.%d Mdec count=%d %dx%d",
                     getName(),
                     _bitReader.getWordPosition(),
                     getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
-                    getMdecCodeCount());
+                    getMdecCodeCount(),
+                    _iWidth, _iHeight);
         }
     }
 
@@ -368,7 +379,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
     // =========================================================================
 
-    public static class BitStreamCompressor_Iki extends BitstreamCompressor_STRv2 {
+    public static class BitStreamCompressor_Iki extends BitStreamCompressor_STRv2 {
         
         private int _iWidth, _iHeight;
         
@@ -486,9 +497,9 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
 
 
 
-        private final ByteArrayOutputStream _first = new ByteArrayOutputStream();
-        private final ByteArrayOutputStream _last = new ByteArrayOutputStream();
-        private final MdecCode _code = new MdecCode();
+        private final ByteArrayOutputStream _top8 = new ByteArrayOutputStream();
+        private final ByteArrayOutputStream _bottom8 = new ByteArrayOutputStream();
+        private final MdecCode _currentBlockQscaleDc = new MdecCode();
         private final IkiLzssCompressor _lzs = new IkiLzssCompressor();
 
         @Override
@@ -496,41 +507,41 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
                                         int iWidth, int iHeight)
                 throws MdecException
         {
-            _first.reset();
-            _last.reset();
+            _top8.reset();
+            _bottom8.reset();
             _iWidth = iWidth;
             _iHeight = iHeight;
             return super.compress(inStream, iWidth, iHeight);
         }
 
         @Override
-        protected void validateQscale(int iBlock, int iQscale) throws Write {
-            _code.setTop6Bits(iQscale);
+        protected void setBlockQscale(int iBlock, int iQscale) {
+            _currentBlockQscaleDc.setTop6Bits(iQscale);
         }
 
 
         @Override
         protected @Nonnull String encodeDC(int iDC, int iBlock) {
-            _code.setBottom10Bits(iDC);
-            int iMdec = _code.toMdecWord();
-            _first.write(iMdec >> 8);
-            _last.write(iMdec & 0xff);
+            _currentBlockQscaleDc.setBottom10Bits(iDC);
+            int iMdec = _currentBlockQscaleDc.toMdecWord();
+            _top8.write(iMdec >> 8);
+            _bottom8.write(iMdec & 0xff);
             return "";
         }
 
         @Override
         protected @Nonnull byte[] createHeader(int iMdecCodeCount) {
-            assert _first.size() == _last.size();
+            assert _top8.size() == _bottom8.size();
 
-            byte[] ab = _last.toByteArray();
-            _first.write(ab, 0, ab.length);
-            ab = _first.toByteArray();
-            _first.reset();
-            _last.reset();
-            _lzs.compress(ab, _last);
-            if (_last.size() % 2 != 0)
-                _last.write(0);
-            ab = _last.toByteArray();
+            byte[] ab = _bottom8.toByteArray();
+            _top8.write(ab, 0, ab.length);
+            ab = _top8.toByteArray();
+            _top8.reset();
+            _bottom8.reset();
+            _lzs.compress(ab, _bottom8);
+            if (_bottom8.size() % 2 != 0)
+                _bottom8.write(0);
+            ab = _bottom8.toByteArray();
 
             byte[] abHdr = new byte[10];
             IO.writeInt16LE(abHdr, 0, (short)calculateHalfCeiling32(iMdecCodeCount));
@@ -538,14 +549,14 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor_STRv2 {
             IO.writeInt16LE(abHdr, 4, (short)_iWidth);
             IO.writeInt16LE(abHdr, 6, (short)_iHeight);
             IO.writeInt16LE(abHdr, 8, (short)ab.length);
-            _first.write(abHdr, 0, abHdr.length);
-            _first.write(ab, 0, ab.length);
+            _top8.write(abHdr, 0, abHdr.length);
+            _top8.write(ab, 0, ab.length);
 
-            return _first.toByteArray();
+            return _top8.toByteArray();
         }
 
         @Override
-        protected void addTrailingBits(BitStreamWriter bitStream) throws IOException {
+        protected void addTrailingBits(BitStreamWriter bitStream) {
         }
     }
 

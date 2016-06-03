@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
@@ -59,7 +60,8 @@ public abstract class DiscIndexer {
      * Most common indexer. */
     public interface Identified {
         /** Sectors are passed to this function in sequential order. */
-        public void indexingSectorRead(@Nonnull IdentifiedSector identifiedSector);
+        public void indexingSectorRead(@Nonnull CdSector cdSector,
+                                       @CheckForNull IdentifiedSector idSector);
     }
 
     /** Indexer is interested in unidentified sectors demuxed into a stream. */
@@ -96,17 +98,16 @@ public abstract class DiscIndexer {
 
 
     /** Subclasses should call this method when an item is ready to be added. */
-    protected void addDiscItem(@CheckForNull DiscItem discItem) {
+    final protected void addDiscItem(@CheckForNull DiscItem discItem) {
         if (discItem == null) {
             LOG.log(Level.WARNING, "Something tried to add a null disc item.", new Exception());
             return;
         }
-        if (LOG.isLoggable(Level.FINE))
-            LOG.log(Level.FINE, "Adding disc item {0}", discItem);
+        LOG.log(Level.INFO, "Adding disc item {0}", discItem);
         _mediaList.add(discItem);
     }
 
-    protected @Nonnull CdFileSectorReader getCd() {
+    final protected @Nonnull CdFileSectorReader getCd() {
         if (_sourceCd == null)
             throw new IllegalStateException("CD should have been set before use");
         return _sourceCd;

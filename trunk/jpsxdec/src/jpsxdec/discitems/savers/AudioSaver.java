@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,14 +44,15 @@ import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
-import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.formats.JavaAudioFormat;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.AudioOutputFileWriter;
 import jpsxdec.util.IO;
 import jpsxdec.util.ProgressListenerLogger;
@@ -93,7 +94,7 @@ public class AudioSaver implements IDiscItemSaver  {
         return _audItem;
     }
 
-    public @Nonnull LocalizedMessage getOutputSummary() {
+    public @Nonnull ILocalizedMessage getOutputSummary() {
         return new UnlocalizedMessage(_fileRelativePath.getPath());
     }
 
@@ -122,12 +123,13 @@ public class AudioSaver implements IDiscItemSaver  {
         });
 
         try {
-            final int SECTOR_LENGTH = _audItem.getSectorLength();
-            for (int iSector = 0; iSector < SECTOR_LENGTH; iSector++) {
-                IdentifiedSector identifiedSect = _audItem.getRelativeIdentifiedSector(iSector);
+            final double dblSectorLength = _audItem.getSectorLength();
+            IdentifiedSectorIterator it = _audItem.identifiedSectorIterator();
+            for (int iSector = 0; it.hasNext(); iSector++) {
+                IdentifiedSector identifiedSect = it.next();
                 if (identifiedSect != null)
                     _decoder.feedSector(identifiedSect, pll);
-                pll.progressUpdate(iSector / (double)SECTOR_LENGTH);
+                pll.progressUpdate(iSector / dblSectorLength);
             }
             pll.progressEnd();
         } finally {

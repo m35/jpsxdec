@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,12 +50,13 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.savers.FrameFileFormatter;
 import jpsxdec.discitems.savers.MdecDecodeQuality;
 import jpsxdec.discitems.savers.VDP;
 import jpsxdec.discitems.savers.VideoFormat;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
@@ -79,7 +80,7 @@ class Command_Static extends Command {
     @Nonnull
     private StaticType _eStaticType;
 
-    protected @CheckForNull LocalizedMessage validate(@Nonnull String s) {
+    protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         for (StaticType type : StaticType.values()) {
             if (s.equalsIgnoreCase(type.name())) {
                 _eStaticType = type;
@@ -130,7 +131,7 @@ class Command_Static extends Command {
                     }
                 }
                 _fbs.println(I.CMD_READING_STATIC_FILE(inFile));
-                String sFileBaseName = Misc.getBaseName(inFile.getName());
+                String sFileBaseName = Misc.removeExt(inFile.getName());
                 VideoFormat vf = VideoFormat.fromCmdLine(format.value);
                 if (vf == null || vf.isAvi() || vf == VideoFormat.IMGSEQ_BITSTREAM) {
                     throw new CommandLineException(I.CMD_FORMAT_INVALID(format.value));
@@ -138,6 +139,7 @@ class Command_Static extends Command {
                 
                 VDP.IMdecListener mdecOut;
                 FrameFileFormatter formatter = FrameFileFormatter.makeFormatter(sFileBaseName, vf, iWidth, iHeight);
+                FrameNumber frame = new FrameNumber(0, 0, 0, 0, 0);
                 if (vf == VideoFormat.IMGSEQ_MDEC) {
                     mdecOut = new VDP.Mdec2File(formatter, iWidth, iHeight);
                 } else if (vf == VideoFormat.IMGSEQ_JPG) {
@@ -176,14 +178,14 @@ class Command_Static extends Command {
                         VDP.Bitstream2Mdec b2m = new VDP.Bitstream2Mdec(mdecOut);
                         b2m.setLog(log);
                         try {
-                            b2m.bitstream(abBitstream, abBitstream.length, null, -1);
+                            b2m.bitstream(abBitstream, abBitstream.length, frame, -1);
                         } finally {
                             b2m.setLog(null);
                         }
                     } else {
                         mdecOut.setLog(log);
                         try {
-                            mdecOut.mdec(new MdecInputStreamReader(new ByteArrayInputStream(abBitstream)), null, -1);
+                            mdecOut.mdec(new MdecInputStreamReader(new ByteArrayInputStream(abBitstream)), frame, -1);
                         } finally {
                             mdecOut.setLog(null);
                         }
@@ -198,7 +200,7 @@ class Command_Static extends Command {
                 FileInputStream is = null;
                 try {
                     is = new FileInputStream(inFile);
-                    String sOutBaseName = Misc.getBaseName(inFile.getName());
+                    String sOutBaseName = Misc.removeExt(inFile.getName());
                     Tim tim = Tim.read(is);
                     _fbs.println(tim);
                     int iDigitCount = String.valueOf(tim.getPaletteCount()).length();

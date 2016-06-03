@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,7 +59,7 @@ import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 public abstract class DiscItemSaverBuilderGui<T extends DiscItemSaverBuilder> extends JPanel {
 
@@ -123,7 +123,7 @@ public abstract class DiscItemSaverBuilderGui<T extends DiscItemSaverBuilder> ex
         @Nonnull final JSlider __slider;
         @Nonnull final JLabel __value;
         int __cur;
-        public AbstractSlider(@Nonnull LocalizedMessage label) {
+        public AbstractSlider(@Nonnull ILocalizedMessage label) {
             __cur = getValue();
             __slider = new JSlider(this);
             __label = new JLabel(label.getLocalizedMessage());
@@ -159,7 +159,7 @@ public abstract class DiscItemSaverBuilderGui<T extends DiscItemSaverBuilder> ex
         final JCheckBox __chk = new JCheckBox();
         @Nonnull final JLabel __label;
         boolean __cur = isSelected();
-        public AbstractCheck(@Nonnull LocalizedMessage label) {
+        public AbstractCheck(@Nonnull ILocalizedMessage label) {
             __label = new JLabel(label.getLocalizedMessage());
             __label.setEnabled(isEnabled());
             __chk.setModel(this);
@@ -189,7 +189,7 @@ public abstract class DiscItemSaverBuilderGui<T extends DiscItemSaverBuilder> ex
         @Nonnull final JLabel __label;
         @Nonnull final JComboBox __combo;
 
-        public AbstractCombo(@Nonnull LocalizedMessage label) {
+        public AbstractCombo(@Nonnull ILocalizedMessage label) {
             __label = new JLabel(label.getLocalizedMessage());
             __combo = new JComboBox(this);
             _paragraphLayoutPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);

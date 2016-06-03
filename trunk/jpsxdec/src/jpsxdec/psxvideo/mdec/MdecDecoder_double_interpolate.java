@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,9 +42,9 @@ import com.mortennobel.imagescaling.ResampleFilters;
 import com.mortennobel.imagescaling.ResampleOp;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.formats.RGB;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 
@@ -86,13 +86,13 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
                 I.CHROMA_UPSAMPLE_HERMITE_CMDLINE(), ResampleFilters.getHermiteFilter());
 
         @Nonnull
-        private final LocalizedMessage _description;
-        private final LocalizedMessage _cmdLine;
+        private final ILocalizedMessage _description;
+        private final ILocalizedMessage _cmdLine;
         @CheckForNull
         private final ResampleFilter _filter;
 
-        private Upsampler(@Nonnull LocalizedMessage description,
-                          @Nonnull LocalizedMessage cmdLine,
+        private Upsampler(@Nonnull ILocalizedMessage description,
+                          @Nonnull ILocalizedMessage cmdLine,
                           @CheckForNull ResampleFilter filter)
         {
             _description = description;
@@ -111,15 +111,15 @@ public class MdecDecoder_double_interpolate extends MdecDecoder_double {
             return up;
         }
 
-        public LocalizedMessage getDescription() {
+        public ILocalizedMessage getDescription() {
             return _description;
         }
 
-        public LocalizedMessage getCmdLine() {
+        public ILocalizedMessage getCmdLine() {
             return _cmdLine;
         }
 
-        public LocalizedMessage getCmdLineHelp() {
+        public ILocalizedMessage getCmdLineHelp() {
             if (_cmdLine.equals(_description))
                 return _cmdLine;
             else

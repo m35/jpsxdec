@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,8 @@
 
 package jpsxdec.discitems;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
@@ -44,37 +46,70 @@ import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
 
-/** Represents a frame number extracted from sector headers.
- * In rare cases the frame number found in sector headers may be duplicated.
- * This handles the duplication gracefully. */
+/** Represents a "frame number".
+ * Frame numbers hold all ways a frame can be identified:
+ * <ul>
+ * <li>index of the frame number, starting at zero
+ * <li>frame number found in sector headers
+ * <li>sector where the frame starts
+ * </ul>
+ * In rare cases the frame number found in sector headers may be duplicated,
+ * or multiple frames may exist in one sector. This handles the duplication
+ * gracefully. */
 public class FrameNumber {
+
+    private static final Logger LOG = Logger.getLogger(FrameNumber.class.getName());
 
     public static final char SECTOR_PREFIX = '@';
     public static final char HEADER_PREFIX = '#';
 
-    /** Generates sequence of {@link FrameNumber}s.
-     * Duplicates are automatically detected. */
+    /** Generates sequence of {@link FrameNumber}s for frames without
+     * header frame numbers. Simply treats the frame index as the frame number. */
+    public static class FactoryNoHeader { // TODO?: special handling for no header
+        @CheckForNull
+        private FrameNumber _lastNumber;
+
+        public FrameNumber next(int iStartSector) {
+            if (_lastNumber == null) {
+                _lastNumber = new FrameNumber(0, iStartSector, 0, 0, 0);
+            } else {
+                final int iDupSector;
+                if (iStartSector == _lastNumber._iStartSector)
+                    iDupSector = _lastNumber._iStartSectorDuplicateIndex+1;
+                else
+                    iDupSector = 0;
+                _lastNumber = new FrameNumber(_lastNumber._iIndex+1,
+                                              iStartSector, iDupSector,
+                                              _lastNumber._iHeaderFrameNumber+1, 0);
+            }
+            return _lastNumber;
+        }
+    }
+
+    /** Generates sequence of {@link FrameNumber}s for frames with header
+     * frame numbers. Duplicates are automatically detected. */
     public static class FactoryWithHeader {
         @CheckForNull
         private FrameNumber _lastNumber;
 
-        public FrameNumber next(int iSector, int iHeaderFrameNumber) {
+        public FrameNumber next(int iStartSector, int iHeaderFrameNumber) {
             if (_lastNumber == null) {
-                _lastNumber = new FrameNumber(0, iSector, 0, iHeaderFrameNumber, 0);
+                _lastNumber = new FrameNumber(0, iStartSector, 0, iHeaderFrameNumber, 0);
             } else {
                 final int iDupSector;
-                if (iSector == _lastNumber._iStartSector)
+                if (iStartSector == _lastNumber._iStartSector)
                     iDupSector = _lastNumber._iStartSectorDuplicateIndex+1;
                 else
                     iDupSector = 0;
                 final int iDupFrame;
                 if (iHeaderFrameNumber == _lastNumber._iHeaderFrameNumber) {
+                    LOG.log(Level.INFO, "Duplicate header frame number {0,number,#}", iHeaderFrameNumber);
                     iDupFrame = _lastNumber._iHeaderDuplicateIndex+1;
                 } else {
                     iDupFrame = 0;
                 }
                 _lastNumber = new FrameNumber(_lastNumber._iIndex+1,
-                                              iSector, iDupSector,
+                                              iStartSector, iDupSector,
                                               iHeaderFrameNumber, iDupFrame);
             }
             return _lastNumber;
@@ -182,7 +217,7 @@ public class FrameNumber {
 
     /** Serialize.
      * <p>
-     * Format: index,@sector[.dup][,#header[.dup]]
+     * Format: index/@sector[.dup]/#header[.dup]
      */
     public @Nonnull String serialize() {
         StringBuilder sb = new StringBuilder();

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,10 +38,10 @@
 package jpsxdec.psxvideo.mdec;
 
 import java.util.Arrays;
-import jpsxdec.i18n.I;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.Rec601YCbCr;
 import jpsxdec.formats.YCbCrImage;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 
@@ -72,7 +72,7 @@ public class MdecDecoder_double extends MdecDecoder {
     }
 
     public void decode(MdecInputStream mdecInStream)
-            throws MdecException.Decode
+            throws MdecException.Read
     {
 
         int iCurrentBlockQscale;
@@ -128,19 +128,24 @@ public class MdecDecoder_double extends MdecDecoder {
                                 // Reverse Zig-Zag
                                 iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                             } catch (ArrayIndexOutOfBoundsException ex) {
-                                throw new MdecException.Decode(I.RLC_OOB_IN_BLOCK_NAME(
+                                throw new MdecException.BlockVectorIndexOutOfBounds(I.RLC_OOB_IN_BLOCK_NAME(
                                                iCurrentBlockVectorPosition,
                                                iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]),
                                                ex);
                             }
-                            assert !DEBUG || setPrequantValue(iRevZigZagPos, _code.getBottom10Bits());
-                            // Dequantize
-                            _CurrentBlock[iRevZigZagPos] =
-                                        (_code.getBottom10Bits()
-                                      * _aiQuantizationTable[iRevZigZagPos]
-                                      * iCurrentBlockQscale) / 8.0;
-                            iCurrentBlockNonZeroCount++;
-                            iCurrentBlockLastNonZeroPosition = iRevZigZagPos;
+
+                            if (_code.getBottom10Bits() != 0) {
+
+                                assert !DEBUG || setPrequantValue(iRevZigZagPos, _code.getBottom10Bits());
+                                // Dequantize
+                                _CurrentBlock[iRevZigZagPos] =
+                                            (_code.getBottom10Bits()
+                                          * _aiQuantizationTable[iRevZigZagPos]
+                                          * iCurrentBlockQscale) / 8.0;
+                                iCurrentBlockNonZeroCount++;
+                                iCurrentBlockLastNonZeroPosition = iRevZigZagPos;
+
+                            }
                             ////////////////////////////////////////////////////////
                         }
 
@@ -155,11 +160,11 @@ public class MdecDecoder_double extends MdecDecoder {
                 }
             }
         } catch (Throwable ex) {
-            MdecException.Decode mdecEx;
-            if (ex instanceof MdecException.Decode) {
-                mdecEx = (MdecException.Decode)ex;
+            MdecException.Read mdecEx;
+            if (ex instanceof MdecException.Read) {
+                mdecEx = (MdecException.Read)ex;
             } else {
-                mdecEx = new MdecException.Decode(I.BLOCK_DECODE_ERR(iMacBlk, iBlock), ex);
+                mdecEx = new MdecException.Read(I.BLOCK_DECODE_ERR(iMacBlk, iBlock), ex);
             }
             // fill in the remaining data with zeros
             int iTotalMacBlks = _iMacBlockWidth * _iMacBlockHeight;

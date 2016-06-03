@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,10 +39,10 @@ package jpsxdec.discitems;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import static jpsxdec.discitems.FrameNumber.HEADER_PREFIX;
 import static jpsxdec.discitems.FrameNumber.SECTOR_PREFIX;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -88,11 +88,11 @@ public class FrameNumberFormat {
         ;
 
         @Nonnull
-        private final LocalizedMessage _str;
+        private final ILocalizedMessage _str;
         @CheckForNull
         private final Character _oChar;
 
-        private Type(@Nonnull LocalizedMessage str, @CheckForNull Character oChar) {
+        private Type(@Nonnull ILocalizedMessage str, @CheckForNull Character oChar) {
             _str = str;
             _oChar = oChar;
         }
@@ -106,7 +106,7 @@ public class FrameNumberFormat {
             return null;
         }
 
-        public @Nonnull LocalizedMessage getLocalizedName() {
+        public @Nonnull ILocalizedMessage getLocalizedName() {
             return _str;
         }
 

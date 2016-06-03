@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,7 +49,7 @@ import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
 import jpsxdec.util.player.VideoPlayer.VideoFrame;
 
-/** Manages writing audio data to the final SourceDataLine. */
+/** Manages writing audio data to the final {@link SourceDataLine}. */
 class AudioPlayer implements IVideoTimer {
 
     private static final Logger LOG = Logger.getLogger(AudioPlayer.class.getName());

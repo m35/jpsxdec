@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,11 +39,14 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.discitems.ISectorFrameDemuxer.ICompletedFrameListener;
 import jpsxdec.sectors.IVideoSectorWithFrameNumber;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.NotThisTypeException;
 
 /** Handles most variations of PlayStation video streams.
@@ -52,7 +55,7 @@ import jpsxdec.util.NotThisTypeException;
 public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
 
     public static final String TYPE_ID = "Video";
-
+    
     public DiscItemStrVideoWithFrame(@Nonnull CdFileSectorReader cd,
                                      int iStartSector, int iEndSector,
                                      int iWidth, int iHeight,
@@ -111,9 +114,9 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
     
     @Override
     public void fpsDump(@Nonnull PrintStream ps) throws IOException {
-        final int LENGTH = getSectorLength();
-        for (int iSector = 0; iSector < LENGTH; iSector++) {
-            IdentifiedSector isect = getRelativeIdentifiedSector(iSector);
+        IdentifiedSectorIterator it = identifiedSectorIterator();
+        for (int iSector = 0; it.hasNext(); iSector++) {
+            IdentifiedSector isect = it.next();
             if (isect instanceof IVideoSectorWithFrameNumber) {
                 IVideoSectorWithFrameNumber vidSect = (IVideoSectorWithFrameNumber) isect;
                 ps.println(String.format("%-5d %-4d %d/%d",
@@ -132,52 +135,40 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
 
     @Override
     public @Nonnull ISectorFrameDemuxer makeDemuxer() {
-        return new Demuxer(getStartSector(), getEndSector(), getWidth(), getHeight());
+        return new Demuxer();
     }
     
-    public static class Demuxer extends FrameDemuxer<IVideoSectorWithFrameNumber> {
+    /** Public facing (external) demuxer for standard STR videos.
+     * Wraps {@link StrDemuxer} and sets the {@link FrameNumber} for completed
+     * frames before passing them onto the {@link ICompletedFrameListener}. */
+    public static class Demuxer implements ISectorFrameDemuxer, StrDemuxer.Listener {
 
-        private final int _iWidth, _iHeight;
+        private final StrDemuxer _demuxer = new StrDemuxer();
+        private final FrameNumber.FactoryWithHeader _frameNumberFactory = new FrameNumber.FactoryWithHeader();
+        @CheckForNull
+        private ICompletedFrameListener _listener;
 
-        public Demuxer(int iVideoStartSector, int iVideoEndSector, int iWidth, int iHeight) {
-            super(iVideoStartSector, iVideoEndSector);
-            if (iWidth < 1 || iHeight < 1)
-                throw new IllegalArgumentException("Invalid dimensions " + iWidth + "x" + iHeight);
-            _iWidth = iWidth;
-            _iHeight = iHeight;
+        public Demuxer() {
+            _demuxer.setFrameListener(this);
         }
 
-        protected @CheckForNull IVideoSectorWithFrameNumber isVideoSector(@Nonnull IdentifiedSector sector) {
-            if (!(sector instanceof IVideoSectorWithFrameNumber))
-                return null;
-            return (IVideoSectorWithFrameNumber) sector;
+        public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull Logger log) throws IOException {
+            return _demuxer.feedSector(idSector, log);
+        }
+        public void flush(@Nonnull Logger log) throws IOException {
+            _demuxer.flush(log);
+        }
+        
+        public void setFrameListener(@Nonnull ICompletedFrameListener listener) {
+            _listener = listener;
         }
 
-        @Override
-        protected boolean isPartOfVideo(@Nonnull IVideoSectorWithFrameNumber chunk) {
-            return super.isPartOfVideo(chunk) &&
-                   chunk.getWidth() == _iWidth &&
-                   chunk.getHeight() == _iHeight;
-        }
-
-        @Override
-        protected int getHeaderFrameNumber(@Nonnull IVideoSectorWithFrameNumber chunk) {
-            return chunk.getFrameNumber();
-        }
-
-        @Override
-        protected int getChunksInFrame(@Nonnull IVideoSectorWithFrameNumber chunk) {
-            return chunk.getChunksInFrame();
-        }
-
-        @Override
-        public int getWidth() {
-            return _iWidth;
-        }
-
-        @Override
-        public int getHeight() {
-            return _iHeight;
+        // [implements StrDemuxer.Listener]
+        public void frameComplete(@Nonnull StrDemuxer.DemuxedStrFrame frame) throws IOException {
+            frame.setFrame(_frameNumberFactory.next(frame.getStartSector(), frame.getHeaderFrameNumber()));
+            if (_listener == null)
+                throw new IllegalStateException();
+            _listener.frameComplete(frame);
         }
     }
     

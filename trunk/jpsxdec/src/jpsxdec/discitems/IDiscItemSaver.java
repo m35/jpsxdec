@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
 
@@ -52,7 +52,7 @@ public interface IDiscItemSaver {
     
     public void startSave(@Nonnull ProgressListenerLogger pll) throws IOException, TaskCanceledException;
     public @Nonnull String getInput();
-    public @Nonnull LocalizedMessage getOutputSummary();
+    public @Nonnull ILocalizedMessage getOutputSummary();
     /** Prints the options used for saving. */
     public void printSelectedOptions(@Nonnull PrintStream ps);
     public @Nonnull DiscItem getDiscItem();

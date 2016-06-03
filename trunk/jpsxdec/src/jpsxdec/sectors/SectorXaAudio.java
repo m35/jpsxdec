@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -106,7 +106,7 @@ public class SectorXaAudio extends IdentifiedSector {
 
     
     public @Nonnull String getTypeName() {
-        return "XA";
+        return "XA Audio";
     }
 
     public long getSampleCount() {
@@ -117,11 +117,36 @@ public class SectorXaAudio extends IdentifiedSector {
     }
 
     public String toString() {
-        StringBuilder sb = new StringBuilder("XA Audio ");
-        sb.append(super.toString()).append(' ');
-        sb.append(_blnStereo ? "Stereo" : "Mono").append(' ');
-        sb.append(_iBitsPerSample).append(" bits/sample ");
-        sb.append(_iSamplesPerSecond).append(" samples/sec");
+        CdSector cd = getCdSector();
+        int iSize = cd.getCdUserDataSize();
+        StringBuilder sb = new StringBuilder(String.format("%s %s %s %d bits/sample %d samples/sec "
+                + "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                getTypeName(),
+                super.toString(),
+                _blnStereo ? "Stereo" : "Mono",
+                _iBitsPerSample,
+                _iSamplesPerSecond,
+                cd.readUserDataByte(iSize - 20),
+                cd.readUserDataByte(iSize - 19),
+                cd.readUserDataByte(iSize - 18),
+                cd.readUserDataByte(iSize - 17),
+                cd.readUserDataByte(iSize - 16),
+                cd.readUserDataByte(iSize - 15),
+                cd.readUserDataByte(iSize - 14),
+                cd.readUserDataByte(iSize - 13),
+                cd.readUserDataByte(iSize - 12),
+                cd.readUserDataByte(iSize - 11),
+                cd.readUserDataByte(iSize - 10),
+                cd.readUserDataByte(iSize - 9),
+                cd.readUserDataByte(iSize - 8),
+                cd.readUserDataByte(iSize - 7),
+                cd.readUserDataByte(iSize - 6),
+                cd.readUserDataByte(iSize - 5),
+                cd.readUserDataByte(iSize - 4),
+                cd.readUserDataByte(iSize - 3),
+                cd.readUserDataByte(iSize - 2),
+                cd.readUserDataByte(iSize - 1)
+                ));
         if (_iErrors > 0)
             sb.append(" {").append(_iErrors).append(" errors}");
         if (isSilent())

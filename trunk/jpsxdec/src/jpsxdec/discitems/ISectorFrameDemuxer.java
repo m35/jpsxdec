@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2015  Michael Sabin
+ * Copyright (C) 2012-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,9 +48,6 @@ public interface ISectorFrameDemuxer {
     /** If it likes the sector, adds the sector to the video stream.
      * @return true if the sector was accepted, false if the sector is not part of the same stream. */
     boolean feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) throws IOException;
-
-    int getWidth();
-    int getHeight();
 
     /** Finish any frame being built and send it to the listener.
      * Resets to receive a new frame. */

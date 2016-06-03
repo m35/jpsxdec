@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,13 +44,13 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.TimSaverBuilder;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -110,7 +110,7 @@ public class DiscItemTim extends DiscItem {
     }
 
     @Override
-    public @Nonnull LocalizedMessage getInterestingDescription() {
+    public @Nonnull ILocalizedMessage getInterestingDescription() {
         return I.GUI_TIM_IMAGE_DETAILS(_iWidth, _iHeight, _iPaletteCount);
     }
 

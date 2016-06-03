@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015  Michael Sabin
+ * Copyright (C) 2015-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.audio;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
@@ -61,6 +63,8 @@ import jpsxdec.util.IO;
  * more source data, silence is encoded. Check for EOF condition with
  * {@link #isEof()}. */
 public class XaAdpcmEncoder {
+
+    private static final Logger LOG = Logger.getLogger(XaAdpcmEncoder.class.getName());
 
     // =========================================================================
     // static
@@ -209,6 +213,7 @@ public class XaAdpcmEncoder {
                 encoders[iSoundUnit] = encoder;
                 iSoundUnit++;
 
+                // _runningRightContext is not null when stereo
                 encoder = encodeSoundUnit(iSoundGroup, iSoundUnit, 
                                           aasiPcmSoundUnitChannelSamples[1],
                                           _runningRightContext);
@@ -300,12 +305,15 @@ public class XaAdpcmEncoder {
                     _blnEncode4BitsElse8Bits, iFilterIdx, iRange, 
                     context.copy());
             if (!encoder.encode(asiPcmSoundUnitSamples))
-                throw new IllegalStateException("Unable to encode Sound Group "+iSoundGroup+" Sound Unit "+iSoundUnit+" with Filter Index " + iFilterIdx + " Range " + iRange);
+                LOG.log(Level.WARNING,
+                        "Unable to encode Sound Group {0} Sound Unit {1} with Filter Index {2} Range {3} without clamping",
+                        new Object[]{iSoundGroup, iSoundUnit, iFilterIdx, iRange});
         
             return encoder;
         }
         
         SoundUnitEncoder best = null;
+        SoundUnitEncoder zeroRangeFilter = null;
 
         // Otherwise, encode with all parameters and pick the best
         final int iMaxRange = 16-(_blnEncode4BitsElse8Bits ? 4 : 8);
@@ -316,7 +324,10 @@ public class XaAdpcmEncoder {
                         _iEncodedSectorCount, iSoundGroup, iSoundUnit,
                         _blnEncode4BitsElse8Bits, iFilterIdx, iRange, 
                         context.copy());
-                
+
+                if (iRange == 0 && iFilterIdx == 0)
+                    zeroRangeFilter = encTry;
+
                 if (!encTry.encode(asiPcmSoundUnitSamples))
                     continue;
 
@@ -326,8 +337,14 @@ public class XaAdpcmEncoder {
             }
         }
 
-        if (best == null)
-            throw new IllegalStateException("Unable to find a possible Filter Index and Range to encode Sound Group "+iSoundGroup+" Sound Unit "+iSoundUnit);
+        // only if all encoding options resulted in clamped samples
+        // do we default to the 0 range, 0 filter encoding
+        if (best == null) {
+            LOG.log(Level.WARNING,
+                    "Had to clamp encoded samples to encode Sound Group {0} Sound Unit {1}",
+                    new Object[]{iSoundGroup, iSoundUnit});
+            best = zeroRangeFilter;
+        }
         
         // TODO: find better method to pick the right one
         //System.out.println(String.format("Sector %d SoundGroup %d SoundUnit %d chose Filter %d Range %d",
@@ -408,7 +425,8 @@ public class XaAdpcmEncoder {
         public @Nonnull AdpcmEncodingContext getDecodedContext() {
             return _decodedPcmContext;
         }
-        
+
+        /** Returns if there was no need to clamp any samples. */
         public boolean encode(@Nonnull short[] asiPcmSoundUnitSamples) {
             SoundUnitEncodingTelemetry telemetry = LISTENER == null ?
                     null
@@ -416,7 +434,7 @@ public class XaAdpcmEncoder {
                     new SoundUnitEncodingTelemetry(_iSector, _iSoundGroup, _iSoundUnit,
                                                    _iFilterIndex, _iRange);
 
-            boolean blnOk = true;
+            boolean blnHadToClamp = false;
             
             for (int i = 0; i < AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT; i++) {
                 short siPcmSample = asiPcmSoundUnitSamples[i];
@@ -426,30 +444,28 @@ public class XaAdpcmEncoder {
 
                 // do bit shifting via mult/div                        
                 int iBitsToShift = _iRange - (16-_iAdpcmBitsPerSample);
-                double dblEncoded;
+                double dblRaned;
                 if (iBitsToShift < 0)
-                    dblEncoded = dblFiltered / (1 << -iBitsToShift);
+                    dblRaned = dblFiltered / (1 << -iBitsToShift);
                 else if (iBitsToShift > 0)
-                    dblEncoded = dblFiltered * (1 << iBitsToShift);
+                    dblRaned = dblFiltered * (1 << iBitsToShift);
                 else
-                    dblEncoded = dblFiltered;
+                    dblRaned = dblFiltered;
 
-                long lngEncoded = Math.round(dblEncoded);
-                // make sure the rounded value will fit in the bits available
-                if (lngEncoded < _iEncodeMin || lngEncoded > _iEncodeMax) {
-                    if (telemetry != null) {
-                        telemetry.asiSourcePcmSamples[i] = siPcmSample;
-                        telemetry.adblPrev1Samples[i] = _decodedPcmContext.dblPrev1;
-                        telemetry.adblPrev2Samples[i] = _decodedPcmContext.dblPrev2;
-                        telemetry.adblFilteredSamples[i] = dblFiltered;
-                        telemetry.adblEncodedAdpcmSamples[i] = dblEncoded;
-                        telemetry.sFailure = "Sample#"+i+" won't fit";
-                    }
-                    blnOk = false;
-                    break;
+                long lngRanged = Math.round(dblRaned);
+                // check if the rounded value will fit in the bits available
+                // if not, clamp it and flag the encoding as a failure
+                if (lngRanged < _iEncodeMin || lngRanged > _iEncodeMax) {
+                    if (lngRanged < _iEncodeMin)
+                        lngRanged = _iEncodeMin;
+                    else if (lngRanged > _iEncodeMax)
+                        lngRanged = _iEncodeMax;
+
+                    if (telemetry != null)
+                        telemetry.sFailure = "Sample#"+i+"=" + lngRanged + " won't fit between " + _iEncodeMin + " and " + _iEncodeMax;
+                    blnHadToClamp = true;
                 }
-
-                byte bEncoded = (byte) lngEncoded;
+                byte bEncoded = (byte) lngRanged;
                 _abEncodedAdpcm[i] = bEncoded;
 
                 // now decode what was just encoded -------------------
@@ -470,11 +486,12 @@ public class XaAdpcmEncoder {
                     _dblMaxDelta = dblDelta;
 
                 if (telemetry != null) {
+                    telemetry.ablnSampleClamped[i]       = blnHadToClamp;
                     telemetry.asiSourcePcmSamples[i]     = siPcmSample;
                     telemetry.adblPrev1Samples[i]        = _decodedPcmContext.dblPrev1;
                     telemetry.adblPrev2Samples[i]        = _decodedPcmContext.dblPrev2;
                     telemetry.adblFilteredSamples[i]     = dblFiltered;
-                    telemetry.adblEncodedAdpcmSamples[i] = dblEncoded;
+                    telemetry.adblRangedSamples[i]       = dblRaned;
                     telemetry.abEncodedAdpcmSamples[i]   = bEncoded;
                     telemetry.asiShortTopSamples[i]      = siAdpcmShortTopSample;
                     telemetry.adblDecodedSamples[i]      = dblDecodedPcm;
@@ -486,7 +503,7 @@ public class XaAdpcmEncoder {
                 LISTENER.soundUnitEncoded(telemetry);
             }
             
-            return blnOk;
+            return !blnHadToClamp;
         }
         
     }
@@ -547,12 +564,13 @@ public class XaAdpcmEncoder {
 
         public final int iFilter;
         public final int iRange;
-        
+
+        public final boolean[] ablnSampleClamped;
         public final short[]  asiSourcePcmSamples;
         public final double[] adblPrev1Samples;
         public final double[] adblPrev2Samples;
         public final double[] adblFilteredSamples;
-        public final double[] adblEncodedAdpcmSamples;
+        public final double[] adblRangedSamples;
         public final byte[]   abEncodedAdpcmSamples;
         public final short[]  asiShortTopSamples;
         public final double[] adblDecodedSamples;
@@ -566,31 +584,36 @@ public class XaAdpcmEncoder {
             iSoundUnit  = _iSoundUnit;
             iFilter     = _iFilter;
             iRange      = _iRange;
-            asiSourcePcmSamples     = new short[AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
-            adblPrev1Samples        = new double[AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
-            adblPrev2Samples        = new double[AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
-            adblFilteredSamples     = new double[AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
-            adblEncodedAdpcmSamples = new double[AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
-            abEncodedAdpcmSamples   = new byte[AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
-            asiShortTopSamples      = new short[AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
-            adblDecodedSamples      = new double[AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            ablnSampleClamped       = new boolean[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            asiSourcePcmSamples     = new short[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            adblPrev1Samples        = new double[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            adblPrev2Samples        = new double[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            adblFilteredSamples     = new double[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            adblRangedSamples       = new double[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            abEncodedAdpcmSamples   = new byte[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            asiShortTopSamples      = new short[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
+            adblDecodedSamples      = new double[XaAdpcmDecoder.AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT];
         }
-        
-        public String toString(int i) {
-            return String.format(
-                    "Filter %d Range %d: Sample#%d %d filterd (Prev1 %f Prev2 %f) to %f rounded,ranged,shifted from %d to %d. Decoded to %f",
-                    iFilter, iRange, i, asiSourcePcmSamples[i],
-                    adblPrev1Samples[i], adblPrev2Samples[i], 
-                    adblFilteredSamples[i],
-                    asiShortTopSamples[i],
-                    abEncodedAdpcmSamples[i],
-                    adblDecodedSamples[i]
-                    );            
+
+        /**
+         * @param iSample Sample between 0 and 28 (exclusive).
+         */
+        public String sample(int iSample) {
+            return String.format("Filter %d Range %d: Sample#%d %d filterd (Prev1 %f Prev2 %f) => %f ranged => %f. Encoded %d shifted => %d decoded => %f%s",
+                    iFilter, iRange, iSample, asiSourcePcmSamples[iSample],
+                    adblPrev1Samples[iSample], adblPrev2Samples[iSample],
+                    adblFilteredSamples[iSample],
+                    adblRangedSamples[iSample],
+                    abEncodedAdpcmSamples[iSample],
+                    asiShortTopSamples[iSample],
+                    adblDecodedSamples[iSample],
+                    ablnSampleClamped[iSample] ? " FAILED" : ""
+                    );
         }
     }
     
     /** For development testing of the encoder. */
     public interface EncodingTelemetryListener {
-        void soundUnitEncoded(SoundUnitEncodingTelemetry telemetry);
+        void soundUnitEncoded(@Nonnull SoundUnitEncodingTelemetry telemetry);
     }
 }

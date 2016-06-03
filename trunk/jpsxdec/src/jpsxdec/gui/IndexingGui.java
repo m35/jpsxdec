@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,9 +49,9 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.swing.JOptionPane;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
@@ -348,14 +348,14 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
     // run in separate thread
 
-    private class ProgresGuiTask extends SwingWorker<Void, LocalizedMessage> {
+    private class ProgresGuiTask extends SwingWorker<Void, ILocalizedMessage> {
 
         public static final String PROGRESS_VALUE = "progress";
         public static final String EXCEPTION = "exception";
         public static final String DONE = "done";
 
         private final ProgressListenerLogger __progressLog = new ProgressListenerLogger("index") {
-            public void progressStart(@CheckForNull LocalizedMessage msg) throws TaskCanceledException {
+            public void progressStart(@CheckForNull ILocalizedMessage msg) throws TaskCanceledException {
                 if (isCancelled())
                     throw new TaskCanceledException();
                 if (msg != null)
@@ -377,7 +377,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 setProgress((int)Math.round(dblPercentComplete * 100));
             }
 
-            public void event(@Nonnull LocalizedMessage msg) {
+            public void event(@Nonnull ILocalizedMessage msg) {
                 publish(msg);
             }
 
@@ -386,7 +386,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 return true;
             }
 
-            public void progressInfo(LocalizedMessage msg) {
+            public void progressInfo(ILocalizedMessage msg) {
             }
         };
 
@@ -404,7 +404,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         }
 
         @Override
-        final protected void process(@Nonnull List<LocalizedMessage> chunks) {
+        final protected void process(@Nonnull List<ILocalizedMessage> chunks) {
             _guiProgressDescription.setText(chunks.get(chunks.size()-1).getLocalizedMessage());
         }
 

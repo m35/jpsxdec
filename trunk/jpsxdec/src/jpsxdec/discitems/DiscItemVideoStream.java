@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2015  Michael Sabin
+ * Copyright (C) 2012-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,6 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import javax.annotation.Nonnull;
-import jpsxdec.util.IncompatibleException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.psxvideoencode.ReplaceFrames;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
@@ -47,12 +46,15 @@ import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.Fraction;
+import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.player.PlayController;
 
+/** Represents all variations of PlayStation video streams. */
 public abstract class DiscItemVideoStream extends DiscItem {
     
     private static final String DIMENSIONS_KEY = "Dimensions";
@@ -153,51 +155,49 @@ public abstract class DiscItemVideoStream extends DiscItem {
 
 
     public void frameInfoDump(@Nonnull final FeedbackStream fbs) throws IOException {
-        DiscItemVideoStream vidItem = this;
-
         ISectorFrameDemuxer demuxer = makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
             public void frameComplete(IDemuxedFrame frame) throws IOException {
                 try {
                     byte[] abBitStream = frame.copyDemuxData(null);
                     BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream);
-                    uncompressor.reset(abBitStream, frame.getDemuxSize());
-                    ParsedMdecImage parsed = new ParsedMdecImage(getWidth(), getHeight());
-                    parsed.readFrom(uncompressor);
-                    uncompressor.skipPaddingBits();
-                    fbs.println(frame);
-                    fbs.indent();
-                    try {
-                        fbs.println("Bitstream info: " + uncompressor);
-                        fbs.println("Available demux size: " + frame.getDemuxSize());
+                    if (uncompressor != null) {
+                        uncompressor.reset(abBitStream, frame.getDemuxSize());
+                        ParsedMdecImage parsed = new ParsedMdecImage(getWidth(), getHeight());
+                        parsed.readFrom(uncompressor);
+                        uncompressor.skipPaddingBits();
+                        fbs.println(frame);
                         fbs.indent();
                         try {
-                            frame.printSectors(fbs);
-                            if (fbs.printMore()) {
-                                int iMbWidth  = Calc.macroblockDim(_iWidth),
-                                    iMbHeight = Calc.macroblockDim(_iHeight);
-                                for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
-                                    for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
-                                        fbs.println(iMbX + ", " + iMbY);
-                                        fbs.indent();
-                                        try {
-                                            for (int iBlk = 0; iBlk < 6; iBlk++) {
-                                                fbs.println(parsed.getBlockInfo(iMbX, iMbY, iBlk));
+                            fbs.println("Bitstream info: " + uncompressor);
+                            fbs.println("Available demux size: " + frame.getDemuxSize());
+                            fbs.indent();
+                            try {
+                                frame.printSectors(fbs);
+                                if (fbs.printMore()) {
+                                    int iMbWidth  = Calc.macroblockDim(_iWidth),
+                                        iMbHeight = Calc.macroblockDim(_iHeight);
+                                    for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
+                                        for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
+                                            fbs.println(iMbX + ", " + iMbY);
+                                            fbs.indent();
+                                            try {
+                                                for (int iBlk = 0; iBlk < 6; iBlk++) {
+                                                    fbs.println(parsed.getBlockInfo(iMbX, iMbY, iBlk));
+                                                }
+                                            } finally {
+                                                fbs.outdent();
                                             }
-                                        } finally {
-                                            fbs.outdent();
                                         }
                                     }
                                 }
+                            } finally {
+                                fbs.outdent();
                             }
                         } finally {
                             fbs.outdent();
                         }
-                    } finally {
-                        fbs.outdent();
                     }
-                } catch (RuntimeException ex) {
-                    throw ex;
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }
@@ -206,12 +206,10 @@ public abstract class DiscItemVideoStream extends DiscItem {
 
         ConsoleProgressListenerLogger log = new ConsoleProgressListenerLogger("frameInfoDump", fbs);
         try {
-            for (int iSector = 0;
-                iSector < vidItem.getSectorLength();
-                iSector++)
-            {
+            IdentifiedSectorIterator it = identifiedSectorIterator();
+            while (it.hasNext()) {
                 try {
-                    IdentifiedSector sector = vidItem.getRelativeIdentifiedSector(iSector);
+                    IdentifiedSector sector = it.next();
                     if (sector != null) {
                         demuxer.feedSector(sector, log);
                     }

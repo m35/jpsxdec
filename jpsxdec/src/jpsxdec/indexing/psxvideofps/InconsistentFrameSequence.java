@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -115,7 +115,7 @@ public class InconsistentFrameSequence {
      * The 2 values can be delimited by anything that isn't a number.
      * Anything after the 2 values is ignored.
      */
-    private static class LineParse {
+    static class LineParse {
        public final int iFrameStartSector,
                         iFrameEndSector;
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,43 +47,16 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
-/** Localized string for display to the user.
- * <p>
- * All strings intended for the user should be localized.
+/** Concrete localized string for display to the user.
  * <p>
  * This class waits until the last moment to query for the localized version
  * of the string, allowing it to dynamically change with the default locale.
  * This also provides access to the original English for debugging and
  * presenting messages to the developer.
  */
-public class LocalizedMessage {
+class LocalizedMessage implements ILocalizedMessage {
     
     private static final Logger LOG = Logger.getLogger(LocalizedMessage.class.getName());
-
-    //==========================================================================
-    // Static
-
-    public static @Nonnull String getResourceBundleName() {
-        return "jpsxdec.i18n.Translations";
-    }
-    public static @CheckForNull ResourceBundle getResourceBundle() {
-        return _translationBundle;
-    }
-
-    @CheckForNull
-    private static final ResourceBundle _translationBundle;
-    static {
-        ResourceBundle rb = null;
-        try {
-            rb = ResourceBundle.getBundle(getResourceBundleName());
-        } catch (MissingResourceException ex) {
-            LOG.log(Level.SEVERE, null, ex);
-        }
-        _translationBundle = rb;
-    }
-
-    //==========================================================================
-    // Instance
 
     @Nonnull
     private final String _sKey;
@@ -104,15 +77,15 @@ public class LocalizedMessage {
         _aoArguments = null;
     }
     
-    public void log(Logger log, Level level) {
+    public void log(@Nonnull Logger log, @Nonnull Level level) {
         log(log, level, null);
     }
 
     public void log(@Nonnull Logger log, @Nonnull Level level, @CheckForNull Throwable ex) {
         LogRecord lr = new LogRecord(level, _sKey);
         lr.setLoggerName(log.getName());
-        lr.setResourceBundle(getResourceBundle());
-        lr.setResourceBundleName(getResourceBundleName());
+        lr.setResourceBundle(Bundle.getResourceBundle());
+        lr.setResourceBundleName(Bundle.getResourceBundleName());
         if (_aoArguments != null)
             lr.setParameters(_aoArguments);
         if (ex != null)
@@ -127,8 +100,8 @@ public class LocalizedMessage {
             Object[] aoArgCopy = new Object[_aoArguments.length];
             for (int i = 0; i < _aoArguments.length; i++) {
                 Object arg = _aoArguments[i];
-                if (arg instanceof LocalizedMessage)
-                    aoArgCopy[i] = ((LocalizedMessage)arg).getEnglishMessage(); // recursively get all the English
+                if (arg instanceof ILocalizedMessage)
+                    aoArgCopy[i] = ((ILocalizedMessage)arg).getEnglishMessage(); // recursively get all the English
                 else
                     aoArgCopy[i] = arg;
             }
@@ -149,7 +122,7 @@ public class LocalizedMessage {
     }
 
     private @CheckForNull String lookupValue() {
-        ResourceBundle rb = getResourceBundle();
+        ResourceBundle rb = Bundle.getResourceBundle();
         try {
             if (rb != null)
                 return rb.getString(_sKey);

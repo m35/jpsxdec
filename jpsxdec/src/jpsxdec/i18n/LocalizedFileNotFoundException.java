@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,13 +43,13 @@ import javax.annotation.CheckForNull;
 public class LocalizedFileNotFoundException extends FileNotFoundException {
 
     @CheckForNull
-    private final LocalizedMessage _msg;
+    private final ILocalizedMessage _msg;
 
     public LocalizedFileNotFoundException() {
         _msg = null;
     }
 
-    public LocalizedFileNotFoundException(@CheckForNull LocalizedMessage msg) {
+    public LocalizedFileNotFoundException(@CheckForNull ILocalizedMessage msg) {
         super(msg == null ? null : msg.getEnglishMessage());
         _msg = msg;
     }

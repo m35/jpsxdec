@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,46 +40,48 @@ package jpsxdec.cdreaders;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 
     
 /** Represents a raw CD header without a sync header and sector header. */
 public class CdxaSubHeader {
 
+    private static final Logger LOG = Logger.getLogger(CdxaSubHeader.class.getName());
+
     private static enum IssueType {
-        EQUAL_BOTH_GOOD(0) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
+        EQUAL_BOTH_GOOD(0) {public void err(String sName, String sVal1, String sVal2, int iConfidenceBalance, StringBuilder sb) {
             throw new IllegalStateException("Should never happen");
         }},
-        EQUAL_BOTHBAD(0) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
-            return I.SECT_CORRUPT_EQUAL_BOTHBAD(iSector, name, val1, val2);
+        EQUAL_BOTHBAD(0) {public void err(String sName, String sVal1, String sVal2, int iConfidenceBalance, StringBuilder sb) {
+            sb.append(sName).append('[').append(sVal1).append(" (bad) == ").append(sVal2).append(" (bad)]");
         }},
-        DIFF_BOTHGOOD(0) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
+        DIFF_BOTHGOOD(0) {public void err(String sName, String sVal1, String sVal2, int iConfidenceBalance, StringBuilder sb) {
+            sb.append(sName).append('[').append(sVal1).append(" != ").append(sVal2).append(" chose ");
             if (iConfidenceBalance < 0)
-                return I.SECT_CORRUPT_DIFF_BOTHGOOD_1CONFIDENCE(iSector, name, val1, val2);
+                sb.append(sVal1).append(" by confidence]");
             else if (iConfidenceBalance > 0)
-                return I.SECT_CORRUPT_DIFF_BOTHGOOD_2CONFIDENCE(iSector, name, val1, val2);
+                sb.append(sVal2).append(" by confidence]");
             else
-                return I.SECT_CORRUPT_DIFF_BOTHGOOD_1DEFAULT(iSector, name, val1, val2);
+                sb.append(sVal1).append(" by default]");
         }},
-        DIFF_1GOOD2BAD(-1) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
-            return I.SECT_CORRUPT_DIFF_1GOOD2BAD(iSector, name, val1, val2);
+        DIFF_1GOOD2BAD(-1) {public void err(String sName, String sVal1, String sVal2, int iConfidenceBalance, StringBuilder sb) {
+            sb.append(sName).append('[').append(sVal1).append(" != ").append(sVal2).append(" (bad)]");
         }},
-        DIFF_1BAD2GOOD(+1) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
-            return I.SECT_CORRUPT_DIFF_1BAD2GOOD(iSector, name, val1, val2);
+        DIFF_1BAD2GOOD(+1) {public void err(String sName, String sVal1, String sVal2, int iConfidenceBalance, StringBuilder sb) {
+            sb.append(sName).append('[').append(sVal1).append(" (bad) != ").append(sVal2).append("]");
         }},
-        DIFF_BOTHBAD(0) {public LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2) {
+        DIFF_BOTHBAD(0) {public void err(String sName, String sVal1, String sVal2, int iConfidenceBalance, StringBuilder sb) {
+            sb.append(sName).append('[').append(sVal1).append(" (bad) != ").append(sVal2).append(" (bad) chose ");
             if (iConfidenceBalance < 0)
-                return I.SECT_CORRUPT_DIFF_BOTHBAD_1CONFIDENCE(iSector, name, val1, val2);
+                sb.append(sVal1).append(" by confidence]");
             else if (iConfidenceBalance > 0)
-                return I.SECT_CORRUPT_DIFF_BOTHBAD_2CONFIDENCE(iSector, name, val1, val2);
+                sb.append(sVal2).append(" by confidence]");
             else
-                return I.SECT_CORRUPT_DIFF_BOTHBAD_2DEFAULT(iSector, name, val1, val2);
+                sb.append(sVal1).append(" by default]");
         }};
 
         public final int Balance;
         IssueType(int i) { Balance = i; }
-        abstract public @Nonnull LocalizedMessage msg(int iConfidenceBalance, int iSector, LocalizedMessage name, Object val1, Object val2);
+        abstract public void err(String sName, String sVal1, String sVal2, int iConfidenceBalance, StringBuilder sb);
 
         // .........................................
 
@@ -173,15 +175,9 @@ public class CdxaSubHeader {
     private static boolean isFileValid(int iFileNumber) {
         return iFileNumber == 0 || iFileNumber == 1;
     }
-    private static boolean isChannelValid(int iChannelNumber) {
-        // my understanding is channel is technically supposed to be
-        // between 0 and 31, but PSX seems to allow for any byte value.
-        // still warn anyway
-        return iChannelNumber >= 0 && iChannelNumber < 32;
-    }
 
 
-    public CdxaSubHeader(@Nonnull byte[] abSectorData, int iStartOffset) {
+    public CdxaSubHeader(int iSector, @Nonnull byte[] abSectorData, int iStartOffset) {
 
         _iFileNum1 = abSectorData[iStartOffset+0] & 0xff;
         _iFileNum2 = abSectorData[iStartOffset+0+4] & 0xff;
@@ -203,14 +199,12 @@ public class CdxaSubHeader {
             iConfidenceBalance += _eFileIssue.Balance;
         }
 
-        blnValid1 = isChannelValid(_iChannel1);
-        if (_iChannel1 == _iChannel2) {
-            _eChannelIssue = blnValid1 ? IssueType.EQUAL_BOTH_GOOD :
-                                         IssueType.EQUAL_BOTHBAD;
-        } else {
-            _eChannelIssue = IssueType.diffIssue(blnValid1, isChannelValid(_iChannel2));
-            iConfidenceBalance += _eChannelIssue.Balance;
-        }
+        // my understanding is channel is technically supposed to be
+        // between 0 and 31, but PSX seems to allow for any byte value.
+        if (_iChannel1 == _iChannel2)
+            _eChannelIssue = IssueType.EQUAL_BOTH_GOOD;
+        else
+            _eChannelIssue = IssueType.DIFF_BOTHGOOD;
 
         blnValid1 = _submode1.isValid();
         if (_submode1.toByte() == _submode2.toByte()) {
@@ -231,6 +225,29 @@ public class CdxaSubHeader {
         }
 
         _iConfidenceBalance = iConfidenceBalance;
+
+        if (LOG.isLoggable(Level.WARNING)) {
+            StringBuilder sb = new StringBuilder();
+            if (_eFileIssue != IssueType.EQUAL_BOTH_GOOD)
+                _eFileIssue.err("File", String.valueOf(_iFileNum1), String.valueOf(_iFileNum2), iConfidenceBalance, sb);
+            if (_eChannelIssue != IssueType.EQUAL_BOTH_GOOD) {
+                if (sb.length() > 0)
+                    sb.append(' ');
+                _eChannelIssue.err("Channel", String.valueOf(_iChannel1), String.valueOf(_iChannel2), iConfidenceBalance, sb);
+            }
+            if (_eSubModeIssue != IssueType.EQUAL_BOTH_GOOD) {
+                if (sb.length() > 0)
+                    sb.append(' ');
+                _eSubModeIssue.err("Submode", _submode1.toString(), _submode2.toString(), iConfidenceBalance, sb);
+            }
+            if (_eCodingInfoIssue != IssueType.EQUAL_BOTH_GOOD) {
+                if (sb.length() > 0)
+                    sb.append(' ');
+                _eCodingInfoIssue.err("Coding info", _codingInfo1.toString(), _codingInfo2.toString(), iConfidenceBalance, sb);
+            }
+            if (sb.length() > 0)
+                LOG.warning("Sector " +iSector+ " corrupted "+sb);
+        }
     }
 
     int getErrorCount() {
@@ -244,23 +261,11 @@ public class CdxaSubHeader {
         return i;
     }
 
-    void printErrors(int iSector, @Nonnull Logger logger) {
-        if (_eFileIssue != IssueType.EQUAL_BOTH_GOOD) {
-            _eFileIssue.msg(_iConfidenceBalance, iSector, I.SUB_HEADER_FILE_NUMBER(),
-                            _iFileNum1, _iFileNum2).log(logger, Level.WARNING);
-        }
-        if (_eChannelIssue != IssueType.EQUAL_BOTH_GOOD) {
-            _eChannelIssue.msg(_iConfidenceBalance, iSector, I.SUB_HEADER_CHANNEL_NUMBER(),
-                               _iChannel1, _iChannel2).log(logger, Level.WARNING);
-        }
-        if (_eSubModeIssue != IssueType.EQUAL_BOTH_GOOD) {
-            _eSubModeIssue.msg(_iConfidenceBalance, iSector, I.SUB_HEADER_SUBMODE(),
-                               _submode1, _submode2).log(logger, Level.WARNING);
-        }
-        if (_eCodingInfoIssue != IssueType.EQUAL_BOTH_GOOD) {
-            _eCodingInfoIssue.msg(_iConfidenceBalance, iSector, I.SUB_HEADER_CODING_INFO(),
-                                  _codingInfo1, _codingInfo2).log(logger, Level.WARNING);
-        }
+    public boolean hasErrors() {
+        return _eFileIssue       != IssueType.EQUAL_BOTH_GOOD ||
+               _eChannelIssue    != IssueType.EQUAL_BOTH_GOOD ||
+               _eSubModeIssue    != IssueType.EQUAL_BOTH_GOOD ||
+               _eCodingInfoIssue != IssueType.EQUAL_BOTH_GOOD;
     }
 
     public String toString() {

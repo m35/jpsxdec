@@ -24,7 +24,8 @@ Perhaps the most valuable reference for any kind of PSX hacking,
 especially the PSX assembly instruction set. 
 
 smf, developer for MAME, for figuring out that everyone was getting the 
-order of CrCb wrong (http://smf.mameworld.info/?p=12).
+order of CrCb wrong.
+http://www.twingalaxies.com/showthread.php/140003-M-A-M-E-Mr-Driller-DRI1-VER-A2-1000M-Mode-918-940-Nick-Vis?p=752883&viewfull=1#post752883
 
 Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error,
 verifying that jPSXdec is doing things right, and for
@@ -35,8 +36,7 @@ Jonathan Atkins for his open source cdxa code and documentation.
 http://jcatki.no-ip.org:8080/cdxa/ 
 http://jonatkins.org:8080/cdxa/)
 
-The PCSX Team, creators of one of the two open source PlayStation
-emulators (http://www.pcsx.net/).
+The PCSX Team, creators of one of the two open source PlayStation emulators.
 
 The MAME emulator team for their efforts to document and accurately
 emulate hardware, and for their license (http://mamedev.org/).
@@ -45,7 +45,7 @@ Developers of the pSX emulator for very nice debugger for reverse
 engineering games (http://psxemulator.gazaxian.com/). 
 
 "Fyiro", the Japanese fellow that wrote the source code for the PsxMC 
-FF8 plugin. (http://homepage2.nifty.com/~mkb/PsxMC/). 
+FF8 plugin. 
 
 T_chan for sharing a bit of his knowledge about the FF9 format 
 (http://www.network54.com/Forum/119865/thread/1196268797). 
@@ -69,14 +69,15 @@ is doing an impeccable job.
 John O. for verifying that jPSXdec video encoder is at least as good as
 Sony's official SDK movconv tool.
 
-Víctor González for the Spanish translation.
+Víctor González and Sergi Medina for the Spanish translation.
 
 ................................................................................
 Thanks to those who wrote code that I've used at some point during development:
 
 Alexander Strange for porting the ffmpeg simple_idct to Java.
 
-Stephen Manley for generously sharing his DCT.java class (http://www.nyx.net/~smanley/).
+Stephen Manley for generously sharing his DCT.java class.
+(http://www.nyx.net/~smanley/)
 
 Bernhard Huber for his very nice javadoc-templates
 (http://members.aon.at/bhuber14/
@@ -85,12 +86,12 @@ http://plugins.netbeans.org/PluginPortal/faces/PluginDetailPage.jsp?pluginid=116
 ImageJ for its AVIWriter implementation.
 
 Morten Nobel-Joergensen for the Java Image Scaling Library
-(http://code.google.com/p/java-image-scaling/).
+(https://github.com/mortennobel/java-image-scaling).
 
 Doug Lea for sharing his Fraction.java class.
 
 Sequence Point Software for the J2ME MPEG implementation of the IDCT
-(http://code.seqpoint.com/j2me_mpeg/).
+(https://bitbucket.org/sequencepoint/j2me_mpeg).
 
 Eclipse SWT for the Java JPEG implementation of the IDCT.
 
@@ -100,7 +101,8 @@ John E. Lloyd for the handy argparser library
 Joerg Anders for managing to write an mpeg1 decoder in pure Java 
 (http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html).
 
-Rodrigo Reyes for the JSmooth tool (http://jsmooth.sourceforge.net/). 
+The JSmooth tool (http://jsmooth.sourceforge.net/).
+The launch4j tool (http://launch4j.sourceforge.net/).
 
 PDFJet for their PDF library.
 

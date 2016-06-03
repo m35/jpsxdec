@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,9 @@ package jpsxdec.sectors;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv1;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.util.IO;
 
 
@@ -157,9 +159,13 @@ public class SectorFF7Video extends SectorAbstractVideo implements IVideoSectorW
     public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize, 
                                                int iMdecCodeCount, @Nonnull byte[] abSectUserData)
     {
-        if (!BitStreamUncompressor_STRv1.checkHeader(abDemuxData))
-            throw new IllegalArgumentException("Frame type is not v1");
-        
+        // In general FF7 only uses STRv1 bitstreams, however
+        // the Spanish version (SCES-00900) is confirmed to have
+        // a mix of STRv1 and STRv2 in ENDING2S.MOV
+        if (!BitStreamUncompressor_STRv1.checkHeader(abDemuxData) && 
+            !BitStreamUncompressor_STRv2.checkHeader(abDemuxData))
+            throw new IllegalArgumentException("Frame type is not v1 or v2");
+
         // all frames need the additional camera data in the demux size
         int iDemuxSizeForHeader = ((iUsedSize + 3) & ~3) + 40;
         IO.writeInt32LE(abSectUserData, 12, iDemuxSizeForHeader);

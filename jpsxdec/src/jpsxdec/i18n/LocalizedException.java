@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,13 +42,13 @@ import javax.annotation.CheckForNull;
 public class LocalizedException extends Exception {
 
     @CheckForNull
-    private final LocalizedMessage _msg;
+    private final ILocalizedMessage _msg;
 
     public LocalizedException() {
         _msg = null;
     }
 
-    public LocalizedException(@CheckForNull LocalizedMessage msg) {
+    public LocalizedException(@CheckForNull ILocalizedMessage msg) {
         super(msg == null ? null : msg.getEnglishMessage());
         _msg = msg;
     }
@@ -58,12 +58,12 @@ public class LocalizedException extends Exception {
         _msg = null;
     }
 
-    public LocalizedException(@CheckForNull LocalizedMessage msg, @CheckForNull Throwable cause) {
+    public LocalizedException(@CheckForNull ILocalizedMessage msg, @CheckForNull Throwable cause) {
         super(msg == null ? null : msg.getEnglishMessage(), cause);
         _msg = msg;
     }
 
-    public @CheckForNull LocalizedMessage getSourceMessage() {
+    public @CheckForNull ILocalizedMessage getSourceMessage() {
         return _msg;
     }
 

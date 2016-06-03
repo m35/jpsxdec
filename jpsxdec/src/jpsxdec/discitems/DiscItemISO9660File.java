@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,11 +54,11 @@ import javax.annotation.Nonnull;
 import javax.swing.JLabel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
-import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
@@ -198,7 +198,7 @@ public class DiscItemISO9660File extends DiscItem {
     }
 
     @Override
-    public @Nonnull LocalizedMessage getInterestingDescription() {
+    public @Nonnull ILocalizedMessage getInterestingDescription() {
         return I.GUI_ISOFILE_DETAILS(_lngSize);
     }
 
@@ -334,7 +334,7 @@ public class DiscItemISO9660File extends DiscItem {
             return DiscItemISO9660File.this;
         }
 
-        public @Nonnull LocalizedMessage getOutputSummary() {
+        public @Nonnull ILocalizedMessage getOutputSummary() {
             return new UnlocalizedMessage(getPath().getPath());
         }
 

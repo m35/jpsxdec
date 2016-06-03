@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -144,13 +144,16 @@ public class SectorChronoXVideo extends SectorAbstractVideo implements IVideoSec
         return _iFrameNumber;
     }
 
+    public int getWidth() {
+        return _iWidth;
+    }
+
     public int getHeight() {
         return _iHeight;
     }
 
-    public int getWidth() {
-        return _iWidth;
-    }
+    // checkAndPrepBitstreamForReplace() already aligns perfectly with
+    // Chrono Cross sector layout, no need to override
 
 }
 

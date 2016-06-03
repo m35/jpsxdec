@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -60,6 +60,7 @@ public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorW
     private int  _iWidth;                //  16   [2 bytes]
     private int  _iHeight;               //  18   [2 bytes]
     private int  _iRunLengthCodeCount;   //  20   [2 bytes]
+    // 0x3800                            //  22   [2 bytes]
     // Width again                       //  24   [2 bytes]
     // Height again                      //  26   [2 bytes]
     private long _lngFourZeros;          //  28   [4 bytes]

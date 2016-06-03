@@ -39,6 +39,8 @@ package jpsxdec.psxvideo.bitstreams;
 
 import java.io.EOFException;
 import java.util.Random;
+import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.Misc;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -69,7 +71,7 @@ public class BitReader {
     }
 
     @Test
-    public void testReadFixed() throws EOFException {
+    public void testReadFixed() throws MdecException.EndOfStream {
         final Random rand = new Random();
 
         byte[] abTest = new byte[6];
@@ -141,7 +143,7 @@ public class BitReader {
 
 
     @Test
-    public void testReadRandom() throws EOFException {
+    public void testReadRandom() throws MdecException.EndOfStream {
         final Random rand = new Random();
         
         byte[] abTest = new byte[8];
@@ -172,7 +174,7 @@ public class BitReader {
                 iRead += i;
                 assertEquals("getBitsReamining()", BIT_STRING.length()-iRead, abr.getBitsRemaining());
                 assertEquals("getBitsRead()", iRead, abr.getBitsRead());
-            } catch (EOFException ex) {
+            } catch (MdecException.EndOfStream ex) {
                 assertTrue(iRead + i > BIT_STRING.length());
             }
         }
@@ -188,7 +190,7 @@ public class BitReader {
     }
 
     @Test
-    public void testPerformance() throws EOFException {
+    public void testPerformance() {
         byte[] abData = new byte[100000];
         ArrayBitReader[] aoReaders = {
             new LoopSkip(),
@@ -208,7 +210,7 @@ public class BitReader {
                     for (;; iSkipBits = (iSkipBits + 1) & 0x1F) {
                         reader.skipBits(iSkipBits);
                     }
-                } catch (EOFException ex) {
+                } catch (MdecException.EndOfStream ex) {
                 }
             }
             lngEnd = System.currentTimeMillis();
@@ -223,11 +225,12 @@ public class BitReader {
         assertTrue(alngDuration[2] + " !< " + alngDuration[1], alngDuration[2] < alngDuration[1]);
 
     }
-    
+
+    private static UnlocalizedMessage EOF = new UnlocalizedMessage("EOF");
 
     private static class LoopSkip extends ArrayBitReader {
         @Override
-        public void skipBits(int iCount) throws EOFException {
+        public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
                 _iByteOffset += -(_iBitsLeft / 16)*2;
@@ -239,7 +242,7 @@ public class BitReader {
                 if (_iByteOffset > _iDataSize) {
                     _iBitsLeft = 0;
                     _iByteOffset = _iDataSize;
-                    throw new EOFException();
+                    throw new MdecException.EndOfStream(EOF);
                 } else if (_iBitsLeft > 0) {
                     _siCurrentWord = readWord(_iByteOffset-2);
                 }
@@ -249,7 +252,7 @@ public class BitReader {
 
     private static class BitSkip extends ArrayBitReader {
         @Override
-        public void skipBits(int iCount) throws EOFException {
+        public void skipBits(int iCount) throws MdecException.EndOfStream {
 
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
@@ -258,11 +261,11 @@ public class BitReader {
                 if (_iByteOffset > _iDataSize) {
                     _iBitsLeft = 0;
                     _iByteOffset = _iDataSize;
-                    throw new EOFException();
+                    throw new MdecException.EndOfStream(EOF);
                 } else if (_iBitsLeft < 0) {
                     if (_iByteOffset == _iDataSize) {
                         _iBitsLeft = 0;
-                        throw new EOFException();
+                        throw new MdecException.EndOfStream(EOF);
                     }
                     _iBitsLeft += 16;
                     _siCurrentWord = readWord(_iByteOffset);
@@ -274,7 +277,7 @@ public class BitReader {
 
     private static class ModSkip extends ArrayBitReader {
         @Override
-        public void skipBits(int iCount) throws EOFException {
+        public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
                 _iByteOffset += -(_iBitsLeft / 16)*2;
@@ -282,11 +285,11 @@ public class BitReader {
                 if (_iByteOffset > _iDataSize) {
                     _iBitsLeft = 0;
                     _iByteOffset = _iDataSize;
-                    throw new EOFException();
+                    throw new MdecException.EndOfStream(EOF);
                 } else if (_iBitsLeft < 0) {
                     if (_iByteOffset == _iDataSize) {
                         _iBitsLeft = 0;
-                        throw new EOFException();
+                        throw new MdecException.EndOfStream(EOF);
                     }
                     _iBitsLeft += 16;
                     _siCurrentWord = readWord(_iByteOffset);

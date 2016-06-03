@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,16 +42,17 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.i18n.I;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.i18n.LocalizedFileNotFoundException;
-import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.savers.FrameLookup;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.LocalizedFileNotFoundException;
+import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
@@ -61,11 +62,15 @@ import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
+import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.NotThisTypeException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 public class ReplaceFrame {
+
+    private static final Logger LOG = Logger.getLogger(ReplaceFrame.class.getName());
+    
     @Nonnull
     private final FrameLookup _frameNum;
     @CheckForNull
@@ -82,7 +87,7 @@ public class ReplaceFrame {
     }
     public @Nonnull Element serialize(@Nonnull Document document) {
         Element node = document.createElement(XML_TAG_NAME);
-        node.setAttribute("frame", getFrame().toString());
+        node.setAttribute("frame", getFrameLookup().toString());
         File imgFile = getImageFile();
         if (imgFile != null)
             node.setTextContent(imgFile.toString());
@@ -100,7 +105,7 @@ public class ReplaceFrame {
         _frameNum = FrameLookup.deserialize(sFrameNumber.trim());
     }
 
-    public @Nonnull FrameLookup getFrame() {
+    public @Nonnull FrameLookup getFrameLookup() {
         return _frameNum;
     }
 
@@ -141,8 +146,16 @@ public class ReplaceFrame {
         if ("bs".equals(_sFormat)) {
             abNewFrame = IO.readFile(_imageFile);
         } else if ("mdec".equals(_sFormat)) {
-            abNewFrame = compressor.compress(new MdecInputStreamReader(_imageFile),
-                                             frame.getWidth(), frame.getHeight());
+            MdecInputStreamReader mdecIn = new MdecInputStreamReader(_imageFile);
+            try {
+                abNewFrame = compressor.compress(mdecIn, frame.getWidth(), frame.getHeight());
+            } finally {
+                try {
+                    mdecIn.close();
+                } catch (IOException ex) {
+                    LOG.log(Level.SEVERE, null, ex);
+                }
+            }
         } else {
             BufferedImage bi = ImageIO.read(_imageFile);
             if (bi == null)
@@ -166,7 +179,7 @@ public class ReplaceFrame {
 
         // find out how many bytes and mdec codes are used by the new frame
         bsu.reset(abNewFrame, abNewFrame.length);
-        bsu.readToEnd(frame.getWidth(), frame.getHeight());
+        bsu.skipMacroBlocks(frame.getWidth(), frame.getHeight());
         bsu.skipPaddingBits();
 
         int iUsedSize = ((bsu.getBitPosition() + 15) / 16) * 2; // rounded up to nearest word

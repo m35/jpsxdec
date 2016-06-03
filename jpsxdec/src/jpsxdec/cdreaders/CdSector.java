@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.cdreaders;
 
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jpsxdec.util.ByteArrayFPIS;
 
@@ -149,7 +148,7 @@ public abstract class  CdSector {
     }
 
     abstract public int getErrorCount();
-    abstract public void printErrors(@Nonnull Logger logger);
+    abstract public boolean hasHeaderErrors();
 
     public short readSInt16LE(int i) {
         int b1 = readUserDataByte(i  ) & 0xFF;

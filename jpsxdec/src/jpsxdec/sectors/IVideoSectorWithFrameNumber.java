@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,20 +37,10 @@
 
 package jpsxdec.sectors;
 
-/** The vast majority of video sector formats have frame number and dimensions. */
+/** The vast majority of video sector formats have frame number. */
 public interface IVideoSectorWithFrameNumber extends IVideoSector {
     
-    /** Frame number that this sector is a part of. */
+    /** Frame number that this sector is a part of, found in the sector header. */
     int getFrameNumber();
     
-    /** Number of video sectors used to hold the frame that this sector
-     *  is a part of. */
-    int getChunksInFrame();
-
-    /** Height of the frame in pixels. */
-    int getHeight();
-
-    /** Width of the frame in pixels. */
-    int getWidth();
-
 }

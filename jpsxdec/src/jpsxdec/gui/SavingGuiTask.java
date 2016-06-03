@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,9 +44,9 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.gui.SavingGuiTable.Row;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.UserFriendlyLogger;
@@ -65,7 +65,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     final ProgressListenerLogger _progressLog = new ProgressListenerLogger("save")
     {
 
-        public void progressStart(@CheckForNull LocalizedMessage msg) throws TaskCanceledException {
+        public void progressStart(@CheckForNull ILocalizedMessage msg) throws TaskCanceledException {
             if (_currentRow != null && msg != null)
                 publish(new Event_Message(_currentRow, msg));
             setProgress(0);
@@ -91,7 +91,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
                                                           (int)Math.round(dblPercentComplete * 100)));
         }
 
-        public void event(@Nonnull LocalizedMessage msg) {
+        public void event(@Nonnull ILocalizedMessage msg) {
             if (_currentRow != null)
                 publish(new Event_Message(_currentRow, msg));
         }
@@ -101,7 +101,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
             return true;
         }
 
-        public void progressInfo(LocalizedMessage msg) {
+        public void progressInfo(ILocalizedMessage msg) {
             // ignored
         }
     };
@@ -180,8 +180,8 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     }
     public static class Event_Message extends Event {
         @Nonnull
-        private final LocalizedMessage _val;
-        public Event_Message(@Nonnull Row row, @Nonnull LocalizedMessage val) { super(row); _val = val; }
+        private final ILocalizedMessage _val;
+        public Event_Message(@Nonnull Row row, @Nonnull ILocalizedMessage val) { super(row); _val = val; }
         public void run() { _row.setMessage(_val.getLocalizedMessage()); }
     }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,6 +43,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.Calc;
@@ -50,9 +51,7 @@ import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 
-/** Parses and stores a stream of MDEC 16-bit codes, in the process is analyzes
- *  it for information necessary for recompression. It also has methods to
- *  tweak individual macro-blocks, which is also useful for recompression. */
+/** Parses and stores a stream of MDEC 16-bit codes in a structure for easier analysis. */
 public class ParsedMdecImage  {
     
     private static final Logger LOG = Logger.getLogger(ParsedMdecImage.class.getName());
@@ -60,13 +59,13 @@ public class ParsedMdecImage  {
     private static class MacroBlock implements Iterable<Block> {
         public final Block[] _aoBlocks = new Block[6];
 
-        public MacroBlock(MdecInputStream mdecIn) throws MdecException {
+        public MacroBlock(@Nonnull MdecInputStream mdecIn) throws MdecException.Read {
             for (int iBlock = 0; iBlock < 6; iBlock++) {
                 _aoBlocks[iBlock] = new Block(iBlock, mdecIn);
             }
         }
 
-        public Block getBlock(int iBlk) {
+        public @Nonnull Block getBlock(int iBlk) {
             return _aoBlocks[iBlk];
         }
 
@@ -86,7 +85,7 @@ public class ParsedMdecImage  {
             return c;
         }
 
-        public Iterator<Block> iterator() {
+        public @Nonnull Iterator<Block> iterator() {
             return new Iterator<Block>() {
 
                 private int _iBlk = 0;
@@ -95,7 +94,7 @@ public class ParsedMdecImage  {
                     return _iBlk < 6;
                 }
 
-                public Block next() {
+                public @Nonnull Block next() {
                     if (!hasNext()) throw new NoSuchElementException();
                     return getBlock(_iBlk++);
                 }
@@ -115,10 +114,12 @@ public class ParsedMdecImage  {
         };
 
         private final int _iIndex;
+        @Nonnull
         private final MdecCode[] _aoCodes;
+        /** Only available if source data was a bitstream. -1 if unknown. */
         private final int _iBitSize;
 
-        public Block(int iIndex, MdecInputStream mdecIn) throws MdecException {
+        public Block(int iIndex, @Nonnull MdecInputStream mdecIn) throws MdecException.Read {
             if (iIndex < 0 || iIndex >= 6)
                 throw new IllegalArgumentException("Invalid block index " + iIndex);
             _iIndex = iIndex;
@@ -143,11 +144,11 @@ public class ParsedMdecImage  {
                 _iBitSize = ((BitStreamUncompressor)mdecIn).getBitPosition() - iBitStart;
         }
 
-        public String getName() {
+        public @Nonnull String getName() {
             return BLOCK_NAMES[_iIndex];
         }
 
-        public MdecCode getMdecCode(int i) {
+        public @Nonnull MdecCode getMdecCode(int i) {
             return _aoCodes[i];
         }
         
@@ -175,7 +176,9 @@ public class ParsedMdecImage  {
             return _iBitSize;
         }
 
-        public ArrayList<MdecCode> getCodes() {
+        /** Returns shallow copy of the codes.
+         * Modifying the codes will modify the source codes! */
+        public @Nonnull ArrayList<MdecCode> getCodes() {
             ArrayList<MdecCode> c = new ArrayList<MdecCode>(_aoCodes.length);
             Collections.addAll(c, _aoCodes);
             return c;
@@ -204,13 +207,13 @@ public class ParsedMdecImage  {
             __iCurrentMacroBlock = iStartMacroBlock;
         }
 
-        public boolean readMdecCode(MdecCode code) throws MdecException.Read  {
+        public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream  {
 
             MacroBlock currentMacBlk;
             try {
                 currentMacBlk = _aoMacroBlocks[__iCurrentMacroBlock];
             } catch (ArrayIndexOutOfBoundsException ex) {
-                throw new MdecException.Read(I.END_OF_STREAM(), ex);
+                throw new MdecException.EndOfStream(I.END_OF_STREAM(), ex);
             }
 
             Block currentBlk = currentMacBlk.getBlock(__iCurrentBlock);
@@ -220,13 +223,13 @@ public class ParsedMdecImage  {
 
             __iCurrentMdecCode++;
 
-            // end of block?
+            // at end of block?
             boolean eob = false;
             if (__iCurrentMdecCode == currentBlk.getMdecCodeCount()) {
                 __iCurrentMdecCode = 0;
                 __iCurrentBlock++;
                 eob = true;
-                // end of macroblock?
+                // at end of macroblock?
                 if (__iCurrentBlock == 6) {
                     __iCurrentBlock = 0;
                     __iCurrentMacroBlock++;
@@ -242,6 +245,7 @@ public class ParsedMdecImage  {
     /*########################################################################*/
     
     /** An array to store the uncompressed data as MacroBlock structures. */
+    @Nonnull
     private final MacroBlock[] _aoMacroBlocks;
     
     /** Width of the frame in pixels */
@@ -278,11 +282,12 @@ public class ParsedMdecImage  {
     public int getMacroBlockCount() {
         return _aoMacroBlocks.length;
     }
-        
-    public MdecInputStream getStream() {
+
+    public @Nonnull MdecInputStream getStream() {
         return new MdecReader(0);
     }
-    public MdecInputStream getStream(int iMacBlkX, int iMacBlkY) {
+    /** Get a stream starting at the specified macroblock. */
+    public @Nonnull MdecInputStream getStream(int iMacBlkX, int iMacBlkY) {
         int iMacBlkHeight = Calc.macroblockDim(_iHeight);
         return new MdecReader(iMacBlkY + iMacBlkX * iMacBlkHeight);
     }
@@ -292,7 +297,9 @@ public class ParsedMdecImage  {
         return _aoMacroBlocks[iMacBlkY + iMacBlkX * iMacBlkHeight].getCodes();
     }
 
-    public ArrayList<MdecCode> getBlockCodes(int iMacBlkX, int iMacBlkY, int iBlock) {
+    /** Returns shallow copy of the codes for the given block.
+     * Modifying the codes will modify the source codes! */
+    public @Nonnull ArrayList<MdecCode> getBlockCodes(int iMacBlkX, int iMacBlkY, int iBlock) {
         int iMacBlkHeight = Calc.macroblockDim(_iHeight);
         return _aoMacroBlocks[iMacBlkY + iMacBlkX * iMacBlkHeight].getBlock(iBlock).getCodes();
     }
@@ -305,12 +312,12 @@ public class ParsedMdecImage  {
         return iMdecCodeCount;
     }
 
-    public String getBlockInfo(int iMacBlkX, int iMacBlkY, int iBlock) {
+    public @Nonnull String getBlockInfo(int iMacBlkX, int iMacBlkY, int iBlock) {
         int iMacBlkHeight = Calc.macroblockDim(_iHeight);
         return _aoMacroBlocks[iMacBlkY + iMacBlkX * iMacBlkHeight].getBlock(iBlock).toString();
     }
 
-    public int[] getMacroBlockQscales(int iMacBlkX, int iMacBlkY) {
+    public @Nonnull int[] getMacroBlockQscales(int iMacBlkX, int iMacBlkY) {
         int[] aiQscales = new int[6];
         int iMacBlkHeight = Calc.macroblockDim(_iHeight);
         MacroBlock mb = _aoMacroBlocks[iMacBlkY + iMacBlkX * iMacBlkHeight];
@@ -320,7 +327,7 @@ public class ParsedMdecImage  {
         return aiQscales;
     }
 
-    public void readFrom(MdecInputStream mdecIn) throws MdecException {
+    public void readFrom(@Nonnull MdecInputStream mdecIn) throws MdecException.Read {
 
         int iMacBlockWidth = Calc.macroblockDim(_iWidth);
         int iMacBlockHeight = Calc.macroblockDim(_iHeight);

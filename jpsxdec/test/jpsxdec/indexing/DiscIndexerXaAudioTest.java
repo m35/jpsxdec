@@ -121,7 +121,8 @@ public class DiscIndexerXaAudioTest {
     public void channel255() {
         DiscIndexerXaAudio xaIndexer = new DiscIndexerXaAudio(Logger.global);
         // just testing that nothing terrible happens
-        xaIndexer.indexingSectorRead(new DummyIdentifiedSector());        
+        DummyIdentifiedSector s = new DummyIdentifiedSector();
+        xaIndexer.indexingSectorRead(s.getCdSector(), s);
     }
     
 }

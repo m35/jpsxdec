@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,10 +45,6 @@ import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
-import jpsxdec.i18n.UnlocalizedMessage;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.FrameNumber;
@@ -57,11 +53,15 @@ import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.discitems.savers.VideoSaverBuilder.SectorFeeder;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.ProgressListenerLogger;
 import jpsxdec.util.TaskCanceledException;
 
@@ -79,7 +79,7 @@ public abstract class VideoSaver
     @Nonnull
     protected final VideoSaverBuilder.SectorFeeder _sectorFeeder;
     protected final int _iCroppedWidth, _iCroppedHeight;
-    protected final ArrayList<LocalizedMessage> _selectedOptions = new ArrayList<LocalizedMessage>();
+    protected final ArrayList<ILocalizedMessage> _selectedOptions = new ArrayList<ILocalizedMessage>();
     @Nonnull
     protected VDP.IBitstreamListener _bsListener;
     /** Reusable buffer to temporarily hold bitstream. */
@@ -145,7 +145,7 @@ public abstract class VideoSaver
     }
 
     public void printSelectedOptions(@Nonnull PrintStream ps) {
-        for (LocalizedMessage line : _selectedOptions) {
+        for (ILocalizedMessage line : _selectedOptions) {
             ps.println(line.getLocalizedMessage());
         }
     }
@@ -186,7 +186,7 @@ public abstract class VideoSaver
 
     public static class Sequence extends VideoSaver {
         @Nonnull
-        private final LocalizedMessage _outSummary;
+        private final ILocalizedMessage _outSummary;
 
         public Sequence(@Nonnull DiscItemVideoStream videoItem, @Nonnull File directory,
                         @Nonnull SectorFeeder fdr, @Nonnull VideoSaverBuilder vsb)
@@ -242,7 +242,7 @@ public abstract class VideoSaver
             addSkipFrameSelectedOptions();
         }
 
-        public @Nonnull LocalizedMessage getOutputSummary() {
+        public @Nonnull ILocalizedMessage getOutputSummary() {
             return _outSummary;
         }
 
@@ -256,12 +256,13 @@ public abstract class VideoSaver
             _bsListener.setLog(pll);
             try {
                 pll.progressStart();
-                final int iSectorLen = _videoItem.getSectorLength();
+                final double dblSectorLen = _videoItem.getSectorLength();
+                IdentifiedSectorIterator it = _videoItem.identifiedSectorIterator();
 
                 _generatedFiles = new ArrayList<File>();
-                for (int iSector = 0; iSector < iSectorLen; iSector++) {
+                for (int iSector = 0; it.hasNext(); iSector++) {
 
-                    IdentifiedSector identifiedSector = _videoItem.getRelativeIdentifiedSector(iSector);
+                    IdentifiedSector identifiedSector = it.next();
                     if (identifiedSector != null) {
                         _sectorFeeder.feedSector(identifiedSector, pll);
                     }
@@ -269,7 +270,7 @@ public abstract class VideoSaver
                     if (pll.seekingEvent() && _currentFrame != null)
                         pll.event(_numberFormatter.getDescription(_currentFrame));
 
-                    pll.progressUpdate(iSector / (double)iSectorLen);
+                    pll.progressUpdate(iSector / dblSectorLen);
 
                     // if we've already handled the frames we want to save
                     // break early
@@ -328,7 +329,7 @@ public abstract class VideoSaver
                 }
             } else {
                 _selectedOptions.add(I.CMD_SAVING_WITH_AUDIO_ITEMS());
-                for (LocalizedMessage details : fdr.audioDecoder.getAudioDetails()) {
+                for (ILocalizedMessage details : fdr.audioDecoder.getAudioDetails()) {
                     _selectedOptions.add(details);
                 }
                 _selectedOptions.add(I.CMD_EMULATE_PSX_AV_SYNC_NY(vsb.getEmulatePsxAvSync() ? 1 : 0));
@@ -373,7 +374,7 @@ public abstract class VideoSaver
             addSkipFrameSelectedOptions();
         }
 
-        public @Nonnull LocalizedMessage getOutputSummary() {
+        public @Nonnull ILocalizedMessage getOutputSummary() {
             return new UnlocalizedMessage(_2avi.getOutputFile().getName());
         }
 
@@ -394,7 +395,7 @@ public abstract class VideoSaver
                                         _sectorFeeder.audioDecoder.getEndSector());
             }
 
-            final double SECTOR_LENGTH = iEndSector - iStartSector + 1;
+            final double dblSectorLength = iEndSector - iStartSector + 1;
 
             _generatedFiles = new ArrayList<File>();
             _2avi.open();
@@ -403,10 +404,9 @@ public abstract class VideoSaver
             try {
                 pll.progressStart();
 
-                for (int iSector = iStartSector; iSector <= iEndSector; iSector++) {
-
-                    CdSector cdSector = _videoItem.getSourceCd().getSector(iSector);
-                    IdentifiedSector identifiedSector = IdentifiedSector.identifySector(cdSector);
+                IdentifiedSectorIterator it = IdentifiedSectorIterator.create(_videoItem.getSourceCd(), iStartSector, iEndSector);
+                for (int iSector = 0; it.hasNext(); iSector++) {
+                    IdentifiedSector identifiedSector = it.next();
                     if (identifiedSector != null) {
                         _sectorFeeder.feedSector(identifiedSector, pll);
                     }
@@ -414,7 +414,7 @@ public abstract class VideoSaver
                     if (pll.seekingEvent() && _currentFrame != null)
                         pll.event(_numberFormatter.getDescription(_currentFrame));
 
-                    pll.progressUpdate((iSector - iStartSector) / SECTOR_LENGTH);
+                    pll.progressUpdate(iSector / dblSectorLength);
 
                     // if we've already handled the frames we want to save
                     // break early

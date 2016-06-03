@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,6 @@ package jpsxdec.cdreaders;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
 
 /** Represents a raw CD header with a sync header and sector header. */
 public class CdxaHeader {
@@ -67,6 +66,7 @@ public class CdxaHeader {
     }
     
     //..........................................................................
+    private static final Logger LOG = Logger.getLogger(CdxaHeader.class.getName());
 
     private final int _iSyncHeaderErrorCount;
 
@@ -84,7 +84,7 @@ public class CdxaHeader {
     @Nonnull
     private final Type _eType;
 
-    public CdxaHeader(@Nonnull byte[] abSectorData, int iStartOffset) {
+    public CdxaHeader(int iSectorIndex, @Nonnull byte[] abSectorData, int iStartOffset) {
         int iByteErrorCount = 0;
         for (int i = 0; i < SECTOR_SYNC_HEADER.length; i++) {
             if (abSectorData[iStartOffset + i] != SECTOR_SYNC_HEADER[i])
@@ -110,10 +110,29 @@ public class CdxaHeader {
 
         // TODO: Figure out if this is usable fuzzy logic
         boolean blnIsCdAudioSector = (!_blnMode_ok || _iSyncHeaderErrorCount > 4);
-        if (blnIsCdAudioSector)
+        if (blnIsCdAudioSector) {
             _eType = Type.CD_AUDIO;
-        else
+        } else {
             _eType = _iMode == 1 ? Type.MODE1 : Type.MODE2;
+
+            if (_iSyncHeaderErrorCount != 0)
+                LOG.log(Level.WARNING, "Sector {0,number,#} {1,number,#} bytes in the sync header are corrupted",
+                        new Object[] {iSectorIndex, _iSyncHeaderErrorCount});
+
+            if (!_blnMinutesBCD_ok)
+                LOG.log(Level.WARNING, "Sector {0,number,#} Minutes number is corrupted {1}",
+                        new Object[] {iSectorIndex, String.format("%02x", _iMinutesBCD)});
+            if (!_blnSecondsBCD_ok)
+                LOG.log(Level.WARNING, "Sector {0,number,#} Seconds number is corrupted {1}",
+                        new Object[] {iSectorIndex, String.format("%02x", _iSecondsBCD)});
+            if (!_blnSectorsBCD_ok)
+                LOG.log(Level.WARNING, "Sector {0,number,#} Sectors number is corrupted {1}",
+                        new Object[] {iSectorIndex, String.format("%02x", _iSectorsBCD)});
+
+            // by our logic, mode number can never be considered corrupted
+        }
+
+
     }
 
     @Nonnull Type getType() {
@@ -158,20 +177,14 @@ public class CdxaHeader {
                 _iMode, _iMinutesBCD, _iSecondsBCD, _iSectorsBCD, calculateSectorNumber());
     }
 
-    void printErrors(int iSector, @Nonnull Logger logger) {
+    public boolean hasErrors() {
         if (_eType == Type.CD_AUDIO)
-            return;
-        
-        if (_iSyncHeaderErrorCount > 0)
-            I.SECTOR_CORRUPTED_SYNC_HEADER(iSector, _iSyncHeaderErrorCount).log(logger, Level.WARNING);
-        if (!_blnMode_ok)
-            I.SECTOR_CORRUPTED_MODE_NUMBER(iSector, _iMode).log(logger, Level.WARNING);
-        if (!_blnMinutesBCD_ok)
-            I.SECTOR_CORRUPTED_MINUTES(iSector, String.format("%02x", _iMinutesBCD)).log(logger, Level.WARNING);
-        if (!_blnSecondsBCD_ok)
-            I.SECTOR_CORRUPTED_SECONDS(iSector, String.format("%02x", _iSecondsBCD)).log(logger, Level.WARNING);
-        if (!_blnSectorsBCD_ok)
-            I.SECTOR_CORRUPTED_SECTOR_NUMBER(iSector, String.format("%02x", _iSectorsBCD)).log(logger, Level.WARNING);;
+            return false;
+        return _iSyncHeaderErrorCount > 0 ||
+               !_blnMode_ok       ||
+               !_blnMinutesBCD_ok ||
+               !_blnSecondsBCD_ok ||
+               !_blnSectorsBCD_ok;
     }
 
     int getErrorCount() {

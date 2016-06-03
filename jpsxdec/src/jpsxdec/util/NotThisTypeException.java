@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,7 @@ package jpsxdec.util;
 
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.LocalizedException;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 /** Exception returned by constructors when a supplied stream or data
  *  does not provide the correct information to generate a class. */
@@ -52,7 +52,7 @@ public class NotThisTypeException extends LocalizedException {
         super(cause);
     }
     
-    public NotThisTypeException(@Nonnull LocalizedMessage msg) {
+    public NotThisTypeException(@Nonnull ILocalizedMessage msg) {
         super(msg);
     }
 

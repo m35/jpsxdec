@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2015  Michael Sabin
+ * Copyright (C) 2012-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,7 @@ package jpsxdec.discitems.savers;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
@@ -78,17 +78,17 @@ public enum MdecDecodeQuality {
     }
 
     @Nonnull
-    private final LocalizedMessage _guiDescription;
+    private final ILocalizedMessage _guiDescription;
     @Nonnull
-    private final LocalizedMessage _cmdLine;
+    private final ILocalizedMessage _cmdLine;
 
-    private MdecDecodeQuality(@Nonnull LocalizedMessage description, @Nonnull LocalizedMessage cmdLine) {
+    private MdecDecodeQuality(@Nonnull ILocalizedMessage description, @Nonnull ILocalizedMessage cmdLine) {
         _guiDescription = description;
         _cmdLine = cmdLine;
     }
 
     abstract public @Nonnull MdecDecoder makeDecoder(int iWidth, int iHeight);
 
-    public @Nonnull LocalizedMessage getCmdLine() { return _cmdLine; }
+    public @Nonnull ILocalizedMessage getCmdLine() { return _cmdLine; }
     public String toString() { return _guiDescription.getLocalizedMessage(); }
 }

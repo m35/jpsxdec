@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,13 +43,13 @@ import javax.annotation.CheckForNull;
 public class LocalizedEOFException extends EOFException {
 
     @CheckForNull
-    private final LocalizedMessage _msg;
+    private final ILocalizedMessage _msg;
     
     public LocalizedEOFException() {
         _msg = null;
     }
 
-    public LocalizedEOFException(@CheckForNull LocalizedMessage msg) {
+    public LocalizedEOFException(@CheckForNull ILocalizedMessage msg) {
         super(msg == null ? null : msg.getEnglishMessage());
         _msg = msg;
     }

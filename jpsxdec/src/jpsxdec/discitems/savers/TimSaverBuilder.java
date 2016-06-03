@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,14 +54,14 @@ import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
-import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.DiscItemTim;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.formats.JavaImageFormat;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
@@ -247,7 +247,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     // .................................................................
 
 
-    public @Nonnull LocalizedMessage getOutputFilesSummary() {
+    public @Nonnull ILocalizedMessage getOutputFilesSummary() {
         if (_saveFormat == TimSaveFormat.TIM)
             return new UnlocalizedMessage(makeTimFileName());
 
@@ -436,7 +436,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             return _timItem;
         }
 
-        public @Nonnull LocalizedMessage getOutputSummary() {
+        public @Nonnull ILocalizedMessage getOutputSummary() {
             return new UnlocalizedMessage(_outputFile.getName());
         }
 
@@ -463,13 +463,13 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         @Nonnull
         private final String[] _asOutputFiles;
         @Nonnull
-        private final LocalizedMessage _outputSummary;
+        private final ILocalizedMessage _outputSummary;
         @CheckForNull
         private ArrayList<File> _generatedFiles;
 
         public TimImageSaver(@Nonnull TimSaveFormat timFormat, @Nonnull DiscItemTim timItem,
                              @CheckForNull File outputDir, @Nonnull String[] asOutputFiles,
-                             @Nonnull LocalizedMessage outputSummary)
+                             @Nonnull ILocalizedMessage outputSummary)
         {
             _timFormat = timFormat;
             _imageFormat = _timFormat.getJavaFormat();
@@ -487,7 +487,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             return _timItem;
         }
 
-        public @Nonnull LocalizedMessage getOutputSummary() {
+        public @Nonnull ILocalizedMessage getOutputSummary() {
             return _outputSummary;
         }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2015  Michael Sabin
+ * Copyright (C) 2012-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,11 +39,11 @@ package jpsxdec.discitems;
 
 import java.util.Date;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderCrusader;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.player.PlayController;
@@ -110,7 +110,7 @@ public class DiscItemCrusader extends DiscItemVideoStream {
     }
 
     @Override
-    public @Nonnull LocalizedMessage getInterestingDescription() {
+    public @Nonnull ILocalizedMessage getInterestingDescription() {
         int iFrames = getFrameCount();
         Date secs = new Date(0, 0, 0, 0, 0, Math.max(iFrames / FPS, 1));
         return I.GUI_CRUSADER_VID_DETAILS(getWidth() ,getHeight(), iFrames, FPS, secs);

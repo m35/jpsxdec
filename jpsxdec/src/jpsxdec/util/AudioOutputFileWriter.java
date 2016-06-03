@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,6 +49,7 @@ import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import jpsxdec.i18n.LocalizedIOException;
 
 /** Inverts the file writing process from pulling data from an AudioInputStream
  *  to pushing the data. */
@@ -103,7 +104,7 @@ public class AudioOutputFileWriter implements Runnable {
                 // check if there was an error
                 if (_writingError != null) {
                     if (_writingError instanceof IOException)
-                        throw (IOException)_writingError;
+                        throw new LocalizedIOException(_writingError); // TODO: I18N
                     else
                         throw new RuntimeException(_writingError);
                 }
@@ -141,7 +142,7 @@ public class AudioOutputFileWriter implements Runnable {
         synchronized (_threadStream) {
             if (_writingError != null) {
                 if (_writingError instanceof IOException)
-                    throw (IOException)_writingError;
+                    throw new LocalizedIOException(_writingError); // TODO: I18N
                 else
                     throw new RuntimeException(_writingError);
             }

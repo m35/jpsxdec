@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,10 +39,12 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.sectors.SectorAceCombat3Video;
 import jpsxdec.util.NotThisTypeException;
 
@@ -132,16 +134,16 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
     
     @Override
     public void fpsDump(@Nonnull PrintStream ps) throws IOException {
-        final int LENGTH = getSectorLength();
-        for (int iSector = 0; iSector < LENGTH; iSector++) {
-            IdentifiedSector isect = getRelativeIdentifiedSector(iSector);
+        IdentifiedSectorIterator it = identifiedSectorIterator();
+        for (int iSector = 0; it.hasNext(); iSector++) {
+            IdentifiedSector isect = it.next();
             if (isect instanceof SectorAceCombat3Video) {
                 SectorAceCombat3Video vidSect = (SectorAceCombat3Video) isect;
                 ps.println(String.format("%-5d %-4d %d/%d",
-                                        iSector,
-                                        getEndFrame().getHeaderFrameNumber() - vidSect.getInvertedFrameNumber(),
-                                        vidSect.getChunkNumber(),
-                                        vidSect.getChunksInFrame() ));
+                                         iSector,
+                                         getEndFrame().getHeaderFrameNumber() - vidSect.getInvertedFrameNumber(),
+                                         vidSect.getChunkNumber(),
+                                         vidSect.getChunksInFrame() ));
             } else {
                 ps.println(String.format(
                         "%-5d X",
@@ -153,62 +155,47 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
 
     @Override
     public @Nonnull ISectorFrameDemuxer makeDemuxer() {
-        return new Demuxer(getStartSector(), getEndSector(), getWidth(), getHeight(), getEndFrame().getHeaderFrameNumber(), _iChannel);
+        return new Demuxer(getEndFrame().getHeaderFrameNumber(), _iChannel);
     }
 
-    public static class Demuxer extends FrameDemuxer<SectorAceCombat3Video> {
+    /** Public facing (external) demuxer for Ace Combat 3.
+     * Wraps {@link Ac3Demuxer} and sets the {@link FrameNumber} for completed 
+     * frames before passing them onto the {@link ICompletedFrameListener}. */
+    public static class Demuxer implements ISectorFrameDemuxer, Ac3Demuxer.Listener {
 
-        private final int _iWidth, _iHeight;
-        private final int _iEndFrame, _iChannel;
+        private final int _iEndFrame;
+        @Nonnull
+        private final Ac3Demuxer _demuxer;
+        private final FrameNumber.FactoryWithHeader _frameNumberFactory = new FrameNumber.FactoryWithHeader();
+        @CheckForNull
+        private ICompletedFrameListener _listener;
 
-        public Demuxer(int iVideoStartSector, int iVideoEndSector, int iWidth, int iHeight,
-                       int iEndFrame, int iChannel)
-        {
-            super(iVideoStartSector, iVideoEndSector);
-            if (iWidth < 1 || iHeight < 1)
-                throw new IllegalArgumentException("Invalid dimensions " + iWidth + "x" + iHeight);
-            _iWidth = iWidth;
-            _iHeight = iHeight;
+        public Demuxer(int iEndFrame, int iChannel) {
             _iEndFrame = iEndFrame;
-            _iChannel = iChannel;
+            _demuxer = new Ac3Demuxer(iChannel);
+            _demuxer.setFrameListener(this);
         }
 
-        
-        protected @CheckForNull SectorAceCombat3Video isVideoSector(@Nonnull IdentifiedSector sector)
-        {
-            if (!(sector instanceof SectorAceCombat3Video))
-                return null;
-            return (SectorAceCombat3Video) sector;
+        public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull Logger log) throws IOException {
+            // TODO: limit to the range of sectors in this video?
+            return _demuxer.feedSector(idSector, log);
+        }
+        public void flush(@Nonnull Logger log) throws IOException {
+            _demuxer.flush(log);
         }
 
-        @Override
-        protected boolean isPartOfVideo(@Nonnull SectorAceCombat3Video chunk) {
-            return super.isPartOfVideo(chunk) &&
-                   chunk.getWidth() == _iWidth && 
-                   chunk.getHeight() == _iHeight &&
-                   chunk.getChannel() == _iChannel;
+        public void setFrameListener(@Nonnull ICompletedFrameListener listener) {
+            _listener = listener;
         }
 
-        @Override
-        protected int getHeaderFrameNumber(@Nonnull SectorAceCombat3Video chunk) {
-            return _iEndFrame - chunk.getInvertedFrameNumber();
-        }
-
-        @Override
-        protected int getChunksInFrame(@Nonnull SectorAceCombat3Video chunk) {
-            return chunk.getChunksInFrame();
-        }
-
-        @Override
-        public int getWidth() {
-            return _iWidth;
-        }
-
-        @Override
-        public int getHeight() {
-            return _iHeight;
+        public void frameComplete(@Nonnull Ac3Demuxer.DemuxedAc3Frame frame) throws IOException {
+            frame.setFrame(_frameNumberFactory.next(frame.getStartSector(), 
+                                                    _iEndFrame - frame.getInvertedHeaderFrameNumber()));
+            if (_listener == null)
+                throw new IllegalStateException();
+            _listener.frameComplete(frame);
         }
 
     }
-    
+
 }

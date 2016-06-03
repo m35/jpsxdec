@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,9 +42,9 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.List;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 
 public class SavingGui extends javax.swing.JDialog implements PropertyChangeListener {
 
@@ -99,7 +99,7 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
             _eState = STATES.Ended;
             _guiStartCancelCloseBtn.setText(I.GUI_CLOSE_BTN().getLocalizedMessage());
             _guiStartCancelCloseBtn.setEnabled(true);
-            LocalizedMessage result;
+            ILocalizedMessage result;
             if (_saveAll.isCancelled())
                 result = I.GUI_SAVE_STATUS_OVERALL_CANCELED(_saveAll._progressLog.getFileName());
             else

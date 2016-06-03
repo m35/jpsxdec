@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -88,6 +88,7 @@ public class SectorLainVideo extends SectorAbstractVideo implements IVideoSector
         _iFrameNumber = cdSector.readSInt32LE(8);
         if (_iFrameNumber < 1) return;
         _lngTotalDemuxedSize = cdSector.readSInt32LE(12);
+        // this detail helps to avoid matching FF7 video sectors
         if (_lngTotalDemuxedSize != 18144 && _lngTotalDemuxedSize != 20160) return;
         int iWidth = cdSector.readSInt16LE(16);
         if (iWidth != 320) return;

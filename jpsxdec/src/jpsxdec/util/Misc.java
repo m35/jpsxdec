@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,10 +54,14 @@ import javax.annotation.Nonnull;
 /** Miscellaneous helper functions. */
 public final class Misc {
 
+    /** Returns an array of just the matching groups.
+     * @return null if failed to match */
     public static @CheckForNull String[] regex(@Nonnull String regex, @Nonnull String s) {
         return regex(Pattern.compile(regex), s);
     }
 
+    /** Returns an array of just the matching groups.
+     * @return null if failed to match */
     public static @CheckForNull String[] regex(@Nonnull Pattern regex, @Nonnull String s) {
         Matcher m = regex.matcher(s);
         if (!m.find()) return null;
@@ -68,7 +72,8 @@ public final class Misc {
         return as;
     }
 
-    /** Returns an array of all matches of all groups. */
+    /** Returns an array of all matches of all groups.
+     * @return null if failed to match */
     public static @Nonnull String[] regexAll(@Nonnull Pattern regex, @Nonnull String s) {
         Matcher m = regex.matcher(s);
         ArrayList<String> matches = new ArrayList<String>();
@@ -107,7 +112,7 @@ public final class Misc {
             return 0;
     }
     
-    
+    /** Duplicates a string {@code count} times. */
     public static @Nonnull String dup(@Nonnull String s, int count) {
         if (count == 0)
             return "";
@@ -118,6 +123,7 @@ public final class Misc {
         return sb.toString();
     }
 
+    /** Duplicates a character {@code count} times. */
     public static @Nonnull String dup(char c, int count) {
         if (count == 0)
             return "";
@@ -141,24 +147,30 @@ public final class Misc {
         return arr;
     }
 
-    
-    public static @Nonnull String getBaseName(@Nonnull String txt) {
-        int i = txt.lastIndexOf('.');
+    /** Removes the extension from the given file name/path. */
+    public static @Nonnull String removeExt(@Nonnull String sFileName) {
+        int i = sFileName.lastIndexOf('.');
         if (i >= 0)
-            return txt.substring(0, i);
+            return sFileName.substring(0, i);
         else
-            return txt;
+            return sFileName;
     }
     
-    public static @Nonnull String getExt(@Nonnull String txt) {
-        int i = txt.lastIndexOf('.');
+    /** Gets the extension from the given file name/path.
+     * @return empty string if no extension.  */
+    public static @Nonnull String getExt(@Nonnull String sFileName) {
+        int i = sFileName.lastIndexOf('.');
         if (i >= 0)
-            return txt.substring(i+1);
+            return sFileName.substring(i+1);
         else
             return "";
     }
-    
-    
+
+    private static final URI CURRENT_URI = new File(".").toURI();
+    public static @Nonnull String forwardSlashPath(@Nonnull File f) {
+        return CURRENT_URI.relativize(f.toURI()).toString();
+    }
+
     public static @Nonnull String join(@Nonnull Iterable ao, @Nonnull String sBetween) {
         StringBuilder sb = new StringBuilder();
         boolean blnFirst = true;
@@ -218,15 +230,6 @@ public final class Misc {
         }
     }
     
-    public static @Nonnull String[] parseFilename(@Nonnull String s) {
-        int i = s.lastIndexOf('.');
-        if (i >= 0) {
-            return new String[] {s.substring(0, i), s.substring(i)};
-        } else {
-            return new String[] {s, ""};
-        }
-    }
-
     private final static String[] ZERO_PAD = new String[] {
         "", "0", "00", "000", "0000", "00000", "000000", "0000000", "00000000",
         "000000000", "0000000000", "00000000000", "000000000000",
@@ -250,11 +253,6 @@ public final class Misc {
             return sBin.substring(len - iCount);
         else
             return sBin;
-    }
-
-    private static final URI CURRENT_URI = new File(".").toURI();
-    public static @Nonnull String forwardSlashPath(@Nonnull File f) {
-        return CURRENT_URI.relativize(f.toURI()).toString();
     }
 
     public static void log(@Nonnull Logger log, @Nonnull Level level,

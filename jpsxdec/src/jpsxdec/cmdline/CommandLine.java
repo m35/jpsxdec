@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,18 +44,17 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileNotFoundException;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.MiscResources;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.FeedbackStream;
@@ -130,7 +129,7 @@ public class CommandLine {
                     }
                 }
             } else {
-                LocalizedMessage errMsg = mainCommand.validate();
+                ILocalizedMessage errMsg = mainCommand.validate();
                 if (errMsg != null) {
                     Feedback.printlnErr(errMsg);
                     Feedback.printlnErr(I.CMD_TRY_HELP());
@@ -141,8 +140,10 @@ public class CommandLine {
             }
         } catch (CommandLineException ex) {
             Feedback.printlnErr(ex.getLocalizedMessage());
-            LocalizedMessage msg = ex.getSourceMessage();
-            if (msg != null)
+            ILocalizedMessage msg = ex.getSourceMessage();
+            if (msg == null) // TODO: find way to not log unhandled exceptions twice in debug.log
+                LOG.log(Level.SEVERE, null, ex);
+            else
                 msg.log(LOG, Level.SEVERE, ex);
             return 1;
         } catch (Throwable ex) {
@@ -193,11 +194,7 @@ public class CommandLine {
     }
 
     private static void printMainHelp(@Nonnull PrintStream ps) {
-        InputStream is = LocalizedMessage.class.getResourceAsStream("main_cmdline_help.dat");
-        if (is == null)
-            throw new RuntimeException("Unable to find help resource " +
-                    CommandLine.class.getResource("main_cmdline_help.dat"));
-        BufferedReader br = new BufferedReader(new InputStreamReader(is));
+        BufferedReader br = new BufferedReader(MiscResources.main_cmdline_help());
         try {
             String sLine;
             while ((sLine = br.readLine()) != null) {
@@ -276,25 +273,14 @@ public class CommandLine {
     {
         if (index.size() < 1) {
             Feedback.println(I.CMD_NOT_SAVING_EMPTY_INDEX());
-        } else if (sIndexFile.equals("-")) {
-            try {
-                index.serializeIndex(System.out);
-            } catch (IOException ex) {
-                throw new CommandLineException(I.WRITING_INDEX_FILE_ERR(), ex);
-            }
         } else {
             Feedback.println(I.CMD_SAVING_INDEX(sIndexFile));
-            PrintStream printer = null;
             try {
-                printer = new PrintStream(sIndexFile);
-                index.serializeIndex(printer);
+                index.serializeIndex(new File(sIndexFile));
             } catch (FileNotFoundException ex) {
                 throw new CommandLineException(I.CMD_SAVE_OPEN_ERR(), ex);
             } catch (IOException ex) {
                 throw new CommandLineException(I.WRITING_INDEX_FILE_ERR(), ex);
-            } finally {
-                if (printer != null)
-                    printer.close();
             }
         }
     }

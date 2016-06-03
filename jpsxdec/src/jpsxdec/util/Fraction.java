@@ -69,6 +69,11 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
     return ((double)(getNumerator())) / ((double)(getDenominator()));
   }
 
+  /** Return the value of the Fraction as a float **/
+  public float asFloat() {
+    return ((float)(getNumerator())) / ((float)(getDenominator()));
+  }
+
     public int asInt() {
         return (int) (getNumerator() / getDenominator());
     }

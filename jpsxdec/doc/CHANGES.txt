@@ -1,3 +1,35 @@
+v0.99.6 rev3146 (3 June 2016)
+    - Update Spanish translation (many thanks Víctor González, Sergi Medina)
+    - Allow replacing FF7 frames with STRv2 frame format
+    - Added support for Gran Turismo (1 and 2) videos
+    - Simplified error/warning messages
+    - Improved encoder: removes redundant data to make frames smaller
+    - More flexible Judge Dredd video detection (reduced program size greatly)
+    - Split video at large sector or frame number gaps
+      (fixes JPSXDEC-7 reported by truston, and JPSXDEC-9 reported by hgdagon)
+    - sectordump includes count of sector types at the end
+    - No longer report most channel numbers as corruption
+    - Index saved as UTF-8 to handle Unicode paths
+    - Updated launch4j executable
+    x Remove ability to generate index to stdout
+    Bug fixes:
+    - JPG error message
+    - Single unidentified sectors not being checked for images
+    - Main command-line help text errors
+    - Static data end sector off by 1
+    - 2336/sector image identification issue
+    - "Apply to all X" caps localization issue for Spanish
+    - Corrupted header sector number not handled correctly
+    - Logging issues
+    - other minor bug fixes
+    Internal:
+    - Contextual sector identification, along with more flexible disc indexer
+      may have slowed down indexing speed
+    - Restructured video frame demuxing
+    - More tests
+    Known Problems:
+    - Some .iki frame rate detection is wrong
+    - Audio + Video playback on Linux might be choppy or not display
 v0.99.5 rev3006 (5 Jul 2015)
     - Spanish translation provided by Víctor González
     - Index format changed, indexes need to be regenerated

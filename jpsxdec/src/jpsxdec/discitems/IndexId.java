@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,7 @@ import java.util.Arrays;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
 
@@ -90,7 +90,7 @@ public class IndexId {
     /** How unnamed files will be saved in the index (never localized). */
     private static final String UNNAMED_INDEX = "?";
     /** How unnamed files will be displayed. */
-    private static final LocalizedMessage UNNAMED_FILE_NAME = I.UNNAMED_DISC_ITEM();
+    private static final ILocalizedMessage UNNAMED_FILE_NAME = I.UNNAMED_DISC_ITEM();
     /** Pre-create file. */
     private static final File UNNAMED_FILE = new File(UNNAMED_FILE_NAME.getLocalizedMessage());
     private @Nonnull File safePath() {

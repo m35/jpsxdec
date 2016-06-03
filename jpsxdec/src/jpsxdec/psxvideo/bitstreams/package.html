@@ -9,21 +9,21 @@ Compressed PlayStation 1 bitstream video data compression and decompression.
     a stream of bits (a form of 'entropy' encoding).
 </p>
 <p>
-    There are 4 known bitstream formats:
+    There are 5 known bitstream formats:
 </p>
 <ul>
     <li>{@link jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2}:
         Sony developed version 2.
-        Used in the majority of games. {@link jpsxdec.psxvideo.bitstreams.BiStreamUncompressor_STRv1}
+        Used in the majority of games.</li>
+    <li>{@link jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv1}
         is nearly identical to STRv2, but has a couple interesting
-        variations worth identifying.
-    </li>
+        variations worth identifying.</li>
     <li>{@link jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv3}:
         Sony developed version 3.
         Not used very much, but provides better compression, probably
         at the cost of additional processing.</li>
     <li>{@link jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Iki}:
-        .iki videos used by a few Sony games.</li>
+        .iki videos used by a few games.</li>
     <li>{@link jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Lain}: 
         Used only by the Serial Experiments Lain game</li>
 </ul>

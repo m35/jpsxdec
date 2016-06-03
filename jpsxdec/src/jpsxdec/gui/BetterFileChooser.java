@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,7 +45,7 @@ import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileSystemView;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 /** The JFileChooser is pretty lame, so this sub-class attempts to fix
  *  some of the problems with it. */
@@ -135,7 +135,7 @@ public class BetterFileChooser extends JFileChooser {
 
             // confirm overwrite
             if (f.exists()) {
-                LocalizedMessage msg = I.GUI_FILE_EXISTS_REPLACE(f.getName());
+                ILocalizedMessage msg = I.GUI_FILE_EXISTS_REPLACE(f.getName());
                 String sTitle = getDialogTitle();
                 int iOption = JOptionPane.showConfirmDialog(this, msg, sTitle, JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
                 if (iOption != JOptionPane.YES_OPTION) {

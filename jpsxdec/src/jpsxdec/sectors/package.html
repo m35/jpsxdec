@@ -4,28 +4,29 @@
 <body>
 All the known sector types.
 <p>
-    All sectors extend {@link IdentifiedSector}, which in turn implements
-    {@link IIdentifiedSector}.
+    All sectors extend {@link jpsxdec.sectors.IdentifiedSector}, which in turn 
+    implements {@link jpsxdec.sectors.IIdentifiedSector}.
 </p>
 <p>
-    All streaming video sectors implement {@link IVideoSector}.
+    All streaming video sectors implement {@link jpsxdec.sectors.IVideoSector}.
 </p>
 <p>
     Square related sectors
 </p>
     <ul>
-        <li>{@link SectorChronoXAudio}</li>
-        <li>{@link SectorChronoXVideo}</li>
-        <li>{@link SectorChronoXVideoNull}</li>
-        <li>{@link SectorFF8}</li>
-        <li>{@link SectorFF9}</li>
+        <li>{@link jpsxdec.sectors.SectorChronoXAudio}</li>
+        <li>{@link jpsxdec.sectors.SectorChronoXVideo}</li>
+        <li>{@link jpsxdec.sectors.SectorChronoXVideoNull}</li>
+        <li>{@link jpsxdec.sectors.SectorFF8}</li>
+        <li>{@link jpsxdec.sectors.SectorFF9}</li>
     </ul>
 <p>
-    use {@link ISquareAudioSector} and {SquareAKAOstruct}.
+    use {@link jpsxdec.sectors.ISquareAudioSector} and 
+    {@link jpsxdec.sectors.SquareAKAOstruct}.
 </p>
 <p>
-    {@link UnidentifiedSector} can be used when a sector is unknown, but
-    an interface expects {@link IdentifiedSector}.
+    {@link jpsxdec.sectors.UnidentifiedSector} can be used when a sector is 
+    unknown, but an interface expects {@link jpsxdec.sectors.IdentifiedSector}.
 </p>
 
 </body>

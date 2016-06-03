@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import java.io.EOFException;
 import java.io.PrintStream;
 import java.util.Arrays;
 import javax.annotation.CheckForNull;
@@ -79,15 +78,15 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     public static @CheckForNull BitStreamCompressor identifyCompressor(@Nonnull byte[] abHeaderBytes)
     {
         if (BitStreamUncompressor_STRv2.checkHeader(abHeaderBytes))
-            return new BitStreamUncompressor_STRv2.BitstreamCompressor_STRv2();
+            return new BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2();
         else if(BitStreamUncompressor_STRv3.checkHeader(abHeaderBytes))
-            return new BitStreamUncompressor_STRv3.BitstreamCompressor_STRv3();
+            return new BitStreamUncompressor_STRv3.BitStreamCompressor_STRv3();
         else if(BitStreamUncompressor_STRv1.checkHeader(abHeaderBytes))
             return new BitStreamUncompressor_STRv1.BitStreamCompressor_STRv1();
         else if(BitStreamUncompressor_Iki.checkHeader(abHeaderBytes))
             return new BitStreamUncompressor_Iki.BitStreamCompressor_Iki();
         else if(BitStreamUncompressor_Lain.checkHeader(abHeaderBytes))
-            return new BitStreamUncompressor_Lain.BitstreamCompressor_Lain();
+            return new BitStreamUncompressor_Lain.BitStreamCompressor_Lain();
         else
             return null;
     }
@@ -679,7 +678,9 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** Track the current Block's vector position to detect errors.  */
     private int _iCurrentBlockVectorPos;
 
+    /** Number of MDEC codes that have been read thus far. */
     private int _iMdecCodeCount;
+    /** Number of MDEC codes that have been read thus far. */
     public int getMdecCodeCount() { return _iMdecCodeCount; }
 
     protected BitStreamUncompressor(@Nonnull AcLookup lookupTable) {
@@ -707,54 +708,48 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     }
 
     /** @throws NullPointerException if {@code reset()} has not been called. */
-    final public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.Uncompress {
+    final public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.Read {
 
         assert !DEBUG || _debug.setPosition(_bitReader.getWordPosition());
 
-        try {
+        if (_blnBlockStart) {
+            assert !DEBUG || _debug.printBlock(_iCurrentMacroBlock, _iCurrentMacroBlockSubBlock);
 
-            if (_blnBlockStart) {
-                assert !DEBUG || _debug.printBlock(_iCurrentMacroBlock, _iCurrentMacroBlockSubBlock);
+            readQscaleAndDC(code);
+            _blnBlockStart = false;
+        } else {
+            int i17bits = _bitReader.peekUnsignedBits(AC_LONGEST_VARIABLE_LENGTH_CODE);
+            AcBitCode bitCode = _lookupTable.lookup(i17bits);
+            _bitReader.skipBits(bitCode.BitLength);
 
-                readQscaleAndDC(code);
-                _blnBlockStart = false;
+            if (bitCode == AcLookup.END_OF_BLOCK) {
+                // end of block
+                code.setToEndOfData();
+                _blnBlockStart = true;
+                _iCurrentBlockVectorPos = 0;
+                _iCurrentMacroBlockSubBlock++;
+                if (_iCurrentMacroBlockSubBlock >= 6) {
+                    _iCurrentMacroBlockSubBlock = 0;
+                    _iCurrentMacroBlock++;
+                }
+                assert !DEBUG || _debug.append(AcLookup.END_OF_BLOCK.BitString);
             } else {
-                int i17bits = _bitReader.peekUnsignedBits(AC_LONGEST_VARIABLE_LENGTH_CODE);
-                AcBitCode bitCode = _lookupTable.lookup(i17bits);
-                _bitReader.skipBits(bitCode.BitLength);
-
-                if (bitCode == AcLookup.END_OF_BLOCK) {
-                    // end of block
-                    code.setToEndOfData();
-                    _blnBlockStart = true;
-                    _iCurrentBlockVectorPos = 0;
-                    _iCurrentMacroBlockSubBlock++;
-                    if (_iCurrentMacroBlockSubBlock >= 6) {
-                        _iCurrentMacroBlockSubBlock = 0;
-                        _iCurrentMacroBlock++;
-                    }
-                    assert !DEBUG || _debug.append(AcLookup.END_OF_BLOCK.BitString);
+                // block continues
+                assert !DEBUG || _debug.append(bitCode.BitString);
+                if (bitCode == AcLookup.ESCAPE_CODE) {
+                    readEscapeAcCode(code);
                 } else {
-                    // block continues
-                    assert !DEBUG || _debug.append(bitCode.BitString);
-                    if (bitCode == AcLookup.ESCAPE_CODE) {
-                        readEscapeAcCode(code);
-                    } else {
-                        code.setBits(bitCode.ZeroRun, bitCode.AcCoefficient);
-                    }
-
-                    _iCurrentBlockVectorPos += code.getTop6Bits() + 1;
-                    if (_iCurrentBlockVectorPos >= 64) {
-                        throw new MdecException.Uncompress(I.RLC_OOB_IN_MB_BLOCK(_iCurrentBlockVectorPos, _iCurrentMacroBlock, _iCurrentMacroBlockSubBlock));
-                    }
+                    code.setBits(bitCode.ZeroRun, bitCode.AcCoefficient);
                 }
 
+                _iCurrentBlockVectorPos += code.getTop6Bits() + 1;
+                if (_iCurrentBlockVectorPos >= 64) {
+                    throw new MdecException.BlockVectorIndexOutOfBounds(I.RLC_OOB_IN_MB_BLOCK(_iCurrentBlockVectorPos, _iCurrentMacroBlock, _iCurrentMacroBlockSubBlock));
+                }
             }
-            
-        } catch (EOFException ex) {
-            throw new MdecException.Uncompress(ex);
-        }
 
+        }
+            
         assert !DEBUG || _debug.print(_iCurrentBlockVectorPos, code);
 
         // _blnBlockStart will be set to true if an EOB code was read
@@ -765,8 +760,9 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     final public int getBitPosition() {
         return _bitReader.getBitsRead();
     }
-    
-    public void readToEnd(int iWidth, int iHeight) throws MdecException.Read {
+
+    /** Skips macroblocks that would fit within the given dimensions. */
+    public void skipMacroBlocks(int iWidth, int iHeight) throws MdecException.Read {
         int iBlockCount = Calc.blocks(iWidth, iHeight);
 
         MdecCode code = new MdecCode();
@@ -776,17 +772,20 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
         }
     }
 
-    abstract public void skipPaddingBits() throws EOFException;
+    abstract public void skipPaddingBits() throws MdecException.EndOfStream;
 
     /** Validates the frame header and initializes for reading
      * (including resetting the bit reader to the proper start byte and endian). */
-    abstract protected void readHeader(@Nonnull byte[] abFrameData, int iDataSize, @Nonnull ArrayBitReader bitReader) throws NotThisTypeException;
+    abstract protected void readHeader(@Nonnull byte[] abFrameData, int iDataSize, @Nonnull ArrayBitReader bitReader)
+            throws NotThisTypeException;
 
     /** Read the quantization scale and DC coefficient from the bitstream. */
-    abstract protected void readQscaleAndDC(@Nonnull MdecCode code) throws MdecException.Uncompress, EOFException;
+    abstract protected void readQscaleAndDC(@Nonnull MdecCode code)
+            throws MdecException.Uncompress, MdecException.EndOfStream;
 
     /** Read an AC Coefficient escaped (zero-run, AC level) value. */
-    abstract protected void readEscapeAcCode(@Nonnull MdecCode code) throws MdecException.Uncompress, EOFException;
+    abstract protected void readEscapeAcCode(@Nonnull MdecCode code)
+            throws MdecException.Uncompress, MdecException.EndOfStream;
 
     /** Create an equivalent bitstream compressor. */
     abstract public @Nonnull BitStreamCompressor makeCompressor();

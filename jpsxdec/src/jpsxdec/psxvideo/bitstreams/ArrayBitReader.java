@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,10 +38,11 @@
 package jpsxdec.psxvideo.bitstreams;
 
 
-import java.io.EOFException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.Misc;
 
 /** A (hopefully) very fast bit reader. It can be initialized to read the bits
@@ -117,9 +118,9 @@ public class ArrayBitReader {
     }
 
     /** Reads 16-bits at the requested offset in the proper endian order. */
-    protected short readWord(int i) throws EOFException {
+    protected short readWord(int i) throws MdecException.EndOfStream {
         if (i + 1 >= _iDataSize)
-            throw new EOFException("Unexpected end of bitstream at " + i);
+            throw new MdecException.EndOfStream(I.END_OF_BITSTREAM(i));
         int b1, b2;
         if (_blnLittleEndian) {
             b1 = _abData[i  ] & 0xFF;
@@ -147,7 +148,7 @@ public class ArrayBitReader {
 
     /** Reads the requested number of bits.
      * @param iCount  expected to be from 1 to 31  */
-    public int readUnsignedBits(int iCount) throws EOFException {
+    public int readUnsignedBits(int iCount) throws MdecException.EndOfStream {
         if (iCount < 0 || iCount >= 32)
             throw new IllegalArgumentException("Bits to read are out of range " + iCount);
         if (iCount == 0)
@@ -183,7 +184,7 @@ public class ArrayBitReader {
                     _iBitsLeft = 16 - iCount;
                     iRet = (iRet << iCount) | ((_siCurrentWord & 0xFFFF) >>> _iBitsLeft);
                 }
-            } catch (EOFException ex) {
+            } catch (MdecException.EndOfStream ex) {
                 LOG.log(Level.INFO, "Bitstream is about to end", ex);
                 // _iBitsLeft will == 0
                 return iRet << iCount;
@@ -196,12 +197,12 @@ public class ArrayBitReader {
     /** Reads the requested number of bits then sets the sign 
      *  according to the highest bit.
      * @param iCount  expected to be from 0 to 31  */
-    public int readSignedBits(int iCount) throws EOFException {
+    public int readSignedBits(int iCount) throws MdecException.EndOfStream {
         return (readUnsignedBits(iCount) << (32 - iCount)) >> (32 - iCount); // extend sign bit
     }    
     
     /** @param iCount  expected to be from 1 to 31  */
-    public int peekUnsignedBits(int iCount) throws EOFException {
+    public int peekUnsignedBits(int iCount) throws MdecException.EndOfStream {
         int iSaveOffs = _iByteOffset;
         int iSaveBitsLeft = _iBitsLeft;
         short siSaveCurrentWord = _siCurrentWord;
@@ -215,11 +216,11 @@ public class ArrayBitReader {
     }
     
     /** @param iCount  expected to be from 0 to 31  */
-    public int peekSignedBits(int iCount) throws EOFException {
+    public int peekSignedBits(int iCount) throws MdecException.EndOfStream {
         return (peekUnsignedBits(iCount) << (32 - iCount)) >> (32 - iCount); // extend sign bit
     }    
     
-    public void skipBits(int iCount) throws EOFException {
+    public void skipBits(int iCount) throws MdecException.EndOfStream {
 
         _iBitsLeft -= iCount;
         if (_iBitsLeft < 0) {
@@ -230,11 +231,11 @@ public class ArrayBitReader {
             if (_iByteOffset > _iDataSize) { // clearly out of bounds
                 _iBitsLeft = 0;
                 _iByteOffset = _iDataSize;
-                throw new EOFException("Unexpected end of bitstream at " + _iByteOffset);
+                throw new MdecException.EndOfStream(I.END_OF_BITSTREAM(_iByteOffset));
             } else if (_iBitsLeft < 0) { // _iBitsLeft should be <= 0
                 if (_iByteOffset == _iDataSize) { // also out of bounds
                     _iBitsLeft = 0;
-                    throw new EOFException("Unexpected end of bitstream at " + _iByteOffset);
+                    throw new MdecException.EndOfStream(I.END_OF_BITSTREAM(_iByteOffset));
                 }
                 _iBitsLeft += 16;
                 _siCurrentWord = readWord(_iByteOffset);
@@ -245,7 +246,7 @@ public class ArrayBitReader {
 
     /** Returns a String of 1 and 0 unless at the end of the stream, then
      * returns only the remaining bits. */
-    public @Nonnull String peekBitsToString(int iCount) throws EOFException {
+    public @Nonnull String peekBitsToString(int iCount) throws MdecException.EndOfStream {
         int iBitsRemaining = getBitsRemaining();
         if (iBitsRemaining < iCount)
             return Misc.bitsToString(peekUnsignedBits(iBitsRemaining), iBitsRemaining);
@@ -255,7 +256,7 @@ public class ArrayBitReader {
 
     /** Returns a String of 1 and 0 unless at the end of the stream, then
      * returns only the remaining bits. */
-    public @Nonnull String readBitsToString(int iCount) throws EOFException {
+    public @Nonnull String readBitsToString(int iCount) throws MdecException.EndOfStream {
         int iBitsRemaining = getBitsRemaining();
         if (iBitsRemaining < iCount)
             return Misc.bitsToString(readUnsignedBits(iBitsRemaining), iBitsRemaining);

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,7 +48,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,11 +61,7 @@ import javax.swing.*;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.filechooser.FileFilter;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
-import jpsxdec.gui.GuiTree.TreeItem;
 import jpsxdec.Main;
-import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileNotFoundException;
 import jpsxdec.cdreaders.CdFileSectorReader;
@@ -74,6 +69,10 @@ import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.gui.GuiTree.TreeItem;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.Misc;
 import jpsxdec.util.NotThisTypeException;
@@ -283,7 +282,7 @@ public class Gui extends javax.swing.JFrame {
         } catch (NotThisTypeException ex) {
             JOptionPane.showMessageDialog(this, ex.getLocalizedMessage(), I.ERR_LOADING_INDEX_FILE().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
         } catch (CdFileNotFoundException ex) {
-            LocalizedMessage msg = I.GUI_UNABLE_TO_OPEN_FILE(ex.getFile());
+            ILocalizedMessage msg = I.GUI_UNABLE_TO_OPEN_FILE(ex.getFile());
             msg.log(log, Level.SEVERE, ex);
             JOptionPane.showMessageDialog(this, msg, I.GUI_FILE_NOT_FOUND().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
         } catch (FileNotFoundException ex) {
@@ -293,7 +292,7 @@ public class Gui extends javax.swing.JFrame {
             _settings.removePreviousIndex(indexFile.getAbsolutePath());
         } catch (Throwable ex) {
             ex.printStackTrace();
-            LocalizedMessage msg = I.GUI_BAD_ERROR();
+            ILocalizedMessage msg = I.GUI_BAD_ERROR();
             msg.log(log, Level.SEVERE, ex);
             JOptionPane.showMessageDialog(this, ex, msg.getLocalizedMessage(), JOptionPane.ERROR_MESSAGE);
         } finally {
@@ -367,12 +366,7 @@ public class Gui extends javax.swing.JFrame {
         try {
 
             File selection = fc.getSelectedFile();
-            PrintStream ps = new PrintStream(selection);
-            try {
-                _index.serializeIndex(ps);
-            } finally {
-                ps.close();
-            }
+            _index.serializeIndex(selection);
 
             _settings.addPreviousIndex(selection.getAbsolutePath());
 
@@ -733,7 +727,7 @@ public class Gui extends javax.swing.JFrame {
         if (type == null)
             _guiApplyAll.setText(I.GUI_APPLY_TO_ALL_BTN(new UnlocalizedMessage("")).getLocalizedMessage());
         else
-            _guiApplyAll.setText(I.GUI_APPLY_TO_ALL_BTN(type.getName()).getLocalizedMessage());
+            _guiApplyAll.setText(I.GUI_APPLY_TO_ALL_BTN(type.getApplyToName()).getLocalizedMessage());
 
         _guiSavePanel.revalidate();
         _guiSavePanel.repaint();
@@ -960,7 +954,7 @@ public class Gui extends javax.swing.JFrame {
             String sMsg = ex.getLocalizedMessage();
             if (sMsg == null)
                 sMsg = ex.getMessage();
-            LocalizedMessage popup;
+            ILocalizedMessage popup;
             if (sMsg == null)
                 popup = I.GUI_ERR_OPENING(_sCommandLineFile);
             else

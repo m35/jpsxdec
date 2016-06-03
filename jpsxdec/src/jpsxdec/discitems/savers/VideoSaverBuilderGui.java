@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,9 +50,9 @@ import javax.swing.JTextArea;
 import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
 import jpsxdec.util.Fraction;
 
@@ -185,7 +185,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
     private abstract class AbstractDiscSpeed extends ToggleButtonModel implements ChangeListener {
         final JRadioButton __btn = new JRadioButton();
         boolean __prev = isSelected();
-        public AbstractDiscSpeed(@Nonnull LocalizedMessage label) {
+        public AbstractDiscSpeed(@Nonnull ILocalizedMessage label) {
             __btn.setText(label.getLocalizedMessage());
             __btn.setModel(this);
             _topPanel.add(__btn);

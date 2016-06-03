@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,11 +41,11 @@ import argparser.ArgParser;
 import argparser.BooleanHolder;
 import argparser.StringHolder;
 import java.awt.BorderLayout;
-import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
@@ -54,11 +54,8 @@ import javax.imageio.ImageIO;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.swing.JButton;
-import javax.swing.JFrame;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
-import jpsxdec.i18n.I;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.Version;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAudioStream;
@@ -68,10 +65,13 @@ import jpsxdec.discitems.DiscItemTim;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.DiscItemXaAudioStream;
 import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.ConsoleProgressListenerLogger;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
@@ -90,7 +90,7 @@ class Command_Items {
         public Command_Item() {
             super("-i,-item");
         }
-        protected @CheckForNull LocalizedMessage validate(@Nonnull String s) {
+        protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
             try {
                 _iItemNum = Integer.parseInt(s);
                 if (_iItemNum < 0)
@@ -132,24 +132,8 @@ class Command_Items {
     {
         controller.start();
 
-        final JFrame window = new JFrame(I.JPSXDEC_PLAYER_WIN_TITLE_POSTFIX(Version.Version).getLocalizedMessage());
-
-        window.addWindowListener(new java.awt.event.WindowAdapter() {
-
-            @Override
-            public void windowClosing(WindowEvent e) {
-                synchronized( window ) {
-                    window.notifyAll();
-                }
-            }
-
-            @Override
-            public void windowClosed( java.awt.event.WindowEvent e ) {
-                synchronized( window ) {
-                    window.notifyAll();
-                }
-            }
-        });
+        final JDialog window = new JDialog();
+        window.setTitle(I.JPSXDEC_PLAYER_WIN_TITLE_POSTFIX(Version.Version).getLocalizedMessage());
 
         window.add(new JLabel(item.toString()), BorderLayout.NORTH);
 
@@ -162,7 +146,7 @@ class Command_Items {
                 } catch (Throwable ex) {
                     fbs.printlnErr(ex);
                     synchronized( window ) {
-                        window.notifyAll();
+                        window.dispose();
                     }
                 }
             }
@@ -176,11 +160,14 @@ class Command_Items {
         window.pack();
 
         window.setLocationRelativeTo(null); // center window
-
-        window.setVisible(true);
-
-        synchronized (window) {
-            window.wait();
+        try {
+            java.awt.EventQueue.invokeAndWait(new Runnable() {
+                public void run() {
+                    window.setVisible(true);
+                }
+            });
+        } catch (InvocationTargetException ex) {
+            LOG.log(Level.SEVERE, null, ex);
         }
 
         controller.stop();
@@ -195,7 +182,7 @@ class Command_Items {
         public Command_All() {
             super("-a,-all");
         }
-        protected @CheckForNull LocalizedMessage validate(@Nonnull String s) {
+        protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
             _sType = s;
             return null;
         }
@@ -315,7 +302,7 @@ class Command_Items {
                     try {
                         ((DiscItemVideoStream)item).replaceFrames(fbs, replaceFrames.value);
                     } catch (MdecException ex) {
-                        Logger.getLogger(Command_Items.class.getName()).log(Level.SEVERE, null, ex);
+                        LOG.log(Level.SEVERE, null, ex);
                     }
                 }
             } else if (replaceTim.value != null) {
@@ -375,6 +362,8 @@ class Command_Items {
                 fbs.println(I.CMD_PROCESS_COMPLETE());
             }
 
+        } catch (CommandLineException ex) {
+            throw ex;
         } catch (NotThisTypeException ex) {
             throw new CommandLineException(ex);
         } catch (IncompatibleException ex) {
@@ -383,6 +372,10 @@ class Command_Items {
             throw new CommandLineException(ex);
         } catch (UnsupportedAudioFileException ex) {
             throw new CommandLineException(ex);
+        } catch (Throwable ex) {
+            ILocalizedMessage msg = I.CMD_ERR_EX_CLASS(ex, ex.getClass().getSimpleName());
+            msg.log(cpll, Level.SEVERE, ex);
+            throw new CommandLineException(msg, ex);
         }
     }
 
@@ -416,7 +409,7 @@ class Command_Items {
             LOG.log(Level.SEVERE, "SHOULD NEVER HAPPEN", ex);
         }
         lngEnd = System.currentTimeMillis();
-        fbs.println(I.CMD_PROCESS_TIME((lngEnd - lngStart) / 1000.0));
+        fbs.println(I.PROCESS_TIME((lngEnd - lngStart) / 1000.0));
     }
 
 }

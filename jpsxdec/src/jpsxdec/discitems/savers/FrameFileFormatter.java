@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.FrameNumberFormat;
 import jpsxdec.discitems.FrameNumber;
+import jpsxdec.discitems.FrameNumberFormat;
 import jpsxdec.discitems.FrameNumberFormatter;
 
 /** Generates video filenames. */

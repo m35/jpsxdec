@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,18 +49,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.discitems.savers.VideoSaverBuilderStr;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.Maths;
 import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.player.PlayController;
 
-/** Represents all variations of PlayStation video streams. */
+/** Represents sector-based PlayStation video streams. */
 public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
 
     private static final Logger LOG = Logger.getLogger(DiscItemStrVideoStream.class.getName());
@@ -240,7 +241,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     @Override
-    public @Nonnull LocalizedMessage getInterestingDescription() {
+    public @Nonnull ILocalizedMessage getInterestingDescription() {
         int iDiscSpeed = getDiscSpeed();
         int iFrameCount = getFrameCount();
         if (iDiscSpeed > 0) {
@@ -389,15 +390,13 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
         ISectorFrameDemuxer demuxer = makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
             public void frameComplete(IDemuxedFrame frame) throws IOException {
-                // for this disc item these must be DemuxedStrFrame
-                DemuxedStrFrame strFrame = (DemuxedStrFrame) frame;
-                ps.println((strFrame.getStartSector()-getStartSector())+"-"+
-                           (strFrame.getPresentationSector()-getStartSector()));
+                ps.println((frame.getStartSector()-getStartSector())+"-"+
+                           (frame.getEndSector()-getStartSector()));
             }
         });
-        final int LENGTH = getSectorLength();
-        for (int iSector = 0; iSector < LENGTH; iSector++) {
-            IdentifiedSector isect = getRelativeIdentifiedSector(iSector);
+        IdentifiedSectorIterator it = identifiedSectorIterator();
+        while (it.hasNext()) {
+            IdentifiedSector isect = it.next();
             if (isect != null)
                 demuxer.feedSector(isect, LOG);
         }

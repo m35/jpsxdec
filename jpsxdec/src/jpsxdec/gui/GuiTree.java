@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,8 +59,6 @@ import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemISO9660File;
@@ -68,6 +66,8 @@ import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemTim;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.player.PlayController;
 import org.jdesktop.swingx.JXTreeTable;
@@ -98,9 +98,9 @@ public class GuiTree extends JXTreeTable {
         ALL_IMAGES(I.GUI_SELECT_ALL_IMAGES());
 
         @Nonnull
-        private final LocalizedMessage _str;
+        private final ILocalizedMessage _str;
 
-        private Select(@Nonnull LocalizedMessage str) { _str = str; }
+        private Select(@Nonnull ILocalizedMessage str) { _str = str; }
 
         /** {@inheritDoc}
          *<p>
@@ -198,7 +198,7 @@ public class GuiTree extends JXTreeTable {
         },
         Details(String.class, I.GUI_TREE_DETAILS_COLUMN()) {
             String val(TreeItem item) { 
-                LocalizedMessage details = item.getDetails();
+                ILocalizedMessage details = item.getDetails();
                 return details == null ? null : details.getLocalizedMessage();
             }
         };
@@ -206,8 +206,8 @@ public class GuiTree extends JXTreeTable {
         @Nonnull
         private final Class _type;
         @Nonnull
-        private final LocalizedMessage _str;
-        private COLUMNS(@Nonnull Class type, @Nonnull LocalizedMessage str) {
+        private final ILocalizedMessage _str;
+        private COLUMNS(@Nonnull Class type, @Nonnull ILocalizedMessage str) {
             _type = type;
             _str = str;
         }
@@ -269,7 +269,7 @@ public class GuiTree extends JXTreeTable {
         abstract public @CheckForNull DiscItemSaverBuilder getBuilder();
         abstract public @Nonnull String getIndexNum();
         abstract public @CheckForNull DiscItem.GeneralType getType();
-        abstract public @CheckForNull LocalizedMessage getDetails();
+        abstract public @CheckForNull ILocalizedMessage getDetails();
         abstract public @Nonnull String getSectorRange();
 
         abstract public boolean canPlay();
@@ -321,7 +321,7 @@ public class GuiTree extends JXTreeTable {
             return "[ROOT]";
         }
         @Override
-        public LocalizedMessage getDetails() { return null; }
+        public ILocalizedMessage getDetails() { return null; }
         @Override
         public String getIndexNum() { return ""; }
         @Override
@@ -418,7 +418,7 @@ public class GuiTree extends JXTreeTable {
         }
 
         @Override
-        public @Nonnull LocalizedMessage getDetails() {
+        public @Nonnull ILocalizedMessage getDetails() {
             return _item.getInterestingDescription();
         }
 

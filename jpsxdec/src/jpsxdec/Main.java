@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,11 +50,13 @@ public class Main {
     private static final Logger LOG = Logger.getLogger(Main.class.getName());
 
     public static void loadDefaultLogger() {
-        loadLogger("LogToFile.properties");
+        loadLogger(Main.class, "LogToFile.properties");
     }
 
-    public static void loadLogger(@Nonnull String sLogFileResource) {
-        InputStream is = Main.class.getResourceAsStream(sLogFileResource);
+    public static void loadLogger(@Nonnull Class referenceClass, 
+                                  @Nonnull String sLogFileResource)
+    {
+        InputStream is = referenceClass.getResourceAsStream(sLogFileResource);
         if (is != null) {
             try { // load the logger configuration
                 java.util.logging.LogManager.getLogManager().readConfiguration(is);

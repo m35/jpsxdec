@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -81,6 +81,8 @@ import jpsxdec.util.Misc;
  */
 public abstract class XaAdpcmDecoder {
 
+    private static final Logger LOG = Logger.getLogger(XaAdpcmDecoder.class.getName());
+
     /**
      * Creates a XA ADPCM decoder for the supplied input format
      * (bits/sample and stereo) and writes the decoded PCM audio with the
@@ -130,10 +132,10 @@ public abstract class XaAdpcmDecoder {
     @Nonnull
     private final AdpcmSoundGroup _soundGroup;
 
-    /** Number of ADPCM sample frames read from the input.
+    /** Number of PCM sample frames written to output.
      * Only incremented once for stereo. Used to help find where in the output
      * stream to look for corruption. */
-    protected long _lngSamplesRead = 0;
+    protected long _lngSamplesWritten = 0;
     
     private XaAdpcmDecoder(int iBitsPerSample) {
         // create one sound group to handle the decoding process
@@ -145,33 +147,44 @@ public abstract class XaAdpcmDecoder {
             throw new IllegalArgumentException("Invalid bits per sample.");
     }
 
-    /** Temporarily stores a logger to log errors when decoding. */
-    @CheckForNull
-    private Logger _log;
+    /** Set if the last decode process found corruption. */
+    private boolean _blnHadCorruption = false;
     /** Temporarily stores a source sector number for log purposes. */
     private int _iSourceSector = -1;
 
     /** Decodes a sector's worth of ADPCM data.
      *  Reads 2304 bytes and writes either 4032 or 8064 bytes.  */
     public void decode(@Nonnull InputStream inStream, @Nonnull OutputStream out,
-                       @CheckForNull Logger log, int iSourceSector)
+                       int iSourceSector)
             throws IOException
     {
+        _blnHadCorruption = false;
         // There are 18 sound groups,
         // each having  16 bytes of interleaved sound parameters,
         //         and 112 bytes of interleaved ADPCM data
         // ( 18*(16+112) = 2304 bytes will be read )
         try {
-            _log = log;
             _iSourceSector = iSourceSector;
             for (int iSoundGroup = 0; iSoundGroup < ADPCM_SOUND_GROUPS_PER_SECTOR; iSoundGroup++) {
                 _soundGroup.readSoundGroup(inStream);
                 adpcmSoundGroupToPcm(_soundGroup, out);
             }
         } finally {
-            _log = null;
             _iSourceSector = -1;
         }
+    }
+
+    /** Returns if the last call to
+     * {@link #decode(java.io.InputStream, java.io.OutputStream, int)}
+     * encountered corruption in the sound parameters. */
+    public boolean hadCorruption() {
+        return _blnHadCorruption;
+    }
+
+    /** Returns the number of PCM sample frames written to the output stream
+     * (i.e. a stereo sample frame is only 1 sample frame). */
+    public long getSamplesWritten() {
+        return _lngSamplesWritten;
     }
 
     /** Finishes converting the ADPCM samples to PCM and writes them to the buffer. */
@@ -209,7 +222,7 @@ public abstract class XaAdpcmDecoder {
 
         @Override
         public void resetContext() {
-            _lngSamplesRead = 0;
+            _lngSamplesWritten = 0;
             _monoContext.reset();
         }
 
@@ -235,7 +248,7 @@ public abstract class XaAdpcmDecoder {
         {
             for (int iSoundUnitIdx = 0; iSoundUnitIdx < soundGroup.getSoundUnitCount(); iSoundUnitIdx++) {
                 AdpcmSoundUnit soundUnit = soundGroup.getSoundUnit(iSoundUnitIdx);
-                for (int iSample = 0; iSample < AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT; iSample++) {
+                for (int iSample = 0; iSample < AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT; iSample++, _lngSamplesWritten++) {
                     IO.writeInt16LE(out, soundUnit.readPCMSample(_monoContext));
                 }
             }
@@ -265,7 +278,7 @@ public abstract class XaAdpcmDecoder {
 
         @Override
         public void resetContext() {
-            _lngSamplesRead = 0;
+            _lngSamplesWritten = 0;
             _leftContext.reset();
             _rightContext.reset();
         }
@@ -294,7 +307,7 @@ public abstract class XaAdpcmDecoder {
             for (int iSoundUnitIdx = 0; iSoundUnitIdx < soundGroup.getSoundUnitCount(); iSoundUnitIdx+=2) {
                 AdpcmSoundUnit leftSoundUnit  = soundGroup.getSoundUnit(iSoundUnitIdx  );
                 AdpcmSoundUnit rightSoundUnit = soundGroup.getSoundUnit(iSoundUnitIdx+1);
-                for (int iSample = 0; iSample < AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT; iSample++) {
+                for (int iSample = 0; iSample < AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT; iSample++, _lngSamplesWritten++) {
                     IO.writeInt16LE(out,  leftSoundUnit.readPCMSample(_leftContext ));
                     IO.writeInt16LE(out, rightSoundUnit.readPCMSample(_rightContext));
                 }
@@ -386,7 +399,7 @@ public abstract class XaAdpcmDecoder {
             // de-interleave the sound units
             for (int iSampleIdx = 0; 
                  iSampleIdx < AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT;
-                 iSampleIdx++, _lngSamplesRead++)
+                 iSampleIdx++)
             {
                 // read a sample for each of the 4 sound units
                 for (int iSoundUnit = 0; iSoundUnit < 4;  iSoundUnit++) {
@@ -445,7 +458,7 @@ public abstract class XaAdpcmDecoder {
             // de-interleave the sound units
             for (int iSampleIdx = 0; 
                  iSampleIdx < AdpcmSoundUnit.SAMPLES_PER_SOUND_UNIT;
-                 iSampleIdx++, _lngSamplesRead++)
+                 iSampleIdx++)
             {
                 // read a sample for each of the 8 sound units
                 for (int iSoundUnit = 0; iSoundUnit < 8;)
@@ -603,18 +616,24 @@ public abstract class XaAdpcmDecoder {
             int iChosen = _uniqueParameters.get(0).getValue();
             // also corruption if the first one is bad
             blnCorruption = blnCorruption || !_uniqueParameters.get(0).isValid();
-            if (blnCorruption && _log != null) {
+            if (blnCorruption) {
                 // corruption!
-                I.XA_SOUND_PARAMETER_CORRUPTED(
-                    _iSourceSector,
-                    _aoParameterPool[0].getValue(), _aoParameterPool[0].isValid() ? 1 : 0,
-                    _aoParameterPool[1].getValue(), _aoParameterPool[1].isValid() ? 1 : 0,
-                    _aoParameterPool[2].getValue(), _aoParameterPool[2].isValid() ? 1 : 0,
-                    _aoParameterPool[3].getValue(), _aoParameterPool[3].isValid() ? 1 : 0,
-                    iChosen,
-                    _lngSamplesRead
-                ).log(_log, Level.WARNING);
+                _blnHadCorruption = true;
+                StringBuilder sb = new StringBuilder();
+                sb.append("Sector ").append(_iSourceSector).append(" sound parameter corrupted: [");
+                for (int i = 0; i < 4; i++) {
+                    if (i != 0)
+                        sb.append(", ");
+                    sb.append(_aoParameterPool[i].getValue());
+                    if (!_aoParameterPool[i].isValid())
+                        sb.append(" (bad)");
+                }
+                // TODO: include the sound group/unit with the bad parameter
+                sb.append("]. Chose ").append(iChosen).append(". Affects samples starting at ")
+                                                      .append(_lngSamplesWritten).append('.');
+                LOG.log(Level.WARNING, sb.toString());
             }
+
             _uniqueParameters.clear();
             _iPoolIndex = 0;
             return iChosen;

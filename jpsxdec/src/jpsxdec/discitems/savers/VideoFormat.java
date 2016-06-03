@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2015  Michael Sabin
+ * Copyright (C) 2012-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,9 +41,9 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.formats.JavaImageFormat;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 
 
 public enum VideoFormat {
@@ -102,18 +102,18 @@ public enum VideoFormat {
 
     /** How the format will be displayed in the GUI. */
     @Nonnull
-    private final LocalizedMessage _guiName;
+    private final ILocalizedMessage _guiName;
     /** How the format will be displayed on the command line. */
     @Nonnull
-    private final LocalizedMessage _cmdLineId;
+    private final ILocalizedMessage _cmdLineId;
     @CheckForNull
     private final JavaImageFormat _eImgFmt;
 
-    private VideoFormat(@Nonnull LocalizedMessage description, @Nonnull LocalizedMessage cmdLine) {
+    private VideoFormat(@Nonnull ILocalizedMessage description, @Nonnull ILocalizedMessage cmdLine) {
         this(description, cmdLine, null);
     }
 
-    private VideoFormat(@Nonnull LocalizedMessage description, @Nonnull LocalizedMessage cmdLine,
+    private VideoFormat(@Nonnull ILocalizedMessage description, @Nonnull ILocalizedMessage cmdLine,
                         @CheckForNull JavaImageFormat imgFormat)
     {
         _guiName = description;
@@ -125,7 +125,7 @@ public enum VideoFormat {
      *<p>
      *  Must be localized because this object is used directly. */
     public String toString() { return _guiName.getLocalizedMessage(); }
-    public @Nonnull LocalizedMessage getCmdLine() { return _cmdLineId; }
+    public @Nonnull ILocalizedMessage getCmdLine() { return _cmdLineId; }
     public boolean isAvailable() {
         return _eImgFmt == null ? true : _eImgFmt.isAvailable();
     }

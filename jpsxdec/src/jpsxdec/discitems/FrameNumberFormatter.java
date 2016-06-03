@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,7 +43,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
+import jpsxdec.i18n.ILocalizedMessage;
 
 /** Formats a {@link FrameNumber} for consistent display.
  * Adds padding zeros as needed to consistently keep the same character length.
@@ -53,7 +53,7 @@ public abstract class FrameNumberFormatter {
 
     abstract public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log);
     abstract public @Nonnull String getNumber(@Nonnull FrameNumber frameNumber);
-    abstract public @Nonnull LocalizedMessage getDescription(@Nonnull FrameNumber frameNumber);
+    abstract public @Nonnull ILocalizedMessage getDescription(@Nonnull FrameNumber frameNumber);
 
     static class Index extends FrameNumberFormatter {
         @Nonnull
@@ -74,7 +74,7 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public @Nonnull LocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
+        public @Nonnull ILocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
             return I.FRM_NUM_FMTR_FRAME(getNumber(frameNumber));
         }
     }
@@ -118,7 +118,7 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public @Nonnull LocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
+        public @Nonnull ILocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
             return I.FRM_NUM_FMTR_SECTOR(getNumber(frameNumber));
         }
     }
@@ -162,7 +162,7 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public @Nonnull LocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
+        public @Nonnull ILocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
             return I.FRM_NUM_FMTR_FRAME(getNumber(frameNumber));
         }
     }

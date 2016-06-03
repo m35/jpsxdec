@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,8 +40,8 @@ package jpsxdec.gui;
 import java.io.File;
 import javax.annotation.Nonnull;
 import javax.swing.filechooser.FileFilter;
-import jpsxdec.i18n.I;
 import jpsxdec.gui.BetterFileChooser.SaveFileFilter;
+import jpsxdec.i18n.I;
 
 
 public class GuiFileFilters {

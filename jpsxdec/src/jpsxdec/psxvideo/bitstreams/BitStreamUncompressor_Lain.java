@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,13 +37,11 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import java.io.EOFException;
-import java.io.IOException;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
 import jpsxdec.discitems.FrameNumber;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2.BitstreamCompressor_STRv2;
+import jpsxdec.i18n.I;
+import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.MdecException;
@@ -248,7 +246,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     }
 
     @Override
-    protected void readQscaleAndDC(@Nonnull MdecCode code) throws EOFException {
+    protected void readQscaleAndDC(@Nonnull MdecCode code) throws MdecException.EndOfStream {
         code.setBottom10Bits( _bitReader.readSignedBits(10) );
         assert !DEBUG || _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10));
         if (getCurrentMacroBlockSubBlock() < 2)
@@ -259,7 +257,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
 
     
-    protected void readEscapeAcCode(@Nonnull MdecCode code) throws EOFException
+    protected void readEscapeAcCode(@Nonnull MdecCode code) throws MdecException.EndOfStream
     {
 
         int iBits = _bitReader.readUnsignedBits(6+8);
@@ -366,8 +364,8 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
 
     @Override
-    public @Nonnull BitstreamCompressor_Lain makeCompressor() {
-        return new BitstreamCompressor_Lain();
+    public @Nonnull BitStreamCompressor_Lain makeCompressor() {
+        return new BitStreamCompressor_Lain();
     }
 
     // =========================================================================
@@ -376,7 +374,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
      * Most are around the 1.0-2.0 range. */
     private static final double LUMA_TO_CHROMA_RATIO = 2.0;
 
-    public static class BitstreamCompressor_Lain extends BitstreamCompressor_STRv2 {
+    public static class BitStreamCompressor_Lain extends BitStreamCompressor_STRv2 {
 
         @Override
         public @CheckForNull byte[] compressFull(@Nonnull byte[] abOriginal,
@@ -471,20 +469,16 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         }
 
         @Override
-        protected void validateQscale(int iBlock, int iQscale) throws MdecException.Compress {
+        protected void setBlockQscale(int iBlock, int iQscale) throws MdecException.Compress {
             if (iBlock < 2) {
-                if (_iChromaQscale < 0) {
+                if (_iChromaQscale < 0)
                     _iChromaQscale = iQscale;
-                    if (_iChromaQscale < 1 || _iChromaQscale > 63)
-                        throw new MdecException.Compress(I.INVALID_CHROMA_QSCALE(_iChromaQscale));
-                } else if (_iChromaQscale != iQscale)
+                else if (_iChromaQscale != iQscale)
                     throw new MdecException.Compress(I.INCONSISTENT_CHROMA_QSCALE(_iChromaQscale, iQscale));
             } else {
-                if (_iLumaQscale < 0) {
+                if (_iLumaQscale < 0)
                     _iLumaQscale = iQscale;
-                    if (_iLumaQscale < 1 || _iLumaQscale > 63)
-                        throw new MdecException.Compress(I.INVALID_LUMA_QSCALE(_iLumaQscale));
-                } else if (_iLumaQscale != iQscale)
+                else if (_iLumaQscale != iQscale)
                     throw new MdecException.Compress(I.INCONSISTENT_LUMA_QSCALE(_iLumaQscale, iQscale));
             }
         }
@@ -522,7 +516,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
         @Override
         protected @Nonnull String encodeAcEscape(@Nonnull MdecCode code)
-                throws MdecException.Compress
+                throws MdecException.TooMuchEnergyToCompress
         {
             String sTopBits = Misc.bitsToString(code.getTop6Bits(), 6);
             if (code.getBottom10Bits() == 0)
@@ -541,7 +535,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         }
 
         @Override
-        protected void addTrailingBits(BitStreamWriter bitStream) throws IOException {
+        protected void addTrailingBits(BitStreamWriter bitStream) {
             // do nothing
         }
 

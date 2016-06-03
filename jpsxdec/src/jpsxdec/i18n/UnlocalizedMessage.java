@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015  Michael Sabin
+ * Copyright (C) 2015-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,17 +45,15 @@ import javax.annotation.Nonnull;
  * Some strings (primarily file paths) need to be presented to the user, but
  * cannot or should not be localized. This represents those kinds of strings.
  */
-public class UnlocalizedMessage extends LocalizedMessage {
+public class UnlocalizedMessage implements ILocalizedMessage {
 
     @Nonnull
     private final String _sMessage;
 
     public UnlocalizedMessage(@Nonnull String sMessage) {
-        super(null, null);
         _sMessage = sMessage;
     }
 
-    @Override
     public boolean equalsIgnoreCase(String s) {
         return _sMessage.equalsIgnoreCase(s);
     }
@@ -80,22 +78,18 @@ public class UnlocalizedMessage extends LocalizedMessage {
         return _sMessage;
     }
 
-    @Override
     public String getLocalizedMessage() {
         return _sMessage;
     }
 
-    @Override
     public String getEnglishMessage() {
         return _sMessage;
     }
 
-    @Override
     public void log(Logger log, Level level, Throwable ex) {
         log.log(level, _sMessage, ex);
     }
 
-    @Override
     public void log(Logger log, Level level) {
         log.log(level, _sMessage);
     }

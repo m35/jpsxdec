@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,7 +45,7 @@ public abstract class MdecInputStream {
      * 
      *  @return  true if the EOD code is read. */
     public abstract boolean readMdecCode(MdecCode code)
-            throws MdecException;
+            throws MdecException.Read;
 
     /** 16-bit MDEC code indicating the end of a block. 
      * The equivalent MDEC value is (63, -512). */
@@ -101,7 +101,7 @@ public abstract class MdecInputStream {
      *  not a {@link #MDEC_END_OF_DATA} code (0xFE00), then the top 6 bits indicate
      *  the number of zeros preceeding an "alternating current" (AC) coefficient,
      *  with the bottom 10 bits indicating a (usually) non-zero AC coefficient.  */
-    public static class MdecCode implements Cloneable {
+    public static class MdecCode {
 
         /** Most significant 6 bits of the 16-bit MDEC code.
          * Holds either a block's quantization scale or the
@@ -114,8 +114,11 @@ public abstract class MdecInputStream {
          * a non-zero AC coefficient. */
         private int _iBottom10Bits;
 
-        /** Generic constructor */
-        public MdecCode() {}
+        /** Initializes to (0, 0). */
+        public MdecCode() {
+            _iTop6Bits = 0;
+            _iBottom10Bits = 0;
+        }
 
         public MdecCode(int iTop6Bits, int iBottom10Bits) {
             if (!validTop(iTop6Bits))
@@ -209,8 +212,7 @@ public abstract class MdecInputStream {
             return iBottom10Bits >= -512 && iBottom10Bits <= 511;
         }
 
-        @Override
-        public MdecCode clone() {
+        public MdecCode copy() {
             return new MdecCode(_iTop6Bits, _iBottom10Bits);
         }
 

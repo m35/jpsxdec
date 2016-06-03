@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,13 +39,14 @@ package jpsxdec.cmdline;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.cdreaders.CdSector;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.sectors.IdentifiedSectorIterator;
 
 
 class Command_SectorDump extends Command {
@@ -57,7 +58,7 @@ class Command_SectorDump extends Command {
         super("-sectordump");
     }
 
-    protected @CheckForNull LocalizedMessage validate(@Nonnull String s) {
+    protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         _sOutfile = s;
         return null;
     }
@@ -72,15 +73,18 @@ class Command_SectorDump extends Command {
             } else {
                 ps = new PrintStream(_sOutfile);
             }
-            for (int i = 0; i < cdReader.getLength(); i++) {
-                CdSector cdSect = cdReader.getSector(i);
-                IdentifiedSector idSect = IdentifiedSector.identifySector(cdSect);
-                if (idSect != null) {
-                    String s = idSect.toString();
-                    ps.println(s);
-                } else {
-                    ps.println(cdSect.toString());
-                }
+            SectorCounter counter = new SectorCounter();
+            IdentifiedSectorIterator it = IdentifiedSectorIterator.create(cdReader);
+            while (it.hasNext()) {
+                IdentifiedSector idSect = it.next();
+                if (idSect != null)
+                    ps.println(idSect);
+                else
+                    ps.println(it.currentCd());
+                counter.increment(idSect);
+            }
+            for (Map.Entry<String, Integer> entry : counter) {
+                ps.println(entry.getKey() + " " + entry.getValue());
             }
         } catch (IOException ex) {
             throw new CommandLineException(ex);

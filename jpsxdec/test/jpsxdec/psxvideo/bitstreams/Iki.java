@@ -38,7 +38,6 @@
 package jpsxdec.psxvideo.bitstreams;
 
 import java.util.Arrays;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Iki;
 import org.junit.*;
 import static org.junit.Assert.*;
 

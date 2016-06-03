@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2015  Michael Sabin
+ * Copyright (C) 2012-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,16 +37,18 @@
 
 package jpsxdec.indexing;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.CrusaderDemuxer;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemCrusader;
-import jpsxdec.discitems.FrameNumberFormat;
-import jpsxdec.discitems.FrameNumber;
+import jpsxdec.discitems.IDemuxedFrame;
+import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorCrusader;
@@ -56,59 +58,106 @@ import jpsxdec.util.NotThisTypeException;
 /** Identify Crusader: No Remorse audio/video streams. */
 public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Identified {
 
-    private static class VideoStreamIndex extends AbstractVideoStreamIndex<DiscItemCrusader> {
+    /** Tracks a single video stream. Object dies with stream ends. */
+    private static class VidBuilder implements ISectorFrameDemuxer.ICompletedFrameListener {
+        @Nonnull
+        private final Logger _errLog;
 
-        public VideoStreamIndex(@Nonnull CdFileSectorReader cd, @Nonnull Logger errLog,
-                                @Nonnull SectorCrusader vidSect)
+        /** Don't need {@link FullFrameTracker} since the {@link #_demuxer} will
+         * track most of it for us, and its start/end sectors will include
+         * the audio. */
+        @CheckForNull
+        private MiniFrameTracker _frameTracker;
+        private final CrusaderDemuxer _demuxer = new CrusaderDemuxer();
+
+
+        public VidBuilder(@Nonnull Logger errLog,
+                          @Nonnull SectorCrusader vidSect)
         {
-            super(cd, errLog, vidSect, false, new CrusaderDemuxer());
+            _errLog = errLog;
+            _demuxer.setFrameListener(this);
+
+            try {
+                if (!_demuxer.feedSector(vidSect, _errLog))
+                    throw new RuntimeException("Why wasn't the sector accepted?");
+            } catch (IOException ex) {
+                // we know where the completed frames are going
+                // so this should never happen
+                throw new RuntimeException("Should never happen", ex);
+            }
         }
 
-        @Override
-        protected @Nonnull DiscItemCrusader createVideo(int iStartSector, int iEndSector,
-                                                        int iWidth, int iHeight,
-                                                        int iFrameCount,
-                                                        @Nonnull FrameNumberFormat frameNumberFormat,
-                                                        @Nonnull FrameNumber startFrame,
-                                                        @Nonnull FrameNumber lastSeenFrameNumber,
-                                                        int iSectors, int iPerFrame,
-                                                        int iFrame1PresentationSector)
-        {
-            return new DiscItemCrusader(_cd, iStartSector, iEndSector,
-                                        iWidth, iHeight,
-                                        iFrameCount,
-                                        frameNumberFormat,
-                                        startFrame, lastSeenFrameNumber);
+        public boolean feedSector(@Nonnull SectorCrusader vidSect) {
+
+            try {
+                if (!_demuxer.feedSector(vidSect, _errLog))
+                    return false;
+            } catch (IOException ex) {
+                // we know where the completed frames are going
+                // so this should never happen
+                throw new RuntimeException("Should never happen", ex);
+            }
+
+            return true;
         }
 
+        // [implements ICompletedFrameListener]
+        public void frameComplete(@Nonnull IDemuxedFrame frame) {
+            if (_frameTracker == null)
+                _frameTracker = new MiniFrameTracker(frame.getFrame());
+            else
+                _frameTracker.next(frame.getFrame());
+        }
+
+        public @CheckForNull DiscItemCrusader endOfMovie(@Nonnull CdFileSectorReader cd) {
+            try {
+                _demuxer.flush(_errLog);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+
+            if (_frameTracker == null)
+                return null;
+
+            return new DiscItemCrusader(cd, 
+                    _demuxer.getStartSector(), _demuxer.getEndSector(),
+                    _demuxer.getWidth(), _demuxer.getHeight(),
+                    _frameTracker.getFrameCount(),
+                    _frameTracker.getFormat(),
+                    _frameTracker.getStartFrame(),
+                    _frameTracker.getEndFrame());
+        }
     }
+    
 
     @Nonnull
     private final Logger _errLog;
     @CheckForNull
-    private VideoStreamIndex _currentStream;
+    private VidBuilder _currentStream;
 
     public DiscIndexerCrusader(@Nonnull Logger errLog) {
         _errLog = errLog;
     }
 
-    public void indexingSectorRead(@Nonnull IdentifiedSector identifiedSector) {
-        if (!(identifiedSector instanceof SectorCrusader))
+    public void indexingSectorRead(@Nonnull CdSector cdSector,
+                                   @CheckForNull IdentifiedSector idSector)
+    {
+        if (!(idSector instanceof SectorCrusader))
             return;
 
-        SectorCrusader vidSect = (SectorCrusader)identifiedSector;
+        SectorCrusader vidSect = (SectorCrusader)idSector;
 
         if (_currentStream != null) {
-            boolean blnAccepted = _currentStream.sectorRead(vidSect);
+            boolean blnAccepted = _currentStream.feedSector(vidSect);
             if (!blnAccepted) {
-                DiscItemCrusader vid = _currentStream.endOfMovie();
+                DiscItemCrusader vid = _currentStream.endOfMovie(getCd());
                 if (vid != null)
                     super.addDiscItem(vid);
                 _currentStream = null;
             }
         }
         if (_currentStream == null) {
-            _currentStream = new VideoStreamIndex(getCd(), _errLog, vidSect);
+            _currentStream = new VidBuilder(_errLog, vidSect);
         }
 
     }
@@ -116,7 +165,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
     @Override
     public void indexingEndOfDisc() {
         if (_currentStream != null) {
-            DiscItemCrusader vid = _currentStream.endOfMovie();
+            DiscItemCrusader vid = _currentStream.endOfMovie(getCd());
             if (vid != null)
                 super.addDiscItem(vid);
             _currentStream = null;
@@ -124,7 +173,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
     }
 
     @Override
-    public void listPostProcessing(Collection<DiscItem> allItems) {
+    public void listPostProcessing(@Nonnull Collection<DiscItem> allItems) {
     }
 
     @Override
@@ -138,7 +187,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
     }
 
     @Override
-    public void indexGenerated(DiscIndex index) {
+    public void indexGenerated(@Nonnull DiscIndex index) {
     }
 
 }

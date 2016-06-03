@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2016  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,10 +44,10 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedMessage;
 import jpsxdec.audio.SquareAdpcmDecoder;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.ExposedBAOS;
@@ -152,7 +152,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     }
 
     @Override
-    public @Nonnull LocalizedMessage getInterestingDescription() {
+    public @Nonnull ILocalizedMessage getInterestingDescription() {
         long lngSampleCount = _lngLeftSampleCount > _lngRightSampleCount ?
                               _lngLeftSampleCount : _lngRightSampleCount;
         // unable to find ANY sources of info about how to localize durations
@@ -257,8 +257,8 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             return DiscItemSquareAudioStream.this.getPresentationStartSector();
         }
 
-        public @Nonnull LocalizedMessage[] getAudioDetails() {
-            return new LocalizedMessage[] { DiscItemSquareAudioStream.this.getDetails() };
+        public @Nonnull ILocalizedMessage[] getAudioDetails() {
+            return new ILocalizedMessage[] { DiscItemSquareAudioStream.this.getDetails() };
         }
     }
 

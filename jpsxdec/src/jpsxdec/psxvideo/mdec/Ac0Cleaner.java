@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,6 +46,7 @@ import java.util.logging.Logger;
  * This will merge those codes with adjacent codes by extending zero-run-length.
  */
 public class Ac0Cleaner extends MdecInputStream {
+    
     private static final Logger LOG = Logger.getLogger(Ac0Cleaner.class.getName());
 
     private final MdecInputStream _source;
@@ -56,7 +57,9 @@ public class Ac0Cleaner extends MdecInputStream {
     }
 
     @Override
-    public boolean readMdecCode(MdecCode code) throws MdecException.Read {
+    public boolean readMdecCode(MdecCode code) 
+            throws MdecException.EndOfStream, MdecException.ReadCorruption
+    {
         boolean blnEod = _source.readMdecCode(code);
         
         if (_blnNextCodeIsQscaleDC) {

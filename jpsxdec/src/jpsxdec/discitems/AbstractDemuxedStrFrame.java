@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
@@ -45,8 +46,9 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.sectors.IVideoSector;
-import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.LocalizedIncompatibleException;
+import jpsxdec.util.LoggedFailure;
+import jpsxdec.util.ILocalizedLogger;
 
 /** Building and consuming sector-based frames.
  * Intended to be used in two phases:
@@ -92,20 +94,20 @@ public abstract class AbstractDemuxedStrFrame<T extends IVideoSector> implements
 
     /** Adds another sector to this frame. [BUILDING]
      * @return if the sector was accepted by this frame. */
-    public boolean addSector(@Nonnull T chunk, @Nonnull Logger log) {
+    public boolean addSector(@Nonnull T chunk, @Nonnull ILocalizedLogger log) {
         if (!isPartOfFrame(chunk))
             return false;
 
         int iExpectedCount = chunk.getChunksInFrame();
         int iChunkNumber = chunk.getChunkNumber();
         if (_iExpectedChunks != iExpectedCount) {
-            I.DEMUX_FRAME_CHUNKS_CHANGED_FROM_TO(chunk.getSectorNumber(), _iExpectedChunks, iExpectedCount)
-                    .log(log, Level.WARNING);
+            log.log(Level.WARNING,
+                    I.DEMUX_FRAME_CHUNKS_CHANGED_FROM_TO(chunk.getSectorNumber(), _iExpectedChunks, iExpectedCount));
             _iExpectedChunks = iExpectedCount;
         }
         if (iChunkNumber >= iExpectedCount)
-            I.DEMUX_CHUNK_NUM_GTE_CHUNKS_IN_FRAME(chunk.getSectorNumber(), iChunkNumber, iExpectedCount)
-                    .log(log, Level.WARNING);
+            log.log(Level.WARNING,
+                    I.DEMUX_CHUNK_NUM_GTE_CHUNKS_IN_FRAME(chunk.getSectorNumber(), iChunkNumber, iExpectedCount));
 
         // now add the chunk
         if (_aoChunks.length < iChunkNumber) {
@@ -180,34 +182,43 @@ public abstract class AbstractDemuxedStrFrame<T extends IVideoSector> implements
         return abBuffer;
     }
 
-    public void printSectors(@Nonnull FeedbackStream fbs) {
+    public void printSectors(@Nonnull PrintStream ps) {
         for (T vidSector : _aoChunks) {
-            fbs.println(vidSector);
+            ps.println(vidSector);
         }
     }
 
     public void writeToSectors(@Nonnull byte[] abNewDemux,
                                int iUsedSize, int iMdecCodeCount,
                                @Nonnull CdFileSectorReader cd,
-                               @Nonnull FeedbackStream fbs)
-            throws IOException, IncompatibleException
+                               @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
         int iDemuxOfs = 0;
         for (T vidSector : _aoChunks) {
             if (vidSector == null) {
-                fbs.printlnWarn(I.CMD_FRAME_TO_REPLACE_MISSING_CHUNKS());
+                log.log(Level.WARNING, I.CMD_FRAME_TO_REPLACE_MISSING_CHUNKS());
                 continue;
             }
             byte[] abSectUserData = vidSector.getCdSector().getCdUserDataCopy();
-            int iSectorHeaderSize = vidSector.checkAndPrepBitstreamForReplace(abNewDemux,
-                    iUsedSize, iMdecCodeCount, abSectUserData);
+            int iSectorHeaderSize;
+            try {
+                iSectorHeaderSize = vidSector.checkAndPrepBitstreamForReplace(
+                        abNewDemux, iUsedSize, iMdecCodeCount, abSectUserData);
+            } catch (LocalizedIncompatibleException ex) {
+                throw new LoggedFailure(log, Level.SEVERE, ex.getSourceMessage(), ex);
+            }
             int iBytesToCopy = vidSector.getIdentifiedUserDataSize();
             if (iDemuxOfs + iBytesToCopy > abNewDemux.length)
                 iBytesToCopy = abNewDemux.length - iDemuxOfs;
             // bytes to copy might be 0, which is ok because we
             // still need to write the updated headers
             System.arraycopy(abNewDemux, iDemuxOfs, abSectUserData, iSectorHeaderSize, iBytesToCopy);
-            cd.writeSector(vidSector.getSectorNumber(), abSectUserData);
+            try {
+                cd.writeSector(vidSector.getSectorNumber(), abSectUserData);
+            } catch (IOException ex) {
+                throw new LoggedFailure(log, Level.SEVERE, I.IO_WRITING_TO_FILE_ERROR_NAME(cd.getSourceFile().toString()), ex);
+            }
             iDemuxOfs += iBytesToCopy;
         }
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.indexing;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -52,7 +53,8 @@ import jpsxdec.iso9660.DirectoryRecord;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorISO9660DirectoryRecords;
 import jpsxdec.sectors.SectorISO9660VolumePrimaryDescriptor;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
 
 /**
  * Constructs the ISO9660 file system.
@@ -65,17 +67,39 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
             new ArrayList<SectorISO9660DirectoryRecords>();
     private final ArrayList<SectorISO9660VolumePrimaryDescriptor> _primaryDescriptors =
             new ArrayList<SectorISO9660VolumePrimaryDescriptor>();
+    private final BitSet _sectorTypes = new BitSet();
+
+    private static final int MODE2FORM1 = 0; // assume all sectors are this
+    private static final int MODE2FORM2 = 1;
+    private static final int CD_AUDIO = 2;
+    private static final int MODE1 = 3; // currently ignored
+    private void setSectorType(int iSector, int iType) {
+        int iBit = iSector*2;
+        if ((iType & 1) != 0)
+            _sectorTypes.set(iBit);
+        if ((iType & 2) != 0)
+            _sectorTypes.set(iBit+1);
+    }
 
     @Nonnull
-    private final Logger _errLog;
+    private final ILocalizedLogger _errLog;
 
-    public DiscIndexerISO9660(@Nonnull Logger errLog) {
+    public DiscIndexerISO9660(@Nonnull ILocalizedLogger errLog) {
         _errLog = errLog;
     }
 
     public void indexingSectorRead(@Nonnull CdSector cdSector,
                                    @CheckForNull IdentifiedSector idSector)
     {
+        if (cdSector.isCdAudioSector())
+            setSectorType(cdSector.getSectorNumberFromStart(), CD_AUDIO);
+        else if (cdSector.hasSubHeader() && cdSector.getSubMode().getForm() == 2) // TODO: ugly
+            setSectorType(cdSector.getSectorNumberFromStart(), MODE2FORM2);
+        // Mode 1 is interesting, but not important to our needs
+        // searching for bits later would be annoying trying to ignore mode 1
+        //else if (cdSector.isMode1())
+        //    setSectorType(cdSector.getSectorNumberFromStart(), MODE1);
+
         if (idSector instanceof SectorISO9660DirectoryRecords) {
             SectorISO9660DirectoryRecords oDirRectSect =
                     (SectorISO9660DirectoryRecords) idSector;
@@ -118,7 +142,7 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
 
     /** The difference between the sector number in raw sector headers
      * and the sector number from the start of the file.
-     * This is always 0 if there is no raw sector header, and if an entire
+     * This is always 0 if there is no raw sector header, or if an entire
      * disc image is used. */
     private int _iSectorNumberDiff = 0;
     
@@ -145,13 +169,33 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
                     drDir = new File(childDr.name);
                 else
                     drDir = new File(parentDir, childDr.name);
-                if ((childDr.flags & DirectoryRecord.FLAG_IS_DIRECTORY) == 0)
-                {
-                    int iSectLength = (int)((childDr.size+2047) / 2048); // round up to nearest sector
+                
+                if ((childDr.flags & DirectoryRecord.FLAG_IS_DIRECTORY) == 0) {
+                    long lngFileSize = childDr.size;
+                    int iSectLength = (int)((lngFileSize+2047) / 2048); // round up to nearest sector
+                    int iStartSector = (int)childDr.extent;
+                    int iEndSector = iStartSector + iSectLength - 1;
+
+                    // search for any non 2352 sized sectors in the file
+                    boolean blnHasCdAudio = false;
+                    boolean blnHasMode2Form2 = false;
+                    int iBit = iStartSector * 2;
+                    int iEndBit = (iEndSector+1) * 2;
+                    while (!blnHasMode2Form2 && !blnHasCdAudio) {
+                        int iSetBitPos = _sectorTypes.nextSetBit(iBit);
+                        if (iSetBitPos < 0 || iSetBitPos >= iEndBit)
+                            break;
+                        if (iSetBitPos % 2 == 0) {
+                            blnHasMode2Form2 = true;
+                        } else {
+                            blnHasCdAudio = true;
+                        }
+                        iBit = iSetBitPos;
+                    }
+                    
                     super.addDiscItem(new DiscItemISO9660File(
-                            getCd(),
-                            (int)childDr.extent, (int)(childDr.extent + iSectLength - 1),
-                            drDir, childDr.size));
+                            getCd(), iStartSector, iEndSector,
+                            drDir, lngFileSize, blnHasMode2Form2, blnHasCdAudio));
                 }
                 getFileList(childDr, drDir);
             }
@@ -159,12 +203,11 @@ public class DiscIndexerISO9660 extends DiscIndexer implements DiscIndexer.Ident
     }
     
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
-        try {
-            if (DiscItemISO9660File.TYPE_ID.equals(fields.getType())) {
-                return new DiscItemISO9660File(getCd(), fields);
-            }
-        } catch (NotThisTypeException ex) {}
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+            throws DeserializationFail
+    {
+        if (DiscItemISO9660File.TYPE_ID.equals(fields.getType()))
+            return new DiscItemISO9660File(getCd(), fields);
         return null;
     }
 

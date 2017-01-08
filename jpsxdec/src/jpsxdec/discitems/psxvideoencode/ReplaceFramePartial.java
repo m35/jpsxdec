@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,9 +42,9 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
@@ -53,7 +53,7 @@ import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.savers.FrameLookup;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedIOException;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
@@ -64,9 +64,11 @@ import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
-import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LocalizedIncompatibleException;
+import jpsxdec.util.LoggedFailure;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -80,28 +82,26 @@ public class ReplaceFramePartial extends ReplaceFrame {
     @CheckForNull
     private Rectangle _rectMask;
 
-    public ReplaceFramePartial(@Nonnull Element element) throws NotThisTypeException, FileNotFoundException {
+    public ReplaceFramePartial(@Nonnull Element element) throws DeserializationFail {
         super(element);
         if (element.hasAttribute("tolerance")) {
-            setTolerance(element.getAttribute("tolerance"));
+            setTolerance(element.getAttribute("tolerance").trim());
         }
         if (element.hasAttribute("mask")) {
-            setImageMaskFile(element.getAttribute("mask"));
+            setImageMaskFile(element.getAttribute("mask").trim());
         }
         if (element.hasAttribute("rect")) {
-            setRectMask(element.getAttribute("rect"));
+            setRectMask(element.getAttribute("rect").trim());
         }
     }
     @Override
     public @Nonnull Element serialize(@Nonnull Document document) {
         Element node = document.createElement(XML_TAG_NAME);
         node.setAttribute("frame", getFrameLookup().toString());
-        File imgFile = getImageFile();
-        if (imgFile != null)
-            node.setTextContent(imgFile.toString());
-        String fmt = getFormat();
+        node.setTextContent(getImageFile().toString());
+        ImageFormat fmt = getFormat();
         if (fmt != null)
-            node.setAttribute("format", fmt);
+            node.setAttribute("format", fmt.serialize());
         if (_iTolerance > 0)
             node.setAttribute("tolerance", String.valueOf(_iTolerance));
         if (_imageMaskFile != null)
@@ -112,21 +112,25 @@ public class ReplaceFramePartial extends ReplaceFrame {
         return node;
     }
 
-
-    public ReplaceFramePartial(@Nonnull String sFrameNumber) throws NotThisTypeException {
-        super(sFrameNumber);
+    public ReplaceFramePartial(@Nonnull String sFrameNumber, @Nonnull String sImageFile) throws DeserializationFail {
+        super(sFrameNumber, sImageFile);
     }
-
-    public ReplaceFramePartial(@Nonnull FrameLookup frameNumber) {
-        super(frameNumber);
+    public ReplaceFramePartial(@Nonnull String sFrameNumber, @Nonnull File imageFile) throws DeserializationFail {
+        super(sFrameNumber, imageFile);
+    }
+    public ReplaceFramePartial(@Nonnull FrameLookup frameNumber, @Nonnull String sImageFile) {
+        super(frameNumber, sImageFile);
+    }
+    public ReplaceFramePartial(@Nonnull FrameLookup frameNumber, @Nonnull File imageFile) {
+        super(frameNumber, imageFile);
     }
 
     public @CheckForNull File getImageMaskFile() {
         return _imageMaskFile;
     }
 
-    final public void setImageMaskFile(@Nonnull String sImageMaskFile) throws FileNotFoundException {
-        setImageFile(new File(sImageMaskFile));
+    final public void setImageMaskFile(@Nonnull String sImageMaskFile) {
+        setImageMaskFile(new File(sImageMaskFile));
     }
     public void setImageMaskFile(@CheckForNull File imageMaskFile) {
         _imageMaskFile = imageMaskFile;
@@ -164,89 +168,112 @@ public class ReplaceFramePartial extends ReplaceFrame {
 
     @Override
     public void replace(@Nonnull IDemuxedFrame frame, @Nonnull CdFileSectorReader cd,
-                        @Nonnull FeedbackStream fbs)
-            throws IOException, NotThisTypeException, MdecException, IncompatibleException
+                        @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
         File newImgFile = getImageFile();
-        if (newImgFile == null)
-            throw new IllegalStateException("Replacement image not set");
-        BufferedImage newImg = ImageIO.read(newImgFile);
+        BufferedImage newImg;
+        try {
+            newImg = ImageIO.read(newImgFile);
+        } catch (IOException ex) {
+            throw new LoggedFailure(log, Level.SEVERE,
+                                    I.IO_READING_FILE_ERROR_NAME(newImgFile.toString()), ex);
+        }
         if (newImg == null)
-            throw new LocalizedIOException(I.REPLACE_UNABLE_READ_IMAGE(newImgFile));
+            throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_UNABLE_READ_IMAGE(newImgFile));
 
         final int WIDTH = frame.getWidth();
         final int HEIGHT = frame.getHeight();
         if (newImg.getWidth() < WIDTH || newImg.getHeight() < HEIGHT)
-            throw new IncompatibleException(I.REPLACE_FRAME_DIMENSIONS_TOO_SMALL());
+            throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_FRAME_DIMENSIONS_TOO_SMALL());
 
         // 1. Parse original image
-        byte[] origBitstream = frame.copyDemuxData(null);
-        BitStreamUncompressor uncompressor =
-                BitStreamUncompressor.identifyUncompressor(origBitstream);
-        if (uncompressor == null)
-            throw new MdecException.Uncompress(I.CMD_UNABLE_TO_IDENTIFY_FRAME_TYPE());
-        uncompressor.reset(origBitstream, frame.getDemuxSize());
-        ParsedMdecImage parsedOrig = new ParsedMdecImage(WIDTH, HEIGHT);
-        parsedOrig.readFrom(new Ac0Cleaner(uncompressor));
+        byte[] abExistingFrame = frame.copyDemuxData(null);
+        BitStreamUncompressor bsu;
+        try {
+            bsu = BitStreamUncompressor.identifyUncompressor(abExistingFrame);
+        } catch (BinaryDataNotRecognized ex) {
+            throw new LoggedFailure(log, Level.SEVERE, I.UNABLE_TO_DETERMINE_FRAME_TYPE_FRM(getFrameLookup().toString()), ex);
+        }
 
-        // 2. convert both to RGB
-        // TODO: use best quality to decode, but same as encode
         MdecDecoder_double decoder = new MdecDecoder_double(new StephensIDCT(),
                                                             WIDTH, HEIGHT);
-        decoder.decode(parsedOrig.getStream());
-        RgbIntImage rgb = new RgbIntImage(WIDTH, HEIGHT);
-        decoder.readDecodedRgb(rgb.getWidth(), rgb.getHeight(), rgb.getData());
-        BufferedImage origImg = rgb.toBufferedImage();
-        
-        // 3. compare the macroblocks, considering the tolerance
-        //    and filter any that don't have any differences within
-        //    the bounding box and mask
-        ArrayList<Point> diffMacblks = findDiffMacroblocks(origImg, newImg);
-        if (diffMacblks.isEmpty()) {
-            fbs.println(I.CMD_NO_DIFFERENCE_SKIPPING());
-            return;
-        } else if (diffMacblks.size() == Calc.macroblocks(WIDTH, HEIGHT)) {
-            fbs.printlnWarn(I.CMD_ENTIRE_FRAME_DIFFERENT());
+        try {
+            ParsedMdecImage parsedOrig = new ParsedMdecImage(new Ac0Cleaner(bsu), WIDTH, HEIGHT);
+
+            // 2. convert both to RGB
+            // TODO: use best quality to decode, but same as encode
+            decoder.decode(parsedOrig.getStream());
+
+            RgbIntImage rgb = new RgbIntImage(WIDTH, HEIGHT);
+            decoder.readDecodedRgb(rgb.getWidth(), rgb.getHeight(), rgb.getData());
+            BufferedImage origImg = rgb.toBufferedImage();
+
+            // 3. compare the macroblocks, considering the tolerance
+            //    and filter any that don't have any differences within
+            //    the bounding box and mask
+            ArrayList<Point> diffMacblks = findDiffMacroblocks(origImg, newImg, log);
+            if (diffMacblks.isEmpty()) {
+                log.log(Level.INFO, I.CMD_NO_DIFFERENCE_SKIPPING());
+                return;
+            } else if (diffMacblks.size() == Calc.macroblocks(WIDTH, HEIGHT)) {
+                log.log(Level.WARNING, I.CMD_ENTIRE_FRAME_DIFFERENT());
+            }
+            printDiffMacroBlocks(diffMacblks, Calc.macroblockDim(WIDTH), Calc.macroblockDim(HEIGHT), log);
+
+            // 4. Encode and compress
+            PsxYCbCrImage newYuvImg = new PsxYCbCrImage(newImg);
+            MdecEncoder encoder = new MdecEncoder(parsedOrig, newYuvImg, diffMacblks);
+            BitStreamCompressor comp = bsu.makeCompressor();
+
+            byte[] abNewFrame;
+            try {
+                abNewFrame = comp.compressPartial(abExistingFrame, getFrameLookup().toString(), encoder, log);
+            } catch (LocalizedIncompatibleException ex) {
+                throw new LoggedFailure(log, Level.SEVERE, ex.getSourceMessage(), ex);
+            }
+            if (abNewFrame == null)
+                throw new LoggedFailure(log, Level.SEVERE,
+                        I.CMD_UNABLE_TO_COMPRESS_FRAME_SMALL_ENOUGH(getFrameLookup().toString(), frame.getDemuxSize()));
+
+            // 5. replace the frame
+            frame.writeToSectors(abNewFrame, abNewFrame.length, comp.getMdecCodesFromLastCompress(), cd, log);
+
+        } catch (MdecException.EndOfStream ex) {
+            // existing frame is incomplete
+            throw new LoggedFailure(log, Level.SEVERE, I.FRAME_NUM_INCOMPLETE(getFrameLookup().toString()), ex);
+        } catch (MdecException.ReadCorruption ex) {
+            // existing frame is corrupted
+            throw new LoggedFailure(log, Level.SEVERE, I.FRAME_NUM_CORRUPTED(getFrameLookup().toString()), ex);
         }
-        printDiffMacroBlocks(diffMacblks, Calc.macroblockDim(WIDTH), Calc.macroblockDim(HEIGHT), fbs);
-
-        // 4. Encode and compress
-        PsxYCbCrImage newYuvImg = new PsxYCbCrImage(newImg);
-        MdecEncoder encoder = new MdecEncoder(parsedOrig, newYuvImg, diffMacblks);
-        BitStreamCompressor comp = uncompressor.makeCompressor();
-        byte[] abNewFrame = comp.compressPartial(origBitstream, frame.getFrame(), encoder, fbs);
         
-        if (abNewFrame == null)
-            throw new MdecException.Compress(I.CMD_UNABLE_TO_COMPRESS_FRAME_SMALL_ENOUGH(
-                                             frame.getFrame(), frame.getDemuxSize()));
-
-        // 5. replace the frame
-        frame.writeToSectors(abNewFrame, abNewFrame.length, comp.getMdecCodesFromLastCompress(), cd, fbs);
     }
 
     private void printDiffMacroBlocks(@Nonnull ArrayList<Point> diffMacblks,
                                       int iMbWidth, int iMbHeight,
-                                      @Nonnull FeedbackStream fbs)
+                                      @Nonnull ILocalizedLogger log)
     {
-        fbs.println(I.CMD_REPLACE_FOUND_DIFFERENT_MACRO_BLOCKS(diffMacblks.size()));
+        log.log(Level.INFO, I.CMD_REPLACE_FOUND_DIFFERENT_MACRO_BLOCKS(diffMacblks.size()));
 
         Point p = new Point();
         for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
+            StringBuilder sb = new StringBuilder();
             for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
                 p.setLocation(iMbX, iMbY);
                 if (diffMacblks.contains(p)) {
-                    fbs.print("X");
+                    sb.append('X');
                 } else {
-                    fbs.print(".");
+                    sb.append('.');
                 }
             }
-            fbs.println();
+            log.log(Level.INFO, new UnlocalizedMessage(sb.toString()));
         }
     }
 
     private @Nonnull ArrayList<Point> findDiffMacroblocks(@Nonnull BufferedImage origImg,
-                                                          @Nonnull BufferedImage newImg)
-              throws IOException
+                                                          @Nonnull BufferedImage newImg,
+                                                          @Nonnull ILocalizedLogger log)
+              throws LoggedFailure
     {
         int iMacblkWidth  = Calc.macroblockDim(origImg.getWidth());
         int iMacblkHeight = Calc.macroblockDim(origImg.getHeight());
@@ -255,9 +282,14 @@ public class ReplaceFramePartial extends ReplaceFrame {
 
         BufferedImage maskImg = null;
         if (_imageMaskFile != null) {
-            maskImg = ImageIO.read(_imageMaskFile);
+            try {
+                maskImg = ImageIO.read(_imageMaskFile);
+            } catch (IOException ex) {
+                throw new LoggedFailure(log, Level.SEVERE,
+                        I.IO_READING_FILE_ERROR_NAME(_imageMaskFile.toString()), ex);
+            }
             if (maskImg == null)
-                throw new LocalizedIOException(I.REPLACE_UNABLE_READ_IMAGE(_imageMaskFile));
+                throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_UNABLE_READ_IMAGE(_imageMaskFile));
         }
 
         Point macblk = new Point();

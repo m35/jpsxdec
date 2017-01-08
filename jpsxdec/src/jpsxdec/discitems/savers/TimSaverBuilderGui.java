@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,6 +46,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -60,46 +61,93 @@ import jpsxdec.tim.Tim;
 
 
 /** GUI to select {@link TimSaverBuilder} options. */
-class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implements ChangeListener {
+class TimSaverBuilderGui extends DiscItemSaverBuilderGui implements ChangeListener {
 
     private static final Logger LOG = Logger.getLogger(TimSaverBuilderGui.class.getName());
 
+    @Nonnull
+    private final CombinedBuilderListener<TimSaverBuilder> _bl;
+
     private final JPanel _panelImages = new JPanel(new GridLayout());
 
-    private final JPanel _topParagraphPanel = new JPanel(new ParagraphLayout());
-
     public TimSaverBuilderGui(@Nonnull TimSaverBuilder builder) {
-        super(builder, new BorderLayout());
-        setParagraphLayoutPanel(_topParagraphPanel);
+        super(new BorderLayout());
 
-        addListeners(this, 
-                new FileNames(),
-                new Format());
+        _bl = new CombinedBuilderListener<TimSaverBuilder>(builder);
+
+        _bl.addListeners(this);
 
         updatePreviews();
 
-        add(_topParagraphPanel, BorderLayout.NORTH);
+        add(new PPanel(_bl), BorderLayout.NORTH);
         add(_panelImages, BorderLayout.CENTER);
     }
 
-    private class FileNames implements ChangeListener {
-        final JTextArea __files = makeMultiLineJLabel(3);
-        public FileNames() {
-            updateText();
+    @Override
+    public boolean useSaverBuilder(@Nonnull DiscItemSaverBuilder saverBuilder) {
+        boolean blnOk = _bl.changeSourceBuilder(saverBuilder);
+        if (blnOk)
+            updatePreviews();
+        return blnOk;
+    }
 
-            JScrollPane p = new JScrollPane(__files);
-            p.setBorder(null);
-            _topParagraphPanel.add(new JLabel(I.GUI_SAVE_AS_LABEL().getLocalizedMessage()), ParagraphLayout.NEW_PARAGRAPH);
-            _topParagraphPanel.add(p, ParagraphLayout.STRETCH_H);
-        }
-        public void stateChanged(ChangeEvent e) {
-            updateText();
-        }
-        private void updateText() {
-            __files.setText(_writerBuilder.getOutputFilesSummary().getLocalizedMessage());
+    public void stateChanged(@CheckForNull ChangeEvent e) {
+        for (Component c : _panelImages.getComponents()) {
+            if (c instanceof TimPaletteSelector)
+                ((TimPaletteSelector)c).stateChanged();
         }
     }
 
+    private static class PPanel extends ParagraphPanel {
+
+        @Nonnull
+        private final CombinedBuilderListener<TimSaverBuilder> _bl;
+
+        private PPanel(@Nonnull CombinedBuilderListener<TimSaverBuilder> bl) {
+            _bl = bl;
+            _bl.addListeners(
+                new FileNames(),
+                new Format()
+            );
+        }
+
+        private class FileNames implements ChangeListener {
+            final JTextArea __files = makeMultiLineJLabel(3);
+            public FileNames() {
+                updateText();
+
+                JScrollPane p = new JScrollPane(__files);
+                p.setBorder(null);
+                add(new JLabel(I.GUI_SAVE_AS_LABEL().getLocalizedMessage()), ParagraphLayout.NEW_PARAGRAPH);
+                add(p, ParagraphLayout.STRETCH_H);
+            }
+            public void stateChanged(ChangeEvent e) {
+                updateText();
+            }
+            private void updateText() {
+                __files.setText(_bl.getBuilder().getOutputFilesSummary().getLocalizedMessage());
+            }
+        }
+
+        private class Format extends AbstractCombo {
+            public Format() {
+                super(I.GUI_TIM_SAVE_FORMAT_LABEL(), true);
+            }
+            public int getSize() {
+                return _bl.getBuilder().getImageFormat_listSize();
+            }
+            public Object getElementAt(int index) {
+                return _bl.getBuilder().getImageFormat_listItem(index);
+            }
+            public void setSelectedItem(Object anItem) {
+                _bl.getBuilder().setImageFormat((TimSaverBuilder.TimSaveFormat) anItem);
+            }
+            public Object getSelectedItem() {
+                return _bl.getBuilder().getImageFormat();
+            }
+            protected boolean getEnabled() {return true; }
+        }
+    }
 
     private void updatePreviews() {
         _panelImages.removeAll();
@@ -108,7 +156,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
         try {
             // XXX: I don't like having to read from the disc until saving actually begins
             // or the user explicitly choses to preview the item
-            Tim tim = _writerBuilder.readTim();
+            Tim tim = _bl.getBuilder().readTim();
             int iPals = tim.getPaletteCount();
 
             double dblPalSqrt = Math.sqrt(iPals);
@@ -116,7 +164,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
             gl.setColumns((int)Math.ceil(dblPalSqrt));
 
             for (int i = 0; i < iPals; i++) {
-                _panelImages.add(new TimPaletteSelector(tim, i, _writerBuilder));
+                _panelImages.add(new TimPaletteSelector(tim, i, _bl.getBuilder()));
             }
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Error reading TIM preview", ex);
@@ -124,56 +172,11 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui<TimSaverBuilder> implem
             ex.printStackTrace(new PrintWriter(sw));
             gl.setRows(1);
             gl.setColumns(1);
-            JTextArea t = new JTextArea(I.GUI_ERR_READING_TIM_PREVIEW(sw.toString()).getLocalizedMessage());
+            JTextArea t = new JTextArea(I.GUI_TIM_ERR_READING_PREVIEW(sw.toString()).getLocalizedMessage());
             t.setLineWrap(true);
             _panelImages.add(new JScrollPane(t));
         }
-    }
 
-    public void stateChanged(ChangeEvent e) {
-        for (Component c : _panelImages.getComponents()) {
-            if (c instanceof TimPaletteSelector)
-                ((TimPaletteSelector)c).stateChanged();
-        }
-    }
-
-    @Override
-    public boolean useSaverBuilder(@Nonnull DiscItemSaverBuilder saverBuilder) {
-        boolean blnChanged = super.useSaverBuilder(saverBuilder);
-        if (blnChanged) {
-            updatePreviews();
-        }
-        return blnChanged;
-    }
-
-    private class Format extends AbstractCombo {
-
-        public Format() {
-            super(I.GUI_TIM_SAVE_FORMAT_LABEL());
-        }
-
-        @Override
-        public int getSize() {
-            return _writerBuilder.getImageFormat_listSize();
-        }
-
-        @Override
-        public Object getElementAt(int index) {
-            return _writerBuilder.getImageFormat_listItem(index);
-        }
-
-        @Override
-        public void setSelectedItem(Object anItem) {
-            _writerBuilder.setImageFormat((TimSaverBuilder.TimSaveFormat) anItem);
-        }
-
-        @Override
-        public Object getSelectedItem() {
-            return _writerBuilder.getImageFormat();
-        }
-
-        @Override
-        protected boolean getEnabled() {return true; }
     }
 
 }

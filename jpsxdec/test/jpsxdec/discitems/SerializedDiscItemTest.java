@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,7 @@
 
 package jpsxdec.discitems;
 
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -68,7 +68,7 @@ public class SerializedDiscItemTest {
     }
 
     @Test
-    public void testSerialize_Index_Id() throws NotThisTypeException {
+    public void testSerialize_Index_Id() throws Exception {
         String sType = "Fish";
         int iSectorStart = 0;
         int iSectorEnd = 0;
@@ -83,7 +83,7 @@ public class SerializedDiscItemTest {
         try {
             serializeDeserialize(sdi);
             fail("Should not be able to deserialize withoud id# an index id");
-        } catch (NotThisTypeException ex) {
+        } catch (DeserializationFail ex) {
         }
 
         iIndex = 0;
@@ -92,7 +92,7 @@ public class SerializedDiscItemTest {
         try {
             serializeDeserialize(sdi);
             fail("Should not be able to deserialize withoud id# an index id");
-        } catch (NotThisTypeException ex) {
+        } catch (DeserializationFail ex) {
         }
 
         iIndex = -1;
@@ -101,7 +101,7 @@ public class SerializedDiscItemTest {
         try {
             serializeDeserialize(sdi);
             fail("Should not be able to deserialize withoud id# an index id");
-        } catch (NotThisTypeException ex) {
+        } catch (DeserializationFail ex) {
         }
 
         iIndex = 4;
@@ -110,7 +110,7 @@ public class SerializedDiscItemTest {
         serializeDeserialize(sdi);
     }
 
-    private void serializeDeserialize(SerializedDiscItem sdi) throws NotThisTypeException {
+    private void serializeDeserialize(SerializedDiscItem sdi) throws Exception {
         String s = sdi.serialize();
         SerializedDiscItem newSdi = new SerializedDiscItem(s);
         assertEquals(sdi, newSdi);
@@ -191,7 +191,7 @@ public class SerializedDiscItemTest {
     }
 
     @Test
-    public void test_AddString() throws NotThisTypeException {
+    public void test_AddString() throws Exception {
         String sType = "Fish";
         int iSectorStart = 0;
         int iSectorEnd = 0;
@@ -203,38 +203,38 @@ public class SerializedDiscItemTest {
         addGetString(sdi, "c", "_");
     }
 
-    private void addGetString(SerializedDiscItem sdi, String sKey, String sValue) throws NotThisTypeException {
+    private void addGetString(SerializedDiscItem sdi, String sKey, String sValue) throws Exception {
         sdi.addString(sKey, sValue);
         assertEquals(sValue, sdi.getString(sKey));
 
         try {
             sdi.getDimensions(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getFraction(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getInt(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getLong(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getIntRange(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getLongRange(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
     }
 
     @Test
-    public void test_AddNumber() throws NotThisTypeException {
+    public void test_AddNumber() throws Exception {
         String sType = "Fish";
         int iSectorStart = 0;
         int iSectorEnd = 0;
@@ -249,7 +249,7 @@ public class SerializedDiscItemTest {
         serializeDeserialize(sdi);
     }
 
-    private void addGetInt(SerializedDiscItem sdi, String sKey, int iValue) throws NotThisTypeException {
+    private void addGetInt(SerializedDiscItem sdi, String sKey, int iValue) throws Exception {
         sdi.addNumber(sKey, iValue);
         assertEquals(iValue, sdi.getInt(sKey));
         assertEquals(iValue, sdi.getLong(sKey));
@@ -257,24 +257,24 @@ public class SerializedDiscItemTest {
 
         try {
             sdi.getDimensions(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getFraction(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getIntRange(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getLongRange(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
     }
 
     @Test
-    public void test_AddRange() throws NotThisTypeException {
+    public void test_AddRange() throws Exception {
         String sType = "Fish";
         int iSectorStart = 0;
         int iSectorEnd = 0;
@@ -289,7 +289,7 @@ public class SerializedDiscItemTest {
         serializeDeserialize(sdi);
     }
 
-    private void addGetRange(SerializedDiscItem sdi, String sKey, int iStart, int iEnd) throws NotThisTypeException {
+    private void addGetRange(SerializedDiscItem sdi, String sKey, int iStart, int iEnd) throws Exception {
         sdi.addRange(sKey, iStart, iEnd);
         assertArrayEquals(new int[] {iStart, iEnd}, sdi.getIntRange(sKey));
         assertArrayEquals(new int[] {iStart, iEnd}, sdi.getDimensions(sKey));
@@ -298,16 +298,16 @@ public class SerializedDiscItemTest {
         sdi.getString(sKey);
         try {
             sdi.getInt(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getLong(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
     }
 
     @Test
-    public void test_AddFraction() throws NotThisTypeException {
+    public void test_AddFraction() throws Exception {
         String sType = "Fish";
         int iSectorStart = 0;
         int iSectorEnd = 0;
@@ -328,22 +328,22 @@ public class SerializedDiscItemTest {
         serializeDeserialize(sdi);
     }
 
-    private void addGetFraction(SerializedDiscItem sdi, String sKey, long lngNum, long lngDenom) throws NotThisTypeException {
+    private void addGetFraction(SerializedDiscItem sdi, String sKey, long lngNum, long lngDenom) throws Exception {
         sdi.addFraction(sKey, lngNum, lngDenom);
         assertArrayEquals(new long[] {lngNum, lngDenom}, sdi.getFraction(sKey));
         sdi.getString(sKey);
         try {
             sdi.getInt(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getLong(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
     }
 
     @Test
-    public void testAddDimensions() throws NotThisTypeException {
+    public void testAddDimensions() throws Exception {
         String sType = "Fish";
         int iSectorStart = 0;
         int iSectorEnd = 0;
@@ -358,7 +358,7 @@ public class SerializedDiscItemTest {
         serializeDeserialize(sdi);
     }
 
-    private void addGetDimensions(SerializedDiscItem sdi, String sKey, int iWidth, int iHeight) throws NotThisTypeException {
+    private void addGetDimensions(SerializedDiscItem sdi, String sKey, int iWidth, int iHeight) throws Exception {
         sdi.addDimensions(sKey, iWidth, iHeight);
         assertArrayEquals(new int[] {iWidth, iHeight}, sdi.getDimensions(sKey));
         assertArrayEquals(new int[] {iWidth, iHeight}, sdi.getIntRange(sKey));
@@ -368,12 +368,12 @@ public class SerializedDiscItemTest {
         sdi.getString(sKey);
         try {
             sdi.getInt(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
         try {
             sdi.getLong(sKey);
-            fail("Expepcted NotThisTypeException");
-        } catch (NotThisTypeException e) {}
+            fail("Expepcted DeserializationFail");
+        } catch (DeserializationFail e) {}
     }
 
 }

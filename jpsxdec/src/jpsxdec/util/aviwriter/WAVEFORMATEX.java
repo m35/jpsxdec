@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
+import jpsxdec.util.IO;
 
 /** Represents the C WAVEFORMATEX structure. 
  *  http://msdn2.microsoft.com/en-us/library/ms713497(VS.85).aspx */
@@ -59,13 +60,13 @@ class WAVEFORMATEX extends AVIstruct {
     
     
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
-        /*WORD */ write16LE(raf, wFormatTag     );
-        /*WORD */ write16LE(raf, nChannels      );
-        /*DWORD*/ write32LE(raf, nSamplesPerSec );
-        /*DWORD*/ write32LE(raf, nAvgBytesPerSec);
-        /*WORD */ write16LE(raf, nBlockAlign    );
-        /*WORD */ write16LE(raf, wBitsPerSample );
-        ///*WORD */ write16LE(raf, cbSize         ); **
+        /*WORD */ IO.writeInt16LE(raf, wFormatTag     );
+        /*WORD */ IO.writeInt16LE(raf, nChannels      );
+        /*DWORD*/ IO.writeInt32LE(raf, nSamplesPerSec );
+        /*DWORD*/ IO.writeInt32LE(raf, nAvgBytesPerSec);
+        /*WORD */ IO.writeInt16LE(raf, nBlockAlign    );
+        /*WORD */ IO.writeInt16LE(raf, wBitsPerSample );
+        ///*WORD */ IO.writeInt16LE(raf, cbSize         ); **
     }
 
     public int sizeof() {

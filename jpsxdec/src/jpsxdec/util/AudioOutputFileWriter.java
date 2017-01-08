@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.util;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PipedInputStream;
@@ -49,26 +50,30 @@ import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import jpsxdec.i18n.LocalizedIOException;
 
 /** Inverts the file writing process from pulling data from an AudioInputStream
  *  to pushing the data. */
-public class AudioOutputFileWriter implements Runnable {
+public class AudioOutputFileWriter implements Runnable, Closeable {
 
+    private static final Logger LOG = Logger.getLogger(AudioOutputFileWriter.class.getName());
+
+    /** {@link PipedInputStream} internally has {@link notify()} triggers
+     * so it can be relied on for synchronization purposes. */
     @Nonnull
-    private final PipedInputStream _threadStream;
+    private final PipedInputStream _threadInputStream;
     @Nonnull
     private final AudioInputStream _threadAudioStream;
+    @Nonnull
+    private final Thread _writingThread;
+
+    @Nonnull
+    private final File _outFile;
     @Nonnull
     private final PipedOutputStream _feedStream;
     @Nonnull
     private final AudioFormat _format;
     @Nonnull
-    private final Thread _writingThread;
-    @Nonnull
     private final AudioFileFormat.Type _eFileFormat;
-    @Nonnull
-    private final File _outFile;
     @CheckForNull
     private Throwable _writingError;
 
@@ -87,36 +92,57 @@ public class AudioOutputFileWriter implements Runnable {
         _format = format;
         _eFileFormat = eFileFormat;
         _outFile = file;
-        _threadStream = new PipedInputStream();
-        _feedStream = new PipedOutputStream(_threadStream);
-        _threadAudioStream = new AudioInputStream(_threadStream, format, AudioSystem.NOT_SPECIFIED);
+        _threadInputStream = new PipedInputStream();
+        _feedStream = new PipedOutputStream(_threadInputStream);
+        _threadAudioStream = new AudioInputStream(_threadInputStream, format, AudioSystem.NOT_SPECIFIED);
 
-        // start the writing thread
         _writingThread = new Thread(this, AudioOutputFileWriter.class.getSimpleName() + " " + _outFile);
+        // start the writing thread
         _writingThread.start();
         try {
-            // wait until the thread has started
-            // this wait will end when the other thread is either
-            // waiting for data or there was an error
-            synchronized (_threadStream) {
-                _threadStream.wait();
+            synchronized (_threadInputStream) {
+
+                // wait until reading has started
+                // PipedInputStream _threadInputStream internally will notify
+                // the object when read is called
+                // the pending notify() will be devoured here
+                _threadInputStream.wait();
+                // the wait will end when the other thread is either
+                // waiting for data or there was an error
 
                 // check if there was an error
                 if (_writingError != null) {
                     if (_writingError instanceof IOException)
-                        throw new LocalizedIOException(_writingError); // TODO: I18N
+                        throw (IOException)_writingError;
                     else
                         throw new RuntimeException(_writingError);
                 }
             }
         } catch (InterruptedException ex) {
-            Logger.getLogger(AudioOutputFileWriter.class.getName()).log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, null, ex);
         }
 
     }
 
-    public @Nonnull AudioFormat getFormat() {
-        return _format;
+    public void run() {
+        try {
+            // start writing the audio file
+            // PipedInputStream _threadInputStream internally will notify
+            // the object when read is called
+            AudioSystem.write(_threadAudioStream, _eFileFormat, _outFile);
+        } catch (Throwable ex) {
+            // if there's an error, save it and notify the main thread
+            // in case it is waiting after startup
+            // XXX: If the PipedInputStream and AudioSystem.write()
+            //      implementations trigger the notify before the exception,
+            //      this could be a race condition
+            synchronized (_threadInputStream) {
+                _writingError = ex;
+                // fire the notification in case reading didn't call it
+                _threadInputStream.notifyAll();
+            }
+            LOG.log(Level.SEVERE, null, ex);
+        }
     }
 
     public void write(@Nonnull AudioFormat inFormat, @Nonnull byte[] abData,
@@ -127,7 +153,7 @@ public class AudioOutputFileWriter implements Runnable {
             throw new IllegalArgumentException("Incompatable audio format.");
 
         // check if there has been an error in the writing thread
-        synchronized (_threadStream) {
+        synchronized (_threadInputStream) {
             if (_writingError != null) {
                 if (_writingError instanceof IOException)
                     throw (IOException)_writingError;
@@ -139,43 +165,34 @@ public class AudioOutputFileWriter implements Runnable {
         _feedStream.write(abData, iOffset, iLength);
 
         // again check if there has been an error in the writing thread
-        synchronized (_threadStream) {
+        synchronized (_threadInputStream) {
             if (_writingError != null) {
                 if (_writingError instanceof IOException)
-                    throw new LocalizedIOException(_writingError); // TODO: I18N
+                    throw (IOException)_writingError;
                 else
                     throw new RuntimeException(_writingError);
             }
         }
     }
 
-    public void run() {
-        try {
-            // start writing the audio file
-            AudioSystem.write(_threadAudioStream, _eFileFormat, _outFile);
-        } catch (IOException ex) {
-            // if there's an error, save it and notify the main thread
-            // in case it is waiting after startup
-            synchronized (_threadStream) {
-                _writingError = ex;
-                _threadStream.notifyAll();
-            }
-            Logger.getLogger(AudioOutputFileWriter.class.getName()).log(Level.SEVERE, null, ex);
-        }
+    public @Nonnull AudioFormat getFormat() {
+        return _format;
     }
 
     public void close() throws IOException {
 
         // flush out the rest of the data written before closing the stream
         _feedStream.flush();
-        _feedStream.close();
-
         try {
-            // important to wait until the writing thread is done in case
-            // System.exit() is called before the writer is completely finished
-            _writingThread.join();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(AudioOutputFileWriter.class.getName()).log(Level.SEVERE, null, ex);
+            _feedStream.close(); // expose close exception
+        } finally {
+            try {
+                // important to wait until the writing thread is done in case
+                // System.exit() is called before the writer is completely finished
+                _writingThread.join();
+            } catch (InterruptedException ex) {
+                LOG.log(Level.SEVERE, null, ex);
+            }
         }
     }
 }

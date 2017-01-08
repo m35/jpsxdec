@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -160,7 +160,7 @@ public class InconsistentFrameSequence {
             // if at the end of the resource, but we're looping
             if (_header.iLoopSector >= 0) {
                 // close and reopen the text resource
-                _reader.close();
+                _reader.close(); // expose close exception
                 InputStream is = InconsistentFrameSequence.class.getResourceAsStream(_sSourceResource);
                 _reader = new BufferedReader(new InputStreamReader(is));
                 _reader.readLine(); // skip header

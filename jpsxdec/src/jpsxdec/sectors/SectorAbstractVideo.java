@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,15 +43,68 @@ import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv3;
 import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
-import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.LocalizedIncompatibleException;
 
 
 /** Shared super class of several video sector types. */
 public abstract class SectorAbstractVideo extends IdentifiedSector 
                                           implements IVideoSector
 {
+
+    /** First 16 bytes found in most video sector headers. 
+     * Has readers that will verify the value according to common
+     * convention. When the sector type does not use the common convention
+     * also has readers that will just read the value without verification. */
+    protected static class CommonVideoSectorFirst16bytes {
+        public long lngMagic;             //  0    [4 bytes]
+        public int  iChunkNumber;         //  4    [2 bytes]
+        public int  iChunksInThisFrame;   //  6    [2 bytes]
+        public int  iFrameNumber;         //  8    [4 bytes]
+        public int  iUsedDemuxedSize;     //  12   [4 bytes]
+
+        public void readMagic(@Nonnull CdSector cdSector) {
+            lngMagic = cdSector.readUInt32LE(0);
+        }
+        /** Reads the number of this chunk.
+         * @return If the chunk number is invalid according to common convention. */
+        public boolean readChunkNumberStandard(@Nonnull CdSector cdSector) {
+            iChunkNumber = cdSector.readSInt16LE(4);
+            return iChunkNumber < 0;
+        }
+        /** Reads the number of chunks in this frame. */
+        public void readChunksInFrame(@Nonnull CdSector cdSector) {
+            iChunksInThisFrame = cdSector.readSInt16LE(6);
+        }
+        /** Reads the number of chunks in this frame.
+         * @return If the chunk count is invalid according to common convention. */
+        public boolean readChunksInFrameStandard(@Nonnull CdSector cdSector) {
+            iChunksInThisFrame = cdSector.readSInt16LE(6);
+            return iChunksInThisFrame < 1;
+        }
+        /** Reads this sector's frame number. */
+        public void readFrameNumber(@Nonnull CdSector cdSector) {
+            iFrameNumber = cdSector.readSInt32LE(8);
+        }
+        /** Reads this sector's frame number.
+         * @return If the frame number is invalid according to common convention. */
+        public boolean readFrameNumberStandard(@Nonnull CdSector cdSector) {
+            iFrameNumber = cdSector.readSInt32LE(8);
+            return iFrameNumber < 0;
+        }
+        /** Reads the frame's used demux size. */
+        public void readUsedDemuxSize(@Nonnull CdSector cdSector) {
+            iUsedDemuxedSize = cdSector.readSInt32LE(12);
+        }
+        /** Reads the frame's used demux size.
+         * @return If the used demux size is invalid according to common convention. */
+        public boolean readUsedDemuxSizeStandard(@Nonnull CdSector cdSector) {
+            iUsedDemuxedSize = cdSector.readSInt32LE(12);
+            return iUsedDemuxedSize < 1;
+        }
+    }
 
     // .. Constructor .....................................................
 
@@ -93,16 +146,16 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
 
     public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
                                                int iMdecCodeCount, @Nonnull byte[] abSectUserData)
-            throws IncompatibleException
+            throws LocalizedIncompatibleException
     {
         int iQscale;
         try {
             iQscale = BitStreamUncompressor_STRv2.getQscale(abDemuxData);
-        } catch (MdecException.Uncompress ex) {
+        } catch (BinaryDataNotRecognized ex) {
             try {
                 iQscale = BitStreamUncompressor_STRv3.getQscale(abDemuxData);
-            } catch (MdecException.Uncompress ex1) {
-                throw new IncompatibleException(I.REPLACE_FRAME_TYPE_NOT_V2_V3(), ex1);
+            } catch (BinaryDataNotRecognized ex1) {
+                throw new LocalizedIncompatibleException(I.REPLACE_FRAME_TYPE_NOT_V2_V3(), ex1);
             }
         }
 

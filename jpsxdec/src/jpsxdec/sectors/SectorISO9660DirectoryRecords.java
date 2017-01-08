@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,7 +45,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.iso9660.DirectoryRecord;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** Sectors containing ISO9660 Directory Records. */
 public class SectorISO9660DirectoryRecords extends IdentifiedSector
@@ -67,7 +67,7 @@ public class SectorISO9660DirectoryRecords extends IdentifiedSector
             firstRec = new DirectoryRecord(sectStream);
         } catch (IOException ex) {
             return;
-        } catch (NotThisTypeException ex) {
+        } catch (BinaryDataNotRecognized ex) {
             return;
         }
         
@@ -77,7 +77,7 @@ public class SectorISO9660DirectoryRecords extends IdentifiedSector
             while (true) {
                 _dirRecords.add(new DirectoryRecord(sectStream));
             }
-        } catch (NotThisTypeException ex) {} catch (IOException ex) {}
+        } catch (BinaryDataNotRecognized ex) {} catch (IOException ex) {}
 
         setProbability(100);
     }

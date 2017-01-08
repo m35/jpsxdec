@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,28 +37,19 @@
 
 package jpsxdec.cmdline;
 
-import argparser.ArgParser;
 import argparser.BooleanHolder;
 import argparser.StringHolder;
-import java.awt.BorderLayout;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.lang.reflect.InvocationTargetException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
-import javax.swing.JButton;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import jpsxdec.Version;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemStrVideoStream;
 import jpsxdec.discitems.DiscItemTim;
@@ -67,14 +58,15 @@ import jpsxdec.discitems.DiscItemXaAudioStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.util.ConsoleProgressListenerLogger;
+import jpsxdec.util.ArgParser;
+import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.ConsoleProgressLogger;
 import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.LocalizedIncompatibleException;
+import jpsxdec.util.LoggedFailure;
 import jpsxdec.util.TaskCanceledException;
-import jpsxdec.util.player.PlayController;
 
 
 class Command_Items {
@@ -88,7 +80,7 @@ class Command_Items {
         private int _iItemNum;
 
         public Command_Item() {
-            super("-i,-item");
+            super("-i","-item");
         }
         protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
             try {
@@ -104,7 +96,7 @@ class Command_Items {
                 return null;
             }
         }
-        public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
+        public void execute(@Nonnull ArgParser ap) throws CommandLineException {
             DiscIndex discIndex = getIndex();
 
             DiscItem item;
@@ -118,60 +110,17 @@ class Command_Items {
                     throw new CommandLineException(I.CMD_DISC_ITEM_NOT_FOUND_NUM(_iItemNum));
             }
 
-            ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger(I.SAVE_LOG_FILE_BASE_NAME().getLocalizedMessage(), _fbs);
+            ConsoleProgressLogger saveLog = new ConsoleProgressLogger(
+                    I.SAVE_LOG_FILE_BASE_NAME().getLocalizedMessage(), _fbs.getUnderlyingStream());
+            ConsoleProgressLogger replaceLog = new ConsoleProgressLogger(
+                    I.REPLACE_LOG_FILE_BASE_NAME().getLocalizedMessage(), _fbs.getUnderlyingStream());
             try {
-                handleItem(item, asRemainingArgs, _fbs, cpll);
+                handleItem(item, ap, _fbs, saveLog, replaceLog);
             } finally {
-                cpll.close();
+                saveLog.close();
+                replaceLog.close();
             }
         }
-    }
-
-    private static void player(@Nonnull final PlayController controller, @Nonnull DiscItem item, @Nonnull final FeedbackStream fbs)
-            throws InterruptedException, LineUnavailableException
-    {
-        controller.start();
-
-        final JDialog window = new JDialog();
-        window.setTitle(I.JPSXDEC_PLAYER_WIN_TITLE_POSTFIX(Version.Version).getLocalizedMessage());
-
-        window.add(new JLabel(item.toString()), BorderLayout.NORTH);
-
-        final JButton startBtn = new JButton(I.GUI_PLAY_BTN().getLocalizedMessage());
-        startBtn.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                startBtn.setEnabled(false);
-                try {
-                    controller.unpause();
-                } catch (Throwable ex) {
-                    fbs.printlnErr(ex);
-                    synchronized( window ) {
-                        window.dispose();
-                    }
-                }
-            }
-        });
-        window.add(startBtn, BorderLayout.SOUTH);
-
-        if (controller.hasVideo()) {
-            window.add(controller.getVideoScreen(), BorderLayout.CENTER);
-        }
-
-        window.pack();
-
-        window.setLocationRelativeTo(null); // center window
-        try {
-            java.awt.EventQueue.invokeAndWait(new Runnable() {
-                public void run() {
-                    window.setVisible(true);
-                }
-            });
-        } catch (InvocationTargetException ex) {
-            LOG.log(Level.SEVERE, null, ex);
-        }
-
-        controller.stop();
-
     }
 
     public static class Command_All extends Command {
@@ -180,29 +129,33 @@ class Command_Items {
         private String _sType;
 
         public Command_All() {
-            super("-a,-all");
+            super("-a","-all");
         }
         protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
             _sType = s;
             return null;
         }
-        public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
+        public void execute(@Nonnull ArgParser ap) throws CommandLineException {
             DiscIndex discIndex = getIndex();
 
             boolean blnFound = false;
-            ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger(I.SAVE_LOG_FILE_BASE_NAME().getLocalizedMessage(), _fbs);
+            ConsoleProgressLogger saveLog = new ConsoleProgressLogger(
+                    I.SAVE_LOG_FILE_BASE_NAME().getLocalizedMessage(), _fbs.getUnderlyingStream());
+            ConsoleProgressLogger replaceLog = new ConsoleProgressLogger(
+                    I.REPLACE_LOG_FILE_BASE_NAME().getLocalizedMessage(), _fbs.getUnderlyingStream());
 
             try {
                 for (DiscItem item : discIndex) {
                     if (item.getType().getName().equalsIgnoreCase(_sType)) {
                         blnFound = true;
-                        handleItem(item, asRemainingArgs, _fbs, cpll);
+                        handleItem(item, ap.copy(), _fbs, saveLog, replaceLog);
                         _fbs.println(I.CMD_ITEM_COMPLETE());
                         _fbs.println();
                     }
                 }
             } finally {
-                cpll.close();
+                saveLog.close();
+                replaceLog.close();
             }
 
             if (!blnFound) {
@@ -214,36 +167,21 @@ class Command_Items {
     }
 
     private static void handleItem(@Nonnull DiscItem item,
-                                   @CheckForNull String[] asRemainingArgs,
+                                   @Nonnull ArgParser ap,
                                    @Nonnull FeedbackStream fbs,
-                                   @Nonnull ConsoleProgressListenerLogger cpll)
+                                   @Nonnull ConsoleProgressLogger saveLog,
+                                   @Nonnull ConsoleProgressLogger replaceLog)
             throws CommandLineException
     {
-        ArgParser ap = new ArgParser("", false);
-
-        BooleanHolder fpsDumpArg = new BooleanHolder();
-        ap.addOption("-fpsdump %v", fpsDumpArg);
-        BooleanHolder itemHelpArg = new BooleanHolder();
-        ap.addOption("-?,-h,-help %v", itemHelpArg);
-        BooleanHolder playArg = new BooleanHolder();
-        ap.addOption("-play %v", playArg);
-        BooleanHolder frameInfoArg = new BooleanHolder();
-        ap.addOption("-frameinfodump %v", frameInfoArg);
-        StringHolder replaceFrames = new StringHolder();
-        ap.addOption("-replaceframes %s", replaceFrames);
-        StringHolder replaceTim = new StringHolder();
-        ap.addOption("-replacetim %s", replaceTim);
-
-        StringHolder replaceXa = new StringHolder();
-        ap.addOption("-replacexa %s", replaceXa);
-        StringHolder xaNum = new StringHolder();
-        ap.addOption("-xa %s", xaNum);
-        
-        StringHolder directory = new StringHolder();
-        ap.addOption("-dir %s", directory);
-
-        if (asRemainingArgs != null)
-            asRemainingArgs = ap.matchAllArgs(asRemainingArgs, 0, 0);
+        BooleanHolder fpsDumpArg = ap.addBoolOption("-fpsdump");
+        BooleanHolder itemHelpArg = ap.addHelp();
+        BooleanHolder frameInfoArg = ap.addBoolOption("-frameinfodump");
+        StringHolder replaceFrames = ap.addStringOption("-replaceframes");
+        StringHolder replaceTim = ap.addStringOption("-replacetim");
+        StringHolder replaceXa = ap.addStringOption("-replacexa");
+        StringHolder xaNum = ap.addStringOption("-xa");
+        StringHolder directory = ap.addStringOption("-dir");
+        ap.match();
 
         try {
             if (fpsDumpArg.value) {
@@ -251,7 +189,8 @@ class Command_Items {
                 if (!(item instanceof DiscItemStrVideoStream)) {
                     throw new CommandLineException(I.CMD_DISC_ITEM_NOT_VIDEO());
                 } else {
-                    fbs.println("Generating fps dump.");
+                    // dev tool, don't care to localize
+                    fbs.println(new UnlocalizedMessage("Generating fps dump."));
                     PrintStream ps = new PrintStream("fps.txt");
                     try {
                         ((DiscItemStrVideoStream)item).fpsDump2(ps);
@@ -262,35 +201,14 @@ class Command_Items {
 
             } else if (itemHelpArg.value) {
                 fbs.println(I.CMD_DETAILED_HELP_FOR());
-                fbs.println(item);
+                fbs.println(new UnlocalizedMessage(item.toString()));
                 item.makeSaverBuilder().printHelp(fbs);
-            } else if (playArg.value) {
-                if (item instanceof DiscItemVideoStream) {
-                    fbs.println(I.CMD_CREATING_PLAYER());
-                    fbs.println(item);
-                    try {
-                        player(((DiscItemVideoStream)item).makePlayController(), item, fbs);
-                    } catch (InterruptedException ex) {
-                        throw new CommandLineException(I.CMD_PLAYER_ERR(), ex);
-                    } catch (LineUnavailableException ex) {
-                        throw new CommandLineException(I.CMD_PLAYER_ERR(), ex);
-                    }
-                } else if (item instanceof DiscItemAudioStream) {
-                    try {
-                        player(((DiscItemAudioStream)item).makePlayController(), item, fbs);
-                    } catch (InterruptedException ex) {
-                        throw new CommandLineException(I.CMD_PLAYER_ERR(), ex);
-                    } catch (LineUnavailableException ex) {
-                        throw new CommandLineException(I.CMD_PLAYER_ERR(), ex);
-                    }
-                } else {
-                    throw new CommandLineException(I.CMD_DISC_ITEM_NOT_AUDIO_VIDEO_NO_PLAYER());
-                }
             } else if (frameInfoArg.value) {
                 if (!(item instanceof DiscItemVideoStream)) {
                     throw new CommandLineException(I.CMD_DISC_ITEM_NOT_VIDEO());
                 } else {
-                    ((DiscItemVideoStream)item).frameInfoDump(fbs);
+                    ((DiscItemVideoStream)item).frameInfoDump(fbs.getUnderlyingStream(),
+                                                              fbs.getLevel() >= FeedbackStream.MORE);
                 }
             } else if (replaceFrames.value != null) {
                 if (!(item instanceof DiscItemVideoStream)) {
@@ -299,11 +217,7 @@ class Command_Items {
                     fbs.printlnWarn(I.CMD_BACKUP_DISC_IMAGE_WARNING());
                     fbs.printlnWarn(I.CMD_REOPENING_DISC_WRITE_ACCESS());
                     item.getSourceCd().reopenForWriting();
-                    try {
-                        ((DiscItemVideoStream)item).replaceFrames(fbs, replaceFrames.value);
-                    } catch (MdecException ex) {
-                        LOG.log(Level.SEVERE, null, ex);
-                    }
+                    ((DiscItemVideoStream)item).replaceFrames(replaceLog, replaceFrames.value);
                 }
             } else if (replaceTim.value != null) {
                 if (!(item instanceof DiscItemTim)) {
@@ -329,7 +243,7 @@ class Command_Items {
                         fbs.println(I.CMD_XA_REPLACE_OPENING_PATCH_IDX(replaceXa.value));
                         DiscIndex patchIndex;
                         try {
-                            patchIndex = new DiscIndex(replaceXa.value, LOG);
+                            patchIndex = new DiscIndex(replaceXa.value, replaceLog);
                         } catch (IOException ex) {
                             throw new CommandLineException(ex);
                         }
@@ -344,11 +258,11 @@ class Command_Items {
                         }
                         fbs.printlnWarn(I.CMD_REOPENING_DISC_WRITE_ACCESS());
                         item.getSourceCd().reopenForWriting();
-                        xaItem.replaceXa(fbs, patchXa);
+                        xaItem.replaceXa(replaceLog, patchXa);
                     } else {
                         fbs.printlnWarn(I.CMD_REOPENING_DISC_WRITE_ACCESS());
                         item.getSourceCd().reopenForWriting();
-                        xaItem.replaceXa(fbs, new File(replaceXa.value));
+                        xaItem.replaceXa(replaceLog, new File(replaceXa.value));
                     }
                 }
             } else {
@@ -358,15 +272,15 @@ class Command_Items {
                 else
                     dir = null;
                 // decode/extract the desired disc item
-                decodeDiscItem(item, dir, asRemainingArgs, fbs, cpll);
+                decodeDiscItem(item, dir, ap, fbs, saveLog);
                 fbs.println(I.CMD_PROCESS_COMPLETE());
             }
 
         } catch (CommandLineException ex) {
             throw ex;
-        } catch (NotThisTypeException ex) {
+        } catch (BinaryDataNotRecognized ex) {
             throw new CommandLineException(ex);
-        } catch (IncompatibleException ex) {
+        } catch (LocalizedIncompatibleException ex) {
             throw new CommandLineException(ex);
         } catch (IOException ex) {
             throw new CommandLineException(ex);
@@ -374,23 +288,23 @@ class Command_Items {
             throw new CommandLineException(ex);
         } catch (Throwable ex) {
             ILocalizedMessage msg = I.CMD_ERR_EX_CLASS(ex, ex.getClass().getSimpleName());
-            msg.log(cpll, Level.SEVERE, ex);
+            saveLog.log(Level.SEVERE, msg, ex);
             throw new CommandLineException(msg, ex);
         }
     }
 
     private static void decodeDiscItem(@Nonnull DiscItem item, @CheckForNull File dir,
-                                       @CheckForNull String[] asRemainingArgs,
+                                       @Nonnull ArgParser ap,
                                        @Nonnull FeedbackStream fbs,
-                                       @Nonnull ConsoleProgressListenerLogger cpll)
-            throws IOException
+                                       @Nonnull ConsoleProgressLogger cpl)
+            throws LoggedFailure
     {
 
         DiscItemSaverBuilder builder = item.makeSaverBuilder();
 
         fbs.println(I.CMD_SAVING(item));
 
-        builder.commandLineOptions(asRemainingArgs, fbs);
+        builder.commandLineOptions(ap, fbs);
 
         fbs.println();
 
@@ -401,9 +315,9 @@ class Command_Items {
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();
         try {
-            cpll.info(item.getSourceCd().toString());
-            cpll.info(item.toString());
-            saver.startSave(cpll);
+            cpl.log(Level.INFO, new UnlocalizedMessage(item.getSourceCd().toString()));
+            cpl.log(Level.INFO, new UnlocalizedMessage(item.toString()));
+            saver.startSave(cpl);
             fbs.println(I.CMD_NUM_FILES_CREATED(saver.getGeneratedFiles().length));
         } catch (TaskCanceledException ex) {
             LOG.log(Level.SEVERE, "SHOULD NEVER HAPPEN", ex);

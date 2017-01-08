@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -96,7 +96,7 @@ public class SectorXaAudio extends IdentifiedSector {
     /** The last 20 bytes of the sector are unused. */
     // [extends IdentifiedSector]
     public int getIdentifiedUserDataSize() {
-            return super.getCdSector().getCdUserDataSize() - 20;
+        return super.getCdSector().getCdUserDataSize() - 20;
     }
 
     public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
@@ -109,7 +109,7 @@ public class SectorXaAudio extends IdentifiedSector {
         return "XA Audio";
     }
 
-    public long getSampleCount() {
+    public long getSampleFrameCount() {
         if (_blnStereo)
             return XaAdpcmDecoder.pcmSamplesGeneratedFromXaAdpcmSector(_iBitsPerSample) / 2;
         else
@@ -185,10 +185,10 @@ public class SectorXaAudio extends IdentifiedSector {
     public boolean isSilent() {
         for(int iSndGrp = 0, i = 0;
             iSndGrp < XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR;
-            iSndGrp++, i += XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)
+            iSndGrp++, i += XaAdpcmDecoder.SIZEOF_SOUND_GROUP)
         {
             // just check if all ADPCM values are 0
-            for (int j = 16; j < XaAdpcmDecoder.SIZE_OF_SOUND_GROUP; j++) {
+            for (int j = 16; j < XaAdpcmDecoder.SIZEOF_SOUND_GROUP; j++) {
                 if (getCdSector().readUserDataByte(i+j) != 0)
                     return false;
             }
@@ -270,15 +270,12 @@ public class SectorXaAudio extends IdentifiedSector {
             return -1;
     }
 
-    @Override
     public int getErrorCount() {
         return _iErrors;
     }
 
-    @Override
     public void printErrors(@Nonnull PrintStream ps) {
         ps.println("Sector " + getSectorNumber() + ": " +_iErrors+ " errors in XA sound parameters");
     }
-
 
 }

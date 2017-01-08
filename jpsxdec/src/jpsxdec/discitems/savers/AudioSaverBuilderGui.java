@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,78 +37,73 @@
 
 package jpsxdec.discitems.savers;
 
-import com.jhlabs.awt.ParagraphLayout;
+import java.awt.BorderLayout;
 import javax.annotation.Nonnull;
-import javax.swing.AbstractListModel;
-import javax.swing.ComboBoxModel;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
+import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.formats.JavaAudioFormat;
 import jpsxdec.i18n.I;
 
-public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui<AudioSaverBuilder> {
+public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui {
 
-    public AudioSaverBuilderGui(@Nonnull AudioSaverBuilder builder) {
-        super(builder, new ParagraphLayout());
-        setParagraphLayoutPanel(this);
+    @Nonnull
+    private final CombinedBuilderListener<AudioSaverBuilder> _bl;
 
-        addListeners(
-            new AudioFormat(),
-            new Volume()
-        );
-
+    public AudioSaverBuilderGui(@Nonnull AudioSaverBuilder saverBuilder) {
+        super(new BorderLayout());
+        _bl = new CombinedBuilderListener<AudioSaverBuilder>(saverBuilder);
+        add(new PPanel(_bl), BorderLayout.NORTH);
     }
 
-    protected class AudioFormat extends AbstractListModel implements ComboBoxModel, ChangeListener {
-        Object __cur = getSelectedItem();
-        @Nonnull final JLabel __label;
-        @Nonnull final JLabel __name;
-        @Nonnull final JComboBox __combo;
+    @Override
+    public boolean useSaverBuilder(@Nonnull DiscItemSaverBuilder saverBuilder) {
+        return _bl.changeSourceBuilder(saverBuilder);
+    }
 
-        public AudioFormat() {
-            __label = new JLabel(I.GUI_SAVE_AS_LABEL().getLocalizedMessage());
-            __name = new JLabel(_writerBuilder.getFileBaseName());
-            __combo = new JComboBox(this);
-            add(__label, ParagraphLayout.NEW_PARAGRAPH);
-            add(__name);
-            add(__combo);
+    private static class PPanel extends ParagraphPanel {
+        @Nonnull
+        private final CombinedBuilderListener<AudioSaverBuilder> _bl;
+
+        public PPanel(@Nonnull CombinedBuilderListener<AudioSaverBuilder> bl) {
+            _bl = bl;
+            _bl.addListeners(
+                new AudioFormat(),
+                new Volume()
+            );
         }
-        public void stateChanged(ChangeEvent e) {
-            if (__cur != getSelectedItem()) {
-                __cur = getSelectedItem();
-                fireContentsChanged(this, 0, getSize());
+
+        protected class AudioFormat extends AbstractComboExtension {
+
+            public AudioFormat() {
+                super(I.GUI_SAVE_AS_LABEL(), _bl.getBuilder().getFileBaseName());
+            }
+            public int getSize() {
+                return _bl.getBuilder().getContainerFormat_listSize();
+            }
+            public Object getElementAt(int index) {
+                return _bl.getBuilder().getContainerFormat_listItem(index);
+            }
+            public void setSelectedItem(Object anItem) {
+                _bl.getBuilder().setContainerForamt((JavaAudioFormat) anItem);
+            }
+            public Object getSelectedItem() {
+                return _bl.getBuilder().getContainerFormat();
             }
         }
-        public int getSize() {
-            return _writerBuilder.getContainerFormat_listSize();
-        }
-        public Object getElementAt(int index) {
-            return _writerBuilder.getContainerFormat_listItem(index);
-        }
-        public void setSelectedItem(Object anItem) {
-            _writerBuilder.setContainerForamt((JavaAudioFormat) anItem);
-        }
-        public Object getSelectedItem() {
-            return _writerBuilder.getContainerFormat();
+
+        private class Volume extends AbstractSlider {
+            public Volume() { super(I.GUI_VOLUME_LABEL()); }
+            public int getValue() {
+                return (int) (_bl.getBuilder().getVolume() * 100);
+            }
+            public void setValue(int n) {
+                _bl.getBuilder().setVolume(n / 100.);
+            }
+            protected boolean isEnabled() {
+                return true;
+            }
         }
     }
-
-    private class Volume extends AbstractSlider {
-        public Volume() { super(I.GUI_VOLUME_LABEL()); }
-        public int getValue() {
-            return (int) (_writerBuilder.getVolume() * 100);
-        }
-        public void setValue(int n) {
-            _writerBuilder.setVolume(n / 100.);
-        }
-        protected boolean isEnabled() {
-            return true;
-        }
-    }
-
     
 
 }

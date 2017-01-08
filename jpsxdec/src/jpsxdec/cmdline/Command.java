@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.cmdline;
 
-import argparser.ArgParser;
 import argparser.StringHolder;
 import java.io.File;
 import java.io.IOException;
@@ -47,23 +46,25 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
+import jpsxdec.util.ArgParser;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.UserFriendlyLogger;
 
 
 public abstract class Command {
     @Nonnull
-    private final String _sArg;
+    private final String[] _asFlags;
 
-    /** @param sArg  Option name. */
-    public Command(@Nonnull String sArg) {
-        _sArg = sArg;
+    /** @param asFlags  Option name. */
+    public Command(@Nonnull String ... asFlags) {
+        _asFlags = asFlags;
     }
 
-    abstract public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException;
+    abstract public void execute(@Nonnull ArgParser ap) throws CommandLineException;
 
-    private final StringHolder _receiver = new StringHolder();
+    @Nonnull
+    private StringHolder _receiver;
     @Nonnull
     private StringHolder inputFileArg, indexFileArg;
     @Nonnull
@@ -74,7 +75,7 @@ public abstract class Command {
                               @Nonnull StringHolder indexFileArg,
                               @Nonnull FeedbackStream fbs)
     {
-        ap.addOption(_sArg + " %s", _receiver);
+        _receiver = ap.addStringOption(_asFlags);
         this.inputFileArg = inputFileArg;
         this.indexFileArg = indexFileArg;
         _fbs = fbs;
@@ -101,12 +102,15 @@ public abstract class Command {
         } else if (indexFileArg.value != null) {
             _fbs.println(I.CMD_READING_INDEX_FILE(indexFileArg.value));
             DiscIndex index;
+            UserFriendlyLogger log = new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage());
             try {
-                index = new DiscIndex(indexFileArg.value, new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage()));
+                index = new DiscIndex(indexFileArg.value, log);
             } catch (IOException ex) {
                 throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
-            } catch (NotThisTypeException ex) {
+            } catch (DeserializationFail ex) {
                 throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
+            } finally {
+                log.close();
             }
             _fbs.println(I.CMD_ITEMS_LOADED(index.size()));
             return index.getSourceCd();
@@ -123,12 +127,15 @@ public abstract class Command {
                 File idxFile = new File(indexFileArg.value);
                 if (idxFile.exists()) {
                     _fbs.println(I.CMD_READING_INDEX_FILE(indexFileArg.value));
+                    UserFriendlyLogger log = new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage());
                     try {
-                        index = new DiscIndex(indexFileArg.value, cd, new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage()));
+                        index = new DiscIndex(indexFileArg.value, cd, log);
                     } catch (IOException ex) {
                         throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
-                    } catch (NotThisTypeException ex) {
+                    } catch (DeserializationFail ex) {
                         throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
+                    } finally {
+                        log.close();
                     }
                     _fbs.println(I.CMD_USING_SRC_FILE(index.getSourceCd().getSourceFile()));
                     _fbs.println(I.CMD_ITEMS_LOADED(index.size()));
@@ -138,12 +145,15 @@ public abstract class Command {
                 }
             } else {
                 _fbs.println(I.CMD_READING_INDEX_FILE(indexFileArg.value));
+                UserFriendlyLogger log = new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage());
                 try {
-                    index = new DiscIndex(indexFileArg.value, new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage()));
+                    index = new DiscIndex(indexFileArg.value, log);
                 } catch (IOException ex) {
                     throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
-                } catch (NotThisTypeException ex) {
+                } catch (DeserializationFail ex) {
                     throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
+                } finally {
+                    log.close();
                 }
                 _fbs.println(I.CMD_USING_SRC_FILE(index.getSourceCd().getSourceFile()));
                 _fbs.println(I.CMD_ITEMS_LOADED(index.size()));

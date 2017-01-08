@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,6 +43,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorAceCombat3Video;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 /** Collects Ace Combat 3 sectors and generates frames. 
  * This could be considered an internal demuxer.
@@ -54,21 +56,21 @@ import jpsxdec.sectors.SectorAceCombat3Video;
 public class Ac3Demuxer {
 
     public static interface Listener {
-        void frameComplete(@Nonnull DemuxedAc3Frame frame) throws IOException;
+        void frameComplete(@Nonnull DemuxedAc3Frame frame) throws LoggedFailure;
     }
 
     public static class DemuxedAc3Frame extends AbstractDemuxedStrFrame<SectorAceCombat3Video> {
         private final int _iInvFrameNumber;
         private final int _iChannel;
 
-        private DemuxedAc3Frame(SectorAceCombat3Video firstChunk) {
+        private DemuxedAc3Frame(@Nonnull SectorAceCombat3Video firstChunk) {
             super(firstChunk);
             _iInvFrameNumber = firstChunk.getInvertedFrameNumber();
             _iChannel = firstChunk.getChannel();
         }
 
         @Override
-        protected boolean isPartOfFrame(SectorAceCombat3Video chunk) {
+        protected boolean isPartOfFrame(@Nonnull SectorAceCombat3Video chunk) {
             if (chunk.getChannel() != _iChannel)
                 throw new IllegalArgumentException();
             return super.isPartOfFrame(chunk) &&
@@ -100,7 +102,7 @@ public class Ac3Demuxer {
     }
 
     /** @return if the sector was accepted as part of this video channel. */
-    public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull Logger log) throws IOException {
+    public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (!(idSector instanceof SectorAceCombat3Video))
             return false;
         SectorAceCombat3Video vidSector = (SectorAceCombat3Video) idSector;
@@ -116,7 +118,7 @@ public class Ac3Demuxer {
         return true;
     }
 
-    public void flush(@Nonnull Logger log) throws IOException {
+    public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentFrame == null)
             return;
         if (_listener == null)

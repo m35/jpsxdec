@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,7 +52,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -74,8 +73,9 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.UserFriendlyLogger;
 import jpsxdec.util.player.PlayController;
 import jpsxdec.util.player.PlayController.Event;
@@ -248,52 +248,50 @@ public class Gui extends javax.swing.JFrame {
         if (dir != null)
             _settings.setIndexDir(dir.getAbsolutePath());
 
-        final int[] aiWarnErr = new int[2];
         UserFriendlyLogger log = new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage());
         try {
-            log.setListener(new UserFriendlyLogger.OnWarnErr() {
-                public void onWarn(LogRecord record) {
-                    aiWarnErr[0]++;
-                }
-                public void onErr(LogRecord record) {
-                    aiWarnErr[1]++;
-                }
-            });
-            I.GUI_OPENING_INDEX(indexFile).log(log, Level.INFO);
+            UserFriendlyLogger.WarnErrCounter warnErrCount = new UserFriendlyLogger.WarnErrCounter();
+            log.setListener(warnErrCount);
+            log.log(Level.INFO, I.IO_OPENING_FILE(indexFile.toString()));
             
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
             setIndex(new DiscIndex(indexFile.getPath(), log), indexFile.getName());
             _settings.addPreviousIndex(indexFile.getAbsolutePath());
             _guiSaveIndex.setEnabled(false);
-            if (aiWarnErr[0] > 0 || aiWarnErr[1] > 0) {
+            if (warnErrCount.getWarnCount() > 0 || warnErrCount.getErrCount() > 0) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(I.GUI_INDEX_LOAD_ISSUES(_index.size()));
                 sb.append('\n');
-                if (aiWarnErr[0] > 0)
-                    sb.append(I.GUI_INDEX_LOAD_ISSUES_WARNINGS(aiWarnErr[0]))
+                if (warnErrCount.getWarnCount() > 0)
+                    sb.append(I.GUI_INDEX_LOAD_ISSUES_WARNINGS(warnErrCount.getWarnCount()))
                       .append('\n');
-                if (aiWarnErr[1] > 0)
-                    sb.append(I.GUI_INDEX_LOAD_ISSUES_ERRORS(aiWarnErr[1]))
+                if (warnErrCount.getErrCount() > 0)
+                    sb.append(I.GUI_INDEX_LOAD_ISSUES_ERRORS(warnErrCount.getErrCount()))
                       .append('\n');
                 sb.append(I.GUI_INDEX_LOAD_ISSUES_SEE_FILE(log.getFileName()));
                 
                 JOptionPane.showMessageDialog(this, sb.toString(), I.GUI_INDEX_LOAD_ISSUES_DIALOG_TITLE().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
             }
-        } catch (NotThisTypeException ex) {
-            JOptionPane.showMessageDialog(this, ex.getLocalizedMessage(), I.ERR_LOADING_INDEX_FILE().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
+        } catch (DeserializationFail ex) {
+            JOptionPane.showMessageDialog(this, ex.getSourceMessage().getLocalizedMessage(),
+                                          I.ERR_LOADING_INDEX_FILE().getLocalizedMessage(),
+                                          JOptionPane.WARNING_MESSAGE);
         } catch (CdFileNotFoundException ex) {
-            ILocalizedMessage msg = I.GUI_UNABLE_TO_OPEN_FILE(ex.getFile());
-            msg.log(log, Level.SEVERE, ex);
-            JOptionPane.showMessageDialog(this, msg, I.GUI_FILE_NOT_FOUND().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
+            ILocalizedMessage msg = I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString());
+            log.log(Level.SEVERE, msg, ex);
+            JOptionPane.showMessageDialog(this, msg, I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
+                                          JOptionPane.WARNING_MESSAGE);
         } catch (FileNotFoundException ex) {
-            I.OPENING_INDEX_FAILED().log(log, Level.WARNING, ex);
-            JOptionPane.showMessageDialog(this, I.GUI_UNABLE_TO_OPEN_STR(ex.getLocalizedMessage()),
-                                                I.GUI_FILE_NOT_FOUND().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
+            ILocalizedMessage msg = I.IO_OPENING_FILE_NOT_FOUND_NAME(indexFile.toString());
+            log.log(Level.SEVERE, msg, ex);
+            JOptionPane.showMessageDialog(this, msg.getLocalizedMessage(),
+                                          I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
+                                          JOptionPane.WARNING_MESSAGE);
             _settings.removePreviousIndex(indexFile.getAbsolutePath());
         } catch (Throwable ex) {
             ex.printStackTrace();
             ILocalizedMessage msg = I.GUI_BAD_ERROR();
-            msg.log(log, Level.SEVERE, ex);
+            log.log(Level.SEVERE, msg, ex);
             JOptionPane.showMessageDialog(this, ex, msg.getLocalizedMessage(), JOptionPane.ERROR_MESSAGE);
         } finally {
             setCursor(Cursor.getDefaultCursor());
@@ -331,13 +329,8 @@ public class Gui extends javax.swing.JFrame {
         if (oldCd != null){
             Timer t = new Timer(5000, new ActionListener() {
                 public void actionPerformed(ActionEvent ae) {
-                    try {
-                        System.out.println("Closing closed disc");
-                        oldCd.close();
-                    } catch (IOException ex) {
-                        ex.printStackTrace();
-                        LOG.log(Level.SEVERE, "Error closing CD", ex);
-                    }
+                    System.out.println("Closing closed disc");
+                    IO.closeSilently(oldCd, LOG);
                 }
             });
             t.setRepeats(false);
@@ -409,7 +402,7 @@ public class Gui extends javax.swing.JFrame {
             DiscIndex generatedIndex = gui.getIndex();
             if (generatedIndex == null) {
                 // indexing was canceled
-                cd.close();
+                cd.close(); // expose close exception
             } else {
                 setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
                 setIndex(generatedIndex, null);
@@ -418,8 +411,8 @@ public class Gui extends javax.swing.JFrame {
 
         } catch (FileNotFoundException ex) {
             LOG.log(Level.WARNING, null, ex);
-            JOptionPane.showMessageDialog(this, I.GUI_UNABLE_TO_OPEN_FILE(file),
-                                                I.GUI_FILE_NOT_FOUND().getLocalizedMessage(),
+            JOptionPane.showMessageDialog(this, I.IO_OPENING_FILE_NOT_FOUND_NAME(file.toString()),
+                                                I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
                                           JOptionPane.WARNING_MESSAGE);
             _settings.removePreviousImage(file.getAbsolutePath());
         } catch (Throwable ex) {
@@ -657,7 +650,7 @@ public class Gui extends javax.swing.JFrame {
 
         _guiSaveContainer.add(_guiSaveBtnContainer, java.awt.BorderLayout.SOUTH);
 
-        _guiTab.addTab(I.SAVE_TAB().getLocalizedMessage(), _guiSaveContainer); // NOI18N
+        _guiTab.addTab(I.GUI_SAVE_TAB().getLocalizedMessage(), _guiSaveContainer); // NOI18N
 
         _guiPreviewContainer.setLayout(new java.awt.BorderLayout());
 
@@ -672,7 +665,7 @@ public class Gui extends javax.swing.JFrame {
         _guiPreviewPanel.setLayout(new java.awt.BorderLayout());
         _guiPreviewContainer.add(_guiPreviewPanel, java.awt.BorderLayout.CENTER);
 
-        _guiTab.addTab(I.PLAY_TAB().getLocalizedMessage(), _guiPreviewContainer); // NOI18N
+        _guiTab.addTab(I.GUI_PLAY_TAB().getLocalizedMessage(), _guiPreviewContainer); // NOI18N
 
         _guiTabContainer.add(_guiTab, java.awt.BorderLayout.CENTER);
         _guiTab.getAccessibleContext().setAccessibleName("DoStuffTabs");
@@ -852,7 +845,15 @@ public class Gui extends javax.swing.JFrame {
 
             String sDir = _guiDirectory.getText();
             File dir = sDir.length() == 0 ? null : new File(sDir);
-            ArrayList<IDiscItemSaver> savers = _guiDiscTree.collectSelected(dir);
+            
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            ArrayList<IDiscItemSaver> savers;
+            try {
+                savers = _guiDiscTree.collectSelected(dir);
+            } finally {
+                setCursor(Cursor.getDefaultCursor());
+            }
+            
             if (savers.isEmpty()) {
                 JOptionPane.showMessageDialog(this, I.GUI_NOTHING_IS_MARKED_FOR_SAVING());
                 return;
@@ -933,42 +934,40 @@ public class Gui extends javax.swing.JFrame {
     private void formWindowOpened(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowOpened
         if (_sCommandLineFile == null)
             return;
+        File f = new File(_sCommandLineFile);
+        
         FileInputStream fis = null;
         try {
-            // read the first several bytes
-            File f = new File(_sCommandLineFile);
             fis = new FileInputStream(f);
-            byte[] abBuffer = readAsMuchAsPossible(fis, Version.IndexHeader.length()*2);
-            fis.close();
-            fis = null;
-            // convert to string
-            String s = new String(abBuffer, "ascii");
-            if (s.contains("jPSXdec")) {
-            //if (_sCommandLineFile.substring(_sCommandLineFile.length()-4).equalsIgnoreCase(".idx")) {
-                openIndex(f);
-            } else {
-                openDisc(f);
+            
+            try {
+                // read the first several bytes
+                byte[] abBuffer = readAsMuchAsPossible(fis, Version.IndexHeader.length()*2);
+                fis.close(); // expose close exception
+                fis = null;
+                // convert to string
+                String s = Misc.asciiToString(abBuffer);
+                if (s.contains("jPSXdec")) {
+                //if (_sCommandLineFile.substring(_sCommandLineFile.length()-4).equalsIgnoreCase(".idx")) {
+                    openIndex(f);
+                } else {
+                    openDisc(f);
+                }
+            } catch (IOException ex) {
+                LOG.log(Level.WARNING, _sCommandLineFile, ex);
+                JOptionPane.showMessageDialog(this,
+                        I.IO_READING_FROM_FILE_ERROR_NAME(_sCommandLineFile).getLocalizedMessage(),
+                        I.IO_READING_FROM_FILE_ERROR().getLocalizedMessage(),
+                        JOptionPane.ERROR_MESSAGE);
             }
-        } catch (IOException ex) {
-            LOG.log(Level.WARNING, null, ex);
-            String sMsg = ex.getLocalizedMessage();
-            if (sMsg == null)
-                sMsg = ex.getMessage();
-            ILocalizedMessage popup;
-            if (sMsg == null)
-                popup = I.GUI_ERR_OPENING(_sCommandLineFile);
-            else
-                popup = I.GUI_ERR_OPENING_EXCEPTION(_sCommandLineFile, sMsg);
-            JOptionPane.showMessageDialog(this, popup,
-                    I.GUI_FAILED_TO_READ_FILE().getLocalizedMessage(),
+        } catch (FileNotFoundException ex) {
+            LOG.log(Level.WARNING, _sCommandLineFile, ex);
+            JOptionPane.showMessageDialog(this, 
+                    I.IO_OPENING_FILE_NOT_FOUND_NAME(_sCommandLineFile).getLocalizedMessage(),
+                    I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
                     JOptionPane.ERROR_MESSAGE);
         } finally {
-            try {
-                if (fis != null)
-                    fis.close();
-            } catch (IOException ex) {
-                LOG.log(Level.SEVERE, null, ex);
-            }
+            IO.closeSilently(fis, LOG);
         }
     }//GEN-LAST:event_formWindowOpened
 
@@ -978,12 +977,7 @@ public class Gui extends javax.swing.JFrame {
             throws IOException
     {
         byte[] ab = new byte[iCount];
-        int iSize = 0;
-        while (iSize < iCount) {
-            int i = is.read(ab, iSize, iCount);
-            if (i < 0) break;
-            iSize += i;
-        }
+        int iSize = IO.readByteArrayMax(is, ab, 0, ab.length);
         if (iSize < ab.length)
             return Misc.copyOfRange(ab, 0, iSize);
         else

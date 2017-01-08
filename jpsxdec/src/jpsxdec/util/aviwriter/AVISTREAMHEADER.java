@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
+import jpsxdec.util.IO;
         
 /** Represents the 
  * <a href="http://msdn2.microsoft.com/en-us/library/ms779638(VS.85).aspx">AVISTREAMHEADER</a>
@@ -74,26 +75,26 @@ class AVISTREAMHEADER extends AVIstruct {
     
     @Override
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
-        write32LE(raf, fcc);
-        write32LE(raf, cb);
-        write32LE(raf, fccType);
-        write32LE(raf, fccHandler);
-        write32LE(raf, dwFlags);
-        write16LE(raf, wPriority);
-        write16LE(raf, wLanguage);
-        write32LE(raf, (int)dwInitialFrames);
-        write32LE(raf, (int)dwScale);
-        write32LE(raf, (int)dwRate);
-        write32LE(raf, (int)dwStart);
-        write32LE(raf, (int)dwLength);
-        write32LE(raf, (int)dwSuggestedBufferSize);
-        write32LE(raf, (int)dwQuality);
-        write32LE(raf, (int)dwSampleSize);
+        IO.writeInt32LE(raf, fcc);
+        IO.writeInt32LE(raf, cb);
+        IO.writeInt32LE(raf, fccType);
+        IO.writeInt32LE(raf, fccHandler);
+        IO.writeInt32LE(raf, dwFlags);
+        IO.writeInt16LE(raf, wPriority);
+        IO.writeInt16LE(raf, wLanguage);
+        IO.writeInt32LE(raf, (int)dwInitialFrames);
+        IO.writeInt32LE(raf, (int)dwScale);
+        IO.writeInt32LE(raf, (int)dwRate);
+        IO.writeInt32LE(raf, (int)dwStart);
+        IO.writeInt32LE(raf, (int)dwLength);
+        IO.writeInt32LE(raf, (int)dwSuggestedBufferSize);
+        IO.writeInt32LE(raf, (int)dwQuality);
+        IO.writeInt32LE(raf, (int)dwSampleSize);
         
-        write16LE(raf, left);
-        write16LE(raf, top);
-        write16LE(raf, right);
-        write16LE(raf, bottom); 
+        IO.writeInt16LE(raf, left);
+        IO.writeInt16LE(raf, top);
+        IO.writeInt16LE(raf, right);
+        IO.writeInt16LE(raf, bottom);
         
     }
     

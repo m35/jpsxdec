@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016  Michael Sabin
+ * Copyright (C) 2016-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,6 @@ package jpsxdec.psxvideo.bitstreams;
 
 import java.awt.image.BufferedImage;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -61,7 +60,7 @@ import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
@@ -118,12 +117,12 @@ public class STRv3 {
                 new BitStreamUncompressor_STRv3.BitStreamCompressor_STRv3();
         byte[] abBitstream = comp.compress(in, 16, 16);
         BitStreamUncompressor_STRv3 out = new BitStreamUncompressor_STRv3();
-        out.reset(abBitstream, abBitstream.length);
+        out.reset(abBitstream);
         // TODO: uncompress this
         try {
             out.skipMacroBlocks(16, 16);
             fail("Expected exception");
-        } catch (MdecException.Uncompress ex) {
+        } catch (MdecException.ReadCorruption ex) {
 
         }
     }
@@ -219,7 +218,7 @@ public class STRv3 {
         try {
             byte[] abBitstream = comp.compress(in, iWidth, iHeight);
             fail("Should not be able to compress this");
-        } catch (MdecException.Compress ex) {
+        } catch (MdecException.TooMuchEnergy ex) {
             // expected
         }
         
@@ -265,17 +264,16 @@ public class STRv3 {
 
 
     @Test
-    public void v3ChromaDc() throws IOException, NotThisTypeException {
+    public void v3ChromaDc() throws Exception {
         testStreamFile("v3_DC_CHROMA.txt.gz");
     }
 
     @Test
-    public void v3LumaDc() throws IOException, NotThisTypeException {
+    public void v3LumaDc() throws Exception {
         testStreamFile("v3_DC_LUMA.txt.gz");
     }
 
-    public static void testStreamFile(String sFile) throws IOException, NotThisTypeException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    public static void testStreamFile(String sFile) throws Exception {
         BitStreamUncompressor_STRv3 v3 = new BitStreamUncompressor_STRv3();
         MdecCode code = new MdecCode();
 
@@ -289,16 +287,16 @@ public class STRv3 {
             assertEquals(sLine, 2, as.length);
             String sBits = as[0].replace("+", "");
             String[] asCodes = as[1].split("\\+");
-            BitStreamWriter bw = STRv2.writeHeader(baos, 3);
+            BitStreamWriter bw = STRv2.writeHeader(3);
             bw.write(sBits);
-            bw.close();
-            v3.reset(baos.toByteArray(), baos.size());
+            byte[] ab = bw.toByteArray();
+            v3.reset(ab);
             for (String sCode : asCodes) {
                 try {
                     v3.readMdecCode(code);
                     if (!sCode.equals(code.toString()))
                         System.out.println("Line "+lnr.getLineNumber()+": "+sLine);
-                } catch (MdecException.Read ex) {
+                } catch (MdecException.ReadCorruption ex) {
                     if (!sCode.startsWith("!")) {
                         AssertionError e = new AssertionError("Line "+lnr.getLineNumber()+": "+sLine);
                         e.initCause(ex);
@@ -316,7 +314,6 @@ public class STRv3 {
         private final BitStreamUncompressor_STRv3 _v3 = new BitStreamUncompressor_STRv3();
         private final MdecCode _code = new MdecCode();
         private final StringBuilder _mdecCodesRead = new StringBuilder();
-        private final ByteArrayOutputStream _baos = new ByteArrayOutputStream();
         private BitStreamWriter _bw;
         private final ArrayList<String> _mdecCodeBitsWritten = new ArrayList<String>();
 
@@ -332,7 +329,7 @@ public class STRv3 {
         /** Write bits to git bitstream into the state to test. */
         abstract protected void writeSetupBits() throws IOException;
 
-        private MdecCode nextCode() throws MdecException.Read {
+        private MdecCode nextCode() throws MdecException.EndOfStream, MdecException.ReadCorruption  {
             _v3.readMdecCode(_code);
             if (_mdecCodesRead.length() > 0)
                 _mdecCodesRead.append('+');
@@ -343,15 +340,15 @@ public class STRv3 {
         }
 
         private void initFrame() throws IOException {
-            _bw = STRv2.writeHeader(_baos, 3);
+            _bw = STRv2.writeHeader(3);
             _mdecCodeBitsWritten.clear();
             _mdecCodesRead.setLength(0);
         }
 
-        private void closeAndReset() throws IOException, NotThisTypeException {
-            _bw.close();
-            _v3.reset(_baos.toByteArray(), _baos.size());
-            _baos.reset();
+        private void closeAndReset() throws IOException, BinaryDataNotRecognized {
+            byte[] ab = _bw.toByteArray();
+            _v3.reset(ab);
+            _bw.reset();
             _mdecCodesRead.setLength(0);
         }
 
@@ -413,7 +410,7 @@ public class STRv3 {
                 assertFalse("These bits should fail "+sBits + " "+Integer.toHexString(iBits),
                         _mdecCodeBitsWritten.size() == 1 && shouldFailUnknownCode(iBits));
                 return getLine(null);
-            } catch (MdecException.Uncompress ex) {
+            } catch (MdecException.ReadCorruption ex) {
                 if (shouldFailUnknownCode(iBits))
                     assertTrue(ex.getMessage(), ex.getMessage().contains("Unknown"));
                 else
@@ -422,7 +419,7 @@ public class STRv3 {
             }
         }
 
-        private String getLine(MdecException ex) {
+        private String getLine(MdecException.ReadCorruption ex) {
             String sLine = Misc.join(_mdecCodeBitsWritten, "+");
             if (ex != null) {
                 if (_mdecCodesRead.length() == 0)
@@ -498,7 +495,5 @@ public class STRv3 {
         new DcGeneratorChroma().generate("v3_DC_CHROMA.txt");
         new DcGeneratorLuma().generate("v3_DC_LUMA.txt");
     }
-
-
 
 }

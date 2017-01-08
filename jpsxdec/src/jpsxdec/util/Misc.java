@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,9 @@ package jpsxdec.util;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
@@ -53,6 +55,29 @@ import javax.annotation.Nonnull;
 
 /** Miscellaneous helper functions. */
 public final class Misc {
+
+    /**
+     * Every implementation of the Java platform is required to support US-ASCII.
+     * @see Charset
+     */
+    public static byte[] stringToAscii(@Nonnull String string) {
+        try {
+            return string.getBytes("US-ASCII");
+        } catch (UnsupportedEncodingException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static String asciiToString(@Nonnull byte[] ascii) {
+        return asciiToString(ascii, 0, ascii.length);
+    }
+    public static String asciiToString(@Nonnull byte[] ascii, int iOffset, int iLength) {
+        try {
+            return new String(ascii, iOffset, iLength, "US-ASCII");
+        } catch (UnsupportedEncodingException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 
     /** Returns an array of just the matching groups.
      * @return null if failed to match */
@@ -111,6 +136,10 @@ public final class Misc {
         else
             return 0;
     }
+
+    public static boolean objectEquals(@CheckForNull Object o1, @CheckForNull Object o2) {
+        return o1 == o2 || (o1 != null && o2 != null && o1.equals(o2));
+    }
     
     /** Duplicates a string {@code count} times. */
     public static @Nonnull String dup(@Nonnull String s, int count) {
@@ -156,7 +185,7 @@ public final class Misc {
             return sFileName;
     }
     
-    /** Gets the extension from the given file name/path.
+    /** Gets the extension from the given file name/path, without the '.'.
      * @return empty string if no extension.  */
     public static @Nonnull String getExt(@Nonnull String sFileName) {
         int i = sFileName.lastIndexOf('.');
@@ -255,6 +284,7 @@ public final class Misc {
             return sBin;
     }
 
+    /*** Log a message that has parameters and exception. */
     public static void log(@Nonnull Logger log, @Nonnull Level level,
                            @CheckForNull Throwable cause,
                            @Nonnull String sMessage, Object ... aoArguments)

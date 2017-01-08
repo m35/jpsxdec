@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 
 /** Holds the index unique number, and unique string id based on a file. */
 public class IndexId {
@@ -66,11 +66,11 @@ public class IndexId {
         _aiTreeIndexes = aiIndex;
     }
 
-    public IndexId(@Nonnull String sSerialized) throws NotThisTypeException {
+    public IndexId(@Nonnull String sSerialized) throws DeserializationFail {
 
         String[] asParts = Misc.regex("([^\\[]+)(\\[[^\\]]+\\])?", sSerialized);
         if (asParts == null || asParts.length != 3)
-            throw new NotThisTypeException(I.ID_FORMAT_INVALID(sSerialized));
+            throw new DeserializationFail(I.ID_FORMAT_INVALID(sSerialized));
 
         if (UNNAMED_INDEX.equals(asParts[1]))
             _sourceFile = null;
@@ -82,7 +82,7 @@ public class IndexId {
         else {
             _aiTreeIndexes = Misc.splitInt(asParts[2].substring(1, asParts[2].length()-1), "\\.");
             if (_aiTreeIndexes == null)
-                throw new NotThisTypeException(I.ID_FORMAT_INVALID(sSerialized));
+                throw new DeserializationFail(I.ID_FORMAT_INVALID(sSerialized));
         }
 
     }
@@ -153,7 +153,7 @@ public class IndexId {
         
         // check if the other item is part of the same file
         File parentFile = parentId._sourceFile;
-        if (_sourceFile != parentFile && (_sourceFile == null || !_sourceFile.equals(parentFile)))
+        if (!Misc.objectEquals(_sourceFile, parentFile))
             return false; // nope
 
         // make sure the other item is a direct parent
@@ -205,7 +205,7 @@ public class IndexId {
         if (getClass() != obj.getClass())
             return false;
         final IndexId other = (IndexId) obj;
-        if (_sourceFile != other._sourceFile && (_sourceFile == null || !_sourceFile.equals(other._sourceFile)))
+        if (!Misc.objectEquals(_sourceFile, other._sourceFile))
             return false;
         if (!Arrays.equals(this._aiTreeIndexes, other._aiTreeIndexes))
             return false;

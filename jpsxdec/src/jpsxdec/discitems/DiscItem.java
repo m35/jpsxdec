@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,8 @@ package jpsxdec.discitems;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
@@ -46,8 +48,8 @@ import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.sectors.IdentifiedSectorIterator;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Abstract superclass of all disc items. A "disc item" represents some media
@@ -97,6 +99,12 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     }
 
 
+    /** A {@link DiscItem} that starts part-way through a sector.
+     * Useful when sorting multiple item that start in the same sector. */
+    public interface IHasStartOffset {
+        public int getStartOffset();
+    }
+
     private final int _iStartSector;
     private final int _iEndSector;
     @Nonnull
@@ -115,7 +123,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Deserializes the basic information about this {@link DiscItem}. */
     protected DiscItem(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields) 
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         _cdReader = cd;
         int[] aiRng = fields.getSectorRange();
@@ -275,13 +283,35 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     // [implements Comparable]
     public int compareTo(@Nonnull DiscItem other) {
-        if (getStartSector() < other.getStartSector())
-            return -1;
-        else if (getStartSector() > other.getStartSector())
-            return 1;
-        else
-            // have more encompassing disc items come first (result is much cleaner)
-            return Misc.intCompare(other.getEndSector(), getEndSector());
+        if (this == other) {
+            // TreeMap implementation uses a wierd way to verify
+            // that this is a valid type by compariging it to itself
+            return 0;
+        }
+
+        int iStartSectorDiff = Misc.intCompare(getStartSector(), other.getStartSector());
+        if (iStartSectorDiff != 0) {
+            return iStartSectorDiff;
+        } else if (this instanceof IHasStartOffset && other instanceof IHasStartOffset) {
+            IHasStartOffset thisWithOffset = (IHasStartOffset) this;
+            IHasStartOffset otherWithOffset = (IHasStartOffset) other;
+            int iOffsetDiff = Misc.intCompare(thisWithOffset.getStartOffset(), otherWithOffset.getStartOffset());
+            if (iOffsetDiff != 0)
+                return iOffsetDiff;
+        }
+        // at this point both items start on the same sector, and the same offset if applicable
+        
+        // have more encompassing disc items come first (result is much cleaner)
+        int iEndSectorDiff = Misc.intCompare(other.getEndSector(), getEndSector());
+        if (iEndSectorDiff != 0) {
+            return iEndSectorDiff;
+        } else {
+            // crazy case that does happen where items start and end at exactly the same palce
+            Logger.getLogger(getClass().getName()).log(Level.WARNING,
+                                                       "Identical item position {0} == {1}",
+                                                       new Object[]{other, this});
+            return Misc.intCompare(other.getClass().hashCode(), getClass().hashCode());
+        }
     }
 
     @Override

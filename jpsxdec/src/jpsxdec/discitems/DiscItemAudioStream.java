@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,13 +38,12 @@
 package jpsxdec.discitems;
 
 import javax.annotation.Nonnull;
-import javax.sound.sampled.AudioFormat;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.AudioSaverBuilder;
 import jpsxdec.discitems.savers.MediaPlayer;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.UnlocalizedMessage;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.player.PlayController;
 
 /** Interface for all DiscItems that represent an audio stream.
@@ -62,7 +61,7 @@ public abstract class DiscItemAudioStream extends DiscItem {
     }
 
     public DiscItemAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
     }
@@ -77,9 +76,11 @@ public abstract class DiscItemAudioStream extends DiscItem {
         return true;
     }
 
+    /** Returns if this audio stream is associated with a video stream. */
     public boolean isPartOfVideo() {
         return _blnIsPartOfVideo;
     }
+    /** Sets if this audio stream is associated with a video stream. */
     public void setPartOfVideo(boolean bln) {
         _blnIsPartOfVideo = bln;
     }
@@ -93,14 +94,13 @@ public abstract class DiscItemAudioStream extends DiscItem {
 
     abstract public boolean isStereo();
 
+    /** @return 1 or 2 */
     abstract public int getDiscSpeed();
 
     /** Creates a decoder capable of converting IdentifiedSectors into audio
      *  data which will then be fed to a {@link ISectorAudioDecoder.ISectorTimedAudioWriter}.
      * @see ISectorAudioDecoder#setAudioListener(ISectorAudioDecoder.ISectorTimedAudioWriter)  */
     abstract public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume);
-
-    abstract public @Nonnull AudioFormat getAudioFormat(boolean blnBigEndian);
 
     abstract public int getSectorsPastEnd();
 

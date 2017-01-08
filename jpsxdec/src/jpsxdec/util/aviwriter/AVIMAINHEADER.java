@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
+import jpsxdec.util.IO;
 
 /** Represents the 
  * <a href="http://msdn2.microsoft.com/en-us/library/ms779632(VS.85).aspx">AVIMAINHEADER</a>
@@ -67,22 +68,22 @@ class AVIMAINHEADER extends AVIstruct {
     
     @Override
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
-        write32LE(raf, fcc                       );
-        write32LE(raf, cb                        );
-        write32LE(raf, (int)dwMicroSecPerFrame   );
-        write32LE(raf, (int)dwMaxBytesPerSec     );
-        write32LE(raf, (int)dwPaddingGranularity );
-        write32LE(raf, dwFlags                   );
-        write32LE(raf, (int)dwTotalFrames        );
-        write32LE(raf, (int)dwInitialFrames      );
-        write32LE(raf, (int)dwStreams            );
-        write32LE(raf, (int)dwSuggestedBufferSize);
-        write32LE(raf, (int)dwWidth              );
-        write32LE(raf, (int)dwHeight             );
-        write32LE(raf, dwReserved1               );
-        write32LE(raf, dwReserved2               );
-        write32LE(raf, dwReserved3               );
-        write32LE(raf, dwReserved4               );
+        IO.writeInt32LE(raf, fcc                       );
+        IO.writeInt32LE(raf, cb                        );
+        IO.writeInt32LE(raf, (int)dwMicroSecPerFrame   );
+        IO.writeInt32LE(raf, (int)dwMaxBytesPerSec     );
+        IO.writeInt32LE(raf, (int)dwPaddingGranularity );
+        IO.writeInt32LE(raf, dwFlags                   );
+        IO.writeInt32LE(raf, (int)dwTotalFrames        );
+        IO.writeInt32LE(raf, (int)dwInitialFrames      );
+        IO.writeInt32LE(raf, (int)dwStreams            );
+        IO.writeInt32LE(raf, (int)dwSuggestedBufferSize);
+        IO.writeInt32LE(raf, (int)dwWidth              );
+        IO.writeInt32LE(raf, (int)dwHeight             );
+        IO.writeInt32LE(raf, dwReserved1               );
+        IO.writeInt32LE(raf, dwReserved2               );
+        IO.writeInt32LE(raf, dwReserved3               );
+        IO.writeInt32LE(raf, dwReserved4               );
     }
     
     @Override

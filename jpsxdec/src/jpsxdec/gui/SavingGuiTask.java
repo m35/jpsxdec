@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,18 +41,20 @@ import java.awt.EventQueue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.gui.SavingGuiTable.Row;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
-import jpsxdec.util.ProgressListenerLogger;
+import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.util.LoggedFailure;
+import jpsxdec.util.ProgressLogger;
 import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.UserFriendlyLogger;
 import org.jdesktop.swingworker.SwingWorker;
 
 public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message> 
+        implements UserFriendlyLogger.OnWarnErr
 {
     public static final String ALL_DONE = "alldone";
 
@@ -62,28 +64,22 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     private Row _currentRow;
 
     
-    final ProgressListenerLogger _progressLog = new ProgressListenerLogger("save")
+    final ProgressLogger _progressLog = new ProgressLogger("save")
     {
 
-        public void progressStart(@CheckForNull ILocalizedMessage msg) throws TaskCanceledException {
-            if (_currentRow != null && msg != null)
-                publish(new Event_Message(_currentRow, msg));
-            setProgress(0);
-        }
-
-        public void progressStart() throws TaskCanceledException {
+        protected void handleProgressStart() throws TaskCanceledException {
             if (isCancelled())
                 throw new TaskCanceledException();
             if (_currentRow != null)
                 EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_STARTED));
         }
 
-        public void progressEnd() throws TaskCanceledException {
+        protected void handleProgressEnd() throws TaskCanceledException {
             if (_currentRow != null)
                 EventQueue.invokeLater(new Event_Progress(_currentRow, SavingGuiTable.PROGRESS_DONE));
         }
 
-        public void progressUpdate(double dblPercentComplete) throws TaskCanceledException {
+        protected void handleProgressUpdate(double dblPercentComplete) throws TaskCanceledException {
             if (isCancelled())
                 throw new TaskCanceledException();
             if (_currentRow != null)
@@ -96,48 +92,48 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
                 publish(new Event_Message(_currentRow, msg));
         }
 
-        public boolean seekingEvent() {
+        public boolean isSeekingEvent() {
             // TODO: only seek event after so many seconds
             return true;
-        }
-
-        public void progressInfo(ILocalizedMessage msg) {
-            // ignored
         }
     };
 
 
     public SavingGuiTask(@Nonnull ArrayList<Row> rows, @Nonnull String sCd) {
         _rows = rows;
+        _progressLog.log(Level.INFO, new UnlocalizedMessage(sCd));
+        _progressLog.setListener(this);
+    }
 
-        _progressLog.info(sCd);
-
-        _progressLog.setListener(new UserFriendlyLogger.OnWarnErr() {
-            public void onWarn(LogRecord record) {
-                if (_currentRow != null)
-                    EventQueue.invokeLater(new Event_Warning(_currentRow));
-            }
-            public void onErr(LogRecord record) {
-                if (_currentRow != null)
-                    EventQueue.invokeLater(new Event_Error(_currentRow));
-            }
-        });
+    public void onWarn(@Nonnull ILocalizedMessage msg) {
+        if (_currentRow != null)
+            EventQueue.invokeLater(new Event_Warning(_currentRow));
+    }
+    public void onErr(@Nonnull ILocalizedMessage msg) {
+        if (_currentRow != null)
+            EventQueue.invokeLater(new Event_Error(_currentRow));
     }
 
     @Override
-    protected Void doInBackground() throws Exception {
+    protected Void doInBackground() {
         for (Row row : _rows) {
             _currentRow = row;
             try {
-                _progressLog.info(row._saver.getDiscItem().toString());
+                _progressLog.log(Level.INFO, new UnlocalizedMessage(row._saver.getDiscItem().toString()));
                 row._saver.startSave(_progressLog);
             } catch (TaskCanceledException ex) {
                 // cool
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_CANCELED));
                 break;
-            } catch (Throwable ex) {
+            } catch (LoggedFailure ex) {
                 // uncool
-                I.GUI_UNHANDLED_ERROR().log(_progressLog, Level.SEVERE, ex);
+                if (!ex.wasLogged())
+                    ex.log(_progressLog);
+                EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
+                continue;
+            } catch (Throwable ex) {
+                // uh oh...
+                _progressLog.log(Level.SEVERE, I.GUI_UNHANDLED_ERROR(), ex);
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 if (ex instanceof InterruptedException)
                     break;
@@ -152,6 +148,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         return null;
     }
 
+    @Override
     final protected void process(@Nonnull List<Event_Message> events) {
         // only process the last event
         events.get(events.size()-1).run();
@@ -184,5 +181,6 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         public Event_Message(@Nonnull Row row, @Nonnull ILocalizedMessage val) { super(row); _val = val; }
         public void run() { _row.setMessage(_val.getLocalizedMessage()); }
     }
+
 
 }

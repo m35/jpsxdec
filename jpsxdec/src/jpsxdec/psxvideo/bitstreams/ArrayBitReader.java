@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -107,9 +107,10 @@ public class ArrayBitReader {
         if ((iReadStart & 1) != 0)
             throw new IllegalArgumentException("Data start must be on word boundary.");
         if (iDataSize < 0 || iDataSize > abData.length)
-            throw new IllegalArgumentException("Invalid data size.");
-        if ((iDataSize & 1) != 0)
-            throw new IllegalArgumentException("Data length must be even.");
+            throw new IllegalArgumentException("Invalid data size " + iDataSize);
+        _iDataSize = iDataSize & ~1; // trim off an extra byte if the size is not an even value
+        if (_iDataSize != iDataSize)
+            LOG.log(Level.WARNING, "Bitstream length is an odd number {0}, rounding to even number", iDataSize);
         _iByteOffset = iReadStart;
         _iDataSize = iDataSize;
         _abData = abData;
@@ -120,7 +121,7 @@ public class ArrayBitReader {
     /** Reads 16-bits at the requested offset in the proper endian order. */
     protected short readWord(int i) throws MdecException.EndOfStream {
         if (i + 1 >= _iDataSize)
-            throw new MdecException.EndOfStream(I.END_OF_BITSTREAM(i));
+            throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(i));
         int b1, b2;
         if (_blnLittleEndian) {
             b1 = _abData[i  ] & 0xFF;
@@ -231,11 +232,11 @@ public class ArrayBitReader {
             if (_iByteOffset > _iDataSize) { // clearly out of bounds
                 _iBitsLeft = 0;
                 _iByteOffset = _iDataSize;
-                throw new MdecException.EndOfStream(I.END_OF_BITSTREAM(_iByteOffset));
+                throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(_iByteOffset));
             } else if (_iBitsLeft < 0) { // _iBitsLeft should be <= 0
                 if (_iByteOffset == _iDataSize) { // also out of bounds
                     _iBitsLeft = 0;
-                    throw new MdecException.EndOfStream(I.END_OF_BITSTREAM(_iByteOffset));
+                    throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(_iByteOffset));
                 }
                 _iBitsLeft += 16;
                 _siCurrentWord = readWord(_iByteOffset);

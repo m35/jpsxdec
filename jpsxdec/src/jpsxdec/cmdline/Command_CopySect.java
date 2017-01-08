@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,13 +37,12 @@
 
 package jpsxdec.cmdline;
 
-import argparser.ArgParser;
 import argparser.BooleanHolder;
 import java.io.BufferedOutputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -52,6 +51,8 @@ import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaRiffHeader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.util.ArgParser;
+import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
 
@@ -75,40 +76,49 @@ class Command_CopySect extends Command {
         }
     }
 
-    public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
+    public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         CdFileSectorReader cdReader = getCdReader();
         String sOutputFile = String.format("%s%d-%d.dat",
                 Misc.removeExt(cdReader.getSourceFile().getName()),
                 _aiStartEndSectors[0], _aiStartEndSectors[1]);
+
         _fbs.println(I.CMD_COPYING_SECTOR(_aiStartEndSectors[0], _aiStartEndSectors[1], sOutputFile));
+
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream(sOutputFile);
+        } catch (FileNotFoundException ex) {
+            throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(sOutputFile), ex);
+        }
+        
         OutputStream os = null;
         try {
-            os = new BufferedOutputStream(new FileOutputStream(sOutputFile));
-            if (cdReader.getSectorSize() == CdFileSectorReader.SECTOR_SIZE_2352_BIN && asRemainingArgs != null)
-            {
-                ArgParser parser = new ArgParser("", false);
-                BooleanHolder noCdxaHeader = new BooleanHolder(false);
-                parser.addOption("-nocdxa %v", noCdxaHeader);
-                parser.matchAllArgs(asRemainingArgs, 0, 0);
-                if (!noCdxaHeader.value) {
-                    long lngFileSize = (_aiStartEndSectors[1] - _aiStartEndSectors[0] + 1) * (long) 2352;
-                    CdxaRiffHeader.write(os, lngFileSize);
+            os = new BufferedOutputStream(fos);
+            int iRawSectorSize = cdReader.getRawSectorSize();
+            boolean blnAddCdxaHeader;
+            if (iRawSectorSize == CdFileSectorReader.SECTOR_SIZE_2048_ISO) {
+                blnAddCdxaHeader = false;
+            } else { 
+                if (!ap.hasRemaining()) {
+                    blnAddCdxaHeader = true;
+                } else {
+                    BooleanHolder noCdxaHeader = ap.addBoolOption(false, "-nocdxa");
+                    ap.match();
+                    blnAddCdxaHeader = !noCdxaHeader.value;
                 }
             }
+            if (blnAddCdxaHeader) {
+                long lngFileSize = (_aiStartEndSectors[1] - _aiStartEndSectors[0] + 1) * (long) iRawSectorSize;
+                CdxaRiffHeader.write(os, lngFileSize);
+            }
             for (int i = _aiStartEndSectors[0]; i <= _aiStartEndSectors[1]; i++) {
-                CdSector sector = cdReader.getSector(i);
+                CdSector sector = cdReader.getSector(i); // TODO: seperate exception for reading
                 os.write(sector.getRawSectorDataCopy());
             }
         } catch (IOException ex) {
-            throw new CommandLineException(ex);
+            throw new CommandLineException(I.IO_WRITING_TO_FILE_ERROR_NAME(sOutputFile), ex);
         } finally {
-            if (os != null) {
-                try {
-                    os.close();
-                } catch (IOException ex) {
-                    LOG.log(Level.SEVERE, null, ex);
-                }
-            }
+            IO.closeSilently(os, LOG);
         }
     }
 

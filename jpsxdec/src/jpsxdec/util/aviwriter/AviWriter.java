@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,9 @@
 
 package jpsxdec.util.aviwriter;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -51,6 +53,7 @@ import javax.sound.sampled.AudioSystem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.Version;
+import jpsxdec.util.IO;
 import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
 
 /**
@@ -83,11 +86,14 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * <p>
  * Works with Java 1.5 or higher.
  */
-public abstract class AviWriter {
+public abstract class AviWriter implements Closeable {
 
     // -------------------------------------------------------------------------
     // -- Fields ---------------------------------------------------------------
     // -------------------------------------------------------------------------
+
+    @Nonnull
+    private final File _outputFile;
     
     /** Width of the frame in pixels. */
     private final int _iWidth;
@@ -122,6 +128,10 @@ public abstract class AviWriter {
     // -- Properties -----------------------------------------------------------
     // -------------------------------------------------------------------------
     
+    public @Nonnull File getFile() {
+        return _outputFile;
+    }
+
     public @CheckForNull AudioFormat getAudioFormat() {
         return _audioFormat;
     }
@@ -147,7 +157,7 @@ public abstract class AviWriter {
     }
 
     /** Number of audio samples written. */
-    public long getAudioSamplesWritten() {
+    public long getAudioSampleFramesWritten() {
         return _lngSampleCount;
     }
 
@@ -209,8 +219,9 @@ public abstract class AviWriter {
                         final boolean blnCompressedVideo,
                         final @Nonnull String sFourCCcodec,
                         final int iBytes)
-            throws IOException
+            throws FileNotFoundException, IOException
     {
+        _outputFile = outputfile;
 
         _blnCompressedVideo = blnCompressedVideo;
         _sFourCCcodec = sFourCCcodec;
@@ -678,14 +689,14 @@ public abstract class AviWriter {
         private int _iSize = -1;
         
         Chunk(@Nonnull RandomAccessFile raf, @Nonnull String sChunkName) throws IOException {
-            AVIstruct.write32LE(raf, AVIstruct.string2int(sChunkName));
+            IO.writeInt32LE(raf, AVIstruct.string2int(sChunkName));
             _lngPos = raf.getFilePointer();
             raf.writeInt(0);
         }
         
          Chunk(@Nonnull RandomAccessFile raf, @Nonnull String sChunkName, @Nonnull String sSubChunkName) throws IOException {
             this(raf, sChunkName);
-            AVIstruct.write32LE(raf, AVIstruct.string2int(sSubChunkName));
+            IO.writeInt32LE(raf, AVIstruct.string2int(sSubChunkName));
         }
         
         /** Jumps back to saved position in the RandomAccessFile and writes
@@ -705,7 +716,7 @@ public abstract class AviWriter {
             }
 
             raf.seek(_lngPos); // go back to where the header is
-            AVIstruct.write32LE(raf, _iSize); // write the header size
+            IO.writeInt32LE(raf, _iSize); // write the header size
             raf.seek(lngCurPos); // return to current position
         }
 

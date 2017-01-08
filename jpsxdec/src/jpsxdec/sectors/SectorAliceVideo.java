@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -57,7 +57,7 @@ public class SectorAliceVideo extends SectorAliceNullVideo
         if (isSuperInvalidElseReset()) return;
 
         // ignore null frames between movies
-        if (_iFrameNumber == 0xFFFF) return;
+        if (_header.iFrameNumber == 0xFFFF) return;
 
         setProbability(100);
     }

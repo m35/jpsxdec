@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -34,7 +34,6 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package jpsxdec.util;
 
 import java.io.OutputStream;
@@ -43,8 +42,10 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.ILocalizedMessage;
 
-/** Filters outputting text based on verbosity level. */
-public class FeedbackStream extends PrintStream {
+/**
+ * Filters outputting text based on verbosity level.
+ */
+public class FeedbackStream {
 
     public static final int MORE = 4;
     public static final int NORM = 3;
@@ -52,347 +53,90 @@ public class FeedbackStream extends PrintStream {
     public static final int ERR = 1;
     public static final int NONE = 0;
 
-    private static final int INDENT_AMOUNT = 2;
-
-    private int _iIndentLevel = 0;
-    boolean _blnNewLine = true;
     private int _iVerboseLevel;
-    private int _iPrintDefault = NORM;
+
+    private final PrintStream _ps;
 
     public FeedbackStream() {
         this(System.out, NORM);
     }
 
-    public FeedbackStream(@Nonnull OutputStream out, int iVerboseLevel) {
-        super(out);
+    public FeedbackStream(@Nonnull PrintStream ps, int iVerboseLevel) {
+        _ps = ps;
         _iVerboseLevel = iVerboseLevel;
     }
 
-    //<editor-fold defaultstate="collapsed" desc="PrintStream overrides">
-    @Override
-    public void print(boolean b) { 
-        if (_iVerboseLevel >= _iPrintDefault)  {
-            printIndentIfAny();
-            super.print(b);
-        }
-    }
-    @Override
-    public void print(char c) { 
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.print(c);
-        }
-    }
-    @Override
-    public void print(int i) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.print(i);
-        }
-    }
-    @Override
-    public void print(long l) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.print(l);
-        }
-    }
-    @Override
-    public void print(float f) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.print(f);
-        }
-    }
-    @Override
-    public void print(double d) {  
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.print(d);
-        }
-    }
-    @Override
-    public void print(char[] s) {  
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.print(s);
-        }
-    }
-    @Override
-    public void print(String s) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.print(s);
-        }
-    }
-    @Override
-    public void print(Object obj) {  
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.print(obj);
-        }
-    }
-    @Override
     public void println() {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println();
-            _blnNewLine = true;
+        if (_iVerboseLevel >= NORM) {
+            _ps.println();
         }
     }
-    @Override
-    public void println(boolean x) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    @Override
-    public void println(char x) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    @Override
-    public void println(int x) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    @Override
-    public void println(long x) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    @Override
-    public void println(float x) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    @Override
-    public void println(double x) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    @Override
-    public void println(char[] x) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    @Override
-    public void println(String x) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    @Override
-    public void println(Object x) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            super.println(x);
-            _blnNewLine = true;
-        }
-    }
-    /*
-    @Override
-    public void write(int b) {   
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
-            super.write(b);
-        }
-    }
-    @Override
-    public void write(byte[] buf, int off, int len) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndent();
-            super.write(buf, off, len);
-        }
-    }
-    */
-    //.........................................................................
-    @Override
-    public FeedbackStream printf(String format, Object... args) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            return (FeedbackStream) super.printf(format, args);
-        }
-        return this;
-    }
-    @Override
-    public FeedbackStream printf(Locale l, String format, Object... args) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            return (FeedbackStream) super.printf(l, format, args);
-        }
-        return this;
-    }
-    @Override
-    public FeedbackStream append(CharSequence csq) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            return (FeedbackStream) super.append(csq);
-        }
-        return this;
-    }
-    @Override
-    public FeedbackStream append(CharSequence csq, int start, int end) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            return (FeedbackStream) super.append(csq, start, end);
-        }
-        return this;
-    }
-    @Override
-    public FeedbackStream append(char c) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            return (FeedbackStream) super.append(c);
-        }
-        return this;
-    }
-    @Override
-    public FeedbackStream format(String format, Object... args) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            return (FeedbackStream) super.format(format, args);
-        }
-        return this;
-    }
-    @Override
-    public FeedbackStream format(Locale l, String format, Object... args) {
-        if (_iVerboseLevel >= _iPrintDefault) {
-            printIndentIfAny();
-            return (FeedbackStream) super.format(l, format, args);
-        }
-        return this;
-    }
-    // </editor-fold>
 
-    //========================================================================
+    public void printSpaces(int iCount) {
+        if (_iVerboseLevel >= NORM) {
+            for (int i = 0; i < iCount; i++) {
+                _ps.print(' ');
+            }
+        }
+    }
+
+    public void print(@Nonnull ILocalizedMessage s) {
+        if (_iVerboseLevel >= NORM) {
+            _ps.print(s.getLocalizedMessage());
+        }
+    }
+
+    public void println(@Nonnull ILocalizedMessage s) {
+        if (_iVerboseLevel >= NORM) {
+            _ps.println(s.getLocalizedMessage());
+        }
+    }
 
     public void printMore(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= MORE) {
-            printIndentIfAny();
-            super.print(s);
+            _ps.print(s.getLocalizedMessage());
         }
     }
+
     public void printlnMore(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= MORE) {
-            printIndentIfAny();
-            super.println(s);
-            _blnNewLine = true;
+            _ps.println(s.getLocalizedMessage());
         }
     }
+
     public void printWarn(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= WARN) {
-            printIndentIfAny();
-            super.print(s);
+            _ps.print(s.getLocalizedMessage());
         }
     }
+
     public void printlnWarn(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= WARN) {
-            printIndentIfAny();
-            super.println(s);
-            _blnNewLine = true;
+            _ps.println(s.getLocalizedMessage());
         }
     }
 
-    public void printErr(@Nonnull ILocalizedMessage s)  {
+    public void printErr(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= ERR) {
-            printIndentIfAny();
-            super.print(s);
+            _ps.print(s.getLocalizedMessage());
         }
     }
-    public void printlnErr(@Nonnull String s)  {
+
+    public void printlnErr(@Nonnull ILocalizedMessage s) {
         if (_iVerboseLevel >= ERR) {
-            printIndentIfAny();
-            super.println(s);
-            _blnNewLine = true;
+            _ps.println(s.getLocalizedMessage());
         }
-    }
-    public void printlnErr(@Nonnull ILocalizedMessage s)  {
-        if (_iVerboseLevel >= ERR) {
-            printIndentIfAny();
-            super.println(s);
-            _blnNewLine = true;
-        }
-    }
-    public void printlnErr(@Nonnull Throwable ex)  {
-        if (_iVerboseLevel >= MORE) {
-            // if MORE verbosity is wanted, then print the entire stack trace
-            ex.printStackTrace(this);
-        } else if (_iVerboseLevel >= ERR) {
-            printIndentIfAny();
-            String sMsg = ex.getMessage();
-            if (sMsg == null)
-                sMsg = ex.toString();
-            super.println(sMsg);
-            _blnNewLine = true;
-        }
-    }
-
-    private void printIndentIfAny() {
-        if (_blnNewLine && _iIndentLevel > 0) {
-            super.print(Misc.dup("  ", _iIndentLevel));
-            _blnNewLine = false;
-        }
-    }
-
-    public @Nonnull FeedbackStream indent() {
-        _iIndentLevel += INDENT_AMOUNT;
-        return this;
-    }
-
-    public @Nonnull FeedbackStream indent1() {
-        super.print("  ");
-        _blnNewLine = true;
-        return this;
-    }
-
-    public @Nonnull FeedbackStream indent(int iAmount) {
-        _iIndentLevel += iAmount * INDENT_AMOUNT;
-        return this;
-    }
-
-    public @Nonnull FeedbackStream outdent() {
-        _iIndentLevel -= INDENT_AMOUNT;
-        if (_iIndentLevel < 0)
-            _iIndentLevel = 0;
-        return this;
-    }
-
-    public @Nonnull FeedbackStream outdent(int iAmount) {
-        _iIndentLevel -= iAmount * INDENT_AMOUNT;
-        if (_iIndentLevel < 0)
-            _iIndentLevel = 0;
-        return this;
-    }
-
-    public boolean printMore() {
-        return _iVerboseLevel == MORE;
     }
 
     public void setLevel(int iMore) {
         _iVerboseLevel = iMore;
     }
 
+    public int getLevel() {
+        return _iVerboseLevel;
+    }
+
+    public @Nonnull PrintStream getUnderlyingStream() {
+        return _ps;
+    }
 }

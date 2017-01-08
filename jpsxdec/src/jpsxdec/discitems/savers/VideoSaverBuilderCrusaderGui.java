@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2016  Michael Sabin
+ * Copyright (C) 2012-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,28 +37,47 @@
 
 package jpsxdec.discitems.savers;
 
+import java.awt.BorderLayout;
 import javax.annotation.Nonnull;
+import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.i18n.I;
 
 
-public class VideoSaverBuilderCrusaderGui extends VideoSaverBuilderGui<VideoSaverBuilderCrusader> {
+public class VideoSaverBuilderCrusaderGui extends DiscItemSaverBuilderGui {
 
-    public VideoSaverBuilderCrusaderGui(@Nonnull VideoSaverBuilderCrusader writerBuilder) {
-        super(writerBuilder);
+    @Nonnull
+    private final CombinedBuilderListener<VideoSaverBuilderCrusader> _bl;
 
-        addListeners(new SaveAudio());
+    public VideoSaverBuilderCrusaderGui(@Nonnull VideoSaverBuilderCrusader saverBuilder) {
+        super(new BorderLayout());
+        _bl = new CombinedBuilderListener<VideoSaverBuilderCrusader>(saverBuilder);
+        add(new PPanel(_bl), BorderLayout.NORTH);
     }
 
-    private class SaveAudio extends AbstractCheck {
-        public SaveAudio() { super(I.GUI_SAVE_AUDIO_LABEL()); }
-        public boolean isSelected() {
-            return _writerBuilder.getSavingAudio();
+    @Override
+    public boolean useSaverBuilder(@Nonnull DiscItemSaverBuilder saverBuilder) {
+        return _bl.changeSourceBuilder(saverBuilder);
+    }
+
+    private static class PPanel extends VideoSaverPanel<VideoSaverBuilderCrusader> {
+
+        public PPanel(@Nonnull CombinedBuilderListener<VideoSaverBuilderCrusader> bl) {
+            super(bl);
+            bl.addListeners(new SaveAudio());
         }
-        public void setSelected(boolean b) {
-            _writerBuilder.setSavingAudio(b);
-        }
-        public boolean isEnabled() {
-            return _writerBuilder.getSavingAudio_enabled();
+
+        private class SaveAudio extends AbstractCheck {
+            public SaveAudio() { super(I.GUI_SAVE_AUDIO_LABEL()); }
+            public boolean isSelected() {
+                return _bl.getBuilder().getSavingAudio();
+            }
+            public void setSelected(boolean b) {
+                _bl.getBuilder().setSavingAudio(b);
+            }
+            public boolean isEnabled() {
+                return _bl.getBuilder().getSavingAudio_enabled();
+            }
         }
     }
 

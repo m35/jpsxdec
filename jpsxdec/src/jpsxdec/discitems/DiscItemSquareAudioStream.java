@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,14 +44,17 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.audio.SquareAdpcmDecoder;
+import jpsxdec.audio.SpuAdpcmDecoder;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.ExposedBAOS;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.Fraction;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 /** Represents a series of Square ADPCM sectors that combine to make an audio stream.
  * These kinds of streams are found in Final Fantasy 8, 9, and Chrono Cross.  */
@@ -91,7 +94,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     }
     
     public DiscItemSquareAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
         
@@ -143,10 +146,6 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return lngSampleCount / (double)_iSamplesPerSecond;
     }
 
-    public @Nonnull AudioFormat getAudioFormat(boolean blnBigEndian) {
-        return new AudioFormat(_iSamplesPerSecond, 16, 2, true, blnBigEndian);
-    }
-
     public int getSampleRate() {
         return _iSamplesPerSecond;
     }
@@ -161,7 +160,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     }
 
     public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume) {
-        return new SquareConverter(new SquareAdpcmDecoder(dblVolume));
+        return new SquareConverter(new SpuAdpcmDecoder.Stereo(dblVolume));
     }
 
     // -------------------------------------------------------------------------
@@ -169,7 +168,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     private class SquareConverter implements ISectorAudioDecoder {
 
         @Nonnull
-        private final SquareAdpcmDecoder __decoder;
+        private final SpuAdpcmDecoder.Stereo __decoder;
         @Nonnull
         private final AudioFormat __format;
         @Nonnull
@@ -179,10 +178,12 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         @CheckForNull
         private ISquareAudioSector __leftAudioSector, __rightAudioSector;
 
-        public SquareConverter(@Nonnull SquareAdpcmDecoder decoder) {
+        public SquareConverter(@Nonnull SpuAdpcmDecoder.Stereo decoder) {
             __decoder = decoder;
-            // 1840 is the most # of ADPCM bytes found in any Square game sector (FF9)
-            __tempBuffer = new ExposedBAOS(SquareAdpcmDecoder.calculateOutputBufferSize(1840));
+            // 1840 is the most # of ADPCM bytes found in any Square game sector
+            // (FF8, FF9, Chrono Cross) multitplied by 2 since there are always
+            // 2 sectors: one for left and one for right channels.
+            __tempBuffer = new ExposedBAOS(SpuAdpcmDecoder.calculatePcmBytesGenerated(1840*2));
             __format = __decoder.getOutputFormat(_iSamplesPerSecond);
         }
 
@@ -190,7 +191,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             __audioWriter = audioOut;
         }
 
-        public boolean feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) throws IOException {
+        public boolean feedSector(@Nonnull IdentifiedSector sector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             if (!(sector instanceof ISquareAudioSector))
                 return false;
 
@@ -208,13 +209,20 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
                     throw new RuntimeException("Left/Right audio does not match.");
 
                 __tempBuffer.reset();
-                int iSize = __decoder.decode(__leftAudioSector.getIdentifiedUserDataStream(),
-                        __rightAudioSector.getIdentifiedUserDataStream(),
-                        __rightAudioSector.getAudioDataSize(), __tempBuffer,
-                        log);
+                long lngSamplesWritten = __decoder.getSampleFramesWritten();
+                try {
+                    int iSize = __decoder.decode(__leftAudioSector.getIdentifiedUserDataStream(),
+                                                 __rightAudioSector.getIdentifiedUserDataStream(),
+                                                 __rightAudioSector.getAudioDataSize(), __tempBuffer);
+                } catch (IOException ex) {
+                    throw new RuntimeException("Should never happen", ex);
+                }
+                if (__decoder.hadCorruption())
+                    log.log(Level.WARNING, I.SPU_ADPCM_CORRUPTED(__leftAudioSector.getSectorNumber(), lngSamplesWritten));
+
                 if (__audioWriter == null)
                     throw new IllegalStateException("Must set audio listener before feeding sectors.");
-                __audioWriter.write(__format, __tempBuffer.getBuffer(), 0, __tempBuffer.size(), __rightAudioSector.getSectorNumber());
+                __audioWriter.write(__format, __tempBuffer.getBuffer(), 0, __tempBuffer.size(), new Fraction(__rightAudioSector.getSectorNumber()));
             } else {
                 throw new RuntimeException("Invalid audio channel " + audSector.getAudioChannel());
             }

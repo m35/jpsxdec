@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,7 @@ package jpsxdec.iso9660;
 
 import java.io.IOException;
 import java.io.InputStream;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 public class PathTableRecordBE extends ISO9660Struct {
     /** Valid characters include
@@ -57,20 +57,20 @@ public class PathTableRecordBE extends ISO9660Struct {
     final public int parent;
     final public String name;
 
-    public PathTableRecordBE(InputStream is, int index) throws IOException, NotThisTypeException {
+    public PathTableRecordBE(InputStream is, int index) throws IOException, BinaryDataNotRecognized {
         this.index = index;
         
         int name_len = read1(is);
-        if (name_len == 0) throw new NotThisTypeException();
+        if (name_len == 0) throw new BinaryDataNotRecognized();
         magic1(is, 0);
         extent = read4_BE(is);
-        if (extent < 1) throw new NotThisTypeException();
+        if (extent < 1) throw new BinaryDataNotRecognized();
         parent = read2_BE(is);
-        if (parent < 1) throw new NotThisTypeException();
+        if (parent < 1) throw new BinaryDataNotRecognized();
         name   = readS(is, name_len);
         magicXzero(is, name_len % 2);
         if (!name.matches(VALID_CHARACTERS))
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
     }
 
     @Override

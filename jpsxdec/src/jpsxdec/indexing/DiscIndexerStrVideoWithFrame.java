@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,13 +37,11 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -57,7 +55,9 @@ import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.discitems.StrDemuxer;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 /**
  * Searches for most common video streams.
@@ -65,6 +65,7 @@ import jpsxdec.util.NotThisTypeException;
 public class DiscIndexerStrVideoWithFrame extends DiscIndexer
         implements DiscIndexer.Identified, StrDemuxer.Listener
 {
+    private static final Logger LOG = Logger.getLogger(DiscIndexerStrVideoWithFrame.class.getName());
 
     private static class VidBuilder {
 
@@ -72,11 +73,8 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer
         @Nonnull
         private final FullFrameTracker _frameTracker;
         private int _iLastFrameNumber;
-        @Nonnull
-        private final Logger _errLog;
 
-        public VidBuilder(@Nonnull StrDemuxer.DemuxedStrFrame firstFrame, @Nonnull Logger errorLog) {
-            _errLog = errorLog;
+        public VidBuilder(@Nonnull StrDemuxer.DemuxedStrFrame firstFrame) {
             _iLastFrameNumber = firstFrame.getHeaderFrameNumber();
             _frameTracker = new FullFrameTracker(
                     firstFrame.getWidth(), firstFrame.getHeight(),
@@ -121,24 +119,23 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer
     }
 
     @Nonnull
-    private final Logger _errLog;
+    private final ILocalizedLogger _errLog;
     private final Collection<DiscItemStrVideoStream> _completedVideos = new ArrayList<DiscItemStrVideoStream>();
     private final StrDemuxer _videoDemuxer = new StrDemuxer();
     @CheckForNull
     private VidBuilder _videoBuilder;
 
-    public DiscIndexerStrVideoWithFrame(@Nonnull Logger errLog) {
+    public DiscIndexerStrVideoWithFrame(@Nonnull ILocalizedLogger errLog) {
         _errLog = errLog;
         _videoDemuxer.setFrameListener(this);
     }
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
-        try {
-            if (DiscItemStrVideoWithFrame.TYPE_ID.equals(fields.getType())) {
-                return new DiscItemStrVideoWithFrame(getCd(), fields);
-            }
-        } catch (NotThisTypeException ex) {}
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+            throws DeserializationFail
+    {
+        if (DiscItemStrVideoWithFrame.TYPE_ID.equals(fields.getType()))
+            return new DiscItemStrVideoWithFrame(getCd(), fields);
         return null;
     }
 
@@ -149,8 +146,10 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer
             // will check if it's a sector we care about
             // if not, the sector will be ignored
             _videoDemuxer.feedSector(idSector, _errLog);
-        } catch (IOException ex) {
-            _errLog.log(Level.SEVERE, null, ex);
+        } catch (LoggedFailure ex) {
+            // we know where the completed frames are going
+            // so this should never happen
+            throw new RuntimeException("Should not happen", ex);
         }
     }
 
@@ -159,7 +158,7 @@ public class DiscIndexerStrVideoWithFrame extends DiscIndexer
         if (_videoBuilder != null && !_videoBuilder.addFrame(frame))
             endVideo();
         if (_videoBuilder == null)
-            _videoBuilder = new VidBuilder(frame, _errLog);
+            _videoBuilder = new VidBuilder(frame);
     }
 
     private void endVideo() {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2016-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,23 +37,26 @@
 
 package jpsxdec.util;
 
+import java.util.logging.Level;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.LocalizedException;
 import jpsxdec.i18n.ILocalizedMessage;
 
-/** Exception returned by constructors when a supplied stream or data
- *  does not provide the correct information to generate a class. */
-public class NotThisTypeException extends LocalizedException {
-    public NotThisTypeException() {
-        super();
-    }
-
-    public NotThisTypeException(@Nonnull Throwable cause) {
-        super(cause);
-    }
+/** An interface for logging localized messages intended for the user.
+ *
+ * Java {@link java.util.logging} is good for developer debugging, but I
+ * never felt comfortable using it to log localized user messages.
+ * This interface also forces the caller to use {@link ILocalizedMessage}
+ * to ensure only localized messages will be logged.
+ */
+public interface ILocalizedLogger {
+    /** Log a user message at the specified importance level. */
+    public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg);
     
-    public NotThisTypeException(@Nonnull ILocalizedMessage msg) {
-        super(msg);
-    }
-
+    /** Log a user message at the specified importance with an optional exception. 
+     * @param debugException Exception intended for debugging. 
+     *                       May or may not be shown to the user.
+     */
+    public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg,
+                    @CheckForNull Throwable debugException);
 }

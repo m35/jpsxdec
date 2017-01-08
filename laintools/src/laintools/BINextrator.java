@@ -41,7 +41,7 @@ import java.util.Arrays;
 import javax.imageio.ImageIO;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** Class to extract the images/files from SITEA.BIN, SITEB.BIN, and BIN.BIN files. */
 public class BINextrator {
@@ -118,7 +118,7 @@ public class BINextrator {
                                     new File(String.format(sFile)));
                         }
                         
-                    } catch (NotThisTypeException ex) {
+                    } catch (BinaryDataNotRecognized ex) {
                         String sFile = String.format(
                                 "%s%03d.dat",
                                 sOutBaseName,
@@ -160,7 +160,7 @@ public class BINextrator {
                             ImageIO.write(tim.toBufferedImage(i), "png",
                                     new File(sFile));
                         }
-                    } catch (NotThisTypeException ex) {
+                    } catch (BinaryDataNotRecognized ex) {
                         ex.printStackTrace();
                     }
                     

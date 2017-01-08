@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,7 @@ package jpsxdec.discitems.savers;
 import java.util.ArrayList;
 import java.util.Map;
 import jpsxdec.discitems.FrameNumber;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -99,7 +99,7 @@ public class FrameLookupTest {
             try {
                 FrameLookup fl = FrameLookup.deserialize(entry);
                 fail(entry);
-            } catch (NotThisTypeException ex) {
+            } catch (DeserializationFail ex) {
             }
         }
     }
@@ -135,7 +135,7 @@ public class FrameLookupTest {
             try {
                 FrameLookup[] fl = FrameLookup.parseRange(entry);
                 fail(entry);
-            } catch (NotThisTypeException ex) {
+            } catch (DeserializationFail ex) {
             }
         }
     }

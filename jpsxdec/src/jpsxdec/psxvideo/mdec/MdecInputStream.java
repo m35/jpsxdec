@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,7 +45,7 @@ public abstract class MdecInputStream {
      * 
      *  @return  true if the EOD code is read. */
     public abstract boolean readMdecCode(MdecCode code)
-            throws MdecException.Read;
+            throws MdecException.EndOfStream, MdecException.ReadCorruption;
 
     /** 16-bit MDEC code indicating the end of a block. 
      * The equivalent MDEC value is (63, -512). */
@@ -71,8 +71,7 @@ public abstract class MdecInputStream {
         return PSX_DEFAULT_QUANTIZATION_MATRIX.clone();
     }
 
-    /** Matrix of indexes indicating the order that matrix values are
-     *  zig-zagged into a vector. */
+    /** Matrix of vector indexes in the order that vector values selected. */
     public static final int[] ZIG_ZAG_LOOKUP_MATRIX = {
          0,  1,  5,  6, 14, 15, 27, 28,
          2,  4,  7, 13, 16, 26, 29, 42,
@@ -84,8 +83,7 @@ public abstract class MdecInputStream {
         35, 36, 48, 49, 57, 58, 62, 63,
     };
 
-    /** List of vector indexes indicating the order that vector values
-     * are reverse-zig-zagged into a matrix. */
+    /** List of matrix indexes in the order that matrix values selected. */
     public static final int[] REVERSE_ZIG_ZAG_LOOKUP_LIST = {
          0,  1,  8, 16,  9,  2,  3, 10, 17, 24, 32, 25, 18, 11,  4,  5,
         12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13,  6,  7, 14, 21, 28,

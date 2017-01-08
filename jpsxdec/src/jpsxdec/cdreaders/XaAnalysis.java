@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -92,8 +92,8 @@ public class XaAnalysis {
         if (iBitsPerSample == 4) {
             iMaxErrors = XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 2;
             for (int iOfs = 0;
-                 iOfs < cdSector.getCdUserDataSize() - XaAdpcmDecoder.SIZE_OF_SOUND_GROUP;
-                 iOfs+=XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)
+                 iOfs < cdSector.getCdUserDataSize() - XaAdpcmDecoder.SIZEOF_SOUND_GROUP;
+                 iOfs+=XaAdpcmDecoder.SIZEOF_SOUND_GROUP)
             {
                 // the 8 sound parameters (one for each sound unit)
                 // are repeated twice, and are ordered like this:
@@ -108,8 +108,8 @@ public class XaAnalysis {
         } else {
             iMaxErrors = XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR * 4 * 3;
             for (int iOfs = 0;
-                 iOfs < cdSector.getCdUserDataSize() - XaAdpcmDecoder.SIZE_OF_SOUND_GROUP;
-                 iOfs+=XaAdpcmDecoder.SIZE_OF_SOUND_GROUP)
+                 iOfs < cdSector.getCdUserDataSize() - XaAdpcmDecoder.SIZEOF_SOUND_GROUP;
+                 iOfs+=XaAdpcmDecoder.SIZEOF_SOUND_GROUP)
             {
                 // the 4 sound parameters (one for each sound unit)
                 // are repeated four times and are ordered like this:

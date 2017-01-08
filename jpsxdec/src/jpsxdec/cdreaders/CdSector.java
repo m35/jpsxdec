@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -86,7 +86,7 @@ public abstract class  CdSector {
     abstract public long getUserDataFilePointer();
     
     /**
-     * Returns direct reference to the underlying sector data, with raw
+     * Returns a copy of the underlying sector data, with raw
      * header/footer and everything it has.
      */
     abstract public @Nonnull byte[] getRawSectorDataCopy();

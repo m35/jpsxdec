@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2016  Michael Sabin
+ * Copyright (C) 2012-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,14 +46,17 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.audio.SquareAdpcmDecoder;
+import jpsxdec.audio.SpuAdpcmDecoder;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
-import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorCrusader;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.ExposedBAOS;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.IO;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 /** Demultiplexes audio and video from Crusader: No Remorse movies.
  * Can be used for decoding or for discovery (indexing) of when movies start and end.
@@ -188,7 +191,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         return _blnFoundAPayload;
     }
 
-    public boolean feedSector(@Nonnull IdentifiedSector identifiedSector, @Nonnull Logger log) throws IOException {
+    public boolean feedSector(@Nonnull IdentifiedSector identifiedSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         
         if (!(identifiedSector instanceof SectorCrusader))
             return false;
@@ -203,6 +206,8 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         SectorCrusader cru = (SectorCrusader) identifiedSector;
 
         // make sure the Crusader identified sector number is part of the same movie
+        // note that the math here assumes _iPreviousCrusaderSectorNumber == -1
+        // when no Crusader sectors have been encountered
         if (_iPreviousCrusaderSectorNumber != -1 && cru.getCrusaderSectorNumber() < _iPreviousCrusaderSectorNumber) {
             return false; // tell caller to start a new disc item
         } else if (_iPreviousCrusaderSectorNumber + 1 != cru.getCrusaderSectorNumber()) { // check for skipped sectors
@@ -224,7 +229,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
     }
 
     /** Feed either a real sector or null if a sector is missing. */
-    private void feedSectorIteration(@CheckForNull SectorCrusader cru, @Nonnull Logger log) throws IOException {
+    private void feedSectorIteration(@CheckForNull SectorCrusader cru, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         int iCurSectorOffset = 0;
         
         while (iCurSectorOffset < SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE) {
@@ -286,7 +291,7 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
                         // payload is done
                         
                         if (_ePayloadType == PayloadType.MDEC) {
-                            videoPayload(_iPayloadSize - 16);
+                            videoPayload(_iPayloadSize - 16, log);
                         } else {
                             audioPayload(_iPayloadSize - 16, log);
                         }
@@ -304,31 +309,22 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         }
     }
     
-    public void flush(@Nonnull Logger log) throws IOException {
+    public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (!_sectors.isEmpty() && _state == ReadState.PAYLOAD) {
             _blnFoundAPayload = true;
             if (_ePayloadType == PayloadType.MDEC) {
-                videoPayload(_iPayloadSize - 16 - _iRemainingPayload);
+                videoPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
             } else {  // ad20, ad21 (audio)
                 audioPayload(_iPayloadSize - 16 - _iRemainingPayload, log);
-                if (!_blnIndexing) {
-                    if (_audioListener == null)
-                        throw new IllegalStateException("Audio listener must be set before using object.");
-                    _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0,
-                                         _decodedAudBuffer.size(), _iCurrentAudioPresSector);
-                }
-                _iCurrentAudioPresSector = -1;
             }
             _sectors.clear();
         }
-        if (_decodedAudBuffer.size() > 0)
-            _iRemainingPayload = -1;
         _state = ReadState.MAGIC;
     }
     
     //-- Video stuff ---------------------------
     
-    private void videoPayload(int iSize) throws IOException {
+    private void videoPayload(int iSize, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         
         int iWidth = IO.readSInt16BE(_abHeader, 0);
         int iHeight = IO.readSInt16BE(_abHeader, 2);
@@ -336,14 +332,18 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         
         if (_blnIndexing && _iWidth == -1)
             _iWidth = iWidth;
-        else if (_iWidth != iWidth)
-            throw new LocalizedIOException(I.INCONSISTENT_WIDTH(_iWidth, iWidth));
         if (_blnIndexing && _iHeight == -1)
             _iHeight = iHeight;
-        else if (_iHeight != iHeight)
-            throw new LocalizedIOException(I.INCONSISTENT_HEIGHT(_iHeight, iHeight));
-        if (iFrame < 0)
-            throw new LocalizedIOException(I.INVALID_FRAME_NUM(iFrame));
+
+        if (_iWidth != iWidth || _iHeight != iHeight) {
+            LOG.log(Level.SEVERE, "Crusaer inconsistent dimensions: {0}x{1} != {2}x{3}",
+                                  new Object[]{iWidth, iHeight, _iWidth, _iHeight});
+            throw new LoggedFailure(log, Level.SEVERE, I.CRUSADER_VIDEO_CORRUPTED());
+        }
+        if (iFrame < 0) {
+            LOG.log(Level.SEVERE, "Crusader bad frame number: {0}", iFrame);
+            throw new LoggedFailure(log, Level.SEVERE, I.CRUSADER_VIDEO_CORRUPTED());
+        }
 
         if (_iInitialPresentationSector < 0) {
             _iInitialPresentationSector = iFrame * 10;
@@ -387,22 +387,26 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
 
     @CheckForNull
     private byte[] _abAudioDemuxBuffer;
-    private final SquareAdpcmDecoder _audDecoder = new SquareAdpcmDecoder(1.0);
-    private final ExposedBAOS _decodedAudBuffer = new ExposedBAOS();
-    private int _iCurrentAudioPresSector = 0;
+    private final SpuAdpcmDecoder.Stereo _audDecoder = new SpuAdpcmDecoder.Stereo(1.0);
     
-    private void audioPayload(final int iSize, @Nonnull Logger log) throws IOException {
+    private void audioPayload(final int iSize, @Nonnull ILocalizedLogger log) throws LoggedFailure {
 
         if (iSize % 2 != 0)
-            throw new IllegalArgumentException("Uneven Crusader audio payload size " + iSize);
+            throw new IllegalArgumentException("Crusader uneven audio payload size " + iSize);
         
         // .. read the header values ...............................
         final long lngPresentationSample = IO.readSInt32BE(_abHeader, 0);
-        if (lngPresentationSample < 0)
-            throw new LocalizedIOException(I.CRUSADER_INVALID_PRESENTATION_SAMPLE(lngPresentationSample));
+        if (lngPresentationSample < 0) {
+            LOG.log(Level.SEVERE, "Crusader invalid presentation sample: {0}",
+                                  lngPresentationSample);
+            throw new LoggedFailure(log, Level.SEVERE, I.CRUSADER_AUDIO_CORRUPTED());
+        }
         final long lngAudioId = IO.readUInt32BE(_abHeader, 4);
-        if (lngAudioId != AUDIO_ID)
-            throw new LocalizedIOException(I.CRUSADER_INVALID_AUIDO_ID(lngAudioId));
+        if (lngAudioId != AUDIO_ID) {
+            LOG.log(Level.SEVERE, "Crusader invalid audio id: {0}",
+                                  lngAudioId);
+            throw new LoggedFailure(log, Level.SEVERE, I.CRUSADER_AUDIO_CORRUPTED());
+        }
 
         // .. copy the audio data out of the sectors ...............
         if (_abAudioDemuxBuffer == null || _abAudioDemuxBuffer.length < iSize)
@@ -410,6 +414,9 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
         else
             // pre-fill the buffer with 0 in case we are missing sectors at end
             Arrays.fill(_abAudioDemuxBuffer, 0, iSize, (byte)0);
+
+        int iFirstPayloadSector = -1; // keep track of the first sector of the payload for logging
+
         for (int iBufferPos = 0, iSect = 0; iSect < _sectors.size(); iSect++) {
             int iBytesToCopy;
             if (iSect == 0)
@@ -429,6 +436,8 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
                     chunk.copyIdentifiedUserData(_iPayloadStartOffset, _abAudioDemuxBuffer, iBufferPos, iBytesToCopy);
                 else
                     chunk.copyIdentifiedUserData(0, _abAudioDemuxBuffer, iBufferPos, iBytesToCopy);
+                if (iFirstPayloadSector == -1)
+                    iFirstPayloadSector = chunk.getSectorNumber();
             } else {
                 LOG.log(Level.WARNING, "Missing sector {0,number,#} from Crusader audio data", iSect);
                 // just skip the bytes that would have been copied
@@ -437,97 +446,46 @@ public class CrusaderDemuxer implements ISectorFrameDemuxer, ISectorAudioDecoder
             iBufferPos += iBytesToCopy;
         }
 
-        // .. check for missing data ............................
-        {
-            if (_iCurrentAudioPresSector < 0)
-                throw new IllegalStateException("Crusader audio decoding was finished but still got more");
-            
-            int iBufferedSamples = _decodedAudBuffer.size() / BYTES_PER_SAMPLE;
-            long lngCurrentPresSample = (long)_iCurrentAudioPresSector * SAMPLES_PER_SECTOR + iBufferedSamples;
-            if (lngPresentationSample != lngCurrentPresSample) {
-                long lngMissingSamples = lngPresentationSample - lngCurrentPresSample;
-                LOG.log(Level.WARNING, "Missing {0,number,#} samples of Crusader audio, writing silence", lngMissingSamples);
-
-                if (_decodedAudBuffer.size() > 0) {
-                    // 1) add silence to fill up the current sector
-                    int iSamplesPad = SAMPLES_PER_SECTOR - iBufferedSamples;
-                    IO.writeZeros(_decodedAudBuffer, iSamplesPad * BYTES_PER_SAMPLE);
-                    // 2) write that
-                    if (!_blnIndexing) {
-                        if (_audioListener == null)
-                            throw new IllegalStateException("Audio listener must be set before using object.");
-                        _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0, SAMPLES_PER_SECTOR, _iCurrentAudioPresSector);
-                    }
-                    _decodedAudBuffer.reset();
-                }
-                // 3) again add silence to align the incoming data to sector boundary
-                _iCurrentAudioPresSector = (int) (lngPresentationSample / SAMPLES_PER_SECTOR);
-                int iSamplesPad = (int) (lngPresentationSample - (_iCurrentAudioPresSector * (long)SAMPLES_PER_SECTOR));
-                IO.writeZeros(_decodedAudBuffer, iSamplesPad * BYTES_PER_SAMPLE);
-            }
-        }
-
         // if the initial portion of a movie is missing, and audio is the first
         // payload found, we need to adjust the initial presentation offset
         // so we don't write a ton silence initially in an effort to catch up.
-        // after analyzing a crusader movie, it seems audio payload presentation
-        // sectors run about 40 sectors ahead of the video presentation sectors.
+        // it seems audio payload presentation sectors run about 40 sectors
+        // ahead of the video presentation sectors.
         // so pick an initial presentation sector a little before when the next
         // frame should be presented
         if (_iInitialPresentationSector < 0) {
-            _iInitialPresentationSector = _iCurrentAudioPresSector - 60;
+            _iInitialPresentationSector = (int)(lngPresentationSample / SAMPLES_PER_SECTOR) - 60;
             if (_iInitialPresentationSector < 0) // don't start before the start of the movie
                 _iInitialPresentationSector = 0;
-            if (_iInitialPresentationSector > 0)
+            else if (_iInitialPresentationSector > 0)
                 LOG.log(Level.WARNING, "[Audio] Setting initial presentation sector {0,number,#}", _iInitialPresentationSector);
         }
-
+        
         // .. decode the audio data .............................
+        ExposedBAOS audioBuffer = new ExposedBAOS();
         {
             int iChannelSize = iSize / 2; // size is already confirmed to be divisible by 2
-            _audDecoder.decode(new ByteArrayInputStream(_abAudioDemuxBuffer, 0, iChannelSize),
-                               new ByteArrayInputStream(_abAudioDemuxBuffer, iChannelSize, iChannelSize),
-                               iChannelSize, _decodedAudBuffer, log);
+            try {
+                _audDecoder.decode(new ByteArrayInputStream(_abAudioDemuxBuffer, 0, iChannelSize),
+                                   new ByteArrayInputStream(_abAudioDemuxBuffer, iChannelSize, iChannelSize),
+                                   iChannelSize, audioBuffer);
+            } catch (IOException ex) {
+                throw new RuntimeException("Should never happen", ex);
+            }
+            if (_audDecoder.hadCorruption())
+                log.log(Level.WARNING, I.SPU_ADPCM_CORRUPTED(iFirstPayloadSector, _audDecoder.getSampleFramesWritten()));
         }
 
-        // .. write it as sectors worth of samples ..............
-        final int iDataToPlay;
-        {
-            int iPresentationSector = _iCurrentAudioPresSector - _iInitialPresentationSector;
-            if (_decodedAudBuffer.size() % BYTES_PER_SAMPLE != 0)
-                throw new RuntimeException("Buffer size not divisible by sample size");
-            if (_ePayloadType == PayloadType.AD20) {
-                int iSamples = _decodedAudBuffer.size() / BYTES_PER_SAMPLE;
-                // this will trim off samples that don't cleanly divide into sectors
-                int iSectorsToPlay = iSamples / SAMPLES_PER_SECTOR;
-                iDataToPlay = iSectorsToPlay * SAMPLES_PER_SECTOR * BYTES_PER_SAMPLE;
-                _iCurrentAudioPresSector += iSectorsToPlay;
-            } else { // _ePayloadType == BLOCKTYPE.AD21
-                // it's the last audio chunk, play it all now because we won't get another chance
-                iDataToPlay = _decodedAudBuffer.size();
-                _iCurrentAudioPresSector = -1;
-            }
+        if (!_blnIndexing) {
 
+            if (_audioListener == null)
+                throw new IllegalStateException("Audio listener must be set before using object.");
+            Fraction presentationSector = new Fraction(lngPresentationSample, SAMPLES_PER_SECTOR);
             if (DEBUG)
-                System.out.format("Writing %d bytes of audio to be presented at sector %d", iDataToPlay, _iStartSector + iPresentationSector).println();
-            if (!_blnIndexing) {
-                if (_audioListener == null)
-                    throw new IllegalStateException("Audio listener must be set before using object.");
-                _audioListener.write(_audioFmt, _decodedAudBuffer.getBuffer(), 0, iDataToPlay, _iStartSector + iPresentationSector);
-            }
+                System.out.format("Writing %d bytes of audio to be presented at sector %s", audioBuffer.size(), presentationSector).println();
+            _audioListener.write(_audioFmt, audioBuffer.getBuffer(), 0, audioBuffer.size(), presentationSector);
         }
 
-        // .. copy any remaing data to the head of the decoded buffer .....
-        {
-            int iRemainingData = _decodedAudBuffer.size() - iDataToPlay;
-            if (iRemainingData % BYTES_PER_SAMPLE != 0)
-                throw new RuntimeException("Remaining data not divisible by sample size");
-            _decodedAudBuffer.reset();
-            if (iRemainingData > 0) {
-                _decodedAudBuffer.write(_decodedAudBuffer.getBuffer(), iDataToPlay, iRemainingData);
-            }
-        }
-        
     }
     
     

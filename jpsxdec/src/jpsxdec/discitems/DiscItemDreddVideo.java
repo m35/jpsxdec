@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,14 +39,15 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.sectors.SectorDreddVideo;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 /** Represents Judge Dredd video streams.
  * Mostly identical to {@link DiscItemStrVideoWithFrame}
@@ -75,7 +76,7 @@ public class DiscItemDreddVideo extends DiscItemStrVideoStream {
     }
 
     public DiscItemDreddVideo(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
     }
@@ -157,10 +158,10 @@ public class DiscItemDreddVideo extends DiscItemStrVideoStream {
             _demuxer.setFrameListener(this);
         }
 
-        public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull Logger log) throws IOException {
+        public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             return _demuxer.feedSector(idSector.getCdSector(), idSector, log);
         }
-        public void flush(@Nonnull Logger log) throws IOException {
+        public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
             _demuxer.flush(log);
         }
         
@@ -169,7 +170,7 @@ public class DiscItemDreddVideo extends DiscItemStrVideoStream {
         }
 
         // [implements DreddDemuxer.Listener]
-        public void frameComplete(@Nonnull DreddDemuxer.DemuxedDreddFrame frame) throws IOException {
+        public void frameComplete(@Nonnull DreddDemuxer.DemuxedDreddFrame frame) throws LoggedFailure {
             frame.setFrame(_frameNumberFactory.next(frame.getStartSector()));
             if (_listener == null)
                 throw new IllegalStateException();

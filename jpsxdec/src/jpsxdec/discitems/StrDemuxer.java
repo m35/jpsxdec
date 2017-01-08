@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,18 +37,18 @@
 
 package jpsxdec.discitems;
 
-import java.io.IOException;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.sectors.IVideoSectorWithFrameNumber;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 
 public class StrDemuxer {
 
     public static interface Listener {
-        void frameComplete(@Nonnull DemuxedStrFrame frame) throws IOException;
+        void frameComplete(@Nonnull DemuxedStrFrame frame) throws LoggedFailure;
     }
 
     public static class DemuxedStrFrame extends AbstractDemuxedStrFrame<IVideoSectorWithFrameNumber> {
@@ -77,7 +77,7 @@ public class StrDemuxer {
 
     /** @return if sector is {@link IVideoSectorWithFrameNumber}. */
     public boolean feedSector(@CheckForNull IdentifiedSector idSector, 
-                              @Nonnull Logger log) throws IOException
+                              @Nonnull ILocalizedLogger log) throws LoggedFailure
     {
         boolean blnAccepted;
         if (idSector instanceof IVideoSectorWithFrameNumber) {
@@ -105,7 +105,7 @@ public class StrDemuxer {
         return blnAccepted;
     }
 
-    public void flush(@Nonnull Logger log) throws IOException {
+    public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentFrame == null)
             return;
         if (_listener == null)

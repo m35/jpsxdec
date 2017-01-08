@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,13 +39,13 @@
 package jpsxdec.discitems.savers;
 
 import java.io.File;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.FrameNumberFormat;
 import jpsxdec.discitems.FrameNumberFormatter;
+import jpsxdec.util.ILocalizedLogger;
 
 /** Generates video filenames. */
 public class FrameFileFormatter {
@@ -146,7 +146,7 @@ public class FrameFileFormatter {
      * @throws NullPointerException if frameNumber is null and this formatter needs it.
      */
     public @Nonnull File format(@CheckForNull FrameNumber frameNumber,
-                                @CheckForNull Logger log)
+                                @CheckForNull ILocalizedLogger log)
     {
         if (_numberFormatter == null)
             return new File(_directory, _sFileNameFormat);

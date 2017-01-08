@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import jpsxdec.util.Misc;
 
 public class PairList<T1, T2> extends AbstractList<Map.Entry<T1, T2>> {
     
@@ -74,8 +75,8 @@ public class PairList<T1, T2> extends AbstractList<Map.Entry<T1, T2>> {
 	    if (!(o instanceof Pair))
 		return false;
 	    Pair<?, ?> p = (Pair<?, ?>)o;
-	    return (_key   == null ? p.getKey()   == null : _key.equals(p.getKey())) && 
-                   (_value == null ? p.getValue() == null : _value.equals(p.getValue()));
+	    return Misc.objectEquals(_key  , p.getKey()  ) &&
+                   Misc.objectEquals(_value, p.getValue());
 	}
 
         @Override

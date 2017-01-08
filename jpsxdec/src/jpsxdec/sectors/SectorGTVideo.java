@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,8 +44,9 @@ import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Iki;
 import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IO;
-import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.LocalizedIncompatibleException;
 
 
 /** Represents a Gran Turismo 1 and 2 video sector. */
@@ -55,30 +56,27 @@ public class SectorGTVideo extends SectorAbstractVideo
     
     // .. Static stuff .....................................................
 
-    private static final long GT_MAGIC = 0x60014953;
+    private static final long GT_MAGIC = 0x53490160;
 
     // .. Fields ..........................................................
 
-    // Magic 0x60014953                 //  0    [4 bytes]
-    private int  _iChunkNumber;         //  4    [2 bytes]
-    private int  _iChunksInThisFrame;   //  6    [2 bytes]
-    private int  _iFrameNumber;         //  8    [4 bytes]
-    private long _lngUsedDemuxedSize;   //  12   [4 bytes]
+    private final CommonVideoSectorFirst16bytes _header = new CommonVideoSectorFirst16bytes();
     private int  _iTotalFrames;         //  16   [2 bytes]
     /** seems 0x8000 for first chunk and 0x4000 for last chunk (0xc000 for both). */
     private int  _iChunkBitFlags;       //  18   [2 bytes]
     // 12 zeroes                        //  20   [12 bytes]
     //   32 TOTAL
 
+    /** Populated either by the first sector's iki frame header,
+     * or by the first chunk of the frame this chunk belongs to. */
     private int _iWidth, _iHeight;
 
     @Override
-    protected int getSectorHeaderSize() { return 32; }
+    final protected int getSectorHeaderSize() { return 32; }
 
     /** Gets dimensions from sector data if chunk = 0,
      * otherwise needs prevChunk0 for dimensions. 
-     * @param prevChunk0 Previous chunk = 0.
-     */
+     * @param prevChunk0 Previous chunk = 0. */
     public SectorGTVideo(@Nonnull CdSector cdSector, @CheckForNull SectorGTVideo prevChunk0) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
@@ -90,21 +88,18 @@ public class SectorGTVideo extends SectorAbstractVideo
             return;
         }
 
-        long lngMagic = cdSector.readUInt32BE(0);
-        if (lngMagic != GT_MAGIC)
+        _header.readMagic(cdSector);
+        if (_header.lngMagic != GT_MAGIC)
             return;
 
-        _iChunkNumber = cdSector.readSInt16LE(4);
-        if (_iChunkNumber < 0)
+        if (_header.readChunkNumberStandard(cdSector))
             return;
-        _iChunksInThisFrame = cdSector.readSInt16LE(6);
-        if (_iChunksInThisFrame < 1)
+        if (_header.readChunksInFrameStandard(cdSector))
             return;
-        _iFrameNumber = cdSector.readSInt32LE(8);
-        if (_iFrameNumber < 1)
+        _header.readFrameNumber(cdSector);
+        if (_header.iFrameNumber < 1)
             return;
-        _lngUsedDemuxedSize = cdSector.readSInt32LE(12);
-        if (_lngUsedDemuxedSize < 0)
+        if (_header.readUsedDemuxSizeStandard(cdSector))
             return;
         _iTotalFrames = cdSector.readSInt16LE(16);
         if (_iTotalFrames < 1)
@@ -119,7 +114,7 @@ public class SectorGTVideo extends SectorAbstractVideo
         if (iZero1 != 0 || iZero2 != 0 || iZero3 != 0)
             return;
 
-        if (_iChunkNumber == 0) {
+        if (_header.iChunkNumber == 0) {
             if (cdSector.getCdUserDataSize() < getSectorHeaderSize()+10)
                 return;
 
@@ -134,10 +129,10 @@ public class SectorGTVideo extends SectorAbstractVideo
         } else if (prevChunk0 == null || prevChunk0.getProbability() == 0) {
             return;
         } else {
-            if (_iFrameNumber != prevChunk0._iFrameNumber ||
-                _iChunksInThisFrame != prevChunk0._iChunksInThisFrame ||
+            if (_header.iFrameNumber != prevChunk0._header.iFrameNumber ||
+                _header.iChunksInThisFrame != prevChunk0._header.iChunksInThisFrame ||
                 _iTotalFrames != prevChunk0._iTotalFrames ||
-                _iChunkNumber <= prevChunk0._iChunkNumber)
+                _header.iChunkNumber <= prevChunk0._header.iChunkNumber)
             {
                 return;
             }
@@ -159,26 +154,26 @@ public class SectorGTVideo extends SectorAbstractVideo
         return String.format("%s %s frame:%d/%d chunk:%d/%d %dx%d flags:%04x {demux frame size=%d}",
             getTypeName(),
             super.cdToString(),
-            _iFrameNumber,
+            _header.iFrameNumber,
             _iTotalFrames,
-            _iChunkNumber,
-            _iChunksInThisFrame,
+            _header.iChunkNumber,
+            _header.iChunksInThisFrame,
             _iWidth, _iHeight,
             _iChunkBitFlags,
-            _lngUsedDemuxedSize
+            _header.iUsedDemuxedSize
             );
     }
 
     public int getChunkNumber() {
-        return _iChunkNumber;
+        return _header.iChunkNumber;
     }
 
     public int getChunksInFrame() {
-        return _iChunksInThisFrame;
+        return _header.iChunksInThisFrame;
     }
 
     public int getFrameNumber() {
-        return _iFrameNumber;
+        return _header.iFrameNumber;
     }
 
     public int getWidth() {
@@ -192,18 +187,18 @@ public class SectorGTVideo extends SectorAbstractVideo
     @Override
     public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
                                                int iMdecCodeCount, @Nonnull byte[] abSectUserData)
-            throws IncompatibleException
+            throws LocalizedIncompatibleException
     {
         final int[] aiDimensions;
         try {
             aiDimensions = BitStreamUncompressor_Iki.getDimensions(abDemuxData);
-        } catch (MdecException.Uncompress ex) {
-            throw new IncompatibleException(I.REPLACE_FRAME_TYPE_NOT_IKI(), ex);
+        } catch (BinaryDataNotRecognized ex) {
+            throw new LocalizedIncompatibleException(I.REPLACE_FRAME_TYPE_NOT_IKI(), ex);
         }
         int iWidth = aiDimensions[0];
         int iHeight = aiDimensions[1];
         if (iWidth != _iWidth || iHeight != _iHeight) {
-            throw new IncompatibleException(I.REPLACE_FRAME_IKI_DIMENSIONS_MISMATCH(
+            throw new LocalizedIncompatibleException(I.REPLACE_FRAME_IKI_DIMENSIONS_MISMATCH(
                                             iWidth, iHeight, _iWidth, _iHeight));
         }
 

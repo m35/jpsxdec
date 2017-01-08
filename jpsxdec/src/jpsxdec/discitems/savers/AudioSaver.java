@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,8 +39,8 @@ package jpsxdec.discitems.savers;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
@@ -50,17 +50,23 @@ import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.formats.JavaAudioFormat;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.LocalizedFileNotFoundException;
 import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.util.AudioOutputFileWriter;
+import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.IO;
-import jpsxdec.util.ProgressListenerLogger;
+import jpsxdec.util.LoggedFailure;
+import jpsxdec.util.ProgressLogger;
 import jpsxdec.util.TaskCanceledException;
 
 /** Actually performs the saving process using the options selected in
  * {@link AudioSaverBuilder}. */
 public class AudioSaver implements IDiscItemSaver  {
+
+    private static final Logger LOG = Logger.getLogger(AudioSaver.class.getName());
 
     @Nonnull
     private final DiscItemAudioStream _audItem;
@@ -98,46 +104,62 @@ public class AudioSaver implements IDiscItemSaver  {
         return new UnlocalizedMessage(_fileRelativePath.getPath());
     }
 
-    public void printSelectedOptions(@Nonnull PrintStream ps) {
-        ps.println(I.CMD_AUDIO_FORMAT(_containerFormat));
-        ps.println(I.CMD_VOLUME_PERCENT(_decoder.getVolume()));
-        ps.println(I.CMD_FILENAME(_fileRelativePath));
+    public void printSelectedOptions(@Nonnull FeedbackStream fbs) {
+        fbs.println(I.CMD_AUDIO_FORMAT(_containerFormat.getCmdId()));
+        fbs.println(I.CMD_VOLUME_PERCENT(_decoder.getVolume()));
+        fbs.println(I.CMD_FILENAME(_fileRelativePath));
     }
 
 
-    public void startSave(@Nonnull ProgressListenerLogger pll) throws IOException, TaskCanceledException {
+    public void startSave(@Nonnull final ProgressLogger pl) throws LoggedFailure, TaskCanceledException {
 
-        File outputFile = new File(_outputDir, _fileRelativePath.getPath());
-
-        IO.makeDirsForFile(outputFile);
-
-        AudioFormat audioFmt = _decoder.getOutputFormat();
-        final AudioOutputFileWriter audioWriter;
-        audioWriter = new AudioOutputFileWriter(outputFile,
-                            audioFmt, _containerFormat.getJavaType());
-        _generatedFile = outputFile;
-        _decoder.setAudioListener(new ISectorAudioDecoder.ISectorTimedAudioWriter() {
-            public void write(AudioFormat format, byte[] abData, int iStart, int iLen, int iPresentationSector) throws IOException {
-                audioWriter.write(format, abData, iStart, iLen);
-            }
-        });
+        final File outputFile = new File(_outputDir, _fileRelativePath.getPath());
 
         try {
-            final double dblSectorLength = _audItem.getSectorLength();
+            IO.makeDirsForFile(outputFile);
+        } catch (LocalizedFileNotFoundException ex) {
+            throw new LoggedFailure(pl, Level.SEVERE, ex.getSourceMessage(), ex);
+        }
+
+        AudioFormat audioFmt = _decoder.getOutputFormat();
+
+        final AudioOutputFileWriter audioWriter;
+        try {
+            audioWriter = new AudioOutputFileWriter(outputFile,
+                                audioFmt, _containerFormat.getJavaType());
+        } catch (IOException ex) {
+            throw new LoggedFailure(pl, Level.SEVERE, I.IO_WRITING_FILE_ERROR_NAME(outputFile.toString()), ex);
+        }
+        _generatedFile = outputFile;
+
+        _decoder.setAudioListener(new ISectorAudioDecoder.ISectorTimedAudioWriter() {
+            public void write(AudioFormat format, byte[] abData, int iStart, int iLen, @Nonnull Fraction presentationSector) throws LoggedFailure {
+                try {
+                    audioWriter.write(format, abData, iStart, iLen);
+                } catch (IOException ex) {
+                    throw new LoggedFailure(pl, Level.SEVERE, I.IO_WRITING_TO_FILE_ERROR_NAME(outputFile.toString()), ex);
+                }
+            }
+        });
+        
+        try {
             IdentifiedSectorIterator it = _audItem.identifiedSectorIterator();
+            pl.progressStart(_audItem.getSectorLength());
             for (int iSector = 0; it.hasNext(); iSector++) {
-                IdentifiedSector identifiedSect = it.next();
+                IdentifiedSector identifiedSect;
+                try {
+                    identifiedSect = it.next();
+                } catch (IOException ex) {
+                    throw new LoggedFailure(pl, Level.SEVERE,
+                            I.IO_READING_FROM_FILE_ERROR_NAME(it.getSourceCdFile().toString()), ex);
+                }
                 if (identifiedSect != null)
-                    _decoder.feedSector(identifiedSect, pll);
-                pll.progressUpdate(iSector / dblSectorLength);
+                    _decoder.feedSector(identifiedSect, pl);
+                pl.progressUpdate(iSector);
             }
-            pll.progressEnd();
+            pl.progressEnd();
         } finally {
-            try {
-                audioWriter.close();
-            } catch (Throwable ex) {
-                I.ERR_CLOSING_AUDIO_WRITER().log(pll, Level.SEVERE, ex);
-            }
+            IO.closeSilently(audioWriter, LOG);
         }
     }
 

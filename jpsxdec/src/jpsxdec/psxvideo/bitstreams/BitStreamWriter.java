@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,30 +37,23 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
 import javax.annotation.Nonnull;
 
-/** Rather sloppy bit writer to an output stream.
- *  Writes bits to an OutputStream, 16 bits at a time,
- *  in little-endian or big-endian order. */
+/** Rather sloppy bit writer.
+ *  Writes 16 bits at a time to an internal buffer in little-endian or big-endian order. */
 public class BitStreamWriter {
 
-    @Nonnull
-    private final OutputStream _os;
-    private int _iNextWrite = 0;
-    protected int _iIndex;
+    private final ByteArrayOutputStream _buffer = new ByteArrayOutputStream();
+    private int _iNextWordWrite = 0;
+    private int _iBitIndex = 0;
     private boolean _blnIsBigEndian = true;
-
-    public BitStreamWriter(@Nonnull OutputStream os) {
-        _os = os;
-    }
 
     /** Write a string of bits. 
      * @param s  String consisting of '1' or '0'.
      * @throws IllegalArgumentException if string contains anything besides '1' or '0'.
      */
-    public void write(@Nonnull String s) throws IOException {
+    public void write(@Nonnull String s) {
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (c == '0') {
@@ -74,18 +67,18 @@ public class BitStreamWriter {
     }
 
     /** Write one bit */
-    public void write(boolean blnBit) throws IOException {
-        _iNextWrite <<= 1;
+    public void write(boolean blnBit) {
+        _iNextWordWrite <<= 1;
         if (blnBit) {
-            _iNextWrite |= 1;
+            _iNextWordWrite |= 1;
         }
-        _iIndex++;
-        if (_iIndex == 16) {
+        _iBitIndex++;
+        if (_iBitIndex == 16) {
             write();
         }
     }
 
-    public void write(long lngValue, int iBits) throws IOException {
+    public void write(long lngValue, int iBits) {
         if (iBits < 1 || iBits > Long.SIZE)
             throw new IllegalArgumentException("Invalid bit lengh to write " + iBits);
         for (long lngMask = 1L << (iBits-1); lngMask != 0; lngMask >>= 1) {
@@ -93,32 +86,17 @@ public class BitStreamWriter {
         }
     }
 
-    /** Closes the underlying stream after flushing the remaining bits. */
-    public void close() throws IOException {
-        flush();
-        _os.close();
-    }
-
-    /** If there are bits remaining to write, writes them, filling
-     *  the remaining bits of the word with zeros. */
-    public void flush() throws IOException {
-        if (_iIndex != 0) {
-            _iNextWrite <<= 16 - _iIndex;
-            write();
-        }
-    }
-
     /** Write the buffered 16 bits as big-endian or little-endian. */
-    private void write() throws IOException {
+    private void write() {
         if (_blnIsBigEndian) {
-            _os.write((_iNextWrite >>> 8) & 255);
-            _os.write(_iNextWrite & 255);
+            _buffer.write((_iNextWordWrite >>> 8) & 255);
+            _buffer.write(_iNextWordWrite & 255);
         } else {
-            _os.write(_iNextWrite & 255);
-            _os.write((_iNextWrite >>> 8) & 255);
+            _buffer.write(_iNextWordWrite & 255);
+            _buffer.write((_iNextWordWrite >>> 8) & 255);
         }
-        _iIndex = 0;
-        _iNextWrite = 0;
+        _iBitIndex = 0;
+        _iNextWordWrite = 0;
     }
 
     public void setBigEndian(boolean bln) {
@@ -127,5 +105,41 @@ public class BitStreamWriter {
 
     public void setLittleEndian(boolean bln) {
         _blnIsBigEndian = !bln;
+    }
+
+    /** Returns the bytes generated from the written bits.
+     * The stream position moves to the end of any partially complete word,
+     * setting remaining bits to 0. */
+    public @Nonnull byte[] toByteArray() {
+        // flush
+        if (_iBitIndex != 0) {
+            _iNextWordWrite <<= 16 - _iBitIndex;
+            write();
+        }
+        return _buffer.toByteArray();
+    }
+
+    /** Resets the writer to as if it was just created. */
+    public void reset() {
+        _buffer.reset();
+        _iNextWordWrite = 0;
+        _iBitIndex = 0;
+    }
+
+    /** Returns the start position of the current word being written.
+     * This is pretty size to the size of the written bits, in bytes.
+     * To get the actual size in bytes, complete the stream by calling
+     * {@link #toByteArray()}  */
+    public int getCurrentWordPosition() {
+        return _buffer.size();
+    }
+
+    /** Exposes underlying buffer in case bytes need to be written.
+     * @throws IllegalStateException if current write position is not 
+     *                               on a word boundary. */
+    public @Nonnull ByteArrayOutputStream exposeBuffer() {
+        if (_iBitIndex != 0)
+            throw new IllegalStateException();
+        return _buffer;
     }
 }

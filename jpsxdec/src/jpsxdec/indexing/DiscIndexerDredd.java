@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,10 +37,8 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -52,7 +50,9 @@ import jpsxdec.discitems.DreddDemuxer;
 import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 
 public class DiscIndexerDredd extends DiscIndexer
@@ -66,11 +66,8 @@ public class DiscIndexerDredd extends DiscIndexer
         private final FrameNumber.FactoryNoHeader _frameNumberFactory = new FrameNumber.FactoryNoHeader();
         @Nonnull
         private final FullFrameTracker _frameTracker;
-        @Nonnull
-        private final Logger _errLog;
 
-        public VidBuilder(@Nonnull DreddDemuxer.DemuxedDreddFrame firstFrame, @Nonnull Logger errLog) {
-            _errLog = errLog;
+        public VidBuilder(@Nonnull DreddDemuxer.DemuxedDreddFrame firstFrame) {
             _frameTracker = new FullFrameTracker(
                     firstFrame.getWidth(), firstFrame.getHeight(),
                     _frameNumberFactory.next(firstFrame.getStartSector()),
@@ -106,25 +103,24 @@ public class DiscIndexerDredd extends DiscIndexer
     }
     
     @Nonnull
-    private final Logger _errLog;
+    private final ILocalizedLogger _errLog;
     private final Collection<DiscItemDreddVideo> _completedVideos = new ArrayList<DiscItemDreddVideo>();
     private final DreddDemuxer _videoDemuxer = new DreddDemuxer();
     @CheckForNull
     private VidBuilder _videoBuilder;
 
 
-    public DiscIndexerDredd(@Nonnull Logger errLog) {
+    public DiscIndexerDredd(@Nonnull ILocalizedLogger errLog) {
         _errLog = errLog;
         _videoDemuxer.setFrameListener(this);
     }
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
-        try {
-            if (DiscItemDreddVideo.TYPE_ID.equals(fields.getType())) {
-                return new DiscItemDreddVideo(getCd(), fields);
-            }
-        } catch (NotThisTypeException ex) {}
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+            throws DeserializationFail
+    {
+        if (DiscItemDreddVideo.TYPE_ID.equals(fields.getType()))
+            return new DiscItemDreddVideo(getCd(), fields);
         return null;
     }
 
@@ -135,8 +131,10 @@ public class DiscIndexerDredd extends DiscIndexer
             // will check if it's a sector we care about
             // if not, the sector will be ignored
             _videoDemuxer.feedSector(cdSector, idSector, _errLog);
-        } catch (IOException ex) {
-            _errLog.log(Level.SEVERE, null, ex);
+        } catch (LoggedFailure ex) {
+            // we know where the completed frames are going
+            // so this should never happen
+            throw new RuntimeException("Should not happen", ex);
         }
     }
 
@@ -145,7 +143,7 @@ public class DiscIndexerDredd extends DiscIndexer
         if (_videoBuilder != null && !_videoBuilder.addFrame(frame))
             endVideo();
         if (_videoBuilder == null)
-            _videoBuilder = new VidBuilder(frame, _errLog);
+            _videoBuilder = new VidBuilder(frame);
     }
 
     // [implements DreddDemuxer.Listener]

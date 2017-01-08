@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,13 +37,11 @@
 
 package jpsxdec.discitems.savers;
 
-import argparser.ArgParser;
 import argparser.BooleanHolder;
-import argparser.IntHolder;
 import argparser.StringHolder;
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -58,13 +56,19 @@ import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.ArgParser;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.Fraction;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 import jpsxdec.util.TabularFeedback;
+import jpsxdec.util.TabularFeedback.Cell;
 
 /** Manages all possible options for saving PSX video. */
 public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
+
+    private static final Logger LOG = Logger.getLogger(VideoSaverBuilder.class.getName());
 
     @Nonnull
     private final DiscItemVideoStream _sourceVidItem;
@@ -325,41 +329,23 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     ////////////////////////////////////////////////////////////////////////////
 
-    public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, 
-                                                     @Nonnull FeedbackStream fbs)
+    public void commandLineOptions(@Nonnull ArgParser ap, @Nonnull FeedbackStream fbs)
     {
-        if (asArgs == null) return null;
+        if (!ap.hasRemaining())
+            return;
         
-        ArgParser parser = new ArgParser("", false);
+        StringHolder vidfmt = ap.addStringOption("-vidfmt","-vf");
+        BooleanHolder nocrop = ap.addBoolOption(false, "-nocrop"); // only non demux & mdec formats
+        StringHolder quality = ap.addStringOption("-quality","-q");
+        StringHolder up = ap.addStringOption("-up");
+        StringHolder discSpeed = ap.addStringOption("-ds");
+        StringHolder frames = ap.addStringOption("-frame","-frames");
+        StringHolder num = ap.addStringOption("-num");
 
-        //...........
-
-        StringHolder vidfmt = new StringHolder();
-        parser.addOption("-vidfmt,-vf %s", vidfmt);
-
-        BooleanHolder nocrop = new BooleanHolder(false);
-        parser.addOption("-nocrop %v", nocrop); // only non demux & mdec formats
-
-        StringHolder quality = new StringHolder();
-        parser.addOption("-quality,-q %s", quality);
-
-        StringHolder up = new StringHolder();
-        parser.addOption("-up %s", up);
-
-        IntHolder discSpeed = new IntHolder(-10);
-        parser.addOption("-ds %i {[1, 2]}", discSpeed);
-
-        StringHolder frames = new StringHolder();
-        parser.addOption("-frame,-frames %s", frames);
-
-        StringHolder num = new StringHolder();
-        parser.addOption("-num %s", num);
-
-        //BooleanHolder emulatefps = new BooleanHolder(false);
-        //parser.addOption("-psxfps %v", emulatefps); // Mutually excusive with fps...
+        //BooleanHolder emulatefps = ap.addBoolOption(false, "-psxfps"); // Mutually excusive with fps...
 
         // -------------------------
-        String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
+        ap.match();
         // -------------------------
 
         if (frames.value != null) {
@@ -367,12 +353,14 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                 FrameLookup frame = FrameLookup.deserialize(frames.value);
                 setSaveStartFrame(frame);
                 setSaveEndFrame(frame);
-            } catch (NotThisTypeException ex1) {
+            } catch (DeserializationFail ex1) {
                 try {
                     FrameLookup[] aoFrames = FrameLookup.parseRange(frames.value);
                     setSaveStartFrame(aoFrames[0]);
                     setSaveEndFrame(aoFrames[1]);
-                } catch (NotThisTypeException ex2) {
+                } catch (DeserializationFail ex2) {
+                    LOG.log(Level.WARNING, null, ex1);
+                    LOG.log(Level.WARNING, null, ex2);
                     fbs.printlnWarn(I.CMD_FRAME_RANGE_INVALID(frames.value));
                 }
             }
@@ -412,68 +400,76 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                 fbs.printlnWarn(I.CMD_FRAME_NUMBER_TYPE_INVALID(num.value));
         }
 
-        if (discSpeed.value == 1) {
-            setSingleSpeed(true);
-        } else if (discSpeed.value == 2) {
-            setSingleSpeed(false);
+        if (discSpeed.value != null) {
+            if ("1".equals(discSpeed.value)) {
+                setSingleSpeed(true);
+            } else if ("2".equals(discSpeed.value)) {
+                setSingleSpeed(false);
+            } else {
+                fbs.printWarn(I.CMD_IGNORING_INVALID_DISC_SPEED(discSpeed.value));
+            }
         }
-
-        return asRemain;
     }
 
     final public void printHelp(@Nonnull FeedbackStream fbs) {
         TabularFeedback tfb = new TabularFeedback();
         makeHelpTable(tfb);
-        tfb.write(fbs);
+        tfb.write(fbs.getUnderlyingStream());
     }
 
     /** Override to append additional help items. */
     protected void makeHelpTable(@Nonnull TabularFeedback tfb) {
         tfb.setRowSpacing(1);
 
-        tfb.print(I.CMD_VIDEO_VF()).tab().print(I.CMD_VIDEO_VF_HELP(VideoFormat.AVI_MJPG.getCmdLine()));
-        tfb.indent();
+        tfb.addCell(I.CMD_VIDEO_VF());
+        Cell c = new Cell(I.CMD_VIDEO_VF_HELP(VideoFormat.AVI_MJPG.getCmdLine()));
         for (VideoFormat fmt : VideoFormat.getAvailable()) {
-            tfb.ln().print(fmt.getCmdLine());
+            c.addLine(fmt.getCmdLine(), 2);
         }
+        tfb.addCell(c);
 
-        
         tfb.newRow();
-        tfb.print(I.CMD_VIDEO_QUALITY()).tab().print(I.CMD_VIDEO_QUALITY_HELP(MdecDecodeQuality.LOW.getCmdLine()));
-        tfb.indent();
+        
+        tfb.addCell(I.CMD_VIDEO_QUALITY());
+        c = new Cell(I.CMD_VIDEO_QUALITY_HELP(MdecDecodeQuality.LOW.getCmdLine()));
         for (MdecDecodeQuality quality : MdecDecodeQuality.values()) {
-            tfb.ln().print(quality.getCmdLine());
+            c.addLine(quality.getCmdLine(), 2);
         }
+        tfb.addCell(c);
         
         tfb.newRow();
-        tfb.print(I.CMD_VIDEO_UP()).tab().print(I.CMD_VIDEO_UP_HELP(Upsampler.Bicubic.getDescription()));
-        tfb.indent();
+
+        tfb.addCell(I.CMD_VIDEO_UP());
+        c = new Cell(I.CMD_VIDEO_UP_HELP(Upsampler.Bicubic.getDescription()));
         for (Upsampler up : Upsampler.values()) {
-            tfb.ln().print(up.getCmdLineHelp());
+            c.addLine(up.getCmdLineHelp(), 2);
         }
+        tfb.addCell(c);
 
         if (getSingleSpeed_enabled()) {
             tfb.newRow();
-            tfb.print(I.CMD_VIDEO_DS()).tab().print(I.CMD_VIDEO_DS_HELP());
+            tfb.addCell(I.CMD_VIDEO_DS()).addCell(I.CMD_VIDEO_DS_HELP());
         }
         
         //tfb.newRow();
         //tfb.print("-psxfps").tab().print("Emulate PSX FPS timing"); // I18N
 
         tfb.newRow();
-        tfb.print(I.CMD_VIDEO_FRAMES()).tab().print(I.CMD_VIDEO_FRAMES_HELP());
+        tfb.addCell(I.CMD_VIDEO_FRAMES()).addCell(I.CMD_VIDEO_FRAMES_HELP());
 
         if (_sourceVidItem.shouldBeCropped()) {
             tfb.newRow();
-            tfb.print(I.CMD_VIDEO_NOCROP()).tab().print(I.CMD_VIDEO_NOCROP_HELP());
+            tfb.addCell(I.CMD_VIDEO_NOCROP()).addCell(I.CMD_VIDEO_NOCROP_HELP());
         }
 
         tfb.newRow();
-        tfb.print(I.CMD_VIDEO_NUM()).tab().print(I.CMD_VIDEO_NUM_HELP(FrameNumberFormat.Type.Index.getLocalizedName()));
-        tfb.indent();
+        
+        tfb.addCell(I.CMD_VIDEO_NUM());
+        c = new Cell(I.CMD_VIDEO_NUM_HELP(FrameNumberFormat.Type.Index.getLocalizedName()));
         for (FrameNumberFormat.Type type : FrameNumberFormat.Type.values()) {
-            tfb.ln().print(type.getLocalizedName());
+            c.addLine(type.getLocalizedName(), 2);
         }
+        tfb.addCell(c);
     }
 
     /** Make the snapshot with the right demuxer and audio decoder. */
@@ -490,11 +486,11 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
             audioDecoder = a;
         }
         
-        public void flush(@Nonnull Logger log) throws IOException {
+        public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
             videoDemuxer.flush(log);
         }
         
-        abstract public void feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) throws IOException;
+        abstract public void feedSector(@Nonnull IdentifiedSector sector, @Nonnull ILocalizedLogger log) throws LoggedFailure;
     }
 
     final public @Nonnull IDiscItemSaver makeSaver(@CheckForNull File directory) {

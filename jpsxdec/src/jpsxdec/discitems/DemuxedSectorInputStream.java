@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -60,20 +60,18 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
         public final CdFileSectorReader _cd;
         private final int _iOffset;
         private final int _iStartSector;
-        private final int _iEndSector;
         public int _iSector;
         @CheckForNull
         private ByteArrayFPIS _currentStream;
 
-        public SectorEnumerator(@Nonnull CdFileSectorReader cd, int iSector, int iOffset, int iEndSector) {
+        public SectorEnumerator(@Nonnull CdFileSectorReader cd, int iSector, int iOffset) {
             _cd = cd;
             _iStartSector = _iSector = iSector;
             _iOffset = iOffset;
-            _iEndSector = iEndSector;
         }
         
         public boolean hasMoreElements() {
-            return _iSector <= _iEndSector;
+            return _iSector < _cd.getLength();
         }
 
         public @Nonnull InputStream nextElement() {
@@ -104,15 +102,11 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
     }
 
     public DemuxedSectorInputStream(@Nonnull CdFileSectorReader cd, int iStartSector, int iOffset) {
-        this(cd, iStartSector, iOffset, cd.getLength()-1);
-    }
-    
-    public DemuxedSectorInputStream(@Nonnull CdFileSectorReader cd, int iStartSector, int iOffset, int iEndSector) {
-        super(new SectorEnumerator(cd, iStartSector, iOffset, iEndSector));
+        super(new SectorEnumerator(cd, iStartSector, iOffset));
     }
     
     @Override
-    public void close() throws IOException {
+    public void close() {
         // no need to do anything
         // and definitely don't want to do what SequenceInputStream does
     }

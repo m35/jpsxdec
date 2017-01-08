@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,8 @@
 
 package jpsxdec.discitems;
 
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DebugLogger;
+import jpsxdec.util.DeserializationFail;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -68,7 +69,7 @@ public class FrameNumberFormatTest {
     }
 
     @Test
-    public void serialize() throws NotThisTypeException {
+    public void serialize() throws Exception {
         String[] tests = {
             "0/@0/#0", // hmm
             "1/@1/#1",
@@ -97,8 +98,22 @@ public class FrameNumberFormatTest {
             try {
                 FrameNumberFormat fnf = new FrameNumberFormat(s);
                 fail(s);
-            } catch (NotThisTypeException ex) {
+            } catch (DeserializationFail ex) {
             }
         }
+    }
+
+    @Test
+    public void dupHeader() throws Exception {
+        FrameNumberFormatter.Header fnf = new FrameNumberFormatter.Header(1, 1);
+        String actual = fnf.formatNumber(new FrameNumber(0, 0, 0, 1, 0), DebugLogger.Log);
+        assertEquals("1.0", actual);
+    }
+
+    @Test
+    public void dupSector() throws Exception {
+        FrameNumberFormatter.Sector fnf = new FrameNumberFormatter.Sector(1, 1);
+        String actual = fnf.formatNumber(new FrameNumber(0, 1, 0, 0, 0), DebugLogger.Log);
+        assertEquals("1.0", actual);
     }
 }

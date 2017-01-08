@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,25 +37,27 @@
 
 package jpsxdec.util;
 
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import jpsxdec.i18n.ILocalizedMessage;
+import java.io.IOException;
 
-public interface ProgressListener {
+/** {@link IOException} in Java 5 doesn't have the
+ * {@link java.lang.Throwable} constructor. */
+public class IOException6 extends IOException {
 
-    public void progressStart(@CheckForNull ILocalizedMessage msg) throws TaskCanceledException;
+    public IOException6(Throwable cause) {
+        super();
+        initCause(cause);
+    }
 
-    public void progressStart() throws TaskCanceledException;
+    public IOException6(String message, Throwable cause) {
+        super(message);
+        initCause(cause);
+    }
 
-    public void progressEnd() throws TaskCanceledException;
+    public IOException6(String message) {
+        super(message);
+    }
 
-    /** @param dblPercentComplete Between 0.0 - 1.0 */
-    public void progressUpdate(double dblPercentComplete) throws TaskCanceledException;
+    public IOException6() {
+    }
 
-    /** Report progress event. */
-    public void event(@Nonnull ILocalizedMessage msg);
-    /** If the progress listener is wanting an event. */
-    public boolean seekingEvent();
-
-    public void progressInfo(@Nonnull ILocalizedMessage msg);
 }

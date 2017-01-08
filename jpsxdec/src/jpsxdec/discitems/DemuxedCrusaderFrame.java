@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2016  Michael Sabin
+ * Copyright (C) 2012-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.discitems;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
@@ -45,8 +46,8 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.sectors.SectorCrusader;
-import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 public class DemuxedCrusaderFrame implements IDemuxedFrame {
 
@@ -111,7 +112,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
                 chunk.copyIdentifiedUserData(0, abBuffer, iPos, iLen);
                 iPos += iLen;
             } else {
-                I.MISSING_CHUNK(_frameNumber, iChunk).log(LOG, Level.WARNING); // TODO: log this for user
+                I.MISSING_CHUNK(_frameNumber, iChunk).logEnglish(LOG, Level.WARNING); // TODO: log this for user
             }
         }
         return abBuffer;
@@ -149,30 +150,36 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         return _iPresentationSector;
     }
 
-    public void printSectors(@Nonnull FeedbackStream fbs) {
+    public void printSectors(@Nonnull PrintStream ps) {
         int iDemuxOfs = getDemuxSize();
         for (int i=0; i < getChunksInFrame(); i++) {
-            fbs.print(_aoSectors[i]);
+            ps.print(_aoSectors[i]);
             if (i == 0) {
-                fbs.println(" (start offset " + _iStartOffset + ")");
+                ps.println(" (start offset " + _iStartOffset + ")");
                 iDemuxOfs -= SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE - _iStartOffset;
             } else if (i == getChunksInFrame() - 1)
-                fbs.println(" (end offset " + iDemuxOfs + ")");
+                ps.println(" (end offset " + iDemuxOfs + ")");
             else {
                 iDemuxOfs -= SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE;
-                fbs.println();
+                ps.println();
             }
         }
     }
 
+    /**
+     * @throws IllegalArgumentException
+     *                  if {@code abNewDemux.length > } {@link #getDemuxSize()}
+     */
     public void writeToSectors(@Nonnull byte[] abNewDemux,
                                int iUsedSize_ignore, int iMdecCodeCount_ignore,
                                @Nonnull CdFileSectorReader cd,
-                               @Nonnull FeedbackStream fbs)
-             throws IOException, IncompatibleException
+                               @Nonnull ILocalizedLogger log)
+             throws LoggedFailure, IllegalArgumentException
     {
         if (abNewDemux.length > _iSize)
-            throw new IncompatibleException(I.NEW_FRAME_DOES_NOT_FIT(_frameNumber, abNewDemux.length, _iSize));
+            throw new IllegalArgumentException(String.format(
+                    "Frame %s: New frame size %d is larger than existing size %d",
+                    _frameNumber, abNewDemux.length, _iSize));
 
         // not going to check that the bitstream is of any version
 
@@ -180,7 +187,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         for (int iChunk = 0; iChunk < _aoSectors.length; iChunk++) {
             SectorCrusader vidSector = _aoSectors[iChunk];
             if (vidSector == null) {
-                fbs.printlnWarn(I.CMD_FRAME_TO_REPLACE_MISSING_CHUNKS());
+                log.log(Level.WARNING, I.CMD_FRAME_TO_REPLACE_MISSING_CHUNKS());
                 continue;
             }
             byte[] abSectUserData = vidSector.getCdSector().getCdUserDataCopy();
@@ -198,7 +205,11 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
             
             System.arraycopy(abNewDemux, iDemuxOfs, abSectUserData, iCopyTo, iBytesToCopy);
 
-            cd.writeSector(vidSector.getSectorNumber(), abSectUserData);
+            try {
+                cd.writeSector(vidSector.getSectorNumber(), abSectUserData);
+            } catch (IOException ex) {
+                throw new LoggedFailure(log, Level.SEVERE, I.IO_WRITING_TO_FILE_ERROR_NAME(cd.getSourceFile().toString()), ex);
+            }
 
             iDemuxOfs += iBytesToCopy;
         }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.util;
 
 import java.io.BufferedOutputStream;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -46,127 +47,74 @@ import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
 import java.util.Calendar;
-import java.util.logging.Filter;
-import java.util.logging.Formatter;
-import java.util.logging.Handler;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
 import jpsxdec.Version;
+import jpsxdec.i18n.I;
+import jpsxdec.i18n.ILocalizedMessage;
 
 
 /** Logger that creates a file with a known name, meant for user consumption. */
-public class UserFriendlyLogger extends Logger {
+public class UserFriendlyLogger implements ILocalizedLogger, Closeable {
+
+    private static final Logger LOG = Logger.getLogger(UserFriendlyLogger.class.getName());
 
     private final DateFormat _dateFormat = DateFormat.getDateTimeInstance();
 
     /** Listener will be notified of any {@link Level#WARNING} or
      * {@link Level#SEVERE} (errors). */
     public static interface OnWarnErr {
-        void onWarn(@Nonnull LogRecord record);
-        void onErr(@Nonnull LogRecord record);
+        void onWarn(@Nonnull ILocalizedMessage msg);
+        void onErr(@Nonnull ILocalizedMessage msg);
     }
-    
-    private static final class FriendlyFormatter extends Formatter {
-
-        @Override
-        public String format(LogRecord record) {
-            throw new UnsupportedOperationException("Should never be called");
+    /** Simple implementation of {@link OnWarnErr} that just counts the
+     * warnings and errors. */
+    public static class WarnErrCounter implements OnWarnErr {
+        private int _iWarnCount = 0;
+        private int _iErrCount = 0;
+        public void onWarn(@Nonnull ILocalizedMessage msg) {
+            _iWarnCount++;
         }
-
-        private final static int HAS_MESSAGE = 1;
-        private final static int HAS_EXCEPTION = 2;
-        private final static int HAS_EXCEPTION_MSG = 4;
-
-        public void print(@Nonnull LogRecord record, @Nonnull PrintStream ps) {
-
-            int iFlags = 0;
-            if (record.getMessage() != null)
-                iFlags |= HAS_MESSAGE;
-            
-            Throwable ex = record.getThrown();
-            String sExMsg = null;
-            if (ex != null) {
-                iFlags |= HAS_EXCEPTION;
-                sExMsg = ex.getLocalizedMessage();
-                if (sExMsg != null)
-                    iFlags |= HAS_EXCEPTION_MSG;
-            }
-
-            switch (iFlags) {
-                default:
-                case 0:
-                    // ???
-                    ps.println("Unexpected log record state " + iFlags);
-                    break;
-                case HAS_MESSAGE:
-                    ps.println(I.USER_LOG_MESSAGE(
-                               record.getLevel().getLocalizedName(),
-                               formatMessage(record)));
-                    break;
-
-                case HAS_EXCEPTION:
-                    ps.println(I.USER_LOG_EXCEPTION(
-                               record.getLevel().getLocalizedName(),
-                               ex.getClass().getSimpleName()));
-                    break;
-                case HAS_EXCEPTION | HAS_EXCEPTION_MSG:
-                    ps.println(I.USER_LOG_EXCEPTION_MSG(
-                               record.getLevel().getLocalizedName(),
-                               ex.getClass().getSimpleName(),
-                               sExMsg));
-                    break;
-                    
-                case HAS_MESSAGE | HAS_EXCEPTION:
-                    ps.println(I.USER_LOG_MESSAGE_EXCEPTION(
-                               record.getLevel().getLocalizedName(),
-                               formatMessage(record),
-                               ex.getClass().getSimpleName()));
-                    break;
-                case HAS_MESSAGE | HAS_EXCEPTION | HAS_EXCEPTION_MSG:
-                    ps.println(I.USER_LOG_MESSAGE_EXCEPTION_MSG(
-                               record.getLevel().getLocalizedName(),
-                               formatMessage(record),
-                               ex.getClass().getSimpleName(),
-                               sExMsg));
-                    break;
-                    
-            }
+        public void onErr(@Nonnull ILocalizedMessage msg) {
+            _iErrCount++;
+        }
+        public int getWarnCount() {
+            return _iWarnCount;
+        }
+        public int getErrCount() {
+            return _iErrCount;
         }
     }
-    private static final FriendlyFormatter FORMATTER = new FriendlyFormatter();
 
     /** Filename of the logger file. Null if logging to a PrintStream. */
     @CheckForNull
     private File _file;
     /** Stream where all logging goes to. */
     @CheckForNull
-    private PrintStream _ps;
+    private PrintStream _logStream;
     /** Name of the log. */
     @Nonnull
     private final String _sBaseName;
 
     @Nonnull
-    private final Logger _globalLogger;
-    
+    private final Logger _javaLogger;
+
     /** Listener for warnings and errors. */
     @CheckForNull
     private OnWarnErr _listener;
 
     /** Logger will create a logging file upon first log. */
     public UserFriendlyLogger(@Nonnull String sBaseName) {
-        super(sBaseName, null);
         _sBaseName = sBaseName;
-        _globalLogger = Logger.getLogger(_sBaseName);
+        _javaLogger = Logger.getLogger(_sBaseName);
     }
 
     /** Logger will not create a file but write to supplied PrintStream. */
     public UserFriendlyLogger(@Nonnull String sBaseName, @Nonnull PrintStream ps) {
         this(sBaseName);
-        _ps = ps;
+        _logStream = ps;
     }
 
     public void setListener(@CheckForNull OnWarnErr listener) {
@@ -175,24 +123,37 @@ public class UserFriendlyLogger extends Logger {
 
     /** Returns the file name of the log file. */
     public @Nonnull String getFileName() {
-        return _file == null ? "stderr" : _file.toString();
+        if (_file == null) {
+            if (_logStream == System.out)
+                return "<stdout>";
+            else if (_logStream == System.err)
+                return "<stderr>";
+            else
+                return "<stream>";
+        } else {
+            return _file.toString();
+        }
     }
 
-    @Override
-    public void log(@Nonnull LogRecord record) {
-        _globalLogger.log(record); // also log to normal logging
-        if (_ps == null)
+    public void log(Level level, @Nonnull ILocalizedMessage msg) {
+        log(level, msg, null);
+    }
+    public void log(Level level, @Nonnull ILocalizedMessage msg, @CheckForNull Throwable debugException) {
+        msg.logEnglish(_javaLogger, level, debugException); // also log to normal logging
+        if (_logStream == null)
             openOutputFile();
 
-        Level lvl = record.getLevel();
-
-        if (lvl == Level.WARNING) {
-            if (_listener != null) _listener.onWarn(record);
-        } else if (lvl == Level.SEVERE) {
-            if (_listener != null) _listener.onErr(record);
+        if (level == Level.WARNING) {
+            if (_listener != null) _listener.onWarn(msg);
+        } else if (level == Level.SEVERE) {
+            if (_listener != null) _listener.onErr(msg);
         }
-        FORMATTER.print(record, _ps);
-        _ps.flush();
+
+        // don't log the exception for the user as it most likely will just be useless or confusing
+        _logStream.println(I.USER_LOG_MESSAGE(
+                           level.getLocalizedName(),
+                           msg.getLocalizedMessage()));
+        _logStream.flush();
     }
 
     /** Attempts to open the target log file.
@@ -204,25 +165,25 @@ public class UserFriendlyLogger extends Logger {
         try {
             fos = new FileOutputStream(file);
         } catch (FileNotFoundException fail) {
+            Misc.log(LOG, Level.SEVERE, fail, "Unable to open log file {0}", file);
             try {
                 file = File.createTempFile(_sBaseName, ".log", new File("."));
                 fos = new FileOutputStream(file);
             } catch (IOException ex) {
-                Misc.log(Logger.getLogger(UserFriendlyLogger.class.getName()),
-                        Level.SEVERE, ex, "Unable to create custom logger file {0}", file);
-                _ps = System.err;
+                Misc.log(LOG, Level.SEVERE, ex, "Unable to open log file {0}", file);
+                _logStream = System.err;
             }
         }
         if (fos != null) {
             _file = file;
             BufferedOutputStream bos = new BufferedOutputStream(fos);
             try {
-                _ps = new PrintStream(bos, true, "UTF-8");
+                _logStream = new PrintStream(bos, true, "UTF-8");
             } catch (UnsupportedEncodingException ex) {
-                Logger.getLogger(UserFriendlyLogger.class.getName()).log(Level.SEVERE, null, ex);
-                _ps = new PrintStream(bos, true);
+                LOG.log(Level.SEVERE, null, ex);
+                _logStream = new PrintStream(bos, true);
             }
-            writeFileHeader(_ps);
+            writeFileHeader(_logStream);
         }
     }
 
@@ -235,46 +196,7 @@ public class UserFriendlyLogger extends Logger {
 
     public void close() {
         if (_file != null)
-            _ps.close();
-    }
-
-    // -----------------------------------------------------------------------
-    // -- Not currently supported --------------------------------------------
-    // -----------------------------------------------------------------------
-
-    @Override
-    public synchronized boolean getUseParentHandlers() {
-        return false;
-    }
-
-    @Override
-    public synchronized void addHandler(Handler hndlr) throws SecurityException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public synchronized void removeHandler(Handler hndlr) throws SecurityException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public synchronized Handler[] getHandlers() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setFilter(Filter filter) throws SecurityException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setParent(Logger logger) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public synchronized void setUseParentHandlers(boolean bln) {
-        throw new UnsupportedOperationException();
+            _logStream.close();
     }
 
 }

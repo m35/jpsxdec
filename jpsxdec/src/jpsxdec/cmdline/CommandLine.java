@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,14 +37,13 @@
 
 package jpsxdec.cmdline;
 
-import argparser.ArgParser;
-import argparser.BooleanHolder;
 import argparser.StringHolder;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
@@ -56,8 +55,10 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.MiscResources;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.ConsoleProgressListenerLogger;
+import jpsxdec.util.ArgParser;
+import jpsxdec.util.ConsoleProgressLogger;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.IO;
 import jpsxdec.util.TaskCanceledException;
 
 
@@ -65,21 +66,16 @@ public class CommandLine {
     
     private static final Logger LOG = Logger.getLogger(CommandLine.class.getName());
 
-    public static int main(String[] asArgs) {
+    public static int main(@Nonnull ArgParser ap) {
 
         FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
 
-        asArgs = checkVerbosity(asArgs, Feedback);
+        checkVerbosity(ap, Feedback);
 
         Feedback.println(I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version));
 
-        ArgParser ap = new ArgParser("", false);
-
-        StringHolder inputFileArg = new StringHolder();
-        ap.addOption("-f,-file %s", inputFileArg);
-
-        StringHolder indexFileArg = new StringHolder();
-        ap.addOption("-x,-index %s", indexFileArg);
+        StringHolder inputFileArg = ap.addStringOption("-f","-file");
+        StringHolder indexFileArg = ap.addStringOption("-x","-index");
 
         Command[] aoCommands = {
             new Command_CopySect(),
@@ -94,14 +90,7 @@ public class CommandLine {
             command.init(ap, inputFileArg, indexFileArg, Feedback);
         }
 
-        asArgs = ap.matchAllArgs(asArgs, 0, 0);
-
-        String sErr = ap.getErrorMessage();
-        if (sErr != null) {
-            Feedback.printlnErr(I.CMD_ARGPARSE_ERR(sErr));
-            Feedback.printlnErr(I.CMD_TRY_HELP());
-            return 1;
-        }
+        ap.match();
 
         Command mainCommand = null;
         for (Command command : aoCommands) {
@@ -117,7 +106,7 @@ public class CommandLine {
 
         try {
             if (mainCommand == null) {
-                if (checkForMainHelp(asArgs)) {
+                if (ap.hasHelp()) {
                     printMainHelp(Feedback);
                 } else {
                     if (inputFileArg.value != null && indexFileArg.value != null) {
@@ -135,16 +124,17 @@ public class CommandLine {
                     Feedback.printlnErr(I.CMD_TRY_HELP());
                     return 1;
                 } else {
-                    mainCommand.execute(asArgs);
+                    mainCommand.execute(ap);
                 }
             }
         } catch (CommandLineException ex) {
-            Feedback.printlnErr(ex.getLocalizedMessage());
             ILocalizedMessage msg = ex.getSourceMessage();
-            if (msg == null) // TODO: find way to not log unhandled exceptions twice in debug.log
+            if (msg == null) { // TODO: find way to not log unhandled exceptions twice in debug.log
                 LOG.log(Level.SEVERE, null, ex);
-            else
-                msg.log(LOG, Level.SEVERE, ex);
+            } else {
+                msg.logEnglish(LOG, Level.SEVERE, ex);
+                Feedback.printlnErr(msg);
+            }
             return 1;
         } catch (Throwable ex) {
             Feedback.printlnErr(I.CMD_ERR_EX_CLASS(ex, ex.getClass().getSimpleName()));
@@ -156,14 +146,11 @@ public class CommandLine {
 
     // -------------------------------------------------------------
     
-    private static @CheckForNull String[] checkVerbosity(@Nonnull String[] asArgs,
-                                                         @Nonnull FeedbackStream fbs)
+    private static void checkVerbosity(@Nonnull ArgParser ap,
+                                       @Nonnull FeedbackStream fbs)
     {
-        ArgParser ap = new ArgParser("", false);
-
-        StringHolder verbose = new StringHolder();
-        ap.addOption("-v,-verbose %s", verbose);
-        asArgs = ap.matchAllArgs(asArgs, 0, 0);
+        StringHolder verbose = ap.addStringOption("-v","-verbose");
+        ap.match();
 
         if (verbose.value != null) {
             try {
@@ -176,38 +163,12 @@ public class CommandLine {
                 fbs.printlnWarn(I.CMD_VERBOSE_LVL_INVALID_STR(verbose.value));
             }
         }
-
-        return asArgs;
     }
     
-    public static boolean checkForMainHelp(@CheckForNull String[] asArgs) {
-        if (asArgs == null)
-            return false;
-
-        ArgParser ap = new ArgParser("", false);
-
-        BooleanHolder help = new BooleanHolder();
-        ap.addOption("-?,-h,-help %v", help);
-        ap.matchAllArgs(asArgs, 0, 0);
-
-        return help.value;
-    }
-
-    private static void printMainHelp(@Nonnull PrintStream ps) {
-        BufferedReader br = new BufferedReader(MiscResources.main_cmdline_help());
-        try {
-            String sLine;
-            while ((sLine = br.readLine()) != null) {
-                ps.println(sLine);
-            }
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        } finally {
-            try {
-                br.close();
-            } catch (IOException ex) {
-                LOG.log(Level.SEVERE, null, ex);
-            }
+    private static void printMainHelp(@Nonnull FeedbackStream fbs) {
+        Iterator<ILocalizedMessage> helpLines = MiscResources.main_cmdline_help();
+        while (helpLines.hasNext()) {
+            fbs.println(helpLines.next());
         }
     }
 
@@ -223,11 +184,7 @@ public class CommandLine {
             DiscIndex index = buildIndex(cd, Feedback);
             saveIndex(index, sIndexFile, Feedback);
         } finally {
-            try {
-                cd.close();
-            } catch (IOException ex) {
-                LOG.log(Level.SEVERE, "Error closing CD", ex);
-            }
+            IO.closeSilently(cd, LOG);
         }
     }
 
@@ -237,7 +194,7 @@ public class CommandLine {
     {
         if (sDiscFile == null)
             throw new CommandLineException(I.CMD_COMMAND_NEEDS_DISC());
-        Feedback.println(I.CMD_OPENING(sDiscFile));
+        Feedback.println(I.IO_OPENING_FILE(sDiscFile));
         try {
             CdFileSectorReader cd = new CdFileSectorReader(new File(sDiscFile));
             Feedback.println(I.CMD_DISC_IDENTIFIED(cd.getTypeDescription()));
@@ -250,20 +207,21 @@ public class CommandLine {
     }
 
     static DiscIndex buildIndex(@Nonnull CdFileSectorReader cd,
-                                @Nonnull FeedbackStream Feedback)
+                                @Nonnull FeedbackStream fbs)
     {
-        Feedback.println(I.CMD_BUILDING_INDEX());
+        fbs.println(I.CMD_BUILDING_INDEX());
         DiscIndex index = null;
-        ConsoleProgressListenerLogger cpll = new ConsoleProgressListenerLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage(), Feedback);
+        ConsoleProgressLogger cpl = new ConsoleProgressLogger(
+                I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage(), fbs.getUnderlyingStream());
         try {
-            I.CMD_GUI_INDEXING(cd).log(cpll, Level.INFO);
-            index = new DiscIndex(cd, cpll);
+            cpl.log(Level.INFO, I.CMD_GUI_INDEXING(cd));
+            index = new DiscIndex(cd, cpl);
         } catch (TaskCanceledException ex) {
             throw new RuntimeException("Impossible TaskCanceledException during commandline indexing", ex);
         } finally {
-            cpll.close();
+            cpl.close();
         }
-        Feedback.println(I.CMD_NUM_ITEMS_FOUND(index.size()));
+        fbs.println(I.CMD_NUM_ITEMS_FOUND(index.size()));
         return index;
     }
 
@@ -278,9 +236,7 @@ public class CommandLine {
             try {
                 index.serializeIndex(new File(sIndexFile));
             } catch (FileNotFoundException ex) {
-                throw new CommandLineException(I.CMD_SAVE_OPEN_ERR(), ex);
-            } catch (IOException ex) {
-                throw new CommandLineException(I.WRITING_INDEX_FILE_ERR(), ex);
+                throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(sIndexFile), ex);
             }
         }
     }

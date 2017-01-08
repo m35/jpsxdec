@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,19 +44,17 @@ import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Iki;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IO;
-import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.LocalizedIncompatibleException;
 
 
 public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorWithFrameNumber {
     
     // .. Fields ..........................................................
 
-    // Magic 0x80010160                  //  0    [4 bytes]
-    private int  _iChunkNumber;          //  4    [2 bytes]
-    private int  _iChunksInThisFrame;    //  6    [2 bytes]
-    private int  _iFrameNumber;          //  8    [4 bytes]
-    private long _lngUsedDemuxedSize;    //  12   [4 bytes]
+    // Magic is normal STR = 0x80010160
+    private final CommonVideoSectorFirst16bytes _header = new CommonVideoSectorFirst16bytes();
     private int  _iWidth;                //  16   [2 bytes]
     private int  _iHeight;               //  18   [2 bytes]
     private int  _iRunLengthCodeCount;   //  20   [2 bytes]
@@ -80,16 +78,12 @@ public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorW
             return;
         }
 
-        long lngMagic = cdSector.readUInt32LE(0);
-        if (lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
-        _iChunkNumber = cdSector.readSInt16LE(4);
-        if (_iChunkNumber < 0) return;
-        _iChunksInThisFrame = cdSector.readSInt16LE(6);
-        if (_iChunksInThisFrame < 1) return;
-        _iFrameNumber = cdSector.readSInt32LE(8);
-        if (_iFrameNumber < 0) return;
-        _lngUsedDemuxedSize = cdSector.readSInt32LE(12);
-        if (_lngUsedDemuxedSize < 0) return;
+        _header.readMagic(cdSector);
+        if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
+        if (_header.readChunkNumberStandard(cdSector)) return;
+        if (_header.readChunksInFrameStandard(cdSector)) return;
+        if (_header.readFrameNumberStandard(cdSector)) return;
+        if (_header.readUsedDemuxSizeStandard(cdSector)) return;
         _iWidth = cdSector.readSInt16LE(16);
         if (_iWidth < 1) return;
         _iHeight = cdSector.readSInt16LE(18);
@@ -119,27 +113,27 @@ public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorW
             "{demux frame size=%d rlc=%d ??=%08x}",
             getTypeName(),
             super.cdToString(),
-            _iFrameNumber,
-            _iChunkNumber,
-            _iChunksInThisFrame,
+            _header.iFrameNumber,
+            _header.iChunkNumber,
+            _header.iChunksInThisFrame,
             _iWidth,
             _iHeight,
-            _lngUsedDemuxedSize,
+            _header.iUsedDemuxedSize,
             _iRunLengthCodeCount,
             _lngFourZeros
             );
     }
 
     public int getChunkNumber() {
-        return _iChunkNumber;
+        return _header.iChunkNumber;
     }
 
     public int getChunksInFrame() {
-        return _iChunksInThisFrame;
+        return _header.iChunksInThisFrame;
     }
 
     public int getFrameNumber() {
-        return _iFrameNumber;
+        return _header.iFrameNumber;
     }
 
     public int getHeight() {
@@ -154,18 +148,18 @@ public class SectorIkiVideo extends SectorAbstractVideo implements IVideoSectorW
     @Override
     public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
                                                int iMdecCodeCount, @Nonnull byte[] abSectUserData)
-            throws IncompatibleException
+            throws LocalizedIncompatibleException
     {
         final int[] aiDimensions;
         try {
             aiDimensions = BitStreamUncompressor_Iki.getDimensions(abDemuxData);
-        } catch (MdecException.Uncompress ex) {
-            throw new IncompatibleException(I.REPLACE_FRAME_TYPE_NOT_IKI(), ex);
+        } catch (BinaryDataNotRecognized ex) {
+            throw new LocalizedIncompatibleException(I.REPLACE_FRAME_TYPE_NOT_IKI(), ex);
         }
         int iWidth = aiDimensions[0];
         int iHeight = aiDimensions[1];
         if (iWidth != _iWidth || iHeight != _iHeight) {
-            throw new IncompatibleException(I.REPLACE_FRAME_IKI_DIMENSIONS_MISMATCH(
+            throw new LocalizedIncompatibleException(I.REPLACE_FRAME_IKI_DIMENSIONS_MISMATCH(
                                             iWidth, iHeight, _iWidth, _iHeight));
         }
 

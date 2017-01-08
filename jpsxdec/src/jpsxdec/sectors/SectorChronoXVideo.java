@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,11 +52,7 @@ public class SectorChronoXVideo extends SectorAbstractVideo implements IVideoSec
 
     // .. Fields ..........................................................
 
-    // Magic 0x81010160 or 0x01030160   //  0    [4 bytes]
-    private int  _iChunkNumber;         //  4    [2 bytes]
-    private int  _iChunksInThisFrame;   //  6    [2 bytes]
-    private int  _iFrameNumber;         //  8    [4 bytes]
-    private long _lngUsedDemuxedSize;   //  12   [4 bytes]
+    private final CommonVideoSectorFirst16bytes _header = new CommonVideoSectorFirst16bytes();
     private int  _iWidth;               //  16   [2 bytes]
     private int  _iHeight;              //  18   [2 bytes]
     private int  _iRunLengthCodeCount;  //  20   [2 bytes]
@@ -79,19 +75,15 @@ public class SectorChronoXVideo extends SectorAbstractVideo implements IVideoSec
             return;
         }
 
-        long lngMagic = cdSector.readUInt32LE(0);
-        if (lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
-            lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
+        _header.readMagic(cdSector);
+        if (_header.lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
+            _header.lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
             return;
 
-        _iChunkNumber = cdSector.readSInt16LE(4);
-        if (_iChunkNumber < 0) return;
-        _iChunksInThisFrame = cdSector.readSInt16LE(6);
-        if (_iChunksInThisFrame < 1) return;
-        _iFrameNumber = cdSector.readSInt32LE(8);
-        if (_iFrameNumber < 0) return;
-        _lngUsedDemuxedSize = cdSector.readSInt32LE(12);
-        if (_lngUsedDemuxedSize < 0) return;
+        if (_header.readChunkNumberStandard(cdSector)) return;
+        if (_header.readChunksInFrameStandard(cdSector)) return;
+        if (_header.readFrameNumberStandard(cdSector)) return;
+        if (_header.readUsedDemuxSizeStandard(cdSector)) return;
         _iWidth = cdSector.readSInt16LE(16);
         if (_iWidth < 1) return;
         _iHeight = cdSector.readSInt16LE(18);
@@ -119,13 +111,13 @@ public class SectorChronoXVideo extends SectorAbstractVideo implements IVideoSec
             "{demux frame size=%d rlc=%d qscale=%d 4*00=%08x}",
             getTypeName(),
             super.cdToString(),
-            _iFrameNumber,
-            _iChunkNumber,
-            _iChunksInThisFrame,
+            _header.iFrameNumber,
+            _header.iChunkNumber,
+            _header.iChunksInThisFrame,
             _iWidth,
             _iHeight,
             _iVersion,
-            _lngUsedDemuxedSize,
+            _header.iUsedDemuxedSize,
             _iRunLengthCodeCount,
             _iQuantizationScale,
             _lngFourZeros
@@ -133,15 +125,15 @@ public class SectorChronoXVideo extends SectorAbstractVideo implements IVideoSec
     }
 
     public int getChunkNumber() {
-        return _iChunkNumber;
+        return _header.iChunkNumber;
     }
 
     public int getChunksInFrame() {
-        return _iChunksInThisFrame;
+        return _header.iChunksInThisFrame;
     }
 
     public int getFrameNumber() {
-        return _iFrameNumber;
+        return _header.iFrameNumber;
     }
 
     public int getWidth() {

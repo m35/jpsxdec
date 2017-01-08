@@ -60,6 +60,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.PlainDocument;
 import jpsxdec.util.IO;
+import jpsxdec.util.Misc;
 import org.ini4j.Ini;
 import org.ini4j.OptionMap;
 import org.ini4j.Profile.Section;
@@ -156,16 +157,11 @@ public class RenderOptions implements ChangeListener, DocumentListener {
 
         @Override
         public boolean equals(Object obj) {
-            if (obj == null) {
+            if (obj == null || getClass() != obj.getClass())
                 return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
             final MaskImage other = (MaskImage) obj;
-            if ((this.name == null) ? (other.name != null) : !this.name.equals(other.name)) {
+            if (!Misc.objectEquals(this.name, other.name))
                 return false;
-            }
             return true;
         }
 

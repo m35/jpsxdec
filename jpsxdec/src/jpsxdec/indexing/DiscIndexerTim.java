@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,7 +49,7 @@ import jpsxdec.discitems.DiscItemTim;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.tim.Tim;
 import jpsxdec.tim.TimInfo;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
 
 /**
  * Searches for TIM images
@@ -59,12 +59,11 @@ public class DiscIndexerTim extends DiscIndexer implements DiscIndexer.Static {
     private static final Logger LOG = Logger.getLogger(DiscIndexerTim.class.getName());
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem serial) {
-        try {
-            if (DiscItemTim.TYPE_ID.equals(serial.getType())) {
-                return new DiscItemTim(getCd(), serial);
-            }
-        } catch (NotThisTypeException ex) {}
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem serial)
+            throws DeserializationFail
+    {
+        if (DiscItemTim.TYPE_ID.equals(serial.getType()))
+            return new DiscItemTim(getCd(), serial);
         return null;
     }
 

@@ -42,7 +42,7 @@ import java.util.*;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 public class LainDataStructures {
 
@@ -492,7 +492,7 @@ public class LainDataStructures {
                     abTim = Lain_Pk.decompress(_siteRaf);
                 }
                 return Tim.read(new ByteArrayInputStream(abTim));
-            } catch (NotThisTypeException e) {
+            } catch (BinaryDataNotRecognized e) {
                 throw new RuntimeException(e);
             }
         }

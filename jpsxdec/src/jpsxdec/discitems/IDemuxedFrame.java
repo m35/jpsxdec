@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2016  Michael Sabin
+ * Copyright (C) 2012-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,12 +37,12 @@
 
 package jpsxdec.discitems;
 
-import java.io.IOException;
+import java.io.PrintStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.LoggedFailure;
+import jpsxdec.util.ILocalizedLogger;
 
 public interface IDemuxedFrame {
     
@@ -71,11 +71,11 @@ public interface IDemuxedFrame {
      * @param abBuffer Optional buffer to copy the demuxed data into. */
     @Nonnull byte[] copyDemuxData(@CheckForNull byte[] abBuffer);
 
-    void printSectors(@Nonnull FeedbackStream fbs);
+    void printSectors(@Nonnull PrintStream ps);
 
     void writeToSectors(@Nonnull byte[] abNewDemux,
                         int iUsedSize, int iMdecCodeCount,
                         @Nonnull CdFileSectorReader cd,
-                        @Nonnull FeedbackStream fbs)
-            throws IOException, IncompatibleException;
+                        @Nonnull ILocalizedLogger log)
+            throws LoggedFailure;
 }

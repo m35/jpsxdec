@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,7 @@
 
 package jpsxdec.cmdline;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Map;
@@ -47,6 +48,7 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
+import jpsxdec.util.ArgParser;
 
 
 class Command_SectorDump extends Command {
@@ -63,7 +65,7 @@ class Command_SectorDump extends Command {
         return null;
     }
 
-    public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
+    public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         CdFileSectorReader cdReader = getCdReader();
         _fbs.println(I.CMD_GENERATING_SECTOR_LIST());
         PrintStream ps = null;
@@ -71,7 +73,11 @@ class Command_SectorDump extends Command {
             if (_sOutfile.equals("-")) {
                 ps = System.out;
             } else {
-                ps = new PrintStream(_sOutfile);
+                try {
+                    ps = new PrintStream(_sOutfile);
+                } catch (FileNotFoundException ex) {
+                    throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(_sOutfile), ex);
+                }
             }
             SectorCounter counter = new SectorCounter();
             IdentifiedSectorIterator it = IdentifiedSectorIterator.create(cdReader);
@@ -87,7 +93,7 @@ class Command_SectorDump extends Command {
                 ps.println(entry.getKey() + " " + entry.getValue());
             }
         } catch (IOException ex) {
-            throw new CommandLineException(ex);
+            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(cdReader.getSourceFile().toString()), ex);
         } finally {
             if (ps != null) {
                 ps.flush();

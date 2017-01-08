@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,8 +42,8 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** Represents a "frame number".
@@ -122,10 +122,10 @@ public class FrameNumber {
     }
 
     /** For serialization. */
-    public static @Nonnull FrameNumber[] parseRange(@Nonnull String sHeaderFrameRange) throws NotThisTypeException {
+    public static @Nonnull FrameNumber[] parseRange(@Nonnull String sHeaderFrameRange) throws DeserializationFail {
         String[] as = sHeaderFrameRange.split("\\-");
         if (as.length != 2)
-            throw new NotThisTypeException(I.INVALID_FRAME_RANGE(sHeaderFrameRange));
+            throw new DeserializationFail(I.FRAME_NUM_RANGE_INVALID(sHeaderFrameRange));
         FrameNumber[] ao = new FrameNumber[2];
         ao[0] = new FrameNumber(as[0]);
         ao[1] = new FrameNumber(as[1]);
@@ -154,10 +154,10 @@ public class FrameNumber {
     }
 
     /** Deserialize/parse a header number from a string. */
-    public FrameNumber(@Nonnull String sSerialized) throws NotThisTypeException {
+    public FrameNumber(@Nonnull String sSerialized) throws DeserializationFail {
         String[] as = Misc.regex("^(\\d+)/"+SECTOR_PREFIX+"(\\d+)(\\.(\\d+))?(/"+HEADER_PREFIX+"(\\d+)(\\.(\\d+))?)?$", sSerialized);
         if (as == null)
-            throw new NotThisTypeException(I.INVALID_FRAME_NUMBER(sSerialized));
+            throw new DeserializationFail(I.FRAME_NUM_INVALID(sSerialized));
 
         try {
             _iIndex = Integer.parseInt(as[1]);
@@ -167,7 +167,7 @@ public class FrameNumber {
             _iHeaderDuplicateIndex = Misc.parseIntOrDefault(as[8],
                                      _iHeaderFrameNumber >= 0 ? 0 : -1);
         } catch (NumberFormatException ex) {
-            throw new NotThisTypeException(I.INVALID_FRAME_NUMBER(sSerialized));
+            throw new DeserializationFail(I.FRAME_NUM_INVALID(sSerialized));
         }
     }
 

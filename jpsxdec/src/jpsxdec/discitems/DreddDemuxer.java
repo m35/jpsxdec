@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,14 +37,14 @@
 
 package jpsxdec.discitems;
 
-import java.io.IOException;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorDreddVideo;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 
 /** Collects Judge Dredd sectors and generates frames.
@@ -53,7 +53,7 @@ import jpsxdec.sectors.SectorDreddVideo;
 public class DreddDemuxer {
 
     public static interface Listener {
-        void frameComplete(@Nonnull DemuxedDreddFrame frame) throws IOException;
+        void frameComplete(@Nonnull DemuxedDreddFrame frame) throws LoggedFailure;
         void endVideo();
     }
 
@@ -72,7 +72,7 @@ public class DreddDemuxer {
     /** @return if the sector is {@link SectorDreddVideo}. */
     public boolean feedSector(@Nonnull CdSector cdSector, 
                               @CheckForNull IdentifiedSector idSector,
-                              @Nonnull Logger log) throws IOException
+                              @Nonnull ILocalizedLogger log) throws LoggedFailure
     {
         boolean blnAccepted;
         if (idSector instanceof SectorDreddVideo) {
@@ -100,7 +100,7 @@ public class DreddDemuxer {
         return blnAccepted;
     }
 
-    public void flush(@Nonnull Logger log) throws IOException {
+    public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentFrame == null)
             return;
         if (_listener == null)

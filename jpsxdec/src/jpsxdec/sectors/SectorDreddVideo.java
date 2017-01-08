@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,7 @@ import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** Judge Dredd video sector. 
  * <p>
@@ -60,12 +60,8 @@ public class SectorDreddVideo extends SectorAbstractVideo {
     /** Uncompresses the bitstream a line of macroblocks at a time until failure
      * to determine the frame height.
      * @return height of the frame in pixels. */
-    static int getHeight(byte[] abBitstream) throws NotThisTypeException {
+    static int getHeight(byte[] abBitstream) throws BinaryDataNotRecognized {
         BitStreamUncompressor bs = BitStreamUncompressor.identifyUncompressor(abBitstream);
-        if (bs == null)
-            throw new NotThisTypeException();
-        bs.reset(abBitstream, abBitstream.length);
-
         int iFrameHeightMB = 0;
         try {
             // keep reading lines until the stream ends
@@ -73,11 +69,13 @@ public class SectorDreddVideo extends SectorAbstractVideo {
                 bs.skipMacroBlocks(FRAME_WIDTH, 16);
                 iFrameHeightMB++;
             }
-        } catch (MdecException.Read ex) {
+        } catch (MdecException.EndOfStream ex) {
+            // expected
+        } catch (MdecException.ReadCorruption ex) {
             // expected
         }
         if (iFrameHeightMB == 0)
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
         return iFrameHeightMB * 16;
     }
 

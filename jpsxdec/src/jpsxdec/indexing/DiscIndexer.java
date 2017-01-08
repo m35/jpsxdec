@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,6 +48,8 @@ import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
 
 /** Superclass of all disc indexers. 
  * Be sure to also implement {@link Identified} and/or {@link Static}
@@ -70,7 +72,7 @@ public abstract class DiscIndexer {
         public void staticRead(@Nonnull DemuxedUnidentifiedDataStream is) throws IOException;
     }
 
-    public static @Nonnull DiscIndexer[] createIndexers(@Nonnull Logger log) {
+    public static @Nonnull DiscIndexer[] createIndexers(@Nonnull ILocalizedLogger log) {
         return new DiscIndexer[] {
             new DiscIndexerISO9660(log),
             new DiscIndexerSquare(log),
@@ -80,6 +82,7 @@ public abstract class DiscIndexer {
             new DiscIndexerXaAudio(log),
             new DiscIndexerCrusader(log),
             new DiscIndexerDredd(log),
+            //new DiscIndexerSpu(),
         };
     }
 
@@ -119,7 +122,8 @@ public abstract class DiscIndexer {
 
     /** Lines from the index file as passed to be handled by the indexers.
      * @return  if the line successfully created a disc item. */
-    abstract public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields);
+    abstract public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields)
+            throws DeserializationFail;
 
     abstract public void listPostProcessing(@Nonnull Collection<DiscItem> allItems);
 

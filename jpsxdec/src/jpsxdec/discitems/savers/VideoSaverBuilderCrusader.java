@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2016  Michael Sabin
+ * Copyright (C) 2012-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,10 +37,7 @@
 
 package jpsxdec.discitems.savers;
 
-import argparser.ArgParser;
 import argparser.BooleanHolder;
-import java.io.IOException;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.discitems.CrusaderDemuxer;
@@ -49,8 +46,11 @@ import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.i18n.I;
 import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.util.ArgParser;
 import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.LoggedFailure;
 import jpsxdec.util.TabularFeedback;
+import jpsxdec.util.ILocalizedLogger;
 
 
 public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
@@ -74,6 +74,7 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
         super.resetToDefaults();
 
         setSavingAudio(true);
+        firePossibleChange();
     }
 
     @Override
@@ -130,26 +131,17 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
     ////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, 
-                                                     @Nonnull FeedbackStream fbs)
+    public void commandLineOptions(@Nonnull ArgParser ap, @Nonnull FeedbackStream fbs)
     {
-        asArgs = super.commandLineOptions(asArgs, fbs);
-        if (asArgs == null) return null;
+        super.commandLineOptions(ap, fbs);
+        if (!ap.hasRemaining())
+            return;
         
-        ArgParser parser = new ArgParser("", false);
+        BooleanHolder noaud = ap.addBoolOption(false, "-noaud"); // Only with AVI & audio
 
-        //...........
-
-        BooleanHolder noaud = new BooleanHolder(false);
-        parser.addOption("-noaud %v", noaud); // Only with AVI & audio
-
-        // -------------------------
-        String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
-        // -------------------------
+        ap.match();
 
         setSavingAudio(!noaud.value);
-
-        return asRemain;
     }
 
     @Override
@@ -157,7 +149,7 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
         super.makeHelpTable(tfb);
 
         tfb.newRow();
-        tfb.print(I.CMD_VIDEO_NOAUD()).tab().print(I.CMD_VIDEO_NOAUD_HELP());
+        tfb.addCell(I.CMD_VIDEO_NOAUD()).addCell(I.CMD_VIDEO_NOAUD_HELP());
     }
 
     @Override
@@ -182,8 +174,8 @@ public class VideoSaverBuilderCrusader extends VideoSaverBuilder {
         }
 
         @Override
-        public void feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) 
-                throws IOException
+        public void feedSector(@Nonnull IdentifiedSector sector, @Nonnull ILocalizedLogger log)
+                throws LoggedFailure
         {
             videoDemuxer.feedSector(sector, log);
         }

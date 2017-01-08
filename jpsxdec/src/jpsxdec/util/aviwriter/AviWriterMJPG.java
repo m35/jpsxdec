@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,8 +39,11 @@ package jpsxdec.util.aviwriter;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.IIOImage;
@@ -52,6 +55,7 @@ import javax.sound.sampled.AudioFormat;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.util.ExposedBAOS;
+import jpsxdec.util.IO;
 
 /**
  * MJPG implementation of AVI writer. It's really just a JPEG file stuffed
@@ -109,7 +113,7 @@ public class AviWriterMJPG extends AviWriter {
     public AviWriterMJPG(final @Nonnull File outputfile,
                          final int iWidth, final int iHeight,
                          final long lngFrames, final long lngPerSecond)
-            throws IOException
+            throws FileNotFoundException, IOException
     {
         this(outputfile, iWidth, iHeight, lngFrames, lngPerSecond, -1, null);
     }
@@ -118,7 +122,7 @@ public class AviWriterMJPG extends AviWriter {
                          final int iWidth, final int iHeight,
                          final long lngFrames, final long lngPerSecond,
                          final @CheckForNull AudioFormat audioFormat)
-            throws IOException
+            throws FileNotFoundException, IOException
     {
         this(outputfile, iWidth, iHeight, lngFrames, lngPerSecond, -1, audioFormat);
     }
@@ -126,7 +130,7 @@ public class AviWriterMJPG extends AviWriter {
                          final int iWidth, final int iHeight,
                          final long lngFrames, final long lngPerSecond,
                          final float fltLossyQuality)
-            throws IOException
+            throws FileNotFoundException, IOException
     {
         this(outputfile, iWidth, iHeight, lngFrames, lngPerSecond, fltLossyQuality, null);
     }
@@ -135,7 +139,7 @@ public class AviWriterMJPG extends AviWriter {
                          final long lngFrames, final long lngPerSecond,
                          final float fltLossyQuality,
                          final @CheckForNull AudioFormat audioFormat)
-            throws IOException
+            throws FileNotFoundException, IOException
     {
         super(outputfile, iWidth, iHeight, lngFrames, lngPerSecond, audioFormat, true, "MJPG", AVIstruct.string2int("MJPG"));
 
@@ -177,6 +181,7 @@ public class AviWriterMJPG extends AviWriter {
         writeFrameChunk(out.getBuffer(), 0, out.size());
     }
 
+    /** @param abJpeg Must be a jpeg image */
     public void writeFrame(@Nonnull byte[] abJpeg, int iStart, int iSize) throws IOException {
         writeFrameChunk(abJpeg, iStart, iSize);
     }
@@ -210,20 +215,33 @@ public class AviWriterMJPG extends AviWriter {
 
         // wrap the BufferedImage with a IIOImage
         IIOImage imgIO = new IIOImage(img, null, null);
-        // finally write the buffered image to the output stream
-        // using our parameters (if any)
-        _imgWriter.write(null, imgIO, _writeParams);
-        // don't forget to flush
-        imgOut.flush();
-        imgOut.close();
-
-        // clear image writer's output stream
-        _imgWriter.setOutput(null);
+        boolean blnException = true;
+        try {
+            // finally write the buffered image to the output stream
+            // using our parameters (if any)
+            _imgWriter.write(null, imgIO, _writeParams);
+            // don't forget to flush
+            imgOut.flush();
+            blnException = false;
+        } finally {
+            // clear image writer's output stream
+            _imgWriter.setOutput(null);
+            if (blnException) {
+                try {
+                    imgOut.close();
+                } catch (IOException ex) {
+                    Logger.getLogger(AviWriterMJPG.class.getName())
+                            .log(Level.SEVERE, "Exception closing " + imgOut.getClass().getName(), ex);
+                }
+            } else {
+                imgOut.close(); // expose close exception
+            }
+        }
 
         // return the result
         return out;
     }
-    
+
     /** Converts JPEG file data to be used in an MJPG AVI. */
     private static void JPEG2MJPEG(@Nonnull byte [] ab) throws IOException {
         if (ab[6] != 'J' || ab[7] != 'F' || ab[8] != 'I' || ab[9] != 'F')

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** The TIM Color Lookup Table (CLUT). */
 class CLUT {
@@ -65,18 +65,18 @@ class CLUT {
     final short[] _asiColorData;
 
     /** Read a CLUT from an InputStream. */
-    public CLUT(@Nonnull InputStream is) throws IOException, NotThisTypeException {
+    public CLUT(@Nonnull InputStream is) throws IOException, BinaryDataNotRecognized {
         long lngLength = IO.readUInt32LE(is);
-        if (lngLength == 0) throw new NotThisTypeException();
+        if (lngLength == 0) throw new BinaryDataNotRecognized();
         _iClutX = IO.readUInt16LE(is);
         _iClutY = IO.readUInt16LE(is);
         _iClutWidth = IO.readUInt16LE(is);
-        if (_iClutWidth == 0) throw new NotThisTypeException();
+        if (_iClutWidth == 0) throw new BinaryDataNotRecognized();
         _iClutHeight = IO.readUInt16LE(is);
-        if (_iClutHeight == 0) throw new NotThisTypeException();
+        if (_iClutHeight == 0) throw new BinaryDataNotRecognized();
 
         if (lngLength != calculateLength())
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
 
         _asiColorData = new short[_iClutWidth * _iClutHeight];
         for (int i = 0; i < _asiColorData.length; i++)

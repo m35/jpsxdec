@@ -1,3 +1,19 @@
+v0.99.7 rev3397 (8 Jan 2017) The "road to v1.0" release
+    - XA audio can now be replaced using .wav files
+    - Simplified error messages
+    x Command-line -play option removed
+    Bug fixes:
+    - Videos with multiple audio streams was broken
+    - Incorrect correction of corrupted XA audio
+    - Possible failure when saving some movies as image sequence
+    - Some GUI weirdness when first selecting an item
+    - Other minor or command-line related bugs
+    Internal:
+    - Java version of the Hitmen "Psx Audio Tools 0.1" vagpack.c
+    - PSound .ppl file parser
+    - Better error handling
+    - Improved internationalization
+    - Introduced new bugs ;)
 v0.99.6 rev3146 (3 June 2016)
     - Update Spanish translation (many thanks Víctor González, Sergi Medina)
     - Allow replacing FF7 frames with STRv2 frame format

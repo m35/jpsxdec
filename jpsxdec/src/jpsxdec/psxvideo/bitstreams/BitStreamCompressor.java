@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,34 +39,36 @@ package jpsxdec.psxvideo.bitstreams;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.discitems.FrameNumber;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.LocalizedIncompatibleException;
 
 /** Interface for classes that can generate a binary bit-stream compressed MDEC frame. */
 public interface BitStreamCompressor {
 
     /** Compresses the {@link MdecInputStream} and returns the result.  */
     @Nonnull byte[] compress(@Nonnull MdecInputStream inStream, int iWidth, int iHeight)
-            throws MdecException, MdecException.TooMuchEnergyToCompress;
-    
+            throws IncompatibleException, MdecException.EndOfStream,
+                   MdecException.ReadCorruption, MdecException.TooMuchEnergy;
+
     /** Returns null if unable to encode the frame small enough, otherwise the
      * returned {@code array.length} will be {@code <= abOriginonal.length}. */
     @CheckForNull byte[] compressFull(@Nonnull byte[] abOriginal,
-                                      @Nonnull FrameNumber frame,
+                                      @Nonnull String frameNum,
                                       @Nonnull MdecEncoder encoder,
-                                      @Nonnull FeedbackStream fbs)
-            throws MdecException;
+                                      @Nonnull ILocalizedLogger log)
+            throws MdecException.EndOfStream, MdecException.ReadCorruption;
 
     /** Returns null if unable to encode the frame small enough, otherwise the
      * returned {@code array.length} will be {@code <= abOriginonal.length}. */
     @CheckForNull byte[] compressPartial(@Nonnull byte[] abOriginal,
-                                         @Nonnull FrameNumber frame,
+                                         @Nonnull String frameNum,
                                          @Nonnull MdecEncoder encoder,
-                                         @Nonnull FeedbackStream fbs)
-            throws MdecException;
+                                         @Nonnull ILocalizedLogger log)
+            throws LocalizedIncompatibleException, MdecException.EndOfStream, MdecException.ReadCorruption;
 
     /**
      * @return count or -1 if n/a.

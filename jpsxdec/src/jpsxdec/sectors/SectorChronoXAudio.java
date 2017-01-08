@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,7 @@ package jpsxdec.sectors;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.audio.SquareAdpcmDecoder;
+import jpsxdec.audio.SpuAdpcmDecoder;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
@@ -171,7 +171,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     public long getLeftSampleCount() {
         // if it's the 1st (0) chunk, then it holds the left audio
         if (getAudioChunkNumber() == 0) 
-            return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
+            return SpuAdpcmDecoder.calculatePcmSampleFramesGenerated(getAudioDataSize());
         else
             return 0;
     }
@@ -179,7 +179,7 @@ public class SectorChronoXAudio extends IdentifiedSector
     public long getRightSampleCount() {
         // if it's the 2nd (1) chunk, then it holds the right audio
         if (getAudioChunkNumber() == 1) 
-            return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
+            return SpuAdpcmDecoder.calculatePcmSampleFramesGenerated(getAudioDataSize());
         else
             return 0;
     }

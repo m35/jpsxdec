@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,6 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -53,7 +52,7 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.ProgressListenerLogger;
+import jpsxdec.util.ProgressLogger;
 import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.UserFriendlyLogger;
 import org.jdesktop.swingworker.SwingWorker;
@@ -348,30 +347,26 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
     // run in separate thread
 
-    private class ProgresGuiTask extends SwingWorker<Void, ILocalizedMessage> {
+    private class ProgresGuiTask extends SwingWorker<Void, ILocalizedMessage> 
+        implements UserFriendlyLogger.OnWarnErr
+    {
 
         public static final String PROGRESS_VALUE = "progress";
         public static final String EXCEPTION = "exception";
         public static final String DONE = "done";
 
-        private final ProgressListenerLogger __progressLog = new ProgressListenerLogger("index") {
-            public void progressStart(@CheckForNull ILocalizedMessage msg) throws TaskCanceledException {
+        private final ProgressLogger __progressLog = new ProgressLogger("index") {
+            protected void handleProgressStart() throws TaskCanceledException {
                 if (isCancelled())
                     throw new TaskCanceledException();
-                if (msg != null)
-                    publish(msg);
                 setProgress(0);
             }
 
-            public void progressStart() throws TaskCanceledException {
-                progressStart(null);
-            }
-
-            public void progressEnd() throws TaskCanceledException {
+            protected void handleProgressEnd() throws TaskCanceledException {
                 setProgress(100);
             }
 
-            public void progressUpdate(double dblPercentComplete) throws TaskCanceledException {
+            protected void handleProgressUpdate(double dblPercentComplete) throws TaskCanceledException {
                 if (isCancelled())
                     throw new TaskCanceledException();
                 setProgress((int)Math.round(dblPercentComplete * 100));
@@ -381,26 +376,22 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 publish(msg);
             }
 
-            public boolean seekingEvent() {
+            public boolean isSeekingEvent() {
                 // TODO: only seek event after so many seconds
                 return true;
-            }
-
-            public void progressInfo(ILocalizedMessage msg) {
             }
         };
 
         public ProgresGuiTask() {
-            __progressLog.setListener(new UserFriendlyLogger.OnWarnErr() {
-                public void onWarn(LogRecord record) {
-                    EventQueue.invokeLater(new ExceptionLater(true));
-                }
-                public void onErr(LogRecord record) {
-                    EventQueue.invokeLater(new ExceptionLater(false));
-                }
-            });
+            __progressLog.setListener(this);
+            __progressLog.log(Level.INFO, I.CMD_GUI_INDEXING(_cd));
+        }
 
-            I.CMD_GUI_INDEXING(_cd).log(__progressLog, Level.INFO);
+        public void onWarn(@Nonnull ILocalizedMessage msg) {
+            EventQueue.invokeLater(new ExceptionLater(true));
+        }
+        public void onErr(@Nonnull ILocalizedMessage msg) {
+            EventQueue.invokeLater(new ExceptionLater(false));
         }
 
         @Override
@@ -418,7 +409,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                 // uncool
                 _exception = ex;
                 firePropertyChange(EXCEPTION, null, ex); // calls IndexingGui#propertyChange()
-                I.GUI_UNHANDLED_ERROR().log(__progressLog, Level.SEVERE, ex);
+                __progressLog.log(Level.SEVERE, I.GUI_UNHANDLED_ERROR(), ex);
                 return null;
             }
             firePropertyChange(DONE, null, null); // calls IndexingGui#propertyChange()

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,15 +37,15 @@
 
 package jpsxdec.psxvideo.mdec;
 
+import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.logging.Logger;
-import jpsxdec.i18n.I;
+import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 
 /** Wraps an InputStream (or creates a FileInputStream) to read MDEC values from. */
@@ -53,49 +53,45 @@ public class MdecInputStreamReader extends MdecInputStream {
 
     private static final Logger LOG = Logger.getLogger(MdecInputStreamReader.class.getName());
 
-    private final InputStream _inStream;
-    private int _iBlock = 0;
+    @Nonnull
+    private final ByteArrayInputStream _in;
 
-    public MdecInputStreamReader(String sFile) throws FileNotFoundException {
-        _inStream = new FileInputStream(sFile);
+    public MdecInputStreamReader(@Nonnull File file) throws FileNotFoundException, IOException {
+        this(IO.readFile(file));
     }
 
-    public MdecInputStreamReader(File file) throws FileNotFoundException {
-        _inStream = new FileInputStream(file);
+    public MdecInputStreamReader(@Nonnull InputStream is) throws IOException {
+        this(IO.readEntireStream(is));
     }
 
-    public MdecInputStreamReader(InputStream is) {
-        _inStream = is;
+    public MdecInputStreamReader(@Nonnull byte[] abMdecWords) {
+        _in = new ByteArrayInputStream(abMdecWords);
     }
 
     @Override
-    public boolean readMdecCode(MdecCode code) throws MdecException.Read {
+    public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream {
         try {
-            code.set(IO.readSInt16LE(_inStream));
-            if (code.isEOD()) {
-                _iBlock++;
-                return true;
-            } else {
-                return false;
-            }
+            code.set(IO.readSInt16LE(_in));
+            return code.isEOD();
         } catch (EOFException ex) {
-            throw new MdecException.EndOfStream(I.UNEXPECTED_STREAM_END_IN_BLOCK(_iBlock), ex);
+            throw new MdecException.EndOfStream(ex);
         } catch (IOException ex) {
-            throw new MdecException.Read(ex);
+            throw new RuntimeException("BAOS should not throw a general IOException", ex);
         }
     }
 
-    public void close() throws IOException {
-        _inStream.close();
+    public void reset() {
+        _in.reset();
     }
 
     // -------------------------------------------------------------------------
 
     /** Writes a dimensions worth of macro blocks from an
      * {@link MdecInputStream} to an {@link OutputStream}. */
-    public static void writeMdecDims(MdecInputStream mdecIn, OutputStream streamOut,
+    public static void writeMdecDims(@Nonnull MdecInputStream mdecIn,
+                                     @Nonnull OutputStream streamOut,
                                      int iWidth, int iHeight)
-            throws MdecException.Read, IOException
+            throws MdecException.EndOfStream, MdecException.ReadCorruption, IOException
     {
         int iBlockCount = Calc.blocks(iWidth, iHeight);
         writeMdecBlocks(mdecIn, streamOut, iBlockCount);
@@ -104,9 +100,10 @@ public class MdecInputStreamReader extends MdecInputStream {
      * {@link MdecInputStream} to an {@link OutputStream}.
      * Errors are monitored, but does not throw exceptions on bad data
      * (although source and destination streams might). */
-    public static void writeMdecBlocks(MdecInputStream mdecIn, OutputStream streamOut,
+    public static void writeMdecBlocks(@Nonnull MdecInputStream mdecIn,
+                                       @Nonnull OutputStream streamOut,
                                        int iBlockCount)
-            throws MdecException.Read, IOException
+            throws MdecException.EndOfStream, MdecException.ReadCorruption, IOException
     {
         MdecCode code = new MdecCode();
         int iBlock = 0;

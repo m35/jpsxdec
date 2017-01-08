@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2016  Michael Sabin
+ * Copyright (C) 2012-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,35 +44,50 @@ import javax.swing.JTable;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.table.AbstractTableModel;
+import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.gui.SavingGuiTable;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 
 
-public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuilderStr> {
+public class VideoSaverBuilderStrGui extends DiscItemSaverBuilderGui {
 
+    @Nonnull
+    private final CombinedBuilderListener<VideoSaverBuilderStr> _bh;
 
-
-    public VideoSaverBuilderStrGui(@Nonnull VideoSaverBuilderStr writerBuilder) {
-        super(writerBuilder);
-
-        addListeners(new EmulateAv(), new ParallelAudio());
+    public VideoSaverBuilderStrGui(@Nonnull VideoSaverBuilderStr saverBuilder) {
+        super(new BorderLayout());
+        _bh = new CombinedBuilderListener<VideoSaverBuilderStr>(saverBuilder);
+        add(new PPanel(_bh), BorderLayout.NORTH);
+        _bh.addListeners(new ParallelAudio());
     }
 
-    
-    private class EmulateAv extends AbstractCheck {
-        public EmulateAv() { super(I.GUI_EMULATE_PSX_AV_SYNC_LABEL()); }
-        public boolean isSelected() {
-            return _writerBuilder.getEmulatePsxAvSync();
-        }
-        public void setSelected(boolean b) {
-            _writerBuilder.setEmulatePsxAVSync(b);
-        }
-        public boolean isEnabled() {
-            return _writerBuilder.getEmulatePsxAVSync_enabled();
-        }
+    @Override
+    public boolean useSaverBuilder(@Nonnull DiscItemSaverBuilder saverBuilder) {
+        return _bh.changeSourceBuilder(saverBuilder);
     }
 
+    private static class PPanel extends VideoSaverPanel<VideoSaverBuilderStr> {
+
+        public PPanel(@Nonnull CombinedBuilderListener<VideoSaverBuilderStr> bh) {
+            super(bh);
+            _bl.addListeners(new EmulateAv());
+        }
+
+        private class EmulateAv extends AbstractCheck {
+            public EmulateAv() { super(I.GUI_EMULATE_PSX_AV_SYNC_LABEL()); }
+            public boolean isSelected() {
+                return _bl.getBuilder().getEmulatePsxAvSync();
+            }
+            public void setSelected(boolean b) {
+                _bl.getBuilder().setEmulatePsxAVSync(b);
+            }
+            public boolean isEnabled() {
+                return _bl.getBuilder().getEmulatePsxAVSync_enabled();
+            }
+        }
+    }
 
     private enum COLUMNS {
         Save(Boolean.class, I.GUI_TREE_SAVE_COLUMN()) {
@@ -99,7 +114,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
                 return bldr.getParallelAudio(i).getInterestingDescription();
             }
         };
-        
+
         public boolean editable() { return false; }
         abstract public Object get(VideoSaverBuilderStr bldr, int i);
         public void set(VideoSaverBuilderStr bldr, int i, Object val) {}
@@ -118,6 +133,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
         @Override
         final public String toString() { return _name.getLocalizedMessage(); }
     }
+    
     private class ParallelAudio extends AbstractTableModel implements ChangeListener {
 
         @Nonnull final JTable __tbl;
@@ -130,7 +146,7 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
         }
 
         public int getRowCount() {
-            return _writerBuilder.getParallelAudioCount();
+            return _bh.getBuilder().getParallelAudioCount();
         }
 
         public int getColumnCount() {
@@ -150,18 +166,17 @@ public class VideoSaverBuilderStrGui extends VideoSaverBuilderGui<VideoSaverBuil
         }
 
         public Object getValueAt(int rowIndex, int columnIndex) {
-            return COLUMNS.values()[columnIndex].get(_writerBuilder, rowIndex);
+            return COLUMNS.values()[columnIndex].get(_bh.getBuilder(), rowIndex);
         }
 
         public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
-            COLUMNS.values()[columnIndex].set(_writerBuilder, rowIndex, aValue);
+            COLUMNS.values()[columnIndex].set(_bh.getBuilder(), rowIndex, aValue);
         }
 
         public void stateChanged(ChangeEvent e) {
-            __tbl.setEnabled(_writerBuilder.getParallelAudio_enabled());
+            __tbl.setEnabled(_bh.getBuilder().getParallelAudio_enabled());
             this.fireTableDataChanged();
         }
 
     }
-
 }

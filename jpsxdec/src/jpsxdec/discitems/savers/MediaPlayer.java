@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -55,6 +55,8 @@ import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.idct.SimpleIDCT;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
+import jpsxdec.util.DebugLogger;
+import jpsxdec.util.LoggedFailure;
 import jpsxdec.util.player.AudioVideoReader;
 import jpsxdec.util.player.IDecodableFrame;
 import jpsxdec.util.player.ObjectPool;
@@ -107,7 +109,8 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
         _vid = vid;
         _m2d = new VDP.Mdec2Decoded(new MdecDecoder_int(new SimpleIDCT(),
                                                         vid.getWidth(),
-                                                        vid.getHeight()));
+                                                        vid.getHeight()), 
+                                    DebugLogger.Log);
         _b2m = new VDP.Bitstream2Mdec(_m2d);
         _demuxer = demuxer;
         _demuxer.setFrameListener(this);
@@ -179,13 +182,13 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
                 IdentifiedSector identifiedSector = it.next();
                 if (identifiedSector != null) {
                     if (_demuxer != null) {
-                        _demuxer.feedSector(identifiedSector, LOG);
+                        _demuxer.feedSector(identifiedSector, DebugLogger.Log);
                     }
                     // if frame demuxer and audio decoder are the same object
                     // don't feed the sector twice (this is currently only for
                     // Crusader movies)
                     if (_audioDecoder != null && _audioDecoder != _demuxer) {
-                        _audioDecoder.feedSector(identifiedSector, LOG);
+                        _audioDecoder.feedSector(identifiedSector, DebugLogger.Log);
                     }
                 }
                 
@@ -194,8 +197,10 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
             }
 
             if (_demuxer != null)
-                _demuxer.flush(LOG);
+                _demuxer.flush(DebugLogger.Log);
 
+        } catch (LoggedFailure ex) {
+            throw new RuntimeException(ex);
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
@@ -283,7 +288,7 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
                 // this will call _m2d which in turn will call decoded()
                 // __abDemuxBuf and __frameNum should have been initialied in init()
                 _b2m.bitstream(__abDemuxBuf, __abDemuxBuf.length, __frameNum, _iMovieEndSector);
-            } catch (IOException ex) {
+            } catch (LoggedFailure ex) {
                 System.err.print("Frame "+__frameNum+' '+ex.getMessage());
                 if (ex.getCause() != null && ex.getCause().getMessage() != null)
                     System.err.println(": " + ex.getCause().getMessage());
@@ -309,10 +314,6 @@ public class MediaPlayer extends AudioVideoReader implements ISectorFrameDemuxer
                           int iFrameEndSector)
         {
             System.err.println(errMsg.getEnglishMessage());
-        }
-
-        public void setLog(Logger log) {
-            throw new UnsupportedOperationException("Not supported yet.");
         }
 
         public void returnToPool() {

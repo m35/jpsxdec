@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.discitems.savers;
 
-import argparser.ArgParser;
 import argparser.StringHolder;
 import java.io.File;
 import javax.annotation.CheckForNull;
@@ -45,14 +44,14 @@ import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
-import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.formats.JavaAudioFormat;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.util.ArgParser;
 import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.TabularFeedback;
+import jpsxdec.util.TabularFeedback.Cell;
 
-/** Manages possible options for creating a SectorAudioWriter, and
+/** Manages possible options for creating a {@link AudioSaver}, and
  *  produces independent instances using the current options. */
 public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
@@ -129,20 +128,14 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
     // ....................................................
 
-    public @CheckForNull String[] commandLineOptions(@CheckForNull String[] asArgs, 
-                                                     @Nonnull FeedbackStream fbs)
+    public void commandLineOptions(@Nonnull ArgParser ap, @Nonnull FeedbackStream fbs)
     {
-        if (asArgs == null) return asArgs;
+        if (!ap.hasRemaining())
+            return;
 
-        ArgParser parser = new ArgParser("", false);
-
-        StringHolder vol = new StringHolder();
-        parser.addOption("-vol %s", vol);
-
-        StringHolder audfmt = new StringHolder();
-        parser.addOption("-audfmt,-af %s", audfmt);
-
-        String[] asRemain = parser.matchAllArgs(asArgs, 0, 0);
+        StringHolder vol = ap.addStringOption("-vol");
+        StringHolder audfmt = ap.addStringOption("-audfmt","-af");
+        ap.match();
 
         if (vol.value != null) {
             try {
@@ -163,8 +156,6 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
                 fbs.printlnWarn(I.CMD_IGNORING_INVALID_FORMAT(audfmt.value));
             }
         }
-
-        return asRemain;
     }
 
     public void printHelp(@Nonnull FeedbackStream fbs) {
@@ -172,16 +163,17 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
         tfb.setRowSpacing(1);
 
-        tfb.print(I.CMD_AUDIO_AF()).tab().print(I.CMD_AUDIO_AF_HELP(JavaAudioFormat.getAudioFormats()[0].getExtension()));
-        tfb.indent();
+        tfb.addCell(I.CMD_AUDIO_AF());
+        Cell cell = new Cell(I.CMD_AUDIO_AF_HELP(JavaAudioFormat.getAudioFormats()[0].getExtension()));
         for (JavaAudioFormat audioFormat : JavaAudioFormat.getAudioFormats()) {
-            tfb.ln().print(new UnlocalizedMessage(audioFormat.getExtension()));
+            cell.addLine(audioFormat.getCmdId(), 2);
         }
+        tfb.addCell(cell);
         tfb.newRow();
 
-        tfb.print(I.CMD_AUDIO_VOL()).tab().print(I.CMD_AUDIO_VOL_HELP(100));
+        tfb.addCell(I.CMD_AUDIO_VOL()).addCell(I.CMD_AUDIO_VOL_HELP(100));
 
-        tfb.write(fbs);
+        tfb.write(fbs.getUnderlyingStream());
     }
 
     public @Nonnull AudioSaver makeSaver(@CheckForNull File directory) {

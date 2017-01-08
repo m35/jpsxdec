@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,8 +40,10 @@ package jpsxdec.discitems;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -56,9 +58,12 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
+import jpsxdec.util.DebugLogger;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.Fraction;
+import jpsxdec.util.LoggedFailure;
 import jpsxdec.util.Maths;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.Misc;
 import jpsxdec.util.player.PlayController;
 
 /** Represents sector-based PlayStation video streams. */
@@ -117,7 +122,7 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
     public DiscItemStrVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
 
@@ -272,72 +277,49 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     }
 
 
-    private static class LongestStack {
-
-        @Nonnull
-        private final DiscItemAudioStream[] _aoAudioStreams;
-
-        private final ArrayList<DiscItemAudioStream> _stack =
-                new ArrayList<DiscItemAudioStream>();
-
-        private int _iCurLen = 0;
-        private int _iMaxLen = 0;
-        private int _iStartSector = -1;
+    private static class AudioStreamFormatBucket implements Comparator<DiscItemAudioStream>{
+        private final TreeSet<DiscItemAudioStream> _streams = new TreeSet<DiscItemAudioStream>(this);
+        private final DiscItemAudioStream _formatChecker;
+        public AudioStreamFormatBucket(DiscItemAudioStream first) {
+            _streams.add(first);
+            _formatChecker = first;
+        }
         
-        private final ArrayList<DiscItemAudioStream> _longestCopy =
-                new ArrayList<DiscItemAudioStream>();
-
-        public LongestStack(@Nonnull Collection<DiscItemAudioStream> audioStreams) {
-            _aoAudioStreams = audioStreams.toArray(
-                    new DiscItemAudioStream[audioStreams.size()]);
+        public boolean addIfMatches(DiscItemAudioStream as) {
+            if (!_formatChecker.hasSameFormat(as))
+                return false;
+            
+            _streams.add(as);
+            return true;
         }
-
-        private @Nonnull ArrayList<DiscItemAudioStream> getLongest() {
-            return _longestCopy;
-        }
-
-        private void push(@Nonnull DiscItemAudioStream o) {
-            _stack.add(o);
-            _iCurLen += o.getSectorLength();
-            if (_iCurLen > _iMaxLen) {
-                _iMaxLen = _iCurLen;
-                _longestCopy.clear();
-                _longestCopy.addAll(_stack);
-                _iStartSector = _longestCopy.get(0).getStartSector();
-                for (int i = 1; i < _longestCopy.size(); i++) {
-                    if (_longestCopy.get(i).getStartSector() < _iStartSector)
-                        _iStartSector = _longestCopy.get(i).getStartSector();
+        
+        public int calculateLongest() {
+            // https://en.wikipedia.org/wiki/Interval_scheduling
+            Iterator<DiscItemAudioStream> it = _streams.iterator();
+            DiscItemAudioStream earliestFinishingTime = it.next();
+            int iLength = earliestFinishingTime.getSectorLength();
+            while (it.hasNext()) {
+                DiscItemAudioStream contender = it.next();
+                if (contender.overlaps(earliestFinishingTime)) {
+                    it.remove();
+                } else {
+                    earliestFinishingTime = contender;
+                    iLength += earliestFinishingTime.getSectorLength();
                 }
             }
+            return iLength;
         }
 
-        private void pop() {
-            DiscItemAudioStream removed = _stack.remove(_stack.size() - 1);
-            _iCurLen -= removed.getSectorLength();
+        // sort by earliest finishing time
+        public int compare(DiscItemAudioStream o1, DiscItemAudioStream o2) {
+            return Misc.intCompare(o1.getEndSector(), o2.getEndSector());
         }
 
-        private boolean matchesFormat(@Nonnull DiscItemAudioStream potential) {
-            return _stack.isEmpty() || _stack.get(0).hasSameFormat(potential);
-        }
-
-        private void findLongest(final int iIndex) {
-            for (int i = iIndex; i < _aoAudioStreams.length; i++) {
-                DiscItemAudioStream potential = _aoAudioStreams[i];
-                if (!matchesFormat(potential))
-                    continue;
-                boolean blnOverlapsAny = false;
-                for (DiscItemAudioStream audItem : _stack) {
-                    if (potential.overlaps(audItem)) {
-                        blnOverlapsAny = true;
-                        break;
-                    }
-                }
-                if (!blnOverlapsAny) {
-                    push(potential);
-                    findLongest(i+1);
-                    pop();
-                }
-            }
+        private ArrayList<DiscItemAudioStream> getStreams() {
+            ArrayList<DiscItemAudioStream> streams = new ArrayList<DiscItemAudioStream>(_streams);
+            // sort according to our convention
+            Collections.sort(streams);
+            return streams;
         }
     }
 
@@ -359,11 +341,40 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
             return _longestNonIntersectingAudioStreams;
         }
 
-        // find the longest combination of parallel audio streams
-        LongestStack longest = new LongestStack(_audioStreams);
-        longest.findLongest(0);
+        // === find the longest combination of parallel audio streams ===
         
-        _longestNonIntersectingAudioStreams = longest.getLongest();
+        // group all the streams into buckets of the same format
+        ArrayList<AudioStreamFormatBucket> streamBuckets = new ArrayList<AudioStreamFormatBucket>();
+        Iterator<DiscItemAudioStream> streamIt = _audioStreams.iterator();
+        // add the first stream
+        streamBuckets.add(new AudioStreamFormatBucket(streamIt.next()));
+
+        NextStream:
+        while (streamIt.hasNext()) {
+            DiscItemAudioStream as = streamIt.next();
+            // try to add this stream to each bucket
+            for (AudioStreamFormatBucket bucket : streamBuckets) {
+                if (bucket.addIfMatches(as))
+                    continue NextStream; // found a bucket, onto the next stream
+            }
+            // no existing bucket, create a new one
+            streamBuckets.add(new AudioStreamFormatBucket(as));
+        }
+
+        // find the longest bucket
+        Iterator<AudioStreamFormatBucket> bucketIt = streamBuckets.iterator();
+        AudioStreamFormatBucket longestBucket = bucketIt.next();
+        int iLongestBucket = longestBucket.calculateLongest();
+        while (bucketIt.hasNext()) {
+            AudioStreamFormatBucket contender = bucketIt.next();
+            int iContenderLength = contender.calculateLongest();
+            if (iContenderLength > iLongestBucket) {
+                longestBucket = contender;
+                iLongestBucket = iContenderLength;
+            }
+        }
+        
+        _longestNonIntersectingAudioStreams = longestBucket.getStreams();
 
         if (LOG.isLoggable(Level.INFO)) {
             LOG.log(Level.INFO, "Selected {0,number,#} of the {1,number,#} audio streams:",
@@ -389,16 +400,21 @@ public abstract class DiscItemStrVideoStream extends DiscItemVideoStream {
     public void fpsDump2(@Nonnull final PrintStream ps) throws IOException {
         ISectorFrameDemuxer demuxer = makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
-            public void frameComplete(IDemuxedFrame frame) throws IOException {
+            public void frameComplete(IDemuxedFrame frame) {
                 ps.println((frame.getStartSector()-getStartSector())+"-"+
                            (frame.getEndSector()-getStartSector()));
             }
         });
         IdentifiedSectorIterator it = identifiedSectorIterator();
-        while (it.hasNext()) {
-            IdentifiedSector isect = it.next();
-            if (isect != null)
-                demuxer.feedSector(isect, LOG);
+        try {
+            while (it.hasNext()) {
+                IdentifiedSector isect = it.next();
+                if (isect != null)
+                    demuxer.feedSector(isect, DebugLogger.Log);
+            }
+            demuxer.flush(DebugLogger.Log);
+        } catch (LoggedFailure ex) {
+            throw new RuntimeException("Should not happen", ex);
         }
     }
 

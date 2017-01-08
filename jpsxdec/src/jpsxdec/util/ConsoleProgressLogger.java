@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,13 +38,12 @@
 package jpsxdec.util;
 
 import java.io.PrintStream;
-import java.util.logging.LogRecord;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 
-public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
+public class ConsoleProgressLogger extends ProgressLogger implements UserFriendlyLogger.OnWarnErr {
 
     private static final int BAR_WIDTH = 20;
 
@@ -57,43 +56,36 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
     @Nonnull
     private final PrintStream _progressStream;
 
-    public ConsoleProgressListenerLogger(@Nonnull String sBaseName, @Nonnull PrintStream progressStream) {
+    public ConsoleProgressLogger(@Nonnull String sBaseName, @Nonnull PrintStream progressStream) {
         super(sBaseName);
         _progressStream = progressStream;
-        setListener(new OnWarnErr() {
-            public void onErr(LogRecord record) {
-                _iErrCount++;
-            }
-            public void onWarn(LogRecord record) {
-                _iWarnCount++;
-            }
-        });
+        setListener(this);
+    }
+
+    public void onWarn(@Nonnull ILocalizedMessage msg) {
+        _iWarnCount++;
+    }
+    public void onErr(@Nonnull ILocalizedMessage msg) {
+        _iErrCount++;
     }
 
     public void event(@Nonnull ILocalizedMessage msg) {
         _lastEvent = msg;
     }
 
-    public void progressInfo(@Nonnull ILocalizedMessage msg) {
-        _progressStream.println(msg.getLocalizedMessage());
-    }
-
-    public void progressEnd() {
+    protected void handleProgressEnd() {
         _progressStream.println(buildProgress(1));
         _dblNextProgressMark = 0;
     }
 
-    public void progressStart() { progressStart(null); }
-    public void progressStart(@CheckForNull ILocalizedMessage msg) {
-        if (msg != null)
-            _progressStream.println(msg.getLocalizedMessage());
+    protected void handleProgressStart() {
         _dblNextProgressMark = 0;
         _iWarnCount = 0;
         _iErrCount = 0;
         _lastEvent = null;
     }
 
-    public void progressUpdate(double dblPercentComplete) {
+    protected void handleProgressUpdate(double dblPercentComplete) {
 
         if (dblPercentComplete < _dblNextProgressMark) {
             return;
@@ -130,6 +122,6 @@ public class ConsoleProgressListenerLogger extends ProgressListenerLogger {
             return I.CMD_PROGRESS_WITH_MSG(progressBar.toString(), dblPercentComplete, _lastEvent, _iWarnCount, _iErrCount);
     }
 
-    public boolean seekingEvent() { return true; }
+    public boolean isSeekingEvent() { return true; }
 
 }

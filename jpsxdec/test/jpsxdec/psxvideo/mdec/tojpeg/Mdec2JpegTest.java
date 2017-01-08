@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2015  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,6 @@ import java.io.ByteArrayOutputStream;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
-import jpsxdec.psxvideo.mdec.tojpeg.Mdec2Jpeg;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -92,8 +91,8 @@ public class Mdec2JpegTest {
         try {
             jpeg.readMdec(new MStream(stream));
             fail("Too much energy exception should have been thrown");
-        } catch (MdecException.TooMuchEnergyToCompress decode) {
-            assertEquals(decode.getClass(), MdecException.TooMuchEnergyToCompress.class);
+        } catch (MdecException.TooMuchEnergy decode) {
+            assertEquals(decode.getClass(), MdecException.TooMuchEnergy.class);
         }
     }
 

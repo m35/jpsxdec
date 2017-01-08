@@ -9,7 +9,7 @@
 
     <!-- ====== global build properties ====== -->
     
-    <property name="jpsxdec.ver" value="v0-99-6_rev3146"/>
+    <property name="jpsxdec.ver" value="v0-99-7_rev3397"/>
 
     <!-- sources -->
     <property name="src.dir.rel"      location="src"      relative="true"/>
@@ -56,13 +56,13 @@
     
 
     <target name="init">
-        <echo>Be sure to set JAVA_HOME to 1.5 jdk directory before building.</echo>
         <echo>ant.java.version = ${ant.java.version}</echo>
         <echo>java.specification.version = ${java.specification.version}</echo>
         <echo>java.version = ${java.version}</echo>
     </target>
 
     <target name="compile-lgpl" depends="init" description="compile the LGPL source" >
+        <echo>Be sure to set JAVA_HOME to 1.5 jdk directory before building.</echo>
         <!-- Create the lgpl build directory -->
         <mkdir dir="${build-lgpl.dir}"/>
         <javac srcdir="${src-lgpl.dir}" destdir="${build-lgpl.dir}" includeantruntime="false"
@@ -85,6 +85,7 @@
 
 
     <target name="compile" depends="package-lgpl" description="compile the jPSXdec source" >
+        <echo>Be sure to set JAVA_HOME to 1.5 jdk directory before building.</echo>
         <!-- Create the build directory -->
         <mkdir dir="${build.dir}"/>
         <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
@@ -163,18 +164,35 @@ Manually convert manual to pdf using [Open|Libre]Office to continue build
     
     <target name="zip" depends="zip-release,zip-src,zip-bin-src" description="zip all the things"></target>
 
-    <target name="test" depends="release" description="build and run tests (untested ;)">
+    <target name="test" depends="compile" description="build and run tests">
+        <fail message="Found Java version ${ant.java.version}. Java version must be at least 1.6.">
+          <condition>
+            <equals arg1="${ant.java.version}" arg2="1.5"/>
+          </condition>
+        </fail>        
+        <echo>Be sure junit jar (at least verion 4) is in the classpath or local directory or build will fail.</echo>
+        <path id="test-classpath">
+            <pathelement location="${build.dir}"/>
+            <pathelement location="${build-lgpl.dir}"/>
+            <fileset dir="." includes="junit*.jar" />
+        </path>
+        <!-- Make test dir and compile tests -->
         <mkdir dir="${testbuild.dir}"/>
         <javac srcdir="${test.dir}" destdir="${testbuild.dir}" debug="true"
-               classpath="" includeantruntime="false"
-               source="1.6" target="1.6" />
-        <junit printsummary="yes" haltonfailure="yes">
-            <classpath>
-                <pathelement location="${testbuild.dir}"/>
-                <pathelement location="${build.dir}"/>
-                <pathelement location="${build-lgpl.dir}"/>
-            </classpath>
-            <test name="AllTestsSuite"/>
+               includeantruntime="false" source="1.6" target="1.6" >
+            <classpath refid="test-classpath"/>
+        </javac>
+        <!-- Copy over test resources -->
+        <copy todir="${testbuild.dir}" verbose="true">
+            <fileset dir="${test.dir}" excludes="**/*.java" />
+        </copy>
+        <!-- Run tests -->
+        <junit printsummary="yes" haltonfailure="yes" >
+            <classpath refid="test-classpath" />
+            <classpath location="${testbuild.dir}" />
+            <test name="AllTestsSuite">
+                <formatter type="brief" usefile="false"/>
+            </test>
         </junit>
     </target>
 

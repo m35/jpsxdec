@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.sectors;
 
-import java.io.PrintStream;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 
@@ -56,18 +55,18 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
     /** Returns true if the super-class is definitely not a match (probability=0).
      * If it returns false, then it also resets probability to 0 for the child-class
      * to determine its own probability. */
-    protected boolean isSuperInvalidElseReset() {
+    final protected boolean isSuperInvalidElseReset() {
         if (_iProbability == 0)
             return true;
         _iProbability = 0;
         return false;
     }
     /** Between 0 and 100. */
-    protected void setProbability(int iProbability) {
+    final protected void setProbability(int iProbability) {
         _iProbability = iProbability;
     }
 
-    public int getProbability() {
+    final public int getProbability() {
         return _iProbability;
     }
 
@@ -81,19 +80,14 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         return _sourceCdSector.getSectorNumberFromStart();
     }
     
-    public @Nonnull CdSector getCdSector() {
+    final public @Nonnull CdSector getCdSector() {
         return _sourceCdSector;
     }
 
-    protected String cdToString() {
+    /** Returns just the {@link CdSector#toString()}, useful when constructing
+     * toString()s in child classes. */
+    final protected String cdToString() {
         return _sourceCdSector.toString();
-    }
-
-    public int getErrorCount() {
-        return 0;
-    }
-
-    public void printErrors(PrintStream ps) {
     }
 }
 

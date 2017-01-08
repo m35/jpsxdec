@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,35 +39,35 @@ package jpsxdec.i18n;
 
 import java.io.FileNotFoundException;
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 
 public class LocalizedFileNotFoundException extends FileNotFoundException {
 
-    @CheckForNull
+    @Nonnull
     private final ILocalizedMessage _msg;
 
-    public LocalizedFileNotFoundException() {
-        _msg = null;
+    public LocalizedFileNotFoundException(@Nonnull ILocalizedMessage msg) {
+        this(msg, null);
     }
 
-    public LocalizedFileNotFoundException(@CheckForNull ILocalizedMessage msg) {
-        super(msg == null ? null : msg.getEnglishMessage());
+    public LocalizedFileNotFoundException(@Nonnull ILocalizedMessage msg, @CheckForNull Throwable cause) {
+        super(msg.getEnglishMessage());
         _msg = msg;
+        initCause(cause);
+    }
+
+    public @Nonnull ILocalizedMessage getSourceMessage() {
+        return _msg;
     }
 
     @Override
-    public @CheckForNull String getLocalizedMessage() {
-        if (_msg == null)
-            return super.getLocalizedMessage();
-        else
-            return _msg.getLocalizedMessage();
+    public @Nonnull String getLocalizedMessage() {
+        return _msg.getLocalizedMessage();
     }
 
     @Override
-    public @CheckForNull String getMessage() {
-        if (_msg == null)
-            return super.getMessage();
-        else
-            return _msg.getEnglishMessage();
+    public @Nonnull String getMessage() {
+        return _msg.getEnglishMessage();
     }
 
 }

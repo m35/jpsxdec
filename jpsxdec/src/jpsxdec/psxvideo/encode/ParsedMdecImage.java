@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,6 @@ import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
@@ -59,7 +58,9 @@ public class ParsedMdecImage  {
     private static class MacroBlock implements Iterable<Block> {
         public final Block[] _aoBlocks = new Block[6];
 
-        public MacroBlock(@Nonnull MdecInputStream mdecIn) throws MdecException.Read {
+        public MacroBlock(@Nonnull MdecInputStream mdecIn)
+                throws MdecException.EndOfStream, MdecException.ReadCorruption
+        {
             for (int iBlock = 0; iBlock < 6; iBlock++) {
                 _aoBlocks[iBlock] = new Block(iBlock, mdecIn);
             }
@@ -119,7 +120,9 @@ public class ParsedMdecImage  {
         /** Only available if source data was a bitstream. -1 if unknown. */
         private final int _iBitSize;
 
-        public Block(int iIndex, @Nonnull MdecInputStream mdecIn) throws MdecException.Read {
+        public Block(int iIndex, @Nonnull MdecInputStream mdecIn)
+                throws MdecException.EndOfStream, MdecException.ReadCorruption
+        {
             if (iIndex < 0 || iIndex >= 6)
                 throw new IllegalArgumentException("Invalid block index " + iIndex);
             _iIndex = iIndex;
@@ -213,7 +216,7 @@ public class ParsedMdecImage  {
             try {
                 currentMacBlk = _aoMacroBlocks[__iCurrentMacroBlock];
             } catch (ArrayIndexOutOfBoundsException ex) {
-                throw new MdecException.EndOfStream(I.END_OF_STREAM(), ex);
+                throw new MdecException.EndOfStream(MdecException.inBlockOfBlocks(__iCurrentBlock, _aoMacroBlocks.length), ex);
             }
 
             Block currentBlk = currentMacBlk.getBlock(__iCurrentBlock);
@@ -257,7 +260,9 @@ public class ParsedMdecImage  {
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
     
-    public ParsedMdecImage(int iWidth, int iHeight) {
+    public ParsedMdecImage(@Nonnull MdecInputStream mdecIn, int iWidth, int iHeight) 
+            throws MdecException.EndOfStream, MdecException.ReadCorruption
+    {
         
         // Save width and height
         _iWidth = iWidth;
@@ -269,8 +274,27 @@ public class ParsedMdecImage  {
         // Set the array to match
         _aoMacroBlocks = new MacroBlock[iMacroBlockCount];
 
+        readFrom(mdecIn);
     }
     
+    private void readFrom(@Nonnull MdecInputStream mdecIn)
+            throws MdecException.EndOfStream, MdecException.ReadCorruption
+    {
+
+        int iMacBlockWidth = Calc.macroblockDim(_iWidth);
+        int iMacBlockHeight = Calc.macroblockDim(_iHeight);
+
+        int iMacroBlockIndex = 0;
+        for (int iMacBlkX = 0; iMacBlkX < iMacBlockWidth; iMacBlkX ++) {
+            for (int iMacBlkY = 0; iMacBlkY < iMacBlockHeight; iMacBlkY ++) {
+                LOG.log(Level.FINE, "Reading macroblock {0,number,#}", iMacroBlockIndex);
+
+                _aoMacroBlocks[iMacroBlockIndex] = new MacroBlock(mdecIn);
+                iMacroBlockIndex++;
+            }
+        }
+    }
+
     public int getWidth() {
         return _iWidth;
     }
@@ -325,23 +349,6 @@ public class ParsedMdecImage  {
             aiQscales[i] = mb.getBlock(i).getQscale();
         }
         return aiQscales;
-    }
-
-    public void readFrom(@Nonnull MdecInputStream mdecIn) throws MdecException.Read {
-
-        int iMacBlockWidth = Calc.macroblockDim(_iWidth);
-        int iMacBlockHeight = Calc.macroblockDim(_iHeight);
-
-        int iMacroBlockIndex = 0;
-        for (int iMacBlkX = 0; iMacBlkX < iMacBlockWidth; iMacBlkX ++) {
-            for (int iMacBlkY = 0; iMacBlkY < iMacBlockHeight; iMacBlkY ++) {
-                LOG.log(Level.FINE, "Reading macroblock {0,number,#}", iMacroBlockIndex);
-
-                _aoMacroBlocks[iMacroBlockIndex] = new MacroBlock(mdecIn);
-                iMacroBlockIndex++;
-            }
-        }
-
     }
 
 }

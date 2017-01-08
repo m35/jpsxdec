@@ -8,46 +8,71 @@
  /   = partially done
  /?/ = done?
 
+Proper spelling in the TODO list is not on the TODO list...
 .....................
 
-* Verify Loggers and LogRecords and ResourceBundles, use another log system?
+Games to investigate
+* Star Wars - Rebel Assault II
+* Discworld 2
+* BrainDead 13
+* Syphon Filter 3
+* Policenauts - Video in static files
+* "Love Game's - Wai Wai Tennis [Service Price] [SLPS-01647] have intro.str file weighing 33 megabytes. In jpsxdec did not see."
+* Fear Effect
+
+* crusader, bs, spu, tim, policenauts: static files need a pull-like design
+    . How to handle?
+        . contextual sector identification after seeing header?
+        . normal static stream behavior? -> will conflict with spu and bs indexer
+        . just process them unidentified? -> will conflict with spu and bs indexer
+        . introduce new static file logic? treat the block of sectors as RandomAccessFile
+            . sectors would have to be identified first
+            . still issue with conflicting indexers
+            . lain files could be included
+            . unfortunately RandomAccessFile cannot be extended like this
+        . use threads
+        . otherwise stuck with a state machine
+/ VDP null frameNumber
+* Add replace for Crusader audio
+* New tabbed interface, main tab still file structure, other tabs show specific types
+    . Handles "Select *" behavior
+    . Handles copy settings
+    . Allows for continuous playback
+? Allow renaming entries like PSound?
+* improve spu indexing
+// Verify Loggers and LogRecords and ResourceBundles, use another log system? -> my own logger
 // Finish RbGen
 // Localize Main help
-/ VDP null frameNumber
-! Finish XA encoder
-* Look into adding ErrorHandler to my Loggers
-* Use Java 6 Console to print proper encoding
+// Finish XA encoder
+// Look into adding ErrorHandler to my Loggers -> my own logger
+// Ensure cleaning AC=0 codes doesn't affect decoded output
+// Try to find audio from Gran Turismo
 x Remove need for video frame dimensions to be in sector
 x  Demuxer should provide frame dimensions either from the sector or from checking the demuxed frame
 x  Applies to: Dredd, Gran Turismo 2, Crusader already does this?
-// Ensure cleaning AC=0 codes doesn't affect decoded output
-* Cleanup IllegalArgumentException and IllegalStateExceptions
-* Look into Star Wars - Rebel Assault II
-* Look into Discworld 2
-* Look into BrainDead 13
-* Look into Syphon Filter 3
 
 Self contained
+* Use Java 6 Console to print proper encoding
 ! Implement a fixed SourceDataLine
 // XA replace: give better feedback what stopped the replace
-* Only show dropdown button when there are list entries
+GUI
+    * Only show dropdown button when there are list entries
+    * add double-click and arrow list
+    * add keyboard actions on rows
+    * Add About button
+    * Add Exit button
+    * Add selected count on Save All Selected button
+    * Add tooltips for everything
 * Save isofile: display output size for raw/normal
 * Save/load CD name in index
-* add double-click and arrow list
-* add keyboard actions on rows
-* Add time log msg at end of save/index
+/ Add time log msg at end of save/index
 * show error/warn unused cmdline args
 * Add disc opening to debug.log
 * New video GUI
 * Proper handling when directory box is empty
 * Finish testing LoD iki: GOAST.IKI (end of disc 2), DENIN2.INI (middle of disc 3), DRAGON1.IKI
-x Update dir chooser
-// Update launch4j
 * Print bs format in -static
 * Bug when saving: leftover text in Message column
-* Add About button
-* Add Exit button
-* Add selected count on Save All Selected button
 * double-check what the EOF and Audio-end flags mean
 * Add WCW to sector test
 * Update LoM sector test
@@ -63,13 +88,19 @@ x Update dir chooser
     * Unit tests require Java 6 while jPSXdec is built with Java 5 ...
       can use 2 different Javas in ant?
     * Create unit test subproject?
-* Add tooltips for everything
-* Find better dropdown button (test on Mac)
-* Experiment with other tree tables (need Mac)
-* Create mac app bundle: need a Mac to test!
+Mac
+    * Find better dropdown button (test on Mac)
+    * Experiment with other tree tables (need Mac)
+    * Create mac app bundle: need a Mac to test!
 ? Digimon World 2 has island directory records, use them?
+* Use ConcurrentLinkedQueue in player queue wrapped with bounds
+* PSX may not like replaced tims, check palette effect
+// Update launch4j
+x Update dir chooser
 
 General
+* Proper handling for InterruptedExcetion
+* Cleanup IllegalArgumentException and IllegalStateExceptions
 * Findbug fixes
 * Replace package.html with package-info.java
 * Code coverage/unit testing
@@ -93,13 +124,13 @@ Compare
 * Compare Tim against various tools out there
 
 Redesign
+* Add universal -replace command and DiscItem.replaceCmd()
 * Add default to formats and savers
-// Localize disc item help
-/?/ Change the way video items split audio items: do it after indexing.
-  It's conceptually better, and removes Audio indexer from having to know about video frames.
-  However, different movie types split movies slightly differently
-  And right now its the sectors that are the only game specific logic
-  I would need to add game specific indexers
+* iki frame presentation time is unhappy since it ends early, add a range of presentation sectors q_q
+? associate sector identification with an index and store some disc identification in the index
+    . will want to separate identification map from index
+? Have SPU and BS DiscItems hold user identified params,
+? or persist saving parameters in index
 ! Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates
   make them 75 or 150 fps - by checking how much variance there is between frame lengths
 // Duplicated frame number in header messes things up (iki)
@@ -108,8 +139,7 @@ Redesign
     * Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
 ? Even when not upsampling chroma, utilize it for PsxYuv->JpgYuv matrix conversion
     ! Test how much difference there is between the two color sets
-! Create my own smaller/simpler arg parser
-! new parsx lib: String sFile = parser.getStringParam("-f"); .hasHelp()
+/! Create my own smaller/simpler arg parser
 * Expose logger options
 * Have separate DiscItemBuilderGuiFactory to create a gui from a DiscItemBuilder and cache it
 * Log when frame rate detection fails
@@ -127,6 +157,12 @@ Redesign
 ? Is there a better Saving dialog design?
 ? Cleanup Main (again)
     * Remove FeedbackStream and just use a Logger
+// Localize disc item help
+// Change the way video items split audio items: do it after indexing.
+  It's conceptually better, and removes Audio indexer from having to know about video frames.
+  However, different movie types split movies slightly differently
+  And right now its the sectors that are the only game specific logic
+  I would need to add game specific indexers
 
 
 User test feedback
@@ -138,11 +174,11 @@ User test feedback
 .....................
 
 Indexing
-    * ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
+    // ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
       When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
 Video encoder
     // remove/merge redundant MDEC codes with AC=0 (FF7)
-    * What to do when partial replace detects the entire frame is different
+    ? What to do when partial replace detects the entire frame is different
 Real-time media playback/preview
     ! Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player (ff tactics FFTST.STR)
     * Bug: when audio doesn't start for a prolonged period, video frame queue fills and blocks
@@ -163,7 +199,7 @@ Real-time media playback/preview
     ? Fix it on Linux (Ubuntu) somehow
         x Figure out how to make Linux multithreading not suck
         / Implement my own low-latency audio position tracking
-            ? Register listeners with the SourceDataLine and let those events pause the
+            x Register listeners with the SourceDataLine and let those events pause the
             other components indirectly
     x Add seeking
 ? Replicate exact PSX color conversion
@@ -201,23 +237,21 @@ Video encoder
         x Trellis quantization
         x Context-adaptive variable-length coding (or is this h.264 only?)
 ? Generate javadoc and post on site
-    - How does that affect wiki pages?
-    - webdav ant task
 ? Optimize AviWriter with buffers
     - Construct audio/video chunks in ram before writing
     - Write to buffered stream
 /?/ Add LIST:INFO:ISFT to AVI
 ? Make tutorial on ripping a game and using jpsxdec
-* Change visualization to output HTML page
-* Save and load ini on every change?
+? Change visualization to output HTML page -> 20mb .html files are bad
+? Save and load ini on every change?
 ? https://code.google.com/p/xfiledialog/
 ? Update manual to cover game ripping
-? Indexing overhaul:
+/ Indexing overhaul:
   Remove all traces of random access and only assume forward access
   Introduce contextual information to help identify sector types
     CD audio sectors will benefit
     Identifying video sectors by combining the frame data along the way and checking if its valid (FF7, Lain, Dredd)
-? Finish function "identifySector()" in DiscItem
+x Finish function "identifySector()" in DiscItem
   to more quickly figure out what type of sectors are read (since it won't
   have to go through the whole list of like 10 types).
 ? Wield the power of Java: Multi-thread decoding (essentially use the player model)
@@ -236,7 +270,7 @@ x Bug: Tree music icon is hard to see on blue background
 
 ------------------------------------------
 
-? Find new host
+// Find new host
     Requirements:
         * free
         ? simple issue tracking (anon bug reports a plus)
@@ -247,24 +281,24 @@ x Bug: Tree music icon is hard to see on blue background
         * syntax highlighted repo browsing
         * allows non OSI licenses
     http://www.svnhostingcomparison.com/
-    ? assembla.com (# of users?, reasonably clean, wiki for a home page, add/remove tabs, bugs called 'tickets') e.g. http://www.assembla.com/spaces/burro
-    ? javaforge.com (cluttered) e.g. http://javaforge.com/project/dock
     ? sharesource.org (# of users?, very simple, bug reporting without register, no code highlighting)
     ? activestate.com/firefly/plans (where are the downloads?, # of users?, url is firefly.activestate.com/username/projectname) e.g. http://firefly.activestate.com/ahamino/mindreader  http://firefly.activestate.com/dafi/morekomodo
     ? projectlocker.com (5 users, lots of q's to signup, unable to find a project page on site, has ads)
     ? myversioncontrol.com (3 users, unable to find a project page on site)
     ? bountysource.com
+    x assembla.com (# of users?, reasonably clean, wiki for a home page, add/remove tabs, bugs called 'tickets') e.g. http://www.assembla.com/spaces/burro
+    x javaforge.com (cluttered) e.g. http://javaforge.com/project/dock
     x Freepository (1 user, svn ok, license ok, no issue tracking)
-    x java.net (cluttered) e.g. https://jinput.dev.java.net/
     x codespaces.com (2 users, unable to find a project page on site)
     x xp-dev (project name not in url, no repo browsing)
     x codeplex (best interface, but svn please)
-    x googlecode (incompatible license)
     x github (svn please)
     x bitbucket (svn please)
     x launchpad (svn please)
+    x java.net (dead)
+    x googlecode (dead)
 
-New code style:
+Code style:
     fields only preceeded with underscore '_'
     object no longer have prefix of 'o'
     don't have filename in comment before package name
@@ -275,5 +309,7 @@ New code style:
                          double=dbl float=flt boolean=bln enum=e
     array prefix: a<type> (e.g. int[] = ai)
     arrays always declared type[] name;
+    Try to wrap lines around 80 character mark (not hard rule)
+    Minimize vertical lines
 
 

@@ -45,7 +45,7 @@ import java.util.Arrays;
 import javax.imageio.ImageIO;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 public class ReplaceLoF {
 
@@ -66,7 +66,7 @@ public class ReplaceLoF {
     
     private static boolean SAVE_DEBUG_FILES = true;
 
-    private static Tim extractTim(RandomAccessFile bin, int iSectorOffset, String sBaseName) throws IOException, NotThisTypeException {
+    private static Tim extractTim(RandomAccessFile bin, int iSectorOffset, String sBaseName) throws IOException, BinaryDataNotRecognized {
         
         bin.seek(iSectorOffset*2048);
         
@@ -101,7 +101,7 @@ public class ReplaceLoF {
     }
 
     
-    private static void patchLoFTim(Tim lofTim) throws IOException, NotThisTypeException {
+    private static void patchLoFTim(Tim lofTim) throws IOException, BinaryDataNotRecognized {
         // palette 3 is the one that looks best for LoF
         // but any palette is fine
         BufferedImage image = lofTim.toBufferedImage(3);
@@ -221,7 +221,7 @@ public class ReplaceLoF {
     /**
      * @param args the command line arguments
      */
-    public static void main(String[] args) throws IOException, NotThisTypeException {
+    public static void main(String[] args) throws Exception {
 
         if (args.length >= 4) {
             String sSlps = args[0],
@@ -245,7 +245,7 @@ public class ReplaceLoF {
             patchVersionTim(version, sVersion);
             //patchCredits(credits, args[3], args[4], args[5]);
             System.out.println("Creating new copy of "+sOriginalBin+" to " + sNewBin);
-            IO.copyFile(new File(sOriginalBin), new File(sNewBin));
+            copyFile(new File(sOriginalBin), new File(sNewBin));
             System.out.println("Writing patched image to " + sNewBin);
             patchBinBin(sNewBin, sSlps, lof, version, null, null, null);
         } else {
@@ -258,6 +258,16 @@ public class ReplaceLoF {
             }
         }
     }
+
+    public static void copyFile(File src, File dest) throws IOException {
+        InputStream in = new FileInputStream(src);
+        try {
+            IO.writeIStoFile(in, dest);
+        } finally {
+            in.close();
+        }
+    }
+
 
     private static void patchCredits(Tim[] credits, String c1, String c2, String c3) {
         

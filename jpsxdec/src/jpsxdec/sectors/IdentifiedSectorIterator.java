@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.sectors;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
@@ -46,7 +47,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** Contains the logic to identify{@link CdSector}s.
  * Some sector identification requires contextual information,
@@ -68,6 +69,16 @@ public abstract class IdentifiedSectorIterator {
         return new Dredd(cd, iStartSector, iEndSectorInclusive);
     }
 
+    @Nonnull
+    private final CdFileSectorReader _cd;
+
+    protected IdentifiedSectorIterator(@Nonnull CdFileSectorReader cd) {
+        _cd = cd;
+    }
+
+    public @Nonnull File getSourceCdFile() {
+        return _cd.getSourceFile();
+    }
 
     /** {@link #next()} must be called before calling this.
      * @return the last return value of {@link #next()}. */
@@ -120,6 +131,7 @@ public abstract class IdentifiedSectorIterator {
         private SectorDreddVideo _remainingDredd;
 
         private Dredd(@Nonnull CdFileSectorReader cd, int iStartSector, int iEndSectorInclusive) {
+            super(cd);
             _it = new BaseWithGT(cd, iStartSector, iEndSectorInclusive);
         }
 
@@ -221,10 +233,14 @@ public abstract class IdentifiedSectorIterator {
 
             // demux the frame
             ByteArrayOutputStream baos = new ByteArrayOutputStream(); // TODO: optimization, reuse the buffer
-            IO.writeIStoOS(_current.idSector.getIdentifiedUserDataStream(), baos);
-            for (SectorPair pair : _queue) {
-                if (pair.idSector instanceof SectorDreddVideo)
-                    IO.writeIStoOS(((SectorDreddVideo)pair.idSector).getIdentifiedUserDataStream(), baos);
+            try {
+                IO.writeIStoOS(_current.idSector.getIdentifiedUserDataStream(), baos);
+                for (SectorPair pair : _queue) {
+                    if (pair.idSector instanceof SectorDreddVideo)
+                        IO.writeIStoOS(((SectorDreddVideo)pair.idSector).getIdentifiedUserDataStream(), baos);
+                }
+            } catch (IOException ex) {
+                throw new RuntimeException("Should not happen", ex);
             }
             // find and set the heights
             try {
@@ -235,7 +251,7 @@ public abstract class IdentifiedSectorIterator {
                         ((SectorDreddVideo)pair.idSector).setHeightChunks(iHeight, iChunk);
                 }
                 return true;
-            } catch (NotThisTypeException ex) {
+            } catch (BinaryDataNotRecognized ex) {
                 return false;
             }
         }
@@ -264,6 +280,7 @@ public abstract class IdentifiedSectorIterator {
         private BaseWithGT(@Nonnull CdFileSectorReader cd,
                             int iStartSector, int iEndSectorInclusive)
         {
+            super(cd);
             _cd = cd;
             _iCurrentSector = iStartSector;
             _iEndSectorInclusive = iEndSectorInclusive;

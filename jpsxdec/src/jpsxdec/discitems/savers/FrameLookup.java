@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,16 +39,17 @@ package jpsxdec.discitems.savers;
 
 import javax.annotation.Nonnull;
 import jpsxdec.discitems.FrameNumber;
+import jpsxdec.i18n.I;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 
 
 public abstract class FrameLookup {
 
-    public static @Nonnull FrameLookup deserialize(@Nonnull String s) throws NotThisTypeException {
+    public static @Nonnull FrameLookup deserialize(@Nonnull String s) throws DeserializationFail {
         String[] as = Misc.regex("^(["+FrameNumber.SECTOR_PREFIX+FrameNumber.HEADER_PREFIX+"])?(\\d+)$", s);
         if (as == null)
-            throw new NotThisTypeException();
+            throw new DeserializationFail(I.FRAME_NUM_INVALID(s));
         try {
             if (as[1] == null) {
                 return new Index(Integer.parseInt(as[2]));
@@ -59,15 +60,15 @@ public abstract class FrameLookup {
                     case FrameNumber.HEADER_PREFIX:
                         return new Header(Integer.parseInt(s.substring(1)));
                     default:
-                        throw new RuntimeException();
+                        throw new RuntimeException("Should not happen");
                 }
             }
         } catch (NumberFormatException ex) {
-            throw new NotThisTypeException(ex);
+            throw new DeserializationFail(I.FRAME_NUM_INVALID(s), ex);
         }
     }
 
-    public static @Nonnull FrameLookup[] parseRange(@Nonnull String sRange) throws NotThisTypeException {
+    public static @Nonnull FrameLookup[] parseRange(@Nonnull String sRange) throws DeserializationFail {
         String[] as = sRange.split("\\-", 2);
         FrameLookup[] ret;
         if (as.length > 2)

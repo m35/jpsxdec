@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,7 @@ package jpsxdec.iso9660;
 
 import java.io.IOException;
 import java.io.InputStream;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** ECMA119: 9.1 */
 public class DirectoryRecord extends ISO9660Struct {
@@ -63,18 +63,18 @@ public class DirectoryRecord extends ISO9660Struct {
     /*                                name_extra             */
     
     public DirectoryRecord(InputStream is) 
-            throws IOException, NotThisTypeException 
+            throws IOException, BinaryDataNotRecognized 
     {
         int    length                  = read1(is);
-        if (length < 1) throw new NotThisTypeException();
+        if (length < 1) throw new BinaryDataNotRecognized();
         /*     ext_attr_length        */ magic1(is, 0);
                extent                  = read8_bothendian(is);
                size                    = read8_bothendian(is);
-        //if (size % 2048 != 0) throw new NotThisTypeException();
+        //if (size % 2048 != 0) throw new BinaryDataNotRecognized();
                date                    = /*7*/new RecordingDateAndTime(is);
                flags                   = read1(is);
         if (((flags & FLAG_IS_DIRECTORY) > 0) && ((size % 2048) != 0))
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
         /*     file_unit_size         */ magic1(is, 0);
         /*     interleave             */ magic1(is, 0);
         /*     volume_sequence_number */ magic4_bothendian(is, 1);

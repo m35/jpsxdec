@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -91,11 +91,11 @@ public class AudioVideoSync extends VideoSync {
                                               lngFramesWritten - getInitialVideo());
     }
 
-    public long calculateAudioToCatchUp(int iAudioPresentationSector,
-                                       long lngSamplesWritten)
+    public long calculateAudioToCatchUp(@Nonnull Fraction audioPresentationSector,
+                                        long lngSamplesWritten)
     {
-        return _audSync.calculateAudioToCatchUp(iAudioPresentationSector,
-                                               lngSamplesWritten - getInitialAudio());
+        return _audSync.calculateAudioToCatchUp(audioPresentationSector,
+                                                lngSamplesWritten - getInitialAudio());
     }
 
     public @Nonnull Fraction getSamplesPerSector() {

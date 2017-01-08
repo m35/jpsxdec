@@ -20,8 +20,11 @@ Their TIM format documentation is awesome (http://wiki.qhimm.com/PSX/TIM_file)
 
 "Everything You Have Always Wanted to Know about the Playstation But 
 Were Afraid to Ask." Compiled / edited by Joshua Walker.
-Perhaps the most valuable reference for any kind of PSX hacking, 
-especially the PSX assembly instruction set. 
+A valuable reference for any kind of PSX hacking, especially the PSX assembly
+instruction set. 
+
+no$psx for his outstanding documentation of the PlayStation guts.
+http://problemkaputt.de/psx-spx.htm
 
 smf, developer for MAME, for figuring out that everyone was getting the 
 order of CrCb wrong.
@@ -71,6 +74,8 @@ Sony's official SDK movconv tool.
 
 Víctor González and Sergi Medina for the Spanish translation.
 
+The Hitmen for releasing invaluable source code related to PSX hacking.
+
 ................................................................................
 Thanks to those who wrote code that I've used at some point during development:
 
@@ -110,11 +115,12 @@ Jerry Huxtable for his awesome ParagraphLayout.
 
 L2Fprod for the directory chooser.
 
-Sun for the Java platform, SwingWorker and SwingX libraries, and the Netbeans IDE.
+Sun for the Java platform, SwingWorker and SwingX libraries,
+and the Netbeans IDE.
 
 ................................................................................
 
-Finally, a very special thanks to all the PlayStation hackers who
-thought it was a good idea to keep their decoders/emulators/hacking 
-tools closed source, then completely stop working on them. Extra thanks 
-to those who now provide a 404 page for a web site.
+Finally, a shout-out to all the PlayStation hackers who thought it was a good
+idea to keep their decoders/emulators/hacking tools closed source, then
+completely stop working on them. Extra recognition for those who now provide a
+404 page for a web site.

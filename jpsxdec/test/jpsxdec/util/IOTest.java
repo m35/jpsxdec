@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2016-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,39 +35,54 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.i18n;
+package jpsxdec.util;
 
-import java.io.EOFException;
-import javax.annotation.CheckForNull;
+import java.io.File;
+import java.io.IOException;
+import jpsxdec.i18n.LocalizedFileNotFoundException;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.*;
+import static org.junit.Assert.*;
+import org.junit.rules.TemporaryFolder;
 
-public class LocalizedEOFException extends EOFException {
+public class IOTest {
 
-    @CheckForNull
-    private final ILocalizedMessage _msg;
-    
-    public LocalizedEOFException() {
-        _msg = null;
+    public IOTest() {
     }
 
-    public LocalizedEOFException(@CheckForNull ILocalizedMessage msg) {
-        super(msg == null ? null : msg.getEnglishMessage());
-        _msg = msg;
+    @BeforeClass
+    public static void setUpClass() {
     }
 
-    @Override
-    public @CheckForNull String getLocalizedMessage() {
-        if (_msg == null)
-            return super.getLocalizedMessage();
-        else
-            return _msg.getLocalizedMessage();
+    @AfterClass
+    public static void tearDownClass() {
     }
 
-    @Override
-    public @CheckForNull String getMessage() {
-        if (_msg == null)
-            return super.getMessage();
-        else
-            return _msg.getEnglishMessage();
+    @Before
+    public void setUp() {
     }
-    
+
+    @After
+    public void tearDown() {
+    }
+
+    @Rule
+    public TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+
+    @Test
+    public void testMakeDirs() throws IOException {
+        File dir = TMP_FOLDER.getRoot();
+        IO.makeDirs(dir);
+        File subDir = new File(dir, "test");
+        IO.makeDirs(subDir);
+        File file = TMP_FOLDER.newFile();
+        try {
+            IO.makeDirs(file);
+            fail("Should have failed");
+        } catch (LocalizedFileNotFoundException ex) {
+        }
+    }
 }

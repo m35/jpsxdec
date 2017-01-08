@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,10 +44,10 @@ public interface ISquareAudioSector extends IIdentifiedSector {
 
     /** Audio samples/second. */
     int getSamplesPerSecond();
-    /** How many left/right-channel audio samples will be decoded from this 
+    /** How many left-channel PCM audio samples will be decoded from this
      *  audio sector. */
     long getLeftSampleCount();
-    /** How many left/right-channel audio samples will be decoded from this
+    /** How many right-channel PCM audio samples will be decoded from this
      *  audio sector. */
     long getRightSampleCount();
     

@@ -68,25 +68,14 @@ public class I {
 
     /**
     <table border="1"><tr><td>
-    <pre>Unexpected end of bitstream at {0,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>ArrayBitReader.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage END_OF_BITSTREAM(int bitstreamOffset) {
-        return inter("END_OF_BITSTREAM", "Unexpected end of bitstream at {0,number,#}", bitstreamOffset);
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Format: {0}</pre>
     </td></tr></table>
     <ul>
        <li>AudioSaver.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_AUDIO_FORMAT(@Nonnull jpsxdec.formats.JavaAudioFormat audioFormat) {
+    public static ILocalizedMessage CMD_AUDIO_FORMAT(@Nonnull ILocalizedMessage audioFormat) {
         return inter("CMD_AUDIO_FORMAT", "Format: {0}", audioFormat);
     }
 
@@ -97,6 +86,7 @@ public class I {
     <p>Value between 0.0 and 1.0</p>
     <ul>
        <li>AudioSaver.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_VOLUME_PERCENT(double volumeLevelPercent) {
@@ -109,22 +99,11 @@ public class I {
     </td></tr></table>
     <ul>
        <li>AudioSaver.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_FILENAME(@Nonnull java.io.File fileName) {
         return inter("CMD_FILENAME", "Filename: {0}", fileName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error closing audio writer</pre>
-    </td></tr></table>
-    <ul>
-       <li>AudioSaver.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage ERR_CLOSING_AUDIO_WRITER() {
-        return inter("ERR_CLOSING_AUDIO_WRITER", "Error closing audio writer");
     }
 
     /**
@@ -134,6 +113,7 @@ public class I {
     <p>Note that the commands -audfmt and -af are hard-coded</p>
     <ul>
        <li>AudioSaverBuilder.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_AUDIO_AF() {
@@ -146,6 +126,7 @@ public class I {
     </td></tr></table>
     <ul>
        <li>AudioSaverBuilder.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_AUDIO_AF_HELP(@Nonnull String defaultAudioFormatName) {
@@ -159,6 +140,7 @@ public class I {
     <p>Note that the command -vol is hard-coded</p>
     <ul>
        <li>AudioSaverBuilder.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_AUDIO_VOL() {
@@ -172,6 +154,7 @@ public class I {
     <p>Value between 0 and 100</p>
     <ul>
        <li>AudioSaverBuilder.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_AUDIO_VOL_HELP(int defaultVolumeLevel) {
@@ -184,6 +167,7 @@ public class I {
     </td></tr></table>
     <ul>
        <li>AudioSaverBuilder.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_IGNORING_INVALID_FORMAT(@Nonnull String invalidFormatName) {
@@ -196,10 +180,23 @@ public class I {
     </td></tr></table>
     <ul>
        <li>AudioSaverBuilder.java</li>
+       <li>SpuSaverBuilder.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_IGNORING_INVALID_VOLUME(@Nonnull String invalidVolume) {
         return inter("CMD_IGNORING_INVALID_VOLUME", "Ignoring invalid volume {0}", invalidVolume);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Ignoring invalid disc speed {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>VideoSaverBuilder.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage CMD_IGNORING_INVALID_DISC_SPEED(@Nonnull String badDiscSpeed) {
+        return inter("CMD_IGNORING_INVALID_DISC_SPEED", "Ignoring invalid disc speed {0}", badDiscSpeed);
     }
 
     /**
@@ -255,9 +252,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Frame is not Iki format</pre>
     </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_Iki.java</li>
-    </ul>
     */
     public static ILocalizedMessage FRAME_NOT_IKI() {
         return inter("FRAME_NOT_IKI", "Frame is not Iki format");
@@ -277,25 +271,13 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Incomplete iki frame header</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_Iki.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage IKI_INCOMPLETE_FRM_HDR() {
-        return inter("IKI_INCOMPLETE_FRM_HDR", "Incomplete iki frame header");
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>New frame {0} demux size {1,number,#} &gt; max source {2,number,#}, so stopping</pre>
     </td></tr></table>
     <ul>
        <li>BitStreamUncompressor_Iki.java</li>
     </ul>
     */
-    public static ILocalizedMessage IKI_NEW_FRAME_GT_SRC_STOPPING(@Nonnull jpsxdec.discitems.FrameNumber frameNumber, int demuxSize, int sourceSize) {
+    public static ILocalizedMessage IKI_NEW_FRAME_GT_SRC_STOPPING(@Nonnull String frameNumber, int demuxSize, int sourceSize) {
         return inter("IKI_NEW_FRAME_GT_SRC_STOPPING", "New frame {0} demux size {1,number,#} > max source {2,number,#}, so stopping", frameNumber, demuxSize, sourceSize);
     }
 
@@ -309,7 +291,7 @@ Do you want to replace it?</pre>
        <li>BitStreamUncompressor_STRv2.java</li>
     </ul>
     */
-    public static ILocalizedMessage NEW_FRAME_FITS(@Nonnull jpsxdec.discitems.FrameNumber frameNumber, int demuxSize, int sourceSize) {
+    public static ILocalizedMessage NEW_FRAME_FITS(@Nonnull String frameNumber, int demuxSize, int sourceSize) {
         return inter("NEW_FRAME_FITS", "New frame {0} demux size {1,number,#} <= max source {2,number,#}", frameNumber, demuxSize, sourceSize);
     }
 
@@ -330,50 +312,9 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>End of stream</pre>
     </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_Iki.java</li>
-       <li>ParsedMdecImage.java</li>
-    </ul>
     */
     public static ILocalizedMessage END_OF_STREAM() {
         return inter("END_OF_STREAM", "End of stream");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Unable to escape {0}, AC code too large for Lain</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_Lain.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage AC_CODE_TOO_LARGE_FOR_LAIN(@Nonnull jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode mdecCode) {
-        return inter("AC_CODE_TOO_LARGE_FOR_LAIN", "Unable to escape {0}, AC code too large for Lain", mdecCode);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Inconsistent chroma quantization scale {0,number,#} != {1,number,#}</pre>
-    </td></tr></table>
-    <p>It would be nice to use &ne;, but probably wouldn't appear correctly</p>
-    <ul>
-       <li>BitStreamUncompressor_Lain.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage INCONSISTENT_CHROMA_QSCALE(int currentQuantizationScale, int newQuantizationScale) {
-        return inter("INCONSISTENT_CHROMA_QSCALE", "Inconsistent chroma quantization scale {0,number,#} != {1,number,#}", currentQuantizationScale, newQuantizationScale);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Inconsistent luma quantization scale {0,number,#} != {1,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_Lain.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage INCONSISTENT_LUMA_QSCALE(int currentQuantizationScale, int newQuantizationScale) {
-        return inter("INCONSISTENT_LUMA_QSCALE", "Inconsistent luma quantization scale {0,number,#} != {1,number,#}", currentQuantizationScale, newQuantizationScale);
     }
 
     /**
@@ -386,6 +327,33 @@ Do you want to replace it?</pre>
     */
     public static ILocalizedMessage TRYING_LUMA_CHROMA(int lumaQuantizationScale, int chromaQuantizationScale) {
         return inter("TRYING_LUMA_CHROMA", "Trying luma {0,number,#} chroma {1,number,#}", lumaQuantizationScale, chromaQuantizationScale);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>!!! New frame {0} demux size {1,number,#} &gt; max source {2,number,#} !!!</pre>
+    </td></tr></table>
+    <ul>
+       <li>ReplaceFrame.java</li>
+       <li>BitStreamUncompressor_Iki.java</li>
+       <li>BitStreamUncompressor_Lain.java</li>
+       <li>BitStreamUncompressor_STRv2.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage NEW_FRAME_DOES_NOT_FIT(@Nonnull String frameNumber, int newFrameSize, int sourceFrameSize) {
+        return inter("NEW_FRAME_DOES_NOT_FIT", "!!! New frame {0} demux size {1,number,#} > max source {2,number,#} !!!", frameNumber, newFrameSize, sourceFrameSize);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Video format cannot handle the magnitude of the new data for frame {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>BitStreamUncompressor_Lain.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage COMPRESS_TOO_MUCH_ENERGY(@Nonnull String frameNumber) {
+        return inter("COMPRESS_TOO_MUCH_ENERGY", "Video format cannot handle the magnitude of the new data for frame {0}", frameNumber);
     }
 
     /**
@@ -438,114 +406,6 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Inconsistent quantization scale {0,number,#} != {1,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_STRv2.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage INCONSISTENT_QSCALE(int currentQscale, int newQscale) {
-        return inter("INCONSISTENT_QSCALE", "Inconsistent quantization scale {0,number,#} != {1,number,#}", currentQscale, newQscale);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Invalid MDEC code {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_STRv2.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage COMPRESS_INVALID_MDEC_CODE(@Nonnull jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode mdecCode) {
-        return inter("COMPRESS_INVALID_MDEC_CODE", "Invalid MDEC code {0}", mdecCode);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error uncompressing macro block {0,number,#}.{1,number,#}: Unknown luma DC variable length code {2}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_STRv3.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_LUMA_DC_VLC(int macroBlockIndex, int blockIndex, @Nonnull String variableLengthCodeBits) {
-        return inter("STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_LUMA_DC_VLC", "Error uncompressing macro block {0,number,#}.{1,number,#}: Unknown luma DC variable length code {2}", macroBlockIndex, blockIndex, variableLengthCodeBits);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error uncompressing macro block {0,number,#}.{1,number,#}: Chroma DC out of bounds: {2,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_STRv3.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage STRV3_BLOCK_UNCOMPRESS_ERR_CHROMA_DC_OOB(int macroBlockIndex, int blockIndex, int outOfBoundsValue) {
-        return inter("STRV3_BLOCK_UNCOMPRESS_ERR_CHROMA_DC_OOB", "Error uncompressing macro block {0,number,#}.{1,number,#}: Chroma DC out of bounds: {2,number,#}", macroBlockIndex, blockIndex, outOfBoundsValue);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error uncompressing macro block {0,number,#}.{1,number,#}: Unknown chroma DC variable length code {2}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_STRv3.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC(int macroBlockIndex, int blockIndex, @Nonnull String variableLengthCodeBits) {
-        return inter("STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC", "Error uncompressing macro block {0,number,#}.{1,number,#}: Unknown chroma DC variable length code {2}", macroBlockIndex, blockIndex, variableLengthCodeBits);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error uncompressing macro block {0,number,#}.{1,number,#}: Luma DC out of bounds: {2,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_STRv3.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage STRV3_BLOCK_UNCOMPRESS_ERR_LUMA_DC_OOB(int macroBlockIndex, int blockIndex, int outOfBoundsValue) {
-        return inter("STRV3_BLOCK_UNCOMPRESS_ERR_LUMA_DC_OOB", "Error uncompressing macro block {0,number,#}.{1,number,#}: Luma DC out of bounds: {2,number,#}", macroBlockIndex, blockIndex, outOfBoundsValue);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Unable to compress DC value {0,number,#} as diffed/4={1,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor_STRv3.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage STRV3_COMPRESS_DC_FAIL(int dcValue, int diffedDcValueDiv4) {
-        return inter("STRV3_COMPRESS_DC_FAIL", "Unable to compress DC value {0,number,#} as diffed/4={1,number,#}", dcValue, diffedDcValueDiv4);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Unmatched AC variable length code: {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage UNMATCHED_AC_VLC(@Nonnull String variableLengthCodeBits) {
-        return inter("UNMATCHED_AC_VLC", "Unmatched AC variable length code: {0}", variableLengthCodeBits);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} block {2,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>BitStreamUncompressor.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage RLC_OOB_IN_MB_BLOCK(int outOfBoundsValue, int macroBlockIndex, int blockIndex) {
-        return inter("RLC_OOB_IN_MB_BLOCK", "[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} block {2,number,#}", outOfBoundsValue, macroBlockIndex, blockIndex);
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Serialized sector count {0,number,#} does not match actual {1,number,#}</pre>
     </td></tr></table>
     <ul>
@@ -564,8 +424,8 @@ Do you want to replace it?</pre>
        <li>CdFileSectorReader.java</li>
     </ul>
     */
-    public static ILocalizedMessage DESERIALIZE_CD_FAIL(@Nonnull String badSerializedString) {
-        return inter("DESERIALIZE_CD_FAIL", "Failed to deserialize CD string: {0}", badSerializedString);
+    public static ILocalizedMessage CD_DESERIALIZE_FAIL(@Nonnull String badSerializedString) {
+        return inter("CD_DESERIALIZE_FAIL", "Failed to deserialize CD string: {0}", badSerializedString);
     }
 
     /**
@@ -576,8 +436,8 @@ Do you want to replace it?</pre>
        <li>CdFileSectorReader.java</li>
     </ul>
     */
-    public static ILocalizedMessage DISC_FMT_2048() {
-        return inter("DISC_FMT_2048", ".iso (2048 bytes/sector) format");
+    public static ILocalizedMessage CD_FORMAT_2048() {
+        return inter("CD_FORMAT_2048", ".iso (2048 bytes/sector) format");
     }
 
     /**
@@ -588,8 +448,8 @@ Do you want to replace it?</pre>
        <li>CdFileSectorReader.java</li>
     </ul>
     */
-    public static ILocalizedMessage DISC_FMT_2336() {
-        return inter("DISC_FMT_2336", "partial header (2336 bytes/sector) format");
+    public static ILocalizedMessage CD_FORMAT_2336() {
+        return inter("CD_FORMAT_2336", "partial header (2336 bytes/sector) format");
     }
 
     /**
@@ -600,8 +460,8 @@ Do you want to replace it?</pre>
        <li>CdFileSectorReader.java</li>
     </ul>
     */
-    public static ILocalizedMessage DISC_FMT_2448() {
-        return inter("DISC_FMT_2448", "BIN/CUE + Sub Channel (2448 bytes/sector) format");
+    public static ILocalizedMessage CD_FORMAT_2448() {
+        return inter("CD_FORMAT_2448", "BIN/CUE + Sub Channel (2448 bytes/sector) format");
     }
 
     /**
@@ -612,8 +472,8 @@ Do you want to replace it?</pre>
        <li>CdFileSectorReader.java</li>
     </ul>
     */
-    public static ILocalizedMessage DISC_FMT_2352() {
-        return inter("DISC_FMT_2352", "BIN/CUE (2352 bytes/sector) format");
+    public static ILocalizedMessage CD_FORMAT_2352() {
+        return inter("CD_FORMAT_2352", "BIN/CUE (2352 bytes/sector) format");
     }
 
     /**
@@ -753,9 +613,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Disc item is not audio or video. Cannot create player.</pre>
     </td></tr></table>
-    <ul>
-       <li>Command_Items.java</li>
-    </ul>
     */
     public static ILocalizedMessage CMD_DISC_ITEM_NOT_AUDIO_VIDEO_NO_PLAYER() {
         return inter("CMD_DISC_ITEM_NOT_AUDIO_VIDEO_NO_PLAYER", "Disc item is not audio or video. Cannot create player.");
@@ -814,9 +671,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Error with player</pre>
     </td></tr></table>
-    <ul>
-       <li>Command_Items.java</li>
-    </ul>
     */
     public static ILocalizedMessage CMD_PLAYER_ERR() {
         return inter("CMD_PLAYER_ERR", "Error with player");
@@ -887,9 +741,6 @@ Do you want to replace it?</pre>
     <pre>Creating player for</pre>
     </td></tr></table>
     <p>The next line will display the item info</p>
-    <ul>
-       <li>Command_Items.java</li>
-    </ul>
     */
     public static ILocalizedMessage CMD_CREATING_PLAYER() {
         return inter("CMD_CREATING_PLAYER", "Creating player for");
@@ -935,9 +786,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>jPSXdec: PSX media decoder (non-commercial) v{0} - Player</pre>
     </td></tr></table>
-    <ul>
-       <li>Command_Items.java</li>
-    </ul>
     */
     public static ILocalizedMessage JPSXDEC_PLAYER_WIN_TITLE_POSTFIX(@Nonnull String version) {
         return inter("JPSXDEC_PLAYER_WIN_TITLE_POSTFIX", "jPSXdec: PSX media decoder (non-commercial) v{0} - Player", version);
@@ -947,6 +795,7 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>save</pre>
     </td></tr></table>
+    <p>The base name of the log file that will be created, e.g. &quot;save.log&quot;</p>
     <ul>
        <li>Command_Items.java</li>
     </ul>
@@ -957,10 +806,37 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
+    <pre>index</pre>
+    </td></tr></table>
+    <p>The base name of the log file that will be created, e.g. &quot;index.log&quot;</p>
+    <ul>
+       <li>Command.java</li>
+       <li>CommandLine.java</li>
+       <li>Gui.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage INDEX_LOG_FILE_BASE_NAME() {
+        return inter("INDEX_LOG_FILE_BASE_NAME", "index");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>replace</pre>
+    </td></tr></table>
+    <p>The base name of the log file that will be created, e.g. &quot;replace.log&quot;</p>
+    <ul>
+       <li>Command_Items.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage REPLACE_LOG_FILE_BASE_NAME() {
+        return inter("REPLACE_LOG_FILE_BASE_NAME", "replace");
+    }
+
+    /**
+    <table border="1"><tr><td>
     <pre>Play</pre>
     </td></tr></table>
     <ul>
-       <li>Command_Items.java</li>
        <li>Gui.java</li>
     </ul>
     */
@@ -1012,7 +888,7 @@ Do you want to replace it?</pre>
        <li>Command_Static.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_USING_QUALITY(@Nonnull String qualityName) {
+    public static ILocalizedMessage CMD_USING_QUALITY(@Nonnull ILocalizedMessage qualityName) {
         return inter("CMD_USING_QUALITY", "Using quality {0}", qualityName);
     }
 
@@ -1069,12 +945,25 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Unable to enable decoding debug because asserts are disabled.</pre>
     </td></tr></table>
+    <p>Right after this string, the next string (CMD_ASSERT_DISABLED_NO_DEBUG_USE_EA) is shown [TODO: combine these strings into 1]</p>
     <ul>
        <li>Command_Static.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_ASSERT_DISABLED_NO_DEBUG() {
         return inter("CMD_ASSERT_DISABLED_NO_DEBUG", "Unable to enable decoding debug because asserts are disabled.");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Start java using the -ea option.</pre>
+    </td></tr></table>
+    <ul>
+       <li>Command_Static.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage CMD_ASSERT_DISABLED_NO_DEBUG_USE_EA() {
+        return inter("CMD_ASSERT_DISABLED_NO_DEBUG_USE_EA", "Start java using the -ea option.");
     }
 
     /**
@@ -1147,31 +1036,6 @@ Do you want to replace it?</pre>
     */
     public static ILocalizedMessage CMD_UPSAMPLING_INVALID(@Nonnull String badUpsamplingName) {
         return inter("CMD_UPSAMPLING_INVALID", "Invalid upsampling {0}", badUpsamplingName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Start java using the -ea option.</pre>
-    </td></tr></table>
-    <ul>
-       <li>Command_Static.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage CMD_ASSERT_DISABLED_NO_DEBUG_USE_EA() {
-        return inter("CMD_ASSERT_DISABLED_NO_DEBUG_USE_EA", "Start java using the -ea option.");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Writing {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>Command_Static.java</li>
-       <li>TimSaverBuilder.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage CMD_WRITING(@Nonnull String fileName) {
-        return inter("CMD_WRITING", "Writing {0}", fileName);
     }
 
     /**
@@ -1297,20 +1161,6 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>index</pre>
-    </td></tr></table>
-    <ul>
-       <li>Command.java</li>
-       <li>CommandLine.java</li>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage INDEX_LOG_FILE_BASE_NAME() {
-        return inter("INDEX_LOG_FILE_BASE_NAME", "index");
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Error loading index file</pre>
     </td></tr></table>
     <ul>
@@ -1384,30 +1234,6 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Opening {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>CommandLine.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage CMD_OPENING(@Nonnull String fileName) {
-        return inter("CMD_OPENING", "Opening {0}", fileName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error opening file for saving</pre>
-    </td></tr></table>
-    <ul>
-       <li>CommandLine.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage CMD_SAVE_OPEN_ERR() {
-        return inter("CMD_SAVE_OPEN_ERR", "Error opening file for saving");
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Saving index as {0}</pre>
     </td></tr></table>
     <ul>
@@ -1440,18 +1266,6 @@ Do you want to replace it?</pre>
     */
     public static ILocalizedMessage CMD_NOT_SAVING_EMPTY_INDEX() {
         return inter("CMD_NOT_SAVING_EMPTY_INDEX", "No items found, not saving index file");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error: {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>CommandLine.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage CMD_ARGPARSE_ERR(@Nonnull String errorMessage) {
-        return inter("CMD_ARGPARSE_ERR", "Error: {0}", errorMessage);
     }
 
     /**
@@ -1502,18 +1316,6 @@ Do you want to replace it?</pre>
     */
     public static ILocalizedMessage CMD_COMMAND_NEEDS_DISC() {
         return inter("CMD_COMMAND_NEEDS_DISC", "Command needs disc file");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error writing index file.</pre>
-    </td></tr></table>
-    <ul>
-       <li>CommandLine.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage WRITING_INDEX_FILE_ERR() {
-        return inter("WRITING_INDEX_FILE_ERR", "Error writing index file.");
     }
 
     /**
@@ -1573,37 +1375,34 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>[{0}] {1,number,#%}{2,choice,0#|1# '{2,number,#}' warnings}{3,choice,0#|1# '{3,number,#}' errors}</pre>
+    <pre>[{0}] {1,number,#%}{2,choice,0#|1# '{2,number,#}' '{2,choice,0#warnings|1#warning|1&lt;warnings}'}{3,choice,0#|1# '{3,number,#}' '{3,choice,0#errors|1#error|1&lt;errors}'}</pre>
     </td></tr></table>
     <p>Note the single quotes are necessary inside the choice argument.</p>
     <ul>
-       <li>ConsoleProgressListenerLogger.java</li>
+       <li>ConsoleProgressLogger.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_PROGRESS(@Nonnull String progressBar, double percentComplete, int warningCount, int errorCount) {
-        return inter("CMD_PROGRESS", "[{0}] {1,number,#%}{2,choice,0#|1# '{2,number,#}' warnings}{3,choice,0#|1# '{3,number,#}' errors}", progressBar, percentComplete, warningCount, errorCount);
+        return inter("CMD_PROGRESS", "[{0}] {1,number,#%}{2,choice,0#|1# '{2,number,#}' '{2,choice,0#warnings|1#warning|1<warnings}'}{3,choice,0#|1# '{3,number,#}' '{3,choice,0#errors|1#error|1<errors}'}", progressBar, percentComplete, warningCount, errorCount);
     }
 
     /**
     <table border="1"><tr><td>
-    <pre>[{0}] {1,number,#%} {2} {3,choice,0#|1# '{3,number,#}' warnings}{4,choice,0#|1# '{4,number,#}' errors}</pre>
+    <pre>[{0}] {1,number,#%} {2} {3,choice,0#|1# '{3,number,#}' '{3,choice,0#warnings|1#warning|1&lt;warnings}'}{4,choice,0#|1# '{4,number,#}' '{4,choice,0#errors|1#error|1&lt;errors}'}</pre>
     </td></tr></table>
     <p>Note the single quotes are necessary inside the choice argument.</p>
     <ul>
-       <li>ConsoleProgressListenerLogger.java</li>
+       <li>ConsoleProgressLogger.java</li>
     </ul>
     */
     public static ILocalizedMessage CMD_PROGRESS_WITH_MSG(@Nonnull String progressBar, double percentComplete, @Nonnull ILocalizedMessage message, int warningCount, int errorCount) {
-        return inter("CMD_PROGRESS_WITH_MSG", "[{0}] {1,number,#%} {2} {3,choice,0#|1# '{3,number,#}' warnings}{4,choice,0#|1# '{4,number,#}' errors}", progressBar, percentComplete, message, warningCount, errorCount);
+        return inter("CMD_PROGRESS_WITH_MSG", "[{0}] {1,number,#%} {2} {3,choice,0#|1# '{3,number,#}' '{3,choice,0#warnings|1#warning|1<warnings}'}{4,choice,0#|1# '{4,number,#}' '{4,choice,0#errors|1#error|1<errors}'}", progressBar, percentComplete, message, warningCount, errorCount);
     }
 
     /**
     <table border="1"><tr><td>
     <pre>Inconsistent width {0,number,#} != {1,number,#}</pre>
     </td></tr></table>
-    <ul>
-       <li>CrusaderDemuxer.java</li>
-    </ul>
     */
     public static ILocalizedMessage INCONSISTENT_WIDTH(int currentWidth, int newWidth) {
         return inter("INCONSISTENT_WIDTH", "Inconsistent width {0,number,#} != {1,number,#}", currentWidth, newWidth);
@@ -1613,9 +1412,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Inconsistent height {0,number,#} != {1,number,#}</pre>
     </td></tr></table>
-    <ul>
-       <li>CrusaderDemuxer.java</li>
-    </ul>
     */
     public static ILocalizedMessage INCONSISTENT_HEIGHT(int currentHeight, int newHeight) {
         return inter("INCONSISTENT_HEIGHT", "Inconsistent height {0,number,#} != {1,number,#}", currentHeight, newHeight);
@@ -1635,38 +1431,28 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Invalid presentation sample {0,number,#}</pre>
+    <pre>Crusader: No Remorse video is corrupted</pre>
     </td></tr></table>
+    <p>&quot;Crusader: No Remorse&quot; is the name of a game</p>
     <ul>
        <li>CrusaderDemuxer.java</li>
     </ul>
     */
-    public static ILocalizedMessage CRUSADER_INVALID_PRESENTATION_SAMPLE(long presentationSampleNumber) {
-        return inter("CRUSADER_INVALID_PRESENTATION_SAMPLE", "Invalid presentation sample {0,number,#}", presentationSampleNumber);
+    public static ILocalizedMessage CRUSADER_VIDEO_CORRUPTED() {
+        return inter("CRUSADER_VIDEO_CORRUPTED", "Crusader: No Remorse video is corrupted");
     }
 
     /**
     <table border="1"><tr><td>
-    <pre>Invalid Crusader audio id {0,number,#}</pre>
+    <pre>Crusader: No Remorse audio is corrupted</pre>
     </td></tr></table>
+    <p>&quot;Crusader: No Remorse&quot; is the name of a game</p>
     <ul>
        <li>CrusaderDemuxer.java</li>
     </ul>
     */
-    public static ILocalizedMessage CRUSADER_INVALID_AUIDO_ID(long badIdentifierNumber) {
-        return inter("CRUSADER_INVALID_AUIDO_ID", "Invalid Crusader audio id {0,number,#}", badIdentifierNumber);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Invalid frame number {0,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>CrusaderDemuxer.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage INVALID_FRAME_NUM(int badFrameNumber) {
-        return inter("INVALID_FRAME_NUM", "Invalid frame number {0,number,#}", badFrameNumber);
+    public static ILocalizedMessage CRUSADER_AUDIO_CORRUPTED() {
+        return inter("CRUSADER_AUDIO_CORRUPTED", "Crusader: No Remorse audio is corrupted");
     }
 
     /**
@@ -1683,18 +1469,87 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>!!! New frame {0} demux size {1,number,#} &gt; max source {2,number,#} !!!</pre>
+    <pre>Empty serialized string</pre>
     </td></tr></table>
     <ul>
-       <li>DemuxedCrusaderFrame.java</li>
-       <li>ReplaceFrame.java</li>
-       <li>BitStreamUncompressor_Iki.java</li>
-       <li>BitStreamUncompressor_Lain.java</li>
-       <li>BitStreamUncompressor_STRv2.java</li>
+       <li>SerializedDiscItem.java</li>
     </ul>
     */
-    public static ILocalizedMessage NEW_FRAME_DOES_NOT_FIT(@Nonnull jpsxdec.discitems.FrameNumber frameNumber, int newFrameSize, int sourceFrameSize) {
-        return inter("NEW_FRAME_DOES_NOT_FIT", "!!! New frame {0} demux size {1,number,#} > max source {2,number,#} !!!", frameNumber, newFrameSize, sourceFrameSize);
+    public static ILocalizedMessage EMPTY_SERIALIZED_STRING() {
+        return inter("EMPTY_SERIALIZED_STRING", "Empty serialized string");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Failed to convert serialized field to int: {0}</pre>
+    </td></tr></table>
+    <p>TODO combine with next one</p>
+    <ul>
+       <li>SerializedDiscItem.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage SERIALIZATION_FAILED_TO_CONVERT_TO_INT(@Nonnull String badNumber) {
+        return inter("SERIALIZATION_FAILED_TO_CONVERT_TO_INT", "Failed to convert serialized field to int: {0}", badNumber);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Failed to convert serialized field to long: {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>SerializedDiscItem.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage SERIALIZATION_FAILED_TO_CONVERT_TO_LONG(@Nonnull String badNumber) {
+        return inter("SERIALIZATION_FAILED_TO_CONVERT_TO_LONG", "Failed to convert serialized field to long: {0}", badNumber);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Improperly formatted field serialization: {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>SerializedDiscItem.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage SERIALIZATION_FIELD_IMPROPERLY_FORMATTED(@Nonnull String lineFromIndexFile) {
+        return inter("SERIALIZATION_FIELD_IMPROPERLY_FORMATTED", "Improperly formatted field serialization: {0}", lineFromIndexFile);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Failed to convert serialized value to range: {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>SerializedDiscItem.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(@Nonnull String badRange) {
+        return inter("SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE", "Failed to convert serialized value to range: {0}", badRange);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Line missing vital fields {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>SerializedDiscItem.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage SERIALIZATION_MISSING_REQUIRED_FIELDS(@Nonnull String lineFromIndexFile) {
+        return inter("SERIALIZATION_MISSING_REQUIRED_FIELDS", "Line missing vital fields {0}", lineFromIndexFile);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>{0} field not found.</pre>
+    </td></tr></table>
+    <ul>
+       <li>SerializedDiscItem.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage SERIALIZATION_FIELD_NOT_FOUND(@Nonnull String missingField) {
+        return inter("SERIALIZATION_FIELD_NOT_FOUND", "{0} field not found.", missingField);
     }
 
     /**
@@ -1705,8 +1560,8 @@ Do you want to replace it?</pre>
        <li>DiscIndex.java</li>
     </ul>
     */
-    public static ILocalizedMessage DISC_FORMAT_MISMATCH(@Nonnull jpsxdec.cdreaders.CdFileSectorReader actualFormatDescription, @Nonnull String indexFormatDescription) {
-        return inter("DISC_FORMAT_MISMATCH", "Disc format does not match what index says \"{0}\" != \"{1}\".", actualFormatDescription, indexFormatDescription);
+    public static ILocalizedMessage CD_FORMAT_MISMATCH(@Nonnull jpsxdec.cdreaders.CdFileSectorReader actualFormatDescription, @Nonnull String indexFormatDescription) {
+        return inter("CD_FORMAT_MISMATCH", "Disc format does not match what index says \"{0}\" != \"{1}\".", actualFormatDescription, indexFormatDescription);
     }
 
     /**
@@ -1777,8 +1632,8 @@ Do you want to replace it?</pre>
        <li>DiscIndex.java</li>
     </ul>
     */
-    public static ILocalizedMessage INDEX_PARSE_LINE_FAIL(@Nonnull String serializedString) {
-        return inter("INDEX_PARSE_LINE_FAIL", "Failed to parse line: {0}", serializedString);
+    public static ILocalizedMessage INDEX_PARSE_LINE_FAIL(@Nonnull String lineFromIndexFile) {
+        return inter("INDEX_PARSE_LINE_FAIL", "Failed to parse line: {0}", lineFromIndexFile);
     }
 
     /**
@@ -1789,8 +1644,8 @@ Do you want to replace it?</pre>
        <li>DiscIndex.java</li>
     </ul>
     */
-    public static ILocalizedMessage INDEX_UNHANDLED_LINE(@Nonnull jpsxdec.discitems.SerializedDiscItem unusedDiscItemDescription) {
-        return inter("INDEX_UNHANDLED_LINE", "Failed to do anything with {0}", unusedDiscItemDescription);
+    public static ILocalizedMessage INDEX_UNHANDLED_LINE(@Nonnull String lineFromIndexFile) {
+        return inter("INDEX_UNHANDLED_LINE", "Failed to do anything with {0}", lineFromIndexFile);
     }
 
     /**
@@ -1979,14 +1834,14 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>-iso save as 2048 sectors (default raw 2352 sectors)</pre>
+    <pre>-iso  save as ISO style 2048 bytes/sector (default is raw {0,number,#} bytes/sector)</pre>
     </td></tr></table>
     <ul>
        <li>DiscItemISO9660File.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_ISOFILE_ISO_HELP() {
-        return inter("CMD_ISOFILE_ISO_HELP", "-iso save as 2048 sectors (default raw 2352 sectors)");
+    public static ILocalizedMessage CMD_ISOFILE_ISO_HELP(int rawBytesPerSector) {
+        return inter("CMD_ISOFILE_ISO_HELP", "-iso  save as ISO style 2048 bytes/sector (default is raw {0,number,#} bytes/sector)", rawBytesPerSector);
     }
 
     /**
@@ -2044,8 +1899,9 @@ Do you want to replace it?</pre>
     <ul>
        <li>DiscItemISO9660File.java</li>
        <li>AudioSaverBuilderGui.java</li>
+       <li>SpuSaverBuilderGui.java</li>
        <li>TimSaverBuilderGui.java</li>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_SAVE_AS_LABEL() {
@@ -2138,28 +1994,38 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Patching sector</pre>
+    <pre>Patching sector {0}</pre>
     </td></tr></table>
-    <p>The next line will display the sector description</p>
     <ul>
        <li>DiscItemXaAudioStream.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_PATCHING_SECTOR() {
-        return inter("CMD_PATCHING_SECTOR", "Patching sector");
+    public static ILocalizedMessage CMD_PATCHING_SECTOR_DESCRIPTION(@Nonnull String sectorDescription) {
+        return inter("CMD_PATCHING_SECTOR_DESCRIPTION", "Patching sector {0}", sectorDescription);
     }
 
     /**
     <table border="1"><tr><td>
-    <pre>with sector</pre>
+    <pre>Patching sector {0,number,#}</pre>
     </td></tr></table>
-    <p>The next line will display the sector description</p>
     <ul>
        <li>DiscItemXaAudioStream.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_PATCHING_WITH_SECTOR() {
-        return inter("CMD_PATCHING_WITH_SECTOR", "with sector");
+    public static ILocalizedMessage CMD_PATCHING_SECTOR_NUMBER(int sectorNumber) {
+        return inter("CMD_PATCHING_SECTOR_NUMBER", "Patching sector {0,number,#}", sectorNumber);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>with sector {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>DiscItemXaAudioStream.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage CMD_PATCHING_WITH_SECTOR_DESCRIPTION(@Nonnull String otherSectorDescription) {
+        return inter("CMD_PATCHING_WITH_SECTOR_DESCRIPTION", "with sector {0}", otherSectorDescription);
     }
 
     /**
@@ -2180,6 +2046,7 @@ Do you want to replace it?</pre>
     </td></tr></table>
     <ul>
        <li>DiscItemXaAudioStream.java</li>
+       <li>SerializedDiscItem.java</li>
     </ul>
     */
     public static ILocalizedMessage FIELD_HAS_INVALID_VALUE_STR(@Nonnull String fieldName, @Nonnull String badFieldStringValue) {
@@ -2200,6 +2067,19 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
+    <pre>Audio corrupted near sector {0,number,#} affecting samples after {1,number,#}</pre>
+    </td></tr></table>
+    <ul>
+       <li>CrusaderDemuxer.java</li>
+       <li>DiscItemSquareAudioStream.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage SPU_ADPCM_CORRUPTED(int approximateSectorNumber, long firstBadSample) {
+        return inter("SPU_ADPCM_CORRUPTED", "Audio corrupted near sector {0,number,#} affecting samples after {1,number,#}", approximateSectorNumber, firstBadSample);
+    }
+
+    /**
+    <table border="1"><tr><td>
     <pre>{0,time,m:ss}, {1,number,#} Hz {2,choice,1#Mono|2#Stereo}</pre>
     </td></tr></table>
     <p>Channel count is 1=Mono, 2=Stereo</p>
@@ -2213,28 +2093,26 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Patching</pre>
+    <pre>Patching {0}</pre>
     </td></tr></table>
-    <p>The next line will display the item info</p>
     <ul>
        <li>DiscItemXaAudioStream.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_PATCHING_DISC_ITEM() {
-        return inter("CMD_PATCHING_DISC_ITEM", "Patching");
+    public static ILocalizedMessage CMD_PATCHING_DISC_ITEM(@Nonnull String discItemDescription) {
+        return inter("CMD_PATCHING_DISC_ITEM", "Patching {0}", discItemDescription);
     }
 
     /**
     <table border="1"><tr><td>
-    <pre>with</pre>
+    <pre>with {0}</pre>
     </td></tr></table>
-    <p>The next line will display the item info</p>
     <ul>
        <li>DiscItemXaAudioStream.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_PATCHING_WITH_DISC_ITEM() {
-        return inter("CMD_PATCHING_WITH_DISC_ITEM", "with");
+    public static ILocalizedMessage CMD_PATCHING_WITH_DISC_ITEM(@Nonnull String otherDiscItemDescription) {
+        return inter("CMD_PATCHING_WITH_DISC_ITEM", "with {0}", otherDiscItemDescription);
     }
 
     /**
@@ -2303,11 +2181,12 @@ Do you want to replace it?</pre>
     <pre>Invalid frame number {0}</pre>
     </td></tr></table>
     <ul>
+       <li>FrameLookup.java</li>
        <li>FrameNumber.java</li>
     </ul>
     */
-    public static ILocalizedMessage INVALID_FRAME_NUMBER(@Nonnull String badFrameNumberString) {
-        return inter("INVALID_FRAME_NUMBER", "Invalid frame number {0}", badFrameNumberString);
+    public static ILocalizedMessage FRAME_NUM_INVALID(@Nonnull String badFrameNumberString) {
+        return inter("FRAME_NUM_INVALID", "Invalid frame number {0}", badFrameNumberString);
     }
 
     /**
@@ -2318,8 +2197,8 @@ Do you want to replace it?</pre>
        <li>FrameNumber.java</li>
     </ul>
     */
-    public static ILocalizedMessage INVALID_FRAME_RANGE(@Nonnull String badFrameRangeString) {
-        return inter("INVALID_FRAME_RANGE", "Invalid frame range {0}", badFrameRangeString);
+    public static ILocalizedMessage FRAME_NUM_RANGE_INVALID(@Nonnull String badFrameRangeString) {
+        return inter("FRAME_NUM_RANGE_INVALID", "Invalid frame range {0}", badFrameRangeString);
     }
 
     /**
@@ -2366,8 +2245,8 @@ Do you want to replace it?</pre>
        <li>FrameNumberFormatter.java</li>
     </ul>
     */
-    public static ILocalizedMessage FRM_NUM_FMTR_SECTOR(@Nonnull String formattedSectorNumber) {
-        return inter("FRM_NUM_FMTR_SECTOR", "Sector {0}", formattedSectorNumber);
+    public static ILocalizedMessage FRAME_NUM_FMTR_SECTOR(@Nonnull String formattedSectorNumber) {
+        return inter("FRAME_NUM_FMTR_SECTOR", "Sector {0}", formattedSectorNumber);
     }
 
     /**
@@ -2378,8 +2257,8 @@ Do you want to replace it?</pre>
        <li>FrameNumberFormatter.java</li>
     </ul>
     */
-    public static ILocalizedMessage FRM_NUM_FMTR_FRAME(@Nonnull String formattedFrameNumber) {
-        return inter("FRM_NUM_FMTR_FRAME", "Frame {0}", formattedFrameNumber);
+    public static ILocalizedMessage FRAME_NUM_FMTR_FRAME(@Nonnull String formattedFrameNumber) {
+        return inter("FRAME_NUM_FMTR_FRAME", "Frame {0}", formattedFrameNumber);
     }
 
     /**
@@ -2390,8 +2269,8 @@ Do you want to replace it?</pre>
        <li>FrameNumberFormat.java</li>
     </ul>
     */
-    public static ILocalizedMessage INVALID_FRAME_NUMBER_FORMAT(@Nonnull String badFrameNumberFormat) {
-        return inter("INVALID_FRAME_NUMBER_FORMAT", "Invalid frame number format {0}", badFrameNumberFormat);
+    public static ILocalizedMessage FRAME_NUM_FMT_INVALID(@Nonnull String badFrameNumberFormat) {
+        return inter("FRAME_NUM_FMT_INVALID", "Invalid frame number format {0}", badFrameNumberFormat);
     }
 
     /**
@@ -2488,30 +2367,6 @@ Do you want to replace it?</pre>
     */
     public static ILocalizedMessage GUI_LOAD_INDEX_FILE_DIALOG_TITLE() {
         return inter("GUI_LOAD_INDEX_FILE_DIALOG_TITLE", "Load index");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Opening index {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage GUI_OPENING_INDEX(@Nonnull java.io.File indexFileName) {
-        return inter("GUI_OPENING_INDEX", "Opening index {0}", indexFileName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Unable to open index file</pre>
-    </td></tr></table>
-    <ul>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage OPENING_INDEX_FAILED() {
-        return inter("OPENING_INDEX_FAILED", "Unable to open index file");
     }
 
     /**
@@ -2752,8 +2607,8 @@ Do you want to replace it?</pre>
        <li>Gui.java</li>
     </ul>
     */
-    public static ILocalizedMessage PLAY_TAB() {
-        return inter("PLAY_TAB", "    Play    ");
+    public static ILocalizedMessage GUI_PLAY_TAB() {
+        return inter("GUI_PLAY_TAB", "    Play    ");
     }
 
     /**
@@ -2765,8 +2620,8 @@ Do you want to replace it?</pre>
        <li>Gui.java</li>
     </ul>
     */
-    public static ILocalizedMessage SAVE_TAB() {
-        return inter("SAVE_TAB", "    Save    ");
+    public static ILocalizedMessage GUI_SAVE_TAB() {
+        return inter("GUI_SAVE_TAB", "    Save    ");
     }
 
     /**
@@ -2779,78 +2634,6 @@ Do you want to replace it?</pre>
     */
     public static ILocalizedMessage GUI_PAUSE_BTN() {
         return inter("GUI_PAUSE_BTN", "Pause");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>File not found</pre>
-    </td></tr></table>
-    <ul>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage GUI_FILE_NOT_FOUND() {
-        return inter("GUI_FILE_NOT_FOUND", "File not found");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Unable to open {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage GUI_UNABLE_TO_OPEN_FILE(@Nonnull java.io.File fileName) {
-        return inter("GUI_UNABLE_TO_OPEN_FILE", "Unable to open {0}", fileName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Unable to open {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage GUI_UNABLE_TO_OPEN_STR(@Nonnull String fileName) {
-        return inter("GUI_UNABLE_TO_OPEN_STR", "Unable to open {0}", fileName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Failed to read file</pre>
-    </td></tr></table>
-    <ul>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage GUI_FAILED_TO_READ_FILE() {
-        return inter("GUI_FAILED_TO_READ_FILE", "Failed to read file");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error opening {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage GUI_ERR_OPENING(@Nonnull String fileName) {
-        return inter("GUI_ERR_OPENING", "Error opening {0}", fileName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Error opening {0}: {1}</pre>
-    </td></tr></table>
-    <ul>
-       <li>Gui.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage GUI_ERR_OPENING_EXCEPTION(@Nonnull String fileName, @Nonnull String errorMessage) {
-        return inter("GUI_ERR_OPENING_EXCEPTION", "Error opening {0}: {1}", fileName, errorMessage);
     }
 
     /**
@@ -3221,23 +3004,8 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Unexpected end of file in {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>IO.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage UNEXPECTE_EOF_IN_FUNCTION(@Nonnull String functionName) {
-        return inter("UNEXPECTE_EOF_IN_FUNCTION", "Unexpected end of file in {0}", functionName);
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Directory {0} does not exist.</pre>
     </td></tr></table>
-    <ul>
-       <li>IO.java</li>
-    </ul>
     */
     public static ILocalizedMessage DIR_DOES_NOT_EXIST(@Nonnull String directoryName) {
         return inter("DIR_DOES_NOT_EXIST", "Directory {0} does not exist.", directoryName);
@@ -3265,18 +3033,6 @@ Do you want to replace it?</pre>
     */
     public static ILocalizedMessage UNABLE_TO_CREATE_DIR(@Nonnull java.io.File directoryName) {
         return inter("UNABLE_TO_CREATE_DIR", "Unable to create directory {0}", directoryName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} ({2,number,#}, {3,number,#}) block {4,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>Mdec2Jpeg.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage RLC_OOB_IN_MB_XY_BLOCK(int outOfBoundsIndex, int macroBlockIndex, int macroBlockX, int macroBlockY, int blockIndex) {
-        return inter("RLC_OOB_IN_MB_XY_BLOCK", "[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} ({2,number,#}, {3,number,#}) block {4,number,#}", outOfBoundsIndex, macroBlockIndex, macroBlockX, macroBlockY, blockIndex);
     }
 
     /**
@@ -3569,64 +3325,78 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Error decoding macro block {0,number,#} block {1,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>MdecDecoder_double.java</li>
-       <li>MdecDecoder_int.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage BLOCK_DECODE_ERR(int macroBlockIndex, int blockIndex) {
-        return inter("BLOCK_DECODE_ERR", "Error decoding macro block {0,number,#} block {1,number,#}", macroBlockIndex, blockIndex);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} ({2,number,#}, {3,number,#}) block {4,number,#} ({5})</pre>
-    </td></tr></table>
-    <ul>
-       <li>MdecDecoder_double.java</li>
-       <li>MdecDecoder_int.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage RLC_OOB_IN_BLOCK_NAME(int outOfBoundsIndex, int macroBlockIndex, int macroBlockX, int macroBlockY, int blockIndex, @Nonnull String blockName) {
-        return inter("RLC_OOB_IN_BLOCK_NAME", "[MDEC] Run length out of bounds [{0,number,#}] in macroblock {1,number,#} ({2,number,#}, {3,number,#}) block {4,number,#} ({5})", outOfBoundsIndex, macroBlockIndex, macroBlockX, macroBlockY, blockIndex, blockName);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Unexpected end of stream in block {0,number,#}</pre>
-    </td></tr></table>
-    <ul>
-       <li>MdecInputStreamReader.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage UNEXPECTED_STREAM_END_IN_BLOCK(int blockNumber) {
-        return inter("UNEXPECTED_STREAM_END_IN_BLOCK", "Unexpected end of stream in block {0,number,#}", blockNumber);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Replacement frame dimensions do not match frame to replace: {0,number,#}x{1,number} != {2,number,#}x{3,number}</pre>
+    <pre>Replacement frame file {0} dimensions {1,number,#}x{2,number} do not match frame to replace dimensions {3,number,#}x{4,number}</pre>
     </td></tr></table>
     <ul>
        <li>ReplaceFrame.java</li>
     </ul>
     */
-    public static ILocalizedMessage REPLACE_FRAME_DIMENSIONS_MISMATCH(int sourceWidth, int sourceHeight, int replaceWidth, int replaceHeight) {
-        return inter("REPLACE_FRAME_DIMENSIONS_MISMATCH", "Replacement frame dimensions do not match frame to replace: {0,number,#}x{1,number} != {2,number,#}x{3,number}", sourceWidth, sourceHeight, replaceWidth, replaceHeight);
+    public static ILocalizedMessage REPLACE_FRAME_DIMENSIONS_MISMATCH(@Nonnull String imageFile, int sourceWidth, int sourceHeight, int replaceWidth, int replaceHeight) {
+        return inter("REPLACE_FRAME_DIMENSIONS_MISMATCH", "Replacement frame file {0} dimensions {1,number,#}x{2,number} do not match frame to replace dimensions {3,number,#}x{4,number}", imageFile, sourceWidth, sourceHeight, replaceWidth, replaceHeight);
     }
 
     /**
     <table border="1"><tr><td>
-    <pre>Unable to find {0}</pre>
+    <pre>Bitstream frame file {0} type does not match existing frame type</pre>
     </td></tr></table>
     <ul>
        <li>ReplaceFrame.java</li>
     </ul>
     */
-    public static ILocalizedMessage REPLACE_UNABLE_TO_FIND_FILE(@Nonnull java.io.File missingFileName) {
-        return inter("REPLACE_UNABLE_TO_FIND_FILE", "Unable to find {0}", missingFileName);
+    public static ILocalizedMessage REPLACE_BITSTREAM_MISMATCH(@Nonnull java.io.File bitstreamFile) {
+        return inter("REPLACE_BITSTREAM_MISMATCH", "Bitstream frame file {0} type does not match existing frame type", bitstreamFile);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Incompatible mdec file {0} for frame {1}</pre>
+    </td></tr></table>
+    <p>&quot;mdec&quot; is a file type</p>
+    <ul>
+       <li>ReplaceFrame.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage REPLACE_INCOMPATIBLE_MDEC(@Nonnull String mdecFileName, @Nonnull String frameNumber) {
+        return inter("REPLACE_INCOMPATIBLE_MDEC", "Incompatible mdec file {0} for frame {1}", mdecFileName, frameNumber);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Incomplete mdec file {0} for frame {1}</pre>
+    </td></tr></table>
+    <p>&quot;mdec&quot; is a file type</p>
+    <ul>
+       <li>ReplaceFrame.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage REPLACE_INCOMPLETE_MDEC(@Nonnull String mdecFileName, @Nonnull String frameNumber) {
+        return inter("REPLACE_INCOMPLETE_MDEC", "Incomplete mdec file {0} for frame {1}", mdecFileName, frameNumber);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Corrupted mdec file {0} for frame {1}</pre>
+    </td></tr></table>
+    <p>&quot;mdec&quot; is a file type</p>
+    <ul>
+       <li>ReplaceFrame.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage REPLACE_CORRUPTED_MDEC(@Nonnull String mdecFileName, @Nonnull String frameNumber) {
+        return inter("REPLACE_CORRUPTED_MDEC", "Corrupted mdec file {0} for frame {1}", mdecFileName, frameNumber);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Invalid replacement image format {0}</pre>
+    </td></tr></table>
+    <p>&quot;mdec&quot; is a file type</p>
+    <ul>
+       <li>ReplaceFrame.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage REPLACE_INVALID_IMAGE_FORMAT(@Nonnull String badFormatName) {
+        return inter("REPLACE_INVALID_IMAGE_FORMAT", "Invalid replacement image format {0}", badFormatName);
     }
 
     /**
@@ -3646,10 +3416,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Unable to identify frame type</pre>
     </td></tr></table>
-    <ul>
-       <li>ReplaceFrame.java</li>
-       <li>ReplaceFramePartial.java</li>
-    </ul>
     */
     public static ILocalizedMessage CMD_UNABLE_TO_IDENTIFY_FRAME_TYPE() {
         return inter("CMD_UNABLE_TO_IDENTIFY_FRAME_TYPE", "Unable to identify frame type");
@@ -3664,7 +3430,7 @@ Do you want to replace it?</pre>
        <li>ReplaceFramePartial.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_UNABLE_TO_COMPRESS_FRAME_SMALL_ENOUGH(@Nonnull jpsxdec.discitems.FrameNumber frameNumber, int maxSize) {
+    public static ILocalizedMessage CMD_UNABLE_TO_COMPRESS_FRAME_SMALL_ENOUGH(@Nonnull String frameNumber, int maxSize) {
         return inter("CMD_UNABLE_TO_COMPRESS_FRAME_SMALL_ENOUGH", "Unable to compress frame {0} small enough to fit in {1,number,#} bytes!!!", frameNumber, maxSize);
     }
 
@@ -3730,26 +3496,27 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Replacing with {0}</pre>
+    <pre>Replacing frame {0} with {1}</pre>
     </td></tr></table>
     <ul>
        <li>ReplaceFrames.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_REPLACING_FRAME_WITH_FILE(@Nonnull java.io.File fileName) {
-        return inter("CMD_REPLACING_FRAME_WITH_FILE", "Replacing with {0}", fileName);
+    public static ILocalizedMessage CMD_REPLACING_FRAME_WITH_FILE(@Nonnull jpsxdec.discitems.FrameNumber frameNumber, @Nonnull java.io.File fileName) {
+        return inter("CMD_REPLACING_FRAME_WITH_FILE", "Replacing frame {0} with {1}", frameNumber, fileName);
     }
 
     /**
     <table border="1"><tr><td>
-    <pre>Frame {0}:</pre>
+    <pre>Error with frame replacement xml: {0}</pre>
     </td></tr></table>
+    <p>Unfortunately the description of the error in the xml file is only available in English</p>
     <ul>
        <li>ReplaceFrames.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_REPLACING_FRAME_NUM(@Nonnull jpsxdec.discitems.FrameNumber frameNumber) {
-        return inter("CMD_REPLACING_FRAME_NUM", "Frame {0}:", frameNumber);
+    public static ILocalizedMessage REPLACE_FRAME_XML_ERROR(@Nonnull String xmlErrorInEnglish) {
+        return inter("REPLACE_FRAME_XML_ERROR", "Error with frame replacement xml: {0}", xmlErrorInEnglish);
     }
 
     /**
@@ -3922,6 +3689,18 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
+    <pre>Frame type is not STRv1 or STRv2</pre>
+    </td></tr></table>
+    <ul>
+       <li>SectorFF7Video.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage REPLACE_FRAME_TYPE_NOT_V1_V2() {
+        return inter("REPLACE_FRAME_TYPE_NOT_V1_V2", "Frame type is not STRv1 or STRv2");
+    }
+
+    /**
+    <table border="1"><tr><td>
     <pre>Frame type is not STRv2 or STRv3</pre>
     </td></tr></table>
     <ul>
@@ -3984,120 +3763,8 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Empty serialized string</pre>
-    </td></tr></table>
-    <ul>
-       <li>SerializedDiscItem.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage EMPTY_SERIALIZED_STRING() {
-        return inter("EMPTY_SERIALIZED_STRING", "Empty serialized string");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Failed to convert serialized field to int: {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>SerializedDiscItem.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage SERIALIZATION_FAILED_TO_CONVERT_TO_INT(@Nonnull String badNumber) {
-        return inter("SERIALIZATION_FAILED_TO_CONVERT_TO_INT", "Failed to convert serialized field to int: {0}", badNumber);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Failed to convert serialized field to long: {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>SerializedDiscItem.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage SERIALIZATION_FAILED_TO_CONVERT_TO_LONG(@Nonnull String badNumber) {
-        return inter("SERIALIZATION_FAILED_TO_CONVERT_TO_LONG", "Failed to convert serialized field to long: {0}", badNumber);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Improperly formatted field serialization: {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>SerializedDiscItem.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage SERIALIZATION_FIELD_IMPROPERLY_FORMATTED(@Nonnull String badSerializationString) {
-        return inter("SERIALIZATION_FIELD_IMPROPERLY_FORMATTED", "Improperly formatted field serialization: {0}", badSerializationString);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Failed to convert serialized value to range: {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>SerializedDiscItem.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(@Nonnull String badRange) {
-        return inter("SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE", "Failed to convert serialized value to range: {0}", badRange);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Line missing vital fields {0}</pre>
-    </td></tr></table>
-    <ul>
-       <li>SerializedDiscItem.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage SERIALIZATION_MISSING_REQUIRED_FIELDS(@Nonnull String lineString) {
-        return inter("SERIALIZATION_MISSING_REQUIRED_FIELDS", "Line missing vital fields {0}", lineString);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>{0} field not found.</pre>
-    </td></tr></table>
-    <ul>
-       <li>SerializedDiscItem.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage FIELD_NOT_FOUND(@Nonnull String missingField) {
-        return inter("FIELD_NOT_FOUND", "{0} field not found.", missingField);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Square ADPCM Sound Parameter Filter Index &gt; 4 ({0,number,#}) [sound parameter 0x{1} at {2,number,#}]</pre>
-    </td></tr></table>
-    <ul>
-       <li>SquareAdpcmDecoder.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage SQUARE_ADPCM_FILTER_IDX_GT_4_FP(int badIndex, @Nonnull String hexValue, long filePointer) {
-        return inter("SQUARE_ADPCM_FILTER_IDX_GT_4_FP", "Square ADPCM Sound Parameter Filter Index > 4 ({0,number,#}) [sound parameter 0x{1} at {2,number,#}]", badIndex, hexValue, filePointer);
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>Square ADPCM Sound Parameter Filter Index &gt; 4 ({0,number,#}) [sound parameter 0x{1}]</pre>
-    </td></tr></table>
-    <ul>
-       <li>SquareAdpcmDecoder.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage SQUARE_ADPCM_FILTER_IDX_GT_4(int badIndex, @Nonnull String hexValue) {
-        return inter("SQUARE_ADPCM_FILTER_IDX_GT_4", "Square ADPCM Sound Parameter Filter Index > 4 ({0,number,#}) [sound parameter 0x{1}]", badIndex, hexValue);
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Unexpected end of audio data</pre>
     </td></tr></table>
-    <ul>
-       <li>SquareAdpcmDecoder.java</li>
-       <li>XaAdpcmDecoder.java</li>
-    </ul>
     */
     public static ILocalizedMessage UNEXPECTED_END_OF_AUDIO() {
         return inter("UNEXPECTED_END_OF_AUDIO", "Unexpected end of audio data");
@@ -4159,8 +3826,8 @@ Do you want to replace it?</pre>
        <li>TimSaverBuilder.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_PALETTE_LIST_INVALID(@Nonnull String badPaletteList) {
-        return inter("CMD_PALETTE_LIST_INVALID", "Invalid list of palettes {0}", badPaletteList);
+    public static ILocalizedMessage CMD_TIM_PALETTE_LIST_INVALID(@Nonnull String badPaletteList) {
+        return inter("CMD_TIM_PALETTE_LIST_INVALID", "Invalid list of palettes {0}", badPaletteList);
     }
 
     /**
@@ -4222,8 +3889,8 @@ Do you want to replace it?</pre>
        <li>TimSaverBuilder.java</li>
     </ul>
     */
-    public static ILocalizedMessage CMD_PALETTE_FILES(@Nonnull ILocalizedMessage ouputFiles) {
-        return inter("CMD_PALETTE_FILES", "Palette files: {0}", ouputFiles);
+    public static ILocalizedMessage CMD_TIM_PALETTE_FILES(@Nonnull ILocalizedMessage ouputFiles) {
+        return inter("CMD_TIM_PALETTE_FILES", "Palette files: {0}", ouputFiles);
     }
 
     /**
@@ -4252,6 +3919,19 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
+    <pre>TIM image data not found</pre>
+    </td></tr></table>
+    <p>If TIM image data is not found where it should be on the disc</p>
+    <ul>
+       <li>TimSaverBuilder.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage TIM_DATA_NOT_FOUND() {
+        return inter("TIM_DATA_NOT_FOUND", "TIM image data not found");
+    }
+
+    /**
+    <table border="1"><tr><td>
     <pre>Format:</pre>
     </td></tr></table>
     <ul>
@@ -4272,8 +3952,8 @@ Do you want to replace it?</pre>
        <li>TimSaverBuilderGui.java</li>
     </ul>
     */
-    public static ILocalizedMessage GUI_ERR_READING_TIM_PREVIEW(@Nonnull String listOfSourceCodeLineNumbers) {
-        return inter("GUI_ERR_READING_TIM_PREVIEW", "Error reading TIM preview\n{0}", listOfSourceCodeLineNumbers);
+    public static ILocalizedMessage GUI_TIM_ERR_READING_PREVIEW(@Nonnull String listOfSourceCodeLineNumbers) {
+        return inter("GUI_TIM_ERR_READING_PREVIEW", "Error reading TIM preview\n{0}", listOfSourceCodeLineNumbers);
     }
 
     /**
@@ -4292,9 +3972,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>[{0}] {1} {2}</pre>
     </td></tr></table>
-    <ul>
-       <li>UserFriendlyLogger.java</li>
-    </ul>
     */
     public static ILocalizedMessage USER_LOG_MESSAGE_EXCEPTION(@Nonnull String logLevel, @Nonnull String logMessage, @Nonnull String exceptionName) {
         return inter("USER_LOG_MESSAGE_EXCEPTION", "[{0}] {1} {2}", logLevel, logMessage, exceptionName);
@@ -4304,9 +3981,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>[{0}] {1} {2} : {3}</pre>
     </td></tr></table>
-    <ul>
-       <li>UserFriendlyLogger.java</li>
-    </ul>
     */
     public static ILocalizedMessage USER_LOG_MESSAGE_EXCEPTION_MSG(@Nonnull String logLevel, @Nonnull String logMessage, @Nonnull String exceptionName, @Nonnull String exceptionMessage) {
         return inter("USER_LOG_MESSAGE_EXCEPTION_MSG", "[{0}] {1} {2} : {3}", logLevel, logMessage, exceptionName, exceptionMessage);
@@ -4316,9 +3990,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>[{0}] {1}</pre>
     </td></tr></table>
-    <ul>
-       <li>UserFriendlyLogger.java</li>
-    </ul>
     */
     public static ILocalizedMessage USER_LOG_EXCEPTION(@Nonnull String logLevel, @Nonnull String exceptionName) {
         return inter("USER_LOG_EXCEPTION", "[{0}] {1}", logLevel, exceptionName);
@@ -4328,9 +3999,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>[{0}] {1} : {2}</pre>
     </td></tr></table>
-    <ul>
-       <li>UserFriendlyLogger.java</li>
-    </ul>
     */
     public static ILocalizedMessage USER_LOG_EXCEPTION_MSG(@Nonnull String logLevel, @Nonnull String exceptionName, @Nonnull String exceptionMessage) {
         return inter("USER_LOG_EXCEPTION_MSG", "[{0}] {1} : {2}", logLevel, exceptionName, exceptionMessage);
@@ -4338,13 +4006,43 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Error with frame {0}: Unable to determine frame type.</pre>
+    <pre>Error with frame {0}: Frame is corrupted</pre>
     </td></tr></table>
     <ul>
        <li>VDP.java</li>
+       <li>ReplaceFrame.java</li>
+       <li>ReplaceFramePartial.java</li>
     </ul>
     */
-    public static ILocalizedMessage UNABLE_TO_DETERMINE_FRAME_TYPE_FRM(@Nonnull jpsxdec.discitems.FrameNumber frameNumber) {
+    public static ILocalizedMessage FRAME_NUM_CORRUPTED(@Nonnull String frameNumber) {
+        return inter("FRAME_NUM_CORRUPTED", "Error with frame {0}: Frame is corrupted", frameNumber);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error with frame {0}: Frame is incomplete</pre>
+    </td></tr></table>
+    <ul>
+       <li>VDP.java</li>
+       <li>ReplaceFrame.java</li>
+       <li>ReplaceFramePartial.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage FRAME_NUM_INCOMPLETE(@Nonnull String frameNumber) {
+        return inter("FRAME_NUM_INCOMPLETE", "Error with frame {0}: Frame is incomplete", frameNumber);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error with frame {0}: Unable to determine frame type.</pre>
+    </td></tr></table>
+    <ul>
+       <li>ReplaceFrame.java</li>
+       <li>ReplaceFramePartial.java</li>
+       <li>VDP.java</li>
+    </ul>
+    */
+    public static ILocalizedMessage UNABLE_TO_DETERMINE_FRAME_TYPE_FRM(@Nonnull String frameNumber) {
         return inter("UNABLE_TO_DETERMINE_FRAME_TYPE_FRM", "Error with frame {0}: Unable to determine frame type.", frameNumber);
     }
 
@@ -4374,18 +4072,6 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Error closing file {0} for frame {1}</pre>
-    </td></tr></table>
-    <ul>
-       <li>VDP.java</li>
-    </ul>
-    */
-    public static ILocalizedMessage FRAME_FILE_CLOSE_ERR(@Nonnull java.io.File fileName, @Nonnull jpsxdec.discitems.FrameNumber frameNumber) {
-        return inter("FRAME_FILE_CLOSE_ERR", "Error closing file {0} for frame {1}", fileName, frameNumber);
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Video format identified as {0}</pre>
     </td></tr></table>
     <ul>
@@ -4400,9 +4086,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Error uncompressing frame {0}</pre>
     </td></tr></table>
-    <ul>
-       <li>VDP.java</li>
-    </ul>
     */
     public static ILocalizedMessage FRAME_UNCOMPRESS_ERR(@Nonnull jpsxdec.discitems.FrameNumber frameNumber) {
         return inter("FRAME_UNCOMPRESS_ERR", "Error uncompressing frame {0}", frameNumber);
@@ -4410,14 +4093,14 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>The simple jPSXdec JPEG encoder can''t handle frame {0}. Please save in a different format</pre>
+    <pre>The simple jPSXdec JPEG encoder can''t handle frame {0}. Please save in a different format.</pre>
     </td></tr></table>
     <ul>
        <li>VDP.java</li>
     </ul>
     */
     public static ILocalizedMessage JPEG_ENCODER_FRAME_FAIL(@Nonnull jpsxdec.discitems.FrameNumber frameNumber) {
-        return inter("JPEG_ENCODER_FRAME_FAIL", "The simple jPSXdec JPEG encoder can''t handle frame {0}. Please save in a different format", frameNumber);
+        return inter("JPEG_ENCODER_FRAME_FAIL", "The simple jPSXdec JPEG encoder can''t handle frame {0}. Please save in a different format.", frameNumber);
     }
 
     /**
@@ -4834,9 +4517,6 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Error closing AVI</pre>
     </td></tr></table>
-    <ul>
-       <li>VideoSaver.java</li>
-    </ul>
     */
     public static ILocalizedMessage AVI_CLOSE_ERR() {
         return inter("AVI_CLOSE_ERR", "Error closing AVI");
@@ -5153,7 +4833,7 @@ Options:</pre>
     <pre>Decode quality:</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_DECODE_QUALITY_LABEL() {
@@ -5165,7 +4845,7 @@ Options:</pre>
     <pre>{0,number,#} fps</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_FPS_LABLE_WHOLE_NUMBER(long framesPerSecond) {
@@ -5177,7 +4857,7 @@ Options:</pre>
     <pre>{0,number,#.###} ({1,number,#}/{2,number,#}) fps</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_FPS_LABEL_FRACTION(double decimalFramesPerSecond, long framesPerSecondNumerator, long framesPerSecondDenominator) {
@@ -5189,7 +4869,7 @@ Options:</pre>
     <pre>Dimensions:</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_DIMENSIONS_LABEL() {
@@ -5201,7 +4881,7 @@ Options:</pre>
     <pre>{0,number,#}x{1,number,#}</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_DIMENSIONS_WIDTH_X_HEIGHT_LABEL(int width, int height) {
@@ -5214,7 +4894,7 @@ Options:</pre>
 to: {1}</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_OUTPUT_VIDEO_FILE_RANGE(@Nonnull java.io.File startFileName, @Nonnull java.io.File endFileName) {
@@ -5226,7 +4906,7 @@ to: {1}</pre>
     <pre>Disc speed:</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_DISC_SPEED_LABEL() {
@@ -5238,7 +4918,7 @@ to: {1}</pre>
     <pre>1x</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage DISC_SPEED_1X() {
@@ -5250,7 +4930,7 @@ to: {1}</pre>
     <pre>2x</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage DISC_SPEED_2X() {
@@ -5262,7 +4942,7 @@ to: {1}</pre>
     <pre>Audio volume:</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_AUDIO_VOLUME_LABEL() {
@@ -5274,7 +4954,7 @@ to: {1}</pre>
     <pre>Video format:</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_VIDEO_FORMAT_LABEL() {
@@ -5286,7 +4966,7 @@ to: {1}</pre>
     <pre>Crop</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_CROP_CHECKBOX() {
@@ -5298,7 +4978,7 @@ to: {1}</pre>
     <pre>Chroma upsampling:</pre>
     </td></tr></table>
     <ul>
-       <li>VideoSaverBuilderGui.java</li>
+       <li>VideoSaverPanel.java</li>
     </ul>
     */
     public static ILocalizedMessage GUI_CHROMA_UPSAMPLING_LABEL() {
@@ -5391,6 +5071,174 @@ to: {1}</pre>
     */
     public static ILocalizedMessage GUI_TREE_INDEX_NUMBER_COLUMN() {
         return inter("GUI_TREE_INDEX_NUMBER_COLUMN", "#");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Opening file {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_OPENING_FILE(@Nonnull String fileName) {
+        return inter("IO_OPENING_FILE", "Opening file {0}", fileName);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>File not found</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_OPENING_FILE_NOT_FOUND() {
+        return inter("IO_OPENING_FILE_NOT_FOUND", "File not found");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>File not found {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_OPENING_FILE_NOT_FOUND_NAME(@Nonnull String fileName) {
+        return inter("IO_OPENING_FILE_NOT_FOUND_NAME", "File not found {0}", fileName);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Failed to open file</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_OPENING_FILE_ERROR() {
+        return inter("IO_OPENING_FILE_ERROR", "Failed to open file");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Failed to open file {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_OPENING_FILE_ERROR_NAME(@Nonnull String fileName) {
+        return inter("IO_OPENING_FILE_ERROR_NAME", "Failed to open file {0}", fileName);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error reading file</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_READING_FILE_ERROR() {
+        return inter("IO_READING_FILE_ERROR", "Error reading file");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error reading file {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_READING_FILE_ERROR_NAME(@Nonnull String fileName) {
+        return inter("IO_READING_FILE_ERROR_NAME", "Error reading file {0}", fileName);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error reading from file</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_READING_FROM_FILE_ERROR() {
+        return inter("IO_READING_FROM_FILE_ERROR", "Error reading from file");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error reading from file {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_READING_FROM_FILE_ERROR_NAME(@Nonnull String fileName) {
+        return inter("IO_READING_FROM_FILE_ERROR_NAME", "Error reading from file {0}", fileName);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Writing file {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_WRITING_FILE(@Nonnull String fileName) {
+        return inter("IO_WRITING_FILE", "Writing file {0}", fileName);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error writing file</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_WRITING_FILE_ERROR() {
+        return inter("IO_WRITING_FILE_ERROR", "Error writing file");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error writing file {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_WRITING_FILE_ERROR_NAME(@Nonnull String fileName) {
+        return inter("IO_WRITING_FILE_ERROR_NAME", "Error writing file {0}", fileName);
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error writing to file</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_WRITING_TO_FILE_ERROR() {
+        return inter("IO_WRITING_TO_FILE_ERROR", "Error writing to file");
+    }
+
+    /**
+    <table border="1"><tr><td>
+    <pre>Error writing to file {0}</pre>
+    </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
+    */
+    public static ILocalizedMessage IO_WRITING_TO_FILE_ERROR_NAME(@Nonnull String fileName) {
+        return inter("IO_WRITING_TO_FILE_ERROR_NAME", "Error writing to file {0}", fileName);
     }
 
 }

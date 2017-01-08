@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,17 +37,13 @@
 
 package jpsxdec.indexing;
 
-import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSector2352;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.util.ByteArrayFPIS;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import jpsxdec.util.DebugLogger;
+import org.junit.*;
 import static org.junit.Assert.*;
 
 
@@ -119,7 +115,7 @@ public class DiscIndexerXaAudioTest {
     
     @Test
     public void channel255() {
-        DiscIndexerXaAudio xaIndexer = new DiscIndexerXaAudio(Logger.global);
+        DiscIndexerXaAudio xaIndexer = new DiscIndexerXaAudio(DebugLogger.Log);
         // just testing that nothing terrible happens
         DummyIdentifiedSector s = new DummyIdentifiedSector();
         xaIndexer.indexingSectorRead(s.getCdSector(), s);

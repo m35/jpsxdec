@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,8 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jpsxdec.cmdline.CommandLine;
 import jpsxdec.gui.Gui;
+import jpsxdec.util.ArgParser;
+import jpsxdec.util.IO;
 
 public class Main {
 
@@ -63,11 +65,7 @@ public class Main {
             } catch (IOException ex) {
                 LOG.log(Level.WARNING, null, ex);
             } finally {
-                try {
-                    is.close();
-                } catch (IOException ex) {
-                    LOG.log(Level.SEVERE, null, ex);
-                }
+                IO.closeSilently(is, LOG);
             }
         }
     }
@@ -77,11 +75,13 @@ public class Main {
 
         loadDefaultLogger();
 
+        ArgParser ap = new ArgParser(asArgs);
+
         boolean blnShowGui = false;
         if (asArgs.length == 0) {
             blnShowGui = true;
         } else if (asArgs.length == 1) {
-            blnShowGui = !CommandLine.checkForMainHelp(asArgs);
+            blnShowGui = !ap.hasHelp();
         } 
         
         if (blnShowGui) {
@@ -94,7 +94,7 @@ public class Main {
                 }
             });
         } else {
-            System.exit(CommandLine.main(asArgs));
+            System.exit(CommandLine.main(ap));
         }
     }
 }

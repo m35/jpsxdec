@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -58,6 +58,7 @@ public class MdecDecoder_int extends MdecDecoder {
     protected final int[] _CbBuffer;
     protected final int[] _LumaBuffer;
 
+    /** Matrix of 8x8 coefficient values. */
     protected final int[] _CurrentBlock = new int[64];
 
     public MdecDecoder_int(IDCT_int idct, int iWidth, int iHeight) {
@@ -70,7 +71,7 @@ public class MdecDecoder_int extends MdecDecoder {
     }
 
     public void decode(MdecInputStream mdecInStream)
-            throws MdecException.Read
+            throws MdecException.EndOfStream, MdecException.ReadCorruption
     {
 
         int iCurrentBlockQscale;
@@ -121,12 +122,12 @@ public class MdecDecoder_int extends MdecDecoder {
                             ////////////////////////////////////////////////////////
                             iCurrentBlockVectorPosition += _code.getTop6Bits() + 1;
 
-                            int iRevZigZagPos;
+                            int iRevZigZagMatrixPos;
                             try {
                                 // Reverse Zig-Zag
-                                iRevZigZagPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
+                                iRevZigZagMatrixPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                             } catch (ArrayIndexOutOfBoundsException ex) {
-                                throw new MdecException.BlockVectorIndexOutOfBounds(I.RLC_OOB_IN_BLOCK_NAME(
+                                throw new MdecException.ReadCorruption(MdecException.RLC_OOB_IN_BLOCK_NAME(
                                                iCurrentBlockVectorPosition,
                                                iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]),
                                                ex);
@@ -134,16 +135,16 @@ public class MdecDecoder_int extends MdecDecoder {
                             
                             if (_code.getBottom10Bits() != 0) {
 
-                                assert !DEBUG || setPrequantValue(iRevZigZagPos, _code.getBottom10Bits());
+                                assert !DEBUG || setPrequantValue(iRevZigZagMatrixPos, _code.getBottom10Bits());
                                 // Dequantize
-                                _CurrentBlock[iRevZigZagPos] =
+                                _CurrentBlock[iRevZigZagMatrixPos] =
                                             (_code.getBottom10Bits()
-                                          * _aiQuantizationTable[iRevZigZagPos]
+                                          * _aiQuantizationTable[iRevZigZagMatrixPos]
                                           * iCurrentBlockQscale + 4) >> 3;
                                 //  i      >> 3  ==  (int)Math.floor(i / 8.0)
                                 // (i + 4) >> 3  ==  (int)Math.round(i / 8.0)
                                 iCurrentBlockNonZeroCount++;
-                                iCurrentBlockLastNonZeroPosition = iRevZigZagPos;
+                                iCurrentBlockLastNonZeroPosition = iRevZigZagMatrixPos;
 
                             }
                             ////////////////////////////////////////////////////////
@@ -159,14 +160,9 @@ public class MdecDecoder_int extends MdecDecoder {
                     iMacBlk++;
                 }
             }
-        } catch (Throwable ex) {
-            MdecException.Read mdecEx;
-            if (ex instanceof MdecException.Read) {
-                mdecEx = (MdecException.Read)ex;
-            } else {
-                mdecEx = new MdecException.Read(I.BLOCK_DECODE_ERR(iMacBlk, iBlock), ex);
-            }
-            // fill in the remaining data with zeros
+        } finally {
+            // in case an exception occured
+            // fill in any remaining data with zeros
             int iTotalMacBlks = _iMacBlockWidth * _iMacBlockHeight;
             // pickup where decoding left off
             for (; iMacBlk < iTotalMacBlks; iMacBlk++) {
@@ -175,7 +171,6 @@ public class MdecDecoder_int extends MdecDecoder {
                 }
                 iBlock = 0;
             }
-            throw mdecEx;
         }
     }
 

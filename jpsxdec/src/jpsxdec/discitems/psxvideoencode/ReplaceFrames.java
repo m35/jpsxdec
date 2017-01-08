@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.discitems.psxvideoencode;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Level;
@@ -58,16 +59,19 @@ import javax.xml.transform.stream.StreamResult;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.FrameNumber;
+import jpsxdec.discitems.FrameNumberFormat;
+import jpsxdec.discitems.FrameNumberFormatter;
 import jpsxdec.discitems.IDemuxedFrame;
 import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedIOException;
-import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
-import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.IO;
+import jpsxdec.util.IOException6;
+import jpsxdec.util.LoggedFailure;
+import jpsxdec.util.ProgressLogger;
+import jpsxdec.util.TaskCanceledException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -95,10 +99,14 @@ public class ReplaceFrames {
 
     public ReplaceFrames() {}
 
-    public ReplaceFrames(@Nonnull String sXmlConfig) throws IOException, NotThisTypeException {
+    public ReplaceFrames(@Nonnull String sXmlConfig) 
+            throws FileNotFoundException, IOException, DeserializationFail
+    {
         this(new File(sXmlConfig));
     }
-    public ReplaceFrames(@Nonnull File xmlConfig) throws IOException, NotThisTypeException {
+    public ReplaceFrames(@Nonnull File xmlConfig) 
+            throws FileNotFoundException, IOException, DeserializationFail
+    {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder db;
         try {
@@ -112,22 +120,20 @@ public class ReplaceFrames {
             try {
                 doc = db.parse(fis); // .parse() treats File like URL, must open manually
             } finally {
-                try {
-                    fis.close();
-                } catch (IOException ex) {
-                    Logger.getLogger(ReplaceFrames.class.getName()).log(Level.SEVERE, null, ex);
-                }
+                IO.closeSilently(fis, Logger.getLogger(ReplaceFrames.class.getName()));
             }
         } catch (SAXException ex) {
-            throw new NotThisTypeException(ex);
+            // Unforunately it seems SAXException does not localize their messages
+            // https://netbeans.org/bugzilla/show_bug.cgi?id=102370
+            throw new DeserializationFail(I.REPLACE_FRAME_XML_ERROR(ex.getLocalizedMessage()), ex);
         }
 
         Element root = doc.getDocumentElement();
         root.normalize();
         if (!"str-replace".equals(root.getNodeName()))
-            throw new NotThisTypeException(I.CMD_REPLACE_XML_INVALID_ROOT_NODE(root.getNodeName()));
+            throw new DeserializationFail(I.CMD_REPLACE_XML_INVALID_ROOT_NODE(root.getNodeName()));
         if (!VERSION.equals(root.getAttribute("version")))
-            throw new NotThisTypeException(I.CMD_REPLACE_XML_INVALID_VERSION(root.getAttribute("version")));
+            throw new DeserializationFail(I.CMD_REPLACE_XML_INVALID_VERSION(root.getAttribute("version")));
 
         NodeList nodeLst = root.getChildNodes();
 
@@ -167,10 +173,10 @@ public class ReplaceFrames {
             DOMSource source = new DOMSource(document);
             StreamResult result = new StreamResult(new File(sFile));
             transformer.transform(source, result);
-        } catch (TransformerException ex) {
-            throw new LocalizedIOException(ex);
         } catch (ParserConfigurationException ex) {
-            throw new LocalizedIOException(ex);
+            throw new IOException6(ex);
+        } catch (TransformerException ex) {
+            throw new IOException6(ex);
         }
     }
 
@@ -189,58 +195,72 @@ public class ReplaceFrames {
 
     public void replaceFrames(@Nonnull DiscItemVideoStream vidItem, 
                               final @Nonnull CdFileSectorReader cd,
-                              final @Nonnull FeedbackStream fbs)
-            throws IOException, NotThisTypeException, MdecException, IncompatibleException
+                              final @Nonnull ProgressLogger pl)
+            throws LoggedFailure, TaskCanceledException
     {
-        final Throwable[] exception = new Throwable[1];
-        
         ISectorFrameDemuxer demuxer = vidItem.makeDemuxer();
-        demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
+        ReplaceFrameListener replaceListener = new ReplaceFrameListener(pl, cd);
+        demuxer.setFrameListener(replaceListener);
 
-            public void frameComplete(@Nonnull IDemuxedFrame frame) throws IOException {
+        FrameNumberFormatter numFormatter =
+                vidItem.getFrameNumberFormat().makeFormatter(FrameNumberFormat.Type.Index);
 
-                ReplaceFrame replacer = getFrameToReplace(frame.getFrame());
-                if (replacer != null) {
-                    fbs.println(I.CMD_REPLACING_FRAME_NUM(frame.getFrame()));
-                    fbs.indent();
-                    try {
-                        fbs.println(I.CMD_REPLACING_FRAME_WITH_FILE(replacer.getImageFile()));
-                        replacer.replace(frame, cd, fbs);
-                    } catch (MdecException ex) {
-                        exception[0] = ex;
-                    } catch (NotThisTypeException ex) {
-                        exception[0] = ex;
-                    } catch (IncompatibleException ex) {
-                        exception[0] = ex;
-                    } finally {
-                        fbs.outdent();
-                    }
-                }
-
-            }
-        });
-        
-        Logger log = Logger.getLogger("replace");
-
+        pl.progressStart(vidItem.getSectorLength());
         IdentifiedSectorIterator it = vidItem.identifiedSectorIterator();
-        while (it.hasNext()) {
-            IdentifiedSector sector = it.next();
-            if (sector != null)
-                demuxer.feedSector(sector, log);
-
-            if (exception[0] != null) {
-                if (exception[0] instanceof MdecException)
-                    throw (MdecException)exception[0];
-                else if (exception[0] instanceof NotThisTypeException)
-                    throw (NotThisTypeException)exception[0];
-                else if (exception[0] instanceof IncompatibleException)
-                    throw (IncompatibleException)exception[0];
-                else
-                    throw new RuntimeException(exception[0]);
+        for (int iSector = 0; it.hasNext(); iSector++) {
+            IdentifiedSector sector;
+            try {
+                sector = it.next();
+            } catch (IOException ex) {
+                throw new LoggedFailure(pl, Level.SEVERE,
+                        I.IO_READING_FROM_FILE_ERROR_NAME(it.getSourceCdFile().toString()), ex);
             }
+            if (sector != null)
+                demuxer.feedSector(sector, pl);
+            
+            pl.progressUpdate(iSector);
+            if (pl.isSeekingEvent() && replaceListener.currentFrameNum != null)
+                pl.event(numFormatter.getDescription(replaceListener.currentFrameNum));
+
+            if (replaceListener.exception != null)
+                throw replaceListener.exception;
+        }
+        demuxer.flush(pl);
+        pl.progressEnd();
+    }
+
+    private class ReplaceFrameListener implements ISectorFrameDemuxer.ICompletedFrameListener {
+
+        @Nonnull
+        private final ProgressLogger _pl;
+        @Nonnull
+        private final CdFileSectorReader _cd;
+
+        @CheckForNull
+        public FrameNumber currentFrameNum;
+        
+        @CheckForNull
+        public LoggedFailure exception;
+
+        public ReplaceFrameListener(ProgressLogger pl, CdFileSectorReader cd) {
+            _pl = pl;
+            _cd = cd;
         }
 
-        demuxer.flush(log);
+        public void frameComplete(@Nonnull IDemuxedFrame frame) {
+            currentFrameNum = frame.getFrame();
+
+            ReplaceFrame replacer = getFrameToReplace(frame.getFrame());
+            if (replacer != null) {
+                try {
+                    _pl.log(Level.INFO, I.CMD_REPLACING_FRAME_WITH_FILE(frame.getFrame(), replacer.getImageFile()));
+                    replacer.replace(frame, _cd, _pl);
+                } catch (LoggedFailure ex) {
+                    exception = ex;
+                }
+            }
+
+        }
     }
 
 }

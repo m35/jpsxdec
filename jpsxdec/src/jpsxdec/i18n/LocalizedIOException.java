@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,41 +39,38 @@ package jpsxdec.i18n;
 
 import java.io.IOException;
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 
 public class LocalizedIOException extends IOException {
 
-    @CheckForNull
+    @Nonnull
     private final ILocalizedMessage _msg;
 
     public LocalizedIOException() {
         _msg = null;
     }
 
-    public LocalizedIOException(@CheckForNull ILocalizedMessage msg) {
-        super(msg == null ? null : msg.getEnglishMessage());
+    public LocalizedIOException(@Nonnull ILocalizedMessage msg) {
+        super(msg.getEnglishMessage());
         _msg = msg;
     }
 
-    public LocalizedIOException(@CheckForNull Throwable cause) {
-        super();
+    public LocalizedIOException(@Nonnull ILocalizedMessage msg, 
+                                @CheckForNull Throwable cause)
+    {
+        super(msg.getEnglishMessage());
         initCause(cause);
-        _msg = null;
+        _msg = msg;
     }
 
     @Override
     public @CheckForNull String getLocalizedMessage() {
-        if (_msg == null)
-            return super.getLocalizedMessage();
-        else
-            return _msg.getLocalizedMessage();
+        return _msg.getLocalizedMessage();
     }
 
     @Override
     public @CheckForNull String getMessage() {
-        if (_msg == null)
-            return super.getMessage();
-        else
-            return _msg.getEnglishMessage();
+        return _msg.getEnglishMessage();
     }
     
 }

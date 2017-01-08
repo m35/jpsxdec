@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,18 +40,21 @@ package jpsxdec.sectors;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.NotThisTypeException;
 
 
 /** If all else fails, we don't know what kind of data this sector contains.
  * Can represent any sector except {@link SectorCdAudio}. */
 public class UnidentifiedSector extends IdentifiedSector {
 
-    public UnidentifiedSector(@Nonnull CdSector cdSector) throws NotThisTypeException {
+    /**
+     * @throws IllegalArgumentException if {@link CdSector#isCdAudioSector()} is true.
+     */
+    // TODO: don't want to use IllegalArgumentException
+    private UnidentifiedSector(@Nonnull CdSector cdSector) throws IllegalArgumentException {
         super(cdSector);
 
         if (cdSector.isCdAudioSector())
-            throw new NotThisTypeException();
+            throw new IllegalArgumentException();
 
         setProbability(100);
     }

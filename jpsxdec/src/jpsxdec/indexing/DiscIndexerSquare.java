@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,10 +47,13 @@ import jpsxdec.discitems.DiscItemSquareAudioStream;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.ISquareAudioSector;
 import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
 
 /** Watches for Square's unique audio format streams. */
 public class DiscIndexerSquare extends DiscIndexer implements DiscIndexer.Identified {
+
+    private static final Logger LOG = Logger.getLogger(DiscIndexerSquare.class.getName());
 
     private int _iAudioStartSector;
     private long _lngAudioLeftSampleCount;
@@ -64,19 +67,18 @@ public class DiscIndexerSquare extends DiscIndexer implements DiscIndexer.Identi
     private int _iLeftAudioPeriod = -1;
 
     @Nonnull
-    private Logger _errLog;
+    private ILocalizedLogger _errLog;
 
-    public DiscIndexerSquare(@Nonnull Logger errLog) {
+    public DiscIndexerSquare(@Nonnull ILocalizedLogger errLog) {
         _errLog = errLog;
     }
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
-        try {
-            if (DiscItemSquareAudioStream.TYPE_ID.equals(fields.getType())) {
-                return new DiscItemSquareAudioStream(getCd(), fields);
-            }
-        } catch (NotThisTypeException ex) {}
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+            throws DeserializationFail
+    {
+        if (DiscItemSquareAudioStream.TYPE_ID.equals(fields.getType()))
+            return new DiscItemSquareAudioStream(getCd(), fields);
         return null;
     }
 

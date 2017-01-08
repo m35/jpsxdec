@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,144 +39,132 @@ package jpsxdec.util;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.ILocalizedMessage;
 
 /** Hopefully makes it easier to print information in a table like design. */
 public class TabularFeedback {
 
-    private final ArrayList<ArrayList<ArrayList<StringBuilder>>> _rows =
-            new ArrayList<ArrayList<ArrayList<StringBuilder>>>();
+    private static class LineIndentPair {
+        public final int _iIndent;
+        @Nonnull
+        public final ILocalizedMessage _msg;
+        public LineIndentPair(int iIndent, @Nonnull ILocalizedMessage msg) {
+            _iIndent = iIndent;
+            _msg = msg;
+        }
+    }
+
+    public static class Cell {
+        private final ArrayList<LineIndentPair> _lines = new ArrayList<LineIndentPair>();
+        public Cell() {}
+        public Cell(@Nonnull ILocalizedMessage ... aoLines) {
+            for (ILocalizedMessage line : aoLines) {
+                addLine(line);
+            }
+        }
+        final public Cell addLine(@Nonnull ILocalizedMessage line) {
+            return addLine(line, 0);
+        }
+        final public Cell addLine(@Nonnull ILocalizedMessage line, int iIndent) {
+            _lines.add(new LineIndentPair(iIndent, line));
+            return this;
+        }
+
+        private @Nonnull ArrayList<String> toLines() {
+            ArrayList<String> lines = new ArrayList<String>();
+            for (LineIndentPair linePair : _lines) {
+                String s = linePair._msg.getLocalizedMessage();
+                String[] asLines = s.split("\\r\\n?|\\n");
+                for (String sLine : asLines) {
+                    lines.add(Misc.dup(' ', linePair._iIndent) + sLine);
+                }
+            }
+            return lines;
+        }
+    }
+
+    private final ArrayList<ArrayList<Cell>> _rows =
+            new ArrayList<ArrayList<Cell>>();
 
     private int _iRowSpacing = 0, _iColSpacing = 2;
-    private int _iCurCellIndent = 0;
 
     public void setRowSpacing(int i) {
         _iRowSpacing = i;
     }
 
     public TabularFeedback() {
-        addRow();
+        newRow();
     }
 
-    private @Nonnull ArrayList<ArrayList<StringBuilder>> curRow() {
-        return _rows.get(_rows.size() - 1);
+    public @Nonnull TabularFeedback addCell(@Nonnull Cell cell) {
+        curRow().add(cell);
+        return this;
     }
 
-    private @Nonnull ArrayList<StringBuilder> curCell() {
-        ArrayList<ArrayList<StringBuilder>> curRow = curRow();
-        return curRow.get(curRow.size() - 1);
-    }
-
-    private @Nonnull StringBuilder curLine() {
-        ArrayList<StringBuilder> curCell = curCell();
-        return curCell.get(curCell.size() - 1);
-    }
-
-    private void addLine() {
-        StringBuilder newLine = new StringBuilder();
-        if (_iCurCellIndent > 0)
-            newLine.append(Misc.dup(' ', _iCurCellIndent));
-        curCell().add(newLine);
-    }
-
-    private void addCell() {
-        ArrayList<StringBuilder> newCell = new ArrayList<StringBuilder>();
-        curRow().add(newCell);
-        _iCurCellIndent = 0;
-        addLine();
-    }
-
-    private void addRow() {
-        ArrayList<ArrayList<StringBuilder>> newRow = new ArrayList<ArrayList<StringBuilder>>();
-        _rows.add(newRow);
-        addCell();
+    public @Nonnull TabularFeedback addCell(@Nonnull ILocalizedMessage ... aoLines) {
+        curRow().add(new Cell(aoLines));
+        return this;
     }
 
     public void newRow() {
-        addRow();
+        _rows.add(new ArrayList<Cell>());
     }
 
-    public @Nonnull TabularFeedback print(@Nonnull ILocalizedMessage s) {
-        StringBuilder curLine = curLine();
-        if (curLine.length() == 0 && _iCurCellIndent > 0)
-            curLine.append(Misc.dup(' ', _iCurCellIndent));
-        String[] asLines = s.getLocalizedMessage().split("\\r\\n?|\\n");
-        for (int i = 0; i < asLines.length-1; i++) {
-            curLine().append(asLines[i]);
-            addLine();
-        }
-        curLine().append(asLines[asLines.length-1]);
-        return this;
-    }
-
-    public @Nonnull TabularFeedback ln() {
-        addLine();
-        return this;
-    }
-    public @Nonnull TabularFeedback println(@Nonnull ILocalizedMessage s) {
-        print(s);
-        addLine();
-        return this;
-    }
-
-    public @Nonnull TabularFeedback tab() {
-        addCell();
-        return this;
-    }
-
-    public @Nonnull TabularFeedback indent() {
-        _iCurCellIndent += 2;
-        return this;
-    }
-
-    public @Nonnull TabularFeedback outdent() {
-        _iCurCellIndent -= 2;
-        if (_iCurCellIndent < 0)
-            _iCurCellIndent = 0;
-        return this;
+    private @Nonnull ArrayList<Cell> curRow() {
+        return _rows.get(_rows.size() - 1);
     }
 
     public void write(@Nonnull PrintStream ps) {
-        int[] aiRowHeights = new int[_rows.size()];
+        int iRowCount = _rows.size();
         int iColCount = 0;
-        for (int i = 0; i < _rows.size(); i++) {
-            ArrayList<ArrayList<StringBuilder>> row = _rows.get(i);
-
+        for (ArrayList<Cell> row : _rows) {
             iColCount = Math.max(iColCount, row.size());
+        }
+        ArrayList<String>[][] aaoCells = new ArrayList[iRowCount][iColCount];
 
-            int iRowHeight = 0;
-            for (ArrayList<StringBuilder> cell : row) {
-                iRowHeight = Math.max(iRowHeight, cell.size());
+        int[] aiRowHeights = new int[iRowCount];
+        for (int iRow = 0; iRow < iRowCount; iRow++) {
+            ArrayList<Cell> row = _rows.get(iRow);
+
+            for (int iColumn = 0; iColumn < row.size(); iColumn++) {
+                ArrayList<String> cellStingLines = row.get(iColumn).toLines();
+                aaoCells[iRow][iColumn] = cellStingLines;
+
+                aiRowHeights[iRow] = Math.max(aiRowHeights[iRow], cellStingLines.size());
             }
-            aiRowHeights[i] = iRowHeight;
         }
 
         int[] aiColWidths = new int[iColCount];
-        Arrays.fill(aiColWidths, 0);
-        for (ArrayList<ArrayList<StringBuilder>> row : _rows) {
-            for (int i = 0; i < row.size(); i++) {
-                ArrayList<StringBuilder> col = row.get(i);
-                for (StringBuilder line : col) {
-                    aiColWidths[i] = Math.max(aiColWidths[i], line.length());
+        for (int iColumn = 0; iColumn < iColCount; iColumn++) {
+            int iColWidth = 0;
+            for (int iRow = 0; iRow < iRowCount; iRow++) {
+                ArrayList<String> cellLines = aaoCells[iRow][iColumn];
+                int iCellWidth = 0;
+                if (cellLines != null) {
+                    for (String line : cellLines) {
+                        iCellWidth = Math.max(iCellWidth, line.length());
+                    }
                 }
+                iColWidth = Math.max(iColWidth, iCellWidth);
             }
+            aiColWidths[iColumn] = iColWidth;
         }
 
-        for (int i = 0; i < _rows.size(); i++) {
-            ArrayList<ArrayList<StringBuilder>> row = _rows.get(i);
-            for (int iLine = 0; iLine < aiRowHeights[i]; iLine++) {
-                for (int j = 0; j < row.size(); j++) {
-                    ArrayList<StringBuilder> cell = row.get(j);
+        for (int iRow = 0; iRow < iRowCount; iRow++) {
+            ArrayList<String>[] row = aaoCells[iRow];
+            for (int iLine = 0; iLine < aiRowHeights[iRow]; iLine++) {
+                for (int iColumn = 0; iColumn < iColCount; iColumn++) {
+                    ArrayList<String> cell = row[iColumn];
+                    if (cell == null)
+                        break;
+
                     if (iLine < cell.size()) {
-                        String sLine = cell.get(iLine).toString();
+                        String sLine = cell.get(iLine);
                         ps.print(sLine);
-                        if (j < row.size()-1)
-                            ps.print(Misc.dup(' ', aiColWidths[j] - sLine.length() + _iColSpacing));
+                        ps.print(Misc.dup(' ', aiColWidths[iColumn] - sLine.length() + _iColSpacing));
                     } else {
-                        if (j < row.size()-1)
-                            ps.print(Misc.dup(' ', aiColWidths[j] + _iColSpacing));
+                        ps.print(Misc.dup(' ', aiColWidths[iColumn] + _iColSpacing));
                     }
                 }
                 ps.println();

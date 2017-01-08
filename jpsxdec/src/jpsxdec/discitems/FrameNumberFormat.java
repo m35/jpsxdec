@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import static jpsxdec.discitems.FrameNumber.HEADER_PREFIX;
 import static jpsxdec.discitems.FrameNumber.SECTOR_PREFIX;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 
 /** Maintains information to format a {@link FrameNumber} for consistent display.
  * Generates {@link FrameNumberFormatter}s to format for a particular number. */
@@ -141,12 +141,12 @@ public class FrameNumberFormat {
     }
 
     /** Deserialize. */
-    FrameNumberFormat(@Nonnull String sSerialized) throws NotThisTypeException {
+    FrameNumberFormat(@Nonnull String sSerialized) throws DeserializationFail {
         String[] as = Misc.regex(
                 "^(\\d+)/"+SECTOR_PREFIX+"(\\d+)(\\.(\\d+))?(/"+HEADER_PREFIX+"(\\d+)(\\.(\\d+))?)?$",
                 sSerialized);
         if (as == null)
-            throw new NotThisTypeException(I.INVALID_FRAME_NUMBER_FORMAT(sSerialized));
+            throw new DeserializationFail(I.FRAME_NUM_FMT_INVALID(sSerialized));
 
         try {
             _iIndexDigitCount = Integer.parseInt(as[1]);
@@ -156,7 +156,7 @@ public class FrameNumberFormat {
             _iHeaderDuplicateDigitCount = Misc.parseIntOrDefault(as[8],
                                           _iHeaderFrameDigitCount == -1 ? -1 : 0);
         } catch (NumberFormatException ex) {
-            throw new NotThisTypeException(I.INVALID_FRAME_NUMBER_FORMAT(sSerialized));
+            throw new DeserializationFail(I.FRAME_NUM_FMT_INVALID(sSerialized));
         }
     }
 

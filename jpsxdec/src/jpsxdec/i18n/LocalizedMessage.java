@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,6 +46,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.util.Misc;
 
 /** Concrete localized string for display to the user.
  * <p>
@@ -77,15 +78,13 @@ class LocalizedMessage implements ILocalizedMessage {
         _aoArguments = null;
     }
     
-    public void log(@Nonnull Logger log, @Nonnull Level level) {
-        log(log, level, null);
+    public void logEnglish(@Nonnull Logger log, @Nonnull Level level) {
+        logEnglish(log, level, null);
     }
 
-    public void log(@Nonnull Logger log, @Nonnull Level level, @CheckForNull Throwable ex) {
-        LogRecord lr = new LogRecord(level, _sKey);
+    public void logEnglish(@Nonnull Logger log, @Nonnull Level level, @CheckForNull Throwable ex) {
+        LogRecord lr = new LogRecord(level, _sEnglishDefault);
         lr.setLoggerName(log.getName());
-        lr.setResourceBundle(Bundle.getResourceBundle());
-        lr.setResourceBundleName(Bundle.getResourceBundleName());
         if (_aoArguments != null)
             lr.setParameters(_aoArguments);
         if (ex != null)
@@ -151,15 +150,13 @@ class LocalizedMessage implements ILocalizedMessage {
         if (obj == null || getClass() != obj.getClass())
             return false;
         final LocalizedMessage other = (LocalizedMessage) obj;
-        if ((this._sKey == null) ? (other._sKey != null) : !this._sKey.equals(other._sKey)) {
+        if (!Misc.objectEquals(this._sKey, other._sKey))
             return false;
-        }
-        if ((this._sEnglishDefault == null) ? (other._sEnglishDefault != null) : !this._sEnglishDefault.equals(other._sEnglishDefault)) {
+        if (!Misc.objectEquals(this._sEnglishDefault, other._sEnglishDefault))
             return false;
-        }
-        if (!Arrays.deepEquals(this._aoArguments, other._aoArguments)) {
+        if (!Arrays.deepEquals(this._aoArguments, other._aoArguments))
             return false;
-        }
+        
         return true;
     }
 

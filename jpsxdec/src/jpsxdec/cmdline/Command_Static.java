@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,15 +37,13 @@
 
 package jpsxdec.cmdline;
 
-import argparser.ArgParser;
 import argparser.BooleanHolder;
 import argparser.StringHolder;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -57,14 +55,17 @@ import jpsxdec.discitems.savers.VDP;
 import jpsxdec.discitems.savers.VideoFormat;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.tim.Tim;
+import jpsxdec.util.ArgParser;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IO;
+import jpsxdec.util.LoggedFailure;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
 import jpsxdec.util.UserFriendlyLogger;
 
 
@@ -90,27 +91,18 @@ class Command_Static extends Command {
         return I.CMD_STATIC_TYPE_INVALID(s);
     }
 
-    public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
+    public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         File inFile = getInFile();
         switch (_eStaticType) {
             case bs:
             case mdec:
-                if (asRemainingArgs == null) {
-                    throw new CommandLineException(I.CMD_DIM_OPTION_REQURIED());
-                }
-                ArgParser parser = new ArgParser("", false);
-                BooleanHolder debug = new BooleanHolder(false);
-                parser.addOption("-debug %v", debug);
-                StringHolder dimentions = new StringHolder();
-                parser.addOption("-dim %s", dimentions);
-                StringHolder quality = new StringHolder("high");
-                parser.addOption("-quality,-q %s", quality);
-                StringHolder format = new StringHolder("png");
-                parser.addOption("-fmt %s", format);
-                StringHolder upsample = new StringHolder();
-                parser.addOption("-up %s", upsample);
+                BooleanHolder debug = ap.addBoolOption("-debug");
+                StringHolder dimentions = ap.addStringOption("-dim");
+                StringHolder quality = ap.addStringOption("-quality","-q");
+                StringHolder format = ap.addStringOption("-fmt");
+                StringHolder upsample = ap.addStringOption("-up");
                 //......
-                parser.matchAllArgs(asRemainingArgs, 0, 0);
+                ap.match();
                 //......
                 if (dimentions.value == null) {
                     throw new CommandLineException(I.CMD_DIM_OPTION_REQURIED());
@@ -132,67 +124,65 @@ class Command_Static extends Command {
                 }
                 _fbs.println(I.CMD_READING_STATIC_FILE(inFile));
                 String sFileBaseName = Misc.removeExt(inFile.getName());
-                VideoFormat vf = VideoFormat.fromCmdLine(format.value);
-                if (vf == null || vf.isAvi() || vf == VideoFormat.IMGSEQ_BITSTREAM) {
-                    throw new CommandLineException(I.CMD_FORMAT_INVALID(format.value));
+                VideoFormat vf = VideoFormat.IMGSEQ_PNG;
+                if (format.value != null) {
+                    vf = VideoFormat.fromCmdLine(format.value);
+                    if (vf == null || vf.isAvi() || vf == VideoFormat.IMGSEQ_BITSTREAM)
+                        throw new CommandLineException(I.CMD_FORMAT_INVALID(format.value));
                 }
-                
                 VDP.IMdecListener mdecOut;
                 FrameFileFormatter formatter = FrameFileFormatter.makeFormatter(sFileBaseName, vf, iWidth, iHeight);
                 FrameNumber frame = new FrameNumber(0, 0, 0, 0, 0);
+                UserFriendlyLogger log = new UserFriendlyLogger("static", _fbs.getUnderlyingStream());
+                UserFriendlyLogger.WarnErrCounter warnErrCount = new UserFriendlyLogger.WarnErrCounter();
+                log.setListener(warnErrCount);
                 if (vf == VideoFormat.IMGSEQ_MDEC) {
-                    mdecOut = new VDP.Mdec2File(formatter, iWidth, iHeight);
+                    mdecOut = new VDP.Mdec2File(formatter, iWidth, iHeight, log);
                 } else if (vf == VideoFormat.IMGSEQ_JPG) {
-                    VDP.Mdec2Jpeg m2j = new VDP.Mdec2Jpeg(formatter, iWidth, iHeight);
+                    VDP.Mdec2Jpeg m2j = new VDP.Mdec2Jpeg(formatter, iWidth, iHeight, log);
                     mdecOut = m2j;
                 } else {
-                    MdecDecodeQuality decQuality = MdecDecodeQuality.fromCmdLine(quality.value);
-                    if (decQuality == null) {
-                        throw new CommandLineException(I.CMD_QUALITY_INVALID(quality.value));
+                    MdecDecodeQuality decQuality = MdecDecodeQuality.HIGH_PLUS;
+                    if (quality.value != null) {
+                        decQuality = MdecDecodeQuality.fromCmdLine(quality.value);
+                        if (decQuality == null)
+                            throw new CommandLineException(I.CMD_QUALITY_INVALID(quality.value));
                     }
                     MdecDecoder vidDecoder = decQuality.makeDecoder(iWidth, iHeight);
-                    _fbs.println(I.CMD_USING_QUALITY(quality.value));
+                    _fbs.println(I.CMD_USING_QUALITY(decQuality.getCmdLine()));
                     if (vidDecoder instanceof MdecDecoder_double_interpolate) {
-                        MdecDecoder_double_interpolate.Upsampler up;
-                        if (upsample.value == null) {
-                            up = MdecDecoder_double_interpolate.Upsampler.Bicubic;
-                        } else {
+                        MdecDecoder_double_interpolate.Upsampler up =
+                                MdecDecoder_double_interpolate.Upsampler.Bicubic;
+                        if (upsample.value != null) {
                             up = MdecDecoder_double_interpolate.Upsampler.fromCmdLine(upsample.value);
-                            if (up == null) {
+                            if (up == null)
                                 throw new CommandLineException(I.CMD_UPSAMPLING_INVALID(upsample.value));
-                            }
                         }
                         _fbs.println(I.CMD_USING_UPSAMPLING(up.getDescription()));
                         ((MdecDecoder_double_interpolate) vidDecoder).setResampler(up);
                     }
-                    VDP.Mdec2Decoded m2d = new VDP.Mdec2Decoded(vidDecoder);
+                    VDP.Mdec2Decoded m2d = new VDP.Mdec2Decoded(vidDecoder, log);
                     mdecOut = m2d;
-                    VDP.Decoded2JavaImage imgOut = new VDP.Decoded2JavaImage(formatter, vf.getImgFmt(), iWidth, iHeight);
+                    VDP.Decoded2JavaImage imgOut = new VDP.Decoded2JavaImage(formatter, vf.getImgFmt(), iWidth, iHeight, log);
                     m2d.setDecoded(imgOut);
                 }
-                UserFriendlyLogger log = new UserFriendlyLogger("static", _fbs);
                 _fbs.println(I.CMD_SAVING_AS(formatter.format(null, log)));
                 try {
-                    byte[] abBitstream = IO.readFile(inFile);
+                    byte[] abBitstream = IO.readFile(inFile); // TODO: separate exception for reading here
                     if (_eStaticType == StaticType.bs) {
                         VDP.Bitstream2Mdec b2m = new VDP.Bitstream2Mdec(mdecOut);
-                        b2m.setLog(log);
-                        try {
-                            b2m.bitstream(abBitstream, abBitstream.length, frame, -1);
-                        } finally {
-                            b2m.setLog(null);
-                        }
+                        b2m.bitstream(abBitstream, abBitstream.length, frame, -1);
                     } else {
-                        mdecOut.setLog(log);
-                        try {
-                            mdecOut.mdec(new MdecInputStreamReader(new ByteArrayInputStream(abBitstream)), frame, -1);
-                        } finally {
-                            mdecOut.setLog(null);
-                        }
+                        mdecOut.mdec(new MdecInputStreamReader(abBitstream), frame, -1);
                     }
-                    _fbs.println(I.CMD_FRAME_CONVERT_OK());
+                    if (warnErrCount.getWarnCount() == 0 && warnErrCount.getErrCount() == 0)
+                        _fbs.println(I.CMD_FRAME_CONVERT_OK()); // TODO: have another message saying complete with issues
+                } catch (FileNotFoundException ex) {
+                    throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(inFile.toString()), ex);
                 } catch (IOException ex) {
-                    throw new CommandLineException(ex);
+                    throw new CommandLineException(I.IO_WRITING_TO_FILE_ERROR_NAME(inFile.toString()), ex);
+                } catch (LoggedFailure ex) {
+                    _fbs.printErr(ex.getSourceMessage());
                 }
                 return;
             case tim:
@@ -202,26 +192,22 @@ class Command_Static extends Command {
                     is = new FileInputStream(inFile);
                     String sOutBaseName = Misc.removeExt(inFile.getName());
                     Tim tim = Tim.read(is);
-                    _fbs.println(tim);
+                    _fbs.println(new UnlocalizedMessage(tim.toString()));
                     int iDigitCount = String.valueOf(tim.getPaletteCount()).length();
                     for (int i = 0; i < tim.getPaletteCount(); i++) {
                         BufferedImage bi = tim.toBufferedImage(i);
                         String sFileName = String.format("%s_p%0" + iDigitCount + "d.png", sOutBaseName, i);
                         File file = new File(sFileName);
-                        _fbs.println(I.CMD_WRITING(file.getName()));
+                        _fbs.println(I.IO_WRITING_FILE(file.getName()));
                         ImageIO.write(bi, "png", file);
                     }
                     _fbs.println(I.CMD_IMAGE_CONVERT_OK());
-                } catch (NotThisTypeException ex) {
+                } catch (BinaryDataNotRecognized ex) {
                     throw new CommandLineException(I.CMD_NOT_TIM(), ex);
                 } catch (IOException ex) {
                     throw new CommandLineException(I.CMD_TIM_IO_ERR(), ex);
                 } finally {
-                    if (is != null) try {
-                        is.close();
-                    } catch (IOException ex) {
-                        Logger.getLogger(Command_Static.class.getName()).log(Level.SEVERE, null, ex);
-                    }
+                    IO.closeSilently(is, Logger.getLogger(Command_Static.class.getName()));
                 }
                 return;
         }

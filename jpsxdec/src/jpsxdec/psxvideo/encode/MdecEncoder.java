@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import javax.annotation.Nonnull;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
@@ -58,7 +59,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     private final int _iMacBlockHeight;
 
     /** Used for full frame replace. */
-    public MdecEncoder(PsxYCbCrImage ycbcr, int iWidth, int iHeight) {
+    public MdecEncoder(@Nonnull PsxYCbCrImage ycbcr, int iWidth, int iHeight) {
 
         if (ycbcr.getLumaWidth() % 16 != 0 || ycbcr.getLumaHeight() % 16 != 0)
             throw new IllegalArgumentException();
@@ -81,7 +82,10 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     }
 
     /** Used for partial replace. */
-    public MdecEncoder(ParsedMdecImage original, PsxYCbCrImage newYcbcr, List<Point> replaceMbs) {
+    public MdecEncoder(@Nonnull ParsedMdecImage original,
+                       @Nonnull PsxYCbCrImage newYcbcr,
+                       @Nonnull List<Point> replaceMbs)
+    {
 
         if (newYcbcr.getLumaWidth() % 16 != 0 || newYcbcr.getLumaHeight() % 16 != 0)
             throw new IllegalArgumentException();
@@ -112,11 +116,11 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     }
 
     /** Iterator for only the macro blocks that will be replaced. */
-    public Iterator<MacroBlockEncoder> iterator() {
+    public @Nonnull Iterator<MacroBlockEncoder> iterator() {
         return _replaceMbs.iterator();
     }
 
-    public MdecInputStream getStream() {
+    public @Nonnull MdecInputStream getStream() {
         return new EncodedMdecInputStream();
     }
 
@@ -149,12 +153,11 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
             __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
         }
 
-        public boolean readMdecCode(MdecCode code) throws MdecException.Read {
-
+        public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream {
             if (!__curMb.hasNext()) {
                 // end of current macroblock, move to next
                 if (__iCurMacBlk >= _aoMacroBlocks.length)
-                    throw new IllegalStateException("Read beyond EncodedMdecInputStream");
+                    throw new MdecException.EndOfStream("Read beyond EncodedMdecInputStream");
                 __iCurMacBlk++;
                 __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
             }

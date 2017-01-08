@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,23 +41,21 @@ package jpsxdec.discitems;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.savers.TimSaverBuilder;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.tim.Tim;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.LocalizedIncompatibleException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 
 /** Represents a TIM file found on a PlayStation disc. TIM images could be found
  * anywhere in a sector. */
-public class DiscItemTim extends DiscItem {
+public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
 
     public static final String TYPE_ID = "Tim";
 
@@ -84,7 +82,7 @@ public class DiscItemTim extends DiscItem {
     }
     
     public DiscItemTim(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
         _iStartOffset = fields.getInt(START_OFFSET_KEY);
@@ -139,7 +137,7 @@ public class DiscItemTim extends DiscItem {
         return _iBitsPerPixel;
     }
 
-    public @Nonnull Tim readTim() throws IOException, NotThisTypeException {
+    public @Nonnull Tim readTim() throws IOException, BinaryDataNotRecognized {
         DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
                 getSourceCd(), getStartSector(), getStartOffset());
         return Tim.read(stream);
@@ -153,54 +151,35 @@ public class DiscItemTim extends DiscItem {
         return _iHeight;
     }
 
-    @Override
-    public int compareTo(@Nonnull DiscItem other) {
-        if (other instanceof DiscItemTim) {
-            DiscItemTim otherTim = (DiscItemTim) other;
-            int i = Misc.intCompare(getStartSector(), otherTim.getStartSector());
-            if (i == 0)
-                return Misc.intCompare(_iStartOffset, otherTim._iStartOffset);
-            else
-                return i;
-        } else {
-            return super.compareTo(other);
-        }
-    }
-
     /** Attempts to replace the TIM image on the disc with the a new TIM created
      * from a BufferedImage. */
-    public void replace(@Nonnull FeedbackStream Feedback, @Nonnull BufferedImage bi)
-            throws IOException, NotThisTypeException, IncompatibleException
+    public void replace(@Nonnull FeedbackStream fbs, @Nonnull BufferedImage bi)
+            throws IOException, BinaryDataNotRecognized, LocalizedIncompatibleException
     {
         if (bi.getWidth() != _iWidth || bi.getHeight() != _iHeight)
-            throw new IncompatibleException(I.TIM_REPLACE_DIMENSIONS_MISMATCH(
+            throw new LocalizedIncompatibleException(I.TIM_REPLACE_DIMENSIONS_MISMATCH(
                     bi.getWidth(), bi.getHeight(), _iWidth, _iHeight));
         if (_iPaletteCount != 1)
-            throw new IncompatibleException(I.TIM_REPLACE_MULTI_CLUT_UNABLE());
+            throw new LocalizedIncompatibleException(I.TIM_REPLACE_MULTI_CLUT_UNABLE());
         
         DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
-                getSourceCd(), getStartSector(), getStartOffset());
-        Tim tim;
-        try {
-            tim = Tim.read(stream);
-        } finally {
-            try {
-                stream.close();
-            } catch (IOException ex) {
-                Logger.getLogger(DiscItemTim.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
+                getSourceCd(), getStartSector(), getStartOffset()); // no need to close
+        Tim tim = Tim.read(stream);
         tim.replaceImageData(bi);
         
         // get the byte size of the current tim
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        tim.write(baos);
+        try {
+            tim.write(baos);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
         byte[] abNewTim = baos.toByteArray();
         
-        writeNewTimData(abNewTim, Feedback);
+        writeNewTimData(abNewTim, fbs);
     }
     
-    private void writeNewTimData(@Nonnull byte[] abNewTim, @Nonnull FeedbackStream Feedback) throws IOException {
+    private void writeNewTimData(@Nonnull byte[] abNewTim, @Nonnull FeedbackStream fbs) throws IOException {
         // write to the first sector
         CdFileSectorReader cd = getSourceCd();
         int iSector = getStartSector();
@@ -208,7 +187,7 @@ public class DiscItemTim extends DiscItem {
         int iBytesToWrite = abNewTim.length;
         if (_iStartOffset + iBytesToWrite > abUserData.length)
             iBytesToWrite = abUserData.length - _iStartOffset;
-        Feedback.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
+        fbs.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
         System.arraycopy(abNewTim, 0, abUserData, _iStartOffset, iBytesToWrite);
         cd.writeSector(iSector, abUserData);
         
@@ -223,7 +202,7 @@ public class DiscItemTim extends DiscItem {
             iBytesToWrite = abNewTim.length - iBytesWritten;
             if (iBytesToWrite > abUserData.length)
                 iBytesToWrite = abUserData.length;
-            Feedback.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
+            fbs.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
             System.arraycopy(abNewTim, iBytesWritten, abUserData, 0, iBytesToWrite);
             cd.writeSector(iSector, abUserData);
             iBytesWritten += iBytesToWrite;

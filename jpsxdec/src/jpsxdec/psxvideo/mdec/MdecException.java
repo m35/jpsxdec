@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,136 +37,98 @@
 
 package jpsxdec.psxvideo.mdec;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.LocalizedException;
-import jpsxdec.i18n.ILocalizedMessage;
 
-/** Superclass of the different MDEC conversion and bitstream exceptions. */
-public abstract class MdecException extends LocalizedException {
+/** MDEC conversion and bitstream exceptions. */
+public abstract class MdecException  {
 
-    public MdecException(@Nonnull ILocalizedMessage msg) {
-        super(msg);
+    /** Error related to decoding an MDEC stream. */
+    public static class ReadCorruption extends Exception {
+
+        public ReadCorruption(@Nonnull String message) {
+            super(message);
+        }
+
+        public ReadCorruption(@Nonnull Throwable cause) {
+            super(cause);
+        }
+
+        public ReadCorruption(@Nonnull String message, @CheckForNull Throwable cause) {
+            super(message, cause);
+        }
+    }
+    public static String RLC_OOB_IN_MB_BLOCK(int outOfBoundsValue, int macroBlockIndex, int blockIndex) {
+        return String.format("[MDEC] Run length out of bounds [%d] in macroblock %d block %d", outOfBoundsValue, macroBlockIndex, blockIndex);
     }
 
-    public MdecException(@Nonnull Throwable cause) {
-        super(cause);
+    public static String RLC_OOB_IN_BLOCK_NAME(int outOfBoundsIndex, int macroBlockIndex, int macroBlockX, int macroBlockY, int blockIndex, @Nonnull String blockName) {
+        return String.format("[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d (%s)", outOfBoundsIndex, macroBlockIndex, macroBlockX, macroBlockY, blockIndex, blockName);
     }
 
-    public MdecException(@Nonnull ILocalizedMessage msg, @Nonnull Throwable cause) {
-        super(msg, cause);
+
+    public static String STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC(int macroBlockIndex, int blockIndex, @Nonnull String variableLengthCodeBits) {
+        return String.format("Error uncompressing macro block %d.%d: Unknown chroma DC variable length code %s", macroBlockIndex, blockIndex, variableLengthCodeBits);
+    }
+
+    public static String STRV3_BLOCK_UNCOMPRESS_ERR_CHROMA_DC_OOB(int macroBlockIndex, int blockIndex, int outOfBoundsValue) {
+        return String.format("Error uncompressing macro block %d.%d: Chroma DC out of bounds: %d", macroBlockIndex, blockIndex, outOfBoundsValue);
+    }
+
+    public static String STRV3_BLOCK_UNCOMPRESS_ERR_LUMA_DC_OOB(int macroBlockIndex, int blockIndex, int outOfBoundsValue) {
+        return String.format("Error uncompressing macro block %d.%d: Luma DC out of bounds: %d", macroBlockIndex, blockIndex, outOfBoundsValue);
+    }
+
+    public static String STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_LUMA_DC_VLC(int macroBlockIndex, int blockIndex, @Nonnull String variableLengthCodeBits) {
+        return String.format("Error uncompressing macro block %d.%d: Unknown luma DC variable length code %s", macroBlockIndex, blockIndex, variableLengthCodeBits);
     }
 
     // =========================================================
-    
 
-    /** Error related to reading from an MDEC stream. */
-    public static class Read extends MdecException {
+    /** Exception thrown at the end of an MDEC stream. */
+    public static class EndOfStream extends Exception {
 
-        public Read(@Nonnull ILocalizedMessage message) {
+        public EndOfStream() {
+        }
+
+        public EndOfStream(String message) {
             super(message);
         }
 
-        public Read(@Nonnull Throwable cause) {
+        public EndOfStream(Throwable cause) {
             super(cause);
         }
 
-        public Read(@Nonnull ILocalizedMessage msg, @Nonnull Throwable cause) {
-            super(msg, cause);
-        }
-
-    }
-
-    /** Error related to decoding an MDEC stream. */
-    public static class BlockVectorIndexOutOfBounds extends Read {
-
-        public BlockVectorIndexOutOfBounds(@Nonnull ILocalizedMessage message) {
-            super(message);
-        }
-
-        public BlockVectorIndexOutOfBounds(@Nonnull Throwable cause) {
-            super(cause);
-        }
-
-        public BlockVectorIndexOutOfBounds(@Nonnull ILocalizedMessage message, @Nonnull Throwable cause) {
+        public EndOfStream(String message, Throwable cause) {
             super(message, cause);
         }
 
     }
-
-    /** Error related to uncompressing an MDEC bitstream. */
-    public static class Uncompress extends Read {
-
-        public Uncompress(@Nonnull ILocalizedMessage message) {
-            super(message);
-        }
-
-        public Uncompress(@Nonnull Throwable cause) {
-            super(cause);
-        }
-
+    public static String UNEXPECTED_STREAM_END_IN_BLOCK(int iBlockNumber) {
+        return String.format("Unexpected end of stream in block %s", iBlockNumber);
     }
 
-    /** Exception thrown at the end of an MDEC stream. */
-    public static class EndOfStream extends Read {
-
-        public EndOfStream(@Nonnull ILocalizedMessage message) {
-            super(message);
-        }
-
-        public EndOfStream(@Nonnull Throwable cause) {
-            super(cause);
-        }
-
-        public EndOfStream(ILocalizedMessage msg, Throwable cause) {
-            super(msg, cause);
-        }
-
+    public static String RLC_OOB_IN_MB_XY_BLOCK(int outOfBoundsIndex, int macroBlockIndex, int macroBlockX, int macroBlockY, int blockIndex) {
+        return String.format("[MDEC] Run length out of bounds [%d] in macroblock %d (%d, %d) block %d", outOfBoundsIndex, macroBlockIndex, macroBlockX, macroBlockY, blockIndex);
     }
 
-    // ======================================================================
-
-    /** Error related to writing to an MDEC stream. */
-    public static class Write extends MdecException {
-
-        public Write(@Nonnull ILocalizedMessage message) {
-            super(message);
-        }
-
-        public Write(@Nonnull Exception cause) {
-            super(cause);
-        }
-
+    public static String END_OF_BITSTREAM(int bitstreamOffset) {
+        return String.format("Unexpected end of bitstream at %d", bitstreamOffset);
     }
 
-    /** Error related to encoding to an MDEC stream. */
-    public static class Encode extends Write {
+    public static String inBlockOfBlocks(int iCurrentBlock, int iBlockCount) {
+        return String.format("Unexpected end of block %d out of %d blocks", iCurrentBlock, iBlockCount);
+    }
 
-        public Encode(@Nonnull ILocalizedMessage message) {
+    // =========================================================
+    
+    /** Exception thrown during encoding when the source mdec stream contains
+     * too much energy to compress with that particular encoder. */
+    public static class TooMuchEnergy extends Exception {
+
+        public TooMuchEnergy(String message) {
             super(message);
         }
 
     }
-
-    /** Error related to compressing an MDEC bitstream. */
-    public static class Compress extends Write {
-
-        public Compress(@Nonnull ILocalizedMessage message) {
-            super(message);
-        }
-
-    }
-
-    /** A specific type of bitstream compression failure
-     * which indicates to the caller that the stream could be
-     * compressed if the quantization scale was higher.
-     * This is basically only used for Lain escape code compression,
-     * but is a general concept among video bitstream encoders (e.g. MPEG1). */
-    public static class TooMuchEnergyToCompress extends Compress {
-
-        public TooMuchEnergyToCompress(@Nonnull ILocalizedMessage message) {
-            super(message);
-        }
-
-    }
-
 }

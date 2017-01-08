@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2016  Michael Sabin
+ * Copyright (C) 2012-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
@@ -52,16 +51,20 @@ import jpsxdec.discitems.ISectorFrameDemuxer;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorCrusader;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 
 /** Identify Crusader: No Remorse audio/video streams. */
 public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Identified {
 
+    private static final Logger LOG = Logger.getLogger(DiscIndexerCrusader.class.getName());
+
     /** Tracks a single video stream. Object dies with stream ends. */
     private static class VidBuilder implements ISectorFrameDemuxer.ICompletedFrameListener {
         @Nonnull
-        private final Logger _errLog;
+        private final ILocalizedLogger _errLog;
 
         /** Don't need {@link FullFrameTracker} since the {@link #_demuxer} will
          * track most of it for us, and its start/end sectors will include
@@ -71,7 +74,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
         private final CrusaderDemuxer _demuxer = new CrusaderDemuxer();
 
 
-        public VidBuilder(@Nonnull Logger errLog,
+        public VidBuilder(@Nonnull ILocalizedLogger errLog,
                           @Nonnull SectorCrusader vidSect)
         {
             _errLog = errLog;
@@ -80,7 +83,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
             try {
                 if (!_demuxer.feedSector(vidSect, _errLog))
                     throw new RuntimeException("Why wasn't the sector accepted?");
-            } catch (IOException ex) {
+            } catch (LoggedFailure ex) {
                 // we know where the completed frames are going
                 // so this should never happen
                 throw new RuntimeException("Should never happen", ex);
@@ -92,7 +95,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
             try {
                 if (!_demuxer.feedSector(vidSect, _errLog))
                     return false;
-            } catch (IOException ex) {
+            } catch (LoggedFailure ex) {
                 // we know where the completed frames are going
                 // so this should never happen
                 throw new RuntimeException("Should never happen", ex);
@@ -112,8 +115,10 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
         public @CheckForNull DiscItemCrusader endOfMovie(@Nonnull CdFileSectorReader cd) {
             try {
                 _demuxer.flush(_errLog);
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
+            } catch (LoggedFailure ex) {
+                // we know where the completed frames are going
+                // so this should never happen
+                throw new RuntimeException("Should never happen", ex);
             }
 
             if (_frameTracker == null)
@@ -131,11 +136,11 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
     
 
     @Nonnull
-    private final Logger _errLog;
+    private final ILocalizedLogger _errLog;
     @CheckForNull
     private VidBuilder _currentStream;
 
-    public DiscIndexerCrusader(@Nonnull Logger errLog) {
+    public DiscIndexerCrusader(@Nonnull ILocalizedLogger errLog) {
         _errLog = errLog;
     }
 
@@ -177,12 +182,11 @@ public class DiscIndexerCrusader extends DiscIndexer implements DiscIndexer.Iden
     }
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) {
-        try {
-            if (DiscItemCrusader.TYPE_ID.equals(fields.getType())) {
-                return new DiscItemCrusader(getCd(), fields);
-            }
-        } catch (NotThisTypeException ex) {}
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+            throws DeserializationFail
+    {
+        if (DiscItemCrusader.TYPE_ID.equals(fields.getType()))
+            return new DiscItemCrusader(getCd(), fields);
         return null;
     }
 

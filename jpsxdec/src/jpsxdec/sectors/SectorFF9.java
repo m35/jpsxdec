@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,15 +38,16 @@
 package jpsxdec.sectors;
 
 import javax.annotation.Nonnull;
-import jpsxdec.audio.SquareAdpcmDecoder;
+import jpsxdec.audio.SpuAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
 import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
-import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.LocalizedIncompatibleException;
 
 
 /** Base class for Final Fantasy 9 movie (audio/video) sectors. */
@@ -220,13 +221,13 @@ public abstract class SectorFF9 extends IdentifiedSector {
 
         public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize,
                                                    int iMdecCodeCount, @Nonnull byte[] abSectUserData)
-                throws IncompatibleException
+                throws LocalizedIncompatibleException
         {
             final int iQscale;
             try {
                 iQscale = BitStreamUncompressor_STRv2.getQscale(abDemuxData);
-            } catch (MdecException.Uncompress ex) {
-                throw new IncompatibleException(I.REPLACE_FRAME_TYPE_NOT_V2(), ex);
+            } catch (BinaryDataNotRecognized ex) {
+                throw new LocalizedIncompatibleException(I.REPLACE_FRAME_TYPE_NOT_V2(), ex);
             }
 
             int iDemuxSizeForHeader = (iUsedSize + 3) & ~3;
@@ -326,7 +327,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         }
 
         public int getAudioChannel() {
-            return (int)getAudioChunkNumber();
+            return getAudioChunkNumber();
         }
 
         public int getAudioChunksInFrame() {
@@ -344,7 +345,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         public long getLeftSampleCount() {
             // if it's the 0th chunk, then it holds the left audio
             if (getAudioChunkNumber() == 0) 
-                return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
+                return SpuAdpcmDecoder.calculatePcmSampleFramesGenerated(getAudioDataSize());
             else
                 return 0;
         }
@@ -352,7 +353,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         public long getRightSampleCount() {
             // if it's the 1st chunk, then it holds the right audio
             if (getAudioChunkNumber() == 1) 
-                return SquareAdpcmDecoder.calculateSamplesGenerated(getAudioDataSize());
+                return SpuAdpcmDecoder.calculatePcmSampleFramesGenerated(getAudioDataSize());
             else
                 return 0;
         }

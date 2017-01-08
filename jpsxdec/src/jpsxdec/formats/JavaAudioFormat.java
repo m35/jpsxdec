@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioSystem;
+import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.UnlocalizedMessage;
 
 /** Keeps track of Java framework's audio formats. */
 public class JavaAudioFormat {
@@ -49,14 +51,14 @@ public class JavaAudioFormat {
     @Nonnull
     private final AudioFileFormat.Type _audioType;
     @Nonnull
-    private final String _sId;
-    @Nonnull
-    private final String _sDescription;
-    @Nonnull
     private final String _sExtension;
+    @Nonnull
+    private final UnlocalizedMessage _localizedCmdId;
+    @Nonnull
+    private final UnlocalizedMessage _localizedGuiDotExtension;
     private final boolean _blnIsAvailable;
 
-    public final static JavaAudioFormat WAVE = new JavaAudioFormat(AudioFileFormat.Type.WAVE);
+    private final static JavaAudioFormat WAVE = new JavaAudioFormat(AudioFileFormat.Type.WAVE);
     private final static JavaAudioFormat AIFF = new JavaAudioFormat(AudioFileFormat.Type.AIFF);
     private final static JavaAudioFormat AU   = new JavaAudioFormat(AudioFileFormat.Type.AU);
     private final static JavaAudioFormat AIFC = new JavaAudioFormat(AudioFileFormat.Type.AIFC);
@@ -64,9 +66,9 @@ public class JavaAudioFormat {
 
     private JavaAudioFormat(@Nonnull AudioFileFormat.Type audioType) {
         _audioType = audioType;
-        _sId = audioType.toString();
-        _sDescription = audioType.toString().toLowerCase();
         _sExtension = audioType.getExtension();
+        _localizedCmdId = new UnlocalizedMessage(_sExtension);
+        _localizedGuiDotExtension = new UnlocalizedMessage("." + _sExtension);
         _blnIsAvailable = AudioSystem.isFileTypeSupported(audioType);
     }
 
@@ -82,9 +84,13 @@ public class JavaAudioFormat {
         return _sExtension;
     }
 
+    public @Nonnull ILocalizedMessage getCmdId() {
+        return _localizedCmdId;
+    }
+
     @Override
     public String toString() {
-        return "." + _sExtension;
+        return _localizedGuiDotExtension.toString();
     }
 
     //-----------------------------------------------------------------
@@ -121,7 +127,7 @@ public class JavaAudioFormat {
 
     public static @CheckForNull JavaAudioFormat fromCmdLine(@Nonnull String s) {
         for (JavaAudioFormat fmt : getAudioFormats()) {
-            if (fmt.getExtension().equalsIgnoreCase(s))
+            if (fmt.getCmdId().equalsIgnoreCase(s))
                 return fmt;
         }
         return null;

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,6 +51,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.Version;
 import jpsxdec.i18n.I;
+import jpsxdec.util.IO;
 
 /** Maintains GUI settings persistent between program runs. */
 public class GuiSettings {
@@ -93,13 +94,7 @@ public class GuiSettings {
         } catch (Throwable ex) {
             LOG.log(Level.WARNING, "Error loading ini file", ex);
         } finally {
-            if (propFile != null) {
-                try {
-                    propFile.close();
-                } catch (IOException ex) {
-                    LOG.log(Level.SEVERE, null, ex);
-                }
-            }
+            IO.closeSilently(propFile, LOG);
         }
         _sSavingDir = prop.getProperty(SAVING_DIR_KEY, new File("").getAbsolutePath());
         _sImageDir = prop.getProperty(IMAGE_DIR_KEY, new File("").getAbsolutePath());
@@ -147,10 +142,15 @@ public class GuiSettings {
             prop.setProperty(PREVIOUS_INDEX_KEY + i, _previousIndexes.get(i));
         }
         FileOutputStream fos = new FileOutputStream(INI_FILE_NAME);
+        boolean blnException = true;
         try {
             prop.store(fos, I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getEnglishMessage());
+            blnException = false;
         } finally {
-            fos.close();
+            if (blnException)
+                IO.closeSilently(fos, LOG);
+            else
+                fos.close();
         }
     }
 

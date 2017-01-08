@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.util.ILocalizedLogger;
 
 /** Formats a {@link FrameNumber} for consistent display.
  * Adds padding zeros as needed to consistently keep the same character length.
@@ -51,7 +52,7 @@ import jpsxdec.i18n.ILocalizedMessage;
 public abstract class FrameNumberFormatter {
     private static final Logger LOG = Logger.getLogger(FrameNumberFormatter.class.getName());
 
-    abstract public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log);
+    abstract public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull ILocalizedLogger log);
     abstract public @Nonnull String getNumber(@Nonnull FrameNumber frameNumber);
     abstract public @Nonnull ILocalizedMessage getDescription(@Nonnull FrameNumber frameNumber);
 
@@ -69,13 +70,13 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log) {
+        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull ILocalizedLogger log) {
             return String.format(_sFormat, frameNumber.getIndex());
         }
 
         @Override
         public @Nonnull ILocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
-            return I.FRM_NUM_FMTR_FRAME(getNumber(frameNumber));
+            return I.FRAME_NUM_FMTR_FRAME(getNumber(frameNumber));
         }
     }
 
@@ -101,25 +102,25 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log) {
-            if (frameNumber.getSectorDuplicate()> 0) {
-                if (_iSectorDuplicateDigitCount > 0) {
-                    return String.format(_sFormat, frameNumber.getSector(), frameNumber.getSectorDuplicate());
-                } else {
-                    if (log == null)
-                        log = LOG;
-                    I.NOT_EXPECTING_DUP_SECT_NUM(frameNumber).log(log, Level.WARNING);
+        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull ILocalizedLogger log) {
+            if (_iSectorDuplicateDigitCount > 0) {
+                return String.format(_sFormat, frameNumber.getSector(), frameNumber.getSectorDuplicate());
+            } else {
+                if (frameNumber.getSectorDuplicate() > 0) {
+                        if (log == null)
+                        I.NOT_EXPECTING_DUP_SECT_NUM(frameNumber).logEnglish(LOG, Level.WARNING);
+                    else
+                        log.log(Level.WARNING, I.NOT_EXPECTING_DUP_SECT_NUM(frameNumber));
                     return String.format("%0" + _iSectorDigitCount + "d.%d",
                             frameNumber.getSector(), frameNumber.getSectorDuplicate());
                 }
-            } else {
                 return String.format(_sFormat, frameNumber.getSector());
             }
         }
 
         @Override
         public @Nonnull ILocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
-            return I.FRM_NUM_FMTR_SECTOR(getNumber(frameNumber));
+            return I.FRAME_NUM_FMTR_SECTOR(getNumber(frameNumber));
         }
     }
 
@@ -145,25 +146,25 @@ public abstract class FrameNumberFormatter {
         }
 
         @Override
-        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull Logger log) {
-            if (frameNumber.getHeaderFrameDuplicate() > 0) {
-                if (_iHeaderDuplicateDigitCount > 0) {
-                    return String.format(_sFormat, frameNumber.getHeaderFrameNumber(), frameNumber.getHeaderFrameDuplicate());
-                } else {
+        public @Nonnull String formatNumber(@Nonnull FrameNumber frameNumber, @CheckForNull ILocalizedLogger log) {
+            if (_iHeaderDuplicateDigitCount > 0) {
+                return String.format(_sFormat, frameNumber.getHeaderFrameNumber(), frameNumber.getHeaderFrameDuplicate());
+            } else {
+                if (frameNumber.getHeaderFrameDuplicate() > 0) {
                     if (log == null)
-                        log = LOG;
-                    I.NOT_EXPECTING_DUP_FRM_NUM(frameNumber).log(log, Level.WARNING);
+                        I.NOT_EXPECTING_DUP_FRM_NUM(frameNumber).logEnglish(LOG, Level.WARNING);
+                    else
+                        log.log(Level.WARNING, I.NOT_EXPECTING_DUP_FRM_NUM(frameNumber));
                     return String.format("%0" + _iHeaderFrameDigitCount + "d.%d",
                             frameNumber.getHeaderFrameNumber(), frameNumber.getHeaderFrameDuplicate());
                 }
-            } else {
                 return String.format(_sFormat, frameNumber.getHeaderFrameNumber());
             }
         }
 
         @Override
         public @Nonnull ILocalizedMessage getDescription(@Nonnull FrameNumber frameNumber) {
-            return I.FRM_NUM_FMTR_FRAME(getNumber(frameNumber));
+            return I.FRAME_NUM_FMTR_FRAME(getNumber(frameNumber));
         }
     }
 

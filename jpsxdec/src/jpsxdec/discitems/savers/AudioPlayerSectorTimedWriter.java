@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,7 @@ import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.discitems.ISectorAudioDecoder;
 import jpsxdec.discitems.ISectorAudioDecoder.ISectorTimedAudioWriter;
+import jpsxdec.util.Fraction;
 
 /** Wraps {@link MediaPlayer} with a
  * {@link ISectorTimedAudioWriter} interface
@@ -71,8 +72,7 @@ public class AudioPlayerSectorTimedWriter implements ISectorAudioDecoder.ISector
 
     public void write(@Nonnull AudioFormat inFormat,
                       @Nonnull byte[] abData, int iOffset, int iLength,
-                      int iPresentationSector)
-            throws IOException
+                      @Nonnull Fraction presentationSector)
     {
         // already confirmed that _player has an audio format
         if (!inFormat.matches(_player.getAudioFormat()))
@@ -80,7 +80,7 @@ public class AudioPlayerSectorTimedWriter implements ISectorAudioDecoder.ISector
         if (iLength % _iFrameSize != 0)
             throw new IllegalArgumentException("Data length is not a multiple of frame size.");
 
-        long lngSampleDiff = _audioSync.calculateAudioToCatchUp(iPresentationSector, _lngSamplesWritten);
+        long lngSampleDiff = _audioSync.calculateAudioToCatchUp(presentationSector, _lngSamplesWritten);
         if (lngSampleDiff > 0) {
             System.out.println("Audio out of sync " + lngSampleDiff + " samples, adding silence.");
             _player.writeSilence(lngSampleDiff);

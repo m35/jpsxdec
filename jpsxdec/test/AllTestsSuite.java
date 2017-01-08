@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,18 +44,21 @@ import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-    jpsxdec.audio.XaAdpcmDecoderTest.class,
-    jpsxdec.discitems.FrameNumberTest.class,
+    jpsxdec.audio.SpuDecodeCorruption.class,
+    jpsxdec.audio.XaDecodeCorruption.class,
     jpsxdec.discitems.FrameNumberFormatTest.class,
+    jpsxdec.discitems.FrameNumberTest.class,
     jpsxdec.discitems.SerializedDiscItemTest.class,
     jpsxdec.discitems.savers.FrameLookupTest.class,
     jpsxdec.indexing.DiscIndexerXaAudioTest.class,
     jpsxdec.indexing.psxvideofps.Fps.class,
     jpsxdec.psxvideo.bitstreams.BitReader.class,
-    jpsxdec.psxvideo.bitstreams.STRv2.class,
     jpsxdec.psxvideo.bitstreams.Iki.class,
+    jpsxdec.psxvideo.bitstreams.STRv2.class,
     jpsxdec.psxvideo.bitstreams.STRv3.class,
-    jpsxdec.psxvideo.mdec.tojpeg.Mdec2JpegTest.class
+    jpsxdec.psxvideo.mdec.tojpeg.Mdec2JpegTest.class,
+    jpsxdec.util.ArgParserTest.class,
+    jpsxdec.util.MiscTest.class
 })
 public class AllTestsSuite {
 

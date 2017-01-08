@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,34 +38,32 @@
 package jpsxdec.discitems.savers;
 
 import com.jhlabs.awt.ParagraphLayout;
-import java.awt.BorderLayout;
 import java.awt.event.ItemEvent;
 import java.io.File;
 import javax.annotation.Nonnull;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
-import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JTextArea;
 import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
 import jpsxdec.util.Fraction;
 
-/** Gui for {@link VideoSaverBuilder} options. */
-public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends DiscItemSaverBuilderGui<T> {
+/** Abstract {@link ParagraphPanel} shared among video
+ * {@link jpsxdec.discitems.DiscItemSaverBuilder}s. */
+public abstract class VideoSaverPanel<T extends VideoSaverBuilder> extends ParagraphPanel {
 
-    private final JPanel _topPanel = new JPanel(new ParagraphLayout());
+    /**{@link CombinedBuilderListener} accessible to child classes. */
+    @Nonnull
+    protected final CombinedBuilderListener<T> _bl;
 
-    public VideoSaverBuilderGui(@Nonnull T writerBuilder) {
-        super(writerBuilder, new BorderLayout());
-        setParagraphLayoutPanel(_topPanel);
-
-        addListeners(
+    protected VideoSaverPanel(@Nonnull CombinedBuilderListener<T> bl) {
+        _bl = bl;
+        _bl.addListeners(
             new FileName(),
             new VideoFormat(),
             new Crop(),
@@ -74,77 +72,74 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
             new ChromaUpsampling()
             //new Volume(),
         );
-
-        add(_topPanel, BorderLayout.NORTH);
-        
     }
 
     private class VideoFormat extends AbstractCombo {
-        public VideoFormat() { super(I.GUI_VIDEO_FORMAT_LABEL()); }
+        public VideoFormat() { super(I.GUI_VIDEO_FORMAT_LABEL(), true); }
         public int getSize() {
-            return _writerBuilder.getVideoFormat_listSize();
+            return _bl.getBuilder().getVideoFormat_listSize();
         }
         public Object getElementAt(int index) {
-            return _writerBuilder.getVideoFormat_listItem(index);
+            return _bl.getBuilder().getVideoFormat_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
-            _writerBuilder.setVideoFormat((jpsxdec.discitems.savers.VideoFormat) anItem);
+            _bl.getBuilder().setVideoFormat((jpsxdec.discitems.savers.VideoFormat) anItem);
         }
         public Object getSelectedItem() {
-            return _writerBuilder.getVideoFormat();
+            return _bl.getBuilder().getVideoFormat();
         }
         protected boolean getEnabled() { return true; }
     }
 
     private class DecodeQuality extends AbstractCombo {
-        public DecodeQuality() { super(I.GUI_DECODE_QUALITY_LABEL()); }
+        public DecodeQuality() { super(I.GUI_DECODE_QUALITY_LABEL(), true); }
         public int getSize() {
-            return _writerBuilder.getDecodeQuality_listSize();
+            return _bl.getBuilder().getDecodeQuality_listSize();
         }
         public Object getElementAt(int index) {
-            return _writerBuilder.getDecodeQuality_listItem(index);
+            return _bl.getBuilder().getDecodeQuality_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
-            _writerBuilder.setDecodeQuality((MdecDecodeQuality) anItem);
+            _bl.getBuilder().setDecodeQuality((MdecDecodeQuality) anItem);
         }
         public Object getSelectedItem() {
-            return _writerBuilder.getDecodeQuality();
+            return _bl.getBuilder().getDecodeQuality();
         }
         protected boolean getEnabled() {
-            return _writerBuilder.getDecodeQuality_enabled();
+            return _bl.getBuilder().getDecodeQuality_enabled();
         }
     }
 
 
     private class ChromaUpsampling extends AbstractCombo {
-        public ChromaUpsampling() { super(I.GUI_CHROMA_UPSAMPLING_LABEL()); }
+        public ChromaUpsampling() { super(I.GUI_CHROMA_UPSAMPLING_LABEL(), true); }
         public int getSize() {
-            return _writerBuilder.getChromaInterpolation_listSize();
+            return _bl.getBuilder().getChromaInterpolation_listSize();
         }
         public Object getElementAt(int index) {
-            return _writerBuilder.getChromaInterpolation_listItem(index);
+            return _bl.getBuilder().getChromaInterpolation_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
-            _writerBuilder.setChromaInterpolation((Upsampler) anItem);
+            _bl.getBuilder().setChromaInterpolation((Upsampler) anItem);
         }
         public Object getSelectedItem() {
-            return _writerBuilder.getChromaInterpolation();
+            return _bl.getBuilder().getChromaInterpolation();
         }
         protected boolean getEnabled() {
-            return _writerBuilder.getChromaInterpolation_enabled();
+            return _bl.getBuilder().getChromaInterpolation_enabled();
         }
     }
 
     private class Volume extends AbstractSlider {
         public Volume() { super(I.GUI_AUDIO_VOLUME_LABEL()); }
         public int getValue() {
-            return (int) (_writerBuilder.getAudioVolume() * 100);
+            return (int) (_bl.getBuilder().getAudioVolume() * 100);
         }
         public void setValue(int n) {
-            _writerBuilder.setAudioVolume(n / 100.f);
+            _bl.getBuilder().setAudioVolume(n / 100.f);
         }
         protected boolean isEnabled() {
-            return _writerBuilder.getAudioVolume_enabled();
+            return _bl.getBuilder().getAudioVolume_enabled();
         }
     }
 
@@ -156,10 +151,10 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
         boolean __cur = isSelected();
         public Crop() {
             __chk.setModel(this);
-            __dims = new JLabel(I.GUI_DIMENSIONS_WIDTH_X_HEIGHT_LABEL(_writerBuilder.getWidth(), _writerBuilder.getHeight()).getLocalizedMessage());
-            _topPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);
-            _topPanel.add(__dims);
-            _topPanel.add(__chk);
+            __dims = new JLabel(I.GUI_DIMENSIONS_WIDTH_X_HEIGHT_LABEL(_bl.getBuilder().getWidth(), _bl.getBuilder().getHeight()).getLocalizedMessage());
+            add(__label, ParagraphLayout.NEW_PARAGRAPH);
+            add(__dims);
+            add(__chk);
         }
         public void stateChanged(ChangeEvent e) {
             if (isSelected() != __cur) {
@@ -168,16 +163,16 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
                 fireItemStateChanged(new ItemEvent(this, ItemEvent.ITEM_STATE_CHANGED, this,
                         isSelected() ? ItemEvent.SELECTED : ItemEvent.DESELECTED));
             }
-            __dims.setText(I.GUI_DIMENSIONS_WIDTH_X_HEIGHT_LABEL(_writerBuilder.getWidth(), _writerBuilder.getHeight()).getLocalizedMessage());
+            __dims.setText(I.GUI_DIMENSIONS_WIDTH_X_HEIGHT_LABEL(_bl.getBuilder().getWidth(), _bl.getBuilder().getHeight()).getLocalizedMessage());
         }
         public boolean isSelected() {
-            return _writerBuilder.getCrop();
+            return _bl.getBuilder().getCrop();
         }
         public void setSelected(boolean b) {
-            _writerBuilder.setCrop(b);
+            _bl.getBuilder().setCrop(b);
         }
         public boolean isEnabled() {
-            return _writerBuilder.getCrop_enabled();
+            return _bl.getBuilder().getCrop_enabled();
         }
     }
 
@@ -188,7 +183,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
         public AbstractDiscSpeed(@Nonnull ILocalizedMessage label) {
             __btn.setText(label.getLocalizedMessage());
             __btn.setModel(this);
-            _topPanel.add(__btn);
+            add(__btn);
         }
         public void stateChanged(ChangeEvent e) {
             if (isSelected() != __prev) {
@@ -201,7 +196,7 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
                 __btn.setEnabled(isEnabled());
         }
         public boolean isEnabled() {
-            return _writerBuilder.getSingleSpeed_enabled();
+            return _bl.getBuilder().getSingleSpeed_enabled();
         }
         abstract public boolean isSelected();
         abstract public void setSelected(boolean b);
@@ -209,19 +204,19 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
     private class DiscSpeed1x extends AbstractDiscSpeed {
         public DiscSpeed1x() { super(I.DISC_SPEED_1X()); }
         public boolean isSelected() {
-            return _writerBuilder.getSingleSpeed();
+            return _bl.getBuilder().getSingleSpeed();
         }
         public void setSelected(boolean b) {
-            if (b) _writerBuilder.setSingleSpeed(b);
+            if (b) _bl.getBuilder().setSingleSpeed(b);
         }
     }
     private class DiscSpeed2x extends AbstractDiscSpeed {
         public DiscSpeed2x() { super(I.DISC_SPEED_2X()); }
         public boolean isSelected() {
-            return !_writerBuilder.getSingleSpeed();
+            return !_bl.getBuilder().getSingleSpeed();
         }
         public void setSelected(boolean b) {
-            if (b) _writerBuilder.setSingleSpeed(!b);
+            if (b) _bl.getBuilder().setSingleSpeed(!b);
         }
     }
 
@@ -231,23 +226,23 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
         boolean __cur;
         @Nonnull final AbstractDiscSpeed __1x, __2x;
         public DiscSpeed() {
-            __label.setEnabled(_writerBuilder.getSingleSpeed_enabled());
-            __cur = _writerBuilder.getSingleSpeed();
-            _topPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);
+            __label.setEnabled(_bl.getBuilder().getSingleSpeed_enabled());
+            __cur = _bl.getBuilder().getSingleSpeed();
+            add(__label, ParagraphLayout.NEW_PARAGRAPH);
             __1x = new DiscSpeed1x();
             __2x = new DiscSpeed2x();
             updateFps();
-            _topPanel.add(__fps);
+            add(__fps);
         }
         public void stateChanged(ChangeEvent e) {
             updateFps();
-            if (_writerBuilder.getSingleSpeed_enabled() != __label.isEnabled())
-                __label.setEnabled(_writerBuilder.getSingleSpeed_enabled());
+            if (_bl.getBuilder().getSingleSpeed_enabled() != __label.isEnabled())
+                __label.setEnabled(_bl.getBuilder().getSingleSpeed_enabled());
             __1x.stateChanged(e);
             __2x.stateChanged(e);
         }
         private void updateFps() {
-            Fraction fps = _writerBuilder.getFps();
+            Fraction fps = _bl.getBuilder().getFps();
             if ((fps.getNumerator() % fps.getDenominator()) == 0)
                 __fps.setText(I.GUI_FPS_LABLE_WHOLE_NUMBER(fps.getNumerator() / fps.getDenominator()).getLocalizedMessage());
             else
@@ -261,14 +256,14 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
         final JTextArea __files = makeMultiLineJLabel(2);
         public FileName() {
             updateEndings();
-            _topPanel.add(__label, ParagraphLayout.NEW_PARAGRAPH);
-            _topPanel.add(__files, ParagraphLayout.STRETCH_H);
+            add(__label, ParagraphLayout.NEW_PARAGRAPH);
+            add(__files, ParagraphLayout.STRETCH_H);
         }
         public void stateChanged(ChangeEvent e) {
             updateEndings();
         }
         private void updateEndings() {
-            File[] aoFiles = _writerBuilder.getOutputFileRange();
+            File[] aoFiles = _bl.getBuilder().getOutputFileRange();
             if (aoFiles.length == 1) {
                 String sPath = aoFiles[0].toString();
                 if (!sPath.equals(__files.getText()))
@@ -280,6 +275,6 @@ public abstract class VideoSaverBuilderGui<T extends VideoSaverBuilder> extends 
             }
         }
     }
-
-
 }
+
+

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,17 +37,19 @@
 
 package jpsxdec.i18n;
 
-import java.io.IOException;
+import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.ListResourceBundle;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
+import jpsxdec.util.IO;
 
 
 public class MiscResources extends ListResourceBundle {
@@ -72,7 +74,7 @@ public class MiscResources extends ListResourceBundle {
     //==========================================================================
 
     static final String MAIN_CMDLINE_HELP = "main_cmdline_help";
-    public static @Nonnull Reader main_cmdline_help() throws MissingResourceException {
+    public static @Nonnull Iterator<ILocalizedMessage> main_cmdline_help() throws MissingResourceException {
         String sFile = getResource(MAIN_CMDLINE_HELP);
         InputStream is = MiscResources.class.getResourceAsStream(sFile);
         if (is == null)
@@ -80,19 +82,23 @@ public class MiscResources extends ListResourceBundle {
                                                MiscResources.class.getName(),
                                                MAIN_CMDLINE_HELP);
         try {
-            return new InputStreamReader(is, "UTF-8");
-        } catch (UnsupportedEncodingException cause) {
-            try {
-                is.close();
-            } catch (IOException ex) {
-                LOG.log(Level.SEVERE, null, ex);
+            InputStreamReader isr = new InputStreamReader(is, "UTF-8");
+            BufferedReader br = new BufferedReader(isr);
+            ArrayList<ILocalizedMessage> lines = new ArrayList<ILocalizedMessage>();
+            String sLine;
+            while ((sLine = br.readLine()) != null) {
+                lines.add(new UnlocalizedMessage(sLine));
             }
+            return lines.iterator();
+        } catch (Throwable cause) {
             MissingResourceException ex = new MissingResourceException(
                     "UTF-8 unsupported",
                     MiscResources.class.getName(),
                     MAIN_CMDLINE_HELP);
             ex.initCause(cause);
             throw ex;
+        } finally {
+            IO.closeSilently(is, LOG);
         }
     }
 

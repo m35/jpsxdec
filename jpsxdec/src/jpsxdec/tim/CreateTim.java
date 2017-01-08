@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,7 +48,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** Functions to generate a {@link Tim} image. */
 class CreateTim {
@@ -164,33 +164,33 @@ class CreateTim {
 
     /** Parse and deserialize a TIM file from a stream. */
     public static @Nonnull Tim read(@Nonnull InputStream inStream)
-            throws IOException, NotThisTypeException
+            throws IOException, BinaryDataNotRecognized
     {
         final boolean DBG = false;
         int iTag = IO.readUInt8(inStream);
         if (DBG) System.err.println(String.format("%02x", iTag));
         if (iTag != Tim.TAG_MAGIC) // 0x10
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
 
         int iVersion = IO.readUInt8(inStream);
         if (DBG) System.err.println(String.format("%02x", iVersion));
         if (iVersion != Tim.VERSION_0)
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
 
         int iUnknown1 = IO.readUInt16LE(inStream);
         if (DBG) System.err.println(String.format("%04x", iUnknown1));
         if (iUnknown1 != 0)
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
 
         int iBpp_blnHasColorLookupTbl = IO.readUInt16LE(inStream);
         if (DBG) System.err.println(String.format("%04x", iBpp_blnHasColorLookupTbl));
         if ((iBpp_blnHasColorLookupTbl & 0xFFF4) != 0)
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
 
         int iUnknown2 = IO.readUInt16LE(inStream);
         if (DBG) System.err.println(String.format("%04x", iUnknown2));
         if (iUnknown2 != 0)
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
 
         //-------------------------------------------------
 
@@ -221,16 +221,16 @@ class CreateTim {
         }
 
         long lngImageLength = IO.readUInt32LE(inStream);
-        if (lngImageLength == 0) throw new NotThisTypeException();
+        if (lngImageLength == 0) throw new BinaryDataNotRecognized();
         int iTimX = IO.readUInt16LE(inStream);
         int iTimY = IO.readUInt16LE(inStream);
         int iImageWordWidth = IO.readUInt16LE(inStream);
-        if (iImageWordWidth == 0) throw new NotThisTypeException();
+        if (iImageWordWidth == 0) throw new BinaryDataNotRecognized();
         int iPixelHeight = IO.readUInt16LE(inStream);
-        if (iPixelHeight == 0) throw new NotThisTypeException();
+        if (iPixelHeight == 0) throw new BinaryDataNotRecognized();
 
         if (lngImageLength != iImageWordWidth * iPixelHeight * 2 + Tim.HEADER_SIZE)
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
 
         byte[] abImageData = IO.readByteArray(inStream, (iImageWordWidth * iPixelHeight) * 2);
 

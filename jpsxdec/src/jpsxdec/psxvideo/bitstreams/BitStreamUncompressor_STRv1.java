@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,9 +39,9 @@ package jpsxdec.psxvideo.bitstreams;
 
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
-import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.LocalizedIncompatibleException;
 
 /** Rather uncommon STR "version 1" video frame format.
  * Identical to STRv2, but has a version of 1 in the header.
@@ -60,41 +60,24 @@ import jpsxdec.util.NotThisTypeException;
 public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
 
     @Override
-    protected void readHeader(@Nonnull byte[] abFrameData, int iDataSize,
-                              @Nonnull ArrayBitReader bitReader)
-            throws NotThisTypeException
+    protected boolean readHeader(@Nonnull byte[] abFrameData, int iDataSize,
+                                 @Nonnull ArrayBitReader bitReader)
     {
-        if (iDataSize < 8)
-            throw new NotThisTypeException();
-        
-        _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
-        int iMagic3800       = IO.readUInt16LE(abFrameData, 2);
-        _iQscale             = IO.readSInt16LE(abFrameData, 4);
-        int iVersion         = IO.readSInt16LE(abFrameData, 6);
-
-        if (iMagic3800 != 0x3800 || _iQscale < 1 ||
-            iVersion != 1 || _iHalfVlcCountCeil32 < 0)
-            throw new NotThisTypeException();
+        if (!_header.readHeader(abFrameData, iDataSize, 1))
+            return false;
 
         bitReader.reset(abFrameData, iDataSize, true, 8);
+        return true;
     }
 
     public static boolean checkHeader(@Nonnull byte[] abFrameData) {
-        if (abFrameData.length < 8)
-            return false;
-
-        int _iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
-        int iMagic3800           = IO.readUInt16LE(abFrameData, 2);
-        int _iQscale             = IO.readSInt16LE(abFrameData, 4);
-        int iVersion             = IO.readSInt16LE(abFrameData, 6);
-
-        return !(iMagic3800 != 0x3800 || _iQscale < 1 ||
-                 iVersion != 1 || _iHalfVlcCountCeil32 < 0);
+        StrHeader header = new StrHeader();
+        return header.readHeader(abFrameData, abFrameData.length, 1);
     }
 
-    public static int getQscale(@Nonnull byte[] abFrameData) throws MdecException.Uncompress {
+    public static int getQscale(@Nonnull byte[] abFrameData) throws BinaryDataNotRecognized {
         if (!checkHeader(abFrameData))
-            throw new MdecException.Uncompress(I.FRAME_NOT_STRV1());
+            throw new BinaryDataNotRecognized();
 
         return IO.readSInt16LE(abFrameData, 4);
     }
@@ -115,8 +98,12 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
         protected int getHeaderVersion() { return 1; }
 
         @Override
-        protected int getQscale(@Nonnull byte[] abFrameData) throws MdecException.Uncompress {
-            return BitStreamUncompressor_STRv1.getQscale(abFrameData);
+        protected int getFrameQscale(@Nonnull byte[] abFrameData) throws LocalizedIncompatibleException {
+            try {
+                return BitStreamUncompressor_STRv1.getQscale(abFrameData);
+            } catch (BinaryDataNotRecognized ex) {
+                throw new LocalizedIncompatibleException(I.FRAME_NOT_STRV1(), ex);
+            }
         }
 
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,7 +56,7 @@ import java.io.OutputStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** The PlayStation 1 TIM image. Used in many PlayStation games.
  * This is based on the excellent Q-gears documentation here:
@@ -81,7 +81,7 @@ public class Tim {
 
     /** Parse and deserialize a TIM file from a stream. */
     public static @Nonnull Tim read(@Nonnull InputStream inStream)
-            throws IOException, NotThisTypeException
+            throws IOException, BinaryDataNotRecognized
     {
         return CreateTim.read(inStream);
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.TreeMap;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -54,13 +53,17 @@ import jpsxdec.discitems.FrameNumber;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorAceCombat3Video;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 /**
  * Searches for Ace Combat 3: Electrosphere video streams.
  * Only case I've seen that video streams are interleaved.
  */
 public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndexer.Identified {
+
+    private static final Logger LOG = Logger.getLogger(DiscIndexerAceCombat3Video.class.getName());
 
     private static class VidBuilder {
 
@@ -70,11 +73,9 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndex
         private final int _iEndFrame;
         private final int _iChannel;
         @Nonnull
-        private final Logger _errLog;
         private int _iLastInvertedFrameNumber;
 
-        public VidBuilder(@Nonnull Ac3Demuxer.DemuxedAc3Frame firstFrame, @Nonnull Logger errLog) {
-            _errLog = errLog;
+        public VidBuilder(@Nonnull Ac3Demuxer.DemuxedAc3Frame firstFrame) {
             _iEndFrame = _iLastInvertedFrameNumber = firstFrame.getInvertedHeaderFrameNumber();
             _frameTracker = new FullFrameTracker(
                     firstFrame.getWidth(), firstFrame.getHeight(),
@@ -131,9 +132,15 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndex
             _demuxer.setFrameListener(this);
         }
 
-        public void feedSector(@Nonnull SectorAceCombat3Video vidSector) throws IOException {
-            if (!_demuxer.feedSector(vidSector, _indexer._errLog))
-                throw new IllegalArgumentException("AC3 sector was not accepted for some reason.");
+        public void feedSector(@Nonnull SectorAceCombat3Video vidSector) {
+            try {
+                if (!_demuxer.feedSector(vidSector, _indexer._errLog))
+                    throw new RuntimeException("AC3 sector was not accepted for some reason.");
+            } catch (LoggedFailure ex) {
+                // we know where the completed frames are going
+                // so this should never happen
+                throw new RuntimeException("Should not happen", ex);
+            }
         }
 
         // [implements Ac3Demuxer.Listener]
@@ -141,7 +148,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndex
             if (_videoBuilder != null && !_videoBuilder.addFrame(frame))
                 endVideo();
             if (_videoBuilder == null)
-                _videoBuilder = new VidBuilder(frame, _indexer._errLog);
+                _videoBuilder = new VidBuilder(frame);
         }
 
         public void endVideo() {
@@ -159,22 +166,20 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndex
 
 
     @Nonnull
-    private final Logger _errLog;
+    private final ILocalizedLogger _errLog;
     private final TreeMap<Integer, Ac3Channel> _activeStreams = new TreeMap<Integer, Ac3Channel>();
     private final Collection<DiscItemAceCombat3VideoStream> _completedVideos = new ArrayList<DiscItemAceCombat3VideoStream>();
 
-    public DiscIndexerAceCombat3Video(@Nonnull Logger errLog) {
+    public DiscIndexerAceCombat3Video(@Nonnull ILocalizedLogger errLog) {
         _errLog = errLog;
     }
 
     @Override
     public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields)
+            throws DeserializationFail
     {
-        try {
-            if (DiscItemAceCombat3VideoStream.TYPE_ID.equals(fields.getType())) {
-                return new DiscItemAceCombat3VideoStream(getCd(), fields);
-            }
-        } catch (NotThisTypeException ex) {}
+        if (DiscItemAceCombat3VideoStream.TYPE_ID.equals(fields.getType()))
+            return new DiscItemAceCombat3VideoStream(getCd(), fields);
         return null;
     }
 
@@ -190,11 +195,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements DiscIndex
             channel = new Ac3Channel(this, oiChannel);
             _activeStreams.put(oiChannel, channel);
         }
-        try {
-            channel.feedSector(vidSector);
-        } catch (IOException ex) {
-            _errLog.log(Level.SEVERE, null, ex);
-        }
+        channel.feedSector(vidSector);
     }
 
 

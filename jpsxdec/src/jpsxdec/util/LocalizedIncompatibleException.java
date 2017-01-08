@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,17 +37,19 @@
 
 package jpsxdec.util;
 
-import java.io.PrintStream;
+import jpsxdec.i18n.LocalizedException;
+import jpsxdec.i18n.ILocalizedMessage;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
-public abstract class ProgressListenerLogger extends UserFriendlyLogger implements ProgressListener {
+/** Indicates that the supplied data is incompatible with the existing data. */
+public class LocalizedIncompatibleException extends LocalizedException {
 
-    public ProgressListenerLogger(@Nonnull String sBaseName, @Nonnull PrintStream ps) {
-        super(sBaseName, ps);
+    public LocalizedIncompatibleException(@Nonnull ILocalizedMessage msg) {
+        super(msg);
     }
 
-    public ProgressListenerLogger(@Nonnull String sBaseName) {
-        super(sBaseName);
+    public LocalizedIncompatibleException(@Nonnull ILocalizedMessage msg, @CheckForNull Throwable cause) {
+        super(msg, cause);
     }
-
 }

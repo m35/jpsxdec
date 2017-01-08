@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,7 @@
 package jpsxdec.discitems;
 
 import java.util.Map;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -69,7 +69,7 @@ public class FrameNumberTest {
     }
 
     @Test
-    public void range() throws NotThisTypeException {
+    public void range() throws Exception {
         PairList<String, FrameNumber[]> test = new PairList<String, FrameNumber[]>();
         test.add("1/@2/#3-4/@5/#6", new FrameNumber[]{new FrameNumber(1,2,0,3,0), new FrameNumber(4,5,0,6,0)});
         test.add("7/@8.9/#10.11-12/@13.14/#15.16", new FrameNumber[]{new FrameNumber(7,8,9,10,11), new FrameNumber(12,13,14,15,16)});
@@ -99,13 +99,13 @@ public class FrameNumberTest {
             try {
                 FrameNumber[] ao = FrameNumber.parseRange(entry);
                 fail(entry);
-            } catch (NotThisTypeException ex) {
+            } catch (DeserializationFail ex) {
             }
         }
     }
 
     @Test
-    public void testSerialize() throws NotThisTypeException {
+    public void testSerialize() throws Exception {
         FrameNumber[] aoTests = {
             new FrameNumber(1, 2, 0, 3, 0),
             new FrameNumber(1, 2, 1, 3, 0),
@@ -121,7 +121,7 @@ public class FrameNumberTest {
     }
 
     @Test
-    public void serialize() throws NotThisTypeException {
+    public void serialize() throws Exception {
         PairList<String, FrameNumber> test = new PairList<String, FrameNumber>();
         test.add("1/@1/#1", new FrameNumber(1, 1, 0, 1, 0));
         test.add("2/@3/#5.6", new FrameNumber(2, 3, 0, 5, 6));
@@ -153,7 +153,7 @@ public class FrameNumberTest {
             try {
                 FrameNumber h = new FrameNumber(entry);
                 fail(entry);
-            } catch (NotThisTypeException ex) {
+            } catch (DeserializationFail ex) {
             }
         }
     }

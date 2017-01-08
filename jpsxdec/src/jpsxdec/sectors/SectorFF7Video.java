@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,22 +40,20 @@ package jpsxdec.sectors;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdxaSubHeader.SubMode;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv1;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.util.IO;
+import jpsxdec.util.LocalizedIncompatibleException;
 
 
 /** Represents an FF7 video sector. */
 public class SectorFF7Video extends SectorAbstractVideo implements IVideoSectorWithFrameNumber {
     
     public static final int FRAME_SECTOR_HEADER_SIZE = 32;
-    
-    // Magic 0x80010160                 //  0    [4 bytes]
-    private int  _iChunkNumber;         //  4    [2 bytes]
-    private int  _iChunksInThisFrame;   //  6    [2 bytes]
-    private int  _iFrameNumber;         //  8    [4 bytes]
-    private int  _iUsedDemuxedSize;     //  12   [4 bytes]
+
+    // Magic is normal STR = 0x80010160
+    private final CommonVideoSectorFirst16bytes _header = new CommonVideoSectorFirst16bytes();
     private int  _iWidth;               //  16   [2 bytes]
     private int  _iHeight;              //  18   [2 bytes]
     private long _lngUnknown8bytes;     //  20   [8 bytes]
@@ -82,16 +80,15 @@ public class SectorFF7Video extends SectorAbstractVideo implements IVideoSectorW
             return;
         }
 
-        long lngMagic = cdSector.readUInt32LE(0);
-        if (lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
-        _iChunkNumber = cdSector.readSInt16LE(4);
-        if (_iChunkNumber < 0) return;
-        _iChunksInThisFrame = cdSector.readSInt16LE(6);
-        if (_iChunksInThisFrame < 6 || _iChunksInThisFrame > 10) return;
-        _iFrameNumber = cdSector.readSInt32LE(8);
-        if (_iFrameNumber < 0) return;
-        _iUsedDemuxedSize = cdSector.readSInt32LE(12);
-        if (_iUsedDemuxedSize < 2500 || _iUsedDemuxedSize > 21000) return;
+        _header.readMagic(cdSector);
+        if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
+        if (_header.readChunkNumberStandard(cdSector)) return;
+        _header.readChunksInFrame(cdSector);
+        if (_header.iChunksInThisFrame < 6 || _header.iChunksInThisFrame > 10) return;
+        if (_header.readFrameNumberStandard(cdSector)) return;
+        _header.readUsedDemuxSize(cdSector);
+        // this block is unfortunately necessary to prevent false-positives with Lain sectors
+        if (_header.iUsedDemuxedSize < 2500 || _header.iUsedDemuxedSize > 21000) return;
         _iWidth = cdSector.readSInt16LE(16);
         if (_iWidth != 320 && _iWidth != 640) return;
         _iHeight = cdSector.readSInt16LE(18);
@@ -105,14 +102,14 @@ public class SectorFF7Video extends SectorAbstractVideo implements IVideoSectorW
             if (_lngUnknown8bytes != 0) return;
 
             // and no 10 chunk frames before frame 100
-            if (_iChunksInThisFrame == 10 && _iFrameNumber < 100) return;
+            if (_header.iChunksInThisFrame == 10 && _header.iFrameNumber < 100) return;
         }
         
         long iFourZeros = cdSector.readSInt32LE(28);
         if (iFourZeros != 0) return;
 
         // check for camera data which should always exist in chunk 0
-        if (_iChunkNumber == 0) {
+        if (_header.iChunkNumber == 0) {
             if (cdSector.readUInt16LE(32+2) != 0x3800) {
                 if (cdSector.readUInt16LE(32+40+2) != 0x3800)
                     return; // failure
@@ -135,12 +132,12 @@ public class SectorFF7Video extends SectorAbstractVideo implements IVideoSectorW
         String sRet = String.format("%s %s frame:%d chunk:%d/%d %dx%d {used demux=%d unknown=%016x}",
             getTypeName(),
             super.cdToString(),
-            _iFrameNumber,
-            _iChunkNumber,
-            _iChunksInThisFrame,
+            _header.iFrameNumber,
+            _header.iChunkNumber,
+            _header.iChunksInThisFrame,
             _iWidth,
             _iHeight,
-            _iUsedDemuxedSize,
+            _header.iUsedDemuxedSize,
             _lngUnknown8bytes
             );
 
@@ -158,13 +155,14 @@ public class SectorFF7Video extends SectorAbstractVideo implements IVideoSectorW
     @Override
     public int checkAndPrepBitstreamForReplace(@Nonnull byte[] abDemuxData, int iUsedSize, 
                                                int iMdecCodeCount, @Nonnull byte[] abSectUserData)
+            throws LocalizedIncompatibleException
     {
         // In general FF7 only uses STRv1 bitstreams, however
         // the Spanish version (SCES-00900) is confirmed to have
         // a mix of STRv1 and STRv2 in ENDING2S.MOV
         if (!BitStreamUncompressor_STRv1.checkHeader(abDemuxData) && 
             !BitStreamUncompressor_STRv2.checkHeader(abDemuxData))
-            throw new IllegalArgumentException("Frame type is not v1 or v2");
+            throw new LocalizedIncompatibleException(I.REPLACE_FRAME_TYPE_NOT_V1_V2());
 
         // all frames need the additional camera data in the demux size
         int iDemuxSizeForHeader = ((iUsedSize + 3) & ~3) + 40;
@@ -174,15 +172,15 @@ public class SectorFF7Video extends SectorAbstractVideo implements IVideoSectorW
     }
     
     public int getChunkNumber() {
-        return _iChunkNumber;
+        return _header.iChunkNumber;
     }
 
     public int getChunksInFrame() {
-        return _iChunksInThisFrame;
+        return _header.iChunksInThisFrame;
     }
 
     public int getFrameNumber() {
-        return _iFrameNumber;
+        return _header.iFrameNumber;
     }
 
     public int getHeight() {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
+import jpsxdec.util.IO;
 
 /** Represents the 
  * <a href="http://msdn2.microsoft.com/en-us/library/ms779634(VS.85).aspx">AVIOLDINDEX</a>
@@ -57,10 +58,10 @@ class AVIOLDINDEX extends AVIstruct {
         
         @Override
         public void write(@Nonnull RandomAccessFile raf) throws IOException {
-            write32LE(raf, dwChunkId);
-            write32LE(raf, dwFlags  );
-            write32LE(raf, dwOffset );
-            write32LE(raf, dwSize   );
+            IO.writeInt32LE(raf, dwChunkId);
+            IO.writeInt32LE(raf, dwFlags  );
+            IO.writeInt32LE(raf, dwOffset );
+            IO.writeInt32LE(raf, dwSize   );
         }
 
         @Override
@@ -91,8 +92,8 @@ class AVIOLDINDEX extends AVIstruct {
     
     @Override
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
-        write32LE(raf, fcc);
-        write32LE(raf, cb );
+        IO.writeInt32LE(raf, fcc);
+        IO.writeInt32LE(raf, cb );
         for (AVIOLDINDEXENTRY e : aIndex) {
             e.write(raf);
         }

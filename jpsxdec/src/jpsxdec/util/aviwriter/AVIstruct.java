@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,8 +39,8 @@ package jpsxdec.util.aviwriter;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
 import javax.annotation.Nonnull;
+import jpsxdec.util.Misc;
 
 
 /** Super-class of the C structures used in the AVI file format. This provides
@@ -49,25 +49,9 @@ import javax.annotation.Nonnull;
  *  in the AVI file. */
 abstract class AVIstruct {
 
-    public static void write32LE(@Nonnull RandomAccessFile raf, int i) throws IOException {
-        raf.write(i & 0xFF);
-        raf.write((i >>>  8) & 0xFF);
-        raf.write((i >>> 16) & 0xFF);
-        raf.write((i >>> 24) & 0xFF);
-    }
-    
-    public static void write16LE(@Nonnull RandomAccessFile raf, short si) throws IOException {
-        raf.write(si& 0xFF);
-        raf.write((si >>> 8) & 0xFF);
-    }
-    
     public static int string2int(@Nonnull String s) {
         if (s.length() != 4) throw new IllegalArgumentException();
-        try {
-            return bytes2int(s.getBytes("US-ASCII"));
-        } catch (UnsupportedEncodingException ex) {
-            throw new RuntimeException(ex.getMessage(), ex);
-        }
+        return bytes2int(Misc.stringToAscii(s));
     }
     
     public static int bytes2int(@Nonnull byte[] ab) {

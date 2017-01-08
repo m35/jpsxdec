@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2016  Michael Sabin
+ * Copyright (C) 2013-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.TreeSet;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -54,6 +53,8 @@ import jpsxdec.indexing.DiscIndex;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.sectors.UnidentifiedSector;
+import jpsxdec.util.ArgParser;
+import jpsxdec.util.IO;
 
 
 class Command_Visualize extends Command {
@@ -69,7 +70,7 @@ class Command_Visualize extends Command {
         return null;
     }
 
-    public void execute(@CheckForNull String[] asRemainingArgs) throws CommandLineException {
+    public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         DiscIndex index = getIndex();
         CdFileSectorReader cd = index.getSourceCd();
         FileOutputStream pdfStream = null;
@@ -178,11 +179,7 @@ class Command_Visualize extends Command {
         } catch (Exception ex) {
             throw new CommandLineException(I.CMD_VISUALIZATION_ERR(), ex);
         } finally {
-            if (pdfStream != null) try {
-                pdfStream.close();
-            } catch (IOException ex) {
-                Logger.getLogger(Command_Visualize.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            IO.closeSilently(pdfStream, Logger.getLogger(Command_Visualize.class.getName()));
         }
     }
 

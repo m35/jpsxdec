@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,11 +53,8 @@ public class SectorAliceNullVideo extends IdentifiedSector {
 
     // .. Instance fields ..................................................
 
-    // Magic 0x00000160                    //  0    [4 bytes]
-    private int    _iChunkNumber;          //  4    [2 bytes]
-    private int    _iChunksInThisFrame;    //  6    [2 bytes]
-    protected int  _iFrameNumber;          //  8    [4 bytes]
-    private long   _lngUsedDemuxSize;      //  12   [4 bytes]
+    protected final SectorAbstractVideo.CommonVideoSectorFirst16bytes _header =
+            new SectorAbstractVideo.CommonVideoSectorFirst16bytes();
     // 16 bytes -- all zeros               //  16   [16 bytes]
     //   32 TOTAL
 
@@ -78,20 +75,18 @@ public class SectorAliceNullVideo extends IdentifiedSector {
         if (cdSector.readUInt32LE(0) != ALICE_VIDEO_SECTOR_MAGIC)
                 return;
 
-        _iChunkNumber = cdSector.readSInt16LE(4);
-        if (_iChunkNumber < 0)
+        if (_header.readChunkNumberStandard(cdSector))
                 return;
-        _iChunksInThisFrame = cdSector.readSInt16LE(6);
-        if (_iChunksInThisFrame < 3)
+        _header.readChunksInFrame(cdSector);
+        if (_header.iChunksInThisFrame < 3)
                 return;
 
         // null frames between movies have a frame number of 0xFFFF
         // the high bit signifies the end of a video
-        _iFrameNumber = cdSector.readSInt32LE(8);
-        if (_iFrameNumber < 0)
+        if (_header.readFrameNumberStandard(cdSector))
                 return;
 
-        _lngUsedDemuxSize = cdSector.readUInt32LE(12);
+        _header.readUsedDemuxSize(cdSector);
 
         // make sure all 16 bytes are zero
         for (int i = 16; i < 32; i++)
@@ -107,34 +102,34 @@ public class SectorAliceNullVideo extends IdentifiedSector {
         StringBuilder sb = 
                 new StringBuilder(getTypeName()).append(' ').append(super.toString());
         sb.append(" frame:");
-        if (_iFrameNumber == 0xFFFF)
+        if (_header.iFrameNumber == 0xFFFF)
             sb.append("NUL");
         else {
             sb.append(getFrameNumber());
             if (isEndFrame())
                 sb.append("[End]");
         }
-        sb.append(" chunk:").append(_iChunkNumber).append('/').append(_iChunksInThisFrame);
-        sb.append(" {demux=").append(_lngUsedDemuxSize).append('}');
+        sb.append(" chunk:").append(_header.iChunkNumber).append('/').append(_header.iChunksInThisFrame);
+        sb.append(" {demux=").append(_header.iUsedDemuxedSize).append('}');
         return sb.toString();
     }
 
     public int getChunkNumber() {
-        return _iChunkNumber;
+        return _header.iChunkNumber;
     }
 
     public int getChunksInFrame() {
-        return _iChunksInThisFrame;
+        return _header.iChunksInThisFrame;
     }
 
     public int getFrameNumber() {
         // the high bit signifies the end of a video
-        return _iFrameNumber & 0x3FFF;
+        return _header.iFrameNumber & 0x3FFF;
     }
 
     public boolean isEndFrame() {
         // the high bit signifies the end of a video
-        return (_iFrameNumber & 0x8000) != 0;
+        return (_header.iFrameNumber & 0x8000) != 0;
     }
 
     public int getIdentifiedUserDataSize() {

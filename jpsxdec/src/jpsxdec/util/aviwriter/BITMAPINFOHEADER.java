@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.util.aviwriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
+import jpsxdec.util.IO;
 
 /** Represents the C BITMAPINFOHEADER structure. 
  * http://msdn2.microsoft.com/en-us/library/ms532290(VS.85).aspx */
@@ -61,17 +62,17 @@ class BITMAPINFOHEADER extends AVIstruct {
 
     @Override
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
-        /*DWORD*/ write32LE(raf, biSize         );
-        /*LONG */ write32LE(raf, biWidth        );
-        /*LONG */ write32LE(raf, biHeight       );
-        /*WORD */ write16LE(raf, biPlanes       );
-        /*WORD */ write16LE(raf, biBitCount     );
-        /*DWORD*/ write32LE(raf, biCompression  );
-        /*DWORD*/ write32LE(raf, biSizeImage    );
-        /*LONG */ write32LE(raf, biXPelsPerMeter);
-        /*LONG */ write32LE(raf, biYPelsPerMeter);
-        /*DWORD*/ write32LE(raf, biClrUsed      );
-        /*DWORD*/ write32LE(raf, biClrImportant );
+        /*DWORD*/ IO.writeInt32LE(raf, biSize         );
+        /*LONG */ IO.writeInt32LE(raf, biWidth        );
+        /*LONG */ IO.writeInt32LE(raf, biHeight       );
+        /*WORD */ IO.writeInt16LE(raf, biPlanes       );
+        /*WORD */ IO.writeInt16LE(raf, biBitCount     );
+        /*DWORD*/ IO.writeInt32LE(raf, biCompression  );
+        /*DWORD*/ IO.writeInt32LE(raf, biSizeImage    );
+        /*LONG */ IO.writeInt32LE(raf, biXPelsPerMeter);
+        /*LONG */ IO.writeInt32LE(raf, biYPelsPerMeter);
+        /*DWORD*/ IO.writeInt32LE(raf, biClrUsed      );
+        /*DWORD*/ IO.writeInt32LE(raf, biClrImportant );
     }
 
     @Override

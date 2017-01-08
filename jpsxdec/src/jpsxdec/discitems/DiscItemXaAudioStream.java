@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,6 @@ package jpsxdec.discitems;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,9 +57,16 @@ import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.sectors.SectorXaAudio;
+import jpsxdec.util.ByteArrayFPIS;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.ExposedBAOS;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.Fraction;
+import jpsxdec.util.IO;
+import jpsxdec.util.LocalizedIncompatibleException;
+import jpsxdec.util.LoggedFailure;
+import jpsxdec.util.ProgressLogger;
+import jpsxdec.util.TaskCanceledException;
+import jpsxdec.util.ILocalizedLogger;
 
 /** Represents a series of XA ADPCM sectors that combine to make an audio stream. */
 public class DiscItemXaAudioStream extends DiscItemAudioStream {
@@ -146,17 +152,11 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
     }
 
     public DiscItemXaAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
         
-        String sStereo = fields.getString(STEREO_KEY);
-        if ("Yes".equals(sStereo))
-            _blnIsStereo = true;
-        else if ("No".equals(sStereo))
-            _blnIsStereo = false;
-        else throw new NotThisTypeException(I.FIELD_HAS_INVALID_VALUE_STR(STEREO_KEY, sStereo));
-            
+        _blnIsStereo = fields.getYesNo(STEREO_KEY);
         _iSamplesPerSecond = fields.getInt(SAMPLES_PER_SEC_KEY);
         _iChannel = fields.getInt(CHANNEL_KEY);
 
@@ -164,7 +164,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         _iSectorStride = fields.getInt(STRIDE_KEY);
         if (_iSectorStride != -1 && _iSectorStride != 1 && _iSectorStride != 2 &&
             _iSectorStride != 4 && _iSectorStride != 8 && _iSectorStride != 16 && _iSectorStride != 32)
-            throw new NotThisTypeException(I.FIELD_HAS_INVALID_VALUE_NUM(STRIDE_KEY, _iSectorStride));
+            throw new DeserializationFail(I.FIELD_HAS_INVALID_VALUE_NUM(STRIDE_KEY, _iSectorStride));
 
         String sDiscSpeed = fields.getString(DISC_SPEED_KEY);
         if ("1x".equals(sDiscSpeed))
@@ -173,7 +173,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
             _iDiscSpeed = 2;
         else if ("?".equals(sDiscSpeed))
             _iDiscSpeed = -1;
-        else throw new NotThisTypeException(I.FIELD_HAS_INVALID_VALUE_STR(DISC_SPEED_KEY, sDiscSpeed));
+        else throw new DeserializationFail(I.FIELD_HAS_INVALID_VALUE_STR(DISC_SPEED_KEY, sDiscSpeed));
     }
     
     @Override
@@ -181,7 +181,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         SerializedDiscItem fields = super.serialize();
 
         fields.addNumber(CHANNEL_KEY, _iChannel);
-        fields.addString(STEREO_KEY, _blnIsStereo ? "Yes" : "No");
+        fields.addYesNo(STEREO_KEY, _blnIsStereo);
         fields.addNumber(SAMPLES_PER_SEC_KEY, _iSamplesPerSecond);
         fields.addNumber(BITSPERSAMPLE_KEY, _iBitsPerSample);
         fields.addNumber(STRIDE_KEY, _iSectorStride);
@@ -215,7 +215,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
     @Override
     public @Nonnull ILocalizedMessage getInterestingDescription() {
-        Date secs = new Date(0, 0, 0, 0, 0, (int)Math.max(getApproxDuration(), 1));
+        Date secs = new Date(0, 0, 0, 0, 0, Math.max((int)getApproxDuration(), 1));
         return I.GUI_XA_DESCRIPTION(secs, _iSamplesPerSecond, _blnIsStereo ? 2 : 1);
     }
     
@@ -257,12 +257,13 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
             return lngSampleCount;
     }
 
-    public @Nonnull AudioFormat getAudioFormat(boolean blnBigEndian) {
-        return new AudioFormat(_iSamplesPerSecond, 16, _blnIsStereo ? 2 : 1, true, blnBigEndian);
-    }
-
     public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume) {
         return new XAConverter(dblVolume);
+    }
+
+    public @Nonnull XaAdpcmDecoder makeXaDecoder(double dblVolume) {
+        return new XaAdpcmDecoder(getAdpcmBitsPerSample(),
+                                  isStereo(), dblVolume);
     }
 
     public @Nonnull DiscItemXaAudioStream[] split(int iBeforeSector) {
@@ -278,68 +279,72 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         return new DiscItemXaAudioStream[] { first, second };
     }
     
-    public void replaceXa(@Nonnull PrintStream ps, @Nonnull File audioFile)
-            throws UnsupportedAudioFileException, IOException, IncompatibleException
+    public void replaceXa(@Nonnull ProgressLogger pl, @Nonnull File audioFile)
+            throws UnsupportedAudioFileException, IOException, LocalizedIncompatibleException, TaskCanceledException
     {
         AudioInputStream ais = AudioSystem.getAudioInputStream(audioFile);
         try {
             AudioFormat fmt = ais.getFormat();
             if (Math.abs(fmt.getSampleRate() - _iSamplesPerSecond) > 0.1f ) {
-                throw new IncompatibleException(I.XA_COPY_REPLACE_SAMPLE_RATE_MISMATCH(
+                throw new LocalizedIncompatibleException(I.XA_COPY_REPLACE_SAMPLE_RATE_MISMATCH(
                                                 fmt.getSampleRate(), _iSamplesPerSecond));
             }
             if (( _blnIsStereo && (fmt.getChannels() != 2)) ||
                 (!_blnIsStereo && (fmt.getChannels() != 1)))
             {
-                throw new IncompatibleException(I.XA_COPY_REPLACE_CHANNEL_MISMATCH(
+                throw new LocalizedIncompatibleException(I.XA_COPY_REPLACE_CHANNEL_MISMATCH(
                                                 fmt.getChannels(),
                                                 _blnIsStereo ? 2 : 1));
             }
             XaAdpcmEncoder encoder = new XaAdpcmEncoder(ais, _iBitsPerSample);
             IdentifiedSectorIterator it = identifiedSectorIterator();
-            while (it.hasNext()) {
+            pl.progressStart(getSectorLength());
+            for (int iSector = 0; it.hasNext(); iSector++) {
                 IdentifiedSector origIdSect = it.next();
                 if (origIdSect instanceof SectorXaAudio && isPartOfStream((SectorXaAudio)origIdSect)) {
                     CdSector origSect = origIdSect.getCdSector();
                     byte[] abOrigData = origSect.getCdUserDataCopy();
                     ExposedBAOS baos = new ExposedBAOS(abOrigData.length);
-                    encoder.encode1Sector(baos);
+                    try {
+                        encoder.encode1Sector(baos);
+                    } catch (IOException ex) {
+                        throw new RuntimeException("Should not happen", ex);
+                    }
                     System.arraycopy(baos.getBuffer(), 0, abOrigData, 0, baos.size());
                     if (encoder.isEof()) {
-                        ps.println(I.XA_ENCODE_REPLACE_SRC_AUDIO_EXHAUSTED());
+                        pl.log(Level.INFO, I.XA_ENCODE_REPLACE_SRC_AUDIO_EXHAUSTED());
                     }
-                    ps.println(I.CMD_PATCHING_SECTOR());
-                    ps.println(origIdSect);
+                    pl.log(Level.INFO, I.CMD_PATCHING_SECTOR_DESCRIPTION(origIdSect.toString()));
+                    if (pl.isSeekingEvent())
+                        pl.event(I.CMD_PATCHING_SECTOR_NUMBER(origIdSect.getSectorNumber()));
                     getSourceCd().writeSector(origSect.getSectorNumberFromStart(), abOrigData);
+
+                    pl.progressUpdate(iSector);
                 }
             }
+            pl.progressEnd();
         } finally {
-            try {
-                ais.close();
-            } catch (IOException ex) {
-                Logger.getLogger(DiscItemXaAudioStream.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            IO.closeSilently(ais, Logger.getLogger(DiscItemXaAudioStream.class.getName()));
         }
 
     }
 
-    public void replaceXa(@Nonnull PrintStream ps, @Nonnull DiscItemXaAudioStream other) 
-            throws IOException, IncompatibleException
+    public void replaceXa(@Nonnull ProgressLogger pl, @Nonnull DiscItemXaAudioStream other)
+            throws IOException, LocalizedIncompatibleException, TaskCanceledException
     {
-        ps.println(I.CMD_PATCHING_DISC_ITEM());
-        ps.println(this);
-        ps.println(I.CMD_PATCHING_WITH_DISC_ITEM());
-        ps.println(other);
+        pl.log(Level.INFO, I.CMD_PATCHING_DISC_ITEM(this.toString()));
+        pl.log(Level.INFO, I.CMD_PATCHING_WITH_DISC_ITEM(other.toString()));
 
         if (getSampleRate() != other.getSampleRate() ||
             _blnIsStereo    != other._blnIsStereo    ||
             _iBitsPerSample != other._iBitsPerSample)
-            throw new IncompatibleException(I.XA_ENCODE_REPLACE_FORMAT_MISMATCH());
+            throw new LocalizedIncompatibleException(I.XA_ENCODE_REPLACE_FORMAT_MISMATCH());
 
         IdentifiedSectorIterator origIt = identifiedSectorIterator();
         IdentifiedSectorIterator patchIt = other.identifiedSectorIterator();
+        pl.progressStart(getSectorLength());
         EndOfOther:
-        while (origIt.hasNext()) {
+        for (int iSector = 0; origIt.hasNext(); iSector++) {
             IdentifiedSector origIdSect = origIt.next();
             if (origIdSect instanceof SectorXaAudio && isPartOfStream((SectorXaAudio)origIdSect)) {
                 SectorXaAudio origXaSect = (SectorXaAudio) origIdSect;
@@ -347,20 +352,23 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
                 IdentifiedSector patchIdSect = null;
                 do {
                     if (!patchIt.hasNext()) {
-                        ps.println(I.XA_COPY_REPLACE_SRC_XA_EXHAUSTED());
+                        pl.log(Level.INFO, I.XA_COPY_REPLACE_SRC_XA_EXHAUSTED());
                         break EndOfOther;
                     }
                     patchIdSect = patchIt.next();
                 } while (!(patchIdSect instanceof SectorXaAudio && other.isPartOfStream((SectorXaAudio)patchIdSect)));
                 SectorXaAudio patchXaSect = (SectorXaAudio) patchIdSect;
-                ps.println(I.CMD_PATCHING_SECTOR());
-                ps.println(origXaSect);
-                ps.println(I.CMD_PATCHING_WITH_SECTOR());
-                ps.println(patchXaSect);
+                pl.log(Level.INFO, I.CMD_PATCHING_SECTOR_DESCRIPTION(origXaSect.toString()));
+                pl.log(Level.INFO, I.CMD_PATCHING_WITH_SECTOR_DESCRIPTION(patchXaSect.toString()));
+                if (pl.isSeekingEvent())
+                    pl.event(I.CMD_PATCHING_SECTOR_NUMBER(origIdSect.getSectorNumber()));
                 byte[] abPatchData = patchXaSect.getCdSector().getCdUserDataCopy();
                 getSourceCd().writeSector(origXaSect.getSectorNumber(), abPatchData);
+
+                pl.progressUpdate(iSector);
             }
         }
+        pl.progressEnd();
     }
 
     private class XAConverter implements ISectorAudioDecoder {
@@ -376,8 +384,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         private AudioFormat __format;
 
         public XAConverter(double dblVolume) {
-            __decoder = XaAdpcmDecoder.create(DiscItemXaAudioStream.this.getAdpcmBitsPerSample(),
-                                              DiscItemXaAudioStream.this.isStereo(), dblVolume);
+            __decoder = DiscItemXaAudioStream.this.makeXaDecoder(dblVolume);
             __tempBuffer = new ExposedBAOS(
                     XaAdpcmDecoder.bytesGeneratedFromXaAdpcmSector(
                     DiscItemXaAudioStream.this.getAdpcmBitsPerSample()));
@@ -387,7 +394,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
             __outFeed = audioFeed;
         }
 
-        public boolean feedSector(@Nonnull IdentifiedSector sector, @Nonnull Logger log) throws IOException {
+        public boolean feedSector(@Nonnull IdentifiedSector sector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             if (!(sector instanceof SectorXaAudio))
                 return false;
             SectorXaAudio xaSector = (SectorXaAudio) sector;
@@ -395,18 +402,24 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
                 return false;
 
             __tempBuffer.reset();
-            long lngSamplesWritten = __decoder.getSamplesWritten();
-            __decoder.decode(xaSector.getIdentifiedUserDataStream(), __tempBuffer, xaSector.getSectorNumber());
+            long lngSamplesWritten = __decoder.getSampleFramesWritten();
+            
+            try {
+                ByteArrayFPIS inStream = xaSector.getIdentifiedUserDataStream();
+                __decoder.decode(inStream, __tempBuffer, xaSector.getSectorNumber());
+            } catch (IOException ex) {
+                throw new RuntimeException("Should not happen when reading/writing to/from byte stream", ex);
+            }
+
             if (__decoder.hadCorruption())
-                I.XA_AUDIO_CORRUPTED(xaSector.getSectorNumber(), lngSamplesWritten)
-                        .log(log, Level.WARNING);
+                log.log(Level.WARNING, I.XA_AUDIO_CORRUPTED(xaSector.getSectorNumber(), lngSamplesWritten));
 
             if (__format == null)
                 __format = __decoder.getOutputFormat(xaSector.getSamplesPerSecond());
 
             if (__outFeed == null)
                 throw new IllegalStateException("Must set audio listener before feeding sectors.");
-            __outFeed.write(__format, __tempBuffer.getBuffer(), 0, __tempBuffer.size(), xaSector.getSectorNumber());
+            __outFeed.write(__format, __tempBuffer.getBuffer(), 0, __tempBuffer.size(), new Fraction(xaSector.getSectorNumber()));
             return true;
         }
 

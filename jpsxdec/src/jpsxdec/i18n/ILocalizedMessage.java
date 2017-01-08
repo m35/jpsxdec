@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2016  Michael Sabin
+ * Copyright (C) 2015-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,8 +54,8 @@ public interface ILocalizedMessage {
 
     @Nonnull String getLocalizedMessage();
 
-    void log(@Nonnull Logger log, @Nonnull Level level);
+    void logEnglish(@Nonnull Logger log, @Nonnull Level level);
 
-    void log(@Nonnull Logger log, @Nonnull Level level, @CheckForNull Throwable ex);
+    void logEnglish(@Nonnull Logger log, @Nonnull Level level, @CheckForNull Throwable ex);
 
 }

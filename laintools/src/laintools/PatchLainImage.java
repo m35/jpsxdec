@@ -37,18 +37,15 @@
 package laintools;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemISO9660File;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DebugLogger;
 
 public class PatchLainImage {
 
-    public static void main(String[] args) throws IOException, NotThisTypeException {
+    public static void main(String[] args) throws Exception {
         
 
         if (args.length < 3) {
@@ -66,9 +63,7 @@ public class PatchLainImage {
             sBin = args[3];
         }        
         
-        Logger log = Logger.getLogger("");
-        log.setLevel(Level.INFO);
-        DiscIndex index = new DiscIndex(sIndex, true, log);
+        DiscIndex index = new DiscIndex(sIndex, true, DebugLogger.Log);
 
         DiscItem item = index.getById("SLPS_016.03");
         if (item == null)
@@ -85,7 +80,7 @@ public class PatchLainImage {
 
     }
 
-    private static void replaceFile(DiscItemISO9660File isoFile, String sReplaceFile) throws IOException {
+    private static void replaceFile(DiscItemISO9660File isoFile, String sReplaceFile) throws Exception {
         System.out.println("Replacing " + sReplaceFile);
 
         File replaceFile = new File(sReplaceFile);

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2015  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -221,30 +221,28 @@ public class STRv2 {
     public void tearDown() {
     }
 
-    static BitStreamWriter writeHeader(ByteArrayOutputStream baos, int iVersion)
+    static BitStreamWriter writeHeader(int iVersion)
             throws IOException
     {
-        baos.reset();
-        IO.writeInt16LE(baos, 1); // vlc count (ignored)
-        IO.writeInt16LE(baos, 0x3800);
-        IO.writeInt16LE(baos, 1); // qscale
-        IO.writeInt16LE(baos, iVersion); // version
-        BitStreamWriter bw = new BitStreamWriter(baos);
+        BitStreamWriter bw = new BitStreamWriter();
+        IO.writeInt16LE(bw.exposeBuffer(), 1); // vlc count (ignored)
+        IO.writeInt16LE(bw.exposeBuffer(), 0x3800);
+        IO.writeInt16LE(bw.exposeBuffer(), 1); // qscale
+        IO.writeInt16LE(bw.exposeBuffer(), iVersion); // version
         bw.setLittleEndian(true);
         return bw;
     }
 
     @Test
     public void v2Dc() throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
         for (int i = -512; i < 512; i++) {
-            BitStreamWriter bw = writeHeader(baos, 2);
+            BitStreamWriter bw = writeHeader( 2);
             bw.write(i, 10);
-            bw.close();
 
-            v2.reset(baos.toByteArray(), baos.size());
+            byte[] ab = bw.toByteArray();
+            v2.reset(ab);
             v2.readMdecCode(code); // DC
             assertEquals(new MdecCode(1, i), code);
         }
@@ -253,18 +251,17 @@ public class STRv2 {
 
     @Test
     public void v2Ac() throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
         for (AcVariableLengthCode vlc : AC_VARIABLE_LENGTH_CODES_MPEG1) {
             for (int i = 0; i < 1; i++) {
-                BitStreamWriter bw = writeHeader(baos, 2);
+                BitStreamWriter bw = writeHeader(2);
                 bw.write(1, 10);
                 bw.write(vlc.VariableLengthCode);
                 bw.write(i != 0);
-                bw.close();
 
-                v2.reset(baos.toByteArray(), baos.size());
+                byte[] ab = bw.toByteArray();
+                v2.reset(ab);
                 v2.readMdecCode(code); // DC
                 assertEquals(new MdecCode(1, 1), code);
                 v2.readMdecCode(code); // AC
@@ -276,19 +273,18 @@ public class STRv2 {
 
     @Test
     public void v2AcEscape() throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
         for (int iRun = 0; iRun < 63; iRun++) {
             for (int iAc = -512; iAc < 512; iAc++) {
-                BitStreamWriter bw = writeHeader(baos, 2);
+                BitStreamWriter bw = writeHeader(2);
                 bw.write(1, 10);
                 bw.write(AC_ESCAPE_CODE);
                 bw.write(iRun, 6);
                 bw.write(iAc, 10);
-                bw.close();
 
-                v2.reset(baos.toByteArray(), baos.size());
+                byte[] ab = bw.toByteArray();
+                v2.reset(ab);
                 v2.readMdecCode(code); // DC
                 assertEquals(new MdecCode(1, 1), code);
                 v2.readMdecCode(code); // AC
@@ -299,21 +295,20 @@ public class STRv2 {
 
     @Test
     public void badCode14() throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        BitStreamWriter bw = writeHeader(baos, 2);
+        BitStreamWriter bw = writeHeader(2);
         bw.write(1,  10); // DC
         bw.write(14, 17); // Bad AC
-        bw.close();
 
         BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
-        v2.reset(baos.toByteArray(), baos.size());
+        byte[] ab = bw.toByteArray();
+        v2.reset(ab);
         v2.readMdecCode(code); // DC
         assertEquals(new MdecCode(1, 1), code);
         try {
             v2.readMdecCode(code); // AC
             fail("Expected exception");
-        } catch (MdecException.Read ex) {
+        } catch (MdecException.ReadCorruption ex) {
             // expected fail
         }
     }

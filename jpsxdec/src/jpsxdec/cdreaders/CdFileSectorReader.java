@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,6 +37,8 @@
 
 package jpsxdec.cdreaders;
 
+import java.io.Closeable;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -49,9 +51,10 @@ import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.LocalizedIOException;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 
 /** Encapsulates the reading of a CD image (BIN/CUE, ISO), 
  * or a file containing some (possibly raw) sectors of a CD.
@@ -64,7 +67,7 @@ import jpsxdec.util.NotThisTypeException;
  * <li>{@link #SECTOR_SIZE_2448_BIN_SUBCHANNEL}
  * </ul>
  */
-public class CdFileSectorReader {
+public class CdFileSectorReader implements Closeable {
 
     private static final Logger LOG = Logger.getLogger(CdFileSectorReader.class.getName());
 
@@ -112,28 +115,21 @@ public class CdFileSectorReader {
     /* ---------------------------------------------------------------------- */
 
     public CdFileSectorReader(@Nonnull File inputFile)
-        throws IOException, CdFileNotFoundException
+            throws CdFileNotFoundException, IOException
     {
         this(inputFile, false, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
     public CdFileSectorReader(@Nonnull File inputFile, boolean blnAllowWrites)
-        throws IOException, CdFileNotFoundException
+            throws CdFileNotFoundException, IOException
     {
-
         this(inputFile, blnAllowWrites, DEFAULT_SECTOR_BUFFER_COUNT);
-    }
-
-    public CdFileSectorReader(@Nonnull File inputFile, int iSectorSize)
-            throws IOException, CdFileNotFoundException
-    {
-        this(inputFile, iSectorSize, false, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
     /** Opens a CD file for reading. Tries to guess the CD size. */
     public CdFileSectorReader(@Nonnull File sourceFile,
                               boolean blnAllowWrites, int iSectorsToBuffer)
-            throws IOException, CdFileNotFoundException
+            throws CdFileNotFoundException, IOException
     {
         LOG.info(sourceFile.getPath());
 
@@ -143,7 +139,7 @@ public class CdFileSectorReader {
         try {
             _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
         } catch (FileNotFoundException ex) {
-            throw new CdFileNotFoundException(sourceFile);
+            throw new CdFileNotFoundException(I.IO_OPENING_FILE_NOT_FOUND_NAME(sourceFile.toString()), sourceFile, ex);
         }
 
         SectorFactory factory;
@@ -151,11 +147,11 @@ public class CdFileSectorReader {
         try {
             factory = new Cd2352or2448Factory(_inputFile, true /*2352*/, true /*2448*/);
             LOG.log(Level.INFO, "Disc type identified as {0}", factory.getTypeDescription());
-        } catch (NotThisTypeException ex) {
+        } catch (BinaryDataNotRecognized ex) {
             try {
                 factory = new Cd2336Factory(_inputFile);
                 LOG.log(Level.INFO, "Disc type identified as {0}", factory.getTypeDescription());
-            } catch (NotThisTypeException ex1) {
+            } catch (BinaryDataNotRecognized ex1) {
                 // we couldn't figure out what it is, assuming ISO style
                 factory = new Cd2048Factory();
                 LOG.log(Level.INFO, "Unknown disc type, assuming {0}", factory.getTypeDescription());
@@ -167,56 +163,63 @@ public class CdFileSectorReader {
         _iSectorCount = calculateSectorCount();
     }
 
-    /** Opens a CD file for reading using the provided sector size. 
-     * If the disc image doesn't match the sector size, IOException is thrown.
+    public CdFileSectorReader(@Nonnull File inputFile, int iSectorSize)
+            throws CdFileNotFoundException, IOException, BinaryDataNotRecognized
+    {
+        this(inputFile, iSectorSize, false, DEFAULT_SECTOR_BUFFER_COUNT);
+    }
+
+    /** Opens a CD file for reading using the provided sector size.
+     * @throws BinaryDataNotRecognized If the disc image doesn't match the sector size.
      */
     public CdFileSectorReader(@Nonnull File sourceFile,
             int iSectorSize, boolean blnAllowWrites, int iSectorsToBuffer)
-            throws IOException
+            throws CdFileNotFoundException, IOException, BinaryDataNotRecognized
     {
         LOG.info(sourceFile.getPath());
 
         _sourceFile = sourceFile;
         _iSectorsToCache = iSectorsToBuffer;
 
-        _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
-
         try {
-            switch (iSectorSize) {
-                case SECTOR_SIZE_2048_ISO:
-                    _sectorFactory = new Cd2048Factory();
-                    break;
-                case SECTOR_SIZE_2336_BIN_NOSYNC:
-                    _sectorFactory = new Cd2336Factory(_inputFile);
-                    break;
-                case SECTOR_SIZE_2352_BIN:
-                    _sectorFactory = new Cd2352or2448Factory(_inputFile, true /*2352*/, false /*2448*/);
-                    break;
-                case SECTOR_SIZE_2448_BIN_SUBCHANNEL:
-                    _sectorFactory = new Cd2352or2448Factory(_inputFile, false /*2352*/, true /*2448*/);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Invalid sector size to open disc image as " + iSectorSize);
-            }
-        } catch (NotThisTypeException ex) {
-            throw new LocalizedIOException(ex);
+            _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
+        } catch (FileNotFoundException ex) {
+            throw new CdFileNotFoundException(
+                    I.IO_OPENING_FILE_NOT_FOUND_NAME(sourceFile.toString()), sourceFile, ex);
+        }
+
+        switch (iSectorSize) {
+            case SECTOR_SIZE_2048_ISO:
+                _sectorFactory = new Cd2048Factory();
+                break;
+            case SECTOR_SIZE_2336_BIN_NOSYNC:
+                _sectorFactory = new Cd2336Factory(_inputFile);
+                break;
+            case SECTOR_SIZE_2352_BIN:
+                _sectorFactory = new Cd2352or2448Factory(_inputFile, true /*2352*/, false /*2448*/);
+                break;
+            case SECTOR_SIZE_2448_BIN_SUBCHANNEL:
+                _sectorFactory = new Cd2352or2448Factory(_inputFile, false /*2352*/, true /*2448*/);
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid sector size to open disc image as " + iSectorSize);
         }
 
         _iSectorCount = calculateSectorCount();
     }
 
     public CdFileSectorReader(@Nonnull String sSerialization, boolean blnAllowWrites)
-            throws IOException, NotThisTypeException
+            throws CdFileNotFoundException, IOException, DeserializationFail
     {
         this(sSerialization, blnAllowWrites, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
     public CdFileSectorReader(@Nonnull String sSerialization, boolean blnAllowWrites, int iSectorsToBuffer)
-            throws IOException, NotThisTypeException
+            throws CdFileNotFoundException, IOException, DeserializationFail
     {
         String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
         if (asValues == null || asValues.length != 5)
-            throw new NotThisTypeException(I.DESERIALIZE_CD_FAIL(sSerialization));
+            throw new DeserializationFail(I.CD_DESERIALIZE_FAIL(sSerialization));
 
         try {
             _iSectorCount = Integer.parseInt(asValues[3]);
@@ -237,22 +240,26 @@ public class CdFileSectorReader {
                     _sectorFactory = new Cd2352or2448Factory(false, lngStartOffset);
                     break;
                 default:
-                    throw new NotThisTypeException();
+                    throw new DeserializationFail(I.CD_DESERIALIZE_FAIL(sSerialization));
             }
         } catch (NumberFormatException ex) {
-            throw new NotThisTypeException(ex);
+            throw new DeserializationFail(I.CD_DESERIALIZE_FAIL(sSerialization), ex);
         }
 
         _sourceFile = new File(asValues[1]);
 
+        try {
         _inputFile = new RandomAccessFile(_sourceFile, blnAllowWrites ? "rw" : "r");
+        } catch (FileNotFoundException ex) {
+            throw new CdFileNotFoundException(I.IO_OPENING_FILE_NOT_FOUND_NAME(_sourceFile.getName()), _sourceFile, ex);
+        }
 
         _iSectorsToCache = iSectorsToBuffer;
 
         int iActualSectorCount = calculateSectorCount();
         if (_iSectorCount != iActualSectorCount) {
-            _inputFile.close();
-            throw new NotThisTypeException(I.SECTOR_COUNT_MISMATCH(_iSectorCount, iActualSectorCount));
+            IO.closeSilently(_inputFile, LOG);
+            throw new DeserializationFail(I.SECTOR_COUNT_MISMATCH(_iSectorCount, iActualSectorCount));
         }
 
     }
@@ -305,10 +312,13 @@ public class CdFileSectorReader {
 
     //..........................................................................
 
-    public int getSectorSize() {
+    /** Size of the raw sectors of the source disc image. */
+    public int getRawSectorSize() {
         return _sectorFactory.getRawSectorSize();
     }
 
+    /** If sectors of this disc image could have raw sector headers
+     * (i.e. not ISO 2048 images). */
     public boolean hasSectorHeader() {
         return _sectorFactory.hasSectorHeader();
     }
@@ -317,13 +327,13 @@ public class CdFileSectorReader {
         return _sourceFile;
     }
 
-    /** Returns the actual offset in bytes from the start of the file/CD 
-     *  to the start of iSector. */
+    /** Returns the actual offset in bytes from the start of the source file
+     *  to the raw start of {@code iSector}. */
     public long getFilePointer(int iSector) {
         return (long)iSector * _sectorFactory.getRawSectorSize() + _sectorFactory.get1stSectorOffset();
     }
 
-    /** Returns the number of sectors in the file/CD */
+    /** Returns the number of sectors in the disc image. */
     public int getLength() {
         return _iSectorCount;
     }
@@ -340,16 +350,18 @@ public class CdFileSectorReader {
 
 
         if (iSector >= _iCachedSectorStart + _iSectorsToCache || iSector < _iCachedSectorStart || _abBulkReadCache == null) {
-            _abBulkReadCache = new byte[_sectorFactory.getRawSectorSize() * _iSectorsToCache];
+            _abBulkReadCache = null; // in case of failure, make sure we aren't left with some invalid cache
+
             _iCachedSectorStart = iSector;
             _lngCacheFileOffset = getFilePointer(iSector);
-
             _inputFile.seek(_lngCacheFileOffset);
-            int iBytesRead = _inputFile.read(_abBulkReadCache);
-            if (iBytesRead < _sectorFactory.getRawSectorSize()) {
-                _abBulkReadCache = null;
+            
+            byte[] abBulkReadCache = new byte[_sectorFactory.getRawSectorSize() * _iSectorsToCache];
+            int iBytesRead = IO.readByteArrayMax(_inputFile, abBulkReadCache, 0, abBulkReadCache.length);
+            
+            if (iBytesRead < _sectorFactory.getRawSectorSize())
                 throw new LocalizedIOException(I.FAILED_TO_READ_1_SECTOR());
-            }
+            _abBulkReadCache = abBulkReadCache;
         }
 
         int iOffset = _sectorFactory.getRawSectorSize() * (iSector - _iCachedSectorStart);
@@ -386,7 +398,7 @@ public class CdFileSectorReader {
     }
 
     public void reopenForWriting() throws IOException {
-        _inputFile.close();
+        _inputFile.close(); // expose close exception
         _inputFile = new RandomAccessFile(_sourceFile, "rw");
     }
 
@@ -420,7 +432,7 @@ public class CdFileSectorReader {
 
 
         public @Nonnull ILocalizedMessage getTypeDescription() {
-            return I.DISC_FMT_2048();
+            return I.CD_FORMAT_2048();
         }
 
         public boolean hasSectorHeader() {
@@ -444,9 +456,9 @@ public class CdFileSectorReader {
          *<p>
          *  Note: This assumes the input file has the data aligned at every 4 bytes!
          */
-        public Cd2336Factory(@Nonnull RandomAccessFile cdFile) throws IOException, NotThisTypeException {
+        public Cd2336Factory(@Nonnull RandomAccessFile cdFile) throws IOException, BinaryDataNotRecognized {
             if (cdFile.length() < SECTOR_SIZE_2336_BIN_NOSYNC)
-                throw new NotThisTypeException();
+                throw new BinaryDataNotRecognized();
 
             // Optimization TODO: With the new api I can read the whole test block at once
             byte[] abTestSectorData = new byte[SECTOR_SIZE_2336_BIN_NOSYNC];
@@ -486,7 +498,7 @@ public class CdFileSectorReader {
                     }
                 }
             }
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
         }
 
         private static boolean isXaSector(@Nonnull RandomAccessFile cdFile,
@@ -514,7 +526,7 @@ public class CdFileSectorReader {
         }
 
         public @Nonnull ILocalizedMessage getTypeDescription() {
-            return I.DISC_FMT_2336();
+            return I.CD_FORMAT_2336();
         }
         public boolean hasSectorHeader() {
             return true;
@@ -540,12 +552,12 @@ public class CdFileSectorReader {
          *  should be checked.
          */
         public Cd2352or2448Factory(@Nonnull RandomAccessFile cdFile, boolean blnCheck2352, boolean blnCheck2448)
-                throws IOException, NotThisTypeException
+                throws IOException, BinaryDataNotRecognized
         {
 
             long lngFileLength = cdFile.length();
             if (lngFileLength < CdxaHeader.SECTOR_SYNC_HEADER.length)
-                throw new NotThisTypeException();
+                throw new BinaryDataNotRecognized();
 
             byte[] abSyncHeader = new byte[CdxaHeader.SECTOR_SYNC_HEADER.length];
 
@@ -569,7 +581,7 @@ public class CdFileSectorReader {
                     }
                 }
             }
-            throw new NotThisTypeException();
+            throw new BinaryDataNotRecognized();
         }
 
         /** Check for 10 more seek headers after the initial one just to be sure. */
@@ -605,8 +617,8 @@ public class CdFileSectorReader {
 
         public @Nonnull ILocalizedMessage getTypeDescription() {
             return _bln2352 ?
-                    I.DISC_FMT_2352() :
-                    I.DISC_FMT_2448();
+                    I.CD_FORMAT_2352() :
+                    I.CD_FORMAT_2448();
         }
         public boolean hasSectorHeader() {
             return true;

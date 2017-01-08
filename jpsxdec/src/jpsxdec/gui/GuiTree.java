@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -61,9 +61,7 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemAudioStream;
-import jpsxdec.discitems.DiscItemISO9660File;
 import jpsxdec.discitems.DiscItemSaverBuilder;
-import jpsxdec.discitems.DiscItemTim;
 import jpsxdec.discitems.DiscItemVideoStream;
 import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.i18n.I;
@@ -390,17 +388,13 @@ public class GuiTree extends JXTreeTable {
 
         @Override
         public @CheckForNull Icon getIcon() {
-            // Optional TODO: let the item create the icon
-            if (_item instanceof DiscItemVideoStream) {
-                return VIDEO_ICON;
-            } else if (_item instanceof DiscItemISO9660File) {
-                return FILE_ICON;
-            } else if (_item instanceof DiscItemAudioStream) {
-                return AUDIO_ICON;
-            } else if (_item instanceof DiscItemTim) {
-                return IMAGE_ICON;
-            } else
-                return null;
+            switch (_item.getType()) {
+                case Audio: return AUDIO_ICON;
+                case File: return FILE_ICON;
+                case Image: return IMAGE_ICON;
+                case Video: return VIDEO_ICON;
+                default: return null;
+            }
         }
 
         public String toString() {

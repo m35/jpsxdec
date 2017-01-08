@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2016  Michael Sabin
+ * Copyright (C) 2012-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,21 +37,26 @@
 
 package jpsxdec.discitems;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.psxvideoencode.ReplaceFrames;
+import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.mdec.Calc;
-import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
-import jpsxdec.util.ConsoleProgressListenerLogger;
-import jpsxdec.util.FeedbackStream;
+import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.DebugLogger;
+import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.Fraction;
-import jpsxdec.util.IncompatibleException;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.LoggedFailure;
+import jpsxdec.util.ProgressLogger;
+import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
 
 /** Represents all variations of PlayStation video streams. */
@@ -85,7 +90,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
     }
     
     public DiscItemVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
         
@@ -154,79 +159,74 @@ public abstract class DiscItemVideoStream extends DiscItem {
     abstract public double getApproxDuration();
 
 
-    public void frameInfoDump(@Nonnull final FeedbackStream fbs) throws IOException {
+    public void frameInfoDump(@Nonnull final PrintStream ps, final boolean blnMore) {
         ISectorFrameDemuxer demuxer = makeDemuxer();
         demuxer.setFrameListener(new ISectorFrameDemuxer.ICompletedFrameListener() {
-            public void frameComplete(IDemuxedFrame frame) throws IOException {
+            public void frameComplete(IDemuxedFrame frame) {
+                ps.println(frame);
+                ps.println("  Available demux size: " + frame.getDemuxSize());
+                frame.printSectors(ps); // ideally would be indented by 4
+                
+                byte[] abBitStream = frame.copyDemuxData(null);
                 try {
-                    byte[] abBitStream = frame.copyDemuxData(null);
-                    BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream);
-                    if (uncompressor != null) {
-                        uncompressor.reset(abBitStream, frame.getDemuxSize());
-                        ParsedMdecImage parsed = new ParsedMdecImage(getWidth(), getHeight());
-                        parsed.readFrom(uncompressor);
-                        uncompressor.skipPaddingBits();
-                        fbs.println(frame);
-                        fbs.indent();
-                        try {
-                            fbs.println("Bitstream info: " + uncompressor);
-                            fbs.println("Available demux size: " + frame.getDemuxSize());
-                            fbs.indent();
-                            try {
-                                frame.printSectors(fbs);
-                                if (fbs.printMore()) {
-                                    int iMbWidth  = Calc.macroblockDim(_iWidth),
-                                        iMbHeight = Calc.macroblockDim(_iHeight);
-                                    for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
-                                        for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
-                                            fbs.println(iMbX + ", " + iMbY);
-                                            fbs.indent();
-                                            try {
-                                                for (int iBlk = 0; iBlk < 6; iBlk++) {
-                                                    fbs.println(parsed.getBlockInfo(iMbX, iMbY, iBlk));
-                                                }
-                                            } finally {
-                                                fbs.outdent();
-                                            }
-                                        }
-                                    }
+                    BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream, frame.getDemuxSize());
+                    ParsedMdecImage parsed = new ParsedMdecImage(uncompressor, getWidth(), getHeight());
+                    uncompressor.skipPaddingBits();
+                    ps.println("  Bitstream info: " + uncompressor);
+                    if (blnMore) {
+                        int iMbWidth  = Calc.macroblockDim(_iWidth),
+                            iMbHeight = Calc.macroblockDim(_iHeight);
+                        for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
+                            for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
+                                ps.println("    " +iMbX + ", " + iMbY);
+                                for (int iBlk = 0; iBlk < 6; iBlk++) {
+                                    ps.println("      "+parsed.getBlockInfo(iMbX, iMbY, iBlk));
                                 }
-                            } finally {
-                                fbs.outdent();
                             }
-                        } finally {
-                            fbs.outdent();
                         }
                     }
+                } catch (BinaryDataNotRecognized ex) {
+                    ps.println("  Frame not recognized");
                 } catch (Exception ex) {
-                    throw new RuntimeException(ex);
+                    ex.printStackTrace(ps);
                 }
             }
         });
 
-        ConsoleProgressListenerLogger log = new ConsoleProgressListenerLogger("frameInfoDump", fbs);
         try {
             IdentifiedSectorIterator it = identifiedSectorIterator();
             while (it.hasNext()) {
                 try {
                     IdentifiedSector sector = it.next();
                     if (sector != null) {
-                        demuxer.feedSector(sector, log);
+                        demuxer.feedSector(sector, DebugLogger.Log);
                     }
                 } catch (IOException ex) {
-                    throw new RuntimeException(ex);
+                    throw new RuntimeException("IO error with dev tool", ex);
                 }
             }
-            demuxer.flush(log);
-        } finally {
-            log.close();
+            demuxer.flush(DebugLogger.Log);
+        } catch (LoggedFailure ex) {
+            throw new RuntimeException("Should not happen", ex);
         }
     }
 
-    public void replaceFrames(@Nonnull FeedbackStream Feedback, @Nonnull String sXmlFile)
-            throws IOException, NotThisTypeException, MdecException, IncompatibleException
+    public void replaceFrames(@Nonnull ProgressLogger pl, @Nonnull String sXmlFile)
+            throws LoggedFailure, TaskCanceledException
     {
-        ReplaceFrames replacers = new ReplaceFrames(sXmlFile);
-        replacers.replaceFrames(this, getSourceCd(), Feedback);
+        ReplaceFrames replacers;
+        try {
+            replacers = new ReplaceFrames(sXmlFile);
+        } catch (FileNotFoundException ex) {
+            throw new LoggedFailure(pl, Level.SEVERE,
+                                    I.IO_OPENING_FILE_NOT_FOUND_NAME(sXmlFile), ex);
+        } catch (IOException ex) {
+            throw new LoggedFailure(pl, Level.SEVERE,
+                                    I.IO_READING_FILE_ERROR_NAME(sXmlFile), ex);
+        } catch (DeserializationFail ex) {
+            throw new LoggedFailure(pl, Level.SEVERE,
+                                    ex.getSourceMessage(), ex);
+        }
+        replacers.replaceFrames(this, getSourceCd(), pl);
     }
 }

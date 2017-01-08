@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,7 +49,8 @@ import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.I;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.SectorXaAudio;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
 
 /**
  * Watches for XA audio streams.
@@ -62,9 +63,9 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
     private static final Logger LOG = Logger.getLogger(DiscIndexerXaAudio.class.getName());
 
     @Nonnull
-    private final Logger _errLog;
+    private final ILocalizedLogger _errLog;
 
-    public DiscIndexerXaAudio(@Nonnull Logger errLog) {
+    public DiscIndexerXaAudio(@Nonnull ILocalizedLogger errLog) {
         _errLog = errLog;
     }
 
@@ -101,9 +102,9 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
         private int _iAudioStride = -1;
 
         @Nonnull
-        private final Logger _errLog;
+        private final ILocalizedLogger _errLog;
 
-        public AudioStreamIndex(@Nonnull SectorXaAudio first, @Nonnull Logger errLog) {
+        public AudioStreamIndex(@Nonnull SectorXaAudio first, @Nonnull ILocalizedLogger errLog) {
             _currentXA = first;
             _iStartSector = first.getSectorNumber();
             _errLog = errLog;
@@ -133,7 +134,7 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
 
         public void createMediaItem(@Nonnull DiscIndexer adder) {
             if (_previousXA == null && _currentXA.isSilent()) {
-                I.IGNORING_SILENT_XA_SECTOR(_iStartSector, _currentXA.getChannel()).log(_errLog, Level.INFO);
+                _errLog.log(Level.INFO, I.IGNORING_SILENT_XA_SECTOR(_iStartSector, _currentXA.getChannel()));
                 return;
             }
             adder.addDiscItem(new DiscItemXaAudioStream(
@@ -156,12 +157,11 @@ public class DiscIndexerXaAudio extends DiscIndexer implements DiscIndexer.Ident
             new AudioStreamIndex[SectorXaAudio.MAX_VALID_CHANNEL+1];
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem serial) {
-        try {
-            if (DiscItemXaAudioStream.TYPE_ID.equals(serial.getType())) {
-                return new DiscItemXaAudioStream(getCd(), serial);
-            }
-        } catch (NotThisTypeException ex) {}
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem serial) 
+            throws DeserializationFail
+    {
+        if (DiscItemXaAudioStream.TYPE_ID.equals(serial.getType())) 
+            return new DiscItemXaAudioStream(getCd(), serial);
         return null;
     }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.util.aviwriter;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
 import javax.annotation.CheckForNull;
@@ -65,7 +66,7 @@ public class AviWriterDIB extends AviWriter {
     public AviWriterDIB(final @Nonnull File outputfile,
                         final int iWidth, final int iHeight,
                         final long lngFrames, final long lngPerSecond)
-            throws IOException
+            throws FileNotFoundException, IOException
     {
         this(outputfile,
              iWidth, iHeight,
@@ -78,7 +79,7 @@ public class AviWriterDIB extends AviWriter {
                         final int iWidth, final int iHeight,
                         final long lngFrames, final long lngPerSecond,
                         final @CheckForNull AudioFormat audioFormat)
-            throws IOException
+            throws FileNotFoundException, IOException
     {
        // Write 'DIB ' for Microsoft Device Independent Bitmap.  Note: Unfortunately,
        // at least 3 other fourcc codes are sometimes used for uncompressed

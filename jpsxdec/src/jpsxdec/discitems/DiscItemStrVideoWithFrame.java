@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,6 @@ package jpsxdec.discitems;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
@@ -47,7 +46,9 @@ import jpsxdec.discitems.ISectorFrameDemuxer.ICompletedFrameListener;
 import jpsxdec.sectors.IVideoSectorWithFrameNumber;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 /** Handles most variations of PlayStation video streams.
  * Most video streams have video sectors with similar header information
@@ -76,7 +77,7 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
     }
 
     public DiscItemStrVideoWithFrame(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
     }
@@ -152,10 +153,10 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
             _demuxer.setFrameListener(this);
         }
 
-        public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull Logger log) throws IOException {
+        public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             return _demuxer.feedSector(idSector, log);
         }
-        public void flush(@Nonnull Logger log) throws IOException {
+        public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
             _demuxer.flush(log);
         }
         
@@ -164,7 +165,7 @@ public class DiscItemStrVideoWithFrame extends DiscItemStrVideoStream {
         }
 
         // [implements StrDemuxer.Listener]
-        public void frameComplete(@Nonnull StrDemuxer.DemuxedStrFrame frame) throws IOException {
+        public void frameComplete(@Nonnull StrDemuxer.DemuxedStrFrame frame) throws LoggedFailure {
             frame.setFrame(_frameNumberFactory.next(frame.getStartSector(), frame.getHeaderFrameNumber()));
             if (_listener == null)
                 throw new IllegalStateException();

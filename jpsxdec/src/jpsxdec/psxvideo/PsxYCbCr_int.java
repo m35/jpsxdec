@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2016  Michael Sabin
+ * Copyright (C) 2007-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,32 +50,32 @@ public class PsxYCbCr_int {
     public PsxYCbCr_int() {
     }
 
-    private static final int FIXED_BITS = 16;
-            static final double FIXED_MULT = 1L << FIXED_BITS;
+    public static final int FIXED_BITS = 16;
+    public static final double FIXED_MULT = 1L << FIXED_BITS;
 
     // these values produce perfect hardware YCbCr conversion.
     // they weren't very difficult to find because the YCbCr->RGB conversion
     // equation is quite forgiving. There are many values which would
     // generate perfect hardware emulation.
-    private static final long _1_402   = Math.round(1.402 * FIXED_MULT) + 12; // 91893
-    private static final long _0_3437  = Math.round(0.3437 * FIXED_MULT);
-    private static final long _0_7143  = Math.round(0.7143 * FIXED_MULT);
-            static final long _1_772   = Math.round(1.772 * FIXED_MULT)+94;
+    public static final long _1_402   = 91893;  // Math.round(1.402  * FIXED_MULT)+12;
+    public static final long _0_3437  = 22525;  // Math.round(0.3437 * FIXED_MULT);
+    public static final long _0_7143  = 46812;  // Math.round(0.7143 * FIXED_MULT);
+    public static final long _1_772   = 116224; // Math.round(1.772  * FIXED_MULT)+94;
 
     public static void toRgb(int y, int cb, int cr, RGB rgb) {
         int Yshift = y + 128;
-        long c_r = _1_402 * cr,
+        long c_r =                 _1_402  * cr,
              c_g = -_0_3437 * cb - _0_7143 * cr,
-             c_b = _1_772 * cb;
+             c_b =  _1_772  * cb;
         rgb.setR(Yshift + (int)Maths.shrRound(c_r, FIXED_BITS));
         rgb.setG(Yshift + (int)Maths.shrRound(c_g, FIXED_BITS));
         rgb.setB(Yshift + (int)Maths.shrRound(c_b, FIXED_BITS));
     }
     
     final public void toRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
-        int iChromRed   = (int)Maths.shrRound(                       _1_402 * cr , FIXED_BITS);
+        int iChromRed   = (int)Maths.shrRound(                      _1_402  * cr , FIXED_BITS);
         int iChromGreen = (int)Maths.shrRound( -(_0_3437 * cb)  -  (_0_7143 * cr), FIXED_BITS);
-        int iChromBlue  = (int)Maths.shrRound(   _1_772 * cb                     , FIXED_BITS);
+        int iChromBlue  = (int)Maths.shrRound(   _1_772  * cb                    , FIXED_BITS);
         int iYshift;
         
         iYshift = y1 + 128;

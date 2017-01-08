@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2016  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,7 +46,9 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.sectors.IdentifiedSector;
 import jpsxdec.sectors.IdentifiedSectorIterator;
 import jpsxdec.sectors.SectorAceCombat3Video;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.DeserializationFail;
+import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.util.LoggedFailure;
 
 /** Represents all variations of PlayStation video streams. */
 public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
@@ -79,7 +81,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
 
     public DiscItemAceCombat3VideoStream(@Nonnull CdFileSectorReader cd,
                                          @Nonnull SerializedDiscItem fields)
-            throws NotThisTypeException
+            throws DeserializationFail
     {
         super(cd, fields);
         _iChannel = fields.getInt(CHANNEL_KEY);
@@ -176,11 +178,11 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
             _demuxer.setFrameListener(this);
         }
 
-        public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull Logger log) throws IOException {
+        public boolean feedSector(@Nonnull IdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             // TODO: limit to the range of sectors in this video?
             return _demuxer.feedSector(idSector, log);
         }
-        public void flush(@Nonnull Logger log) throws IOException {
+        public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
             _demuxer.flush(log);
         }
 
@@ -188,7 +190,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemStrVideoStream {
             _listener = listener;
         }
 
-        public void frameComplete(@Nonnull Ac3Demuxer.DemuxedAc3Frame frame) throws IOException {
+        public void frameComplete(@Nonnull Ac3Demuxer.DemuxedAc3Frame frame) throws LoggedFailure {
             frame.setFrame(_frameNumberFactory.next(frame.getStartSector(), 
                                                     _iEndFrame - frame.getInvertedHeaderFrameNumber()));
             if (_listener == null)

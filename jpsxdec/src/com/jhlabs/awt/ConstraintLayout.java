@@ -105,6 +105,14 @@ public class ConstraintLayout implements LayoutManager2 {
 		return 0.5f;
 	}
 
+	public int getHMargin() {
+		return hMargin;
+	}
+
+	public int getVMargin() {
+		return vMargin;
+	}
+
 	public void layoutContainer(Container target)  {
 		measureLayout(target, null, PREFERRED);
 	}

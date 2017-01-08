@@ -41,7 +41,7 @@ import java.io.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import jpsxdec.util.IO;
-import jpsxdec.util.NotThisTypeException;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Lain;
 import jpsxdec.psxvideo.mdec.MdecException;
@@ -90,7 +90,7 @@ public class Lain_LAPKS {
             while ((cell = lnpk.nextCell()) != null ){
                 MdecDecoder_double oDecoder = new MdecDecoder_double(
                         new PsxMdecIDCT_double(), cell.Width, cell.Height);
-                uncompresor.reset(cell.Data, cell.Data.length);
+                uncompresor.reset(cell.Data);
                 oDecoder.decode(uncompresor);
                 RgbIntImage oRgb = new RgbIntImage(cell.Width, cell.Height);
                 oDecoder.readDecodedRgb(oRgb.getWidth(), oRgb.getHeight(), oRgb.getData());
@@ -123,10 +123,13 @@ public class Lain_LAPKS {
                 //biscreen = addImage(oCell.BitMask, (int)x, (int)y, (int)w, (int)h);
                 ImageIO.write(cell.BitMask, "png", new File(s + "_mask.png"));
             }
-        } catch (MdecException.Read ex) {
+        } catch (MdecException.EndOfStream ex) {
             ex.printStackTrace();
             return -1;
-        } catch (NotThisTypeException ex) {
+        } catch (MdecException.ReadCorruption ex) {
+            ex.printStackTrace();
+            return -1;
+        } catch (BinaryDataNotRecognized ex) {
             ex.printStackTrace();
             return -1;
         } catch (IOException ex) {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2015  Michael Sabin
+ * Copyright (C) 2014-2017  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,9 +53,9 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 
-public class XaAdpcmDecoderTest {
+public class XaDecodeCorruption {
 
-    public XaAdpcmDecoderTest() {
+    public XaDecodeCorruption() {
     }
 
     @BeforeClass
@@ -74,33 +74,36 @@ public class XaAdpcmDecoderTest {
     public void tearDown() {
     }
 
-    /**
-     * Test of decode method, of class XaAdpcmDecoder.
-     */
     @Test
-    public void testDecode() throws Exception {
-        testDecode1(55, 1,
+    public void testCorruption1() throws Exception {
+        testCorruption(55, 1,
                 1, 0x80, 3, 0xff,
-                "Sector 55 sound parameter corrupted: [1, 128 (bad), 3, 255 (bad)]. Chose 1. Affects samples starting at 56.");
-        testDecode1(42, 3,
+                "Sector 55 Sound Group.Unit 1.0 after Sample Frame 56 [corruption] sound parameter corrupted: [1, 128 (bad), 3, 255 (bad)]. Chose 1");
+    }
+    @Test
+    public void testCorruption2() throws Exception {
+        testCorruption(42, 3,
                 1, 3, 4, 4,
-                "Sector 42 sound parameter corrupted: [1, 3, 4, 4]. Chose 4. Affects samples starting at 168.");
-        testDecode1(7, 0,
+                "Sector 42 Sound Group.Unit 3.0 after Sample Frame 168 [corruption] sound parameter corrupted: [1, 3, 4, 4]. Chose 4");
+    }
+    @Test
+    public void testCorruption3() throws Exception {
+        testCorruption(7, 0,
                 0xa3, 0x61, 0x7f, 0x7f,
-                "Sector 7 sound parameter corrupted: [163 (bad), 97, 127, 127]. Chose 127. Affects samples starting at 0.");
+                "Sector 7 Sound Group.Unit 0.0 after Sample Frame 0 [corruption] sound parameter corrupted: [163 (bad), 97, 127, 127]. Chose 127");
     }
 
 
-    public void testDecode1(int iSector, int iSoundGroup,
+    public void testCorruption(int iSector, int iSoundGroup,
             int iParam1, int iParam2, int iParam3, int iParam4, final String sExpected)
             throws Exception
     {
         final int iBitsPerSample = 8;
         byte[] abTest = new byte[CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM2 - 20];
-        abTest[XaAdpcmDecoder.SIZE_OF_SOUND_GROUP*iSoundGroup+0] = (byte) iParam1;
-        abTest[XaAdpcmDecoder.SIZE_OF_SOUND_GROUP*iSoundGroup+4] = (byte) iParam2;
-        abTest[XaAdpcmDecoder.SIZE_OF_SOUND_GROUP*iSoundGroup+8] = (byte) iParam3;
-        abTest[XaAdpcmDecoder.SIZE_OF_SOUND_GROUP*iSoundGroup+12] = (byte) iParam4;
+        abTest[XaAdpcmDecoder.SIZEOF_SOUND_GROUP*iSoundGroup+0] = (byte) iParam1;
+        abTest[XaAdpcmDecoder.SIZEOF_SOUND_GROUP*iSoundGroup+4] = (byte) iParam2;
+        abTest[XaAdpcmDecoder.SIZEOF_SOUND_GROUP*iSoundGroup+8] = (byte) iParam3;
+        abTest[XaAdpcmDecoder.SIZEOF_SOUND_GROUP*iSoundGroup+12] = (byte) iParam4;
         InputStream inStream = new ByteArrayInputStream(abTest);
         OutputStream out = new ByteArrayOutputStream();
         LogTest handler = new LogTest() {
@@ -113,7 +116,7 @@ public class XaAdpcmDecoderTest {
             }
         };
         Logger log = Logger.getLogger(XaAdpcmDecoder.class.getName());
-        XaAdpcmDecoder instance = XaAdpcmDecoder.create(iBitsPerSample, true, 1.0);
+        XaAdpcmDecoder instance = new XaAdpcmDecoder(iBitsPerSample, true, 1.0);
         log.addHandler(handler);
         try {
             instance.decode(inStream, out, iSector);
@@ -121,7 +124,7 @@ public class XaAdpcmDecoderTest {
         } finally {
             log.removeHandler(handler);
         }
-        assertEquals(1008, instance.getSamplesWritten());
+        assertEquals(1008, instance.getSampleFramesWritten());
         assertEquals(1008*2, XaAdpcmDecoder.pcmSamplesGeneratedFromXaAdpcmSector(iBitsPerSample));
     }
     

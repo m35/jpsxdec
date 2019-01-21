@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2017  Michael Sabin
+ * Copyright (C) 2014-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,14 +37,13 @@
 
 package jpsxdec.indexing;
 
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSector2352;
-import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.i18n.log.DebugLogger;
+import jpsxdec.modules.IdentifiedSector;
+import jpsxdec.modules.xa.DiscIndexerXaAudio;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.DebugLogger;
 import org.junit.*;
-import static org.junit.Assert.*;
 
 
 public class DiscIndexerXaAudioTest {
@@ -88,11 +87,11 @@ public class DiscIndexerXaAudioTest {
         };
         
         private static CdSector makeDummySector() {
-            byte[] abSectorBytes = new byte[CdFileSectorReader.SECTOR_USER_DATA_SIZE_CD_AUDIO];
+            byte[] abSectorBytes = new byte[CdSector.SECTOR_SIZE_2352_BIN];
             for (int i = 0; i < SECTOR_HEADER.length; i++) {
                 abSectorBytes[i] = (byte)SECTOR_HEADER[i];                
             }
-            return new CdSector2352(abSectorBytes, 0, 0, 0);
+            return new CdSector2352(0, abSectorBytes, 0, 0);
         }
                 
         public DummyIdentifiedSector() {
@@ -118,7 +117,7 @@ public class DiscIndexerXaAudioTest {
         DiscIndexerXaAudio xaIndexer = new DiscIndexerXaAudio(DebugLogger.Log);
         // just testing that nothing terrible happens
         DummyIdentifiedSector s = new DummyIdentifiedSector();
-        xaIndexer.indexingSectorRead(s.getCdSector(), s);
+        xaIndexer.feedXaSector(s.getCdSector(), null, DebugLogger.Log);
     }
     
 }

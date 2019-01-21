@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -272,16 +272,24 @@ public final class Misc {
         "000000000000000000000000000000", "0000000000000000000000000000000",
         "00000000000000000000000000000000"
     };
-    public static @Nonnull String bitsToString(long val, int iCount) {
-        String sBin = Long.toBinaryString(val);
-        int len = sBin.length();
+    public static @Nonnull String bitsToString(long lng, int iLength) {
+        String sBin = Long.toBinaryString(lng);
+        return zeroPadString(sBin, iLength, true);
+    }
 
-        if (len < iCount)
-            return ZERO_PAD[iCount - len] + sBin;
-        else if (len > iCount)
-            return sBin.substring(len - iCount);
+    public static @Nonnull String intToPadded0String(int i, int iLength) {
+        String sInt = Integer.toString(i);
+        return zeroPadString(sInt, iLength, false);
+    }
+
+    public static @Nonnull String zeroPadString(@Nonnull String s, int iLength, boolean blnTrim) {
+        int iSLen = s.length();
+        if (iSLen < iLength)
+            return ZERO_PAD[iLength - iSLen] + s;
+        else if (iSLen > iLength && blnTrim)
+            return s.substring(iSLen - iLength);
         else
-            return sBin;
+            return s;
     }
 
     /*** Log a message that has parameters and exception. */

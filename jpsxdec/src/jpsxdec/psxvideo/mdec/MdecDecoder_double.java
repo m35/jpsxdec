@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,17 +41,12 @@ import java.util.Arrays;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.Rec601YCbCr;
 import jpsxdec.formats.YCbCrImage;
-import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 
 /** A full Java, double-precision, floating point implementation of the
  *  PlayStation 1 MDEC chip. This implementation also comes with additional
- *  methods for higher quality YUV decoding.
- *<p>
- * WARNING: This class was not designed to be thread safe. Create a
- * separate instance of this class for each thread, or wrap its use with
- * synchronize. */
+ *  methods for higher quality YUV decoding. */
 public class MdecDecoder_double extends MdecDecoder {
 
     protected final IDCT_double _idct;

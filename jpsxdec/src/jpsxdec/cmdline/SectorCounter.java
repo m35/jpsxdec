@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2017  Michael Sabin
+ * Copyright (C) 2016-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 import javax.annotation.Nonnull;
-import jpsxdec.sectors.IdentifiedSector;
+import jpsxdec.modules.IIdentifiedSector;
 
 /**
  * Feed identified (or unidentified) sectors to this class and it will
@@ -52,7 +52,7 @@ public class SectorCounter implements Iterable<Map.Entry<String, Integer>> {
     private final TreeMap<String, Integer> _sectorCounts =
             new TreeMap<String, Integer>();
 
-    public void increment(IdentifiedSector idSect) {
+    public void increment(IIdentifiedSector idSect) {
         if (idSect == null)
             incrementName("UnidentifiedSector");
         else

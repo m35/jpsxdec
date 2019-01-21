@@ -39,9 +39,10 @@ package laintools;
 import java.io.File;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemISO9660File;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.DebugLogger;
+import jpsxdec.modules.iso9660.DiscItemISO9660File;
+import jpsxdec.i18n.log.ConsoleProgressLogger;
+import jpsxdec.i18n.log.DebugLogger;
 
 public class PatchLainImage {
 
@@ -65,6 +66,7 @@ public class PatchLainImage {
         
         DiscIndex index = new DiscIndex(sIndex, true, DebugLogger.Log);
 
+        index.getSourceCd().beginPatching();
         DiscItem item = index.getById("SLPS_016.03");
         if (item == null)
             item = index.getById("SLPS_016.04");
@@ -78,6 +80,8 @@ public class PatchLainImage {
         if (sBin != null)
             replaceFile((DiscItemISO9660File)index.getById("BIN.BIN"), sBin);
 
+        index.getSourceCd().applyPatches(new ConsoleProgressLogger(PatchLainImage.class.getSimpleName(),
+                                                                   System.out));
     }
 
     private static void replaceFile(DiscItemISO9660File isoFile, String sReplaceFile) throws Exception {
@@ -85,14 +89,14 @@ public class PatchLainImage {
 
         File replaceFile = new File(sReplaceFile);
         CdFileSectorReader replaceDisc = new CdFileSectorReader(replaceFile, 2048);
-        if (replaceDisc.getLength() > isoFile.getSectorLength())
+        if (replaceDisc.getSectorCount() > isoFile.getSectorLength())
             throw new RuntimeException(sReplaceFile + " too big to fit " + isoFile);
         CdFileSectorReader destDisc = isoFile.getSourceCd();
 
-        for (int iOfsSect = 0; iOfsSect < replaceDisc.getLength(); iOfsSect++) {
+        for (int iOfsSect = 0; iOfsSect < replaceDisc.getSectorCount(); iOfsSect++) {
             byte[] abSrcUserData = replaceDisc.getSector(iOfsSect).getCdUserDataCopy();
             //System.out.println("Overwriting sector " + (isoFile.getStartSector() + iOfsSect));
-            destDisc.writeSector(isoFile.getStartSector() + iOfsSect, abSrcUserData);
+            destDisc.addPatch(isoFile.getStartSector() + iOfsSect, 0, abSrcUserData);
         }
 
         replaceDisc.close();

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,20 +44,24 @@ import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-    jpsxdec.audio.SpuDecodeCorruption.class,
-    jpsxdec.audio.XaDecodeCorruption.class,
-    jpsxdec.discitems.FrameNumberFormatTest.class,
-    jpsxdec.discitems.FrameNumberTest.class,
+    jpsxdec.TestLog.class,
+    jpsxdec.adpcm.SpuDecodeCorruption.class,
+    jpsxdec.adpcm.XaDecodeCorruption.class,
+    jpsxdec.discitems.DiscItemTest.class,
     jpsxdec.discitems.SerializedDiscItemTest.class,
-    jpsxdec.discitems.savers.FrameLookupTest.class,
     jpsxdec.indexing.DiscIndexerXaAudioTest.class,
-    jpsxdec.indexing.psxvideofps.Fps.class,
+    jpsxdec.modules.crusader.DiscIndexerCrusaderTest.class,
+    jpsxdec.modules.video.sectorbased.fps.Fps.class,
+    jpsxdec.psxvideo.PsxYCbCr_intTest.class,
     jpsxdec.psxvideo.bitstreams.BitReader.class,
     jpsxdec.psxvideo.bitstreams.Iki.class,
     jpsxdec.psxvideo.bitstreams.STRv2.class,
     jpsxdec.psxvideo.bitstreams.STRv3.class,
     jpsxdec.psxvideo.mdec.tojpeg.Mdec2JpegTest.class,
     jpsxdec.util.ArgParserTest.class,
+    jpsxdec.util.DemuxPushInputStreamTest.class,
+    jpsxdec.util.DemuxedDataTest.class,
+    jpsxdec.util.IOTest.class,
     jpsxdec.util.MiscTest.class
 })
 public class AllTestsSuite {

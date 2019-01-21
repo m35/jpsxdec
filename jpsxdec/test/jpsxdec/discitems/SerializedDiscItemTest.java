@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2017  Michael Sabin
+ * Copyright (C) 2015-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,12 +37,8 @@
 
 package jpsxdec.discitems;
 
-import jpsxdec.util.DeserializationFail;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import org.junit.*;
 import static org.junit.Assert.*;
 
 
@@ -83,7 +79,7 @@ public class SerializedDiscItemTest {
         try {
             serializeDeserialize(sdi);
             fail("Should not be able to deserialize withoud id# an index id");
-        } catch (DeserializationFail ex) {
+        } catch (LocalizedDeserializationFail ex) {
         }
 
         iIndex = 0;
@@ -92,7 +88,7 @@ public class SerializedDiscItemTest {
         try {
             serializeDeserialize(sdi);
             fail("Should not be able to deserialize withoud id# an index id");
-        } catch (DeserializationFail ex) {
+        } catch (LocalizedDeserializationFail ex) {
         }
 
         iIndex = -1;
@@ -101,7 +97,7 @@ public class SerializedDiscItemTest {
         try {
             serializeDeserialize(sdi);
             fail("Should not be able to deserialize withoud id# an index id");
-        } catch (DeserializationFail ex) {
+        } catch (LocalizedDeserializationFail ex) {
         }
 
         iIndex = 4;
@@ -210,27 +206,27 @@ public class SerializedDiscItemTest {
         try {
             sdi.getDimensions(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getFraction(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getInt(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getLong(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getIntRange(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getLongRange(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
     }
 
     @Test
@@ -258,19 +254,19 @@ public class SerializedDiscItemTest {
         try {
             sdi.getDimensions(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getFraction(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getIntRange(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getLongRange(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
     }
 
     @Test
@@ -299,11 +295,11 @@ public class SerializedDiscItemTest {
         try {
             sdi.getInt(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getLong(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
     }
 
     @Test
@@ -335,11 +331,11 @@ public class SerializedDiscItemTest {
         try {
             sdi.getInt(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getLong(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
     }
 
     @Test
@@ -369,11 +365,11 @@ public class SerializedDiscItemTest {
         try {
             sdi.getInt(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getLong(sKey);
             fail("Expepcted DeserializationFail");
-        } catch (DeserializationFail e) {}
+        } catch (LocalizedDeserializationFail e) {}
     }
 
 }

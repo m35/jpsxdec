@@ -57,7 +57,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
 
   public String toString() {
     if (getDenominator() == 1)
-      return String.format("%d (%3f)", getNumerator(), asDouble());
+      return String.format("%d", getNumerator());
     else
       return String.format("%d/%d (%3f)", getNumerator(), getDenominator(), asDouble());
   }

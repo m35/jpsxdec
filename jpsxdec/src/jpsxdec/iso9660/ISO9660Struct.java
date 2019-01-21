@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,9 @@ package jpsxdec.iso9660;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.annotation.Nonnull;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
 /** Abstract class inherited by all ISO9660 related structures. Provides handy 
@@ -48,16 +50,16 @@ import jpsxdec.util.Misc;
 public abstract class ISO9660Struct {
     
     /** ECMA119: 7.2.3 */
-    protected static void magic4_bothendian(InputStream is, int i) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static void magic4_bothendian(@Nonnull InputStream is, int i)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         if (read4_bothendian(is) != i) throw new BinaryDataNotRecognized();
     }
     
     /** Read two 16-bit values, first little-endian, then big-endian. 
      * ECMA119: 7.2.3 */
-    protected static int read4_bothendian(InputStream is) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static int read4_bothendian(@Nonnull InputStream is)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         byte[] ab = readX(is, 4);
         if (ab[0] != ab[3] || ab[1] != ab[2]) throw new BinaryDataNotRecognized();
@@ -65,16 +67,16 @@ public abstract class ISO9660Struct {
     }
     
     /**  ECMA119: 7.3.3 */
-    protected static void magic8_bothendian(InputStream is, long i) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static void magic8_bothendian(@Nonnull InputStream is, long i)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         if (read8_bothendian(is) != i) throw new BinaryDataNotRecognized();
     }
     
-    /** Read two 32-bit values, first little-endian, then big-endian. 
+    /** Read two 32-bit unsigned values, first little-endian, then big-endian.
      * ECMA119: 7.3.3 */
-    protected static long read8_bothendian(InputStream is) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static long read8_bothendian(@Nonnull InputStream is)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         long i = read4_LE(is);
         if (i != read4_BE(is)) throw new BinaryDataNotRecognized();
@@ -82,8 +84,8 @@ public abstract class ISO9660Struct {
     }
 
     /** Checks for a sequence of magic bytes. */
-    protected static void magicX(InputStream is, byte[] ab) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static void magicX(@Nonnull InputStream is, byte[] ab)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         for (int i = 0; i < ab.length; i++) {
             int b = is.read();
@@ -93,26 +95,26 @@ public abstract class ISO9660Struct {
     }
     
     /** Checks for a string of magic characters. */
-    protected static void magicS(InputStream is, String s) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static void magicS(@Nonnull InputStream is, String s)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         magicX(is, Misc.stringToAscii(s));
     }
     
-    protected static String readS(InputStream is, int i) throws IOException {
+    protected static String readS(@Nonnull InputStream is, int i) throws EOFException, IOException {
         return Misc.asciiToString(readX(is, i));
     }
     
-    /** Reads one byte. ECMA119: 7.1.1 */
-    protected static int read1(InputStream is) throws IOException {
+    /** Reads one byte, signed. ECMA119: 7.1.1 */
+    protected static int read1(@Nonnull InputStream is) throws EOFException, IOException {
         int i = is.read();
         if (i < 0) throw new EOFException();
         return i;
     }
     
     /** Checks for a magic byte value. ECMA119: 7.1.1 */
-    protected static void magic1(InputStream is, int b) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static void magic1(@Nonnull InputStream is, int b)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         int i = read1(is);
         if (i != b) 
@@ -120,21 +122,15 @@ public abstract class ISO9660Struct {
     }
     
     /** Reads X bytes. */
-    protected static byte[] readX(InputStream is, int i) throws IOException {
-        byte[] ab = new byte[i];
-        i = is.read(ab);
-        if (i < 0) throw new EOFException();
-        while (i < ab.length) {
-            int x = is.read(ab, i, ab.length - i);
-            if (x < 0) throw new EOFException();
-            i += x;
-        }
-        return ab;
+    protected static byte[] readX(@Nonnull InputStream is, int i) throws EOFException, IOException {
+        if (i == 0)
+            return new byte[0];
+        return IO.readByteArray(is, i);
     }
     
     /** Checks for a sequence of X magic zeros. */
-    protected static void magicXzero(InputStream is, int iCount) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static void magicXzero(@Nonnull InputStream is, int iCount)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         for (int i = 0; i < iCount; i++) {
             int b = is.read();
@@ -145,41 +141,37 @@ public abstract class ISO9660Struct {
     }
     
     /** Checks for magic little-endian 32-bit value. */
-    protected static void magic4_LE(InputStream is, long i) 
-            throws IOException, BinaryDataNotRecognized 
+    protected static void magic4_LE(@Nonnull InputStream is, long i)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         if (i != read4_LE(is)) throw new BinaryDataNotRecognized();
     }
     
     /** Checks for magic big-endian 32-bit value. */
-    protected static void magic4_BE(InputStream is, long i) 
+    protected static void magic4_BE(@Nonnull InputStream is, long i)
             throws IOException, BinaryDataNotRecognized 
     {
         if (i != read4_BE(is)) throw new BinaryDataNotRecognized();
     }
     
-    /** Reads a little-endian 32-bit value. ECMA119: 7.3.1 */
-    protected static long read4_LE(InputStream is) throws IOException {
-        byte[] ab = readX(is, 4);
-        return ((ab[3] & 0xFF) << 24) | 
-               ((ab[2] & 0xFF) << 16) | 
-               ((ab[1] & 0xFF) << 8 ) | 
-                (ab[0] & 0xFF);
+    /** Reads a little-endian 32-bit unsigned value. ECMA119: 7.3.1 */
+    protected static long read4_LE(@Nonnull InputStream is) throws EOFException, IOException {
+        return IO.readUInt32LE(is);
     }
     
-    /** Reads a big-endian 32-bit value. ECMA119: 7.3.2 */
-    protected static long read4_BE(InputStream is) throws IOException {
-        byte[] ab = readX(is, 4);
-        return ((ab[0] & 0xFF) << 24) | 
-               ((ab[1] & 0xFF) << 16) | 
-               ((ab[2] & 0xFF) << 8 ) | 
-                (ab[3] & 0xFF);
+    /** Reads a big-endian 32-bit unsigned value. ECMA119: 7.3.2 */
+    protected static long read4_BE(@Nonnull InputStream is) throws EOFException, IOException {
+        return IO.readUInt32BE(is);
     }
     
     /** Reads a big-endian 16-bit value. ECMA119: 7.2.2 */
-    protected static int read2_BE(InputStream is) throws IOException {
-        byte[] ab = readX(is, 2);
-        return ((ab[0] & 0xff) << 8) | (ab[1] & 0xff);
+    protected static int read2_BE(@Nonnull InputStream is) throws EOFException, IOException {
+        return IO.readUInt16BE(is);
     }
+
+    /** '.' ECMA119: 7.4.3 */
+    protected static final String SEPARATOR1 = Character.toString((char)0x2e);
+    /** ';' ECMA119: 7.4.3 */
+    protected static final String SEPARATOR2 = Character.toString((char)0x3b);
     
 }

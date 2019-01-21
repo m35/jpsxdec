@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,7 @@
 package jpsxdec.util;
 
 /** Helpful math stuff. No I don't speak The Queen's English, I just wanted
- * to differentiate from the normal java.lang.Math class. */
+ * to differentiate from the normal {@link java.lang.Math} class. */
 public class Maths {
     
     /** A faster but LESS ACCURATE implementation of the Math.round() function.

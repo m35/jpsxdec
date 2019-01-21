@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2017  Michael Sabin
+ * Copyright (C) 2015-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,7 @@
 
 package jpsxdec.psxvideo.mdec.idct;
 
-/** Adapter for simple_idct to match jPSXdec interface. */
+/** Adapter for {@link simple_idct} to match jPSXdec interface. */
 public class SimpleIDCT extends simple_idct implements IDCT_int {
     public void IDCT(int[] aiIdctMatrix, int iOutputOffset, int[] aiOutput) {
         invers_dct(aiIdctMatrix, iOutputOffset, aiOutput);

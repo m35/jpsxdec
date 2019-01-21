@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,17 +39,12 @@ package jpsxdec.psxvideo.mdec;
 
 import java.util.Arrays;
 import jpsxdec.formats.RGB;
-import jpsxdec.i18n.I;
 import jpsxdec.psxvideo.PsxYCbCr_int;
 import jpsxdec.psxvideo.mdec.idct.IDCT_int;
 
 /** A full Java, integer based implementation of the PlayStation 1 MDEC chip.
  * This may not be as precise as the double-based implementation, but on cursory
- * examination, you can't really tell. It's also significantly faster.
- *<p>
- * WARNING: This class was not designed to be thread safe. Create a
- * separate instance of this class for each thread, or wrap its use with
- * synchronize. */
+ * examination, you can't really tell. It's also significantly faster. */
 public class MdecDecoder_int extends MdecDecoder {
 
     protected final IDCT_int _idct;

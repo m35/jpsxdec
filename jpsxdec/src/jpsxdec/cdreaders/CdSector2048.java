@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,93 +37,53 @@
 
 package jpsxdec.cdreaders;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.util.ByteArrayFPIS;
 
 
 /** 2048 sectors are standard .iso size that excludes any raw header info. */
 public class CdSector2048 extends CdSector {
 
-    public CdSector2048(@Nonnull byte[] abSectorBytes, int iByteStartOffset, 
-                        int iSectorIndex, long lngFilePointer)
+    public CdSector2048(int iSectorIndex, @Nonnull byte[] abSectorBytes,
+                        int iByteStartOffset, long lngFilePointer)
     {
-        super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);
-        // TODO: verify bytes are minimum size
+        super(iSectorIndex, abSectorBytes, iByteStartOffset, lngFilePointer);
+        if (iByteStartOffset + SECTOR_SIZE_2048_ISO > abSectorBytes.length)
+            throw new IllegalArgumentException();
     }
 
+    @Override
+    public int getRawCdSectorSize() {
+        return SECTOR_SIZE_2048_ISO;
+    }
 
-    /** Returns the size of the 'user data' portion of the sector. */
     public int getCdUserDataSize() {
-        return CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1;
+        return SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1;
     }
     
-    public byte readUserDataByte(int i) {
-        if (i < 0 || i >= CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1) throw new IndexOutOfBoundsException();
-        return _abSectorBytes[_iByteStartOffset + i];
-    }
-
-    /** Returns copy of the 'user data' portion of the sector. */
-    public @Nonnull byte[] getCdUserDataCopy() {
-        byte[] ab = new byte[CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1];
-        getCdUserDataCopy(0, ab, 0, CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1);
-        return ab;
-    }
-
-    public void getCdUserDataCopy(int iSourcePos, @Nonnull byte[] abOut, int iOutPos, int iLength) {
-        if (iSourcePos < 0 || iSourcePos + iLength > CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1 ||
-            iOutPos    < 0 || iOutPos    + iLength > abOut.length)
-        {
-            throw new IndexOutOfBoundsException();
-        }
-        System.arraycopy(_abSectorBytes, _iByteStartOffset + iSourcePos, 
-                abOut, iOutPos,
-                iLength);
-    }
-    
-    /** Returns an InputStream of the 'user data' portion of the sector. */
-    public @Nonnull ByteArrayFPIS getCdUserDataStream() {
-        return new ByteArrayFPIS(_abSectorBytes, _iByteStartOffset, CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1, _lngFilePointer);
-    }
-
-    /** Returns direct reference to the underlying sector data, with raw
-     * header/footer and everything it has. */
-    public @Nonnull byte[] getRawSectorDataCopy() {
-        return getCdUserDataCopy();
-    }
-
-    //..........................................................................
-
     @Override
-    public boolean hasSubHeader() {
-        return false;
+    protected int getHeaderDataSize() {
+        return 0;
     }
 
     @Override
-    public boolean hasHeaderSectorNumber() {
-        return false;
+    public @Nonnull Type getType() {
+        return Type.UNKNOWN2048;
     }
-
     public boolean isCdAudioSector() {
         return false;
     }
 
     @Override
-    public boolean isMode1() {
-        return true;
-    }
-
-    /** Returns the actual offset in bytes from the start of the file/CD
-     *  to the start of the sector userdata.
-     *  [implements IGetFilePointer] */
-    public long getUserDataFilePointer() {
-        return _lngFilePointer;
+    public @CheckForNull CdSectorHeader getHeader() {
+        return null;
     }
 
     @Override
-    public @Nonnull byte[] rebuildRawSector(@Nonnull byte[] abUserData) {
-        return abUserData.clone();
+    public @CheckForNull CdSectorXaSubHeader getSubHeader() {
+        return null;
     }
-    
+
     @Override
     public boolean hasHeaderErrors() {
         return false;
@@ -134,8 +94,14 @@ public class CdSector2048 extends CdSector {
         return 0;
     }
     
+    @Override
+    public @Nonnull byte[] rebuildRawSector(@Nonnull byte[] abUserData) {
+        return abUserData.clone();
+    }
+
+    @Override
     public String toString() {
-        return String.format("[Sector:%d M1]", _iSectorIndex);
+        return String.format("[Sector:%d 2048]", getSectorIndexFromStart());
     }
 
 }

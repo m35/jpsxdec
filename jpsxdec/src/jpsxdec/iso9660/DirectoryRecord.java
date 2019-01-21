@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,22 +37,33 @@
 
 package jpsxdec.iso9660;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.annotation.Nonnull;
 import jpsxdec.util.BinaryDataNotRecognized;
 
 /** ECMA119: 9.1 */
 public class DirectoryRecord extends ISO9660Struct {
     
-    // TODO: Look up what this flag is really called
-    static final public int FLAG_IS_DIRECTORY = 0x2;
-    
+    /** ECMA119: 9.1.6 */
+    public static final class FileFlags {
+        public static final int Existence      = 1 << 0;
+        public static final int Directory      = 1 << 1;
+        public static final int AssociatedFile = 1 << 2;
+        public static final int Record         = 1 << 3;
+        public static final int Protection     = 1 << 4;
+        public static final int Reserved1      = 1 << 5;
+        public static final int Reserved2      = 1 << 6;
+        public static final int MultiExtent    = 1 << 7;
+    }
+
     /*                                length                 */
     /** Sector number where the file starts. */
     final public long                 extent;
     /*                                ext_attr_length        */
-    /** Size of the file in bytes. */
-    final public long                 size; // # of sectors*2048 that list files in this dir
+    /** Size of the file in bytes. Guaranteed to be positive. */
+    final public long                 size;
     final public RecordingDateAndTime date;
     final public int                  flags;
     /*                                file_unit_size         */
@@ -62,39 +73,40 @@ public class DirectoryRecord extends ISO9660Struct {
     final public String               name;
     /*                                name_extra             */
     
-    public DirectoryRecord(InputStream is) 
-            throws IOException, BinaryDataNotRecognized 
+    public DirectoryRecord(@Nonnull InputStream is)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         int    length                  = read1(is);
         if (length < 1) throw new BinaryDataNotRecognized();
         /*     ext_attr_length        */ magic1(is, 0);
                extent                  = read8_bothendian(is);
                size                    = read8_bothendian(is);
-        //if (size % 2048 != 0) throw new BinaryDataNotRecognized();
-               date                    = /*7*/new RecordingDateAndTime(is);
+               date                    = new RecordingDateAndTime(is);
                flags                   = read1(is);
-        if (((flags & FLAG_IS_DIRECTORY) > 0) && ((size % 2048) != 0))
+        if (((flags & FileFlags.Directory) != 0) && ((size % 2048) != 0))
             throw new BinaryDataNotRecognized();
         /*     file_unit_size         */ magic1(is, 0);
         /*     interleave             */ magic1(is, 0);
         /*     volume_sequence_number */ magic4_bothendian(is, 1);
         int    name_len                = read1(is);
-               name                    = sanitizeFileName(readS(is, name_len));
+               name                    = sanitizeFileOrDirName(readS(is, name_len));
+        // just for debugging
         byte[] name_extra              = readX(is, length - 33 - name_len);
     }
     
+    @Override
     public String toString() {
-        return '"' + this.name + '"';
+        return "'" + name + "' " + size + " bytes " + date;
     }
     
     public static final String CURRENT_DIRECTORY = ".";
     public static final String PARENT_DIRECTORY = "..";
     
-    private static String sanitizeFileName(String s) {
+    private static String sanitizeFileOrDirName(String s) {
         if ("\0".equals(s)) return CURRENT_DIRECTORY;
         if ("\1".equals(s)) return PARENT_DIRECTORY;
-        if (s.endsWith(";1")) s = s.substring(0, s.length() - 2);
-        if (s.endsWith(".")) s = s.substring(0, s.length() - 1);
+        if (s.endsWith(SEPARATOR2+"1")) s = s.substring(0, s.length() - 2);
+        if (s.endsWith(SEPARATOR1)) s = s.substring(0, s.length() - 1);
         return s;
     }
     

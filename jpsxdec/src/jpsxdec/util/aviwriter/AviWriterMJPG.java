@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,10 +52,7 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.util.ExposedBAOS;
-import jpsxdec.util.IO;
 
 /**
  * MJPG implementation of AVI writer. It's really just a JPEG file stuffed
@@ -199,8 +196,6 @@ public class AviWriterMJPG extends AviWriter {
     /** Converts a BufferedImage into a frame to be written into a MJPG avi. */
     private @Nonnull ExposedBAOS image2MJPEG(@Nonnull BufferedImage img) throws IOException {
         ExposedBAOS jpgStream = writeImageToBytes(img, new ExposedBAOS());
-        //IO.writeFile("test.bin", abJpg); // debug
-        JPEG2MJPEG(jpgStream.getBuffer());
         return jpgStream;
     }
 
@@ -240,21 +235,6 @@ public class AviWriterMJPG extends AviWriter {
 
         // return the result
         return out;
-    }
-
-    /** Converts JPEG file data to be used in an MJPG AVI. */
-    private static void JPEG2MJPEG(@Nonnull byte [] ab) throws IOException {
-        if (ab[6] != 'J' || ab[7] != 'F' || ab[8] != 'I' || ab[9] != 'F')
-            throw new LocalizedIOException(I.AVI_JPEG_JFIF_HEADER_MISSING());
-        // http://cekirdek.pardus.org.tr/~ismail/ffmpeg-docs/mjpegdec_8c-source.html#l00869
-        // ffmpeg treats the JFIF and AVI1 header differently. It's probably
-        // safer to stick with standard JFIF header since that's what JPEG uses.
-        /*
-        ab[6] = 'A';
-        ab[7] = 'V';
-        ab[8] = 'I';
-        ab[9] = '1';
-        */
     }
 
 }

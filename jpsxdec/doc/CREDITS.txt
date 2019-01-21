@@ -1,32 +1,27 @@
 CREDITS & THANKS
 ----------------
 
-The following people either helped make jPSXdec possible, or are just 
-really cool (usually both): 
+The following people either helped make jPSXdec possible, or are just
+really cool (usually both):
 
 My dad, for everything he did for me (1949-2009).
 
-Mike Melanson and Stuart Caie for adding STR decoding support to xine, 
-including the documentation in the source. 
-(http://osdir.com/ml/video.xine.devel/2003-02/msg00179.html)
-Also for archiving some example STR files.
-(http://osdir.com/ml/video.xine.devel/2003-02/msg00186.html)
+Mike Melanson and Stuart Caie for adding STR decoding support to xine,
+including the documentation in the source. Also for archiving some example STR
+files.
 
-The q-gears development team and forum members for their source code and 
-documentation (http://forums.qhimm.com/index.php?topic=6473.msg81373). 
-Their STR decoding source code PSXMDECDecoder.cpp was invaluable 
-(http://q-gears.svn.sourceforge.net/viewvc/q-gears/branches/old_sources/src/common/movie/decoders/). 
-Their TIM format documentation is awesome (http://wiki.qhimm.com/PSX/TIM_file)
+The q-gears development team and forum members for their source code and
+documentation. Their STR decoding source code PSXMDECDecoder.cpp was invaluable.
 
-"Everything You Have Always Wanted to Know about the Playstation But 
+"Everything You Have Always Wanted to Know about the Playstation But
 Were Afraid to Ask." Compiled / edited by Joshua Walker.
 A valuable reference for any kind of PSX hacking, especially the PSX assembly
-instruction set. 
+instruction set.
 
 no$psx for his outstanding documentation of the PlayStation guts.
 http://problemkaputt.de/psx-spx.htm
 
-smf, developer for MAME, for figuring out that everyone was getting the 
+smf, developer for MAME, for figuring out that everyone was getting the
 order of CrCb wrong.
 http://www.twingalaxies.com/showthread.php/140003-M-A-M-E-Mr-Driller-DRI1-VER-A2-1000M-Mode-918-940-Nick-Vis?p=752883&viewfull=1#post752883
 
@@ -35,23 +30,22 @@ verifying that jPSXdec is doing things right, and for
 pointing how the quantization table is uploaded to the MDEC.
 
 Jonathan Atkins for his open source cdxa code and documentation.
-(http://freshmeat.net/projects/cdxa/ 
-http://jcatki.no-ip.org:8080/cdxa/ 
-http://jonatkins.org:8080/cdxa/)
+http://freshmeat.net/projects/cdxa/
 
 The PCSX Team, creators of one of the two open source PlayStation emulators.
 
 The MAME emulator team for their efforts to document and accurately
-emulate hardware, and for their license (http://mamedev.org/).
+emulate hardware, and for their license.
+http://mamedev.org/
 
-Developers of the pSX emulator for very nice debugger for reverse 
-engineering games (http://psxemulator.gazaxian.com/). 
+Developers of the pSX emulator for the very nice debugger for reverse
+engineering games.
+http://psxemulator.gazaxian.com/
 
-"Fyiro", the Japanese fellow that wrote the source code for the PsxMC 
-FF8 plugin. 
+"Fyiro", the Japanese fellow that wrote the source code for the PsxMC
+FF8 plugin.
 
-T_chan for sharing a bit of his knowledge about the FF9 format 
-(http://www.network54.com/Forum/119865/thread/1196268797). 
+T_chan for sharing a bit of his knowledge about the FF9 format.
 
 The most excellent folks at IRCNet #lain :D
 
@@ -62,7 +56,7 @@ Mezmorize at gshi.org for helping me get an old PlayStation and GameShark
 working to make my own RAM dumps.
 
 Jen (a.k.a. punistation) for her (formally) long standing PlayStation Serial
-Experiments Lain page (http://www.geocities.com/punistation10/).
+Experiments Lain page (rip http://www.geocities.com/punistation10/).
 
 Yoshitoshi ABe et al. for Serial Experiments Lain and other captivating anime.
 
@@ -76,38 +70,40 @@ Víctor González and Sergi Medina for the Spanish translation.
 
 The Hitmen for releasing invaluable source code related to PSX hacking.
 
+The countless people who created so many open source tools that I've used
+in this project, and in my every day life. It is a huge list.
+
 ................................................................................
-Thanks to those who wrote code that I've used at some point during development:
+Thanks to those who wrote code that I've used or referenced at some point 
+during development:
 
 Alexander Strange for porting the ffmpeg simple_idct to Java.
 
 Stephen Manley for generously sharing his DCT.java class.
-(http://www.nyx.net/~smanley/)
+http://www.nyx.net/~smanley/
 
-Bernhard Huber for his very nice javadoc-templates
-(http://members.aon.at/bhuber14/
-http://plugins.netbeans.org/PluginPortal/faces/PluginDetailPage.jsp?pluginid=1168)
+Bernhard Huber for his very nice javadoc-templates.
+http://members.aon.at/bhuber14/
 
 ImageJ for its AVIWriter implementation.
 
-Morten Nobel-Joergensen for the Java Image Scaling Library
-(https://github.com/mortennobel/java-image-scaling).
+Morten Nobel-Joergensen for the Java Image Scaling Library.
+https://github.com/mortennobel/java-image-scaling
 
 Doug Lea for sharing his Fraction.java class.
 
-Sequence Point Software for the J2ME MPEG implementation of the IDCT
-(https://bitbucket.org/sequencepoint/j2me_mpeg).
+Sequence Point Software for the J2ME MPEG implementation of the IDCT.
+https://bitbucket.org/sequencepoint/j2me_mpeg
 
 Eclipse SWT for the Java JPEG implementation of the IDCT.
 
-John E. Lloyd for the handy argparser library 
-(http://people.cs.ubc.ca/~lloyd/java/argparser.html). 
+John E. Lloyd for the handy argparser library.
+http://people.cs.ubc.ca/~lloyd/java/argparser.html
 
-Joerg Anders for managing to write an mpeg1 decoder in pure Java 
-(http://vsr.informatik.tu-chemnitz.de/~jan/MPEG/MPEG_Play.html).
+Joerg Anders for managing to write an mpeg1 decoder in pure Java.
 
-The JSmooth tool (http://jsmooth.sourceforge.net/).
-The launch4j tool (http://launch4j.sourceforge.net/).
+The JSmooth tool http://jsmooth.sourceforge.net/
+The launch4j tool http://launch4j.sourceforge.net/
 
 PDFJet for their PDF library.
 

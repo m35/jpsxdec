@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,7 +52,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
-import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 
@@ -61,10 +61,10 @@ public class SavingGuiTable extends AbstractTableModel {
 
     private static enum COLUMNS {
         Source(String.class, I.GUI_SRC_COLUMN()) {
-            Object val(Row row) { return row._saver.getInput(); }
+            Object val(Row row) { return row._builder.getInput(); }
         },
         SaveAs(String.class, I.GUI_SAVE_AS_COLUMN()) {
-            Object val(Row row) { return row._saver.getOutputSummary(); }
+            Object val(Row row) { return row._builder.getOutputSummary(); }
         },
         Progress(Integer.class, I.GUI_PROGRESS_COLUMN()) {
             Object val(Row row) { return row.Progress; }
@@ -158,7 +158,7 @@ public class SavingGuiTable extends AbstractTableModel {
     public class Row {
 
         @Nonnull
-        public final IDiscItemSaver _saver;
+        public final DiscItemSaverBuilder _builder;
         private int Progress = 0;
         private int Warnings = 0;
         private int Errors = 0;
@@ -166,8 +166,8 @@ public class SavingGuiTable extends AbstractTableModel {
         private String Message;
 
 
-        private Row(@Nonnull IDiscItemSaver saver) {
-            _saver = saver;
+        private Row(@Nonnull DiscItemSaverBuilder builder) {
+            _builder = builder;
         }
 
         public void setProgress(int i) {
@@ -198,9 +198,9 @@ public class SavingGuiTable extends AbstractTableModel {
 
     public final ArrayList<Row> _rows = new ArrayList<Row>();
 
-    public SavingGuiTable(@Nonnull List<IDiscItemSaver> savers, @Nonnull JTable table) {
-        for (IDiscItemSaver saver : savers) {
-            _rows.add(new Row(saver));
+    public SavingGuiTable(@Nonnull List<DiscItemSaverBuilder> builders, @Nonnull JTable table) {
+        for (DiscItemSaverBuilder builder : builders) {
+            _rows.add(new Row(builder));
         }
 
         table.setModel(this);

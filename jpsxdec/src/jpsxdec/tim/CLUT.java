@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2017  Michael Sabin
+ * Copyright (C) 2013-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import javax.annotation.Nonnull;
-import jpsxdec.util.IO;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.IO;
 
 /** The TIM Color Lookup Table (CLUT). */
 class CLUT {

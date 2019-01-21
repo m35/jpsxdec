@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2017  Michael Sabin
+ * Copyright (C) 2013-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.tim;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -47,22 +48,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.util.IO;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.IO;
 
-/** Functions to generate a {@link Tim} image. */
+/** Private functions to generate a {@link Tim} image. */
 class CreateTim {
 
     private static final Logger LOG = Logger.getLogger(CreateTim.class.getName());
     
-    //--------------------------------------------------------------------------
-    //-- Creators --------------------------------------------------------------
-    //--------------------------------------------------------------------------
 
     /** Quickly reads a stream to determine if the data is a Tim image.
      * @return info about the Tim image, otherwise null. */
     public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream) 
-            throws IOException
+            throws EOFException, IOException
     {
         // tag
         if (IO.readUInt8(inStream) != Tim.TAG_MAGIC)
@@ -161,10 +159,9 @@ class CreateTim {
         return new TimInfo(iPaletteCount, iBitsPerPixel, iPixelWidth, iImageHeight);
     }
 
-
     /** Parse and deserialize a TIM file from a stream. */
     public static @Nonnull Tim read(@Nonnull InputStream inStream)
-            throws IOException, BinaryDataNotRecognized
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         final boolean DBG = false;
         int iTag = IO.readUInt8(inStream);

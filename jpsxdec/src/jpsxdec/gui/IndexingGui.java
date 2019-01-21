@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,10 +51,10 @@ import javax.swing.JOptionPane;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.log.ProgressLogger;
+import jpsxdec.i18n.log.UserFriendlyLogger;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.ProgressLogger;
 import jpsxdec.util.TaskCanceledException;
-import jpsxdec.util.UserFriendlyLogger;
 import org.jdesktop.swingworker.SwingWorker;
 
 
@@ -130,10 +130,10 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
             // fatal/unhandled exception
             // we know getNewValue() != null since we created the event
             _exception = (Throwable)evt.getNewValue();
+            _exception.printStackTrace(System.err); // debug
             JOptionPane.showMessageDialog(this, _exception.toString(), 
                     I.GUI_INDEX_EXCEPTION_DIALOG_TITLE().getLocalizedMessage(),
                     JOptionPane.ERROR_MESSAGE);
-            _exception.printStackTrace(System.err); // debug
             taskComplete();
         } else if (ProgresGuiTask.DONE.equals(evt.getPropertyName()) ) {
             taskComplete();
@@ -384,7 +384,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
         public ProgresGuiTask() {
             __progressLog.setListener(this);
-            __progressLog.log(Level.INFO, I.CMD_GUI_INDEXING(_cd));
+            __progressLog.log(Level.INFO, I.CMD_GUI_INDEXING(_cd.toString()));
         }
 
         public void onWarn(@Nonnull ILocalizedMessage msg) {

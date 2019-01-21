@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -62,21 +62,19 @@ import javax.swing.event.PopupMenuListener;
 import javax.swing.filechooser.FileFilter;
 import jpsxdec.Main;
 import jpsxdec.Version;
-import jpsxdec.cdreaders.CdFileNotFoundException;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
-import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.gui.GuiTree.TreeItem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.log.UserFriendlyLogger;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.util.DeserializationFail;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
-import jpsxdec.util.UserFriendlyLogger;
 import jpsxdec.util.player.PlayController;
 import jpsxdec.util.player.PlayController.Event;
 import org.openide.awt.DropDownButtonFactory;
@@ -118,7 +116,7 @@ public class Gui extends javax.swing.JFrame {
         _guiTab.setEnabledAt(1, false);
 
         // center the gui
-        this.setLocationRelativeTo(null);
+        setLocationRelativeTo(null);
 
         _settings = new GuiSettings();
         _settings.load();
@@ -272,11 +270,11 @@ public class Gui extends javax.swing.JFrame {
                 
                 JOptionPane.showMessageDialog(this, sb.toString(), I.GUI_INDEX_LOAD_ISSUES_DIALOG_TITLE().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
             }
-        } catch (DeserializationFail ex) {
+        } catch (LocalizedDeserializationFail ex) {
             JOptionPane.showMessageDialog(this, ex.getSourceMessage().getLocalizedMessage(),
                                           I.ERR_LOADING_INDEX_FILE().getLocalizedMessage(),
                                           JOptionPane.WARNING_MESSAGE);
-        } catch (CdFileNotFoundException ex) {
+        } catch (CdFileSectorReader.CdFileNotFoundException ex) {
             ILocalizedMessage msg = I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString());
             log.log(Level.SEVERE, msg, ex);
             JOptionPane.showMessageDialog(this, msg, I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
@@ -404,9 +402,13 @@ public class Gui extends javax.swing.JFrame {
                 // indexing was canceled
                 cd.close(); // expose close exception
             } else {
-                setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-                setIndex(generatedIndex, null);
-                _guiSaveIndex.setEnabled(true);
+                if (generatedIndex.size() == 0) {
+                    JOptionPane.showMessageDialog(this, "Could not identify anything in " + file.toString()); // I18N
+                } else {
+                    setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                    setIndex(generatedIndex, null);
+                    _guiSaveIndex.setEnabled(true);
+                }
             }
 
         } catch (FileNotFoundException ex) {
@@ -415,6 +417,11 @@ public class Gui extends javax.swing.JFrame {
                                                 I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
                                           JOptionPane.WARNING_MESSAGE);
             _settings.removePreviousImage(file.getAbsolutePath());
+        } catch (CdFileSectorReader.FileTooSmallToIdentifyException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(this, I.CD_FILE_TOO_SMALL(file.toString()),
+                                                I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
+                                          JOptionPane.ERROR_MESSAGE);
         } catch (Throwable ex) {
             ex.printStackTrace();
             LOG.log(Level.SEVERE, null, ex);
@@ -568,7 +575,7 @@ public class Gui extends javax.swing.JFrame {
         });
         _guiTreeButtonContainer.add(_guiSelectAll, new java.awt.GridBagConstraints());
 
-        _guiSelectAllType.setModel(new DefaultComboBoxModel(GuiTree.Select.values()));
+        _guiSelectAllType.setModel(new DefaultComboBoxModel(GuiTree.Select.getAvailableValues()));
         _guiTreeButtonContainer.add(_guiSelectAllType, new java.awt.GridBagConstraints());
 
         _guiExpandAll.setText(I.GUI_EXPAND_ALL_BTN().getLocalizedMessage()); // NOI18N
@@ -702,7 +709,6 @@ public class Gui extends javax.swing.JFrame {
             gui = getGuiForDiscItem(selection.getBuilder());
             _guiTab.setEnabledAt(1, selection.canPlay());
         } else {
-            _guiTab.setSelectedIndex(0);
             _guiTab.setEnabledAt(1, false);
         }
 
@@ -847,19 +853,19 @@ public class Gui extends javax.swing.JFrame {
             File dir = sDir.length() == 0 ? null : new File(sDir);
             
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-            ArrayList<IDiscItemSaver> savers;
+            ArrayList<DiscItemSaverBuilder> builders;
             try {
-                savers = _guiDiscTree.collectSelected(dir);
+                builders = _guiDiscTree.collectSelected();
             } finally {
                 setCursor(Cursor.getDefaultCursor());
             }
             
-            if (savers.isEmpty()) {
+            if (builders.isEmpty()) {
                 JOptionPane.showMessageDialog(this, I.GUI_NOTHING_IS_MARKED_FOR_SAVING());
                 return;
             }
             
-            SavingGui gui = new SavingGui(this, savers, _index.getSourceCd().toString());
+            SavingGui gui = new SavingGui(this, builders, _index.getSourceCd().toString(), dir);
             gui.setVisible(true);
 
         } catch (Throwable ex) {

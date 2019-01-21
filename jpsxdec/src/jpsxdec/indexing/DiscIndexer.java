@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,19 +37,29 @@
 
 package jpsxdec.indexing;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
-import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.util.DeserializationFail;
-import jpsxdec.util.ILocalizedLogger;
+import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.ac3.DiscIndexerAceCombat3Video;
+import jpsxdec.modules.crusader.DiscIndexerCrusader;
+import jpsxdec.modules.dredd.DiscIndexerDredd;
+import jpsxdec.modules.iso9660.DiscIndexerISO9660;
+import jpsxdec.modules.spu.DiscIndexerSpu;
+import jpsxdec.modules.square.DiscIndexerSquare;
+import jpsxdec.modules.strvideo.DiscIndexerStrVideo;
+import jpsxdec.modules.tim.DiscIndexerTim;
+import jpsxdec.modules.xa.DiscIndexerXaAudio;
 
 /** Superclass of all disc indexers. 
  * Be sure to also implement {@link Identified} and/or {@link Static}
@@ -58,32 +68,23 @@ public abstract class DiscIndexer {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexer.class.getName());
 
-    /** Indexer is interested in {@link IdentifiedSector}s found in the disc.
-     * Most common indexer. */
-    public interface Identified {
-        /** Sectors are passed to this function in sequential order. */
-        public void indexingSectorRead(@Nonnull CdSector cdSector,
-                                       @CheckForNull IdentifiedSector idSector);
-    }
-
-    /** Indexer is interested in unidentified sectors demuxed into a stream. */
-    public interface Static {
-        /** Process a stream of data. */
-        public void staticRead(@Nonnull DemuxedUnidentifiedDataStream is) throws IOException;
-    }
-
-    public static @Nonnull DiscIndexer[] createIndexers(@Nonnull ILocalizedLogger log) {
-        return new DiscIndexer[] {
+    public static @Nonnull List<DiscIndexer> createIndexers(@Nonnull ILocalizedLogger log) {
+        DiscIndexer[] coreIndexers = new DiscIndexer[] {
             new DiscIndexerISO9660(log),
             new DiscIndexerSquare(log),
             new DiscIndexerTim(),
-            new DiscIndexerStrVideoWithFrame(log),
+            new DiscIndexerStrVideo(log),
             new DiscIndexerAceCombat3Video(log),
             new DiscIndexerXaAudio(log),
             new DiscIndexerCrusader(log),
             new DiscIndexerDredd(log),
-            //new DiscIndexerSpu(),
         };
+        ArrayList<DiscIndexer> indexers = new ArrayList<DiscIndexer>(Arrays.asList(coreIndexers));
+
+        if (DiscIndexerSpu.ENABLE_SPU_SUPPORT) {
+            indexers.add(new DiscIndexerSpu());
+        }
+        return indexers;
     }
 
     @CheckForNull
@@ -99,13 +100,8 @@ public abstract class DiscIndexer {
         _sourceCd = cd;
     }
 
-
     /** Subclasses should call this method when an item is ready to be added. */
-    final protected void addDiscItem(@CheckForNull DiscItem discItem) {
-        if (discItem == null) {
-            LOG.log(Level.WARNING, "Something tried to add a null disc item.", new Exception());
-            return;
-        }
+    final protected void addDiscItem(@Nonnull DiscItem discItem) {
         LOG.log(Level.INFO, "Adding disc item {0}", discItem);
         _mediaList.add(discItem);
     }
@@ -116,19 +112,17 @@ public abstract class DiscIndexer {
         return _sourceCd;
     }
 
-    /** Signals to the indexers that no more sectors will be passed, and that
-     * indexers should close off and submit any lingering disc items. */
-    abstract public void indexingEndOfDisc();
+    abstract public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs);
 
     /** Lines from the index file as passed to be handled by the indexers.
      * @return  if the line successfully created a disc item. */
     abstract public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields)
-            throws DeserializationFail;
+            throws LocalizedDeserializationFail;
 
     abstract public void listPostProcessing(@Nonnull Collection<DiscItem> allItems);
 
     /** Called after the entire indexing process is complete. The DiscIndex
      * will not be changing any further, but indexers can tweak individual items
      * as necessary. */
-    abstract public void indexGenerated(@Nonnull DiscIndex index);
+    abstract public void indexGenerated(@Nonnull DiscIndex index); // TODO consider not having a dependency on DiscIndex
 }

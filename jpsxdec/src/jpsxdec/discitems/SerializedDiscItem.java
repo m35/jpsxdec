@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import java.util.regex.Pattern;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
+import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.util.Misc;
-import jpsxdec.util.DeserializationFail;
 
 
 /** Handles the serialization and deserialization of a {@link DiscItem}.
@@ -89,21 +89,21 @@ public class SerializedDiscItem {
     
     /** Parses a serialization string and makes the information available
      *  through the accessors. */
-    public SerializedDiscItem(@Nonnull String sSerialized) throws DeserializationFail {
+    public SerializedDiscItem(@Nonnull String sSerialized) throws LocalizedDeserializationFail {
         if (sSerialized.matches("^\\s*$"))
-            throw new DeserializationFail(I.EMPTY_SERIALIZED_STRING());
+            throw new LocalizedDeserializationFail(I.EMPTY_SERIALIZED_STRING());
         String[] asFields = sSerialized.split(Pattern.quote(FIELD_DELIMITER));
         for (String sField : asFields) {
             String[] asParts = sField.split(KEY_VALUE_DELIMITER);
             if (asParts.length != 2)
-                throw new DeserializationFail(I.SERIALIZATION_FIELD_IMPROPERLY_FORMATTED(sField));
+                throw new LocalizedDeserializationFail(I.SERIALIZATION_FIELD_IMPROPERLY_FORMATTED(sField));
             String sKey = asParts[0];
             String sValue = asParts[1];
             _fields.put(sKey, sValue);
         }
         if (!_fields.containsKey(INDEX_KEY) || !_fields.containsKey(ID_KEY) ||
             !_fields.containsKey(TYPE_KEY)  || !_fields.containsKey(SECTOR_RANGE_KEY))
-            throw new DeserializationFail(I.SERIALIZATION_MISSING_REQUIRED_FIELDS(sSerialized));
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_MISSING_REQUIRED_FIELDS(sSerialized));
     }
 
     /** Converts the data into a string. No additional data may be added to the
@@ -237,13 +237,13 @@ public class SerializedDiscItem {
     // =========================================================================
     // Reading fields
     
-    public @Nonnull String getString(@Nonnull String sFieldName) throws DeserializationFail {
+    public @Nonnull String getString(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = _fields.get(sFieldName);
-        if (sValue == null) throw new DeserializationFail(I.SERIALIZATION_FIELD_NOT_FOUND(sFieldName));
+        if (sValue == null) throw new LocalizedDeserializationFail(I.SERIALIZATION_FIELD_NOT_FOUND(sFieldName));
         return sValue;
     }
     
-    public @Nonnull boolean getYesNo(@Nonnull String sFieldName) throws DeserializationFail {
+    public @Nonnull boolean getYesNo(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = getString(sFieldName);
 
         if ("No".equalsIgnoreCase(sValue))
@@ -251,30 +251,30 @@ public class SerializedDiscItem {
         else if ("Yes".equalsIgnoreCase(sValue))
             return true;
         else
-            throw new DeserializationFail(I.FIELD_HAS_INVALID_VALUE_STR(sFieldName, sValue));
+            throw new LocalizedDeserializationFail(I.FIELD_HAS_INVALID_VALUE_STR(sFieldName, sValue));
     }
 
-    public long getLong(@Nonnull String sFieldName) throws DeserializationFail {
+    public long getLong(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = getString(sFieldName);
         
         try {
             return Long.parseLong(sValue);
         } catch (NumberFormatException e) {
-            throw new DeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_LONG(sValue));
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_LONG(sValue));
         }
     }
     
-    public int getInt(@Nonnull String sFieldName) throws DeserializationFail {
+    public int getInt(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = getString(sFieldName);
         
         try {
             return Integer.parseInt(sValue);
         } catch (NumberFormatException e) {
-            throw new DeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_INT(sValue));
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_INT(sValue));
         }
     }
 
-    public int getInt(@Nonnull String sFieldName, int iDefault) throws DeserializationFail {
+    public int getInt(@Nonnull String sFieldName, int iDefault) throws LocalizedDeserializationFail {
         String sValue = _fields.get(sFieldName);
         if (sValue == null)
             return iDefault;
@@ -282,33 +282,33 @@ public class SerializedDiscItem {
         try {
             return Integer.parseInt(sValue);
         } catch (NumberFormatException e) {
-            throw new DeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_INT(sValue));
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_INT(sValue));
         }
     }
 
-    public @Nonnull int[] getIntRange(@Nonnull String sFieldName) throws DeserializationFail {
+    public @Nonnull int[] getIntRange(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = getString(sFieldName);
         int[] ai = Misc.splitInt(sValue, "\\D+");
-        if (ai == null || ai.length != 2) throw new DeserializationFail(
+        if (ai == null || ai.length != 2) throw new LocalizedDeserializationFail(
                 I.SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(sValue));
 
         return ai;
     }
 
-    public @Nonnull long[] getLongRange(@Nonnull String sFieldName) throws DeserializationFail {
+    public @Nonnull long[] getLongRange(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = getString(sFieldName);
         long[] alng = Misc.splitLong(sValue, "\\D+");
-        if (alng == null || alng.length != 2) throw new DeserializationFail(
+        if (alng == null || alng.length != 2) throw new LocalizedDeserializationFail(
                 I.SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(sValue));
 
         return alng;
     }
 
-    public @Nonnull int[] getDimensions(@Nonnull String sFieldName) throws DeserializationFail {
+    public @Nonnull int[] getDimensions(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         return getIntRange(sFieldName);
     }
 
-    public @Nonnull long[] getFraction(@Nonnull String sFieldName) throws DeserializationFail {
+    public @Nonnull long[] getFraction(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         return getLongRange(sFieldName);
     }
 
@@ -318,15 +318,15 @@ public class SerializedDiscItem {
         return _fields.get(TYPE_KEY);
     }
 
-    public @Nonnull int[] getSectorRange() throws DeserializationFail {
+    public @Nonnull int[] getSectorRange() throws LocalizedDeserializationFail {
         return getIntRange(SECTOR_RANGE_KEY);
     }
 
-    public int getIndex() throws DeserializationFail {
+    public int getIndex() throws LocalizedDeserializationFail {
         return getInt(INDEX_KEY);
     }
 
-    public @Nonnull String getId() throws DeserializationFail {
+    public @Nonnull String getId() throws LocalizedDeserializationFail {
         return getString(ID_KEY);
     }
 

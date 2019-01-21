@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2017  Michael Sabin
+ * Copyright (C) 2013-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,6 @@
 package jpsxdec.cmdline;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Map;
 import javax.annotation.CheckForNull;
@@ -46,8 +45,10 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
-import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.sectors.IdentifiedSectorIterator;
+import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.i18n.log.ShouldNotLog;
+import jpsxdec.modules.IIdentifiedSector;
+import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.ArgParser;
 
 
@@ -80,20 +81,22 @@ class Command_SectorDump extends Command {
                 }
             }
             SectorCounter counter = new SectorCounter();
-            IdentifiedSectorIterator it = IdentifiedSectorIterator.create(cdReader);
+            SectorClaimSystem it = SectorClaimSystem.create(cdReader);
+            ILocalizedLogger log = new ShouldNotLog();
             while (it.hasNext()) {
-                IdentifiedSector idSect = it.next();
+                SectorClaimSystem.ClaimedSector cs = it.next(log);
+                IIdentifiedSector idSect = cs.getClaimer();
                 if (idSect != null)
                     ps.println(idSect);
                 else
-                    ps.println(it.currentCd());
+                    ps.println(cs.getSector());
                 counter.increment(idSect);
             }
             for (Map.Entry<String, Integer> entry : counter) {
                 ps.println(entry.getKey() + " " + entry.getValue());
             }
-        } catch (IOException ex) {
-            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(cdReader.getSourceFile().toString()), ex);
+        } catch (CdFileSectorReader.CdReadException ex) {
+            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
         } finally {
             if (ps != null) {
                 ps.flush();

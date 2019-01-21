@@ -1,0 +1,226 @@
+/*
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2007-2019  Michael Sabin
+ * All rights reserved.
+ *
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
+ *
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package jpsxdec.modules.tim;
+
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.image.BufferedImage;
+import javax.annotation.Nonnull;
+import javax.swing.JToggleButton.ToggleButtonModel;
+import jpsxdec.i18n.I;
+import jpsxdec.tim.Tim;
+
+
+public class TimPaletteSelector extends javax.swing.JPanel {
+
+    @Nonnull
+    private final Tim _tim;
+    private final int _iPalette;
+    @Nonnull
+    private final TimSaverBuilder _writerBuilder;
+    @Nonnull
+    private final Mod _btnModel;
+    
+    /** Creates new form TIMPaletteCheck */
+    public TimPaletteSelector(@Nonnull Tim tim, int iPalette, @Nonnull TimSaverBuilder builder)
+    {
+        initComponents();
+        
+        _tim = tim;
+        _iPalette = iPalette;
+        _guiPalChk.setText(Integer.toString(iPalette));
+        _writerBuilder = builder;
+        _btnModel = new Mod();
+
+        _guiPalChk.setModel(_btnModel);
+    }
+
+    @Override
+    protected void paintChildren(Graphics g) {
+        int iWidth = this.getWidth() - 4;
+        int iHeight = this.getHeight() - 4;
+        
+        double dblHScale = iWidth / (double)_tim.getWidth();
+        double dblVScale = iHeight / (double)_tim.getHeight();
+        
+        double dblScale;
+        if (dblHScale < dblVScale)
+            dblScale = dblHScale;
+        else
+            dblScale = dblVScale;
+        
+        if (dblScale > 2) dblScale = 2;
+        
+        iWidth = (int)(_tim.getWidth() * dblScale);
+        iHeight = (int)(_tim.getHeight() * dblScale);
+
+        BufferedImage bi = _tim.toBufferedImage(_iPalette);
+
+        g.drawImage(bi, 1, 1, iWidth, iHeight, null);
+        
+        super.paintChildren(g);
+    }
+
+    void setChecked(boolean b) {
+        _guiPalChk.getModel().setSelected(b);
+    }
+    
+    public boolean getChecked() {
+        return _guiPalChk.getModel().isSelected();
+    }
+    
+    private class Mod extends ToggleButtonModel {
+
+        @Override
+        public void setSelected(boolean b) {
+            super.setSelected(b);
+            _writerBuilder.setSavePalette(_iPalette, b);
+        }
+
+        @Override
+        public boolean isSelected() {
+            return _writerBuilder.getSavePalette(_iPalette);
+        }
+
+        @Override
+        public boolean isEnabled() {
+            return _writerBuilder.getPaletteSelection_enabled();
+        }
+        
+        public void stateChanged() {
+            super.setSelected(_writerBuilder.getSavePalette(_iPalette));
+        }
+    }
+
+    public void stateChanged() {
+        _btnModel.stateChanged();
+    }
+    
+    /** This method is called from within the constructor to
+     * initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is
+     * always regenerated by the Form Editor.
+     */
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+        java.awt.GridBagConstraints gridBagConstraints;
+
+        _guiPalChk = new javax.swing.JCheckBox();
+        _guiCopyBtn = new javax.swing.JButton();
+
+        setBorder(javax.swing.BorderFactory.createEtchedBorder());
+        setLayout(new java.awt.GridBagLayout());
+
+        _guiPalChk.setSelected(true);
+        _guiPalChk.setText("##");
+        _guiPalChk.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        _guiPalChk.setHorizontalTextPosition(javax.swing.SwingConstants.LEFT);
+        _guiPalChk.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        _guiPalChk.setVerticalAlignment(javax.swing.SwingConstants.TOP);
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.FIRST_LINE_END;
+        gridBagConstraints.weightx = 0.5;
+        gridBagConstraints.weighty = 0.5;
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
+        add(_guiPalChk, gridBagConstraints);
+
+        _guiCopyBtn.setIcon(new javax.swing.ImageIcon(getClass().getResource("/jpsxdec/modules/tim/edit-paste-4.png"))); // NOI18N
+        _guiCopyBtn.setToolTipText(I.GUI_COPY_TO_CLIPBOARD_TOOLTIP().getLocalizedMessage()); // NOI18N
+        _guiCopyBtn.setAlignmentY(0.0F);
+        _guiCopyBtn.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        _guiCopyBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                _guiCopyBtnActionPerformed(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 1;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.LAST_LINE_END;
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
+        add(_guiCopyBtn, gridBagConstraints);
+    }// </editor-fold>//GEN-END:initComponents
+
+    private void _guiCopyBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiCopyBtnActionPerformed
+        copyToClipboard(_tim.toBufferedImage(_iPalette));
+    }//GEN-LAST:event__guiCopyBtnActionPerformed
+    
+    
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton _guiCopyBtn;
+    private javax.swing.JCheckBox _guiPalChk;
+    // End of variables declaration//GEN-END:variables
+    
+
+    private static void copyToClipboard(@Nonnull Image image) {
+        ImageTransferable transferable = new ImageTransferable(image);
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(transferable, null);
+    }
+
+    private static class ImageTransferable implements Transferable {
+        @Nonnull
+        private final Image _image;
+
+        public ImageTransferable (@Nonnull Image image) {
+            _image = image;
+        }
+
+        public Object getTransferData(DataFlavor flavor)
+            throws UnsupportedFlavorException
+        {
+            if (isDataFlavorSupported(flavor)) {
+                return _image;
+            } else {
+                throw new UnsupportedFlavorException(flavor);
+            }
+        }
+
+        public boolean isDataFlavorSupported (DataFlavor flavor) {
+            return flavor == DataFlavor.imageFlavor;
+        }
+
+        public DataFlavor[] getTransferDataFlavors () {
+            return new DataFlavor[] { DataFlavor.imageFlavor };
+        }
+    }
+    
+}

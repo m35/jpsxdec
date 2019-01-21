@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2017  Michael Sabin
+ * Copyright (C) 2013-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,17 +39,16 @@ package jpsxdec.cmdline;
 
 import argparser.StringHolder;
 import java.io.File;
-import java.io.IOException;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.log.UserFriendlyLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.ArgParser;
-import jpsxdec.util.DeserializationFail;
-import jpsxdec.util.FeedbackStream;
-import jpsxdec.util.UserFriendlyLogger;
 
 
 public abstract class Command {
@@ -105,10 +104,16 @@ public abstract class Command {
             UserFriendlyLogger log = new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage());
             try {
                 index = new DiscIndex(indexFileArg.value, log);
-            } catch (IOException ex) {
-                throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
-            } catch (DeserializationFail ex) {
-                throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
+            } catch (DiscIndex.IndexNotFoundException ex) {
+                throw new CommandLineException(I.IO_OPENING_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+            } catch (DiscIndex.IndexReadException ex) {
+                throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+            } catch (LocalizedDeserializationFail ex) {
+                throw new CommandLineException(I.ERR_LOADING_INDEX_FILE_REASON(ex.getSourceMessage()), ex);
+            } catch (CdFileSectorReader.CdFileNotFoundException ex) {
+                throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString()), ex);
+            } catch (CdFileSectorReader.CdReadException ex) {
+                throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
             } finally {
                 log.close();
             }
@@ -130,10 +135,16 @@ public abstract class Command {
                     UserFriendlyLogger log = new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage());
                     try {
                         index = new DiscIndex(indexFileArg.value, cd, log);
-                    } catch (IOException ex) {
-                        throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
-                    } catch (DeserializationFail ex) {
-                        throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
+                    } catch (DiscIndex.IndexNotFoundException ex) {
+                        throw new CommandLineException(I.IO_OPENING_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+                    } catch (DiscIndex.IndexReadException ex) {
+                        throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+                    } catch (LocalizedDeserializationFail ex) {
+                        throw new CommandLineException(I.ERR_LOADING_INDEX_FILE_REASON(ex.getSourceMessage()), ex);
+                    } catch (CdFileSectorReader.CdFileNotFoundException ex) {
+                        throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString()), ex);
+                    } catch (CdFileSectorReader.CdReadException ex) {
+                        throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
                     } finally {
                         log.close();
                     }
@@ -148,10 +159,16 @@ public abstract class Command {
                 UserFriendlyLogger log = new UserFriendlyLogger(I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage());
                 try {
                     index = new DiscIndex(indexFileArg.value, log);
-                } catch (IOException ex) {
-                    throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
-                } catch (DeserializationFail ex) {
-                    throw new CommandLineException(I.ERR_LOADING_INDEX_FILE(), ex);
+                } catch (DiscIndex.IndexNotFoundException ex) {
+                    throw new CommandLineException(I.IO_OPENING_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+                } catch (DiscIndex.IndexReadException ex) {
+                    throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+                } catch (LocalizedDeserializationFail ex) {
+                    throw new CommandLineException(I.ERR_LOADING_INDEX_FILE_REASON(ex.getSourceMessage()), ex);
+                } catch (CdFileSectorReader.CdFileNotFoundException ex) {
+                    throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString()), ex);
+                } catch (CdFileSectorReader.CdReadException ex) {
+                    throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
                 } finally {
                     log.close();
                 }

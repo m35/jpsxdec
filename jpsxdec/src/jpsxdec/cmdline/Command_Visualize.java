@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2017  Michael Sabin
+ * Copyright (C) 2013-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,10 +49,11 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.i18n.log.ShouldNotLog;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.sectors.IdentifiedSector;
-import jpsxdec.sectors.IdentifiedSectorIterator;
-import jpsxdec.sectors.UnidentifiedSector;
+import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.UnidentifiedSector;
 import jpsxdec.util.ArgParser;
 import jpsxdec.util.IO;
 
@@ -96,7 +97,7 @@ class Command_Visualize extends Command {
             int iMaxOverlap = findMaxOverlap(aiDataPoints, index);
             //########################################################
             int iWidth = SECTOR_SECTION_SIZE + iMaxOverlap * TEXT_LINE_HEIGHT + iMaxOverlap * BOX_AREA_WIDTH;
-            int iHeight = cd.getLength() + 1;
+            int iHeight = cd.getSectorCount() + 1;
             final double SCALE;
             if (iHeight < MAX_PDF_SIZE) {
                 SCALE = 1;
@@ -108,15 +109,16 @@ class Command_Visualize extends Command {
             com.pdfjet.Font pdfFont = new com.pdfjet.Font(pdf, "Helvetica");
             pdfFont.setSize(6 * SCALE);
             com.pdfjet.Page pdfPage = new com.pdfjet.Page(pdf, new double[]{iWidth * SCALE, iHeight * SCALE});
-            IdentifiedSectorIterator it = IdentifiedSectorIterator.create(cd);
+            SectorClaimSystem it = SectorClaimSystem.create(cd);
+            ILocalizedLogger log = new ShouldNotLog();
             for (int iSector = 0; it.hasNext(); iSector++) {
                 try {
-                    IdentifiedSector sector = it.next();
+                    SectorClaimSystem.ClaimedSector sector = it.next(log);
                     Color c;
-                    if (sector == null)
+                    if (sector.getClaimer() == null)
                         c = classToColor(UnidentifiedSector.class);
                     else
-                        c = classToColor(sector.getClass());
+                        c = classToColor(sector.getClaimer().getClass());
                     int[] aiRgb = {c.getRed(), c.getGreen(), c.getBlue()};
                     
                     com.pdfjet.Box pdfBox = new com.pdfjet.Box(0 * SCALE, iSector * SCALE, SECTOR_SECTION_SIZE * SCALE, 1 * SCALE);

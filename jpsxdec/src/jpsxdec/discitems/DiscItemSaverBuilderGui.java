@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ import java.awt.LayoutManager;
 import javax.annotation.Nonnull;
 import javax.swing.JPanel;
 
+/** A GUI to modify a {@link DiscItemSaverBuilder}. */
 public abstract class DiscItemSaverBuilderGui extends JPanel {
 
 

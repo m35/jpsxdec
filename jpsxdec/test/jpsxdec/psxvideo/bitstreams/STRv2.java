@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,11 +41,7 @@ import java.io.*;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import jpsxdec.util.IO;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import static org.junit.Assert.*;
 
 /** Test bitstream decoding. */
@@ -235,14 +231,13 @@ public class STRv2 {
 
     @Test
     public void v2Dc() throws Exception {
-        BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
         for (int i = -512; i < 512; i++) {
             BitStreamWriter bw = writeHeader( 2);
             bw.write(i, 10);
 
             byte[] ab = bw.toByteArray();
-            v2.reset(ab);
+            BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
             v2.readMdecCode(code); // DC
             assertEquals(new MdecCode(1, i), code);
         }
@@ -251,7 +246,6 @@ public class STRv2 {
 
     @Test
     public void v2Ac() throws Exception {
-        BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
         for (AcVariableLengthCode vlc : AC_VARIABLE_LENGTH_CODES_MPEG1) {
             for (int i = 0; i < 1; i++) {
@@ -261,7 +255,7 @@ public class STRv2 {
                 bw.write(i != 0);
 
                 byte[] ab = bw.toByteArray();
-                v2.reset(ab);
+                BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
                 v2.readMdecCode(code); // DC
                 assertEquals(new MdecCode(1, 1), code);
                 v2.readMdecCode(code); // AC
@@ -273,7 +267,6 @@ public class STRv2 {
 
     @Test
     public void v2AcEscape() throws Exception {
-        BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
         for (int iRun = 0; iRun < 63; iRun++) {
             for (int iAc = -512; iAc < 512; iAc++) {
@@ -284,7 +277,7 @@ public class STRv2 {
                 bw.write(iAc, 10);
 
                 byte[] ab = bw.toByteArray();
-                v2.reset(ab);
+                BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
                 v2.readMdecCode(code); // DC
                 assertEquals(new MdecCode(1, 1), code);
                 v2.readMdecCode(code); // AC
@@ -299,10 +292,9 @@ public class STRv2 {
         bw.write(1,  10); // DC
         bw.write(14, 17); // Bad AC
 
-        BitStreamUncompressor_STRv2 v2 = new BitStreamUncompressor_STRv2();
         MdecCode code = new MdecCode();
         byte[] ab = bw.toByteArray();
-        v2.reset(ab);
+        BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
         v2.readMdecCode(code); // DC
         assertEquals(new MdecCode(1, 1), code);
         try {

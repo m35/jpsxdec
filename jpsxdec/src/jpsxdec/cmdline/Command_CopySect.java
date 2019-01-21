@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2017  Michael Sabin
+ * Copyright (C) 2013-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,8 +47,8 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdRiffHeader;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdxaRiffHeader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.util.ArgParser;
@@ -96,7 +96,7 @@ class Command_CopySect extends Command {
             os = new BufferedOutputStream(fos);
             int iRawSectorSize = cdReader.getRawSectorSize();
             boolean blnAddCdxaHeader;
-            if (iRawSectorSize == CdFileSectorReader.SECTOR_SIZE_2048_ISO) {
+            if (iRawSectorSize == CdSector.SECTOR_SIZE_2048_ISO) {
                 blnAddCdxaHeader = false;
             } else { 
                 if (!ap.hasRemaining()) {
@@ -109,12 +109,15 @@ class Command_CopySect extends Command {
             }
             if (blnAddCdxaHeader) {
                 long lngFileSize = (_aiStartEndSectors[1] - _aiStartEndSectors[0] + 1) * (long) iRawSectorSize;
-                CdxaRiffHeader.write(os, lngFileSize);
+                CdRiffHeader.write(os, lngFileSize);
             }
             for (int i = _aiStartEndSectors[0]; i <= _aiStartEndSectors[1]; i++) {
-                CdSector sector = cdReader.getSector(i); // TODO: seperate exception for reading
+                CdSector sector = cdReader.getSector(i);
                 os.write(sector.getRawSectorDataCopy());
             }
+        } catch (CdFileSectorReader.CdReadException ex) {
+            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(
+                                           ex.getFile().toString()), ex);
         } catch (IOException ex) {
             throw new CommandLineException(I.IO_WRITING_TO_FILE_ERROR_NAME(sOutputFile), ex);
         } finally {

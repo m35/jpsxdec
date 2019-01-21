@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,20 +42,50 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
+import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
-import jpsxdec.util.Misc;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IncompatibleException;
-import jpsxdec.util.LocalizedIncompatibleException;
+import jpsxdec.util.Misc;
 
 /** Uncompressor for demuxed STR v3 video bitstream data.
  * Makes use of most of STR v2 code. Adds v3 handling for DC values. */
 public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
     private static final Logger LOG = Logger.getLogger(BitStreamUncompressor_STRv3.class.getName());
-    
+
+    public static class StrV3Header extends StrHeader {
+        public StrV3Header(byte[] abFrameData, int iDataSize) {
+            super(abFrameData, iDataSize, 3);
+        }
+    }
+
+    public static @Nonnull BitStreamUncompressor_STRv3 makeV3(@Nonnull byte[] abFrameData)
+            throws BinaryDataNotRecognized
+    {
+        return makeV3(abFrameData, abFrameData.length);
+    }
+    public static @Nonnull BitStreamUncompressor_STRv3 makeV3(@Nonnull byte[] abFrameData, int iDataSize)
+            throws BinaryDataNotRecognized
+    {
+        BitStreamUncompressor_STRv3 bsu = makeV3NoThrow(abFrameData, iDataSize);
+        if (bsu == null)
+            throw new BinaryDataNotRecognized();
+        return bsu;
+    }
+
+    static @CheckForNull BitStreamUncompressor_STRv3 makeV3NoThrow(@Nonnull byte[] abFrameData, int iDataSize)
+    {
+        StrV3Header header = new StrV3Header(abFrameData, iDataSize);
+        if (!header.isValid())
+            return null;
+        ArrayBitReader bitReader = makeStrBitReader(abFrameData, iDataSize);
+
+        return new BitStreamUncompressor_STRv3(header, bitReader);
+    }
+
     // ########################################################################
     // ## Static stuff ########################################################
     // ########################################################################
@@ -250,46 +280,22 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     // ## Instance stuff ######################################################
     // ########################################################################
 
-    public BitStreamUncompressor_STRv3() {
-        super();
-    }
-
     /** Holds the previous DC values during a version 3 frame decoding. */
-    private int _iPreviousCr_DC,
-                _iPreviousCb_DC,
-                _iPreviousY_DC;
+    private int _iPreviousCr_DC = 0,
+                _iPreviousCb_DC = 0,
+                _iPreviousY_DC = 0;
 
-    @Override
-    protected boolean readHeader(@Nonnull byte[] abFrameData, int iDataSize,
-                                 @Nonnull ArrayBitReader bitReader)
+    public BitStreamUncompressor_STRv3(@Nonnull StrV3Header header,
+                                       @Nonnull ArrayBitReader bitReader)
     {
-        if (!_header.readHeader(abFrameData, iDataSize, 3))
-            return false;
-
-        bitReader.reset(abFrameData, iDataSize, true, 8);
-        _iPreviousCr_DC = _iPreviousCb_DC = _iPreviousY_DC = 0;
-        return true;
+        super(header, bitReader);
     }
 
-    /** Returns if this is a v3 frame. */
-    public static boolean checkHeader(@Nonnull byte[] abFrameData) {
-        StrHeader header = new StrHeader();
-        return header.readHeader(abFrameData, abFrameData.length, 3);
-    }
-
-    public static int getQscale(@Nonnull byte[] abFrameData) throws BinaryDataNotRecognized {
-        StrHeader header = new StrHeader();
-        if (!header.readHeader(abFrameData, abFrameData.length, 3))
-            throw new BinaryDataNotRecognized();
-
-        return header.iQscale;
-    }
-    
     @Override
     protected void readQscaleAndDC(@Nonnull MdecCode code)
             throws MdecException.ReadCorruption, MdecException.EndOfStream
     {
-        code.setTop6Bits(_header.iQscale);
+        code.setTop6Bits(_header.getQscale());
         switch (getCurrentMacroBlockSubBlock()) {
             case 0:
                 code.setBottom10Bits(_iPreviousCr_DC = readV3DcChroma(_iPreviousCr_DC));
@@ -314,7 +320,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         
         if (dcVlc == null) {
             throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC(
-                    getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
+                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
                     Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE)));
         }
 
@@ -327,7 +333,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
         if (iPreviousDC < -512 || iPreviousDC > 511) {
             throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_CHROMA_DC_OOB(
-                    getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
+                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
                     iPreviousDC));
         }
 
@@ -342,7 +348,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         
         if (dcVlc == null) {
             throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_LUMA_DC_VLC(
-                    getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
+                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
                     Misc.bitsToString(iBits, DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE)));
         }
             
@@ -355,7 +361,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
 
         if (_iPreviousY_DC < -512 || _iPreviousY_DC > 511) {
             throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_LUMA_DC_OOB(
-                    getCurrentMacroBlock(), getCurrentMacroBlockSubBlock(),
+                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
                     _iPreviousY_DC));
         }
     }
@@ -370,13 +376,13 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     }
 
     @Override
-    public @Nonnull String getName() {
-        return "STRv3";
+    public @Nonnull Type getType() {
+        return Type.STRv3;
     }
     
     @Override
     public @Nonnull BitStreamCompressor_STRv3 makeCompressor() {
-        return new BitStreamCompressor_STRv3();
+        return new BitStreamCompressor_STRv3(getFullMacroBlocksRead());
     }
 
     // =========================================================================
@@ -385,28 +391,30 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
      * DC coefficients. */
     public static class BitStreamCompressor_STRv3 extends BitStreamCompressor_STRv2 {
 
+        BitStreamCompressor_STRv3(int iMacroBlockCount) {
+            super(iMacroBlockCount);
+        }
+
         @Override
         protected int getHeaderVersion() { return 3; }
 
         @Override
         protected int getFrameQscale(@Nonnull byte[] abFrameData) throws LocalizedIncompatibleException {
-            try {
-                return BitStreamUncompressor_STRv3.getQscale(abFrameData);
-            } catch (BinaryDataNotRecognized ex) {
-                throw new LocalizedIncompatibleException(I.FRAME_NOT_STRV3(), ex);
-            }
+            StrV3Header header = new StrV3Header(abFrameData, abFrameData.length);
+            if (!header.isValid())
+                throw new LocalizedIncompatibleException(I.FRAME_NOT_STRV3());
+            return header.getQscale();
         }
         
         
 
         @Override
-        public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream,
-                                        int iWidth, int iHeight)
+        public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream)
                 throws IncompatibleException, MdecException.EndOfStream,
                        MdecException.ReadCorruption, MdecException.TooMuchEnergy
         {
             _iPreviousCr_DcRound4 = _iPreviousCb_DcRound4 = _iPreviousY_DcRound4 = 0;
-            return super.compress(inStream, iWidth, iHeight);
+            return super.compress(inStream);
         }
 
         /** Store the prior DC coefficients written. The value will always be

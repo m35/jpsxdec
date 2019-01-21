@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.gui;
 
 import java.awt.EventQueue;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -47,10 +48,10 @@ import jpsxdec.gui.SavingGuiTable.Row;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.UnlocalizedMessage;
-import jpsxdec.util.LoggedFailure;
-import jpsxdec.util.ProgressLogger;
+import jpsxdec.i18n.exception.LoggedFailure;
+import jpsxdec.i18n.log.ProgressLogger;
+import jpsxdec.i18n.log.UserFriendlyLogger;
 import jpsxdec.util.TaskCanceledException;
-import jpsxdec.util.UserFriendlyLogger;
 import org.jdesktop.swingworker.SwingWorker;
 
 public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message> 
@@ -61,10 +62,12 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     @Nonnull
     private final ArrayList<Row> _rows;
     @CheckForNull
+    private final File _outputDir;
+    @CheckForNull
     private Row _currentRow;
 
     
-    final ProgressLogger _progressLog = new ProgressLogger("save")
+    final ProgressLogger _progressLog = new ProgressLogger(I.SAVE_LOG_FILE_BASE_NAME().getLocalizedMessage())
     {
 
         protected void handleProgressStart() throws TaskCanceledException {
@@ -99,8 +102,11 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     };
 
 
-    public SavingGuiTask(@Nonnull ArrayList<Row> rows, @Nonnull String sCd) {
+    public SavingGuiTask(@Nonnull ArrayList<Row> rows, @Nonnull String sCd,
+                         @CheckForNull File outputDir)
+    {
         _rows = rows;
+        _outputDir = outputDir;
         _progressLog.log(Level.INFO, new UnlocalizedMessage(sCd));
         _progressLog.setListener(this);
     }
@@ -119,16 +125,14 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
         for (Row row : _rows) {
             _currentRow = row;
             try {
-                _progressLog.log(Level.INFO, new UnlocalizedMessage(row._saver.getDiscItem().toString()));
-                row._saver.startSave(_progressLog);
+                _progressLog.log(Level.INFO, new UnlocalizedMessage(row._builder.getDiscItem().toString()));
+                row._builder.startSave(_progressLog, _outputDir);
             } catch (TaskCanceledException ex) {
                 // cool
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_CANCELED));
                 break;
             } catch (LoggedFailure ex) {
                 // uncool
-                if (!ex.wasLogged())
-                    ex.log(_progressLog);
                 EventQueue.invokeLater(new Event_Progress(row, SavingGuiTable.PROGRESS_FAILED));
                 continue;
             } catch (Throwable ex) {

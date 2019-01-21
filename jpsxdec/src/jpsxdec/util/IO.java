@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,40 +38,18 @@
 package jpsxdec.util;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedFileNotFoundException;
+import jpsxdec.i18n.exception.LocalizedFileNotFoundException;
+
+// TODO: unify write(types)
 
 /** Additional functions for reading, writing, and whatnot. */
 public final class IO {
-
-    /** When you want an input stream to have getFilePointer(). */
-    public static class InputStreamWithFP 
-            extends InputStream 
-    {
-
-        @Nonnull
-        private final InputStream is;
-        private long i = 0;
-        
-        public InputStreamWithFP(@Nonnull InputStream is) {
-            this.is = is;
-        }
-
-        /** {@inheritDoc} */ @Override
-        public int read() throws IOException {
-            i++;
-            return is.read();
-        }
-
-        public long getFilePointer() {
-            return i;
-        }
-        
-    }
 
     /** Closes a {@link Closeable} resource, suppressing any {@link IOException}
      * thrown. If thrown, it is logged to the given logger and returns the thrown
@@ -96,388 +74,512 @@ public final class IO {
     
     //== 4-bit =================================================================
 
-    public static void writeInt4x2(@Nonnull OutputStream os, byte bTop, byte bBottom)
+    public static void writeInt4x2(@Nonnull OutputStream stream, byte bTop, byte bBottom)
             throws IOException
     {
-        os.write(((bTop&0xf)<<4) | (bBottom&0xf));
+        stream.write(((bTop&0xf)<<4) | (bBottom&0xf));
     }
 
     //== 8-bit =================================================================
 
-    public static int readUInt8(@Nonnull InputStream is) throws EOFException, IOException {
-        int i = is.read();
-        if (i < 0) throw new EOFException("readUInt8");
+    public static int readUInt8(@Nonnull InputStream stream) throws EOFException, IOException {
+        int i = stream.read();
+        if (i < 0)
+            throw new EOFException();
         return i;
     }
 
-    public static byte readSInt8(@Nonnull InputStream is) throws EOFException, IOException {
-        return (byte)(readUInt8(is));
+    public static byte readSInt8(@Nonnull InputStream stream) throws EOFException, IOException {
+        return (byte)(readUInt8(stream));
     }
 
-    //== 16-bit signed =========================================================
+    // #########################################################################
+    // #########################################################################
 
-    /** Reads signed little-endian 16 bits from InputStream.
-     *  @throws EOFException if at the end of the stream. */
-    public static short readSInt16LE(@Nonnull InputStream is) throws EOFException, IOException {
-        final int b1, b2;
-        if ((b1 = is.read()) < 0 || (b2 = is.read()) < 0)
-            throw new EOFException("readUInt16LE");
-        return (short)((b2 << 8) + (b1 << 0));
+    //== 16-bit == little-endian == signed == read =============================
+
+    public static short readSInt16LE(@Nonnull InputStream stream) throws EOFException, IOException {
+        int b1, b2;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0)
+            throw new EOFException();
+        return SInt16LE(b1, b2);
     }
 
-    /** Reads signed little-endian 16 bits from RandomAccessFile.
-     *  @throws EOFException if at the end of the file. */
-    public static short readSInt16LE(@Nonnull RandomAccessFile raf) throws EOFException, IOException {
-        int b1 = raf.readUnsignedByte();
-        int b2 = raf.readUnsignedByte();
-        return (short)((b2 << 8) + (b1 << 0));
+    public static short readSInt16LE(@Nonnull RandomAccessFile stream) throws EOFException, IOException {
+        int b1, b2;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0)
+            throw new EOFException();
+        return SInt16LE(b1, b2);
     }
 
     public static short readSInt16LE(@Nonnull byte[] ab, int i) {
-        int b1 = ab[i  ] & 0xFF;
-        int b2 = ab[i+1] & 0xFF;
-        return (short)((b2 << 8) + (b1 << 0));
+        int b1 = ab[i  ] & 0xff;
+        int b2 = ab[i+1] & 0xff;
+        return SInt16LE(b1, b2);
     }
+
+    public static short SInt16LE(int b1, int b2) {
+        return (short)(((b2 & 0xff) << 8) | (b1 & 0xff));
+    }
+
+    //== 16-bit == little-endian == unsigned == read ===========================
+
+    public static int readUInt16LE(@Nonnull InputStream stream) throws EOFException, IOException {
+        int b1, b2;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0)
+            throw new EOFException();
+        return UInt16LE(b1, b2);
+    }
+
+    public static int readUInt16LE(@Nonnull RandomAccessFile stream) throws EOFException, IOException {
+        int b1, b2;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0)
+            throw new EOFException();
+        return UInt16LE(b1, b2);
+    }
+
+    public static int readUInt16LE(@Nonnull byte[] ab, int i) {
+        int b1 = ab[i  ] & 0xff;
+        int b2 = ab[i+1] & 0xff;
+        return UInt16LE(b1, b2);
+    }
+
+    public static int UInt16LE(int b1, int b2) {
+        return (((b2 & 0xff) << 8) | (b1 & 0xff));
+    }
+
+    //== 16-bit == big-endian == signed == read ================================
 
     public static short readSInt16BE(@Nonnull byte[] ab, int i) {
-        int b1 = ab[i+1] & 0xFF;
-        int b2 = ab[i  ] & 0xFF;
-        return (short)((b2 << 8) + (b1 << 0));
-    }
-    
-    //== 16-bit ================================================================
-
-    /** Reads big-endian 16 bits from InputStream.
-     *  @throws EOFException if at the end of the stream. */
-    public static int readUInt16BE(@Nonnull InputStream is) throws EOFException, IOException {
-        final int b1, b2;
-        if ((b1 = is.read()) < 0 || (b2 = is.read()) < 0)
-            throw new EOFException("readUInt16BE");
-        return (b1 << 8) | b2;
+        int b1 = ab[i  ] & 0xff;
+        int b2 = ab[i+1] & 0xff;
+        return SInt16BE(b1, b2);
     }
 
-    /** Reads little-endian 16 bits from InputStream. 
-     *  @throws EOFException if at the end of the stream. */
-    public static int readUInt16LE(@Nonnull InputStream is) throws EOFException, IOException {
-        final int b1, b2;
-        if ((b1 = is.read()) < 0 || (b2 = is.read()) < 0)
-            throw new EOFException("readUInt16LE");
-        return (b2 << 8) | b1;
-    }
-    
-    public static int readUInt16LE(@Nonnull byte[] ab, int i) {
-        int b1 = ab[i  ] & 0xFF;
-        int b2 = ab[i+1] & 0xFF;
-        return (b2 << 8) | b1;
+    public static short SInt16BE(int b1, int b2) {
+        return (short)(((b1 & 0xff) << 8) | (b2 & 0xff));
     }
 
-    /** Reads little-endian 16 bits from RandomAccessFile.
-     * @throws EOFException if at the end of the file. */
-    public static int readUInt16LE(@Nonnull RandomAccessFile raf) throws EOFException, IOException {
-        int b1 = raf.readUnsignedByte();
-        int b2 = raf.readUnsignedByte();
-        return (b2 << 8) | b1;
-    }
-    
-    public static void writeInt16LE(@Nonnull OutputStream os, int i) throws IOException {
-        os.write(i & 0xFF);
-        os.write((i >>> 8) & 0xFF);
+    //== 16-bit == big-endian == unsigned == read ==============================
+
+    public static int readUInt16BE(@Nonnull InputStream stream) throws EOFException, IOException {
+        int b1, b2;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0)
+            throw new EOFException();
+        return UInt16BE(b1, b2);
     }
 
-    public static void writeInt16BE(@Nonnull OutputStream os, int i) throws IOException {
-        os.write((i >>> 8) & 0xFF);
-        os.write(i & 0xFF);
+    public static int UInt16BE(int b1, int b2) {
+        return (((b1 & 0xff) << 8) | (b2 & 0xff));
     }
 
-    public static void writeInt16LE(@Nonnull RandomAccessFile raf, short si) throws IOException {
-        raf.write((int)(si & 0xFF));
-        raf.write((int)((si >>> 8) & 0xFF));
+    //== 16-bit == little-endian == write ======================================
+
+    public static void writeInt16LE(@Nonnull RandomAccessFile stream, short si) throws IOException {
+        stream.write(si & 0xff);
+        stream.write((si >>> 8) & 0xff);
+    }
+
+    public static void writeInt16LE(@Nonnull OutputStream stream, int i) throws IOException {
+        stream.write(i & 0xff);
+        stream.write((i >>> 8) & 0xff);
     }
 
     public static void writeInt16LE(@Nonnull byte[] ab, int pos, short si) {
-        ab[pos  ] = (byte)( si        & 0xFF);
-        ab[pos+1] = (byte)((si >>> 8) & 0xFF);
+        ab[pos  ] = (byte)( si        & 0xff);
+        ab[pos+1] = (byte)((si >>> 8) & 0xff);
+    }
+
+    //== 16-bit == big-endian == write =========================================
+
+    public static void writeInt16BE(@Nonnull OutputStream stream, int i) throws IOException {
+        stream.write((i >>> 8) & 0xff);
+        stream.write(i & 0xff);
     }
 
     public static void writeInt16BE(@Nonnull byte[] ab, int pos, short si) {
-        ab[pos  ] = (byte)((si >>> 8) & 0xFF);
-        ab[pos+1] = (byte)( si        & 0xFF);
+        ab[pos  ] = (byte)((si >>> 8) & 0xff);
+        ab[pos+1] = (byte)( si        & 0xff);
     }
 
-    //== 32-bit ================================================================
+    // #########################################################################
+    // #########################################################################
+    
+    //== 32-bit == little-endian == signed == read =============================
 
-    public static int readSInt32BE(@Nonnull InputStream is) throws EOFException, IOException {
-        final int b1, b2, b3, b4;
-        if ((b1 = is.read()) < 0 ||
-            (b2 = is.read()) < 0 ||
-            (b3 = is.read()) < 0 ||
-            (b4 = is.read()) < 0)
-            throw new EOFException("readSInt32BE");
-        return (b1 << 24) + (b2 << 16) + (b3 << 8) + (b4 << 0);
+    public static int readSInt32LE(@Nonnull InputStream stream) throws EOFException, IOException {
+        int b1, b2, b3, b4;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0 ||
+            (b3 = stream.read()) < 0 ||
+            (b4 = stream.read()) < 0)
+            throw new EOFException();
+        return SInt32LE(b1, b2, b3, b4);
     }
 
-
-    public static void writeInt32LE(@Nonnull OutputStream os, long lng) throws IOException {
-        os.write((int)( lng         & 0xFF));
-        os.write((int)((lng >>>  8) & 0xFF));
-        os.write((int)((lng >>> 16) & 0xFF));
-        os.write((int)((lng >>> 24) & 0xFF));
+    public static int readSInt32LE(@Nonnull RandomAccessFile stream) throws EOFException, IOException {
+        int b1, b2, b3, b4;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0 ||
+            (b3 = stream.read()) < 0 ||
+            (b4 = stream.read()) < 0)
+            throw new EOFException();
+        return SInt32LE(b1, b2, b3, b4);
     }
 
-    public static void writeInt32LE(@Nonnull RandomAccessFile os, long lng) throws IOException {
-        os.write((int)( lng         & 0xFF));
-        os.write((int)((lng >>>  8) & 0xFF));
-        os.write((int)((lng >>> 16) & 0xFF));
-        os.write((int)((lng >>> 24) & 0xFF));
+    public static int readSInt32LE(@Nonnull byte[] ab, int i) {
+        int b1 = ab[i+0] & 0xff;
+        int b2 = ab[i+1] & 0xff;
+        int b3 = ab[i+2] & 0xff;
+        int b4 = ab[i+3] & 0xff;
+        return SInt32LE(b1, b2, b3, b4);
     }
 
-    public static void writeInt32BE(@Nonnull OutputStream os, int i) throws IOException {
-        os.write((int)((i >>> 24) & 0xFF));
-        os.write((int)((i >>> 16) & 0xFF));
-        os.write((int)((i >>>  8) & 0xFF));
-        os.write((int)( i         & 0xFF));
+    public static int SInt32LE(int b1, int b2, int b3, int b4) {
+        return (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+    }
+
+    //== 32-bit == little-endian == unsigned == read ===========================
+
+    public static long readUInt32LE(@Nonnull RandomAccessFile stream) throws EOFException, IOException {
+        long b1, b2, b3, b4;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0 ||
+            (b3 = stream.read()) < 0 ||
+            (b4 = stream.read()) < 0)
+            throw new EOFException();
+        return UInt32LE(b1, b2, b3, b4);
+    }
+
+    public static long readUInt32LE(@Nonnull InputStream stream) throws EOFException, IOException {
+        long b1, b2, b3, b4;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0 ||
+            (b3 = stream.read()) < 0 ||
+            (b4 = stream.read()) < 0)
+            throw new EOFException();
+        return UInt32LE(b1, b2, b3, b4);
+    }
+
+    public static long readUInt32LE(@Nonnull byte[] ab, int i) {
+        long b1 = ab[i+0] & 0xffL;
+        long b2 = ab[i+1] & 0xffL;
+        long b3 = ab[i+2] & 0xffL;
+        long b4 = ab[i+3] & 0xffL;
+        return UInt32LE(b1, b2, b3, b4);
+    }
+
+    public static long UInt32LE(long b1, long b2, long b3, long b4) {
+        return (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+    }
+
+    //== 32-bit == big-endian == signed == read ================================
+    
+    public static int readSInt32BE(@Nonnull InputStream stream) throws EOFException, IOException {
+        int b1, b2, b3, b4;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0 ||
+            (b3 = stream.read()) < 0 ||
+            (b4 = stream.read()) < 0)
+            throw new EOFException();
+        return SInt32BE(b1, b2, b3, b4);
+    }
+
+    public static int readSInt32BE(@Nonnull byte[] ab, int i) {
+        int b1 = ab[i+0] & 0xff;
+        int b2 = ab[i+1] & 0xff;
+        int b3 = ab[i+2] & 0xff;
+        int b4 = ab[i+3] & 0xff;
+        return SInt32BE(b1, b2, b3, b4);
+    }
+
+    public static int SInt32BE(int b1, int b2, int b3, int b4) {
+        return (b1 << 24) | (b2 << 16) | (b3 << 8) | b4;
+    }
+
+    //== 32-bit == big-endian == unsigned == read ==============================
+
+    public static long readUInt32BE(@Nonnull byte[] ab, int i) {
+        long b4 = ab[i+0] & 0xff;
+        long b3 = ab[i+1] & 0xff;
+        long b2 = ab[i+2] & 0xff;
+        long b1 = ab[i+3] & 0xff;
+        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
+        return total;
+    }
+
+    public static long readUInt32BE(@Nonnull InputStream stream) throws EOFException, IOException {
+        int b1, b2, b3, b4;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0 ||
+            (b3 = stream.read()) < 0 ||
+            (b4 = stream.read()) < 0)
+            throw new EOFException();
+        return SInt32BE(b1, b2, b3, b4);
+    }
+
+    //== 32-bit == little-endian == write ======================================
+
+    public static void writeInt32LE(@Nonnull OutputStream stream, long lng) throws IOException {
+        int i = (int)lng;
+        stream.write( i         & 0xff);
+        stream.write((i >>>  8) & 0xff);
+        stream.write((i >>> 16) & 0xff);
+        stream.write((i >>> 24) & 0xff);
+    }
+
+    public static void writeInt32LE(@Nonnull RandomAccessFile stream, long lng) throws IOException {
+        int i = (int)lng;
+        stream.write( i         & 0xff);
+        stream.write((i >>>  8) & 0xff);
+        stream.write((i >>> 16) & 0xff);
+        stream.write((i >>> 24) & 0xff);
     }
 
     public static void writeInt32LE(@Nonnull byte[] ab, int pos, long lng) {
-        ab[pos  ] = (byte)( lng         & 0xFF);
-        ab[pos+1] = (byte)((lng >>>  8) & 0xFF);
-        ab[pos+2] = (byte)((lng >>> 16) & 0xFF);
-        ab[pos+3] = (byte)((lng >>> 24) & 0xFF);
+        int i = (int)lng;
+        ab[pos  ] = (byte)( i         & 0xff);
+        ab[pos+1] = (byte)((i >>>  8) & 0xff);
+        ab[pos+2] = (byte)((i >>> 16) & 0xff);
+        ab[pos+3] = (byte)((i >>> 24) & 0xff);
     }
 
-    /** Reads little-endian 32 bits from a RandomAccessFile.
-     *  Throws EOFException if at end of stream. */
-    public static long readUInt32LE(@Nonnull RandomAccessFile raf) throws EOFException, IOException {
-        int b1 = raf.readUnsignedByte();
-        int b2 = raf.readUnsignedByte();
-        int b3 = raf.readUnsignedByte();
-        long b4 = raf.readUnsignedByte();
-        return (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-    }
-    
-    public static long readUInt32LE(@Nonnull byte[] ab, int i) {
-        int b1 = ab[i+0] & 0xFF;
-        int b2 = ab[i+1] & 0xFF;
-        int b3 = ab[i+2] & 0xFF;
-        long b4 = ab[i+3] & 0xFF;
-        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-        return total;
-    }
-    
-    public static int readSInt32BE(@Nonnull byte[] ab, int i) {
-        int b4 = ab[i+0] & 0xFF;
-        int b3 = ab[i+1] & 0xFF;
-        int b2 = ab[i+2] & 0xFF;
-        int b1 = ab[i+3] & 0xFF;
-        int total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-        return total;
+    //== 32-bit == big-endian == write =========================================
+
+    public static void writeInt32BE(@Nonnull OutputStream stream, int i) throws IOException {
+        stream.write((int)((i >>> 24) & 0xff));
+        stream.write((int)((i >>> 16) & 0xff));
+        stream.write((int)((i >>>  8) & 0xff));
+        stream.write((int)( i         & 0xff));
     }
 
-    public static long readUInt32BE(@Nonnull byte[] ab, int i) {
-        int b4 = ab[i+0] & 0xFF;
-        int b3 = ab[i+1] & 0xFF;
-        int b2 = ab[i+2] & 0xFF;
-        long b1 = ab[i+3] & 0xFF;
-        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-        return total;
-    }
-    
-    /** Function to read little-endian 32 bits from an InputStream.
-     *  Throws EOFException if at end of stream. */
-    public static long readUInt32LE(@Nonnull InputStream is) throws EOFException, IOException {
-        final int b1, b2, b3;
-        final long b4;
-        if ((b1 = is.read()) < 0 ||
-            (b2 = is.read()) < 0 ||
-            (b3 = is.read()) < 0 ||
-            (b4 = is.read()) < 0)
-            throw new EOFException("readUInt32LE");
-        long total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-        return total;
-    }
-    
-    public static int readSInt32LE(@Nonnull byte[] ab, int i) {
-        int b1 = ab[i+0] & 0xFF;
-        int b2 = ab[i+1] & 0xFF;
-        int b3 = ab[i+2] & 0xFF;
-        int b4 = ab[i+3] & 0xFF;
-        int total = (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-        return total;
-    }
-
-    public static int readSInt32LE(@Nonnull InputStream is) throws EOFException, IOException {
-        final int b1, b2, b3, b4;
-        if ((b1 = is.read()) < 0 ||
-            (b2 = is.read()) < 0 ||
-            (b3 = is.read()) < 0 ||
-            (b4 = is.read()) < 0)
-            throw new EOFException("readUInt32LE");
-        int total = ((b4 << 24) + (b3 << 16) + (b2 << 8) + (b1 << 0));
-        return total;
-    }
-
-    public static int readSInt32LE(@Nonnull RandomAccessFile raf) throws EOFException, IOException {
-        int b1 = raf.readUnsignedByte();
-        int b2 = raf.readUnsignedByte();
-        int b3 = raf.readUnsignedByte();
-        int b4 = raf.readUnsignedByte();
-        int total = ((b4 << 24) + (b3 << 16) + (b2 << 8) + (b1 << 0));
-        return total;
-    }
-
+    // #########################################################################
+    // #########################################################################
 
     //== 64-bit ================================================================
 
-    public static long readSInt64BE(@Nonnull InputStream is) throws EOFException, IOException {
+    public static long readSInt64BE(@Nonnull InputStream stream) throws EOFException, IOException {
         long lngRet = 0;
         for (int i = 0; i < 8; i++) {
-            int iByte = is.read();
+            int iByte = stream.read();
             if (iByte < 0)
-                throw new EOFException("readSInt64BE");
-            lngRet <<= 8;
-            lngRet |= iByte;
+                throw new EOFException();
+            lngRet = (lngRet << 8) | iByte;
         }
         return lngRet;
     }
 
-
-    //== Other IO ==============================================================
-
-    /** Because the {@link InputStream#read(byte[])} method won't always read
-     *  the entire array in one call. */
-    public static @Nonnull byte[] readByteArray(@Nonnull InputStream is, 
-                                                int iBytesToRead) 
-            throws EOFException, IOException
-    {
-        byte[] abBuffer = new byte[iBytesToRead];
-        readByteArray(is, abBuffer);
-        return abBuffer;
-    }
-
-    /** Because the {@link InputStream#read(byte[])} method won't always read
-     *  the entire array in one call. */
-    public static void readByteArray(@Nonnull InputStream is, 
-                                     @Nonnull byte[] abBuffer) 
-            throws EOFException, IOException
-    {
-        readByteArray(is, abBuffer, 0, abBuffer.length);
-    }
-
-    /** Because the {@link InputStream#read(byte[])} method won't always read
-     *  the entire array in one call. */
-    public static void readByteArray(@Nonnull InputStream is, 
-                                     @Nonnull byte[] abBuffer,
-                                     int iStartOffset, int iBytesToRead)
-            throws EOFException, IOException
-    {
-        int iBytesRead = readByteArrayMax(is, abBuffer, iStartOffset, iBytesToRead);
-        if (iBytesRead < iBytesToRead)
-            throw new EOFException("readByteArray");
-    }
-    
-    /** Read as much as possible and return the number of bytes read. */
-    public static int readByteArrayMax(@Nonnull InputStream is, 
-                                       @Nonnull byte[] abBuffer,
-                                       int iStartOffset, int iBytesToRead)
-            throws EOFException, IOException
-    {
-        int iTotalBytesRead = is.read(abBuffer, iStartOffset, iBytesToRead);
-        if (iTotalBytesRead < 0) 
-            throw new EOFException("readMaxByteArray");
-        while (iTotalBytesRead < iBytesToRead) {
-            int iBytesRead = is.read(abBuffer, iStartOffset + iTotalBytesRead, 
-                                     iBytesToRead - iTotalBytesRead);
-            if (iBytesRead < 0) 
-                break;
-            iTotalBytesRead += iBytesRead;
+    public static long readSInt64BE(@Nonnull byte[] ab, int i) {
+        long lngRet = 0;
+        for (int j = 0; j < 8; j++) {
+            byte iByte = ab[i+j];
+            lngRet = (lngRet << 8) | iByte;
         }
-        return iTotalBytesRead;
+        return lngRet;
     }
 
-    /** Because the {@link RandomAccessFile#read(byte[])} method won't always
-     *  read the entire array in one call. */
-    public static @Nonnull byte[] readByteArray(@Nonnull RandomAccessFile raf, 
+    // #########################################################################
+    // #########################################################################
+
+    //== read byte array (int) =================================================
+
+    /** Because the {@link InputStream#read(byte[])} method won't always read
+     *  the entire array in one call. */
+    public static @Nonnull byte[] readByteArray(@Nonnull InputStream stream,
                                                 int iBytesToRead) 
             throws EOFException, IOException
     {
-        assert(iBytesToRead > 0);
+        assert iBytesToRead > 0;
         byte[] ab = new byte[iBytesToRead];
-        readByteArray(raf, ab);
+        readByteArray(stream, ab);
         return ab;
     }
 
-    /** Because the {@link RandomAccessFile#read(byte[])} method won't always
-     *  read the entire array in one call. */
-    public static void readByteArray(@Nonnull RandomAccessFile raf, 
+    public static @Nonnull byte[] readByteArray(@Nonnull RandomAccessFile stream,
+                                                int iBytesToRead)
+            throws EOFException, IOException
+    {
+        assert iBytesToRead > 0;
+        byte[] ab = new byte[iBytesToRead];
+        readByteArray(stream, ab);
+        return ab;
+    }
+
+    //== read byte array (byte[]) ==============================================
+
+    public static void readByteArray(@Nonnull InputStream stream,
                                      @Nonnull byte[] abBuffer) 
             throws EOFException, IOException
     {
-        readByteArray(raf, abBuffer, 0, abBuffer.length);
+        readByteArray(stream, abBuffer, 0, abBuffer.length);
     }
 
-    /** Because the {@link RandomAccessFile#read(byte[])} method won't always
-     *  read the entire array in one call. */
-    public static void readByteArray(@Nonnull RandomAccessFile raf, 
+    public static void readByteArray(@Nonnull RandomAccessFile stream,
+                                     @Nonnull byte[] abBuffer)
+            throws EOFException, IOException
+    {
+        readByteArray(stream, abBuffer, 0, abBuffer.length);
+    }
+
+    //== read byte array (byte[], pos, len) ====================================
+
+    public static void readByteArray(@Nonnull InputStream stream,
                                      @Nonnull byte[] abBuffer,
                                      int iStartOffset, int iBytesToRead)
             throws EOFException, IOException
     {
-        int iBytesRead = readByteArrayMax(raf, abBuffer, iStartOffset, iBytesToRead);
+        int iBytesRead = readByteArrayMax(stream, abBuffer, iStartOffset, iBytesToRead);
         if (iBytesRead < iBytesToRead)
-            throw new EOFException("readByteArray");
+            throw new EOFException();
     }
     
-    /** Read as much as possible and return the number of bytes read. */
-    public static int readByteArrayMax(@Nonnull RandomAccessFile raf, 
+    public static void readByteArray(@Nonnull RandomAccessFile stream,
+                                     @Nonnull byte[] abBuffer,
+                                     int iStartOffset, int iBytesToRead)
+            throws EOFException, IOException
+    {
+        int iBytesRead = readByteArrayMax(stream, abBuffer, iStartOffset, iBytesToRead);
+        if (iBytesRead < iBytesToRead)
+            throw new EOFException();
+    }
+
+    //== read byte array max ===================================================
+
+    /** Read as much as possible and return the number of bytes read.
+     * If 0 is returned, it is at the end of the stream. Never returns -1. */
+    public static int readByteArrayMax(@Nonnull InputStream stream,
                                        @Nonnull byte[] abBuffer,
                                        int iStartOffset, int iBytesToRead)
             throws EOFException, IOException
     {
-        int iTotalBytesRead = raf.read(abBuffer, iStartOffset, iBytesToRead);
-        if (iTotalBytesRead < 0) 
-            throw new EOFException("readMaxByteArray");
-        while (iTotalBytesRead < iBytesToRead) {
-            int iBytesRead = raf.read(abBuffer, iStartOffset + iTotalBytesRead, 
-                                      iBytesToRead - iTotalBytesRead);
-            if (iBytesRead < 0) 
+        int iRemainingBytes = iBytesToRead;
+        int iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
+        if (iBytesRead < 0)
+            return 0;
+        iRemainingBytes -= iBytesRead;
+        while (iRemainingBytes > 0) {
+            iStartOffset += iBytesRead;
+            iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
+            if (iBytesRead < 0)
                 break;
-            iTotalBytesRead += iBytesRead;
+            iRemainingBytes -= iBytesRead;
         }
-        return iTotalBytesRead;
-    }
-    
-
-    public static @Nonnull int[] readBEIntArray(@Nonnull InputStream is, int iCount) 
-            throws EOFException, IOException
-    {
-        int[] ai = new int[iCount];
-        for (int i = 0; i < ai.length; i++) {
-            ai[i] = readSInt32BE(is);
-        }
-        return ai;
+        return iBytesToRead - iRemainingBytes;
     }
 
-    public static void skip(@Nonnull InputStream is, long lngTotal) 
+    /** @see #readByteArrayMax(java.io.InputStream, byte[], int, int)  */
+    public static int readByteArrayMax(@Nonnull RandomAccessFile stream,
+                                       @Nonnull byte[] abBuffer,
+                                       int iStartOffset, int iBytesToRead)
             throws EOFException, IOException
     {
+        int iRemainingBytes = iBytesToRead;
+        int iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
+        if (iBytesRead < 0)
+            return 0;
+        iRemainingBytes -= iBytesRead;
+        while (iRemainingBytes > 0) {
+            iStartOffset += iBytesRead;
+            iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
+            if (iBytesRead < 0)
+                break;
+            iRemainingBytes -= iBytesRead;
+        }
+        return iBytesToRead - iRemainingBytes;
+    }
+
+    //== skip ==================================================================
+
+    public static void skip(@Nonnull InputStream stream, long lngTotal)
+            throws EOFException, IOException
+    {
+        long lngBytesSkipped = skipEofCheck(stream.skip(lngTotal), -1);
+        lngTotal -= lngBytesSkipped;
         while (lngTotal > 0) {
-            long lngCount = is.skip(lngTotal);
-            if (lngCount < 0)
-                throw new EOFException("skip");
-            lngTotal -= lngCount;
+            lngBytesSkipped = skipEofCheck(stream.skip(lngTotal), lngBytesSkipped);
+            lngTotal -= lngBytesSkipped;
         }
     }
 
-    public static void skip(@Nonnull RandomAccessFile raf, int iTotal) 
+    /**
+     * Check for end-of-stream condition when skipping.
+     * {@link InputStream#skip(long)} is never supposed to return -1,
+     * and may return 0 even if not at the end of the stream.
+     * <p>
+     * Two conditions will trigger a {@link EOFException}:
+     * <ul>
+     * <li> The stream returned negative bytes read.
+     * <li> Twice in a row, the stream returned 0 bytes read.
+     * </ul>
+     * @param lngBytesRead    Bytes read from the last read call
+     * @param iPrevBytesRead  Bytes read from the previous to last read call
+     * @return {@code lngBytesRead}
+     */
+    private static long skipEofCheck(long lngBytesRead, long lngPrevBytesRead) throws EOFException {
+        if (lngBytesRead < 0)
+            throw new EOFException();
+        if (lngBytesRead == 0 && lngPrevBytesRead == 0)
+            throw new EOFException();
+        return lngBytesRead;
+    }
+
+    public static void skip(@Nonnull RandomAccessFile stream, int iTotal)
             throws EOFException, IOException
     {
+        int iBytesSkipped = skipEofCheck(stream.skipBytes(iTotal), -1);
+        iTotal -= iBytesSkipped;
         while (iTotal > 0) {
-            int iCount = raf.skipBytes(iTotal);
-            if (iCount < 0)
-                throw new EOFException("skip");
-            iTotal -= iCount;
+            iBytesSkipped = skipEofCheck(stream.skipBytes(iTotal), iBytesSkipped);
+            iTotal -= iBytesSkipped;
         }
     }
+
+    /**
+     * Check for end-of-stream condition when skipping.
+     * {@link RandomAccessFile#skipBytes(int)} will return -1 at EOF.
+     * Could it return return 0 even when not at the end of the stream?
+     * <p>
+     * Two conditions will trigger a {@link EOFException}:
+     * <ul>
+     * <li> The stream returned negative bytes read.
+     * <li> Twice in a row, the stream returned 0 bytes read.
+     * </ul>
+     * @param iBytesRead      Bytes read from the last read call
+     * @param iPrevBytesRead  Bytes read from the previous to last read call
+     * @return {@code iBytesRead}
+     */
+    private static int skipEofCheck(int iBytesRead, int iPrevBytesRead) throws EOFException {
+        if (iBytesRead < 0)
+            throw new EOFException();
+        if (iBytesRead == 0 && iPrevBytesRead == 0)
+            throw new EOFException();
+        return iBytesRead;
+    }
+
+    public static int skipMax(@Nonnull InputStream stream, int iTotal) throws IOException {
+        long lngPrevBytesSkipped = stream.skip(iTotal);
+        if (lngPrevBytesSkipped < 0)
+            return 0;
+        long lngBytesRemain = iTotal - lngPrevBytesSkipped;
+        while (lngBytesRemain > 0) {
+            long lngBytesSkipped = stream.skip(lngBytesRemain);
+            if (lngBytesSkipped < 0 || (lngBytesSkipped == 0 && lngPrevBytesSkipped == 0))
+                return (int) (iTotal - lngBytesRemain);
+            lngBytesRemain -= lngBytesSkipped;
+            lngPrevBytesSkipped = lngBytesSkipped;
+        }
+        return iTotal;
+    }
+
+    // #########################################################################
+    // #########################################################################
+
+    //== write entire ==========================================================
 
     public static void writeFile(@Nonnull String sFile, @Nonnull byte[] ab) 
             throws FileNotFoundException, IOException
@@ -502,17 +604,17 @@ public final class IO {
         }
     }
 
-    public static void writeIStoFile(@Nonnull InputStream is, @Nonnull String sFile) 
+    public static void writeIStoFile(@Nonnull InputStream stream, @Nonnull String sFile)
             throws FileNotFoundException, IOException
     {
-        writeIStoFile(is, new File(sFile));
+        writeIStoFile(stream, new File(sFile));
     }
-    public static void writeIStoFile(@Nonnull InputStream is, @Nonnull File file) 
+    public static void writeIStoFile(@Nonnull InputStream stream, @Nonnull File file)
             throws FileNotFoundException, IOException
     {
         FileOutputStream fos = new FileOutputStream(file);
         try {
-            writeIStoOS(is, fos);
+            writeIStoOS(stream, fos);
         } finally {
             fos.close(); // XXX: could mask a thrown exception
         }
@@ -523,52 +625,43 @@ public final class IO {
             os.write(b, 0, i);
     }
     
+    //== read entire ===========================================================
+
     public static @Nonnull byte[] readFile(@Nonnull String sFile) throws FileNotFoundException, IOException {
         return readFile(new File(sFile));
     }
     
     public static @Nonnull byte[] readFile(@Nonnull File file) throws FileNotFoundException, IOException {
         // using RandomAccessFile for easy access to file size
-        RandomAccessFile raf = new RandomAccessFile(file, "r");
+        RandomAccessFile stream = new RandomAccessFile(file, "r");
         try {
-            if (raf.length() > Integer.MAX_VALUE)
+            if (stream.length() > Integer.MAX_VALUE)
                 throw new UnsupportedOperationException("Unable to read file larger than max array size.");
-            return readByteArray(raf, (int)raf.length());
+            return readByteArray(stream, (int)stream.length());
         } finally {
-            raf.close(); // XXX: could mask a thrown exception
+            stream.close(); // XXX: could mask a thrown exception
         }
     }
 
-
-    public static @Nonnull byte[] readEntireStream(@Nonnull InputStream is) throws IOException {
+    public static @Nonnull byte[] readEntireStream(@Nonnull InputStream stream) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        writeIStoOS(is, baos);
+        writeIStoOS(stream, baos);
         return baos.toByteArray();
     }
 
-    /** Returns a sorted list of image files found in the folder. */
-    public static @CheckForNull File[] getSortedFileList(@Nonnull String sDirectory,
-                                                         final String ... asExtensions)
-            throws FileNotFoundException
+    // #########################################################################
+    // #########################################################################
+
+    //== other =================================================================
+
+    public static @Nonnull int[] readBEIntArray(@Nonnull InputStream stream, int iCount)
+            throws EOFException, IOException
     {
-        File dir = new File(sDirectory);
-        if (!dir.exists() || !dir.isDirectory())
-            throw new FileNotFoundException(sDirectory);
-        FilenameFilter oFilter = new FilenameFilter() {
-            public boolean accept(File dir, String name) {
-                for (String sExt : asExtensions) {
-                    if (name.endsWith(sExt)) return true;
-                }
-                return false;
-            }
-        };
-        File[] aoNames = dir.listFiles(oFilter);
-        if (aoNames == null) {
-            return null;
-        } else {
-            java.util.Arrays.sort(aoNames);
-            return aoNames;
+        int[] ai = new int[iCount];
+        for (int i = 0; i < ai.length; i++) {
+            ai[i] = readSInt32BE(stream);
         }
+        return ai;
     }
 
     /** Creates the directory or throws {@link LocalizedFileNotFoundException}
@@ -601,15 +694,43 @@ public final class IO {
     }
 
     private static final byte[] ZEROS = new byte[1024];
-    public static void writeZeros(@Nonnull OutputStream os, int iCount) throws IOException
+    public static void writeZeros(@Nonnull OutputStream stream, int iCount) throws IOException
     {
         while (iCount > 0) {
             int iToWrite = ZEROS.length;
             if (iToWrite > iCount)
                 iToWrite = iCount;
-            os.write(ZEROS, 0, iToWrite);
+            stream.write(ZEROS, 0, iToWrite);
             iCount -= iToWrite;
         }
     }
 
+    public static void writeZeros(@Nonnull RandomAccessFile stream, int iCount) throws IOException
+    {
+        while (iCount > 0) {
+            int iToWrite = ZEROS.length;
+            if (iToWrite > iCount)
+                iToWrite = iCount;
+            stream.write(ZEROS, 0, iToWrite);
+            iCount -= iToWrite;
+        }
+    }
+
+    public static class ZeroInputStream extends InputStream {
+        @Override
+        public int read() throws IOException {
+            return 0;
+        }
+
+        @Override
+        public int read(@Nonnull byte[] b, int off, int len) throws IOException {
+            Arrays.fill(b, off, len, (byte)0);
+            return len;
+        }
+
+        @Override
+        public long skip(long n) throws IOException {
+            return n;
+        }
+    }
 }

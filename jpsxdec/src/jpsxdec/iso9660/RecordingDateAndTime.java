@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,10 @@
 
 package jpsxdec.iso9660;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.annotation.Nonnull;
 
 /** ECMA119: 9.1.5 */
 public class RecordingDateAndTime extends ISO9660Struct {
@@ -50,7 +52,7 @@ public class RecordingDateAndTime extends ISO9660Struct {
     public final int Second;
     public final int GreenwichOffset;
     
-    public RecordingDateAndTime(InputStream is) throws IOException {
+    public RecordingDateAndTime(@Nonnull InputStream is) throws EOFException, IOException {
         YearsSince1900  = read1(is);
         Month           = read1(is);
         Day             = read1(is);
@@ -60,6 +62,7 @@ public class RecordingDateAndTime extends ISO9660Struct {
         GreenwichOffset = read1(is) - 128;
     }
     
+    @Override
     public String toString() {
         return String.format(
             "%d/%d/%d %02d:%02d:%d %d",

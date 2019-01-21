@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,25 +37,23 @@
 
 package jpsxdec.cdreaders;
 
-import java.util.Arrays;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.Misc;
 
 
 /** 2352 sectors are the size found in BIN/CUE disc images and include the
- *  full raw header with {@link CdxaHeader} and {@link CdxaSubHeader}. */
+ *  full raw header with {@link CdSectorHeader} and {@link CdSectorXaSubHeader}.
+ */
 public class CdSector2352 extends CdSector {
 
     /* ---------------------------------------------------------------------- */
     /* Fields --------------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    @Nonnull
-    private final CdxaHeader _header;
     @CheckForNull
-    private final CdxaSubHeader _subHeader;
+    private final CdSectorHeader _header;
+    @CheckForNull
+    private final CdSectorXaSubHeader _subHeader;
     
     // Following the header are either [2324 bytes]
     // or [2048 bytes] of user data (depending on the mode/form).
@@ -64,263 +62,121 @@ public class CdSector2352 extends CdSector {
     // If the user data was 2048, then final [276 bytes] are error correction
 
     private final int _iHeaderSize;
-    /** Offset in {@link #_abSectorBytes} where this sector's user data begins. */
-    private final int _iUserDataOffset;
     private final int _iUserDataSize;
-    
-    public CdSector2352(@Nonnull byte[] abSectorBytes, int iByteStartOffset,
-                        int iSectorIndex, long lngFilePointer)
+    @Nonnull
+    private final Type _type;
+
+    public CdSector2352(int iSectorIndex, @Nonnull byte[] abSectorBytes,
+                        int iByteStartOffset, long lngFilePointer)
     {
-        super(abSectorBytes, iByteStartOffset, iSectorIndex, lngFilePointer);
-        _header = new CdxaHeader(iSectorIndex, abSectorBytes, iByteStartOffset);
+        super(iSectorIndex, abSectorBytes, iByteStartOffset, lngFilePointer);
+        if (iByteStartOffset + SECTOR_SIZE_2352_BIN > abSectorBytes.length)
+            throw new IllegalArgumentException();
+        CdSectorHeader header = new CdSectorHeader(iSectorIndex, abSectorBytes, iByteStartOffset);
         // TODO: if the sync header is imperfect (but passable), but the subheader is all errors -> it's cd audio
-        switch (_header.getType()) {
+        switch (header.getType()) {
             case CD_AUDIO:
+                _header = null;
                 _subHeader = null;
                 _iHeaderSize = 0;
-                _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_CD_AUDIO;
+                _iUserDataSize = SECTOR_USER_DATA_SIZE_CD_AUDIO;
+                _type = Type.CD_AUDIO;
                 break;
             case MODE1:
                 // mode 1 sectors & tracks
+                _header = header;
                 _subHeader = null;
-                _iHeaderSize = _header.getSize();
-                _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1;
+                _iHeaderSize = CdSectorHeader.SIZEOF;
+                _iUserDataSize = SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1;
+                _type = Type.MODE1;
                 break;
-            default: // mode 2
-                _subHeader = new CdxaSubHeader(iSectorIndex, abSectorBytes, _iByteStartOffset + CdxaHeader.SIZE);
-                _iHeaderSize = _header.getSize() + _subHeader.getSize();
-                if (_subHeader.getSubMode().getForm() == 1)
-                    _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM1;
-                else
-                    _iUserDataSize = CdFileSectorReader.SECTOR_USER_DATA_SIZE_FORM2;
+            default: assert header.getType() == CdSectorHeader.Type.MODE2;
+                _header = header;
+                _subHeader = new CdSectorXaSubHeader(iSectorIndex, abSectorBytes,
+                                                     iByteStartOffset + CdSectorHeader.SIZEOF);
+                _iHeaderSize = CdSectorHeader.SIZEOF + CdSectorXaSubHeader.SIZEOF;
+                if (_subHeader.getSubMode().getForm() == 1) {
+                    _iUserDataSize = SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1;
+                    _type = Type.MODE2FORM1;
+                } else {
+                    _iUserDataSize = SECTOR_USER_DATA_SIZE_MODE2FORM2;
+                    _type = Type.MODE2FORM2;
+                }
                 break;
         }
-        _iUserDataOffset = _iByteStartOffset + _iHeaderSize;
     }
 
-    /** Returns the size of the 'user data' portion of the sector. */
+    public int getRawCdSectorSize() {
+        return SECTOR_SIZE_2352_BIN;
+    }
+
     public int getCdUserDataSize() {
         return _iUserDataSize;
     }
-    
-    public byte readUserDataByte(int i) {
-        if (i < 0 || i >= _iUserDataSize) throw new IndexOutOfBoundsException();
-        return _abSectorBytes[_iUserDataOffset + i];
+
+    protected int getHeaderDataSize() {
+        return _iHeaderSize;
     }
 
-    /** Returns copy of the 'user data' portion of the sector. */
-    public @Nonnull byte[] getCdUserDataCopy() {
-        byte[] ab = new byte[_iUserDataSize];
-        getCdUserDataCopy(0, ab, 0, _iUserDataSize);
-        return ab;
+    public Type getType() {
+        return _type;
     }
-
-    public void getCdUserDataCopy(int iSourcePos, @Nonnull byte[] abOut, int iOutPos, int iLength) {
-        if (iSourcePos < 0 || iSourcePos + iLength > _iUserDataSize ||
-            iOutPos    < 0 || iOutPos    + iLength > abOut.length)
-        {
-            throw new IndexOutOfBoundsException();
-        }
-        System.arraycopy(_abSectorBytes, _iUserDataOffset + iSourcePos,
-                abOut, iOutPos,
-                iLength);
-    }
-    
-    /** Returns an InputStream of the 'user data' portion of the sector. */
-    public @Nonnull ByteArrayFPIS getCdUserDataStream() {
-        return new ByteArrayFPIS(_abSectorBytes, _iUserDataOffset, _iUserDataSize, _lngFilePointer);
-    }
-
-    @Override
-    public @Nonnull byte[] getRawSectorDataCopy() {
-        byte[] ab = new byte[CdFileSectorReader.SECTOR_SIZE_2352_BIN];
-        System.arraycopy(_abSectorBytes, _iByteStartOffset, ab, 0, ab.length);
-        return ab;
-    }
-
-    //..........................................................................
-
-    @Override
     public boolean isCdAudioSector() {
-        return _header.getType() == CdxaHeader.Type.CD_AUDIO;
+        return _type == Type.CD_AUDIO;
     }
 
-    public boolean isMode1() {
-        return _header.getType() == CdxaHeader.Type.MODE1;
+    public @CheckForNull CdSectorHeader getHeader() {
+        return _header;
     }
 
-    @Override
-    public boolean hasHeaderSectorNumber() {
-        return _header.getType() != CdxaHeader.Type.CD_AUDIO;
+    public @CheckForNull CdSectorXaSubHeader getSubHeader() {
+        return _subHeader;
     }
 
-    @Override
-    public int getHeaderSectorNumber() {
-        return _header.calculateSectorNumber();
-    }
-    
-    //..........................................................................
-    
-    @Override
-    public boolean hasSubHeader() {
-        return _subHeader != null;
-    }
-
-    @Override
-    public int getSubHeaderChannel() {
-        if (_subHeader == null)
-            return super.getSubHeaderChannel();
-        else
-            return _subHeader.getChannel();
-    }
-
-    @Override
-    public int getSubHeaderFile() {
-        if (_subHeader == null)
-            return super.getSubHeaderFile();
-        else
-            return _subHeader.getFileNumber();
-    }
-
-    @Override
-    public @Nonnull CdxaSubHeader.SubMode getSubMode() {
-        if (_subHeader == null)
-            return super.getSubMode();
-        else
-            return _subHeader.getSubMode();
-    }
-
-    @Override
-    public int subModeMask(int i) {
-        if (_subHeader == null)
-            return super.subModeMask(i);
-        else
-            return _subHeader.getSubMode().toByte() & i;
-    }
-
-    @Override
-    public @Nonnull CdxaSubHeader.CodingInfo getCodingInfo() {
-        if (_subHeader == null)
-            return super.getCodingInfo();
-        else
-            return _subHeader.getCodingInfo();
-    }
-
-    //..........................................................................
-    
-    /** Returns the actual offset in bytes from the start of the file/CD
-     *  to the start of the sector userdata.
-     *  [implements IGetFilePointer] */
-    public long getUserDataFilePointer() {
-        return _lngFilePointer + _iHeaderSize;
-    }
-    
-    @Override
     public boolean hasHeaderErrors() {
-        return _header.hasErrors() ||
+        return (_header != null && _header.hasErrors()) ||
                (_subHeader != null && _subHeader.hasErrors());
     }
 
     @Override
     public int getErrorCount() {
-        if (_subHeader == null)
-            return _header.getErrorCount();
-        else
-            return _header.getErrorCount() + _subHeader.getErrorCount();
+        int iCount = 0;
+        if (_header != null)
+            iCount += _header.getErrorCount();
+        if (_subHeader != null)
+            iCount += _subHeader.getErrorCount();
+        return iCount;
     }
     
-    public String toString() {
-        switch (_header.getType()) {
-            case CD_AUDIO:
-                return String.format("[Sector:%d CD Audio]", _iSectorIndex);
-            case MODE1:
-                return String.format("[Sector:%d (%d) M1]", 
-                        _iSectorIndex, 
-                        _header.calculateSectorNumber());
-            default:
-                return String.format("[Sector:%d (%d) M2 %s]", 
-                        _iSectorIndex, 
-                        _header.calculateSectorNumber(), 
-                        _subHeader);
-        }
-    }
-
     @Override
     public @Nonnull byte[] rebuildRawSector(@Nonnull byte[] abNewUserData) {
-        CdxaHeader.Type eType = _header.getType();
-        
-        if (eType == CdxaHeader.Type.MODE1)
+        if (_type == Type.MODE1)
             throw new UnsupportedOperationException("Rebuilding error correction for mode 1 not supported.");
 
         if (abNewUserData.length != _iUserDataSize)
             throw new IllegalArgumentException();
 
-        if (eType == CdxaHeader.Type.CD_AUDIO)
+        if (_type == Type.CD_AUDIO)
             return abNewUserData.clone();
 
         // MODE2 form 1 & 2
         byte[] abRawData = getRawSectorDataCopy();
         System.arraycopy(abNewUserData, 0, abRawData, _iHeaderSize, _iUserDataSize);
-        CdSector2352.rebuildErrorCorrection(abRawData, getSubMode().getForm());
+        SectorErrorCorrection.rebuildErrorCorrection(abRawData, _subHeader.getSubMode().getForm());
         
         return abRawData;
     }
-
-    /**
-     * Form 1:
-     * <pre>
-     * Offset  Size
-     *     0     12    Sync header
-     *    12      4    Header             ]        ]
-     *    16      8    Sub header  ] EDC  ] ECC_P  ] ECC_Q
-     *    24   2048    User data   ]      ]        ]
-     *  2072      4    EDC                ]        ]
-     *  2076    172    ECC_P                       ]
-     *  2248    104    ECC_Q
-     *  2352
-     * </pre>
-     * Form 2:
-     * <pre>
-     * Offset  Size
-     *     0     12    Sync header
-     *    12      4    Header
-     *    16      8    Sub header  ] EDC
-     *    24   2324    User data   ]
-     *  2348      4    EDC
-     *  2352
-     * </pre>
-     */
-    public static void rebuildErrorCorrection(@Nonnull byte[] abRawData, int iForm) {
-        if (iForm == 1) {
-            // Sets EDC
-            long lngEdc = SectorErrorCorrection.generateErrorDetectionAndCorrection(abRawData, 0x10, 0x818);
-            abRawData[0x818  ] = (byte)(lngEdc & 0xff);
-            abRawData[0x818+1] = (byte)((lngEdc >>  8) & 0xff);
-            abRawData[0x818+2] = (byte)((lngEdc >> 16) & 0xff);
-            abRawData[0x818+3] = (byte)((lngEdc >> 24) & 0xff);
-
-            // save the binary coded decimal sector number
-            byte[] bcd = Misc.copyOfRange(abRawData, 12, 12+4);
-            // fill the binary coded decimal sector number with zeros
-            Arrays.fill(abRawData, 12, 12+4, (byte)0);
-            // fill the ECC P and ECC Q with zeros
-            Arrays.fill(abRawData, 0x81C, 0x8C8, (byte)0);
-            Arrays.fill(abRawData, 0x8C8, 0x930, (byte)0);
-
-            // rebuild ECC P+Q
-            SectorErrorCorrection.generateErrorCorrectionCode_P(abRawData, 12/*to 12+2064*/, abRawData, 0x81C/*to 0x8C8*/);
-            SectorErrorCorrection.generateErrorCorrectionCode_Q(abRawData, 12/*to 12+4+0x800+4+8+L2_P*/, abRawData, 0x8C8/*to 0x930*/);
-
-            // restore the binary coded decimal sector number
-            System.arraycopy(bcd, 0, abRawData, 12, bcd.length);
-        } else { // form 2
-            // Sets EDC
-            long lngEdc = SectorErrorCorrection.generateErrorDetectionAndCorrection(abRawData, 0x10, 0x92C);
-            abRawData[0x92C  ] = (byte)(lngEdc & 0xff);
-            abRawData[0x92C+1] = (byte)((lngEdc >>  8) & 0xff);
-            abRawData[0x92C+2] = (byte)((lngEdc >> 16) & 0xff);
-            abRawData[0x92C+3] = (byte)((lngEdc >> 24) & 0xff);
+    
+    @Override
+    public String toString() {
+        switch (_type) {
+            case CD_AUDIO:
+                return String.format("[Sector:%d CD Audio]", getSectorIndexFromStart());
+            case MODE1:
+                return String.format("[Sector:%d %s]", getSectorIndexFromStart(), getHeader());
+            default: assert _type == Type.MODE2FORM1 || _type == Type.MODE2FORM2;
+                return String.format("[Sector:%d %s %s]", getSectorIndexFromStart(), getHeader(), getSubHeader());
         }
     }
-    
+
 }

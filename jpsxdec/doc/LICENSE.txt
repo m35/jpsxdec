@@ -1,6 +1,6 @@
 
 jPSXdec: PlayStation 1 Media Decoder/Converter in Java
-Copyright (C) 2007-2017  Michael Sabin
+Copyright (C) 2007-2019  Michael Sabin
 All rights reserved.
 
 jPSXdec is licensed as a whole under this non-commercial license:
@@ -52,6 +52,7 @@ Some individual components are licensed under compatible licenses:
 
 The jPSXdec translations
 Specifically src/jpsxdec/i18n/I.java and Translations*.properties
+
 Copyright Michael Sabin, Víctor González, Sergi Medina
 
 English and Japanese by Michael Sabin

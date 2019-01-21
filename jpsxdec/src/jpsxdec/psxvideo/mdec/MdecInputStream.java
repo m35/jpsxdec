@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,9 @@
 
 package jpsxdec.psxvideo.mdec;
 
-/** Read MDEC codes one at a time from a stream. */
+/** Read MDEC codes one at a time from a stream.
+ * This is actually the coolest class in the entire jPSXdec codebase
+ * because it has allowed epic interoperability between mdec streams. */
 public abstract class MdecInputStream {
 
     /** Reads the next MDEC code from the stream into the provided

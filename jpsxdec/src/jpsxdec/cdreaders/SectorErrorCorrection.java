@@ -15,7 +15,7 @@
 */
 package jpsxdec.cdreaders;
 
-import javax.annotation.Nonnull;
+import java.util.Arrays;
 
 /**
  * Code ported from sector.d from project http://code.google.com/p/dutils/
@@ -112,7 +112,7 @@ public class SectorErrorCorrection {
     
 
     /** Generate sector EDC. It is a 32-but value, unsigned in a long. */
-    public static long generateErrorDetectionAndCorrection(@Nonnull byte[] data, 
+    public static long generateErrorDetectionAndCorrection(byte[] data, 
                                                            int iStart, int iEnd)
     {
         long edc_i = 0;
@@ -126,8 +126,8 @@ public class SectorErrorCorrection {
     /** Generate sector ECC P.
      * @param data_p Start pointer to {@code data}.
      * @param output_p Start pointer to {@code output}. */
-    public static void generateErrorCorrectionCode_P(@Nonnull byte[] data, int data_p, 
-                                                     @Nonnull byte[] output, int output_p)
+    public static void generateErrorCorrectionCode_P(byte[] data, int data_p, 
+                                                     byte[] output, int output_p)
     {
         assert data.length - data_p >= 43 * 24 * 2;
         assert output.length - output_p >= L2_P;
@@ -157,8 +157,8 @@ public class SectorErrorCorrection {
     /** Generate sector ECC Q.
      * @param data_p Start pointer to {@code data}.
      * @param output_p Start pointer to {@code output}. */
-    public static void generateErrorCorrectionCode_Q(@Nonnull byte[] data, int data_p, 
-                                                     @Nonnull byte[] output, int output_p)
+    public static void generateErrorCorrectionCode_Q(byte[] data, int data_p, 
+                                                     byte[] output, int output_p)
     {
         assert data.length - data_p >= 4 + 0x800 + 4 + 8 + L2_P;
         assert output.length - output_p >= L2_Q;
@@ -185,5 +185,70 @@ public class SectorErrorCorrection {
             }
         }
     }
+
+
+    /**
+     * Form 1:
+     * <pre>
+     * Offset  Size
+     *     0     12    Sync header
+     *    12      4    Header             ]        ]
+     *    16      8    Sub header  ] EDC  ] ECC_P  ] ECC_Q
+     *    24   2048    User data   ]      ]        ]
+     *  2072      4    EDC                ]        ]
+     *  2076    172    ECC_P                       ]
+     *  2248    104    ECC_Q
+     *  2352
+     * </pre>
+     * Form 2:
+     * <pre>
+     * Offset  Size
+     *     0     12    Sync header
+     *    12      4    Header
+     *    16      8    Sub header  ] EDC
+     *    24   2324    User data   ]
+     *  2348      4    EDC
+     *  2352
+     * </pre>
+     *
+     * @param abRawSectorData Raw 2352 byte sector data
+     * @param iForm 1 or 2
+     */
+    public static void rebuildErrorCorrection(byte[] abRawSectorData, int iForm) {
+        if (abRawSectorData.length < 2352 || (iForm != 1 && iForm != 2))
+            throw new IllegalArgumentException();
+        if (iForm == 1) {
+            // Sets EDC
+            long lngEdc = generateErrorDetectionAndCorrection(abRawSectorData, 0x10, 0x818);
+            abRawSectorData[0x818  ] = (byte)(lngEdc & 0xff);
+            abRawSectorData[0x818+1] = (byte)((lngEdc >>  8) & 0xff);
+            abRawSectorData[0x818+2] = (byte)((lngEdc >> 16) & 0xff);
+            abRawSectorData[0x818+3] = (byte)((lngEdc >> 24) & 0xff);
+
+            // save the binary coded decimal sector number
+            byte[] bcd = new byte[4];
+            System.arraycopy(abRawSectorData, 12, bcd, 0, 4);
+            // fill the binary coded decimal sector number with zeros
+            Arrays.fill(abRawSectorData, 12, 12+4, (byte)0);
+            // fill the ECC P and ECC Q with zeros
+            Arrays.fill(abRawSectorData, 0x81C, 0x8C8, (byte)0);
+            Arrays.fill(abRawSectorData, 0x8C8, 0x930, (byte)0);
+
+            // rebuild ECC P+Q
+            generateErrorCorrectionCode_P(abRawSectorData, 12/*to 12+2064*/, abRawSectorData, 0x81C/*to 0x8C8*/);
+            generateErrorCorrectionCode_Q(abRawSectorData, 12/*to 12+4+0x800+4+8+L2_P*/, abRawSectorData, 0x8C8/*to 0x930*/);
+
+            // restore the binary coded decimal sector number
+            System.arraycopy(bcd, 0, abRawSectorData, 12, bcd.length);
+        } else { // form 2
+            // Sets EDC
+            long lngEdc = generateErrorDetectionAndCorrection(abRawSectorData, 0x10, 0x92C);
+            abRawSectorData[0x92C  ] = (byte)(lngEdc & 0xff);
+            abRawSectorData[0x92C+1] = (byte)((lngEdc >>  8) & 0xff);
+            abRawSectorData[0x92C+2] = (byte)((lngEdc >> 16) & 0xff);
+            abRawSectorData[0x92C+3] = (byte)((lngEdc >> 24) & 0xff);
+        }
+    }
+
 
 }

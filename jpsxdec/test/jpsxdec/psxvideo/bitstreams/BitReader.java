@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,11 +40,7 @@ package jpsxdec.psxvideo.bitstreams;
 import java.util.Random;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.Misc;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import static org.junit.Assert.*;
 
 public class BitReader {
@@ -98,7 +94,7 @@ public class BitReader {
 
         int iPeek, iRead;
 
-        abr.reset(abTest, abTest.length, true, 0);
+        abr = new ArrayBitReader(abTest, abTest.length, true, 0);
 
         assertEquals("Bits remaining", abr.getBitsRemaining(), 48);
         String sPeek = abr.peekBitsToString(31);
@@ -119,7 +115,7 @@ public class BitReader {
         assertEquals(iPeek+" == "+iRead, iPeek, iRead);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 0);
 
-        abr.reset(abTest, abTest.length, true, 0);
+        abr = new ArrayBitReader(abTest, abTest.length, true, 0);
         abr.skipBits(5);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 43);
         abr.skipBits(30);
@@ -190,19 +186,13 @@ public class BitReader {
     @Test
     public void testPerformance() {
         byte[] abData = new byte[100000];
-        ArrayBitReader[] aoReaders = {
-            new LoopSkip(),
-            new ModSkip(),
-            new BitSkip(),
-        };
-        long[] alngDuration = new long[aoReaders.length];
+        long[] alngDuration = new long[MAKERS.length];
 
-        for (int i = 0; i < aoReaders.length; i++) {
-            ArrayBitReader reader = aoReaders[i];
+        for (int i = 0; i < MAKERS.length; i++) {
             long lngStart, lngEnd;
             lngStart = System.currentTimeMillis();
             for (int iTimes = 0; iTimes < 5000; iTimes++) {
-                reader.reset(abData, abData.length, true, 0);
+                ArrayBitReader reader = MAKERS[i].make(abData, abData.length, true, 0);
                 try {
                     int iSkipBits = 0;
                     for (;; iSkipBits = (iSkipBits + 1) & 0x1F) {
@@ -215,16 +205,43 @@ public class BitReader {
             alngDuration[i] = lngEnd - lngStart;
         }
 
-        for (int i = 0; i < aoReaders.length; i++) {
-            System.out.println(aoReaders[i].getClass()+" "+alngDuration[i]);
+        for (int i = 0; i < MAKERS.length; i++) {
+            System.out.println(MAKERS[i].getClass()+" "+alngDuration[i]);
         }
 
-        assertTrue(alngDuration[2] + " !< " + alngDuration[0], alngDuration[2] < alngDuration[0]);
-        assertTrue(alngDuration[2] + " !< " + alngDuration[1], alngDuration[2] < alngDuration[1]);
+        assertTrue(alngDuration[2] + " !< " + alngDuration[0] + " if this fails it's because there is a faster way to implement the bit reader",
+                   alngDuration[2] < alngDuration[0]);
+        assertTrue(alngDuration[2] + " !< " + alngDuration[1] + " if this fails it's because there is a faster way to implement the bit reader",
+                   alngDuration[2] < alngDuration[1]);
 
     }
 
+    private interface ReaderMaker {
+        ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart);
+    }
+    private static ReaderMaker[] MAKERS = {
+        new ReaderMaker() {
+            public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+                return new LoopSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+            }
+        },
+        new ReaderMaker() {
+            public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+                return new BitSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+            }
+        },
+        new ReaderMaker() {
+            public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+                return new ModSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+            }
+        },
+    };
+
     private static class LoopSkip extends ArrayBitReader {
+        public LoopSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+            super(abData, iDataSize, blnLittleEndian, iReadStart);
+        }
+
         @Override
         public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;
@@ -247,6 +264,11 @@ public class BitReader {
     }
 
     private static class BitSkip extends ArrayBitReader {
+
+        public BitSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+            super(abData, iDataSize, blnLittleEndian, iReadStart);
+        }
+
         @Override
         public void skipBits(int iCount) throws MdecException.EndOfStream {
 
@@ -272,6 +294,10 @@ public class BitReader {
     }
 
     private static class ModSkip extends ArrayBitReader {
+        public ModSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+            super(abData, iDataSize, blnLittleEndian, iReadStart);
+        }
+
         @Override
         public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;

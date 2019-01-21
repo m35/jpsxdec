@@ -37,16 +37,16 @@
 package laintools;
 
 import java.awt.Graphics2D;
-import java.io.*;
 import java.awt.image.BufferedImage;
+import java.io.*;
 import javax.imageio.ImageIO;
-import jpsxdec.util.IO;
-import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Lain;
-import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
+import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.IO;
 import jpsxdec.util.Imaging;
 
 
@@ -82,15 +82,13 @@ public class Lain_LAPKS {
      */
     public static int decodeLAPKS(String sInLAPKS_BIN, String sOutFileBase) {
 
-        BitStreamUncompressor_Lain uncompresor = new BitStreamUncompressor_Lain();
-
         try {
             Lain_LAPKS lnpk = new Lain_LAPKS(sInLAPKS_BIN);
             LaPkCellIS cell;
             while ((cell = lnpk.nextCell()) != null ){
                 MdecDecoder_double oDecoder = new MdecDecoder_double(
                         new PsxMdecIDCT_double(), cell.Width, cell.Height);
-                uncompresor.reset(cell.Data);
+                BitStreamUncompressor_Lain uncompresor = BitStreamUncompressor_Lain.makeLain(cell.Data);
                 oDecoder.decode(uncompresor);
                 RgbIntImage oRgb = new RgbIntImage(cell.Width, cell.Height);
                 oDecoder.readDecodedRgb(oRgb.getWidth(), oRgb.getHeight(), oRgb.getData());

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2017  Michael Sabin
+ * Copyright (C) 2016-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,8 @@
 
 package jpsxdec.util;
 
-/** Indicates that the supplied data is incompatible with the existing data. */
+/** Indicates that the supplied data is incompatible with the existing data.
+ * Issue is not localized for the user. */
 public class IncompatibleException extends Exception {
 
     public IncompatibleException() {

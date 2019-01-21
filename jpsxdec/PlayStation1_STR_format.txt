@@ -1936,7 +1936,7 @@ Most video frames are normal v3 format, but some v2, and some are full of 0xff.
 ## 3.12. Crusader: No Remorse
 ################################################################################
 
-Crusader: No Remorse is the only game I've seen that doesn't stream its movies using the standard 'real-time' sector method.
+Crusader: No Remorse does not stream its movies using the standard 'real-time' sector method.
 
 :: Crusader Sector ::
 
@@ -1966,7 +1966,7 @@ Offset   Size   Endian --------------------------------------------------------
   4 . . . 4 . .  big . . Size of the chunk in bytes, including this header
   8 . . . 4 . .  big . . The number of samples already written to the stream
   12  . . 4 . .  big . . Always 0x08000200
-  16  (Size-16)  n/a . . Square audio data
+  16  (Size-16)  n/a . . SPU audio data
   Size ------------------------------------------------------------------------
 
 Video frames are standard v2.

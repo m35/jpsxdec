@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,9 +40,11 @@ package jpsxdec.gui;
 import java.awt.Dimension;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.File;
 import java.util.List;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.discitems.IDiscItemSaver;
+import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 
@@ -52,27 +54,29 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
     @Nonnull
     private SavingGuiTask _saveAll;
 
-    public SavingGui(@Nonnull java.awt.Dialog parent, @Nonnull List<IDiscItemSaver> savers,
-                     @Nonnull String sCd)
+    public SavingGui(@Nonnull java.awt.Dialog parent, 
+                     @Nonnull List<DiscItemSaverBuilder> builders,
+                     @Nonnull String sCd, @CheckForNull File outputDir)
     {
         super(parent, true);
-        sharedConstructor(parent, savers, sCd);
+        sharedConstructor(parent, builders, sCd, outputDir);
     }
 
-    public SavingGui(@Nonnull java.awt.Frame parent, @Nonnull List<IDiscItemSaver> savers,
-                     @Nonnull String sCd)
+    public SavingGui(@Nonnull java.awt.Frame parent,
+                     @Nonnull List<DiscItemSaverBuilder> builders,
+                     @Nonnull String sCd, @CheckForNull File outputDir)
     {
         super(parent, true);
-        sharedConstructor(parent, savers, sCd);
+        sharedConstructor(parent, builders, sCd, outputDir);
     }
 
     private void sharedConstructor(@Nonnull java.awt.Window parent,
-                                   @Nonnull List<IDiscItemSaver> savers,
-                                   @Nonnull String sCd)
+                                   @Nonnull List<DiscItemSaverBuilder> builders,
+                                   @Nonnull String sCd, @CheckForNull File outputDir)
     {
         initComponents();
 
-        SavingGuiTable model = new SavingGuiTable(savers, jTable1);
+        SavingGuiTable model = new SavingGuiTable(builders, jTable1);
         // pack now so we can use the table dimensions for the perferred size
         validate();
         pack();
@@ -83,7 +87,7 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
 
         setLocationRelativeTo(parent); // center on parent
 
-        _saveAll = new SavingGuiTask(model._rows, sCd);
+        _saveAll = new SavingGuiTask(model._rows, sCd, outputDir);
         _saveAll.addPropertyChangeListener(this);
     }
 

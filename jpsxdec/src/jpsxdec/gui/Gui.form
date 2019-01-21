@@ -227,7 +227,7 @@
                 <Component class="javax.swing.JComboBox" name="_guiSelectAllType">
                   <Properties>
                     <Property name="model" type="javax.swing.ComboBoxModel" editor="org.netbeans.modules.form.RADConnectionPropertyEditor">
-                      <Connection code="new DefaultComboBoxModel(GuiTree.Select.values())" type="code"/>
+                      <Connection code="new DefaultComboBoxModel(GuiTree.Select.getAvailableValues())" type="code"/>
                     </Property>
                   </Properties>
                   <Constraints>

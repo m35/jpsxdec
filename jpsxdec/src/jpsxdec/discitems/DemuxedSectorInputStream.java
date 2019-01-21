@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,7 +50,7 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
 
-/** Demuxes a series of CdSectors into a solid stream. */
+/** Demuxes a series of {@link CdSector}s into a solid stream. */
 public class DemuxedSectorInputStream extends SequenceInputStream {
 
     private static final Logger LOG = Logger.getLogger(DemuxedSectorInputStream.class.getName());
@@ -71,7 +71,7 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
         }
         
         public boolean hasMoreElements() {
-            return _iSector < _cd.getLength();
+            return _iSector < _cd.getSectorCount();
         }
 
         public @Nonnull InputStream nextElement() {
@@ -80,17 +80,16 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
             try {
                 // TODO: What to do with CD or form 2 sectors?
                 CdSector sector = _cd.getSector(_iSector);
-                if (sector.isCdAudioSector())
-                    LOG.warning("Reading CD sector intermingled with Form 1 sectors.");
-                else if (sector.hasSubHeader() && sector.getSubMode().getForm() == 2)
-                    LOG.warning("Reading form 2 sector intermingled with Form 1 sectors.");
+                if (sector.getCdUserDataSize() != CdSector.SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1) {
+                    LOG.log(Level.WARNING, "Demuxing non Mode1/Mode2Form1 sector {0}", sector);
+                }
                 _currentStream = sector.getCdUserDataStream();
                 if (_iSector == _iStartSector) {
                     _currentStream.skip(_iOffset);
                 }
                 _iSector++;
                 return _currentStream;
-            } catch (final IOException ex) {
+            } catch (final CdFileSectorReader.CdReadException ex) {
                 LOG.log(Level.SEVERE, null, ex);
                 _currentStream = null;
                 return new InputStream() {

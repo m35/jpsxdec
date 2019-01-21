@@ -1,3 +1,42 @@
+v0.99.8 rev3788 (21 Jan 2019)
+    - Updated Spanish translation (still many thanks to Víctor González, Sergi Medina)
+    - Updated Japanese translation (still using Google translate)
+    - More thorough searching for content in input files (indexing is slower)
+    - Index format changed, indexes need to be regenerated
+    - Better description about the difference between saving a File item as "normal" vs "raw"
+    - Default uncompressed video saving quality is now "high"
+    - Updated manual with lots of useful information
+    - Generally improved all GUI, command-line and logging messages
+    - Generally improved error handling
+    x Remove volume slider from audio saving GUI
+    Replacing content:
+    - Can now replace audio used in many Square games
+    - When modding/replacing content, all changes wait until the end before actually being applied
+    x Remove ability to replace Tim images with a normal image
+      Tim images can now only be replaced with another Tim image
+    x Audio replacing now requires the new audio to be of exact same length as the existing audio
+    Bug fixes:
+    - Audio filename not being updated when changing selection in the GUI
+    - Items sorted wrong in some cases
+    - 0 sized File items had a sector length of -1
+    - Video disc speed not properly detected when there are multiple parallel audio streams
+    - Opening a file that is too small to be identifiable caused an error
+    - Video sectors being corrupted when trying to replace AC3 and Dredd frames
+    - save.log file name not localized
+    - Bad error handling when there were errors in the input file's filesystem
+    - Empty audio packets written to AVI when saving audio streams from some Square games
+    - Other small bug fixes    
+    Internal:
+    - Added ability to override default logging settings using standard Java logging features
+    - New processing pipeline and a massive restructuring of system makes it 
+      possible to add support for more types of videos
+    - In progress support for SPU audio and 'VAG' files
+    - Frame numbering redesign
+    Known issues:
+    - Video playback on Linux may still not work right
+    - Videos with variable frames rates saved as AVI do not play right in the 
+      default video players found in some Windows versions. 
+      Use a more reliable player such VLC media player.
 v0.99.7 rev3397 (8 Jan 2017) The "road to v1.0" release
     - XA audio can now be replaced using .wav files
     - Simplified error messages
@@ -387,7 +426,7 @@ v0.90.0 rev1038 (18 Jan 2010)
         simple_idct from ffmpeg, ported by MrVacBob. Only slightly slower then
         the IDCT from Joerg Anders's mpeg player.
         Eclipse Jpeg IDCT. Not as fast as the other two.
-		J2meMpegIDCT is slowest.
+        J2meMpegIDCT is slowest.
     - Broke things up by games
     - Abstracted video decoding so uncompressing, MDEC, and IDCT can
       be interchanged.

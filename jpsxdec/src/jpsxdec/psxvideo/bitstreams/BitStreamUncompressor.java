@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,8 +45,8 @@ import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
-import jpsxdec.util.Misc;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.Misc;
 
 /** Converts a (demuxed) video frame bitstream into an {@link MdecInputStream},
  * that can then be fed into an MDEC decoder to produce an image. */
@@ -66,22 +66,67 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
             throws BinaryDataNotRecognized
     {
         BitStreamUncompressor bsu;
-        bsu = new BitStreamUncompressor_STRv2();
-        if (bsu.resetNoThrow(abBitstream, iBitstreamSize))
+        bsu = BitStreamUncompressor_STRv2.makeV2NoThrow(abBitstream, iBitstreamSize);
+        if (bsu != null)
             return bsu;
-        bsu = new BitStreamUncompressor_STRv3();
-        if (bsu.resetNoThrow(abBitstream, iBitstreamSize))
+        bsu = BitStreamUncompressor_STRv3.makeV3NoThrow(abBitstream, iBitstreamSize);
+        if (bsu != null)
             return bsu;
-        bsu = new BitStreamUncompressor_STRv1();
-        if (bsu.resetNoThrow(abBitstream, iBitstreamSize))
+        bsu = BitStreamUncompressor_STRv1.makeV1NoThrow(abBitstream, iBitstreamSize);
+        if (bsu != null)
             return bsu;
-        bsu = new BitStreamUncompressor_Iki();
-        if (bsu.resetNoThrow(abBitstream, iBitstreamSize))
+        bsu = BitStreamUncompressor_Iki.makeIkiNoThrow(abBitstream, iBitstreamSize);
+        if (bsu != null)
             return bsu;
-        bsu = new BitStreamUncompressor_Lain();
-        if (bsu.resetNoThrow(abBitstream, iBitstreamSize))
+        bsu = BitStreamUncompressor_Lain.makeLainNoThrow(abBitstream, iBitstreamSize);
+        if (bsu != null)
             return bsu;
         throw new BinaryDataNotRecognized();
+    }
+
+    public enum Type {
+        STRv1 {
+            public @Nonnull BitStreamUncompressor_STRv1 makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
+                throws BinaryDataNotRecognized
+            {
+                return BitStreamUncompressor_STRv1.makeV1(abBitstream, iBitstreamSize);
+            }
+        },
+        STRv2 {
+            public @Nonnull BitStreamUncompressor_STRv2 makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
+                throws BinaryDataNotRecognized
+            {
+                return BitStreamUncompressor_STRv2.makeV2(abBitstream, iBitstreamSize);
+            }
+        },
+        STRv3 {
+            public @Nonnull BitStreamUncompressor_STRv3 makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
+                throws BinaryDataNotRecognized
+            {
+                return BitStreamUncompressor_STRv3.makeV3(abBitstream, iBitstreamSize);
+            }
+        },
+        Iki {
+            public @Nonnull BitStreamUncompressor_Iki makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
+                throws BinaryDataNotRecognized
+            {
+                return BitStreamUncompressor_Iki.makeIki(abBitstream, iBitstreamSize);
+            }
+        },
+        Lain {
+            public @Nonnull BitStreamUncompressor_Lain makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
+                throws BinaryDataNotRecognized
+            {
+                return BitStreamUncompressor_Lain.makeLain(abBitstream, iBitstreamSize);
+            }
+        };
+
+        public @Nonnull BitStreamUncompressor makeNew(@Nonnull byte[] abBitstream) throws BinaryDataNotRecognized {
+            return makeNew(abBitstream, abBitstream.length);
+        }
+
+        abstract public @Nonnull BitStreamUncompressor makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
+                throws BinaryDataNotRecognized;
     }
 
     /** Longest AC variable-length (Huffman) bit code, in bits. */
@@ -661,7 +706,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     @Nonnull
     private final AcLookup _lookupTable;
     /** Binary input stream being read. */
-    protected final ArrayBitReader _bitReader = new ArrayBitReader();
+    @Nonnull
+    protected final ArrayBitReader _bitReader;
 
     /** Holds the debugger when debugging is enabled. */
     @CheckForNull
@@ -674,7 +720,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** Number of the current Macro Block being read. */
     private int _iCurrentMacroBlock;
     /** Number of the current Macro Block being read. */
-    protected int getCurrentMacroBlock() { return _iCurrentMacroBlock; }
+    protected int getFullMacroBlocksRead() { return _iCurrentMacroBlock; }
     /** 0 to 5 to indicate the current Macro Block's sub-block being read. */
     private int _iCurrentMacroBlockSubBlock;
     /** Returns 0 to 5 to indicate the current Macro Block's sub-block being read. */
@@ -683,44 +729,27 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     private int _iCurrentBlockVectorPos;
 
     /** Number of MDEC codes that have been read thus far. */
-    private int _iMdecCodeCount;
+    private int _iReadMdecCodeCount;
     /** Number of MDEC codes that have been read thus far. */
-    public int getMdecCodeCount() { return _iMdecCodeCount; }
+    public int getReadMdecCodeCount() { return _iReadMdecCodeCount; }
 
-    protected BitStreamUncompressor(@Nonnull AcLookup lookupTable) {
+    protected BitStreamUncompressor(@Nonnull AcLookup lookupTable,
+                                    @Nonnull ArrayBitReader bitReader)
+    {
         _lookupTable = lookupTable;
         if (DEBUG)
             _debug = new MdecDebugger();
         else
             _debug = null;
-    }
 
-    /** Resets this instance as if a new object was created. */
-    final public void reset(@Nonnull byte[] abBitstream)
-            throws BinaryDataNotRecognized
-    {
-        reset(abBitstream, abBitstream.length);
-    }
-    final public void reset(@Nonnull byte[] abBitstream, int iBitstreamSize) 
-            throws BinaryDataNotRecognized
-    {
-        if (!resetNoThrow(abBitstream, iBitstreamSize))
-            throw new BinaryDataNotRecognized();
-    }
-
-    private boolean resetNoThrow(@Nonnull byte[] abBitstream, int iBitstreamSize)
-            throws BinaryDataNotRecognized
-    {
-        if (!readHeader(abBitstream, iBitstreamSize, _bitReader))
-            return false;
+        _bitReader = bitReader;
+        
         _blnBlockStart = true;
-        _iMdecCodeCount = 0;
+        _iReadMdecCodeCount = 0;
         _iCurrentBlockVectorPos = 0;
         _iCurrentMacroBlock = 0;
         _iCurrentMacroBlockSubBlock = 0;
-        return true;
     }
-
 
     /** @throws NullPointerException if {@code reset()} has not been called. */
     final public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream, MdecException.ReadCorruption {
@@ -768,7 +797,7 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
         assert !DEBUG || _debug.print(_iCurrentBlockVectorPos, code);
 
         // _blnBlockStart will be set to true if an EOB code was read
-        _iMdecCodeCount++;
+        _iReadMdecCodeCount++;
         return _blnBlockStart;
     }
 
@@ -777,8 +806,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     }
 
     /** Skips macroblocks that would fit within the given dimensions. */
-    public void skipMacroBlocks(int iWidth, int iHeight) throws MdecException.EndOfStream, MdecException.ReadCorruption {
-        int iBlockCount = Calc.blocks(iWidth, iHeight);
+    public void skipMacroBlocks(int iPixelWidth, int iPixelHeight) throws MdecException.EndOfStream, MdecException.ReadCorruption {
+        int iBlockCount = Calc.blocks(iPixelWidth, iPixelHeight);
 
         MdecCode code = new MdecCode();
         for (int i = 0; i < iBlockCount; i++) {
@@ -788,11 +817,6 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     }
 
     abstract public void skipPaddingBits() throws MdecException.EndOfStream;
-
-    /** Validates the frame header and initializes for reading
-     * (including resetting the bit reader to the proper start byte and endian). */
-    abstract protected boolean readHeader(@Nonnull byte[] abFrameData, int iDataSize,
-                                          @Nonnull ArrayBitReader bitReader);
 
     /** Read the quantization scale and DC coefficient from the bitstream. */
     abstract protected void readQscaleAndDC(@Nonnull MdecCode code)
@@ -805,43 +829,8 @@ public abstract class BitStreamUncompressor extends MdecInputStream {
     /** Create an equivalent bitstream compressor. */
     abstract public @Nonnull BitStreamCompressor makeCompressor();
 
-    abstract public @Nonnull String getName();
+    abstract public @Nonnull Type getType();
 
     @Override
     abstract public String toString();
-
-    // -------------------------------------------------------------------------
-
-    public static class SaturnGen {
-
-        public static void main(String[] args) throws Exception {
-            BitStreamUncompressor v2 = new BitStreamUncompressor_STRv2();
-
-            AcLookup lkup = v2._lookupTable;
-
-            for (int i = 0; i < 256; i++) {
-
-                AcBitCode c1 = lkup.Table_0xxxxxxx[i], c2 = lkup.Table_000000xxxxxxxx[i],  c3 = lkup.Table_000000000xxxxxxxx[i];
-
-                int iBitLen = (c1 == AcLookup.ESCAPE_CODE ? 31 : c1 == null ? 0 : c1.BitLength) |
-                              (c2 == null ? 0 : c2.BitLength << 5) |
-                              (c3 == null ? 0 : c3.BitLength << 10)
-                              ;
-
-                System.err.format("{0x%04x, 0x%04x, 0x%04x, 0x%04x}, // %s, %s, %s",
-                        (c1 == null || c1 == AcLookup.ESCAPE_CODE) ? 0 : new MdecCode(c1.ZeroRun, c1.AcCoefficient).toMdecWord(),
-                        c2 == null ? 0 : new MdecCode(c2.ZeroRun, c2.AcCoefficient).toMdecWord(),
-                        c3 == null ? 0 : new MdecCode(c3.ZeroRun, c3.AcCoefficient).toMdecWord(),
-                        iBitLen,
-                        c1 == null ? "<invalid>" : c1.BitString,
-                        c2 == null ? "<invalid>" : c2.BitString,
-                        c3 == null ? "<invalid>" : c3.BitString
-                        );
-                System.err.println();
-
-            }
-
-        }
-    }
-    
 }

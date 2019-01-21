@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,19 +41,20 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.LocalizedIOException;
 import jpsxdec.Version;
 import jpsxdec.util.IO;
+import jpsxdec.util.Misc;
 import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
 
 /**
@@ -87,6 +88,9 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * Works with Java 1.5 or higher.
  */
 public abstract class AviWriter implements Closeable {
+
+    /** Enable logging of every chunk written to the AVI. */
+    private static final boolean DEBUG = false;
 
     // -------------------------------------------------------------------------
     // -- Fields ---------------------------------------------------------------
@@ -258,6 +262,8 @@ public abstract class AviWriter implements Closeable {
         _audioFormat = audioFormat;
 
         _aviFile = new RandomAccessFile(outputfile, "rw");
+        try {
+
         _aviFile.setLength(0); // trim the file to 0
 
         //----------------------------------------------------------------------
@@ -309,12 +315,17 @@ public abstract class AviWriter implements Closeable {
             
             // some programs will use this to identify the program that wrote the avi
             Chunk JUNK_writerId = new Chunk(_aviFile, "JUNK");
-                _aviFile.writeBytes(I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getEnglishMessage());
+                String sVersion = String.format("jPSXdec: PSX media decoder (non-commercial) v%s", Version.Version);
+                _aviFile.writeBytes(sVersion);
                 _aviFile.write(0);
             JUNK_writerId.endChunk(_aviFile);
 
             LIST_movi = new Chunk(_aviFile, "LIST", "movi");
 
+        } catch (IOException ex) {
+            IO.closeSilently(_aviFile, Logger.getLogger(AviWriter.class.getName()));
+            throw ex;
+        }
             // now we're ready to start accepting video/audio data
             
             // generate an index as we write 'movi' section
@@ -331,6 +342,14 @@ public abstract class AviWriter implements Closeable {
     public void repeatPreviousFrame() {
         if (_lngFrameCount < 1)
             throw new IllegalStateException("Unable to repeat a previous frame that doesn't exist.");
+
+        if (DEBUG) {
+            try {
+                System.out.println("Frame DUPLICATE @" + _aviFile.getFilePointer());
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
 
         int iIndex = _indexList.size() - 1;
 
@@ -350,11 +369,11 @@ public abstract class AviWriter implements Closeable {
     }
 
     /** Audio format must be signed 16-bit PCM in little-endian order. */
-    public void writeAudio(@Nonnull AudioInputStream audStream) throws IOException {
-        if (_aviFile == null) throw new LocalizedIOException(I.AVI_FILE_IS_CLOSED());
+    public void writeAudio(@Nonnull AudioInputStream audStream) throws AviIsClosedException, IOException {
+        if (_aviFile == null) throw new AviIsClosedException();
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
-        
+
         AudioFormat fmt = audStream.getFormat();
         if (!fmt.matches(_audioFormat))
             throw new IllegalArgumentException("Audio stream format does not match.");
@@ -366,7 +385,14 @@ public abstract class AviWriter implements Closeable {
         
         idxentry.dwChunkId = AVIstruct.string2int("01wb");
         idxentry.dwFlags = 0;
-        
+
+        long lngSampleCount;
+        long lngFilePointer;
+        if (DEBUG) {
+            lngSampleCount = _lngSampleCount;
+            lngFilePointer = _aviFile.getFilePointer();
+        }
+
         data_size = new Chunk(_aviFile, "01wb");
 
             if (_abWriteBuffer == null || _abWriteBuffer.length < _audioFormat.getFrameSize() * 1024)
@@ -384,7 +410,11 @@ public abstract class AviWriter implements Closeable {
 
         // end the chunk
         data_size.endChunk(_aviFile);
-        
+
+        if (DEBUG) {
+            System.out.println("Audio " + lngSampleCount + " @" + lngFilePointer + " length " + data_size.getSize() + " silence");
+        }
+
         // add this item to the index
         idxentry.dwSize = data_size.getSize();
         _indexList.add(idxentry);
@@ -396,10 +426,14 @@ public abstract class AviWriter implements Closeable {
     }
 
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    public void writeAudio(@Nonnull byte[] abData, int iOfs, int iLen) throws IOException {
-        if (_aviFile == null) throw new LocalizedIOException(I.AVI_FILE_IS_CLOSED());
+    public void writeAudio(@Nonnull byte[] abData, int iOfs, int iLen) throws AviIsClosedException, IOException {
+        if (_aviFile == null) throw new AviIsClosedException();
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
+
+        if (DEBUG) {
+            System.out.println("Audio " + _lngSampleCount + " @" + _aviFile.getFilePointer() + " length " + iLen + " " + md5(abData, iOfs, iLen));
+        }
 
         // TODO: Maybe have better handling if half a sample is provided
         if (iLen % _audioFormat.getFrameSize() != 0)
@@ -425,34 +459,20 @@ public abstract class AviWriter implements Closeable {
         _indexList.add(idxentry);
     }
 
-    private static class ZeroInputStream extends InputStream {
-        @Override
-        public int read() throws IOException {
-            return 0;
-        }
-
-        @Override
-        public int read(@Nonnull byte[] b, int off, int len) throws IOException {
-            Arrays.fill(b, off, len, (byte)0);
-            return len;
-        }
-
-        @Override
-        public long skip(long n) throws IOException {
-            return n;
-        }
-    }
-
-    public void writeSilentSamples(long lngSampleCount) throws IOException {
+    public void writeSilentSamples(long lngSampleCount) throws AviIsClosedException, IOException {
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
         
-        writeAudio(new AudioInputStream(new ZeroInputStream(), _audioFormat, lngSampleCount));
+        writeAudio(new AudioInputStream(new IO.ZeroInputStream(), _audioFormat, lngSampleCount));
     }
 
     /** Subclasses will use this method to write each frame's data. */
-    protected void writeFrameChunk(@Nonnull byte[] abData, int iOfs, int iLen) throws IOException {
-        if (_aviFile == null) throw new LocalizedIOException(I.AVI_FILE_IS_CLOSED());
+    protected void writeFrameChunk(@Nonnull byte[] abData, int iOfs, int iLen) throws AviIsClosedException, IOException {
+        if (_aviFile == null) throw new AviIsClosedException();
+
+        if (DEBUG) {
+            System.out.println("Frame " + _lngFrameCount + " @" + _aviFile.getFilePointer() + " " + md5(abData, iOfs, iLen));
+        }
 
         AVIOLDINDEXENTRY idxentry = new AVIOLDINDEXENTRY();
         idxentry.dwOffset = (int)(_aviFile.getFilePointer() - (LIST_movi.getStart() + 4));
@@ -490,8 +510,8 @@ public abstract class AviWriter implements Closeable {
     /** Finishes writing the AVI header and index and closes the file.
      * This must be called and complete successfully for the AVI to be playable.
      */
-    public void close() throws IOException {
-        if (_aviFile == null) throw new LocalizedIOException(I.AVI_FILE_IS_CLOSED());
+    public void close() throws AviIsClosedException, IOException {
+        if (_aviFile == null) throw new AviIsClosedException();
         
             LIST_movi.endChunk(_aviFile);
             
@@ -673,6 +693,14 @@ public abstract class AviWriter implements Closeable {
             avioldidx = null;
     }
 
+    @Override
+    public String toString() {
+        return String.format("%s %s %dx%d %d/%d fps",
+                             getClass().getSimpleName(), getFile(),
+                             getWidth(), getHeight(),
+                             getFramesPerSecNum(), getFramesperSecDenom());
+    }
+
     // -------------------------------------------------------------------------
     // -- Private functions ----------------------------------------------------
     // -------------------------------------------------------------------------
@@ -732,5 +760,21 @@ public abstract class AviWriter implements Closeable {
             return _lngPos;
         }
     }
-    
+
+    /**
+     * For debugging.
+     * @see #DEBUG
+     */
+    private static @Nonnull String md5(@Nonnull byte[] abData, int iOfs, int iLen) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("md5");
+            md.update(abData, iOfs, iLen);
+            BigInteger number = new BigInteger(1, md.digest());
+            String sHashText = number.toString(16);
+            sHashText = Misc.zeroPadString(sHashText, 32, false);
+            return sHashText;
+        } catch (NoSuchAlgorithmException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 }

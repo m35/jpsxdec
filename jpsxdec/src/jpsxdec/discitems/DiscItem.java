@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,17 +38,15 @@
 package jpsxdec.discitems;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
-import jpsxdec.sectors.IdentifiedSectorIterator;
-import jpsxdec.util.DeserializationFail;
+import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.Misc;
 
 
@@ -64,9 +62,11 @@ import jpsxdec.util.Misc;
  * that this DiscItem might use when extracting and saving
  * (e.g. if it's part of a file on a disc, use that file name).
  * <p>
- * IndexId ({@link #setIndexId(jpsxdec.discitems.IndexId)}) and
+ * IndexId ({@link #setIndexId(IndexId)}) and
  * Index# ({@link #setIndex(int)}) must be set before using this object. */
 public abstract class DiscItem implements Comparable<DiscItem> {
+
+    private static final Logger LOG = Logger.getLogger(DiscItem.class.getName());
 
     /** Basic types of {@link DiscItem}s. */
     public static enum GeneralType {
@@ -74,6 +74,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         Video(I.ITEM_TYPE_VIDEO(), I.ITEM_TYPE_VIDEO_APPLY()),
         Image(I.ITEM_TYPE_IMAGE(), I.ITEM_TYPE_IMAGE_APPLY()),
         File (I.ITEM_TYPE_FILE() , I.ITEM_TYPE_FILE_APPLY() ),
+        Sound(I.ITEM_TYPE_SOUND(), I.ITEM_TYPE_SOUND_APPLY()),
         ;
 
         @Nonnull
@@ -116,6 +117,11 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     private IndexId _indexId;
 
     protected DiscItem(@Nonnull CdFileSectorReader cd, int iStartSector, int iEndSector) {
+        if (iStartSector < 0 || iStartSector > iEndSector)
+            throw new IllegalArgumentException("Bad start/end sectors " + iStartSector+" - "+iEndSector);
+        if (iEndSector > cd.getSectorCount())
+            LOG.log(Level.WARNING, "Disc item sectors {0,number,#}-{1,number,#} breaks CD end sector {2,number,#}",
+                                   new Object[] {iStartSector, iEndSector, cd.getSectorCount()});
         _cdReader = cd;
         _iStartSector = iStartSector;
         _iEndSector = iEndSector;
@@ -123,7 +129,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Deserializes the basic information about this {@link DiscItem}. */
     protected DiscItem(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields) 
-            throws DeserializationFail
+            throws LocalizedDeserializationFail
     {
         _cdReader = cd;
         int[] aiRng = fields.getSectorRange();
@@ -193,50 +199,37 @@ public abstract class DiscItem implements Comparable<DiscItem> {
 
     /** Children of this item.
      * @return null if no children. */
-    public @CheckForNull Iterable<DiscItem> getChildren() {
+    public @CheckForNull Iterable<? extends DiscItem> getChildren() {
         return null;
     }
 
     /** Returns how many sectors this item and the supplied disc item overlap. */
     public int getOverlap(@Nonnull DiscItem other) {
-        // does not overlap this item at all
-        if (other.getEndSector() < getStartSector() || other.getStartSector() > getEndSector())
+        DiscItem left;
+        DiscItem right;
+        if (getStartSector() <= other.getStartSector()) {
+            left = this;
+            right = other;
+        } else { // this.start > other.start
+            left = other;
+            right = this;
+        }
+
+        if (left.getEndSector() < right.getStartSector()) {
+            // L |----|
+            // R        |----|
             return 0;
-
-        // there is definitely some overlap
-
-        int iOverlap;
-        if (other.getStartSector() < getStartSector()) {
-            if (other.getEndSector() > getEndSector()) {
-                // this item is totally inside other item
-                iOverlap = getSectorLength();
+        } else { // left.start <= right.start && left.end >= right.start
+            if (left.getEndSector() < right.getEndSector()) {
+                return left.getEndSector() - right.getStartSector() + 1;
             } else {
-                // other item is totally inside this item
-                iOverlap = other.getSectorLength();
-            }
-        } else {
-            if (other.getEndSector() > getEndSector()) {
-                // first part of other item overlaps this item
-                iOverlap = getEndSector() - other.getStartSector() + 1;
-            } else {
-                // last part of other item overlaps this item
-                iOverlap = other.getEndSector() - other.getStartSector() + 1;
+                return right.getSectorLength();
             }
         }
-        assert iOverlap >= 0;
-        return iOverlap;
     }
 
-    /** Returns the iIndex'th sector of this media item (beginning from
-     *  the first sector of the media item). */
-    public @Nonnull CdSector getRelativeSector(int iIndex) throws IOException {
-        if (iIndex > getSectorLength())
-            throw new IllegalArgumentException("Sector index out of bounds of this disc item");
-        return _cdReader.getSector(getStartSector() + iIndex);
-    }
-
-    public @Nonnull IdentifiedSectorIterator identifiedSectorIterator() {
-        return IdentifiedSectorIterator.create(_cdReader, _iStartSector, _iEndSector);
+    public @Nonnull SectorClaimSystem createClaimSystem() { // TODO remove dependency on SectorClaimSystem
+        return SectorClaimSystem.create(getSourceCd(), getStartSector(), getEndSector());
     }
 
     /** First sector of the source disc that holds data related to this disc item.
@@ -245,7 +238,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         return _iStartSector;
     }
 
-    /** Last sector of the source disc that holds data related to this disc item.
+    /** Last **INCLUSIVE** sector of the source disc that holds data related to this disc item.
      *  Always greater-than or equal to getStartSector(). */
     public int getEndSector() {
         return _iEndSector;
@@ -256,7 +249,12 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         return _iEndSector - _iStartSector + 1;
     }
 
+    public boolean notEntirelyInCd() {
+        return _iEndSector > _cdReader.getSectorCount();
+    }
+
     /** Returns the serialization. */
+    @Override
     public String toString() {
         return serialize().serialize();
     }

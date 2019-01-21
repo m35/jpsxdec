@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,13 +50,14 @@ import java.awt.image.PixelInterleavedSampleModel;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.util.IO;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.IO;
 
 /** The PlayStation 1 TIM image. Used in many PlayStation games.
  * This is based on the excellent Q-gears documentation here:
@@ -72,22 +73,29 @@ public class Tim {
 
     /** The Tim semi-transparent alpha bit will be converted to this 8-bit alpha value. */
     public static final int SEMI_TRANSPARENT = 254;
+    /** I believe this is the smallest possible size of a Tim file. 1x1 pixels. */
+    public static final int MINIMUM_TIM_SIZE = 22;
 
     /** Quickly reads a stream to determine if the data is a Tim image.
      * @return info about the Tim image, otherwise null. */
-    public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream) throws IOException {
+    public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream) 
+            throws EOFException, IOException
+    {
         return CreateTim.isTim(inStream);
     }
 
     /** Parse and deserialize a TIM file from a stream. */
     public static @Nonnull Tim read(@Nonnull InputStream inStream)
-            throws IOException, BinaryDataNotRecognized
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         return CreateTim.read(inStream);
     }
 
-    /** Creates a TIM with the same or similar color-model of a BufferedImage. */
-    public static @Nonnull Tim create(@Nonnull BufferedImage bi) {
+    /** Creates a TIM with the same or similar color-model of a BufferedImage. 
+     * TODO  Disabled because I don't think it generates them properly!!!!
+     * More investigation necessary                   |
+     */
+    private static @Nonnull Tim create(@Nonnull BufferedImage bi) {
         return CreateTim.create(bi, 0, 0, 0, 0);
     }
 
@@ -294,7 +302,7 @@ public class Tim {
         }
     }
 
-    /** Converts the CLUT  to a {@link BufferedImage}.
+    /** Converts the CLUT (color lookup table) to a {@link BufferedImage}.
      * @return null if image has no CLUT. */
     public @CheckForNull BufferedImage getClutImage() {
         if (_clut != null)
@@ -381,6 +389,44 @@ public class Tim {
             case 24:return _iPixelWidth * 3 / 2;
             default: throw new IllegalStateException("Invalid bits-per-pixel " + _iBitsPerPixel);
         }
+    }
+
+    public enum Mismatch {
+        Dimensions,
+        BitsPerPixel,
+        PaletteCount,
+        HasClut,
+        MissingClut,
+        ClutWidth,
+        ClutXY,
+        ClutPaletteLength
+    }
+
+    /** Compares properties with other Tim and returns the first discovered
+     * difference. this does not compare the image and CLUT contents,
+     * only the properties of them.
+     * @return null if both Tims have exactly the same properties. */
+    public @CheckForNull Mismatch matches(@Nonnull Tim other) {
+        if (getWidth() != other.getWidth() ||
+            getWidth() != other.getWidth())
+            return Mismatch.Dimensions;
+        if (getBitsPerPixel() != other.getBitsPerPixel())
+            return Mismatch.BitsPerPixel;
+        if (getPaletteCount() != other.getPaletteCount())
+            return Mismatch.PaletteCount;
+        CLUT otherClut = other._clut;
+        if (_clut == null && otherClut != null)
+            return Mismatch.HasClut;
+        if (_clut != null) {
+            if (otherClut == null)
+               return Mismatch.MissingClut;
+            if (_clut.getX() != otherClut.getX() ||
+                _clut.getY() != otherClut.getY())
+                return Mismatch.ClutXY;
+            if (_clut.getPaletteLength() != otherClut.getPaletteLength())
+                return Mismatch.ClutPaletteLength;
+        }
+        return null;
     }
     
     public String toString() {

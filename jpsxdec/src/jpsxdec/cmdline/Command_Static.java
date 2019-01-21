@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2017  Michael Sabin
+ * Copyright (C) 2013-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,14 +48,15 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.discitems.FrameNumber;
-import jpsxdec.discitems.savers.FrameFileFormatter;
-import jpsxdec.discitems.savers.MdecDecodeQuality;
-import jpsxdec.discitems.savers.VDP;
-import jpsxdec.discitems.savers.VideoFormat;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.i18n.exception.LoggedFailure;
+import jpsxdec.i18n.log.UserFriendlyLogger;
+import jpsxdec.modules.video.save.MdecDecodeQuality;
+import jpsxdec.modules.video.save.VDP;
+import jpsxdec.modules.video.save.VideoFileNameFormatter;
+import jpsxdec.modules.video.save.VideoFormat;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
@@ -63,10 +64,9 @@ import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.ArgParser;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.IO;
-import jpsxdec.util.LoggedFailure;
 import jpsxdec.util.Misc;
-import jpsxdec.util.UserFriendlyLogger;
 
 
 class Command_Static extends Command {
@@ -131,8 +131,7 @@ class Command_Static extends Command {
                         throw new CommandLineException(I.CMD_FORMAT_INVALID(format.value));
                 }
                 VDP.IMdecListener mdecOut;
-                FrameFileFormatter formatter = FrameFileFormatter.makeFormatter(sFileBaseName, vf, iWidth, iHeight);
-                FrameNumber frame = new FrameNumber(0, 0, 0, 0, 0);
+                VideoFileNameFormatter formatter = new VideoFileNameFormatter(null, sFileBaseName, vf, iWidth, iHeight);
                 UserFriendlyLogger log = new UserFriendlyLogger("static", _fbs.getUnderlyingStream());
                 UserFriendlyLogger.WarnErrCounter warnErrCount = new UserFriendlyLogger.WarnErrCounter();
                 log.setListener(warnErrCount);
@@ -171,12 +170,13 @@ class Command_Static extends Command {
                     byte[] abBitstream = IO.readFile(inFile); // TODO: separate exception for reading here
                     if (_eStaticType == StaticType.bs) {
                         VDP.Bitstream2Mdec b2m = new VDP.Bitstream2Mdec(mdecOut);
-                        b2m.bitstream(abBitstream, abBitstream.length, frame, -1);
+                        b2m.bitstream(abBitstream, abBitstream.length, null, new Fraction(-1));
                     } else {
-                        mdecOut.mdec(new MdecInputStreamReader(abBitstream), frame, -1);
+                        mdecOut.mdec(new MdecInputStreamReader(abBitstream), null, new Fraction(-1));
                     }
                     if (warnErrCount.getWarnCount() == 0 && warnErrCount.getErrCount() == 0)
                         _fbs.println(I.CMD_FRAME_CONVERT_OK()); // TODO: have another message saying complete with issues
+                    // TODO: how do I know the operation even generated any output?
                 } catch (FileNotFoundException ex) {
                     throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(inFile.toString()), ex);
                 } catch (IOException ex) {

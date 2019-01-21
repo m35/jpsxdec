@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -60,13 +60,13 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreePath;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItemAudioStream;
 import jpsxdec.discitems.DiscItemSaverBuilder;
-import jpsxdec.discitems.DiscItemVideoStream;
-import jpsxdec.discitems.IDiscItemSaver;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
+import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
+import jpsxdec.modules.spu.DiscIndexerSpu;
+import jpsxdec.modules.video.DiscItemVideoStream;
 import jpsxdec.util.player.PlayController;
 import org.jdesktop.swingx.JXTreeTable;
 import org.jdesktop.swingx.renderer.CheckBoxProvider;
@@ -86,6 +86,7 @@ public class GuiTree extends JXTreeTable {
     public static final ImageIcon VIDEO_ICON = new ImageIcon(GuiTree.class.getResource("film.png"));
     public static final ImageIcon AUDIO_ICON = new ImageIcon(GuiTree.class.getResource("knotify.png"));
     public static final ImageIcon IMAGE_ICON = new ImageIcon(GuiTree.class.getResource("image-x-generic.png"));
+    public static final ImageIcon SOUND_ICON = new ImageIcon(GuiTree.class.getResource("audio-volume-medium-right.png")); // SPU support
 
     public static enum Select {
         NONE(I.GUI_SELECT_NONE()),
@@ -93,7 +94,20 @@ public class GuiTree extends JXTreeTable {
         ALL_AUDIO(I.GUI_SELECT_ALL_AUIO_EX_VID()),
         ALL_AUDIO_VIDEO(I.GUI_SELECT_ALL_AUDIO_INC_VID()),
         ALL_FILES(I.GUI_SELECT_ALL_FILES()),
-        ALL_IMAGES(I.GUI_SELECT_ALL_IMAGES());
+        ALL_IMAGES(I.GUI_SELECT_ALL_IMAGES()),
+        ALL_SOUND(I.GUI_SELECT_ALL_SOUNDS()), // SPU support
+        ;
+
+        public static Select[] getAvailableValues() {
+            Select[] aoValues = values();
+            if (DiscIndexerSpu.ENABLE_SPU_SUPPORT) {
+                return aoValues;
+            } else {
+                Select[] aoSelect = new Select[aoValues.length - 1];
+                System.arraycopy(aoValues, 0, aoSelect, 0, aoSelect.length);
+                return aoSelect;
+            }
+        }
 
         @Nonnull
         private final ILocalizedMessage _str;
@@ -130,6 +144,7 @@ public class GuiTree extends JXTreeTable {
         int iSectorWidth = fm.stringWidth("999999-999999");
         int iNumberWidth = fm.stringWidth(String.valueOf(index.size()) + "99");
         int iNameWidth = fm.stringWidth("MMMMMMMM.MMM[99.9.9]") + 25*3;
+        int iTypeWidth = fm.stringWidth(DiscItem.GeneralType.Sound.getName().toString());
 
         setDefaultRenderer(Boolean.class, new OptionalBooleanTableCellRenderer());
         //_guiDiscTree.setDefaultRenderer(Integer.class, new CenteredIntegerTableCellRenderer());
@@ -142,6 +157,7 @@ public class GuiTree extends JXTreeTable {
         colMod.getColumn(COLUMNS.Name.ordinal()).setPreferredWidth(iNameWidth + 10);
         colMod.getColumn(COLUMNS.Num.ordinal()).setPreferredWidth(iNumberWidth + 10);
         colMod.getColumn(COLUMNS.Sectors.ordinal()).setPreferredWidth(iSectorWidth + 10);
+        colMod.getColumn(COLUMNS.Type.ordinal()).setPreferredWidth(iTypeWidth + 10);
         TableColumn detailsCol = colMod.getColumn(COLUMNS.Details.ordinal());
         detailsCol.setPreferredWidth(Math.max(250, detailsCol.getWidth()));
         // */
@@ -163,10 +179,10 @@ public class GuiTree extends JXTreeTable {
         return _root.applySettings(builder);
     }
 
-    public @Nonnull ArrayList<IDiscItemSaver> collectSelected(@CheckForNull File dir) {
-        ArrayList<IDiscItemSaver> savers = new ArrayList<IDiscItemSaver>();
-        _root.collectSelected(savers, dir);
-        return savers;
+    public @Nonnull ArrayList<DiscItemSaverBuilder> collectSelected() {
+        ArrayList<DiscItemSaverBuilder> builders = new ArrayList<DiscItemSaverBuilder>();
+        _root.collectSelected(builders);
+        return builders;
     }
 
     // #########################################################################
@@ -175,6 +191,7 @@ public class GuiTree extends JXTreeTable {
 
         // use Integer to get nicer alignment
         Num(Integer.class, I.GUI_TREE_INDEX_NUMBER_COLUMN()) {
+            // but use String to avoid localizing (',') the number
             String val(TreeItem item) { return item.getIndexNum(); }
         },
         Save(Boolean.class, I.GUI_TREE_SAVE_COLUMN()) {
@@ -275,17 +292,15 @@ public class GuiTree extends JXTreeTable {
         abstract public @CheckForNull DiscItem getItem();
         abstract public @CheckForNull Boolean getSave();
 
-        public void collectSelected(@Nonnull final ArrayList<IDiscItemSaver> savers,
-                                    @CheckForNull File dir)
-        {
+        public void collectSelected(@Nonnull final ArrayList<DiscItemSaverBuilder> builders) {
             Boolean oblnSave = getSave();
             if (oblnSave != null && oblnSave.booleanValue()) {
                 DiscItemSaverBuilder thisBuilder = getBuilder();
                 if (thisBuilder != null)
-                    savers.add(thisBuilder.makeSaver(dir));
+                    builders.add(thisBuilder);
             }
             for (int i=0; i<kidCount(); i++)
-                getKid(i).collectSelected(savers, dir);
+                getKid(i).collectSelected(builders);
         }
 
         public int applySettings(@Nonnull DiscItemSaverBuilder otherBuilder) {
@@ -393,6 +408,7 @@ public class GuiTree extends JXTreeTable {
                 case File: return FILE_ICON;
                 case Image: return IMAGE_ICON;
                 case Video: return VIDEO_ICON;
+                case Sound: return SOUND_ICON; // SPU support
                 default: return null;
             }
         }
@@ -460,6 +476,8 @@ public class GuiTree extends JXTreeTable {
                 _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.File;
             else if (cmd == Select.ALL_IMAGES)
                 _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.Image;
+            else if (cmd == Select.ALL_SOUND) // SPU support
+                _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.Sound;
             super.selectAllType(cmd);
         }
 

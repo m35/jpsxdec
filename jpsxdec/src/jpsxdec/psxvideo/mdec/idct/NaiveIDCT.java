@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,10 +43,12 @@ package jpsxdec.psxvideo.mdec.idct;
  * It's as simple as I could make it, and as such, it's about as
  * slow as can be.
  *<p>
- * Note: Using the Stephen's version is about 13 times faster!
+ * Note: Using the {@link StephensIDCT} version is about 13 times faster!
  * The results are almost indistinguishable. His is also likely more accurate
  * as there are fewer operations performed.
- */
+ *<p>
+ * This class is not actually used, but is provided as a reference of how
+ * the IDCT works. */
 public class NaiveIDCT implements IDCT_double {
 
     private final int[] _Temp_ = new int[64];

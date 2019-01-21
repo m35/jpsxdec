@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,11 +43,15 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
-import jpsxdec.util.DeserializationFail;
+import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.util.Misc;
 
-/** Holds the index unique number, and unique string id based on a file. */
+/** Holds the unique index number, and unique string id for a disc item.
+ * These can be compared and nested. */
 public class IndexId {
+    // this implemenation could probably be improved
+    // it starts with a source file (or '?' if none)
+    // followed by a sequence of nested indexed levels
     private final @CheckForNull File _sourceFile;
     private final @CheckForNull int[] _aiTreeIndexes;
 
@@ -66,11 +70,11 @@ public class IndexId {
         _aiTreeIndexes = aiIndex;
     }
 
-    public IndexId(@Nonnull String sSerialized) throws DeserializationFail {
+    public IndexId(@Nonnull String sSerialized) throws LocalizedDeserializationFail {
 
         String[] asParts = Misc.regex("([^\\[]+)(\\[[^\\]]+\\])?", sSerialized);
         if (asParts == null || asParts.length != 3)
-            throw new DeserializationFail(I.ID_FORMAT_INVALID(sSerialized));
+            throw new LocalizedDeserializationFail(I.ID_FORMAT_INVALID(sSerialized));
 
         if (UNNAMED_INDEX.equals(asParts[1]))
             _sourceFile = null;
@@ -82,17 +86,18 @@ public class IndexId {
         else {
             _aiTreeIndexes = Misc.splitInt(asParts[2].substring(1, asParts[2].length()-1), "\\.");
             if (_aiTreeIndexes == null)
-                throw new DeserializationFail(I.ID_FORMAT_INVALID(sSerialized));
+                throw new LocalizedDeserializationFail(I.ID_FORMAT_INVALID(sSerialized));
         }
 
     }
 
     /** How unnamed files will be saved in the index (never localized). */
     private static final String UNNAMED_INDEX = "?";
-    /** How unnamed files will be displayed. */
+    /** How unnamed files will be displayed (localized). */
     private static final ILocalizedMessage UNNAMED_FILE_NAME = I.UNNAMED_DISC_ITEM();
-    /** Pre-create file. */
+    /** Pre-create file with the localized name. */
     private static final File UNNAMED_FILE = new File(UNNAMED_FILE_NAME.getLocalizedMessage());
+    /** Always returns a non-null path. */
     private @Nonnull File safePath() {
         return _sourceFile == null ? UNNAMED_FILE : _sourceFile;
     }

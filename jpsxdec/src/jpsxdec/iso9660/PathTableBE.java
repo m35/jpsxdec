@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,22 +40,23 @@ package jpsxdec.iso9660;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import javax.annotation.Nonnull;
 import jpsxdec.util.BinaryDataNotRecognized;
 
 public class PathTableBE extends ArrayList<PathTableRecordBE> {
 
-    public PathTableBE(InputStream is) throws IOException, BinaryDataNotRecognized
+    public PathTableBE(@Nonnull InputStream is) throws IOException, BinaryDataNotRecognized
     {
 
         try {
             for (int index = 1; true ; index++) {
                 PathTableRecordBE ptr = new PathTableRecordBE(is, index);
-                super.add(ptr);
+                add(ptr);
             }
         } catch (BinaryDataNotRecognized ex) {}
-        if (super.isEmpty())
+        if (isEmpty())
             throw new BinaryDataNotRecognized();
-        super.trimToSize();
+        trimToSize();
         
     }
     

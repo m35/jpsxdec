@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,10 @@
 
 package jpsxdec.iso9660;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.annotation.Nonnull;
 import jpsxdec.util.BinaryDataNotRecognized;
 
 /** ECMA119: 8.4 
@@ -81,8 +83,8 @@ public class VolumePrimaryDescriptor extends ISO9660Struct {
     final public byte[]            application_data;
     /*                             unused5                */
 
-    public VolumePrimaryDescriptor(InputStream is) 
-            throws IOException, BinaryDataNotRecognized 
+    public VolumePrimaryDescriptor(@Nonnull InputStream is)
+            throws EOFException, IOException, BinaryDataNotRecognized
     {
         /* type                   */ magic1(is, 1); 
         /* id                     */ magicS(is, "CD001"); 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2017  Michael Sabin
+ * Copyright (C) 2013-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,26 +38,22 @@
 package jpsxdec.cmdline;
 
 import argparser.StringHolder;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.Version;
-import jpsxdec.cdreaders.CdFileNotFoundException;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.MiscResources;
+import jpsxdec.i18n.log.ConsoleProgressLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.ArgParser;
-import jpsxdec.util.ConsoleProgressLogger;
-import jpsxdec.util.FeedbackStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.TaskCanceledException;
 
@@ -129,12 +125,9 @@ public class CommandLine {
             }
         } catch (CommandLineException ex) {
             ILocalizedMessage msg = ex.getSourceMessage();
-            if (msg == null) { // TODO: find way to not log unhandled exceptions twice in debug.log
-                LOG.log(Level.SEVERE, null, ex);
-            } else {
-                msg.logEnglish(LOG, Level.SEVERE, ex);
-                Feedback.printlnErr(msg);
-            }
+            // TODO: find way to not log unhandled exceptions twice in debug.log
+            msg.logEnglish(LOG, Level.SEVERE, ex);
+            Feedback.printlnErr(msg);
             return 1;
         } catch (Throwable ex) {
             Feedback.printlnErr(I.CMD_ERR_EX_CLASS(ex, ex.getClass().getSimpleName()));
@@ -199,10 +192,12 @@ public class CommandLine {
             CdFileSectorReader cd = new CdFileSectorReader(new File(sDiscFile));
             Feedback.println(I.CMD_DISC_IDENTIFIED(cd.getTypeDescription()));
             return cd;
-        } catch (CdFileNotFoundException ex) {
-            throw new CommandLineException(I.CMD_FILE_NOT_FOUND_FILE(ex.getFile()), ex);
-        } catch (IOException ex) {
-            throw new CommandLineException(I.CMD_DISC_READ_ERROR(), ex);
+        } catch (CdFileSectorReader.CdFileNotFoundException ex) {
+            throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString()), ex);
+        } catch (CdFileSectorReader.FileTooSmallToIdentifyException ex) {
+            throw new CommandLineException(I.CD_FILE_TOO_SMALL(sDiscFile), ex);
+        } catch (CdFileSectorReader.CdReadException ex) {
+            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
         }
     }
 
@@ -214,7 +209,7 @@ public class CommandLine {
         ConsoleProgressLogger cpl = new ConsoleProgressLogger(
                 I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage(), fbs.getUnderlyingStream());
         try {
-            cpl.log(Level.INFO, I.CMD_GUI_INDEXING(cd));
+            cpl.log(Level.INFO, I.CMD_GUI_INDEXING(cd.toString()));
             index = new DiscIndex(cd, cpl);
         } catch (TaskCanceledException ex) {
             throw new RuntimeException("Impossible TaskCanceledException during commandline indexing", ex);
@@ -222,6 +217,7 @@ public class CommandLine {
             cpl.close();
         }
         fbs.println(I.CMD_NUM_ITEMS_FOUND(index.size()));
+        fbs.println();
         return index;
     }
 

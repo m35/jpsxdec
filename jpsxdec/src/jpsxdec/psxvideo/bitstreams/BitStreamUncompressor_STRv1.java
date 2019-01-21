@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2017  Michael Sabin
+ * Copyright (C) 2007-2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,11 +37,11 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
-import jpsxdec.util.IO;
+import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.util.BinaryDataNotRecognized;
-import jpsxdec.util.LocalizedIncompatibleException;
 
 /** Rather uncommon STR "version 1" video frame format.
  * Identical to STRv2, but has a version of 1 in the header.
@@ -59,51 +59,67 @@ import jpsxdec.util.LocalizedIncompatibleException;
  */
 public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
 
-    @Override
-    protected boolean readHeader(@Nonnull byte[] abFrameData, int iDataSize,
-                                 @Nonnull ArrayBitReader bitReader)
+    public static class StrV1Header extends StrHeader {
+        public StrV1Header(byte[] abFrameData, int iDataSize) {
+            super(abFrameData, iDataSize, 1);
+        }
+    }
+
+    public static @Nonnull BitStreamUncompressor_STRv1 makeV1(@Nonnull byte[] abFrameData)
+            throws BinaryDataNotRecognized
     {
-        if (!_header.readHeader(abFrameData, iDataSize, 1))
-            return false;
-
-        bitReader.reset(abFrameData, iDataSize, true, 8);
-        return true;
+        return makeV1(abFrameData, abFrameData.length);
     }
-
-    public static boolean checkHeader(@Nonnull byte[] abFrameData) {
-        StrHeader header = new StrHeader();
-        return header.readHeader(abFrameData, abFrameData.length, 1);
-    }
-
-    public static int getQscale(@Nonnull byte[] abFrameData) throws BinaryDataNotRecognized {
-        if (!checkHeader(abFrameData))
+    public static @Nonnull BitStreamUncompressor_STRv1 makeV1(@Nonnull byte[] abFrameData, int iDataSize)
+            throws BinaryDataNotRecognized
+    {
+        BitStreamUncompressor_STRv1 bsu = makeV1NoThrow(abFrameData, iDataSize);
+        if (bsu == null)
             throw new BinaryDataNotRecognized();
+        return bsu;
+    }
 
-        return IO.readSInt16LE(abFrameData, 4);
+    static @CheckForNull BitStreamUncompressor_STRv1 makeV1NoThrow(@Nonnull byte[] abFrameData, int iDataSize)
+    {
+        StrV1Header header = new StrV1Header(abFrameData, iDataSize);
+        if (!header.isValid())
+            return null;
+        ArrayBitReader bitReader = makeStrBitReader(abFrameData, iDataSize);
+
+        return new BitStreamUncompressor_STRv1(header, bitReader);
+    }
+
+    public BitStreamUncompressor_STRv1(@Nonnull StrHeader header,
+                                       @Nonnull ArrayBitReader bitReader)
+    {
+        super(header, bitReader);
     }
     
     @Override
-    public @Nonnull String getName() {
-        return "STRv1";
+    public @Nonnull Type getType() {
+        return Type.STRv1;
     }
 
     @Override
     public @Nonnull BitStreamCompressor_STRv1 makeCompressor() {
-        return new BitStreamCompressor_STRv1();
+        return new BitStreamCompressor_STRv1(getFullMacroBlocksRead());
     }
 
     public static class BitStreamCompressor_STRv1 extends BitStreamCompressor_STRv2 {
+
+        private BitStreamCompressor_STRv1(int iMacroBlockCount) {
+            super(iMacroBlockCount);
+        }
 
         @Override
         protected int getHeaderVersion() { return 1; }
 
         @Override
         protected int getFrameQscale(@Nonnull byte[] abFrameData) throws LocalizedIncompatibleException {
-            try {
-                return BitStreamUncompressor_STRv1.getQscale(abFrameData);
-            } catch (BinaryDataNotRecognized ex) {
-                throw new LocalizedIncompatibleException(I.FRAME_NOT_STRV1(), ex);
-            }
+            StrV1Header header = new StrV1Header(abFrameData, abFrameData.length);
+            if (!header.isValid())
+                throw new LocalizedIncompatibleException(I.FRAME_NOT_STRV1());
+            return header.getQscale();
         }
 
     }

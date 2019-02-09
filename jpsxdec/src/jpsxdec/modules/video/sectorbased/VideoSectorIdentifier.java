@@ -52,6 +52,7 @@ import jpsxdec.modules.strvideo.SectorAliceVideo;
 import jpsxdec.modules.strvideo.SectorFF7Video;
 import jpsxdec.modules.strvideo.SectorIkiVideo;
 import jpsxdec.modules.strvideo.SectorLainVideo;
+import jpsxdec.modules.strvideo.SectorReBoot;
 import jpsxdec.modules.strvideo.SectorStrVideo;
 
 /** Shared place for all modules to register order sensitive
@@ -84,6 +85,8 @@ public class VideoSectorIdentifier {
             cs.claim(an);
             return null;
         }
+
+        if ((vid = isVideo(new SectorReBoot(cdSector), cs)) != null) return vid;
 
         // FF7 has such a vague header, it can easily be falsely identified
         // when it should be one of the headers above

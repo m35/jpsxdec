@@ -42,7 +42,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
-import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate;
+import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecDecoder_int;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_int;
@@ -55,9 +55,9 @@ public enum MdecDecodeQuality {
             return new MdecDecoder_int(new SimpleIDCT(), iWidth, iHeight);
         }
     },
-    HIGH_PLUS(I.QUALITY_HIGH_DESCRIPTION(), I.QUALITY_HIGH_COMMAND()) {
+    HIGH(I.QUALITY_HIGH_DESCRIPTION(), I.QUALITY_HIGH_COMMAND()) {
         public MdecDecoder makeDecoder(int iWidth, int iHeight) {
-            return new MdecDecoder_double_interpolate(new PsxMdecIDCT_double(), iWidth, iHeight);
+            return new MdecDecoder_double(new PsxMdecIDCT_double(), iWidth, iHeight);
         }
         public boolean canUpsample() { return true; }
     },

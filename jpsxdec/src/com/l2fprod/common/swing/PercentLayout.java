@@ -94,7 +94,7 @@ public class PercentLayout implements LayoutManager2 {
   private int orientation;
   private int gap;
 
-  private Hashtable m_ComponentToConstraint;
+  private Hashtable<Component, Constraint> m_ComponentToConstraint;
 
   /**
    * Creates a new HORIZONTAL PercentLayout with a gap of 0.
@@ -107,7 +107,7 @@ public class PercentLayout implements LayoutManager2 {
     setOrientation(orientation);
     this.gap = gap;
 
-    m_ComponentToConstraint = new Hashtable();
+    m_ComponentToConstraint = new Hashtable<Component, Constraint>();
   }
 
   public void setGap(int gap) {
@@ -145,7 +145,7 @@ public class PercentLayout implements LayoutManager2 {
   
   public void setConstraint(Component component, Object constraints) {
     if (constraints instanceof Constraint) {
-      m_ComponentToConstraint.put(component, constraints);
+      m_ComponentToConstraint.put(component, (Constraint)constraints);
     } else if (constraints instanceof Number) {
       setConstraint(
         component,
@@ -334,7 +334,7 @@ public class PercentLayout implements LayoutManager2 {
     }
     
     // finally share the remaining space between the other components    
-    ArrayList remaining = new ArrayList();
+    ArrayList<Integer> remaining = new ArrayList<Integer>();
     for (int i = 0, c = components.length; i < c; i++) {
       if (components[i].isVisible()) {
         Constraint constraint =
@@ -348,8 +348,8 @@ public class PercentLayout implements LayoutManager2 {
 
     if (remaining.size() > 0) {
       int rest = availableSize / remaining.size();
-      for (Iterator iter = remaining.iterator(); iter.hasNext();) {
-        sizes[((Integer)iter.next()).intValue()] = rest;
+      for (Iterator<Integer> iter = remaining.iterator(); iter.hasNext();) {
+        sizes[iter.next().intValue()] = rest;
       }
     }
 

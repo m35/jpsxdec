@@ -159,16 +159,19 @@ public class VDP {
 
     public static class Bitstream2Mdec implements IBitstreamListener {
 
-        @Nonnull
-        private final ILocalizedLogger _log;
-        @Nonnull
-        private final IMdecListener _listener;
         @CheckForNull
-        private BitStreamUncompressor.Type _uncompressorType;
+        private IMdecListener _listener;
+        @CheckForNull
+        private Class<? extends BitStreamUncompressor> _uncompressorType;
 
+        public Bitstream2Mdec() {
+        }
         public Bitstream2Mdec(@Nonnull IMdecListener mdecListener) {
             _listener = mdecListener;
-            _log = _listener.getLog();
+        }
+
+        public void setMdecListener(@CheckForNull IMdecListener listener) {
+            _listener = listener;
         }
 
         public void bitstream(@Nonnull byte[] abBitstream, int iBitstreamSize, 
@@ -180,22 +183,25 @@ public class VDP {
                 BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(
                                                         abBitstream, iBitstreamSize);
                 if (_uncompressorType != null) {
-                    BitStreamUncompressor.Type newType = uncompressor.getType();
-                    if (_uncompressorType != newType) {
+                    Class<? extends BitStreamUncompressor> newType = uncompressor.getClass();
+                    if (!_uncompressorType.equals(newType)) {
                         LOG.log(Level.WARNING, "Bitstream format changed from {0} to {1}",
-                                               new Object[]{_uncompressorType, newType});
+                                               new Object[]{_uncompressorType.getSimpleName(), newType.getSimpleName()});
                         _uncompressorType = newType;
                     }
                 } else {
-                    _uncompressorType = uncompressor.getType();
-                        LOG.log(Level.INFO, "Bitstream format identified {0}",
-                                            _uncompressorType);
+                    _uncompressorType = uncompressor.getClass();
+                    LOG.log(Level.INFO, "Bitstream format identified {0}",
+                                        _uncompressorType.getSimpleName());
                 }
-                _listener.mdec(uncompressor, frameNumber, presentationSector);
+                if (_listener != null)
+                    _listener.mdec(uncompressor, frameNumber, presentationSector);
             } catch (BinaryDataNotRecognized ex) {
                 ILocalizedMessage msg = FrameMessage.UNABLE_TO_DETERMINE_FRAME_TYPE_FRM(frameNumber);
-                _log.log(Level.SEVERE, msg, ex);
-                _listener.error(msg, frameNumber, presentationSector);
+                if (_listener != null) {
+                    _listener.getLog().log(Level.SEVERE, msg, ex);
+                    _listener.error(msg, frameNumber, presentationSector);
+                }
             }
         }
 
@@ -484,7 +490,7 @@ public class VDP {
 
     /** Most Avi will take Decoded as input, but MJPG will need Mdec as input,
      *  so save the interface implementation for subclasses. */
-    public static abstract class ToAvi implements Closeable {
+    public static abstract class ToAvi implements Closeable, DecodedAudioPacket.Listener {
         @Nonnull
         protected final File _outputFile;
         protected final int _iWidth, _iHeight;
@@ -523,6 +529,10 @@ public class VDP {
 
         final public @Nonnull File getOutputFile() {
             return _outputFile;
+        }
+
+        final public @CheckForNull AviWriter getAviWriter() {
+            return _writer;
         }
 
         abstract public void open() 
@@ -565,9 +575,11 @@ public class VDP {
             } else {
                 while (iDupCount > 0) { // could happen with first frame
                     if (_writer.getVideoFramesWritten() < 1) { // TODO: fix design so this isn't needed
+                        _log.log(Level.INFO, I.WRITING_BLANK_FRAMES_TO_ALIGN_AV(1));
                         LOG.log(Level.INFO, "Writing blank frame for frame {0}", frameNumber);
                         _writer.writeBlankFrame();
                     } else {
+                        _log.log(Level.INFO, I.WRITING_DUP_FRAMES_TO_ALIGN_AV(1));
                         LOG.log(Level.INFO, "Writing dup frame for frame {0}", frameNumber);
                         _writer.repeatPreviousFrame();
                     }
@@ -576,7 +588,9 @@ public class VDP {
             }
         }
 
-        final public void writeAudio(@Nonnull DecodedAudioPacket packet) throws LoggedFailure
+        final public void audioPacketComplete(@Nonnull DecodedAudioPacket packet,
+                                              @Nonnull ILocalizedLogger log)
+                throws LoggedFailure
         {
             if (_writer == null)
                 throw new IllegalStateException("Avi writer is not open");
@@ -680,20 +694,27 @@ public class VDP {
 
     }
 
+    /** Only supports videos with even dimensions. */
     public static class Decoded2YuvAvi extends ToAvi implements IDecodedListener {
         @CheckForNull
         protected YCbCrImage _yuvImgBuff;
         @CheckForNull
         protected AviWriterYV12 _writerYuv;
 
+        /** @throws IllegalArgumentException if dimensions are not even */
         public Decoded2YuvAvi(@Nonnull File outputFile, int iWidth, int iHeight, @Nonnull VideoSync vidSync, @Nonnull ILocalizedLogger log) {
             super(outputFile, iWidth, iHeight, vidSync, log);
+            if (((iWidth | iHeight) & 1) != 0)
+                throw new IllegalArgumentException("YUV AVI only supports even dimensions");
         }
 
+        /** @throws IllegalArgumentException if dimensions are not even */
         public Decoded2YuvAvi(@Nonnull File outputFile, int iWidth, int iHeight, 
                               @Nonnull AudioVideoSync avSync, @Nonnull AudioFormat af, @Nonnull ILocalizedLogger log)
         {
             super(outputFile, iWidth, iHeight, avSync, af, log);
+            if (((iWidth | iHeight) & 1) != 0)
+                throw new IllegalArgumentException("YUV AVI only supports even dimensions");
         }
 
         public void assertAcceptsDecoded(@Nonnull MdecDecoder decoder) throws IllegalArgumentException {

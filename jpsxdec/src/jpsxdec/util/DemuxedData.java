@@ -139,6 +139,7 @@ public class DemuxedData<T extends DemuxedData.Piece> implements Iterable<T> {
     /** Returns in the order of data, not necessarily in the order of sectors. */
     // TODO find some way to remove iterator here
     // it's used for printing the sectors and replacing them mainly I think
+    @SuppressWarnings("unchecked")
     public @Nonnull Iterator<T> iterator() {
         // this cast is particularly interesting because there's really no way around it
         // but logically it is perfectly safe

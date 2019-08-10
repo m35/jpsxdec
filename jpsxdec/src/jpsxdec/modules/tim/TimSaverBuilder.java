@@ -65,6 +65,7 @@ import jpsxdec.i18n.TabularFeedback.Cell;
 import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedFileNotFoundException;
 import jpsxdec.i18n.exception.LoggedFailure;
+import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.ArgParser;
@@ -105,6 +106,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             return _javaFmt;
         }
         
+        @Override
         public String toString() {
             if (_javaFmt == null)
                 return "tim";
@@ -133,10 +135,9 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         for (JavaImageFormat jif : availableFormats) {
             if (jif.isAvailable()) {
                 if (jif.hasTrueColor()) {
+                    TRUE_COLOR_FORMAT_LIST.add(new TimSaveFormat(jif));
                     if (jif.hasAlpha())
                         TRUE_COLOR_ALPHA_FORMAT_LIST.add(new TimSaveFormat(jif));
-                    else
-                        TRUE_COLOR_FORMAT_LIST.add(new TimSaveFormat(jif));
                 }
                 PALETTE_FORMAT_LIST.add(new TimSaveFormat(jif));
             }
@@ -294,7 +295,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         if (timpalettes.value != null) {
             boolean[] ablnNewValues = parseNumberListRange(timpalettes.value, getPaletteCount());
             if (ablnNewValues == null) {
-                fbs.printlnWarn(I.CMD_TIM_PALETTE_LIST_INVALID(timpalettes.value));
+                fbs.printlnWarn(I.CMD_IGNORING_INVALID_VALUE_FOR_CMD(timpalettes.value, "-pal"));
             } else {
                 System.arraycopy(ablnNewValues, 0, _ablnSavePalette, 0, getPaletteCount());
             }
@@ -303,7 +304,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         if (format.value != null) {
             TimSaveFormat fmt = fromCmdLine(format.value);
             if (fmt == null) {
-                fbs.printlnWarn(I.CMD_TIM_SAVE_FORMAT_INVALID(format.value));
+                fbs.printlnWarn(I.CMD_IGNORING_INVALID_VALUE_FOR_CMD(format.value, "-if,-imgfmt"));
             } else {
                 setImageFormat(fmt);
             }
@@ -351,9 +352,10 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         tfb.write(fbs.getUnderlyingStream());
     }
 
-    public void printSelectedOptions(@Nonnull FeedbackStream fbs) {
-        fbs.println(I.CMD_TIM_SAVE_FORMAT(getImageFormat().getExtension()));
-        fbs.println(getOutputFilesSummary());
+    public void printSelectedOptions(@Nonnull
+    ILocalizedLogger log) {
+        log.log(Level.INFO, I.CMD_TIM_SAVE_FORMAT(getImageFormat().getExtension()));
+        log.log(Level.INFO, getOutputFilesSummary());
     }
 
     private @Nonnull String makeTimFileName() {
@@ -375,6 +377,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             throws LoggedFailure, TaskCanceledException
     {
         clearGeneratedFiles();
+        printSelectedOptions(pl);
         if (getImageFormat() == TIM) {
             startSaveTim(pl, directory, makeTimFileName());
         } else {

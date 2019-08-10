@@ -9,7 +9,7 @@
 
     <!-- ====== global build properties ====== -->
     
-    <property name="jpsxdec.ver" value="v0-99-8_rev3788"/>
+    <property name="jpsxdec.ver" value="v0-99-9_rev3898"/>
 
     <!-- sources -->
     <property name="src.dir.rel"      location="src"      relative="true"/>
@@ -43,8 +43,8 @@
     <property name="build-lgpl.dir" location="${working.dir}/build-lgpl"/>
     <property name="testbuild.dir"  location="${working.dir}/build-test"/>
 
-    <property name="javac.target.ver" value="1.5"/>
-    <property name="javac.source.ver" value="1.5" />
+    <property name="javac.target.ver" value="1.6"/>
+    <property name="javac.source.ver" value="1.6" />
 
     <!-- output -->
     <property name="release.dir"       location="${working.dir}/release"/>
@@ -62,7 +62,7 @@
     </target>
 
     <target name="compile-lgpl" depends="init" description="compile the LGPL source" >
-        <echo>Be sure to set JAVA_HOME to 1.5 jdk directory before building.</echo>
+        <echo>Be sure to set JAVA_HOME to 1.6 jdk directory before building.</echo>
         <!-- Create the lgpl build directory -->
         <mkdir dir="${build-lgpl.dir}"/>
         <javac srcdir="${src-lgpl.dir}" destdir="${build-lgpl.dir}" includeantruntime="false"
@@ -85,7 +85,7 @@
 
 
     <target name="compile" depends="package-lgpl" description="compile the jPSXdec source" >
-        <echo>Be sure to set JAVA_HOME to 1.5 jdk directory before building.</echo>
+        <echo>Be sure to set JAVA_HOME to 1.6 jdk directory before building.</echo>
         <!-- Create the build directory -->
         <mkdir dir="${build.dir}"/>
         <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
@@ -167,7 +167,7 @@ Manually convert manual to pdf using [Open|Libre]Office to continue build
     <target name="test" depends="compile" description="build and run tests">
         <fail message="Found Java version ${ant.java.version}. Java version must be at least 1.6.">
           <condition>
-            <equals arg1="${ant.java.version}" arg2="1.5"/>
+            <equals arg1="${ant.java.version}" arg2="1.6"/>
           </condition>
         </fail>        
         <echo>Be sure junit jar (at least verion 4) is in the classpath or local directory or build will fail.</echo>
@@ -196,22 +196,6 @@ Manually convert manual to pdf using [Open|Libre]Office to continue build
         </junit>
     </target>
 
-    <target name="javadoc" description="generate code documentation via javadoc">
-        <javadoc additionalparam="-stylesheetfile javadoc.css" charset="UTF-8"
-                destdir="${javadoc.dir}" docencoding="UTF-8" failonerror="true"
-                private="true" use="true" windowtitle="jPSXdec" useexternalfile="true">
-            <classpath>
-                <path path="${javac.classpath}"/>
-            </classpath>
-            <fileset dir="${src.dir}">
-                <filename name="**/*.java"/>
-            </fileset>
-            <fileset dir="${src-lgpl.dir}">
-                <filename name="**/*.java"/>
-            </fileset>
-        </javadoc>
-    </target>
-    
     <target name="clean" description="clean up" >
         <!-- Delete all generated dirs -->
         <delete dir="${working.dir}"/>

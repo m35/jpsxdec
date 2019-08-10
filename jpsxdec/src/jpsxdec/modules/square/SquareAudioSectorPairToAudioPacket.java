@@ -45,6 +45,7 @@ import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
 import jpsxdec.i18n.I;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.util.Fraction;
@@ -65,7 +66,9 @@ public class SquareAudioSectorPairToAudioPacket implements SquareAudioSectorToSq
         _listener = listener;
     }
 
-    public void pairDone(@Nonnull SquareAudioSectorPair pair, @Nonnull ILocalizedLogger log) {
+    public void pairDone(@Nonnull SquareAudioSectorPair pair, @Nonnull ILocalizedLogger log) 
+            throws LoggedFailure
+    {
         _buffer.reset();
         try {
             long lngSamplesWritten = _decoder.getSampleFramesWritten();

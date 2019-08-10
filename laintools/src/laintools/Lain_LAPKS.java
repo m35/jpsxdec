@@ -54,6 +54,14 @@ import jpsxdec.util.Imaging;
 public class Lain_LAPKS {
     
     private static boolean DEBUG = false;
+
+    public static void main(String[] args) {
+        if (args.length < 2) {
+            System.out.println("Expecting 2 parameters: LAPKS.BIN <out-base-name>");
+            return;
+        }
+        decodeLAPKS(args[0], args[1]);
+    }
     
     /** Decodes the numerous Lain poses from the LAPKS.BIN file. The LAPKS.BIN
      *  file is the same on both disc 1 and disc 2. This function needs a
@@ -90,15 +98,15 @@ public class Lain_LAPKS {
                         new PsxMdecIDCT_double(), cell.Width, cell.Height);
                 BitStreamUncompressor_Lain uncompresor = BitStreamUncompressor_Lain.makeLain(cell.Data);
                 oDecoder.decode(uncompresor);
-                RgbIntImage oRgb = new RgbIntImage(cell.Width, cell.Height);
-                oDecoder.readDecodedRgb(oRgb.getWidth(), oRgb.getHeight(), oRgb.getData());
+                RgbIntImage rgb = new RgbIntImage(cell.Width, cell.Height);
+                oDecoder.readDecodedRgb(rgb.getWidth(), rgb.getHeight(), rgb.getData());
                 
                 String s = String.format("%s%02d_f%02d",
                         sOutFileBase,
                         cell.PkIndex,
                         cell.CellIndex);
                 
-                BufferedImage bi = oRgb.toBufferedImage();
+                BufferedImage bi = rgb.toBufferedImage();
                 int x, y, w, h;
                 if (cell.Width == 320 && cell.Height == 240) {
                     // don't do anything
@@ -242,8 +250,8 @@ public class Lain_LAPKS {
         /*  _Cell header_
          * 2 bytes: Image Width
          * 2 bytes: Image Height
-         * 2 bytes: Chrominance Quantization Scale 
-         * 2 bytes: Luminance Quantization Scale
+         * 2 bytes: Chroma Quantization Scale
+         * 2 bytes: Luma Quantization Scale
          * 4 bytes: Length of cell data in bytes (after this value)
          * 4 bytes: Number of run length codes?
          * (data length-4) bytes: width/16*height/16 compressed macro blocks

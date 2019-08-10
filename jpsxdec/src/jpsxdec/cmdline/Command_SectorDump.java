@@ -45,8 +45,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
-import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.i18n.log.ShouldNotLog;
+import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.ArgParser;
@@ -82,9 +81,8 @@ class Command_SectorDump extends Command {
             }
             SectorCounter counter = new SectorCounter();
             SectorClaimSystem it = SectorClaimSystem.create(cdReader);
-            ILocalizedLogger log = new ShouldNotLog();
             while (it.hasNext()) {
-                SectorClaimSystem.ClaimedSector cs = it.next(log);
+                SectorClaimSystem.ClaimedSector cs = it.next(DebugLogger.Log);
                 IIdentifiedSector idSect = cs.getClaimer();
                 if (idSect != null)
                     ps.println(idSect);

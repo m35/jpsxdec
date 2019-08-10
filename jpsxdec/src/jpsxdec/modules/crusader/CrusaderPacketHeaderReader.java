@@ -86,7 +86,7 @@ public class CrusaderPacketHeaderReader {
     private static final long AUDIO_ID = 0x08000200L;
     
     public static class AudioHeader implements Header {
-        private final int _iPresentationSample;
+        private final int _iPresentationSampleFrame;
         private final int _iByteSize;
 
         public AudioHeader(@Nonnull byte[] abHeader, int iRemainingPayloadSize) 
@@ -97,8 +97,8 @@ public class CrusaderPacketHeaderReader {
             // always be sure the audio data is a multiple of 16*2
             if (iRemainingPayloadSize % (SpuAdpcmSoundUnit.SIZEOF_SOUND_UNIT * 2) != 0)
                 throw new BinaryDataNotRecognized();
-            _iPresentationSample = IO.readSInt32BE(abHeader, 8);
-            if (_iPresentationSample < 0)
+            _iPresentationSampleFrame = IO.readSInt32BE(abHeader, 8);
+            if (_iPresentationSampleFrame < 0)
                 throw new BinaryDataNotRecognized();
             final long lngAudioId = IO.readUInt32BE(abHeader, 12);
             if (lngAudioId != AUDIO_ID)
@@ -106,7 +106,7 @@ public class CrusaderPacketHeaderReader {
             _iByteSize = iRemainingPayloadSize;
         }
 
-        public int getPresentationSample() { return _iPresentationSample; }
+        public int getPresentationSampleFrame() { return _iPresentationSampleFrame; }
         /** Guaranteed to be a multiple of 16*2 (i.e. stereo SPU sound units). */
         public int getByteSize() { return _iByteSize; }
     }

@@ -37,6 +37,7 @@
 
 package jpsxdec.psxvideo;
 
+import javax.annotation.Nonnull;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.Rec601YCbCr;
 
@@ -93,7 +94,7 @@ public class PsxYCbCr {
     public PsxYCbCr() {
     }
 
-    public void fromRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
+    public void fromRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
         cb = cr = 0;
         y1 = oneRgb(rgb1);
         y2 = oneRgb(rgb2);
@@ -102,7 +103,7 @@ public class PsxYCbCr {
         cb /= 4.0;
         cr /= 4.0;
     }
-    private double oneRgb(RGB rgb) {
+    private double oneRgb(@Nonnull RGB rgb) {
         int r_128 = rgb.getR() - 128;
         int g_128 = rgb.getG() - 128;
         int b_128 = rgb.getB() - 128;
@@ -122,7 +123,7 @@ public class PsxYCbCr {
         }
     }
 
-    public static void toRgb(double y, double cb, double cr, RGB rgb) {
+    public static void toRgb(double y, double cb, double cr, @Nonnull RGB rgb) {
         double dblChromRed, dblChromGreen, dblChromBlue;
         // MUST store chroma first like in instance method or result is slightly different
         if (INCORRECTLY_SWAP_CB_CR_LIKE_PSXMC) {
@@ -142,7 +143,7 @@ public class PsxYCbCr {
         rgb.setB(dblYshift + dblChromBlue );
     }
 
-    final public void toRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
+    final public void toRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
         double dblChromRed, dblChromGreen, dblChromBlue;
         if (INCORRECTLY_SWAP_CB_CR_LIKE_PSXMC) {
             // this math is wrong, wrong, WRONG
@@ -203,7 +204,7 @@ public class PsxYCbCr {
      * Unfortunately this conversion doesn't take into account chroma
      * upsampling interpolation.
      */
-    public void toRec_601_YCbCr(Rec601YCbCr ycc) {
+    public void toRec_601_YCbCr(@Nonnull Rec601YCbCr ycc) {
         double dblYChroma = cb * (-488509./2660418030.) + cr * (-82738./1330209015.) + 16;
 
         ycc.y1 = (y1+128)*(250./291.) + dblYChroma;
@@ -215,7 +216,7 @@ public class PsxYCbCr {
         ycc.cr = cb *   (3673./27426990.) + cr * (8031459./9142330.) + 128;
     }
 
-    public void toRec_JFIF_YCbCr(Rec601YCbCr ycc) {
+    public void toRec_JFIF_YCbCr(@Nonnull Rec601YCbCr ycc) {
         double dblYChroma = cb * -3415973./13224846875. + cr * 1242172./13224846875.;
         
         ycc.y1 = y1+128 + dblYChroma;
@@ -227,6 +228,7 @@ public class PsxYCbCr {
         ycc.cr = cb *     19492./105798775.  + cr * 105791687./105798775. + 128;
     }
 
+    @Override
     public String toString() {
         return String.format("([%f, %f, %f, %f] %f, %f)", y1, y2, y3, y4, cb, cr);
     }

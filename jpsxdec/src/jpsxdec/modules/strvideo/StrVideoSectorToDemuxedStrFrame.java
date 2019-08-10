@@ -39,6 +39,7 @@ package jpsxdec.modules.strvideo;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
@@ -66,6 +67,7 @@ public class StrVideoSectorToDemuxedStrFrame implements SectorClaimToStrVideoSec
 
     public void feedSector(@Nonnull ISelfDemuxingVideoSector vidSector,
                            @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
         if (_currentFrame != null && !_currentFrame.addSectorIfPartOfFrame(vidSector))
             endFrame(log);
@@ -85,15 +87,18 @@ public class StrVideoSectorToDemuxedStrFrame implements SectorClaimToStrVideoSec
         //    _listener.endVideo();
     }
 
-    private void endFrame(@Nonnull ILocalizedLogger log) {
+    private void endFrame(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentFrame == null)
             return;
-        if (_listener != null)
-            _listener.frameComplete(_currentFrame.finishFrame(log), log);
+        if (_listener != null) {
+            DemuxedFrameWithNumberAndDims frame = _currentFrame.finishFrame(log);
+            if (frame != null)
+                _listener.frameComplete(frame, log);
+        }
         _currentFrame = null;
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) {
+    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         endFrame(log);
         if (_listener != null)
             _listener.endOfSectors(log);

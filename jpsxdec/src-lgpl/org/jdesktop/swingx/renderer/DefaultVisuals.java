@@ -119,7 +119,7 @@ public class DefaultVisuals<T extends JComponent> implements Serializable {
      */
     protected void configurePainter(T renderingComponent, CellContext context) {
         if (renderingComponent instanceof PainterAware) {
-            ((PainterAware) renderingComponent).setPainter(null);
+            ((PainterAware<?>) renderingComponent).setPainter(null);
         }
         
     }

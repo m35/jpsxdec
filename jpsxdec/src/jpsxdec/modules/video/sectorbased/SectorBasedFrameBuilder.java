@@ -56,6 +56,7 @@ public class SectorBasedFrameBuilder<T> {
     private final int _iHeaderFrameNumber;
 
     /** Start building the frame with the first sector. */
+    @SuppressWarnings("unchecked")
     public SectorBasedFrameBuilder(@Nonnull T firstChunk,
                                    int iChunkNumber, int iExpectedChunks,
                                    int iSector, int iHeaderFrameNumber,
@@ -67,7 +68,7 @@ public class SectorBasedFrameBuilder<T> {
             // if this happens, the incoming data is pretty messed up
             // this logic will effictively immediately end the frame
             log.log(Level.WARNING,
-                I.DEMUX_CHUNK_NUM_GTE_CHUNKS_IN_FRAME(iSector, iChunkNumber, iExpectedChunks));
+                I.FRAME_NUM_CORRUPTED(String.valueOf(iHeaderFrameNumber)));
             _aoChunks = (T[]) new Object[iChunkNumber + 1];
         }
         _aoChunks[iChunkNumber] = firstChunk;

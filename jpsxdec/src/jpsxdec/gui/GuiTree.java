@@ -126,20 +126,6 @@ public class GuiTree extends JXTreeTable {
     public void formatTreeTable(@Nonnull DiscIndex index) {
         _root = buildTree(index.getRoot());
 
-        /* If using Netbeans Outline
-        setDefaultRenderer(Boolean.class, new OptionalBooleanTableCellRenderer());
-        DiscTreeModel ttModel = new DiscTreeModel(_root);
-        OutlineModel om = DefaultOutlineModel.createOutlineModel(ttModel, ttModel);
-        setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        setFillsViewportHeight(true);
-        setIntercellSpacing(new Dimension(0, 0));
-        setShowGrid(false);
-        setRootVisible(false);
-        setModel(om);
-        setRowSorter(null);
-        setRowHeight(getRowHeight() - 2);
-        / */
-
         FontMetrics fm = getFontMetrics(getFont());
         int iSectorWidth = fm.stringWidth("999999-999999");
         int iNumberWidth = fm.stringWidth(String.valueOf(index.size()) + "99");
@@ -147,7 +133,6 @@ public class GuiTree extends JXTreeTable {
         int iTypeWidth = fm.stringWidth(DiscItem.GeneralType.Sound.getName().toString());
 
         setDefaultRenderer(Boolean.class, new OptionalBooleanTableCellRenderer());
-        //_guiDiscTree.setDefaultRenderer(Integer.class, new CenteredIntegerTableCellRenderer());
         setTreeCellRenderer(new TreeIconRenderer());
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
@@ -160,11 +145,7 @@ public class GuiTree extends JXTreeTable {
         colMod.getColumn(COLUMNS.Type.ordinal()).setPreferredWidth(iTypeWidth + 10);
         TableColumn detailsCol = colMod.getColumn(COLUMNS.Details.ordinal());
         detailsCol.setPreferredWidth(Math.max(250, detailsCol.getWidth()));
-        // */
     }
-
-    //public void expandAll() {} public void collapseAll() {}
-    //public void addTreeSelectionListener(TreeSelectionListener tsl) {}
 
     public @CheckForNull TreeItem getTreeTblSelection() {
         return (TreeItem) getValueAt(getSelectedRow(), convertColumnIndexToView(COLUMNS.Name.ordinal()));
@@ -519,9 +500,7 @@ public class GuiTree extends JXTreeTable {
 
     // -------------------------------------------------------------------------
 
-    private static class DiscTreeModel implements TreeTableModel
-        //, RowModel // Outline
-    {
+    private static class DiscTreeModel implements TreeTableModel {
         @Nonnull
         private final TreeItem _treeRoot;
 
@@ -580,16 +559,6 @@ public class GuiTree extends JXTreeTable {
         public void setValueAt(@Nonnull Object value, @Nonnull Object node, int i) {
             assert i == COLUMNS.Save.ordinal();
             ((DiscItemTreeItem)node).setSave(((Boolean)value).booleanValue());
-        }
-
-        // for Netbeans Outline
-        public @CheckForNull Object getValueFor(@Nonnull Object node, int column) {
-            return getValueAt(node, column);
-        }
-
-        // for Netbeans Outline
-        public void setValueFor(@Nonnull Object node, int column, @Nonnull Object value) {
-            setValueAt(value, node, column);
         }
     }
 

@@ -76,13 +76,21 @@ public class HeaderFrameNumber extends FrameNumber {
                 _headerNumberBuilder.addNumber(iHeaderFrameNumber);
             }
 
+            public int getStartFrameNumber() {
+                return _headerNumberBuilder.getStartFrameValue();
+            }
+
+            public int getLastFrameNumber() {
+                return _headerNumberBuilder.getLastFrameValue();
+            }
+
             public @Nonnull Format makeFormat() {
                 return new Format(_headerNumberBuilder.makeFormat());
             }
         }
 
 
-        private static final String HEADER_FORMAT_KEY = "Header Frames";
+        public static final String HEADER_FORMAT_KEY = "Header Frames";
         @Nonnull
         private final FrameNumberNumber.Format _headerNumberFormat;
 

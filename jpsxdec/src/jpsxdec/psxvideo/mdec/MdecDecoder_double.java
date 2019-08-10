@@ -37,7 +37,9 @@
 
 package jpsxdec.psxvideo.mdec;
 
+import com.mortennobel.imagescaling.ResampleOp;
 import java.util.Arrays;
+import javax.annotation.Nonnull;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.Rec601YCbCr;
 import jpsxdec.formats.YCbCrImage;
@@ -45,131 +47,156 @@ import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 
 /** A full Java, double-precision, floating point implementation of the
- *  PlayStation 1 MDEC chip. This implementation also comes with additional
- *  methods for higher quality YUV decoding. */
+ *  PlayStation 1 MDEC chip with interpolation used in chroma upsampling.
+ *<p>
+ *  Default upsampling method is Bicubic.
+ *<p>
+ * This implementation also comes with additional methods for higher
+ * quality YUV decoding. */
 public class MdecDecoder_double extends MdecDecoder {
 
-    protected final IDCT_double _idct;
+    @Nonnull
+    private final IDCT_double _idct;
 
-    protected final double[] _CrBuffer;
-    protected final double[] _CbBuffer;
-    protected final double[] _LumaBuffer;
+    @Nonnull
+    private final double[] _adblDecodedCrBuffer;
+    @Nonnull
+    private final double[] _dblDecodedCbBuffer;
+    @Nonnull
+    private final double[] _adblDecodedLumaBuffer;
 
     /** Matrix of 8x8 coefficient values. */
-    protected final double[] _CurrentBlock = new double[64];
+    private final double[] _CurrentBlock = new double[64];
 
-    public MdecDecoder_double(IDCT_double idct, int iWidth, int iHeight) {
+    /** Temp buffer for upsampled Cr. */
+    @Nonnull
+    private final double[] _adblTempUpsampledCr;
+    /** Temp buffer for upsampled Cb. */
+    @Nonnull
+    private final double[] _adblTempUpsampledCb;
+
+    private final ResampleOp _resampler = new ResampleOp();
+    @Nonnull
+    private ChromaUpsample _upsampler = ChromaUpsample.Bicubic;
+
+    public MdecDecoder_double(@Nonnull IDCT_double idct, int iWidth, int iHeight) {
         super(iWidth, iHeight);
         _idct = idct;
-        
-        _CrBuffer = new double[ CW*CH];
-        _CbBuffer = new double[ _CrBuffer.length];
-        _LumaBuffer = new double[ W*H];
+
+        _adblDecodedCrBuffer = new double[CW * CH];
+        _dblDecodedCbBuffer = new double[_adblDecodedCrBuffer.length];
+        _adblDecodedLumaBuffer = new double[W * H];
+
+        _adblTempUpsampledCb = new double[_adblDecodedLumaBuffer.length];
+        _adblTempUpsampledCr = new double[_adblDecodedLumaBuffer.length];
+
+        _resampler.setNumberOfThreads(1);
     }
 
-    public void decode(MdecInputStream mdecInStream)
+    public void setUpsampler(@Nonnull ChromaUpsample u) {
+        _upsampler = u;
+    }
+
+    public void decode(@Nonnull MdecInputStream sourceMdecInStream)
             throws MdecException.EndOfStream, MdecException.ReadCorruption
     {
+        Ac0Checker mdecInStream = Ac0Checker.wrapWithChecker(sourceMdecInStream, false);
 
         int iCurrentBlockQscale;
         int iCurrentBlockVectorPosition;
         int iCurrentBlockNonZeroCount;
         int iCurrentBlockLastNonZeroPosition;
 
-        int iMacBlk = 0, iBlock = 0;
+        MdecContext context = new MdecContext(_iMacBlockHeight);
 
         try {
 
             // decode all the macro blocks of the image
-            for (int iMacBlkX = 0; iMacBlkX < _iMacBlockWidth; iMacBlkX ++)
-            {
-                for (int iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY ++)
-                {
-                    // debug
-                    assert !DEBUG || debugPrintln(String.format("############### Decoding macro block %d (%d, %d) ###############",
-                                                  iMacBlk, iMacBlkX, iMacBlkY));
+            while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {
+                // debug
+                assert !DEBUG || debugPrintln(String.format("############### Decoding macro block %d %s ###############",
+                                              context.getTotalMacroBlocksRead(), context.getMacroBlockPixel()));
 
-                    for (iBlock = 0; iBlock < 6; iBlock++) {
+                for (int iBlock = 0; iBlock < MdecBlock.count(); iBlock++) {
 
-                        assert !DEBUG || debugPrintln(String.format("=========== Decoding block %s ===========",
-                                                      BLOCK_NAMES[iBlock]));
-                        
-                        Arrays.fill(_CurrentBlock, 0);
-                        mdecInStream.readMdecCode(_code);
+                    assert !DEBUG || debugPrintln("=========== Decoding block "+context.getCurrentBlock()+" ===========");
 
-                        assert !DEBUG || debugPrintln("Qscale & DC " + _code);
+                    Arrays.fill(_CurrentBlock, 0);
+                    mdecInStream.readMdecCode(_code);
 
-                        if (_code.getBottom10Bits() != 0) {
-                            _CurrentBlock[0] =
-                                    _code.getBottom10Bits() * _aiQuantizationTable[0];
-                            iCurrentBlockNonZeroCount = 1;
-                            iCurrentBlockLastNonZeroPosition = 0;
-                        } else {
-                            iCurrentBlockNonZeroCount = 0;
-                            iCurrentBlockLastNonZeroPosition = -1;
-                        }
-                        assert !DEBUG || setPrequantValue(0, _code.getBottom10Bits());
-                        iCurrentBlockQscale = _code.getTop6Bits();
-                        iCurrentBlockVectorPosition = 0;
+                    assert !DEBUG || debugPrintln("Qscale & DC " + _code);
 
-                        while (!mdecInStream.readMdecCode(_code)) {
+                    if (_code.getBottom10Bits() != 0) {
+                        _CurrentBlock[0] =
+                                _code.getBottom10Bits() * _aiQuantizationTable[0];
+                        iCurrentBlockNonZeroCount = 1;
+                        iCurrentBlockLastNonZeroPosition = 0;
+                    } else {
+                        iCurrentBlockNonZeroCount = 0;
+                        iCurrentBlockLastNonZeroPosition = -1;
+                    }
+                    assert !DEBUG || setPrequantValue(0, _code.getBottom10Bits());
+                    iCurrentBlockQscale = _code.getTop6Bits();
+                    iCurrentBlockVectorPosition = 0;
 
-                            assert !DEBUG || debugPrintln(_code.toString());
-
-                            ////////////////////////////////////////////////////////
-                            iCurrentBlockVectorPosition += _code.getTop6Bits() + 1;
-
-                            int iRevZigZagMatrixPos;
-                            try {
-                                // Reverse Zig-Zag
-                                iRevZigZagMatrixPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
-                            } catch (ArrayIndexOutOfBoundsException ex) {
-                                throw new MdecException.ReadCorruption(MdecException.RLC_OOB_IN_BLOCK_NAME(
-                                               iCurrentBlockVectorPosition,
-                                               iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]),
-                                               ex);
-                            }
-
-                            if (_code.getBottom10Bits() != 0) {
-
-                                assert !DEBUG || setPrequantValue(iRevZigZagMatrixPos, _code.getBottom10Bits());
-                                // Dequantize
-                                _CurrentBlock[iRevZigZagMatrixPos] =
-                                            (_code.getBottom10Bits()
-                                          * _aiQuantizationTable[iRevZigZagMatrixPos]
-                                          * iCurrentBlockQscale) / 8.0;
-                                iCurrentBlockNonZeroCount++;
-                                iCurrentBlockLastNonZeroPosition = iRevZigZagMatrixPos;
-
-                            }
-                            ////////////////////////////////////////////////////////
-                        }
+                    while (!mdecInStream.readMdecCode(_code)) {
 
                         assert !DEBUG || debugPrintln(_code.toString());
 
-                        writeEndOfBlock(iMacBlk, iBlock,
-                                iCurrentBlockNonZeroCount,
-                                iCurrentBlockLastNonZeroPosition);
+                        ////////////////////////////////////////////////////////
+                        iCurrentBlockVectorPosition += _code.getTop6Bits() + 1;
+
+                        int iRevZigZagMatrixPos;
+                        try {
+                            // Reverse Zig-Zag
+                            iRevZigZagMatrixPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
+                        } catch (ArrayIndexOutOfBoundsException ex) {
+                            MdecContext.MacroBlockPixel macBlkXY = context.getMacroBlockPixel();
+                            throw new MdecException.ReadCorruption(MdecException.RLC_OOB_IN_BLOCK_NAME(
+                                           iCurrentBlockVectorPosition,
+                                           context.getTotalMacroBlocksRead(), macBlkXY.x, macBlkXY.y, context.getCurrentBlock().ordinal(), context.getCurrentBlock().name()),
+                                           ex);
+                        }
+
+                        if (_code.getBottom10Bits() != 0) {
+
+                            assert !DEBUG || setPrequantValue(iRevZigZagMatrixPos, _code.getBottom10Bits());
+                            // Dequantize
+                            _CurrentBlock[iRevZigZagMatrixPos] =
+                                        (_code.getBottom10Bits()
+                                      * _aiQuantizationTable[iRevZigZagMatrixPos]
+                                      * iCurrentBlockQscale) / 8.0;
+                            iCurrentBlockNonZeroCount++;
+                            iCurrentBlockLastNonZeroPosition = iRevZigZagMatrixPos;
+
+                        }
+                        ////////////////////////////////////////////////////////
+                        context.nextCode();
                     }
 
-                    iMacBlk++;
+                    assert !DEBUG || debugPrintln(_code.toString());
+
+                    writeEndOfBlock(context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(),
+                            iCurrentBlockNonZeroCount,
+                            iCurrentBlockLastNonZeroPosition);
+
+                    context.nextCodeEndBlock();
                 }
             }
         } finally {
             // in case an exception occured
             // fill in any remaining data with zeros
-            int iTotalMacBlks = _iMacBlockWidth * _iMacBlockHeight;
             // pickup where decoding left off
-            for (; iMacBlk < iTotalMacBlks; iMacBlk++) {
-                for (; iBlock < 6; iBlock++) {
-                    writeEndOfBlock(iMacBlk, iBlock, 0, 0);
-                }
-                iBlock = 0;
+            while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {
+                writeEndOfBlock(context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(), 0, 0);
+                context.nextCodeEndBlock();
             }
+
+            mdecInStream.logIfAny0AcCoefficient();
         }
     }
 
-    private boolean debugPrintBlock(String sMsg) {
+    private boolean debugPrintBlock(@Nonnull String sMsg) {
         System.out.println(sMsg);
         for (int i = 0; i < 8; i++) {
             System.out.print("[ ");
@@ -192,17 +219,17 @@ public class MdecDecoder_double extends MdecDecoder {
         int iOutOffset, iOutWidth;
         switch (iBlock) {
             case 0:
-                outputBuffer = _CrBuffer;
+                outputBuffer = _adblDecodedCrBuffer;
                 iOutOffset = _aiChromaMacBlkOfsLookup[iMacroBlock];
                 iOutWidth = CW;
                 break;
             case 1:
-                outputBuffer = _CbBuffer;
+                outputBuffer = _dblDecodedCbBuffer;
                 iOutOffset = _aiChromaMacBlkOfsLookup[iMacroBlock];
                 iOutWidth = CW;
                 break;
             default:
-                outputBuffer = _LumaBuffer;
+                outputBuffer = _adblDecodedLumaBuffer;
                 iOutOffset = _aiLumaBlkOfsLookup[iMacroBlock*4 + iBlock-2];
                 iOutWidth = W;
         }
@@ -225,63 +252,53 @@ public class MdecDecoder_double extends MdecDecoder {
     }
 
     final static boolean YUV_TESTS = false;
-    
-    public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,
+
+    public void readDecodedRgb(int iDestWidth, int iDestHeight, @Nonnull int[] aiDest,
                                int iOutStart, int iOutStride)
     {
-        if ((iDestWidth % 2) != 0)
-            throw new IllegalArgumentException("Image width must be multiple of 2.");
-        if ((iDestHeight % 2) != 0)
-            throw new IllegalArgumentException("Image height must be multiple of 2.");
+        switch (_upsampler) {
+            case NearestNeighbor:
+                nearestNeighborUpsample(_adblDecodedCrBuffer, _adblTempUpsampledCr);
+                nearestNeighborUpsample(_dblDecodedCbBuffer, _adblTempUpsampledCb);
+                break;
+            case Bilinear:
+                bilinearUpsample(_adblDecodedCrBuffer, _adblTempUpsampledCr);
+                bilinearUpsample(_dblDecodedCbBuffer, _adblTempUpsampledCb);
+                break;
+            default:
+                _resampler.setFilter(_upsampler._filter);
+                _resampler.doFilter(_adblDecodedCrBuffer, CW, CH, _adblTempUpsampledCr);
+                _resampler.doFilter(_dblDecodedCbBuffer, CW, CH, _adblTempUpsampledCb);
+        }
 
-        final Rec601YCbCr rec601ycc = new Rec601YCbCr(); // for YUV_TESTS
-        final PsxYCbCr psxycc = new PsxYCbCr();
-        final RGB rgb1 = new RGB(), rgb2 = new RGB(), rgb3 = new RGB(), rgb4 = new RGB();
+        RGB rgb = new RGB();
+        double y, cb, cr;
 
-        final int W_x2 = W*2, iOutStride_x2 = iOutStride*2;
-        
-        int iLumaLineOfsStart = 0, iChromaLineOfsStart = 0,
-            iDestLineOfsStart = iOutStart;
-        for (int iY=0; iY < iDestHeight;
-             iY+=2,
-             iLumaLineOfsStart+=W_x2, iChromaLineOfsStart+=CW,
-             iDestLineOfsStart+=iOutStride_x2)
+        for (int iY = 0, iSrcLineOfsStart=0, iDestLineOfsStart=iOutStart;
+             iY < iDestHeight;
+             iY++, iSrcLineOfsStart+=W, iDestLineOfsStart+=iOutStride)
         {
-            // writes 2 lines at a time
-            int iSrcLumaOfs1 = iLumaLineOfsStart,
-                iSrcLumaOfs2 = iLumaLineOfsStart + W,
-                iSrcChromaOfs = iChromaLineOfsStart,
-                iDestOfs1 = iDestLineOfsStart,
-                iDestOfs2 = iDestLineOfsStart + iOutStride;
-            for (int iX=0;
+            for (int iX=0, iSrcOfs=iSrcLineOfsStart, iDestOfs=iDestLineOfsStart;
                  iX < iDestWidth;
-                 iX+=2, iSrcChromaOfs++)
+                 iX++, iSrcOfs++, iDestOfs++)
             {
-                psxycc.cr = _CrBuffer[iSrcChromaOfs];
-                psxycc.cb = _CbBuffer[iSrcChromaOfs];
-
-                psxycc.y1 = _LumaBuffer[iSrcLumaOfs1++];
-                psxycc.y2 = _LumaBuffer[iSrcLumaOfs1++];
-                psxycc.y3 = _LumaBuffer[iSrcLumaOfs2++];
-                psxycc.y4 = _LumaBuffer[iSrcLumaOfs2++];
+                y = _adblDecodedLumaBuffer[iSrcOfs];
+                cb = _adblTempUpsampledCb[iSrcOfs];
+                cr = _adblTempUpsampledCr[iSrcOfs];
 
                 if (YUV_TESTS) {
                     System.err.println("###>>!! YUV_TEST CONVERTING TO Rec601 THEN TO RGB !!<<###");
-                    psxycc.toRec_601_YCbCr(rec601ycc);
-                    rec601ycc.toRgb(rgb1, rgb2, rgb3, rgb4);
+                    Rec601YCbCr.toRgb(y, cb, cr, rgb);
                 } else {
-                    psxycc.toRgb(rgb1, rgb2, rgb3, rgb4);
+                    PsxYCbCr.toRgb(y, cb, cr, rgb);
                 }
 
-                aiDest[iDestOfs1++] = rgb1.toInt();
-                aiDest[iDestOfs1++] = rgb2.toInt();
-                aiDest[iDestOfs2++] = rgb3.toInt();
-                aiDest[iDestOfs2++] = rgb4.toInt();
+                aiDest[iDestOfs] = rgb.toInt();
             }
         }
     }
 
-    public void readDecoded_Rec601_YCbCr420(YCbCrImage ycc) {
+    public void readDecoded_Rec601_YCbCr420(@Nonnull YCbCrImage ycc) {
 
         final int WIDTH = ycc.getWidth(), HEIGHT = ycc.getHeight();
 
@@ -301,13 +318,13 @@ public class MdecDecoder_double extends MdecDecoder {
             int iSrcChromaOfs = iChromaLineOfsStart;
             for (int iX=0, iCX=0; iX < WIDTH; iX+=2, iCX++, iSrcChromaOfs++) {
 
-                psxycc.cr = _CrBuffer[iSrcChromaOfs];
-                psxycc.cb = _CbBuffer[iSrcChromaOfs];
+                psxycc.cr = _adblDecodedCrBuffer[iSrcChromaOfs];
+                psxycc.cb = _dblDecodedCbBuffer[iSrcChromaOfs];
 
-                psxycc.y1 = _LumaBuffer[iSrcLumaOfs1++];
-                psxycc.y3 = _LumaBuffer[iSrcLumaOfs2++];
-                psxycc.y2 = _LumaBuffer[iSrcLumaOfs1++];
-                psxycc.y4 = _LumaBuffer[iSrcLumaOfs2++];
+                psxycc.y1 = _adblDecodedLumaBuffer[iSrcLumaOfs1++];
+                psxycc.y3 = _adblDecodedLumaBuffer[iSrcLumaOfs2++];
+                psxycc.y2 = _adblDecodedLumaBuffer[iSrcLumaOfs1++];
+                psxycc.y4 = _adblDecodedLumaBuffer[iSrcLumaOfs2++];
 
                 psxycc.toRec_601_YCbCr(recycc);
 
@@ -326,7 +343,7 @@ public class MdecDecoder_double extends MdecDecoder {
     /**
      * @see PsxYCbCr#toRec_JFIF_YCbCr(jpsxdec.formats.Rec601YCbCr)
      */
-    public void readDecoded_JFIF_YCbCr420(YCbCrImage ycc) {
+    public void readDecoded_JFIF_YCbCr420(@Nonnull YCbCrImage ycc) {
 
         final int WIDTH = ycc.getWidth(), HEIGHT = ycc.getHeight();
 
@@ -346,13 +363,13 @@ public class MdecDecoder_double extends MdecDecoder {
             int iSrcChromaOfs = iChromaLineOfsStart;
             for (int iX=0, iCX=0; iX < WIDTH; iX+=2, iCX++, iSrcChromaOfs++) {
 
-                psxycc.cr = _CrBuffer[iSrcChromaOfs];
-                psxycc.cb = _CbBuffer[iSrcChromaOfs];
+                psxycc.cr = _adblDecodedCrBuffer[iSrcChromaOfs];
+                psxycc.cb = _dblDecodedCbBuffer[iSrcChromaOfs];
 
-                psxycc.y1 = _LumaBuffer[iSrcLumaOfs1++];
-                psxycc.y3 = _LumaBuffer[iSrcLumaOfs2++];
-                psxycc.y2 = _LumaBuffer[iSrcLumaOfs1++];
-                psxycc.y4 = _LumaBuffer[iSrcLumaOfs2++];
+                psxycc.y1 = _adblDecodedLumaBuffer[iSrcLumaOfs1++];
+                psxycc.y3 = _adblDecodedLumaBuffer[iSrcLumaOfs2++];
+                psxycc.y2 = _adblDecodedLumaBuffer[iSrcLumaOfs1++];
+                psxycc.y4 = _adblDecodedLumaBuffer[iSrcLumaOfs2++];
 
                 psxycc.toRec_JFIF_YCbCr(recycc);
 
@@ -376,6 +393,93 @@ public class MdecDecoder_double extends MdecDecoder {
         else
             return (byte)(lng);
     }
+
+
+    
+    private void nearestNeighborUpsample(@Nonnull double[] in, @Nonnull double[] out) {
+        int outOfs = 0;
+        int inOfs = 0;
+        for (int inY=0; inY < CH; inY++) {
+            // copy a line, scaling horizontally
+            for (int inX=0; inX < CW; inX++) {
+                out[outOfs++] = in[inOfs];
+                out[outOfs++] = in[inOfs];
+                inOfs++;
+            }
+            // duplicate that horizontally scaled line, thus scaling it vertically
+            System.arraycopy(out, outOfs-W, out, outOfs, W);
+            outOfs += W;
+        }
+    }
+
+    private void bilinearUpsample(@Nonnull double[] in, @Nonnull double[] out) {
+        // corners
+        out[0   +  0   *W] = in[0    +  0    *CW];
+        out[W-1 +  0   *W] = in[CW-1 +  0    *CW];
+        out[0   + (H-1)*W] = in[0    + (CH-1)*CW];
+        out[W-1 + (H-1)*W] = in[CW-1 + (CH-1)*CW];
+
+        // vertical edges
+        for (int i = 0; i < 2; i++) {
+            int inX, outX;
+            if (i == 0) {
+                outX = 0;
+                inX = 0;
+            } else {
+                outX = W - 1;
+                inX = CW - 1;
+            }
+            for (int inY = 0; inY < CH-1; inY++) {
+                double c1 = in[inX +  inY   *CW],
+                       c2 = in[inX + (inY+1)*CW];
+                int outY = 1 + inY*2;
+                out[outX +  outY   *W] = c1 * 0.75 + c2 * 0.25;
+                out[outX + (outY+1)*W] = c1 * 0.25 + c2 * 0.75;
+            }
+        }
+
+        // horizontal edges
+        for (int i = 0; i < 2; i++) {
+            int inY, outY;
+            if (i == 0) {
+                outY = 0;
+                inY = 0;
+            } else {
+                outY = H - 1;
+                inY = CH - 1;
+            }
+            for (int inX = 0; inX < CW-1; inX++) {
+                double c1 = in[inX   + inY*CW],
+                       c2 = in[inX+1 + inY*CW];
+                int outX = 1+ inX*2;
+                out[outX   + outY*W] = c1 * 0.75 + c2 * 0.25;
+                out[outX+1 + outY*W] = c1 * 0.25 + c2 * 0.75;
+            }
+        }
+
+        // the meat in the middle
+        for (int inY=0; inY < CH-1; inY++) {
+            int inOfs = inY*CW;
+            int outOfs = ((inY*2)+1)*W + 1;
+            double c1, c2 = in[inOfs],
+                   c3, c4 = in[inOfs+CW];
+            inOfs++;
+            for (int inX=0; inX < CW-1; inX++, inOfs++) {
+                c1 = c2; c2 = in[inOfs];
+                c3 = c4; c4 = in[inOfs+CW];
+                double c1_c4_mul_3_16 = (c1 + c4) * (3. / 16.),
+                       c2_c3_mul_3_16 = (c2 + c3) * (3. / 16.);
+                out[outOfs  ]= c1 * (9. / 16.) + c2_c3_mul_3_16 + c4 * (1. / 16.);
+                out[outOfs+W]= c1_c4_mul_3_16 + c2 * (1. / 16.) + c3 * (9. / 16.);
+                outOfs++;
+                out[outOfs  ]= c1_c4_mul_3_16 + c2 * (9. / 16.) + c3 * (1. / 16.);
+                out[outOfs+W]= c1 * (1. / 16.) + c2_c3_mul_3_16 + c4 * (9. / 16.);
+                outOfs++;
+            }
+        }
+
+    }
+
 
 
 }

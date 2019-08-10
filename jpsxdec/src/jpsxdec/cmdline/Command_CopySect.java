@@ -70,7 +70,7 @@ class Command_CopySect extends Command {
     protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         _aiStartEndSectors = parseNumberRange(s);
         if (_aiStartEndSectors == null) {
-            return I.CMD_SECTOR_RANGE_INVALID(s);
+            return I.CMD_INVALID_VALUE_FOR_CMD(s, "-copysect");
         } else {
             return null;
         }

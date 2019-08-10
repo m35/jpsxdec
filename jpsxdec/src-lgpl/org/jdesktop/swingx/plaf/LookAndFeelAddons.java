@@ -28,9 +28,9 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.imageio.spi.ServiceRegistry;
 
 import javax.swing.JComponent;
 import javax.swing.LookAndFeel;
@@ -258,8 +258,8 @@ public abstract class LookAndFeelAddons {
         } else if (UIManager.getSystemLookAndFeelClassName().equals(laf.getClass().getName())) {
             className = getSystemAddonClassName();
         } else {
-            Iterator<LookAndFeelAddons> addonLoader = ServiceRegistry.lookupProviders(LookAndFeelAddons.class,
-                    getClassLoader());
+            Iterator<LookAndFeelAddons> addonLoader = ServiceLoader.load(LookAndFeelAddons.class,
+                    getClassLoader()).iterator();
 
             while (addonLoader.hasNext()) {
                 LookAndFeelAddons addon = addonLoader.next();
@@ -297,8 +297,8 @@ public abstract class LookAndFeelAddons {
      * @return the addon matching the native operating system platform.
      */
     public static String getSystemAddonClassName() {
-        Iterator<LookAndFeelAddons> addonLoader = ServiceRegistry.lookupProviders(LookAndFeelAddons.class,
-                getClassLoader());
+            Iterator<LookAndFeelAddons> addonLoader = ServiceLoader.load(LookAndFeelAddons.class,
+                getClassLoader()).iterator();
         String className = null;
 
         while (addonLoader.hasNext()) {

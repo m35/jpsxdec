@@ -32,10 +32,6 @@ java -jar jpsxdec.jar [ -x <archivo_de_indice> ] [ -f <archivo_de_entrada> ]
         -help/-h/-?
           Muestra la ayuda del objeto del indice.
 
-        -play
-          Muestra el reproductor para el objeto del indice
-          (solo videos y/o sonidos)
-
         (ver el manual o la ayuda del objeto para revisar la lista completa de
         comandos disponibles)
 
@@ -72,11 +68,5 @@ java -jar jpsxdec.jar -f <archivo_de_entrada> <comando_principal_y_opciones>
         -debug
           Muestra los pasos detallados de decodificación
           (necesita que Java esté iniciado con -ea).
-
-Opcion universal (opcional):
-    -verbose/-v #
-    Cuanta informacion se debe escribir:
-      0 = nada, 1 = solo errores, 2 = errores y advertencias,
-      3 = normal, 4 = extra
 
 Revisa el manual para conocer todos los comandos disponibles.

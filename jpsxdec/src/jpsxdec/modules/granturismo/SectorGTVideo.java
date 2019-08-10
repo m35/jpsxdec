@@ -90,13 +90,13 @@ public class SectorGTVideo extends IdentifiedSector
         if (_header.lngMagic != GT_MAGIC)
             return;
 
-        if (!_header.isChunkNumberStandard())
+        if (!_header.hasStandardChunkNumber())
             return;
-        if (!_header.isChunksInFrameStandard())
+        if (!_header.hasStandardChunksInFrame())
             return;
         if (_header.iFrameNumber < 1)
             return;
-        if (!_header.isUsedDemuxSizeStandard())
+        if (!_header.hasStandardUsedDemuxSize())
             return;
         _iTotalFrames = cdSector.readSInt16LE(16);
         if (_iTotalFrames < 1)

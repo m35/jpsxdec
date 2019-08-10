@@ -151,9 +151,9 @@ public class CommandLine {
                 if (iValue >= FeedbackStream.NONE && iValue <= FeedbackStream.MORE)
                     fbs.setLevel(iValue);
                 else
-                    fbs.printlnWarn(I.CMD_VERBOSE_LVL_INVALID_NUM(iValue));
+                    fbs.printlnWarn(I.CMD_INVALID_VALUE_FOR_CMD(verbose.value, "-v,-verbose"));
             } catch (NumberFormatException ex) {
-                fbs.printlnWarn(I.CMD_VERBOSE_LVL_INVALID_STR(verbose.value));
+                fbs.printlnWarn(I.CMD_INVALID_VALUE_FOR_CMD(verbose.value, "-v,-verbose"));
             }
         }
     }

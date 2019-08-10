@@ -78,7 +78,7 @@ public class SectorLainVideo extends SectorAbstractVideo {
 
         if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
 
-        if (!_header.isChunkNumberStandard()) return;
+        if (!_header.hasStandardChunkNumber()) return;
         // this detail helps to avoid matching FF7 video sectors
         if (_header.iChunksInThisFrame != 9 && _header.iChunksInThisFrame != 10) return;
         if (_header.iFrameNumber < 1) return;

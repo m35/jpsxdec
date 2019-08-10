@@ -38,6 +38,7 @@
 package jpsxdec.psxvideo.mdec;
 
 import java.util.Arrays;
+import javax.annotation.Nonnull;
 import jpsxdec.formats.RGB;
 import jpsxdec.psxvideo.PsxYCbCr_int;
 import jpsxdec.psxvideo.mdec.idct.IDCT_int;
@@ -47,129 +48,126 @@ import jpsxdec.psxvideo.mdec.idct.IDCT_int;
  * examination, you can't really tell. It's also significantly faster. */
 public class MdecDecoder_int extends MdecDecoder {
 
-    protected final IDCT_int _idct;
+    private final IDCT_int _idct;
 
-    protected final int[] _CrBuffer;
-    protected final int[] _CbBuffer;
-    protected final int[] _LumaBuffer;
+    private final int[] _aiCrBuffer;
+    private final int[] _aiCbBuffer;
+    private final int[] _aiLumaBuffer;
 
     /** Matrix of 8x8 coefficient values. */
     protected final int[] _CurrentBlock = new int[64];
 
-    public MdecDecoder_int(IDCT_int idct, int iWidth, int iHeight) {
+    public MdecDecoder_int(@Nonnull IDCT_int idct, int iWidth, int iHeight) {
         super(iWidth, iHeight);
         _idct = idct;
         
-        _CrBuffer = new int[CW*CH];
-        _CbBuffer = new int[_CrBuffer.length];
-        _LumaBuffer = new int[W*H];
+        _aiCrBuffer = new int[CW*CH];
+        _aiCbBuffer = new int[_aiCrBuffer.length];
+        _aiLumaBuffer = new int[W*H];
     }
 
-    public void decode(MdecInputStream mdecInStream)
+    public void decode(@Nonnull MdecInputStream sourceMdecInStream)
             throws MdecException.EndOfStream, MdecException.ReadCorruption
     {
+        Ac0Checker mdecInStream = Ac0Checker.wrapWithChecker(sourceMdecInStream, false);
 
         int iCurrentBlockQscale;
         int iCurrentBlockVectorPosition;
         int iCurrentBlockNonZeroCount;
         int iCurrentBlockLastNonZeroPosition;
 
-        int iMacBlk = 0, iBlock = 0;
+        MdecContext context = new MdecContext(_iMacBlockHeight);
 
         try {
 
             // decode all the macro blocks of the image
-            for (int iMacBlkX = 0; iMacBlkX < _iMacBlockWidth; iMacBlkX ++)
-            {
-                for (int iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY ++)
-                {
-                    // debug
-                    assert !DEBUG || debugPrintln(String.format("############### Decoding macro block %d (%d, %d) ###############",
-                                                  iMacBlk, iMacBlkX, iMacBlkY));
+            while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {
+                // debug
+                assert !DEBUG || debugPrintln(String.format("############### Decoding macro block %d %s ###############",
+                                              context.getTotalMacroBlocksRead(), context.getMacroBlockPixel()));
 
-                    for (iBlock = 0; iBlock < 6; iBlock++) {
+                for (int iBlock = 0; iBlock < MdecBlock.count(); iBlock++) {
 
-                        assert !DEBUG || debugPrintln(String.format("=========== Decoding block %s ===========",
-                                                      BLOCK_NAMES[iBlock]));
-                        
-                        Arrays.fill(_CurrentBlock, 0);
-                        mdecInStream.readMdecCode(_code);
+                    assert !DEBUG || debugPrintln("=========== Decoding block "+context.getCurrentBlock()+" ===========");
 
-                        assert !DEBUG || debugPrintln("Qscale & DC " + _code);
+                    Arrays.fill(_CurrentBlock, 0);
+                    mdecInStream.readMdecCode(_code);
 
-                        if (_code.getBottom10Bits() != 0) {
-                            _CurrentBlock[0] =
-                                    _code.getBottom10Bits() * _aiQuantizationTable[0];
-                            iCurrentBlockNonZeroCount = 1;
-                            iCurrentBlockLastNonZeroPosition = 0;
-                        } else {
-                            iCurrentBlockNonZeroCount = 0;
-                            iCurrentBlockLastNonZeroPosition = -1;
-                        }
-                        assert !DEBUG || setPrequantValue(0, _code.getBottom10Bits());
-                        iCurrentBlockQscale = _code.getTop6Bits();
-                        iCurrentBlockVectorPosition = 0;
+                    assert !DEBUG || debugPrintln("Qscale & DC " + _code);
 
-                        while (!mdecInStream.readMdecCode(_code)) {
+                    if (_code.getBottom10Bits() != 0) {
+                        _CurrentBlock[0] =
+                                _code.getBottom10Bits() * _aiQuantizationTable[0];
+                        iCurrentBlockNonZeroCount = 1;
+                        iCurrentBlockLastNonZeroPosition = 0;
+                    } else {
+                        iCurrentBlockNonZeroCount = 0;
+                        iCurrentBlockLastNonZeroPosition = -1;
+                    }
+                    assert !DEBUG || setPrequantValue(0, _code.getBottom10Bits());
+                    iCurrentBlockQscale = _code.getTop6Bits();
+                    iCurrentBlockVectorPosition = 0;
 
-                            assert !DEBUG || debugPrintln(_code.toString());
-
-                            ////////////////////////////////////////////////////////
-                            iCurrentBlockVectorPosition += _code.getTop6Bits() + 1;
-
-                            int iRevZigZagMatrixPos;
-                            try {
-                                // Reverse Zig-Zag
-                                iRevZigZagMatrixPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
-                            } catch (ArrayIndexOutOfBoundsException ex) {
-                                throw new MdecException.ReadCorruption(MdecException.RLC_OOB_IN_BLOCK_NAME(
-                                               iCurrentBlockVectorPosition,
-                                               iMacBlk, iMacBlkX, iMacBlkY, iBlock, BLOCK_NAMES[iBlock]),
-                                               ex);
-                            }
-                            
-                            if (_code.getBottom10Bits() != 0) {
-
-                                assert !DEBUG || setPrequantValue(iRevZigZagMatrixPos, _code.getBottom10Bits());
-                                // Dequantize
-                                _CurrentBlock[iRevZigZagMatrixPos] =
-                                            (_code.getBottom10Bits()
-                                          * _aiQuantizationTable[iRevZigZagMatrixPos]
-                                          * iCurrentBlockQscale + 4) >> 3;
-                                //  i      >> 3  ==  (int)Math.floor(i / 8.0)
-                                // (i + 4) >> 3  ==  (int)Math.round(i / 8.0)
-                                iCurrentBlockNonZeroCount++;
-                                iCurrentBlockLastNonZeroPosition = iRevZigZagMatrixPos;
-
-                            }
-                            ////////////////////////////////////////////////////////
-                        }
+                    while (!mdecInStream.readMdecCode(_code)) {
 
                         assert !DEBUG || debugPrintln(_code.toString());
 
-                        writeEndOfBlock(iMacBlk, iBlock,
-                                iCurrentBlockNonZeroCount,
-                                iCurrentBlockLastNonZeroPosition);
+                        ////////////////////////////////////////////////////////
+                        iCurrentBlockVectorPosition += _code.getTop6Bits() + 1;
+
+                        int iRevZigZagMatrixPos;
+                        try {
+                            // Reverse Zig-Zag
+                            iRevZigZagMatrixPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
+                        } catch (ArrayIndexOutOfBoundsException ex) {
+                            MdecContext.MacroBlockPixel macBlkXY = context.getMacroBlockPixel();
+                            throw new MdecException.ReadCorruption(MdecException.RLC_OOB_IN_BLOCK_NAME(
+                                           iCurrentBlockVectorPosition,
+                                           context.getTotalMacroBlocksRead(), macBlkXY.x, macBlkXY.y, context.getCurrentBlock().ordinal(), context.getCurrentBlock().name()),
+                                           ex);
+                        }
+
+                        if (_code.getBottom10Bits() != 0) {
+
+                            assert !DEBUG || setPrequantValue(iRevZigZagMatrixPos, _code.getBottom10Bits());
+                            // Dequantize
+                            _CurrentBlock[iRevZigZagMatrixPos] =
+                                        (_code.getBottom10Bits()
+                                      * _aiQuantizationTable[iRevZigZagMatrixPos]
+                                      * iCurrentBlockQscale + 4) >> 3;
+                            //  i      >> 3  ==  (int)Math.floor(i / 8.0)
+                            // (i + 4) >> 3  ==  (int)Math.round(i / 8.0)
+                            iCurrentBlockNonZeroCount++;
+                            iCurrentBlockLastNonZeroPosition = iRevZigZagMatrixPos;
+
+                        }
+                        ////////////////////////////////////////////////////////
+                        context.nextCode();
                     }
 
-                    iMacBlk++;
+                    assert !DEBUG || debugPrintln(_code.toString());
+
+                    writeEndOfBlock(context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(),
+                            iCurrentBlockNonZeroCount,
+                            iCurrentBlockLastNonZeroPosition);
+
+                    context.nextCodeEndBlock();
                 }
             }
         } finally {
             // in case an exception occured
             // fill in any remaining data with zeros
-            int iTotalMacBlks = _iMacBlockWidth * _iMacBlockHeight;
             // pickup where decoding left off
-            for (; iMacBlk < iTotalMacBlks; iMacBlk++) {
-                for (; iBlock < 6; iBlock++) {
-                    writeEndOfBlock(iMacBlk, iBlock, 0, 0);
-                }
-                iBlock = 0;
+            while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {
+                writeEndOfBlock(context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(), 0, 0);
+                context.nextCodeEndBlock();
             }
+
+            mdecInStream.logIfAny0AcCoefficient();
         }
     }
 
-    private boolean debugPrintBlock(String sMsg) {
+    private boolean debugPrintBlock(@Nonnull String sMsg) {
         System.out.println(sMsg);
         for (int i = 0; i < 8; i++) {
             System.out.print("[ ");
@@ -192,17 +190,17 @@ public class MdecDecoder_int extends MdecDecoder {
         int iOutOffset, iOutWidth;
         switch (iBlock) {
             case 0:
-                outputBuffer = _CrBuffer;
+                outputBuffer = _aiCrBuffer;
                 iOutOffset = _aiChromaMacBlkOfsLookup[iMacroBlock];
                 iOutWidth = CW;
                 break;
             case 1:
-                outputBuffer = _CbBuffer;
+                outputBuffer = _aiCbBuffer;
                 iOutOffset = _aiChromaMacBlkOfsLookup[iMacroBlock];
                 iOutWidth = CW;
                 break;
             default:
-                outputBuffer = _LumaBuffer;
+                outputBuffer = _aiLumaBuffer;
                 iOutOffset = _aiLumaBlkOfsLookup[iMacroBlock*4 + iBlock-2];
                 iOutWidth = W;
         }
@@ -224,23 +222,21 @@ public class MdecDecoder_int extends MdecDecoder {
 
     }
 
-    public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,
+    public void readDecodedRgb(int iDestWidth, int iDestHeight, @Nonnull int[] aiDest,
                                int iOutStart, int iOutStride)
     {
-        if ((iDestWidth % 2) != 0)
-            throw new IllegalArgumentException("Image width must be multiple of 2.");
-        if ((iDestHeight % 2) != 0)
-            throw new IllegalArgumentException("Image height must be multiple of 2.");
-
         final PsxYCbCr_int psxycc = new PsxYCbCr_int();
         final RGB rgb1 = new RGB(), rgb2 = new RGB(), rgb3 = new RGB(), rgb4 = new RGB();
 
         final int W_x2 = W*2, iOutStride_x2 = iOutStride*2;
         
+        final int iDestWidthSub1 = iDestWidth - 1;
+        final int iDestHeightSub1 = iDestHeight - 1;
+
         int iLumaLineOfsStart = 0, iChromaLineOfsStart = 0,
             iDestLineOfsStart = iOutStart;
-        for (int iY=0; iY < iDestHeight;
-             iY+=2,
+        int iY=0;
+        for (; iY < iDestHeightSub1; iY+=2,
              iLumaLineOfsStart+=W_x2, iChromaLineOfsStart+=CW,
              iDestLineOfsStart+=iOutStride_x2)
         {
@@ -250,17 +246,18 @@ public class MdecDecoder_int extends MdecDecoder {
                 iSrcChromaOfs = iChromaLineOfsStart,
                 iDestOfs1 = iDestLineOfsStart,
                 iDestOfs2 = iDestLineOfsStart + iOutStride;
-            for (int iX=0;
-                 iX < iDestWidth;
-                 iX+=2, iSrcChromaOfs++)
-            {
-                psxycc.cr = _CrBuffer[iSrcChromaOfs];
-                psxycc.cb = _CbBuffer[iSrcChromaOfs];
 
-                psxycc.y1 = _LumaBuffer[iSrcLumaOfs1++];
-                psxycc.y2 = _LumaBuffer[iSrcLumaOfs1++];
-                psxycc.y3 = _LumaBuffer[iSrcLumaOfs2++];
-                psxycc.y4 = _LumaBuffer[iSrcLumaOfs2++];
+            int iX=0;
+            for (; iX < iDestWidthSub1; iX+=2,
+                 iSrcChromaOfs++)
+            {
+                psxycc.cr = _aiCrBuffer[iSrcChromaOfs];
+                psxycc.cb = _aiCbBuffer[iSrcChromaOfs];
+
+                psxycc.y1 = _aiLumaBuffer[iSrcLumaOfs1++];
+                psxycc.y2 = _aiLumaBuffer[iSrcLumaOfs1++];
+                psxycc.y3 = _aiLumaBuffer[iSrcLumaOfs2++];
+                psxycc.y4 = _aiLumaBuffer[iSrcLumaOfs2++];
 
                 psxycc.toRgb(rgb1, rgb2, rgb3, rgb4);
 
@@ -268,6 +265,63 @@ public class MdecDecoder_int extends MdecDecoder {
                 aiDest[iDestOfs1++] = rgb2.toInt();
                 aiDest[iDestOfs2++] = rgb3.toInt();
                 aiDest[iDestOfs2++] = rgb4.toInt();
+            }
+
+            if (iX < iDestWidth) {
+                // if the width is odd, add 2 pixels
+                psxycc.cr = _aiCrBuffer[iSrcChromaOfs];
+                psxycc.cb = _aiCbBuffer[iSrcChromaOfs];
+
+                psxycc.y1 = _aiLumaBuffer[iSrcLumaOfs1];
+                psxycc.y2 = _aiLumaBuffer[iSrcLumaOfs1];
+                psxycc.y3 = _aiLumaBuffer[iSrcLumaOfs2];
+                psxycc.y4 = _aiLumaBuffer[iSrcLumaOfs2];
+
+                psxycc.toRgb(rgb1, rgb2, rgb3, rgb4); // rgb2,4 ignored
+
+                aiDest[iDestOfs1] = rgb1.toInt();
+                aiDest[iDestOfs2] = rgb3.toInt();
+            }
+        }
+
+        if (iY < iDestHeight) {
+            // if the height is odd, write 1 line
+            int iSrcLumaOfs1 = iLumaLineOfsStart,
+                iSrcLumaOfs2 = iLumaLineOfsStart + W,
+                iSrcChromaOfs = iChromaLineOfsStart,
+                iDestOfs1 = iDestLineOfsStart;
+
+            int iX=0;
+            for (; iX < iDestWidthSub1; iX+=2,
+                 iSrcChromaOfs++)
+            {
+                psxycc.cr = _aiCrBuffer[iSrcChromaOfs];
+                psxycc.cb = _aiCbBuffer[iSrcChromaOfs];
+
+                psxycc.y1 = _aiLumaBuffer[iSrcLumaOfs1++];
+                psxycc.y2 = _aiLumaBuffer[iSrcLumaOfs1++];
+                psxycc.y3 = _aiLumaBuffer[iSrcLumaOfs2++];
+                psxycc.y4 = _aiLumaBuffer[iSrcLumaOfs2++];
+
+                psxycc.toRgb(rgb1, rgb2, rgb3, rgb4); // rgb3,4 ignored
+
+                aiDest[iDestOfs1++] = rgb1.toInt();
+                aiDest[iDestOfs1++] = rgb2.toInt();
+            }
+
+            if (iX < iDestWidth) {
+                // if the width is odd, add 1 pixel
+                psxycc.cr = _aiCrBuffer[iSrcChromaOfs];
+                psxycc.cb = _aiCbBuffer[iSrcChromaOfs];
+
+                psxycc.y1 = _aiLumaBuffer[iSrcLumaOfs1];
+                psxycc.y2 = _aiLumaBuffer[iSrcLumaOfs1];
+                psxycc.y3 = _aiLumaBuffer[iSrcLumaOfs2];
+                psxycc.y4 = _aiLumaBuffer[iSrcLumaOfs2];
+
+                psxycc.toRgb(rgb1, rgb2, rgb3, rgb4); // rgb2,3,4 ignored
+
+                aiDest[iDestOfs1] = rgb1.toInt();
             }
         }
     }

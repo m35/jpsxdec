@@ -166,6 +166,7 @@ public class CdSectorHeader {
         return ((i >> 4) & 0xf)*10 + (i & 0xf);
     }
 
+    @Override
     public String toString() {
         if (_eType == Type.CD_AUDIO)
             return "CD audio sector";

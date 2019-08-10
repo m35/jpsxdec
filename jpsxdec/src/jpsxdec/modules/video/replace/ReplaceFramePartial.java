@@ -63,7 +63,7 @@ import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
-import jpsxdec.psxvideo.mdec.Ac0Cleaner;
+import jpsxdec.psxvideo.mdec.Ac0Checker;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecException;
@@ -177,7 +177,8 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
         final int WIDTH = frame.getWidth();
         final int HEIGHT = frame.getHeight();
         if (newImg.getWidth() < WIDTH || newImg.getHeight() < HEIGHT)
-            throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_FRAME_DIMENSIONS_TOO_SMALL());
+            throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_FRAME_DIMENSIONS_TOO_SMALL(
+                    newImg.getWidth(), newImg.getHeight(), frame.getWidth(), frame.getHeight()));
 
         // 1. Parse original image
         byte[] abExistingFrame = frame.copyDemuxData();
@@ -191,7 +192,7 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
         MdecDecoder_double decoder = new MdecDecoder_double(new StephensIDCT(),
                                                             WIDTH, HEIGHT);
         try {
-            ParsedMdecImage parsedOrig = new ParsedMdecImage(new Ac0Cleaner(bsu), WIDTH, HEIGHT);
+            ParsedMdecImage parsedOrig = new ParsedMdecImage(Ac0Checker.wrapWithChecker(bsu, true), WIDTH, HEIGHT);
 
             // 2. convert both to RGB
             // TODO: use best quality to decode, but same as encode
@@ -206,7 +207,7 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
             //    the bounding box and mask
             ArrayList<Point> diffMacblks = findDiffMacroblocks(origImg, newImg, log);
             if (diffMacblks.isEmpty()) {
-                log.log(Level.INFO, I.CMD_NO_DIFFERENCE_SKIPPING());
+                log.log(Level.INFO, I.CMD_NO_DIFFERENCE_SKIPPING(getFrameLookup().toString()));
                 return;
             } else if (diffMacblks.size() == Calc.macroblocks(WIDTH, HEIGHT)) {
                 log.log(Level.WARNING, I.CMD_ENTIRE_FRAME_DIFFERENT());

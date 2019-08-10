@@ -34,15 +34,22 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package jpsxdec.i18n;
 
 import java.io.PrintStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.i18n.log.ILocalizedLogger;
 
 /**
  * Filters outputting text based on verbosity level.
  */
 public class FeedbackStream {
+
+    private static final Logger LOG = Logger.getLogger(FeedbackStream.class.getName());
 
     public static final int MORE = 4;
     public static final int NORM = 3;
@@ -135,5 +142,33 @@ public class FeedbackStream {
 
     public @Nonnull PrintStream getUnderlyingStream() {
         return _ps;
+    }
+
+    public @Nonnull ILocalizedLogger makeLogger() {
+        return new FbsLogger();
+    }
+
+    private class FbsLogger implements ILocalizedLogger {
+
+        public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg) {
+            log(level, msg, null);
+        }
+
+        public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg, 
+                        @CheckForNull Throwable debugException)
+        {
+            LOG.log(level, msg.getEnglishMessage(), debugException);
+            if (level.intValue() < Level.INFO.intValue() ||
+                level.intValue() == Level.ALL.intValue() ||
+                level.intValue() == Level.CONFIG.intValue())
+                printlnMore(msg);
+            else if (level.intValue() < Level.WARNING.intValue())
+                println(msg);
+            else if (level.intValue() < Level.SEVERE.intValue())
+                printlnWarn(msg);
+            else if (level.intValue() >= Level.SEVERE.intValue() &&
+                     level.intValue() != Level.OFF.intValue())
+                printlnErr(msg);
+        }
     }
 }

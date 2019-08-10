@@ -50,6 +50,7 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.DemuxedData;
 import jpsxdec.util.Fraction;
 
@@ -79,6 +80,10 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         _iPresentationSector = iPresentationSector;
     }
     
+    public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
+        return null;
+    }
+
     public @Nonnull byte[] copyDemuxData() {
         return _demux.copyDemuxData();
     }
@@ -141,6 +146,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
      * @throws IllegalArgumentException
      *                  if {@code abNewDemux.length > } {@link #getDemuxSize()}
      */
+    @Override
     public void writeToSectors(@Nonnull byte[] abNewDemux,
                                int iUsedSize_ignore, int iMdecCodeCount_ignore,
                                @Nonnull CdFileSectorReader cd,

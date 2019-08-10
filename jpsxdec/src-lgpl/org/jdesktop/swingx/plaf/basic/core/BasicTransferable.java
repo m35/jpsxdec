@@ -144,7 +144,7 @@ public class BasicTransferable implements Transferable, UIResource {
             } else if (Reader.class.equals(flavor.getRepresentationClass())) {
                 return new StringReader(data);
             } else if (InputStream.class.equals(flavor.getRepresentationClass())) {
-                return new StringBufferInputStream(data);
+                return new ByteArrayInputStream(data.getBytes("US-ASCII"));
             }
             // fall through to unsupported
         } else if (isPlainFlavor(flavor)) {
@@ -155,7 +155,7 @@ public class BasicTransferable implements Transferable, UIResource {
             } else if (Reader.class.equals(flavor.getRepresentationClass())) {
                 return new StringReader(data);
             } else if (InputStream.class.equals(flavor.getRepresentationClass())) {
-                return new StringBufferInputStream(data);
+                return new ByteArrayInputStream(data.getBytes("US-ASCII"));
             }
             // fall through to unsupported
 

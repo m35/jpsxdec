@@ -44,8 +44,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import jpsxdec.Version;
 import jpsxdec.i18n.I;
-import jpsxdec.psxvideo.mdec.Ac0Cleaner;
+import jpsxdec.psxvideo.mdec.Ac0Checker;
 import jpsxdec.psxvideo.mdec.Calc;
+import jpsxdec.psxvideo.mdec.MdecBlock;
+import jpsxdec.psxvideo.mdec.MdecCode;
+import jpsxdec.psxvideo.mdec.MdecContext;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.IO;
@@ -123,9 +126,8 @@ public class Mdec2Jpeg {
     /** PSX standard quantization table in zig-zag order. */
     private static final int[] PSX_QUANTIZATION_TABLE_ZIGZAG = new int[64];
     static {
-        int[] aiNormalOrder = MdecInputStream.getDefaultPsxQuantMatrixCopy();
         for (int i = 0; i < PSX_QUANTIZATION_TABLE_ZIGZAG.length; i++) {
-            int iQVal = aiNormalOrder[MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[i]];
+            int iQVal = MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX[MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[i]];
             PSX_QUANTIZATION_TABLE_ZIGZAG[i] = iQVal;
             if (i == 0)
                 JPEG_QUANTIZATION_TABLE_ZIGZAG[i] = iQVal;
@@ -159,9 +161,6 @@ public class Mdec2Jpeg {
     /** End of image */
     private static final int EOI  = 0xD9;
 
-    private static final int PSX_CR_COMPONENT = 0;
-    private static final int PSX_CB_COMPONENT = 1;
-
     private static final int PRECISION = 8;
 
     private static final int NUM_COMPONENTS = 3;
@@ -177,6 +176,7 @@ public class Mdec2Jpeg {
 
     private final int _iPixelWidth, _iPixelHeight;
     private final int _iMacBlockWidth, _iMacBlockHeight;
+    private final int _iTotalMacBlocks;
 
     /** Huffman tables as they will be written to the DHT block. */
     private final HuffmanTable[] _aoDhtTables = {
@@ -198,6 +198,7 @@ public class Mdec2Jpeg {
         _iPixelHeight = iPixelHeight;
         _iMacBlockWidth  = Calc.macroblockDim(iPixelWidth);
         _iMacBlockHeight = Calc.macroblockDim(iPixelHeight);
+        _iTotalMacBlocks = _iMacBlockWidth * _iMacBlockHeight;
 
         _aoComponents[JPEG_Y_COMPONENT]  = new Component(1, 0, 2, 2, 0, 0, _iMacBlockWidth, _iMacBlockHeight);
         _aoComponents[JPEG_CB_COMPONENT] = new Component(2, 0, 1, 1, 1, 1, _iMacBlockWidth, _iMacBlockHeight);
@@ -216,98 +217,98 @@ public class Mdec2Jpeg {
             MdecException.EndOfStream
     {
         // while jpgs with AC=0 codes seem to be fine, still would like to avoid it
-        Ac0Cleaner cleanStream = (mdecInStream instanceof Ac0Cleaner) ?
-                (Ac0Cleaner)mdecInStream : new Ac0Cleaner(mdecInStream);
+        Ac0Checker cleanStream = Ac0Checker.wrapWithChecker(mdecInStream, true);
 
-        final MdecInputStream.MdecCode code = new MdecInputStream.MdecCode();
+        final MdecCode code = new MdecCode();
 
         for (Component comp : _aoComponents) {
             Arrays.fill(comp.DctCoffZZ, 0);
             comp.WriteIndex = 0;
         }
 
-        int iMacBlk = 0, iBlock = 0;
-        int iMacBlkX=-1, iMacBlkY=-1;
+        MdecContext context = new MdecContext(_iMacBlockHeight);
 
         // decode all the macro blocks of the image
-        for (iMacBlkX = 0; iMacBlkX < _iMacBlockWidth; iMacBlkX++) {
-            for (iMacBlkY = 0; iMacBlkY < _iMacBlockHeight; iMacBlkY++) {
+        while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {
 
-                for (iBlock = 0; iBlock < 6; iBlock++) {
-                    Component comp;
-                    if (iBlock == PSX_CB_COMPONENT)
-                        comp = _aoComponents[JPEG_CB_COMPONENT];
-                    else if (iBlock == PSX_CR_COMPONENT)
-                        comp = _aoComponents[JPEG_CR_COMPONENT];
-                    else
-                        comp = _aoComponents[JPEG_Y_COMPONENT];
+            for (MdecBlock block : MdecBlock.list()) {
+                Component comp;
+                if (block == MdecBlock.Cr)
+                    comp = _aoComponents[JPEG_CR_COMPONENT];
+                else if (block == MdecBlock.Cb)
+                    comp = _aoComponents[JPEG_CB_COMPONENT];
+                else
+                    comp = _aoComponents[JPEG_Y_COMPONENT];
 
-                    cleanStream.readMdecCode(code);
+                cleanStream.readMdecCode(code);
 
-                    // normally would multiply by PSX_QUANTIZATION_TABLE_ZIGZAG[0]
-                    // but JPEG_QUANTIZATION_TABLE_ZIGZAG[0] will take care of that
-                    comp.DctCoffZZ[comp.WriteIndex] = code.getBottom10Bits();
-                    // note that so long as the MDEC codes are valid,
-                    // the DC diff can never overflow the 11 bits it must fit in
-                    //      MDEC DC 10 bit: -512 to 511
-                    //      max diff = 511 + 512 = 1023
-                    //      11 bits: +/- 2047
+                // normally would multiply by PSX_QUANTIZATION_TABLE_ZIGZAG[0]
+                // but JPEG_QUANTIZATION_TABLE_ZIGZAG[0] will take care of that
+                comp.DctCoffZZ[comp.WriteIndex] = code.getBottom10Bits();
+                // note that so long as the MDEC codes are valid,
+                // the DC diff can never overflow the 11 bits it must fit in
+                //      MDEC DC 10 bit: -512 to 511
+                //      max diff = 511 + 512 = 1023
+                //      11 bits: +/- 2047
 
-                    final int iCurrentBlockQscale = code.getTop6Bits();
-                    int iCurrentBlockVectorPosition = 0;
+                final int iCurrentBlockQscale = code.getTop6Bits();
+                int iCurrentBlockVectorPosition = 0;
 
-                    while (!cleanStream.readMdecCode(code)) {
+                while (!cleanStream.readMdecCode(code)) {
 
-                        ////////////////////////////////////////////////////////
-                        iCurrentBlockVectorPosition += code.getTop6Bits() + 1;
+                    ////////////////////////////////////////////////////////
+                    iCurrentBlockVectorPosition += code.getTop6Bits() + 1;
 
-                        if (iCurrentBlockVectorPosition >= 64) {
-                            throw new MdecException.ReadCorruption(MdecException.RLC_OOB_IN_MB_XY_BLOCK(
-                                           iCurrentBlockVectorPosition,
-                                           iMacBlk, iMacBlkX, iMacBlkY, iBlock));
-                        }
-
-                        // Dequantize
-                        int iJpegQScale = JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition];
-                        int iVal;
-                        if (iJpegQScale == 1) {
-                            iVal = (code.getBottom10Bits()
-                                    * PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                                    * iCurrentBlockQscale + 4) >> 3;
-                        } else {
-                            // normally would multiply by
-                            // PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                            // and divide by 8, but
-                            // JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                            // will take care of that
-                            iVal = code.getBottom10Bits() * iCurrentBlockQscale;
-                        }
-                        if (iVal < -1023 || iVal > 1023) {
-                            // if this happens we would need to go back and
-                            // increase values in the quantization table.
-                            // however that would deviate even more from the
-                            // origional frame quality, and be a huge pain
-                            // to implement
-                            // thankfully this doesn't seem to happen for
-                            // normal (non-corrupted) frames
-                            String msg = String.format(
-                                    "[JPG] Too much energy to encode %d in macroblock %d (%d, %d) block %d",
-                                    iVal, iMacBlk, iMacBlkX, iMacBlkY, iBlock);
-                            LOG.log(Level.WARNING, msg);
-                            throw new MdecException.TooMuchEnergy(msg);
-                        }
-                        comp.DctCoffZZ[comp.WriteIndex+iCurrentBlockVectorPosition] = iVal;
-
-                        ////////////////////////////////////////////////////////
+                    if (iCurrentBlockVectorPosition >= 64) {
+                        MdecContext.MacroBlockPixel macBlkXY = context.getMacroBlockPixel();
+                        throw new MdecException.ReadCorruption(MdecException.RLC_OOB_IN_MB_XY_BLOCK(
+                                       iCurrentBlockVectorPosition,
+                                       context.getTotalMacroBlocksRead(), macBlkXY.x, macBlkXY.y, context.getCurrentBlock().ordinal()));
                     }
 
-                    comp.WriteIndex += 64;
-                }
+                    // Dequantize
+                    int iJpegQScale = JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition];
+                    int iVal;
+                    if (iJpegQScale == 1) {
+                        iVal = (code.getBottom10Bits()
+                                * PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
+                                * iCurrentBlockQscale + 4) >> 3;
+                    } else {
+                        // normally would multiply by
+                        // PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
+                        // and divide by 8, but
+                        // JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
+                        // will take care of that
+                        iVal = code.getBottom10Bits() * iCurrentBlockQscale;
+                    }
+                    if (iVal < -1023 || iVal > 1023) {
+                        // if this happens we would need to go back and
+                        // increase values in the quantization table.
+                        // however that would deviate even more from the
+                        // origional frame quality, and be a huge pain
+                        // to implement
+                        // thankfully this doesn't seem to happen for
+                        // normal (non-corrupted) frames
+                        MdecContext.MacroBlockPixel macBlkXY = context.getMacroBlockPixel();
+                        String msg = String.format(
+                                "[JPG] Too much energy to encode %d in macroblock %d (%d, %d) block %d",
+                                iVal, context.getTotalMacroBlocksRead(), macBlkXY.x, macBlkXY.y, context.getCurrentBlock().ordinal());
+                        LOG.log(Level.WARNING, msg);
+                        throw new MdecException.TooMuchEnergy(msg);
+                    }
+                    comp.DctCoffZZ[comp.WriteIndex+iCurrentBlockVectorPosition] = iVal;
 
-                iMacBlk++;
+                    ////////////////////////////////////////////////////////
+                    context.nextCode();
+                }
+                context.nextCodeEndBlock();
+
+                comp.WriteIndex += 64;
             }
+
         }
 
+        cleanStream.logIfAny0AcCoefficient();
     }
 
     /** Writes the translated JPEG to the output. */

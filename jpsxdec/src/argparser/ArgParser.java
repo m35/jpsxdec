@@ -380,7 +380,7 @@ import java.lang.reflect.Array;
  */
 public class ArgParser
 {
-        Vector matchList;
+        Vector<Record> matchList;
 //	int tabSpacing = 8;
 	String synopsisString;
 	boolean helpOptionsEnabled = true;
@@ -979,7 +979,7 @@ public class ArgParser
 	 */
 	public ArgParser(String synopsisString, boolean defaultHelp)
 	 {
-	   matchList = new Vector(128);
+	   matchList = new Vector<Record>(128);
 	   this.synopsisString = synopsisString;
 	   if (defaultHelp)
 	    { addOption ("-help,-? %h #displays help information", null);
@@ -1794,7 +1794,7 @@ public class ArgParser
 	   return null; // can't happen
 	 }
 
-	static void stringToArgs (Vector vec, String s,
+	static void stringToArgs (Vector<String> vec, String s,
 				  boolean allowQuotedStrings)
 	   throws StringScanException
 	 {
@@ -1830,7 +1830,7 @@ public class ArgParser
 	    { args = new String[0];
 	    }
 	   LineNumberReader lineReader = new LineNumberReader (reader);
-	   Vector vec = new Vector(100, 100);
+	   Vector<String> vec = new Vector<String>(100, 100);
 	   String line;
 	   int i, k;
 
@@ -1969,7 +1969,7 @@ public class ArgParser
 	 */
 	public String[] matchAllArgs (String[] args, int idx, int exitFlags)
 	 { 
-	   Vector unmatched = new Vector(10);
+	   Vector<String> unmatched = new Vector<String>(10);
 
 	   while (idx < args.length)
 	    { try
@@ -2031,6 +2031,7 @@ public class ArgParser
 	 * @see ArgParser#getErrorMessage
 	 * @see ArgParser#getUnmatchedArgument
 	 */
+	@SuppressWarnings("unchecked")
 	public int matchArg (String[] args, int idx)
 	   throws ArgParseException
 	 {
@@ -2089,7 +2090,7 @@ public class ArgParser
 		  }
 	       }
 	      if (rec.resHolder instanceof Vector)
-	       { ((Vector)rec.resHolder).add (result); 
+	       { ((Vector)rec.resHolder).add (result);
 	       }
 	    }
 	   catch (ArgParseException e)

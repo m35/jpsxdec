@@ -38,9 +38,9 @@
 package jpsxdec.psxvideo.mdec.tojpeg;
 
 import java.io.ByteArrayOutputStream;
+import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import org.junit.*;
 import static org.junit.Assert.*;
 import testutil.Util;
@@ -58,7 +58,7 @@ public class Mdec2JpegTest {
     public static void tearDownClass() throws Exception {
     }
 
-    private static class MStream extends MdecInputStream {
+    private static class MStream implements MdecInputStream {
 
         private final MdecCode[] _codes;
         private int _i = 0;
@@ -69,7 +69,7 @@ public class Mdec2JpegTest {
 
         @Override
         public boolean readMdecCode(MdecCode code) {
-            code.set(_codes[_i++]);
+            code.setFrom(_codes[_i++]);
             return code.isEOD();
         }
     }

@@ -54,7 +54,7 @@ import javax.swing.event.ChangeListener;
 import jpsxdec.discitems.CombinedBuilderListener;
 import jpsxdec.discitems.ParagraphPanel;
 import jpsxdec.i18n.I;
-import jpsxdec.psxvideo.mdec.MdecDecoder_double_interpolate.Upsampler;
+import jpsxdec.psxvideo.mdec.ChromaUpsample;
 import jpsxdec.util.Fraction;
 
 /** Abstract {@link ParagraphPanel} shared among video
@@ -123,7 +123,7 @@ public abstract class VideoSaverPanel<T extends VideoSaverBuilder> extends Parag
             return _bl.getBuilder().getChromaInterpolation_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
-            _bl.getBuilder().setChromaInterpolation((Upsampler) anItem);
+            _bl.getBuilder().setChromaInterpolation((ChromaUpsample) anItem);
         }
         public Object getSelectedItem() {
             return _bl.getBuilder().getChromaInterpolation();

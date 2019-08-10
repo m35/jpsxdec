@@ -47,6 +47,7 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
+import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.DemuxedData;
 import jpsxdec.util.Fraction;
 
@@ -84,6 +85,10 @@ public class DemuxedAc3Frame implements IDemuxedFrame {
         if (_frameNumber == null)
             throw new IllegalStateException();
         return _frameNumber;
+    }
+
+    public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
+        return null;
     }
 
     public int getWidth() { return _iWidth; }

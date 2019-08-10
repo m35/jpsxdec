@@ -57,6 +57,7 @@ import jpsxdec.modules.video.replace.ReplaceFrames;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.encode.ParsedMdecImage;
 import jpsxdec.psxvideo.mdec.Calc;
+import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.TaskCanceledException;
@@ -133,6 +134,17 @@ public abstract class DiscItemVideoStream extends DiscItem {
     /** Returns the sector on the disc where the video should start playing. */
     abstract public int getAbsolutePresentationStartSector();
 
+    /** Returns if the raw video frame data (the bitstream) can be identified
+     * and decoded independent of any extra information.
+     * Nearly all videos do have bitstreams that can be identified and decoded
+     * all on their own (except for the frame dimensions usually).
+     * A few games however use very different bitstream formats that, on their
+     * own, would be impossible to decode. They need some additional
+     * contextual information to do so. 
+     * The video saver uses this information to determine if the bitstream
+     * format (.bs) can be used as an output format. */
+    abstract public boolean hasIndependentBitstream();
+
     /** Returns the approximate duration of the video in seconds.
      *  Intended for use with video playback progress bar. */
     abstract public double getApproxDuration();
@@ -151,12 +163,16 @@ public abstract class DiscItemVideoStream extends DiscItem {
                 ps.println("  Available demux size: " + frame.getDemuxSize());
                 frame.printSectors(ps); // ideally would be indented by 4
                 
-                byte[] abBitStream = frame.copyDemuxData();
                 try {
-                    BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream, frame.getDemuxSize());
-                    ParsedMdecImage parsed = new ParsedMdecImage(uncompressor, getWidth(), getHeight());
-                    uncompressor.skipPaddingBits();
-                    ps.println("  Bitstream info: " + uncompressor);
+                    MdecInputStream mis = frame.getCustomFrameMdecStream();
+                    if (mis == null) {
+                        byte[] abBitStream = frame.copyDemuxData();
+                        BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream, frame.getDemuxSize());
+                        uncompressor.skipPaddingBits();
+                        mis = uncompressor;
+                    }
+                    ParsedMdecImage parsed = new ParsedMdecImage(mis, getWidth(), getHeight());
+                    ps.println("  Frame data info: " + mis);
                     if (blnMore) {
                         int iMbWidth  = Calc.macroblockDim(getWidth()),
                             iMbHeight = Calc.macroblockDim(getHeight());

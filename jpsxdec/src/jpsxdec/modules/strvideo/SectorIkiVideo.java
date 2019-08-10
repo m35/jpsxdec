@@ -45,7 +45,7 @@ import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.modules.video.sectorbased.SectorAbstractVideo;
 import jpsxdec.modules.video.sectorbased.VideoSectorCommon16byteHeader;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Iki;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.util.IO;
 
 
@@ -78,10 +78,10 @@ public class SectorIkiVideo extends SectorAbstractVideo {
             return;
 
         if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
-        if (!_header.isChunkNumberStandard()) return;
-        if (!_header.isChunksInFrameStandard()) return;
-        if (!_header.isFrameNumberStandard()) return;
-        if (!_header.isUsedDemuxSizeStandard()) return;
+        if (!_header.hasStandardChunkNumber()) return;
+        if (!_header.hasStandardChunksInFrame()) return;
+        if (!_header.hasStandardFrameNumber()) return;
+        if (!_header.hasStandardUsedDemuxSize()) return;
         _iWidth = cdSector.readSInt16LE(16);
         if (_iWidth < 1) return;
         _iHeight = cdSector.readSInt16LE(18);
@@ -160,7 +160,7 @@ public class SectorIkiVideo extends SectorAbstractVideo {
 
         IO.writeInt32LE(abCurrentVidSectorHeader, 12, iDemuxSizeForHeader);
         IO.writeInt16LE(abCurrentVidSectorHeader, 20,
-                BitStreamUncompressor_STRv2.calculateHalfCeiling32(iNewMdecCodeCount));
+                Calc.calculateHalfCeiling32(iNewMdecCodeCount));
     }
 
 }

@@ -178,6 +178,7 @@ public class WholeNumberSectorsPerFrame {
      *  The original Collection is not modified. */
     private static @Nonnull TreeSet<Integer> removeFactors(@Nonnull TreeSet<Integer> sourceValues)
     {
+        @SuppressWarnings("unchecked")
         TreeSet<Integer> copy = (TreeSet<Integer>)sourceValues.clone();
 
         for (Iterator<Integer> it = copy.iterator(); it.hasNext();) {

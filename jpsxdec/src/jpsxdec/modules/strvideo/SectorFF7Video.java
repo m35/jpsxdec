@@ -77,9 +77,9 @@ public class SectorFF7Video extends SectorAbstractVideo {
             return;
 
         if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
-        if (!_header.isChunkNumberStandard()) return;
+        if (!_header.hasStandardChunkNumber()) return;
         if (_header.iChunksInThisFrame < 6 || _header.iChunksInThisFrame > 10) return;
-        if (!_header.isFrameNumberStandard()) return;
+        if (!_header.hasStandardFrameNumber()) return;
         // this block is unfortunately necessary to prevent false-positives with Lain sectors
         if (_header.iUsedDemuxedSize < 2500 || _header.iUsedDemuxedSize > 21000) return;
         _iWidth = cdSector.readSInt16LE(16);

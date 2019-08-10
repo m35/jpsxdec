@@ -87,10 +87,14 @@ public abstract class ParagraphPanel extends JPanel {
                 fireStateChanged();
             if (__label.isEnabled() != isEnabled())
                 __label.setEnabled(isEnabled());
+            boolean v = isVisibile();
+            __label.setVisible(v);
+            __chk.setVisible(v);
         }
         @Override abstract public boolean isSelected();
         @Override abstract public void setSelected(boolean b);
         @Override abstract public boolean isEnabled();
+        public boolean isVisibile() { return true; }
     }
 
 

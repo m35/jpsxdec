@@ -112,8 +112,8 @@ public class SpuAdpcmSoundUnit implements IAdpcmSoundUnit {
         this(abSource, 0);
     }
     public SpuAdpcmSoundUnit(@Nonnull byte[] abSource, int iSourceOffset) {
-        if (iSourceOffset < 0 || iSourceOffset + SIZEOF_SOUND_UNIT >= abSource.length)
-            throw new IllegalArgumentException();
+        if (iSourceOffset < 0 || iSourceOffset + SIZEOF_SOUND_UNIT > abSource.length)
+            throw new IllegalArgumentException("iSourceOffset out of bounds " + iSourceOffset);
 
         System.arraycopy(abSource, iSourceOffset, _abSoundUnit, 0, SIZEOF_SOUND_UNIT);
         checkRange();

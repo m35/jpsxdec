@@ -38,8 +38,8 @@
 package jpsxdec.psxvideo.bitstreams;
 
 import java.io.*;
+import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import jpsxdec.util.IO;
 import org.junit.*;
 import static org.junit.Assert.*;

@@ -55,8 +55,10 @@ import jpsxdec.modules.ac3.DiscIndexerAceCombat3Video;
 import jpsxdec.modules.crusader.DiscIndexerCrusader;
 import jpsxdec.modules.dredd.DiscIndexerDredd;
 import jpsxdec.modules.iso9660.DiscIndexerISO9660;
+import jpsxdec.modules.policenauts.DiscIndexerPolicenauts;
+import jpsxdec.modules.roadrash.DiscIndexerRoadRash;
 import jpsxdec.modules.spu.DiscIndexerSpu;
-import jpsxdec.modules.square.DiscIndexerSquare;
+import jpsxdec.modules.square.DiscIndexerSquareAudio;
 import jpsxdec.modules.strvideo.DiscIndexerStrVideo;
 import jpsxdec.modules.tim.DiscIndexerTim;
 import jpsxdec.modules.xa.DiscIndexerXaAudio;
@@ -71,13 +73,15 @@ public abstract class DiscIndexer {
     public static @Nonnull List<DiscIndexer> createIndexers(@Nonnull ILocalizedLogger log) {
         DiscIndexer[] coreIndexers = new DiscIndexer[] {
             new DiscIndexerISO9660(log),
-            new DiscIndexerSquare(log),
+            new DiscIndexerSquareAudio(log),
             new DiscIndexerTim(),
             new DiscIndexerStrVideo(log),
             new DiscIndexerAceCombat3Video(log),
             new DiscIndexerXaAudio(log),
+            new DiscIndexerPolicenauts(),
             new DiscIndexerCrusader(log),
             new DiscIndexerDredd(log),
+            new DiscIndexerRoadRash(),
         };
         ArrayList<DiscIndexer> indexers = new ArrayList<DiscIndexer>(Arrays.asList(coreIndexers));
 

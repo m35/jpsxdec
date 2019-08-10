@@ -47,6 +47,7 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IIdentifiedSector;
@@ -89,6 +90,11 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
     @Override
     public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
+    }
+
+    @Override
+    public boolean hasIndependentBitstream() {
+        return true;
     }
 
     @Override
@@ -191,7 +197,7 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
             _listener = listener;
         }
 
-        public void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log) {
+        public void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             FrameNumber fn = _indexSectorFrameNumberFormatter.next(frame.getStartSector(), log);
             frame.setFrame(fn);
             if (_listener != null)

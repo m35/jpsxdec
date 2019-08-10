@@ -43,9 +43,9 @@ import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nonnull;
 import jpsxdec.psxvideo.mdec.Calc;
+import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 
 /** Encodes a {@link PsxYCbCrImage} into an {@link MdecInputStream}.
  * After encoding, the MdecInputStream will most likely be then
@@ -59,6 +59,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     private final int _iMacBlockHeight;
 
     /** Used for full frame replace. */
+    @SuppressWarnings("unchecked")
     public MdecEncoder(@Nonnull PsxYCbCrImage ycbcr, int iWidth, int iHeight) {
 
         if (ycbcr.getLumaWidth() % 16 != 0 || ycbcr.getLumaHeight() % 16 != 0)
@@ -82,9 +83,10 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     }
 
     /** Used for partial replace. */
+    @SuppressWarnings("unchecked")
     public MdecEncoder(@Nonnull ParsedMdecImage original,
                        @Nonnull PsxYCbCrImage newYcbcr,
-                       @Nonnull List<Point> replaceMbs)
+                       @Nonnull List<Point> macroBlocksToReplace)
     {
 
         if (newYcbcr.getLumaWidth() % 16 != 0 || newYcbcr.getLumaHeight() % 16 != 0)
@@ -102,7 +104,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
             for (int iMbY = 0; iMbY < _iMacBlockHeight; iMbY++) {
                 p.setLocation(iMbX, iMbY);
                 Iterable<MdecCode> enc;
-                if (replaceMbs.contains(p)) {
+                if (macroBlocksToReplace.contains(p)) {
                     MacroBlockEncoder e = new MacroBlockEncoder(newYcbcr, iMbX, iMbY);
                     _replaceMbs.add(e);
                     enc = e;
@@ -144,7 +146,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
         return _iPixHeight;
     }
 
-    private class EncodedMdecInputStream extends MdecInputStream {
+    private class EncodedMdecInputStream implements MdecInputStream {
 
         private int __iCurMacBlk = 0;
         private Iterator<MdecCode> __curMb;
@@ -161,7 +163,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
                 __iCurMacBlk++;
                 __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
             }
-            code.set(__curMb.next());
+            code.setFrom(__curMb.next());
             return code.isEOD(); // hopefully no bad EOD codes are part of the list
         }
 

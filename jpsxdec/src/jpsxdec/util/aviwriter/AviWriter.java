@@ -323,13 +323,17 @@ public abstract class AviWriter implements Closeable {
             LIST_movi = new Chunk(_aviFile, "LIST", "movi");
 
         } catch (IOException ex) {
-            IO.closeSilently(_aviFile, Logger.getLogger(AviWriter.class.getName()));
+            closeSilentlyDueToError();
             throw ex;
         }
             // now we're ready to start accepting video/audio data
             
             // generate an index as we write 'movi' section
             _indexList = new ArrayList<AVIOLDINDEXENTRY>();
+    }
+
+    final protected void closeSilentlyDueToError() {
+        IO.closeSilently(_aviFile, Logger.getLogger(AviWriter.class.getName()));
     }
 
     // -------------------------------------------------------------------------

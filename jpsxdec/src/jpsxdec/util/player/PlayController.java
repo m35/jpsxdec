@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,193 +38,172 @@
 package jpsxdec.util.player;
 
 import java.awt.Canvas;
-import java.util.WeakHashMap;
+import java.io.OutputStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.LineUnavailableException;
 import jpsxdec.util.Fraction;
 
-/** Interface to controlling a player. */
+/** Primary public interface to controlling a player. */
 public class PlayController {
 
     public static final Fraction PAL_ASPECT_RATIO = new Fraction(59, 54);
     public static final Fraction NTSC_ASPECT_RATIO = new Fraction(10, 11);
     public static final Fraction SQUARE_ASPECT_RATIO = new Fraction(1, 1);
 
-    private static final boolean DEBUG = false;
-
-    @Nonnull
-    private AudioVideoReader _demuxReader;
-
     @CheckForNull
     private AudioPlayer _audPlayer;
-
-    @CheckForNull
-    private VideoProcessor _vidProcessor;
     @CheckForNull
     private VideoPlayer _vidPlayer;
 
     @Nonnull
-    private IVideoTimer _vidTimer;
+    private final VideoTimer  _videoTimer;
+
+    @CheckForNull
+    private final VideoProcessor _videoProcessorThread;
+    @Nonnull
+    private final ReaderThread _readerThread;
     
 
-    public PlayController(@Nonnull AudioVideoReader reader) {
-        AudioFormat format = reader.getAudioFormat();
-        if (format == null && !reader.hasVideo())
-            throw new IllegalArgumentException("No audio or video?");
-
-        if (format != null) {
-            _audPlayer = new AudioPlayer(format, this);
-            _vidTimer = _audPlayer;
-        }
-        if (reader.hasVideo()) {
-            if (_vidTimer == null) {
-                _vidTimer = _vidPlayer = new VideoPlayer(null, this, reader.getVideoWidth(), reader.getVideoHeight());
-            } else {
-                _vidPlayer = new VideoPlayer(_vidTimer, this, reader.getVideoWidth(), reader.getVideoHeight());
-            }
-
-            _vidProcessor = new VideoProcessor(_vidTimer, _vidPlayer);
-        }
-
-        _demuxReader = reader;
-        _demuxReader.init(_audPlayer, _vidProcessor);
-
+    public PlayController(@Nonnull AudioFormat audioFormat) {
+        _audPlayer = new AudioPlayer(audioFormat);
+        _videoTimer = _audPlayer;
+        _vidPlayer = null;
+        _videoProcessorThread = null;
+        _readerThread = new ReaderThread(_audPlayer, null, this);
     }
 
-    public void start() throws LineUnavailableException {
-        _demuxReader.startBuffering();
-        if (_audPlayer != null)
-            _audPlayer.startPaused();
-        if (_vidProcessor != null)
-            _vidProcessor.startBuffering();
-        if (_vidPlayer != null)
-            _vidPlayer.startPaused();
-        java.awt.EventQueue.invokeLater(new NotifyLater(Event.Start));
+    public PlayController(int iWidth, int iHeight) {
+        this(iWidth, iHeight, null);
     }
 
-    public void stop() {
-        synchronized (_vidTimer.getSyncObject()) {
-            // stop feeding data for starters
-            _demuxReader.stop();
+    public PlayController(int iWidth, int iHeight, @CheckForNull AudioFormat audioFormat) {
+        if (audioFormat != null) {
+            _audPlayer = new AudioPlayer(audioFormat);
+            _videoTimer = _audPlayer;
+        } else {
+            _audPlayer = null;
+            _videoTimer = new VideoClock();
+        }
+        _vidPlayer = new VideoPlayer(_videoTimer, iWidth, iHeight);
+        _videoProcessorThread = new VideoProcessor(_videoTimer, _vidPlayer);
+        _readerThread = new ReaderThread(_audPlayer, _videoProcessorThread, this);
+    }
 
-            if (_audPlayer != null) {
-                _audPlayer.stop();
-            }
+    public void setReader(@Nonnull IMediaDataReader reader) {
+        _readerThread.setReader(reader);
+    }
 
+    public void setVidProcressor(@Nonnull IFrameProcessor processor) {
+        if (_videoProcessorThread == null)
+            throw new IllegalArgumentException();
+        _videoProcessorThread.setProcessor(processor);
+    }
+
+
+    public void activate() throws PlayerException {
+        try {
+            _videoTimer.initPaused();
+            if (_videoProcessorThread != null)
+                _videoProcessorThread.start();
             if (_vidPlayer != null)
-                // must stop the player first so processor won't block
-                _vidPlayer.stop();
-            if (_vidProcessor != null)
-                _vidProcessor.stop();
+                _vidPlayer.startup();
+            _readerThread.start();
+        } catch (RuntimeException ex) {
+            terminate();
         }
+    }
+
+    public void terminate() {
+        // this will kill the audio player if it is
+        _videoTimer.terminate();
+
+        // can't kill the reader thread, we're dependent on the reader to exit
+        // or trigger a StopPlayingException
+
+        if (_vidPlayer != null)
+            _vidPlayer.terminate();
+        if (_videoProcessorThread != null)
+            _videoProcessorThread.terminate();
     }
 
     public void pause() {
-        synchronized (_vidTimer.getSyncObject()) {
-            if (_vidPlayer != null) {
-                _vidPlayer.pause();
-            }
-            if (_audPlayer != null) {
-                _audPlayer.pause();
-            } else {
-                // TODO: stop vidTimer?
-            }
-            java.awt.EventQueue.invokeLater(new NotifyLater(Event.Pause));
-        }
+        _videoTimer.pause();
     }
-
 
     public void unpause() {
-        synchronized (_vidTimer.getSyncObject()) {
-            if (_vidPlayer != null) {
-                _vidPlayer.unpause();
-            }
-            if (_audPlayer != null) {
-                _audPlayer.unpause();
-            } else {
-                // TODO: start vidTimer?
-            }
-            java.awt.EventQueue.invokeLater(new NotifyLater(Event.Unpause));
-        }
+        _videoTimer.go();
     }
 
-    public @CheckForNull Canvas getVideoScreen() {
-        if (_vidPlayer != null)
-            return _vidPlayer.getVideoCanvas();
-        else
-            return null;
+    public boolean isClosed() {
+        // (hopefully) single instruction (here) no don't need synchronized
+        return _videoTimer.isTerminated();
     }
 
-    public boolean hasVideo() {
-        return (_vidPlayer != null);
+    public boolean isPaused() {
+        // (hopefully) single instruction (here) no don't need synchronized
+        return _videoTimer.isPaused();
     }
 
     public boolean hasAudio() {
         return (_audPlayer != null);
     }
+    public boolean hasVideo() {
+        return (_vidPlayer != null);
+    }
+
+    /** Only available if playing video. */
+    public @CheckForNull Canvas getVideoScreen() {
+        if (_vidPlayer != null)
+            return _vidPlayer.getScreen();
+        else
+            return null;
+    }
+
+    /** Only available if playing audio. */
+    public @CheckForNull OutputStream getAudioOutputStream() {
+        if (_audPlayer != null)
+            return _audPlayer.getOutputStream();
+        else
+            return null;
+    }
+
+    /** Write completed frames to this writer. */
+    public @CheckForNull IPreprocessedFrameWriter getFrameWriter() {
+        return _videoProcessorThread;
+    }
 
     /** Adjust the rendered frame with this aspect ratio. */
     public void setAspectRatio(@Nonnull Fraction aspectRatio) {
         if (_vidPlayer != null)
-            _vidPlayer.setAspectRatio(aspectRatio);
+            _vidPlayer.getScreen().setAspectRatio(aspectRatio);
     }
 
     /** Squash oversized frames to fit in TV. */
     public void setSquashWidth(boolean blnSquash) {
         if (_vidPlayer != null)
-            _vidPlayer.setSquashWidth(blnSquash);
+            _vidPlayer.getScreen().setSquashWidth(blnSquash);
     }
 
-    void notifyDonePlaying() {
-        synchronized (_vidTimer.getSyncObject()) {
-            if ((_vidPlayer == null || _vidPlayer.isDone()) &&
-                (_audPlayer == null || _audPlayer.isDone()))
-            {
-                java.awt.EventQueue.invokeLater(new NotifyLater(Event.Stop));
-            }
-        }
-    }
 
     // -------------------------------------------------------------------------
     // Listeners
 
-    @CheckForNull
-    private WeakHashMap<PlayerListener, Boolean> _listeners;
-
-    public void addLineListener(@Nonnull PlayerListener listener) {
-        if (_listeners == null)
-            _listeners = new WeakHashMap<PlayerListener, Boolean>();
-        _listeners.put(listener, Boolean.TRUE);
+    public void addEventListener(@Nonnull PlayerListener listener) {
+        _videoTimer.addEventListener(listener);
     }
-    public void removeLineListener(@Nonnull PlayerListener listener) {
-        if (_listeners != null)
-            _listeners.remove(listener);
+    public void removeEventListener(@Nonnull PlayerListener listener) {
+        _videoTimer.removeEventListener(listener);
     }
 
     public static enum Event {
-        Start,
-        Stop,
+        Play,
+        End,
         Pause,
-        Unpause
-    }
-    public static interface PlayerListener {
-        void update(@Nonnull Event eEvent);
     }
 
-    private class NotifyLater implements Runnable {
-        private final Event _eEvent;
-        public NotifyLater(@Nonnull Event eEvent) {
-            _eEvent = eEvent;
-        }
-        public void run() {
-            if (_listeners == null)
-                return;
-            for (PlayerListener listener : _listeners.keySet()) {
-                listener.update(_eEvent);
-            }
-        }
+    public static interface PlayerListener {
+        void event(@Nonnull Event eEvent);
     }
 
 }

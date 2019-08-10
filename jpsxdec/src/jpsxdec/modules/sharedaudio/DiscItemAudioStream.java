@@ -119,7 +119,7 @@ public abstract class DiscItemAudioStream extends DiscItem {
     }
 
     public @Nonnull PlayController makePlayController() {
-        return new PlayController(new MediaPlayer(this));
+        return new MediaPlayer(this).getPlayController();
     }
 
     @Override

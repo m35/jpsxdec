@@ -148,6 +148,7 @@ class CLUT {
         return bi;
     }
 
+    @Override
     public String toString() {
         return String.format(
                 "%dx%d xy(%d, %d) Len:%d",

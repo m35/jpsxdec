@@ -533,7 +533,7 @@ public class JXTable extends JTable implements TableColumnModelExtListener {
      * @param rowData Row data, as a Vector of Objects.
      * @param columnNames Column names, as a Vector of Strings.
      */
-    public JXTable(Vector<?> rowData, Vector<?> columnNames) {
+    public JXTable(Vector<? extends Vector> rowData, Vector<?> columnNames) {
         super(rowData, columnNames);
         init();
     }

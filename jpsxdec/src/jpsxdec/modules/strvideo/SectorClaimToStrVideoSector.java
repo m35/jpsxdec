@@ -40,6 +40,7 @@ package jpsxdec.modules.strvideo;
 import java.io.IOException;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
@@ -51,8 +52,10 @@ public class SectorClaimToStrVideoSector extends SectorClaimSystem.SectorClaimer
 
     public interface Listener {
         void feedSector(@Nonnull ISelfDemuxingVideoSector vidSector,
-                        @Nonnull ILocalizedLogger log);
-        void endOfSectors(@Nonnull ILocalizedLogger log);
+                        @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
+        void endOfSectors(@Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
     }
 
     @CheckForNull
@@ -70,7 +73,7 @@ public class SectorClaimToStrVideoSector extends SectorClaimSystem.SectorClaimer
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException
+            throws IOException, SectorClaimSystem.ClaimerFailure
     {
         if (cs.isClaimed())
             return;
@@ -79,12 +82,23 @@ public class SectorClaimToStrVideoSector extends SectorClaimSystem.SectorClaimer
         if (vidSector != null && _listener != null && 
             sectorIsInRange(cs.getSector().getSectorIndexFromStart()))
         {
-            _listener.feedSector(vidSector, log);
+            try {
+                _listener.feedSector(vidSector, log);
+            } catch (LoggedFailure ex) {
+                throw new SectorClaimSystem.ClaimerFailure(ex);
+            }
         }
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) {
-        if (_listener != null)
-            _listener.endOfSectors(log);
+    public void endOfSectors(@Nonnull ILocalizedLogger log) 
+            throws SectorClaimSystem.ClaimerFailure
+    {
+        if (_listener != null) {
+            try {
+                _listener.endOfSectors(log);
+            } catch (LoggedFailure ex) {
+                throw new SectorClaimSystem.ClaimerFailure(ex);
+            }
+        }
     }
 }

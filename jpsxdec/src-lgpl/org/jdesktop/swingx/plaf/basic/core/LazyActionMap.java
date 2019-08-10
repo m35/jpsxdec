@@ -136,6 +136,7 @@ public class LazyActionMap extends ActionMapUIResource {
         super.setParent(map);
     }
 
+    @SuppressWarnings("unchecked")
     private void loadIfNecessary() {
         if (_loader != null) {
             Object loader = _loader;

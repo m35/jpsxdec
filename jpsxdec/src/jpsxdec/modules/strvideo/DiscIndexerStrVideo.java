@@ -73,6 +73,8 @@ public class DiscIndexerStrVideo extends DiscIndexer implements DemuxedFrameWith
         @Nonnull
         private final SectorBasedVideoInfoBuilder _vidInfoBuilder;
         private int _iLastFrameNumber;
+        private final boolean _blnHasSpecialBs;
+
 
         public VidBuilder(@Nonnull DemuxedFrameWithNumberAndDims firstFrame) {
             _iLastFrameNumber = firstFrame.getHeaderFrameNumber();
@@ -81,6 +83,7 @@ public class DiscIndexerStrVideo extends DiscIndexer implements DemuxedFrameWith
                     firstFrame.getStartSector(), firstFrame.getEndSector());
             _indexSectorFrameNumberBuilder = new IndexSectorFrameNumber.Format.Builder(firstFrame.getStartSector());
             _headerFrameNumberBuilder = new HeaderFrameNumber.Format.Builder(firstFrame.getHeaderFrameNumber());
+            _blnHasSpecialBs = firstFrame.getCustomFrameMdecStream() != null;
         }
 
         /** @return if the frame was accepted as part of this video, otherwise start a new video. */
@@ -96,6 +99,8 @@ public class DiscIndexerStrVideo extends DiscIndexer implements DemuxedFrameWith
                 // a huge gap in frame numbers
                 return false;
             }
+            if (_blnHasSpecialBs && frame.getCustomFrameMdecStream() == null)
+                return false;
             _iLastFrameNumber = frame.getHeaderFrameNumber();
             _vidInfoBuilder.next(frame.getStartSector(), frame.getEndSector());
             _indexSectorFrameNumberBuilder.addFrameStartSector(frame.getStartSector());
@@ -109,7 +114,8 @@ public class DiscIndexerStrVideo extends DiscIndexer implements DemuxedFrameWith
                     _vidInfoBuilder.makeDims(),
                     _indexSectorFrameNumberBuilder.makeFormat(),
                     _vidInfoBuilder.makeStrVidInfo(),
-                    _headerFrameNumberBuilder.makeFormat());
+                    _headerFrameNumberBuilder.makeFormat(),
+                    !_blnHasSpecialBs);
         }
 
     }

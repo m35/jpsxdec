@@ -47,6 +47,7 @@ import javax.sound.sampled.AudioFormat;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
 import jpsxdec.adpcm.SpuAdpcmSoundUnit;
 import jpsxdec.i18n.I;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.util.DemuxedData;
@@ -60,17 +61,19 @@ public class CrusaderPacketToFrameAndAudio implements CrusaderSectorToCrusaderPa
     /** Equivalent to 15 fps. */
     public static final int SECTORS_PER_FRAME = 10;
 
-    public static final int CRUSADER_SAMPLES_PER_SECOND = 22050;
-    public static final int SAMPLES_PER_SECTOR = CRUSADER_SAMPLES_PER_SECOND / 150;
+    public static final int CRUSADER_SAMPLE_FRAMES_PER_SECOND = 22050;
+    public static final int SAMPLE_FRAMES_PER_SECTOR = CRUSADER_SAMPLE_FRAMES_PER_SECOND / 150;
     static {
-        if (CRUSADER_SAMPLES_PER_SECOND % 150 != 0)
+        if (CRUSADER_SAMPLE_FRAMES_PER_SECOND % 150 != 0)
             throw new RuntimeException("Crusader sample rate doesn't cleanly divide by sector rate");
     }
-    public static final AudioFormat CRUSADER_AUDIO_FORMAT = new AudioFormat(CRUSADER_SAMPLES_PER_SECOND, 16, 2, true, false);
+    public static final AudioFormat CRUSADER_AUDIO_FORMAT = new AudioFormat(CRUSADER_SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
 
     public interface FrameListener {
-        void frameComplete(@Nonnull DemuxedCrusaderFrame frame, @Nonnull ILocalizedLogger log);
-        void videoEnd(@Nonnull ILocalizedLogger log, int iStartSector, int iEndSector);
+        void frameComplete(@Nonnull DemuxedCrusaderFrame frame, @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
+        void videoEnd(@Nonnull ILocalizedLogger log, int iStartSector, int iEndSector)
+                throws LoggedFailure;
     }
     
     @Nonnull
@@ -120,6 +123,7 @@ public class CrusaderPacketToFrameAndAudio implements CrusaderSectorToCrusaderPa
     public void frame(@Nonnull CrusaderPacketHeaderReader.VideoHeader frameHeader,
                       @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
                       @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
         int iPresentationSector = frameHeader.getFrameNumber() * SECTORS_PER_FRAME + _iAbsoluteInitialFramePresentationSector;
         
@@ -134,6 +138,7 @@ public class CrusaderPacketToFrameAndAudio implements CrusaderSectorToCrusaderPa
     public void audio(@Nonnull CrusaderPacketHeaderReader.AudioHeader audio,
                       @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
                       @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
         // .. copy the audio data out of the sectors ...............
         byte[] abAudioDemuxBuffer = demux.copyDemuxData();
@@ -162,11 +167,12 @@ public class CrusaderPacketToFrameAndAudio implements CrusaderSectorToCrusaderPa
             log.log(Level.WARNING, I.SPU_ADPCM_CORRUPTED(demux.getStartSector(), _audDecoder.getSampleFramesWritten()));
 
         if (_audioListener != null) {
-            Fraction presentationSector = new Fraction(audio.getPresentationSample(), SAMPLES_PER_SECTOR)
+            Fraction presentationSector = new Fraction(audio.getPresentationSampleFrame(), SAMPLE_FRAMES_PER_SECTOR)
                                                   .add(_iAbsoluteInitialFramePresentationSector);
-            _audioListener.audioPacketComplete(new DecodedAudioPacket(-1, CRUSADER_AUDIO_FORMAT,
-                                                                      presentationSector,
-                                                                      audioBuffer.toByteArray()), log);
+            DecodedAudioPacket packet = new DecodedAudioPacket(-1, CRUSADER_AUDIO_FORMAT,
+                                                               presentationSector,
+                                                               audioBuffer.toByteArray());
+            _audioListener.audioPacketComplete(packet, log);
         }
         
 

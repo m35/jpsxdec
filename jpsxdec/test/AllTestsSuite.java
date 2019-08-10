@@ -47,6 +47,7 @@ import org.junit.runners.Suite;
     jpsxdec.TestLog.class,
     jpsxdec.adpcm.SpuDecodeCorruption.class,
     jpsxdec.adpcm.XaDecodeCorruption.class,
+    jpsxdec.cmdline.Command_StaticTest.class,
     jpsxdec.discitems.DiscItemTest.class,
     jpsxdec.discitems.SerializedDiscItemTest.class,
     jpsxdec.indexing.DiscIndexerXaAudioTest.class,

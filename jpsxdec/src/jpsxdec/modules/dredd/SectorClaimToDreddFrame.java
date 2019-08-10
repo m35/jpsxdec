@@ -45,6 +45,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSectorXaSubHeader;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
@@ -55,7 +56,8 @@ public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
     private static final Logger LOG = Logger.getLogger(SectorClaimToDreddFrame.class.getName());
 
     public interface Listener {
-        void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log);
+        void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
         void videoBreak(@Nonnull ILocalizedLogger log);
         void endOfSectors(@Nonnull ILocalizedLogger log);
     }
@@ -118,9 +120,13 @@ public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException
+            throws IOException, SectorClaimSystem.ClaimerFailure
     {
-        beforeEofCheck(cs, peekIt, log);
+        try {
+            beforeEofCheck(cs, peekIt, log);
+        } catch (LoggedFailure ex) {
+            throw new SectorClaimSystem.ClaimerFailure(ex);
+        }
         // after processing the current sector, always check the EOF flag
         // the only way to know a video ends is by the EOF marker
         CdSectorXaSubHeader sh = cs.getSector().getSubHeader();
@@ -137,7 +143,7 @@ public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
     private void beforeEofCheck(@Nonnull SectorClaimSystem.ClaimableSector cs,
                                 @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                                 @Nonnull ILocalizedLogger log)
-            throws IOException
+            throws IOException, LoggedFailure
     {
         // claimed? ignore
         if (cs.isClaimed())

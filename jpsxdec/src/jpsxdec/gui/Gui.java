@@ -48,14 +48,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.sound.sampled.LineUnavailableException;
 import javax.swing.*;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
@@ -77,6 +75,7 @@ import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.player.PlayController;
 import jpsxdec.util.player.PlayController.Event;
+import jpsxdec.util.player.PlayerException;
 import org.openide.awt.DropDownButtonFactory;
 
 public class Gui extends javax.swing.JFrame {
@@ -86,22 +85,21 @@ public class Gui extends javax.swing.JFrame {
     // -------------------------------------------------------------------------
 
     @CheckForNull
-    private DiscIndex _index;
+    private transient DiscIndex _index;
     @CheckForNull
-    private PlayController _currentPlayer;
+    private transient PlayController _currentPlayer;
     private final ArrayList<DiscItemSaverBuilderGui> _saverGuis =
             new ArrayList<DiscItemSaverBuilderGui>();
     @Nonnull
-    private final GuiSettings _settings;
+    private final transient GuiSettings _settings;
     @CheckForNull
     private String _sCommandLineFile;
-    private boolean _blnIsPaused = true;
 
     // -------------------------------------------------------------------------
 
     public Gui() {
 
-        // use the system's L&F if available (for great justice!)
+        // use the system's L&F if available
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             SwingUtilities.updateComponentTreeUI(this);
@@ -125,23 +123,10 @@ public class Gui extends javax.swing.JFrame {
 
         convertToolbar();
 
-        Image icon16 = Toolkit.getDefaultToolkit().createImage(getClass().getResource("icon16.png"));
-        try {
-            // setIconImages() is only available in Java 6+, but jPSXdec is targetted for Java 5
-            // we optionally take advantage of it using reflection
-            Method setIconImages = this.getClass().getMethod("setIconImages", List.class);
-            ArrayList<Image> icons = new ArrayList<Image>(3);
-            Image icon32 = Toolkit.getDefaultToolkit().createImage(getClass().getResource("icon32.png"));
-            Image icon48 = Toolkit.getDefaultToolkit().createImage(getClass().getResource("icon48.png"));
-            icons.add(icon16);
-            icons.add(icon32);
-            icons.add(icon48);
-            setIconImages.invoke(this, icons);
-        } catch (Exception ex) {
-            LOG.log(Level.INFO, "Unable to set multiple icons", ex);
-            setIconImage(icon16);
-        }
-
+        Image icon16 = Toolkit.getDefaultToolkit().createImage(Gui.class.getResource("icon16.png"));
+        Image icon32 = Toolkit.getDefaultToolkit().createImage(Gui.class.getResource("icon32.png"));
+        Image icon48 = Toolkit.getDefaultToolkit().createImage(Gui.class.getResource("icon48.png"));
+        setIconImages(Arrays.asList(icon16, icon32, icon48));
     }
 
 
@@ -403,7 +388,7 @@ public class Gui extends javax.swing.JFrame {
                 cd.close(); // expose close exception
             } else {
                 if (generatedIndex.size() == 0) {
-                    JOptionPane.showMessageDialog(this, "Could not identify anything in " + file.toString()); // I18N
+                    JOptionPane.showMessageDialog(this, I.GUI_DIALOG_COULD_NOT_IDENTIFY_ANYTHING(file.toString()).getLocalizedMessage());
                 } else {
                     setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
                     setIndex(generatedIndex, null);
@@ -750,14 +735,10 @@ public class Gui extends javax.swing.JFrame {
     private void _guiPlayPauseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiPlayPauseBtnActionPerformed
         try {
             if (_currentPlayer != null) {
-                if (_blnIsPaused) {
+                if (_currentPlayer.isPaused()) {
                     _currentPlayer.unpause();
-                    _guiPlayPauseBtn.setText(I.GUI_PAUSE_BTN().getLocalizedMessage());
-                    _blnIsPaused = false;
                 } else {
                     _currentPlayer.pause();
-                    _guiPlayPauseBtn.setText(I.GUI_PLAY_BTN().getLocalizedMessage());
-                    _blnIsPaused = true;
                 }
             }
         } catch (Throwable ex) {
@@ -890,12 +871,22 @@ public class Gui extends javax.swing.JFrame {
 
     
     private transient final PlayController.PlayerListener _playerListener = new PlayController.PlayerListener() {
-        public void update(@Nonnull Event eEvent) {
-            switch (eEvent) {
-                case Stop:
-                    _guiPlayPauseBtn.setEnabled(false);
-                    break;
-            }
+        public void event(@Nonnull final Event eEvent) {
+            java.awt.EventQueue.invokeLater(new Runnable() {
+                public void run() {
+                    switch (eEvent) {
+                        case End:
+                            _guiPlayPauseBtn.setEnabled(false);
+                            break;
+                        case Pause:
+                            _guiPlayPauseBtn.setText(I.GUI_PLAY_BTN().getLocalizedMessage());
+                            break;
+                        case Play:
+                            _guiPlayPauseBtn.setText(I.GUI_PAUSE_BTN().getLocalizedMessage());
+                            break;
+                    }
+                }
+            });
         }
     };
     
@@ -908,8 +899,8 @@ public class Gui extends javax.swing.JFrame {
             _currentPlayer = selection.getPlayer();
             if (_currentPlayer != null) {
                 try {
-                    _currentPlayer.start();
-                } catch (LineUnavailableException ex) {
+                    _currentPlayer.activate();
+                } catch (PlayerException ex) {
                     LOG.log(Level.SEVERE, null, ex);
                     _currentPlayer = null;
                 }
@@ -919,14 +910,13 @@ public class Gui extends javax.swing.JFrame {
                     _guiPreviewPanel.add(_currentPlayer.getVideoScreen());
                     _guiPreviewPanel.revalidate();
                 }
-                _currentPlayer.addLineListener(_playerListener);
+                _currentPlayer.addEventListener(_playerListener);
                 _guiPlayPauseBtn.setText(I.GUI_PLAY_BTN().getLocalizedMessage());
                 _guiPlayPauseBtn.setEnabled(true);
-                _blnIsPaused = true;
             }
         } else {
             if (_currentPlayer != null) {
-                _currentPlayer.stop();
+                _currentPlayer.terminate();
                 _currentPlayer = null;
                 _guiPreviewPanel.removeAll();
                 _guiPreviewPanel.validate();
@@ -985,7 +975,7 @@ public class Gui extends javax.swing.JFrame {
         byte[] ab = new byte[iCount];
         int iSize = IO.readByteArrayMax(is, ab, 0, ab.length);
         if (iSize < ab.length)
-            return Misc.copyOfRange(ab, 0, iSize);
+            return Arrays.copyOfRange(ab, 0, iSize);
         else
             return ab;
     }

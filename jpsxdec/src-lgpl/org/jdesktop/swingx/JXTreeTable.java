@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.EventObject;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.ActionMap;
@@ -58,7 +57,6 @@ import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.event.TreeWillExpandListener;
-import javax.swing.plaf.TreeUI;
 import javax.swing.plaf.basic.BasicTreeUI;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellEditor;
@@ -2807,18 +2805,6 @@ public class JXTreeTable extends JXTable {
             super.setExpandedState(path, state);
             treeTable.getTreeTableHacker().expansionChanged();
             
-        }
-
-        @Override
-        public void setUI(TreeUI ui) {
-            if (ui.getClass().getName().equals("com.sun.java.swing.plaf.windows.WindowsTreeUI")) {
-                try {
-                    ui = (TreeUI) Class.forName("com.sun.java.swing.plaf.windows.WindowsTreeTableUI").newInstance();
-                } catch (Exception ex) {
-                    Logger.getLogger(JXTreeTable.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-            super.setUI(ui);
         }
 
         /**

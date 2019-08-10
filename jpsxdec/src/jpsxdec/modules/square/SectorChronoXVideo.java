@@ -82,10 +82,10 @@ public class SectorChronoXVideo extends SectorAbstractVideo {
             _header.lngMagic != CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
             return;
 
-        if (!_header.isChunkNumberStandard()) return;
-        if (!_header.isChunksInFrameStandard()) return;
-        if (!_header.isFrameNumberStandard()) return;
-        if (!_header.isUsedDemuxSizeStandard()) return;
+        if (!_header.hasStandardChunkNumber()) return;
+        if (!_header.hasStandardChunksInFrame()) return;
+        if (!_header.hasStandardFrameNumber()) return;
+        if (!_header.hasStandardUsedDemuxSize()) return;
         _iWidth = cdSector.readSInt16LE(16);
         if (_iWidth < 1) return;
         _iHeight = cdSector.readSInt16LE(18);

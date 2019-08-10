@@ -59,7 +59,7 @@ import javax.swing.plaf.metal.MetalLookAndFeel;
  */
 public class LookAndFeelAddons {
 
-  private static List contributedComponents = new ArrayList();
+  private static List<ComponentAddon> contributedComponents = new ArrayList<ComponentAddon>();
 
   /**
    * Key used to ensure the current UIManager has been populated by the
@@ -273,7 +273,7 @@ public class LookAndFeelAddons {
       return ui;
     } else {
       String realUI = ui.getClass().getName();
-      Class realUIClass;
+      Class<?> realUIClass;
       try {
         realUIClass = expectedUIClass.getClassLoader()
         .loadClass(realUI);

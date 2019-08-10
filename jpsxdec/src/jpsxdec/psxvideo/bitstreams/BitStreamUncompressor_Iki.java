@@ -51,9 +51,11 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.mdec.Calc;
+import jpsxdec.psxvideo.mdec.MdecBlock;
+import jpsxdec.psxvideo.mdec.MdecCode;
+import jpsxdec.psxvideo.mdec.MdecContext;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
@@ -153,7 +155,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
             return _iBlockCount;
         }
 
-        public int getBlockQscale(int iBlock) {
+        public int getBlockQscaleDc(int iBlock) {
             if (!_blnIsValid) throw new IllegalStateException();
             int b1 = _abQscaleDcLookupTable[iBlock] & 0xff;
             int b2 = _abQscaleDcLookupTable[iBlock+_iBlockCount] & 0xff;
@@ -190,37 +192,34 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
     @Nonnull
     private final IkiHeader _header;
 
-    private int _iCurrentBlock = 0;
-
     private BitStreamUncompressor_Iki(@Nonnull IkiHeader header,
                                       @Nonnull ArrayBitReader bitReader)
     {
-        super(BitStreamUncompressor_STRv2.AC_VARIABLE_LENGTH_CODES_MPEG1, bitReader);
+        super(bitReader, ZeroRunLengthAcLookup_STR.AC_VARIABLE_LENGTH_CODES_MPEG1,
+              new QuantizationDcReader_Iki(header), BitStreamUncompressor_STRv2.AC_ESCAPE_CODE_STR,
+              FRAME_END_PADDING_BITS_NONE);
         _header = header;
     }
 
-    /** Read the quantization scale and DC coefficient from the iki lzss
-     * compressed header. */
-    @Override
-    protected void readQscaleAndDC(@Nonnull MdecCode code) throws MdecException.EndOfStream {
-        if (_iCurrentBlock >= _header.getFrameBlockCount())
-            throw new MdecException.EndOfStream(MdecException.inBlockOfBlocks(_iCurrentBlock, _header.getFrameBlockCount()));
-        readBlockQscaleAndDC(code, _iCurrentBlock);
-        _iCurrentBlock++;
-    }
+    private static class QuantizationDcReader_Iki implements IQuantizationDc {
 
-    /** Looks up the given block's quantization scale and DC coefficient. */
-    private void readBlockQscaleAndDC(@Nonnull MdecCode code, int iBlock) {
-        code.set(_header.getBlockQscale(iBlock));
-    }
+        @Nonnull
+        private final BitStreamUncompressor_Iki.IkiHeader _header;
 
-    @Override
-    protected void readEscapeAcCode(MdecCode code) throws MdecException.EndOfStream {
-        BitStreamUncompressor_STRv2.readStrEscapeAcCode(_bitReader, code, _debug, LOG);
-    }
+        public QuantizationDcReader_Iki(@Nonnull BitStreamUncompressor_Iki.IkiHeader header) {
+            _header = header;
+        }
 
-    @Override
-    public void skipPaddingBits() {
+        /** Read the quantization scale and DC coefficient from the iki lzss
+         * compressed header. */
+        /** Looks up the given block's quantization scale and DC coefficient. */
+        public void readQuantizationScaleAndDc(@Nonnull ArrayBitReader bitReader, @Nonnull MdecContext context, @Nonnull MdecCode mdecCode)
+                throws MdecException.ReadCorruption, MdecException.EndOfStream
+        {
+            if (context.getTotalBlocksRead() >= _header.getFrameBlockCount())
+                throw new MdecException.EndOfStream(MdecException.inBlockOfBlocks(context.getTotalBlocksRead(), _header.getFrameBlockCount()));
+            mdecCode.set(_header.getBlockQscaleDc(context.getTotalBlocksRead()));
+        }
     }
 
     /** .iki videos utilize yet another LZSS compression format that is
@@ -242,19 +241,19 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
 
             int iFlags = abSrc[iSrcPosition++] & 0xff;
 
-            if (DEBUG)
+            if (BitStreamDebugging.DEBUG)
                 System.err.println("Flags " + Misc.bitsToString(iFlags, 8));
 
             for (int iBit = 0; iBit < 8; iBit++, iFlags >>= 1) {
 
-                if (DEBUG)
+                if (BitStreamDebugging.DEBUG)
                     System.err.format("[InPos: %d OutPos: %d] bit %02x: ",
                                       iSrcPosition, iDestPosition, 1 << iBit );
 
                 if ((iFlags & 1) == 0) {
                     byte b = abSrc[iSrcPosition++];
 
-                    if (DEBUG)
+                    if (BitStreamDebugging.DEBUG)
                         System.err.println(String.format("{Byte %02x}", b));
 
                     abDest[iDestPosition++] = b;
@@ -267,7 +266,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
                     }
                     iCopyOffset++;
 
-                    if (DEBUG)
+                    if (BitStreamDebugging.DEBUG)
                         System.err.println(
                                 "Copy " + iCopySize + " bytes from " + (iDestPosition - (iCopyOffset + 1)) + "(-"+iCopyOffset+")");
 
@@ -281,7 +280,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
                     break;
             }
         }
-        if (DEBUG)
+        if (BitStreamDebugging.DEBUG)
             System.err.println("Src pos at end: " + iSrcPosition);
     }
 
@@ -299,7 +298,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
 
             for (int iSrcPos = 0; iSrcPos < abSrcData.length;) {
 
-                if (DEBUG)
+                if (BitStreamDebugging.DEBUG)
                     _logger.format("[InPos: %d OutPos: %d]: bit %02x: ",
                                       out.size()+1+_buffer.size(), iSrcPos, 1 << _iFlagBit );
                 
@@ -328,7 +327,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
                     addRun(iSrcPos - iLongestRunPos, iLongestRunLen, iSrcPos);
                     iSrcPos += iLongestRunLen;
                 } else {
-                    if (DEBUG) _logger.format("{Byte %02x}", abSrcData[iSrcPos]&0xff).println();
+                    if (BitStreamDebugging.DEBUG) _logger.format("{Byte %02x}", abSrcData[iSrcPos]&0xff).println();
                     addCopy(abSrcData[iSrcPos]);
                     iSrcPos++;
                 }
@@ -336,7 +335,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
             }
 
             if (_iFlagBit > 0) {
-                if (DEBUG) _logger.println("Flags " + Misc.bitsToString(_iFlags, 8));
+                if (BitStreamDebugging.DEBUG) _logger.println("Flags " + Misc.bitsToString(_iFlags, 8));
                 out.write(_iFlags);
                 byte[] ab = _buffer.toByteArray();
                 out.write(ab, 0, ab.length);
@@ -346,7 +345,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
         
         private void addRun(int iPosition, int iLength, int iSrcPos) {
             assert iPosition > 0;
-            if (DEBUG) _logger.format("Copy %d bytes from %d(%d)", iLength, iSrcPos-iPosition, -iPosition).println();
+            if (BitStreamDebugging.DEBUG) _logger.format("Copy %d bytes from %d(%d)", iLength, iSrcPos-iPosition, -iPosition).println();
             _iFlags |= (1 << _iFlagBit);
             _buffer.write(iLength - 3);
             iPosition--;
@@ -365,7 +364,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
         private void incFlag(@Nonnull ByteArrayOutputStream out) {
             _iFlagBit++;
             if (_iFlagBit >= 8) {
-                if (DEBUG) { 
+                if (BitStreamDebugging.DEBUG) {
                     System.err.println("Flags " + Misc.bitsToString(_iFlags, 8));
                     _logger.flush();
                     System.err.print(_baosLogger.toString());
@@ -399,32 +398,20 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
 
 
     @Override
-    public @Nonnull Type getType() {
-        return Type.Iki;
-    }
-
     public String toString() {
-        if (_header.isValid()) {
-            // find the minimum and maximum quantization scales used
-            int iMinQscale = 64, iMaxQscale = 0;
-            MdecCode code = new MdecCode();
-            for (int i = 0; i < _header.getFrameBlockCount(); i++) {
-                readBlockQscaleAndDC(code, i);
-                int iQscale = code.getTop6Bits();
-                if (iQscale < iMinQscale)
-                    iMinQscale = iQscale;
-                if(iQscale > iMaxQscale)
-                    iMaxQscale = iQscale;
-            }
-            return String.format("%s Qscale=%d-%d Offset=%d MB=%d.%d Mdec count=%d %dx%d",
-                    getType(), iMinQscale, iMaxQscale,
-                    _bitReader.getWordPosition(),
-                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
-                    getReadMdecCodeCount(),
-                    _header.getWidth(), _header.getHeight());
-        } else {
-            return "Invalid IKI";
+        // find the minimum and maximum quantization scales used
+        int iMinQscale = 64, iMaxQscale = 0;
+        MdecCode code = new MdecCode();
+        for (int i = 0; i < _header.getFrameBlockCount(); i++) {
+            code.set(_header.getBlockQscaleDc(i));
+            int iQscale = code.getTop6Bits();
+            if (iQscale < iMinQscale)
+                iMinQscale = iQscale;
+            if(iQscale > iMaxQscale)
+                iMaxQscale = iQscale;
         }
+        return super.toString() + String.format(" Qscale=%d-%d %dx%d",
+                iMinQscale, iMaxQscale, _header.getWidth(), _header.getHeight());
     }
 
     @Override
@@ -548,7 +535,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
                 if (iNewDemuxSize <= iOriginalLength) {
                     log.log(Level.INFO, I.NEW_FRAME_FITS(sFrameDescription, iNewDemuxSize, iOriginalLength));
                 } else {
-                    log.log(Level.INFO, I.IKI_NEW_FRAME_GT_SRC_STOPPING(sFrameDescription, iNewDemuxSize, iOriginalLength));
+                    log.log(Level.INFO, I.NEW_FRAME_DOES_NOT_FIT(sFrameDescription, iNewDemuxSize, iOriginalLength));
                     break;
                 }
                 abLastGoodDemux = abNewDemux;
@@ -590,13 +577,13 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
         }
 
         @Override
-        protected void setBlockQscale(int iBlock, int iQscale) {
+        protected void setBlockQscale(@Nonnull MdecBlock block, int iQscale) {
             _currentBlockQscaleDc.setTop6Bits(iQscale);
         }
 
 
         @Override
-        protected @Nonnull String encodeDC(int iDC, int iBlock) {
+        protected @Nonnull String encodeDC(int iDC, @Nonnull MdecBlock block) {
             _currentBlockQscaleDc.setBottom10Bits(iDC);
             int iMdec = _currentBlockQscaleDc.toMdecWord();
             _top8.write(iMdec >> 8);
@@ -619,7 +606,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
             ab = _bottom8.toByteArray();
 
             byte[] abHdr = new byte[10];
-            IO.writeInt16LE(abHdr, 0, (short)calculateHalfCeiling32(iMdecCodeCount));
+            IO.writeInt16LE(abHdr, 0, (short)Calc.calculateHalfCeiling32(iMdecCodeCount));
             IO.writeInt16LE(abHdr, 2, (short)0x3800);
             IO.writeInt16LE(abHdr, 4, (short)_iWidth);
             IO.writeInt16LE(abHdr, 6, (short)_iHeight);

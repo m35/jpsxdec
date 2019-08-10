@@ -61,9 +61,9 @@ import org.jdesktop.swingx.painter.Painter;
  * 
  * @author Jeanette Winzenburg
  */
-public class JRendererLabel extends JLabel implements PainterAware, IconAware {
+public class JRendererLabel extends JLabel implements PainterAware<JRendererLabel>, IconAware {
 
-    protected Painter painter;
+    protected Painter<JRendererLabel> painter;
 
     /**
      * 
@@ -100,7 +100,7 @@ public class JRendererLabel extends JLabel implements PainterAware, IconAware {
     /**
      * {@inheritDoc}
      */
-    public void setPainter(Painter painter) {
+    public void setPainter(Painter<JRendererLabel> painter) {
         Painter old = getPainter();
         this.painter = painter;
         firePropertyChange("painter", old, getPainter());
@@ -109,7 +109,7 @@ public class JRendererLabel extends JLabel implements PainterAware, IconAware {
     /**
      * {@inheritDoc}
      */
-    public Painter getPainter() {
+    public Painter<JRendererLabel> getPainter() {
         return painter;
     }
     /**

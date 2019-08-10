@@ -51,6 +51,7 @@ import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
+import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 
@@ -176,6 +177,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
 
         // .. Public functions .................................................
 
+        @Override
         public String toString() {
             return String.format(
                 "%s %s frame:%d chunk:%d/%d %dx%d ver:%d " +
@@ -245,8 +247,8 @@ public abstract class SectorFF9 extends IdentifiedSector {
 
             IO.writeInt32LE(abCurrentVidSectorHeader, 12, iDemuxSizeForHeader / 4);
             IO.writeInt16LE(abCurrentVidSectorHeader, 20,
-                    BitStreamUncompressor_STRv2.calculateHalfCeiling32(iNewMdecCodeCount));
-            IO.writeInt16LE(abCurrentVidSectorHeader, 24, (short)(header.getQscale()));
+                    Calc.calculateHalfCeiling32(iNewMdecCodeCount));
+            IO.writeInt16LE(abCurrentVidSectorHeader, 24, (short)(header.getQuantizationScale()));
         }
 
     }

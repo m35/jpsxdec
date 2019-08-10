@@ -38,18 +38,20 @@
 package jpsxdec.modules.video;
 
 import java.io.PrintStream;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.Fraction;
 
 /** Universal demuxed video frame. */
 public interface IDemuxedFrame {
 
     public interface Listener {
-        void frameComplete(@Nonnull IDemuxedFrame frame);
+        void frameComplete(@Nonnull IDemuxedFrame frame) throws LoggedFailure;
     }
     
     int getWidth();
@@ -71,11 +73,12 @@ public interface IDemuxedFrame {
     /** Size of the demuxed frame. */
     int getDemuxSize();
 
-    /** Returns the contiguous demux copied into a buffer. If the supplied
-     * buffer is not null and is big enough to fit the demuxed data, it is used,
-     * otherwise a new buffer is created and returned.
-     * @return the byte[] */
+    /** Returns the contiguous demux copied into a buffer. */
     @Nonnull byte[] copyDemuxData();
+
+    /** The demux data my not be able to be converted to an mdec stream on its
+     * own. This can provide a direct mdec stream instead. */
+    @CheckForNull MdecInputStream getCustomFrameMdecStream();
 
     void printSectors(@Nonnull PrintStream ps);
 

@@ -51,17 +51,23 @@ import jpsxdec.util.BinaryDataNotRecognized;
  * This case obviously works with PlayStation hardware, so is already
  * accepted by the STRv2 uncompressor to make things simpler, faster, and
  * more robust (because AC=0 may occur in games besides FF7). See
- * {@link BitStreamUncompressor_STRv2#readEscapeAcCode(jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode)}.
+ * {@link BitStreamUncompressor_STRv2#readEscapeAcCode(jpsxdec.psxvideo.mdec.MdecCode)}.
  *<p>
  * I suspect the reason for this FF7 AC=0 waste is because they compressed the
  * frames further to fit camera data. This led to AC values being reduced,
  * some falling to 0, but they didn't merge those codes to save space.
  */
-public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
+public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor {
 
     public static class StrV1Header extends StrHeader {
         public StrV1Header(byte[] abFrameData, int iDataSize) {
             super(abFrameData, iDataSize, 1);
+        }
+
+        public @Nonnull BitStreamUncompressor_STRv1 makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
+                throws BinaryDataNotRecognized
+        {
+            return BitStreamUncompressor_STRv1.makeV1(abBitstream, iBitstreamSize);
         }
     }
 
@@ -84,28 +90,30 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
         StrV1Header header = new StrV1Header(abFrameData, iDataSize);
         if (!header.isValid())
             return null;
-        ArrayBitReader bitReader = makeStrBitReader(abFrameData, iDataSize);
+        ArrayBitReader bitReader = BitStreamUncompressor_STRv2.makeStrBitReader(abFrameData, iDataSize);
 
         return new BitStreamUncompressor_STRv1(header, bitReader);
     }
 
-    public BitStreamUncompressor_STRv1(@Nonnull StrHeader header,
+    @Nonnull
+    private final StrV1Header _header;
+
+    public BitStreamUncompressor_STRv1(@Nonnull StrV1Header header,
                                        @Nonnull ArrayBitReader bitReader)
     {
-        super(header, bitReader);
+        super(bitReader, ZeroRunLengthAcLookup_STR.AC_VARIABLE_LENGTH_CODES_MPEG1,
+              new BitStreamUncompressor_STRv2.QuantizationDc_STRv12(header.getQuantizationScale()),
+              BitStreamUncompressor_STRv2.AC_ESCAPE_CODE_STR,
+              BitStreamUncompressor_STRv2.FRAME_END_PADDING_BITS_STRV2);
+        _header = header;
     }
     
     @Override
-    public @Nonnull Type getType() {
-        return Type.STRv1;
-    }
-
-    @Override
     public @Nonnull BitStreamCompressor_STRv1 makeCompressor() {
-        return new BitStreamCompressor_STRv1(getFullMacroBlocksRead());
+        return new BitStreamCompressor_STRv1(_context.getTotalMacroBlocksRead());
     }
 
-    public static class BitStreamCompressor_STRv1 extends BitStreamCompressor_STRv2 {
+    public static class BitStreamCompressor_STRv1 extends BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 {
 
         private BitStreamCompressor_STRv1(int iMacroBlockCount) {
             super(iMacroBlockCount);
@@ -118,8 +126,8 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor_STRv2 {
         protected int getFrameQscale(@Nonnull byte[] abFrameData) throws LocalizedIncompatibleException {
             StrV1Header header = new StrV1Header(abFrameData, abFrameData.length);
             if (!header.isValid())
-                throw new LocalizedIncompatibleException(I.FRAME_NOT_STRV1());
-            return header.getQscale();
+                throw new LocalizedIncompatibleException(I.FRAME_IS_NOT_BITSTREAM_FORMAT("STRv1"));
+            return header.getQuantizationScale();
         }
 
     }

@@ -65,6 +65,7 @@ import jpsxdec.modules.video.ParallelAudio;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.xa.DiscItemXaAudioStream;
 import jpsxdec.util.Fraction;
+import jpsxdec.util.Misc;
 import jpsxdec.util.player.PlayController;
 
 /** Represents generic sector-based PlayStation video streams
@@ -169,20 +170,20 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
     }
 
     @Override
-    public @Nonnull ILocalizedMessage getInterestingDescription() {
+    final public @Nonnull ILocalizedMessage getInterestingDescription() {
         int iDiscSpeed = getDiscSpeed();
         int iFrameCount = getFrameCount();
         if (iDiscSpeed > 0) {
             int iSectorsPerSecond = iDiscSpeed * 75;
-            Date secs = new Date(0, 0, 0, 0, 0, Math.max(getSectorLength() / iSectorsPerSecond, 1));
+            Date secs = Misc.dateFromSeconds(Math.max(getSectorLength() / iSectorsPerSecond, 1));
             return I.GUI_STR_VIDEO_DETAILS(
                           getWidth(), getHeight(),
                           iFrameCount,
                           Fraction.divide(iSectorsPerSecond, getSectorsPerFrame()).asDouble(),
                           secs);
         } else {
-            Date secs150 = new Date(0, 0, 0, 0, 0, Math.max(getSectorLength() / 150, 1));
-            Date secs75 = new Date(0, 0, 0, 0, 0, Math.max(getSectorLength() / 75, 1));
+            Date secs150 = Misc.dateFromSeconds(Math.max(getSectorLength() / 150, 1));
+            Date secs75 = Misc.dateFromSeconds(Math.max(getSectorLength() / 75, 1));
             return I.GUI_STR_VIDEO_DETAILS_UNKNOWN_FPS(
                           getWidth(), getHeight(),
                           iFrameCount,
@@ -229,6 +230,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
     @Override
     public @Nonnull PlayController makePlayController() {
 
+        MediaPlayer mp;
         if (hasAudio()) {
 
             List<DiscItemAudioStream> audios = _parallelAudio.getLongestNonIntersectingAudioStreams();
@@ -243,10 +245,11 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
             int iStartSector = Math.min(decoder.getStartSector(), getStartSector());
             int iEndSector = Math.max(decoder.getEndSector(), getEndSector());
 
-            return new PlayController(new MediaPlayer(this, makeDemuxer(), decoder, iStartSector, iEndSector));
+            mp = new MediaPlayer(this, makeDemuxer(), decoder, iStartSector, iEndSector);
         } else {
-            return new PlayController(new MediaPlayer(this, makeDemuxer()));
+            mp = new MediaPlayer(this, makeDemuxer());
         }
+        return mp.getPlayController();
     }
 
 }

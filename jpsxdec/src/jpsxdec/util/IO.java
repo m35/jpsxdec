@@ -46,8 +46,6 @@ import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedFileNotFoundException;
 
-// TODO: unify write(types)
-
 /** Additional functions for reading, writing, and whatnot. */
 public final class IO {
 
@@ -153,6 +151,14 @@ public final class IO {
     }
 
     //== 16-bit == big-endian == signed == read ================================
+
+    public static int readSInt16BE(@Nonnull InputStream stream) throws EOFException, IOException {
+        int b1, b2;
+        if ((b1 = stream.read()) < 0 ||
+            (b2 = stream.read()) < 0)
+            throw new EOFException();
+        return SInt16BE(b1, b2);
+    }
 
     public static short readSInt16BE(@Nonnull byte[] ab, int i) {
         int b1 = ab[i  ] & 0xff;
@@ -653,16 +659,6 @@ public final class IO {
     // #########################################################################
 
     //== other =================================================================
-
-    public static @Nonnull int[] readBEIntArray(@Nonnull InputStream stream, int iCount)
-            throws EOFException, IOException
-    {
-        int[] ai = new int[iCount];
-        for (int i = 0; i < ai.length; i++) {
-            ai[i] = readSInt32BE(stream);
-        }
-        return ai;
-    }
 
     /** Creates the directory or throws {@link LocalizedFileNotFoundException}
      * if anything goes wrong.

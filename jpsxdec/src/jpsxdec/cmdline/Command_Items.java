@@ -80,12 +80,12 @@ class Command_Items {
             try {
                 _iItemNum = Integer.parseInt(s);
                 if (_iItemNum < 0)
-                    return I.CMD_ITEM_NUMBER_INVALID(s);
+                    return I.CMD_INVALID_VALUE_FOR_CMD(s, "-i,-item");
                 else
                     return null;
             } catch (NumberFormatException ex) {
                 if (s.contains(" "))
-                    return I.CMD_ITEM_ID_INVALID(s);
+                    return I.CMD_INVALID_VALUE_FOR_CMD(s, "-i,-item");
                 _sItemId = s;
                 return null;
             }
@@ -286,7 +286,7 @@ class Command_Items {
 
         fbs.println();
 
-        builder.printSelectedOptions(fbs);
+        builder.printSelectedOptions(fbs.makeLogger());
 
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();

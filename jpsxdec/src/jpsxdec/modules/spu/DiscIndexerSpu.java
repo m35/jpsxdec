@@ -147,7 +147,7 @@ public class DiscIndexerSpu extends DiscIndexer implements SectorClaimToUnidenti
                     _blnOnlyZeroes = (iQuad & 0xffff) == 0;
                 }
             } else if (_blnInRun) {
-                _blnOnlyZeroes &= iQuad == 0;
+                _blnOnlyZeroes = _blnOnlyZeroes && iQuad == 0;
                 if (iQuadIndex == 3) {
                     _iEndSector = iSector;
                     _iEndOffset = iOffset + 3;

@@ -52,6 +52,7 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.indexing.DiscIndexer;
@@ -172,6 +173,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
 
         public VidBuilder(@Nonnull ILocalizedLogger errLog,
                           @Nonnull SectorCrusader vidSect)
+                throws LoggedFailure
         {
             _errLog = errLog;
             _iStartSector = _iEndSector = vidSect.getSectorNumber();
@@ -181,7 +183,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
 
         /** Returns if the supplied sector is part of this movie. If not,
           * end this movie and start a new one. */
-        public boolean feedSector(@Nonnull SectorCrusader sector) {
+        public boolean feedSector(@Nonnull SectorCrusader sector) throws LoggedFailure {
             if (!_cs2cp.sectorRead(sector, _errLog)) {
                 return false;
             }
@@ -230,7 +232,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
             // so pick an initial presentation sector a little before when the next
             // frame should be presented (-60)
             if (_iInitialFramePresentationSector < 0) {
-                _iInitialFramePresentationSector = (audio.getPresentationSample() / CrusaderPacketToFrameAndAudio.SAMPLES_PER_SECTOR) - 60;
+                _iInitialFramePresentationSector = (audio.getPresentationSampleFrame() / CrusaderPacketToFrameAndAudio.SAMPLE_FRAMES_PER_SECTOR) - 60;
                 if (_iInitialFramePresentationSector < 0) // don't start before the start of the movie
                     _iInitialFramePresentationSector = 0;
                 else if (_iInitialFramePresentationSector > 0)
@@ -239,7 +241,9 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
             _iSoundUnitCount += audio.getByteSize() / 2 / 16;
         }
 
-        public @CheckForNull DiscItemCrusader endOfMovie(@Nonnull CdFileSectorReader cd) {
+        public @CheckForNull DiscItemCrusader endOfMovie(@Nonnull CdFileSectorReader cd) 
+                throws LoggedFailure
+        {
             _cs2cp.endVideo(_errLog);
 
             if (_indexSectorFrameNumberBuilder == null) // never received a frame
@@ -287,7 +291,9 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
         s2cs.setListener(this);
     }
     
-    public void sectorRead(@Nonnull SectorCrusader vidSect, @Nonnull ILocalizedLogger log) {
+    public void sectorRead(@Nonnull SectorCrusader vidSect, @Nonnull ILocalizedLogger log) 
+            throws LoggedFailure
+    {
         if (_currentStream != null) {
             boolean blnAccepted = _currentStream.feedSector(vidSect);
             if (!blnAccepted) {
@@ -302,7 +308,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
         }
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) {
+    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentStream != null) {
             DiscItemCrusader vid = _currentStream.endOfMovie(getCd());
             if (vid != null)

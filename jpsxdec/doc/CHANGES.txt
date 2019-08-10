@@ -1,3 +1,24 @@
+v0.99.9 rev3898 (9 Aug 2019)
+    - Added Italian translation (thanks Gianluigi "Infrid" Cusimano!)
+    - Updated Spanish translation (still many thanks to Víctor González, Sergi Medina!)
+    - Minimum required Java version is now version 6
+    - Updated to be compatible with Java version 9 and higher
+    - Added support for ReBoot video (thanks to XBrav!)
+    - Added support for Policenauts FMVs
+    - Added support for Road Rash 3D FMVs
+    - Added support for opening video of Aconcagua
+    - Improved real-time audio/video player on Linux (hopefully)
+    Bug fixes:
+    - Couldn't save 24-bit TIM images as png
+    - Videos with odd frame dimensions caused errors
+    - Lots of small fixes
+    Internal:
+    - Revamped bitstream handling
+    - Several simplifications
+    Known issues:
+    - Videos with variable frames rates saved as AVI do not play right in 
+      some video players (primarily on Windows). Use a more reliable player 
+      such as VLC media player.
 v0.99.8 rev3788 (21 Jan 2019)
     - Updated Spanish translation (still many thanks to Víctor González, Sergi Medina)
     - Updated Japanese translation (still using Google translate)
@@ -34,7 +55,7 @@ v0.99.8 rev3788 (21 Jan 2019)
     - Frame numbering redesign
     Known issues:
     - Video playback on Linux may still not work right
-    - Videos with variable frames rates saved as AVI do not play right in the 
+    - Videos with variable frames rates saved as AVI do not play right in the
       default video players found in some Windows versions. 
       Use a more reliable player such VLC media player.
 v0.99.7 rev3397 (8 Jan 2017) The "road to v1.0" release

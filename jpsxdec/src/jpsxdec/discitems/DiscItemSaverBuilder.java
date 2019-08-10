@@ -48,6 +48,7 @@ import javax.swing.event.ChangeListener;
 import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LoggedFailure;
+import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.util.ArgParser;
 import jpsxdec.util.TaskCanceledException;
@@ -123,7 +124,7 @@ public abstract class DiscItemSaverBuilder {
     /** Configure the saver builder from command-line arguments. */
     abstract public void commandLineOptions(@Nonnull ArgParser ap, @Nonnull FeedbackStream fbs);
     /** Prints the options used for saving. */
-    abstract public void printSelectedOptions(@Nonnull FeedbackStream fbs);
+    abstract public void printSelectedOptions(@Nonnull ILocalizedLogger log);
 
     /** Get a localized summary of what files will be generated on save. */
     abstract public @Nonnull ILocalizedMessage getOutputSummary();

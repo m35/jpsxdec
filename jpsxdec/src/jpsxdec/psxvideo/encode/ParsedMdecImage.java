@@ -46,9 +46,10 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.Calc;
+import jpsxdec.psxvideo.mdec.MdecBlock;
+import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 
 /** Parses and stores a stream of MDEC 16-bit codes in a structure for easier analysis. */
 public class ParsedMdecImage  {
@@ -56,13 +57,13 @@ public class ParsedMdecImage  {
     private static final Logger LOG = Logger.getLogger(ParsedMdecImage.class.getName());
 
     private static class MacroBlock implements Iterable<Block> {
-        public final Block[] _aoBlocks = new Block[6];
+        public final Block[] _aoBlocks = new Block[MdecBlock.count()];
 
         public MacroBlock(@Nonnull MdecInputStream mdecIn)
                 throws MdecException.EndOfStream, MdecException.ReadCorruption
         {
-            for (int iBlock = 0; iBlock < 6; iBlock++) {
-                _aoBlocks[iBlock] = new Block(iBlock, mdecIn);
+            for (MdecBlock block : MdecBlock.list()) {
+                _aoBlocks[block.ordinal()] = new Block(block, mdecIn);
             }
         }
 
@@ -92,7 +93,7 @@ public class ParsedMdecImage  {
                 private int _iBlk = 0;
                 
                 public boolean hasNext() {
-                    return _iBlk < 6;
+                    return _iBlk < MdecBlock.count();
                 }
 
                 public @Nonnull Block next() {
@@ -110,22 +111,17 @@ public class ParsedMdecImage  {
     
     private static class Block {
 
-        private static final String[] BLOCK_NAMES = {
-            "Cr", "Cb", "Y1", "Y2", "Y3", "Y4"
-        };
-
-        private final int _iIndex;
+        @Nonnull
+        private final MdecBlock _block;
         @Nonnull
         private final MdecCode[] _aoCodes;
         /** Only available if source data was a bitstream. -1 if unknown. */
         private final int _iBitSize;
 
-        public Block(int iIndex, @Nonnull MdecInputStream mdecIn)
+        public Block(@Nonnull MdecBlock block, @Nonnull MdecInputStream mdecIn)
                 throws MdecException.EndOfStream, MdecException.ReadCorruption
         {
-            if (iIndex < 0 || iIndex >= 6)
-                throw new IllegalArgumentException("Invalid block index " + iIndex);
-            _iIndex = iIndex;
+            _block = block;
 
             ArrayList<MdecCode> codes = new ArrayList<MdecCode>();
             int iBitStart = -1;
@@ -147,10 +143,6 @@ public class ParsedMdecImage  {
                 _iBitSize = ((BitStreamUncompressor)mdecIn).getBitPosition() - iBitStart;
         }
 
-        public @Nonnull String getName() {
-            return BLOCK_NAMES[_iIndex];
-        }
-
         public @Nonnull MdecCode getMdecCode(int i) {
             return _aoCodes[i];
         }
@@ -159,18 +151,6 @@ public class ParsedMdecImage  {
             return _aoCodes.length;
         }
         
-        public boolean isChroma() {
-            return _iIndex < 2;
-        }
-
-        public boolean isLuma() {
-            return _iIndex >= 2;
-        }
-
-        public int getIndex() {
-            return _iIndex;
-        }
-
         public int getQscale() {
             return _aoCodes[0].getTop6Bits();
         }
@@ -190,7 +170,7 @@ public class ParsedMdecImage  {
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            sb.append(getName()).append(" Q:").append(getQscale());
+            sb.append(_block.name()).append(" Q:").append(getQscale());
             if (_iBitSize != -1)
                 sb.append(" Size=").append(_iBitSize);
             return sb.toString();
@@ -199,7 +179,7 @@ public class ParsedMdecImage  {
     }
 
 
-    private class MdecReader extends MdecInputStream {
+    private class MdecReader implements MdecInputStream {
 
         // TODO: convert to use iterator?
         private int __iCurrentMacroBlock;
@@ -222,7 +202,7 @@ public class ParsedMdecImage  {
             Block currentBlk = currentMacBlk.getBlock(__iCurrentBlock);
 
             MdecCode c = currentBlk.getMdecCode(__iCurrentMdecCode);
-            code.set(c);
+            code.setFrom(c);
 
             __iCurrentMdecCode++;
 

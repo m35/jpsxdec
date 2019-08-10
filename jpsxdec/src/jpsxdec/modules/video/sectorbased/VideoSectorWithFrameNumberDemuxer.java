@@ -54,7 +54,7 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
     private final int _iWidth, _iHeight;
 
     public VideoSectorWithFrameNumberDemuxer(@Nonnull IVideoSectorWithFrameNumber firstChunk,
-                                 @Nonnull ILocalizedLogger log)
+                                             @Nonnull ILocalizedLogger log)
     {
         _bldr = new SectorBasedFrameBuilder<IVideoSectorWithFrameNumber>(firstChunk,
                             firstChunk.getChunkNumber(), firstChunk.getChunksInFrame(),
@@ -62,6 +62,18 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
                             log);
         _iWidth = firstChunk.getWidth();
         _iHeight = firstChunk.getHeight();
+    }
+
+    public int getWidth() {
+        return _iWidth;
+    }
+
+    public int getHeight() {
+        return _iHeight;
+    }
+
+    public int getHeaderFrameNumber() {
+        return _bldr.getHeaderFrameNumber();
     }
 
     public boolean addSectorIfPartOfFrame(@Nonnull ISelfDemuxingVideoSector sector) {
@@ -81,12 +93,16 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
         return _bldr.isFrameComplete();
     }
 
+    final protected @Nonnull List<IVideoSectorWithFrameNumber> getNonNullChunks(@Nonnull ILocalizedLogger log) {
+        return _bldr.getNonNullChunks(log);
+    }
+
     public @Nonnull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log) {
-        List<IVideoSectorWithFrameNumber> sectors = _bldr.getNonNullChunks(log);
+        List<IVideoSectorWithFrameNumber> sectors = getNonNullChunks(log);
 
         // need to wrap the sectors in something compatible with IReplaceableVideoSector
         List<SectorBasedFrameReplace.IReplaceableVideoSector> wrappedSectors =
-                new ArrayList<SectorBasedFrameReplace.IReplaceableVideoSector>();
+                new ArrayList<SectorBasedFrameReplace.IReplaceableVideoSector>(sectors.size());
 
         for (IVideoSectorWithFrameNumber vidSector : sectors) {
             wrappedSectors.add(new VideoSectorReplaceableDemuxPiece(vidSector));

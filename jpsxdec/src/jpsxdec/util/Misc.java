@@ -45,6 +45,8 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -60,7 +62,7 @@ public final class Misc {
      * Every implementation of the Java platform is required to support US-ASCII.
      * @see Charset
      */
-    public static byte[] stringToAscii(@Nonnull String string) {
+    public static @Nonnull byte[] stringToAscii(@Nonnull String string) {
         try {
             return string.getBytes("US-ASCII");
         } catch (UnsupportedEncodingException ex) {
@@ -68,15 +70,22 @@ public final class Misc {
         }
     }
 
-    public static String asciiToString(@Nonnull byte[] ascii) {
+    public static @Nonnull String asciiToString(@Nonnull byte[] ascii) {
         return asciiToString(ascii, 0, ascii.length);
     }
-    public static String asciiToString(@Nonnull byte[] ascii, int iOffset, int iLength) {
+    public static @Nonnull String asciiToString(@Nonnull byte[] ascii, int iOffset, int iLength) {
         try {
             return new String(ascii, iOffset, iLength, "US-ASCII");
         } catch (UnsupportedEncodingException ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    /** Makes a date X number of seconds past the year 0. */
+    public static @Nonnull Date dateFromSeconds(int iSeconds) {
+        Calendar c = Calendar.getInstance();
+        c.set(0, 0, 0, 0, 0, iSeconds);
+        return c.getTime();
     }
 
     /** Returns an array of just the matching groups.
@@ -161,21 +170,6 @@ public final class Misc {
         return new String(ac);
     }
     
-    /** Manual implementation of the Java 6 Array.copyOfRange function. 
-     *  Borrowed from some older Apache code. */
-    public static @Nonnull byte[] copyOfRange(@Nonnull byte[] original, int from, int to) {
-        int newLength = to - from;
-        if (newLength < 0)
-            throw new IllegalArgumentException(from + " > " + to);
-        
-        byte[] arr = new byte[newLength];
-        int ceil = original.length-from;
-        int len = (ceil < newLength) ? ceil : newLength;
-        System.arraycopy(original, from, arr, 0, len);
-        
-        return arr;
-    }
-
     /** Removes the extension from the given file name/path. */
     public static @Nonnull String removeExt(@Nonnull String sFileName) {
         int i = sFileName.lastIndexOf('.');

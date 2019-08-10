@@ -109,6 +109,7 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
         return new ByteArrayFPIS(this);
     }
     
+    @Override
     public String toString() {
         return String.format("FP:%d Stream:%d/%d Buf:%d/%d",
                              getFilePointer(),

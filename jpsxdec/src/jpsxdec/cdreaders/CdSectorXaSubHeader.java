@@ -173,11 +173,6 @@ public class CdSectorXaSubHeader {
     private final int _iConfidenceBalance;
 
 
-    private static boolean isFileValid(int iFileNumber) {
-        return iFileNumber >= 0 && iFileNumber <= 2 ;
-    }
-
-
     public CdSectorXaSubHeader(int iSector, @Nonnull byte[] abSectorData, int iStartOffset) {
 
         _iFileNum1 = abSectorData[iStartOffset+0] & 0xff;
@@ -191,14 +186,12 @@ public class CdSectorXaSubHeader {
 
         int iConfidenceBalance = 0;
 
-        boolean blnValid1 = isFileValid(_iFileNum1);
-        if (_iFileNum1 == _iFileNum2) {
-            _eFileIssue = blnValid1 ? IssueType.EQUAL_BOTH_GOOD :
-                                      IssueType.EQUAL_BOTHBAD;
-        } else {
-            _eFileIssue = IssueType.diffIssue(blnValid1, isFileValid(_iFileNum2));
-            iConfidenceBalance += _eFileIssue.Balance;
-        }
+        // I've tried to put some constraint on what is considered a
+        // 'good' file number, but PSX seems to allow for any byte value.
+        if (_iFileNum1 == _iFileNum2)
+            _eFileIssue = IssueType.EQUAL_BOTH_GOOD;
+        else
+            _eFileIssue = IssueType.DIFF_BOTHGOOD;
 
         // my understanding is channel is technically supposed to be
         // between 0 and 31, but PSX seems to allow for any byte value.
@@ -207,7 +200,7 @@ public class CdSectorXaSubHeader {
         else
             _eChannelIssue = IssueType.DIFF_BOTHGOOD;
 
-        blnValid1 = _submode1.isValid();
+        boolean blnValid1 = _submode1.isValid();
         if (_submode1.toByte() == _submode2.toByte()) {
             _eSubModeIssue = blnValid1 ? IssueType.EQUAL_BOTH_GOOD :
                                          IssueType.EQUAL_BOTHBAD;

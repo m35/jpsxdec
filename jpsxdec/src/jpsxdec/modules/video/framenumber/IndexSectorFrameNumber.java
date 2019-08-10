@@ -182,4 +182,18 @@ public class IndexSectorFrameNumber extends FrameNumber {
             return fn;
         }
     }
+
+    public static @Nonnull IFrameNumberFormatter makeSimpleFormatter(
+            int iFrameCount,
+            int iSectorMinValue, int iSectorMaxValue, int iSectorDuplicateMax)
+    {
+        // set the end duplicate = max duplicate for simplicity
+        FrameNumberNumber.Format snf = new FrameNumberNumber.Format(
+                iSectorMinValue, iSectorMaxValue, iSectorDuplicateMax, iSectorDuplicateMax);
+        FrameNumberNumber.Formatter sf = new FrameNumberNumber.Formatter(snf);
+
+        IndexSectorFrameNumber.Formatter sect = new IndexSectorFrameNumber.Formatter(iFrameCount, sf);
+        return sect;
+    }
+
 }

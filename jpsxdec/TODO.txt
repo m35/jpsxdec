@@ -67,14 +67,10 @@ Improvements
 
 Java 6 Console
     Background
-Java <= 5 only has stdout PrintStream,
-which does not allow choosing the text encoder (for non-English languages)
+Java <= 5 only had stdout PrintStream, which does not allow choosing the text 
+encoder (for non-English languages)
     Suggested solution
-Use Java 6 Console to use proper encoding when printing to the console
-Java 6 added 'Console' that offers the choice of encoding
-jPSXdec uses Java 5, however reflection can get around that
-The printing to the console can be abstracted and reflection could not only save
-Faith's sister Kate but also gain access to Console if Java >= 6, otherwise fall back to PrintStream
+Use Java 6 Console to use proper encoding when printing to the console.
 
 GUI improvements
     * Only show disc and index dropdown button when there are list entries
@@ -127,8 +123,6 @@ Add list box when indexing that will show the items as they are discovered
 ? Make tutorial on ripping a game and using jpsxdec
 ? Update manual to cover game ripping
 
-Remove .mov from STR extensions
-Give up trying to verify CD sector header "File" should have any value
 Log "Writing dup frame for frame" to user log with "to keep audio and video in sync"
 Log "Ahead of reading by x frames" more like "out of sync with frame timing" maybe?
 "Frame in sectors 129921-129927 is missing chunk 6" -> "Frame found in sectors x-x is incomplete or missing data"
@@ -154,11 +148,10 @@ Serious Real-time media playback/preview issues
         * OpenJDK Ubuntu video playback doesn't process frames
         * Oracle Java Ubuntu VM audio auto-starts when it shouldn't
     jPSXdec still has issues in several cases
-        ! Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player (ff tactics FFTST.STR)
+        /?/ Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player (ff tactics FFTST.STR)
         * Bug: when audio doesn't start for a prolonged period, video frame queue fills and blocks
-        * Add PlayingState.AT_END
-        * Bug: Player doesn't let you play movie with 1 frame
-        * Bug: video player repeats prior frames and audio when frame type is not detected
+        /?/ Bug: Player doesn't let you play movie with 1 frame
+        /?/ Bug: video player repeats prior frames and audio when frame type is not detected
         * Pause video-only playback when reading is delayed
         /?/ Bug: end of playing race condition locks gui
         /?/ Bug: Player automatically plays video-only content when it is very short
@@ -186,17 +179,24 @@ Games to investigate
 * Discworld 2
 * BrainDead 13
 * Syphon Filter 3
-* Policenauts - Video in static files
 * "Love Game's - Wai Wai Tennis [Service Price] [SLPS-01647] have intro.str file weighing 33 megabytes. In jpsxdec did not see."
 * Fear Effect
+* Kowloon's Gate
+* Jackie Chan Stuntmaster
+* Firemen 2
+* Magic the Gathering
+* Aconcagua ending video
+// Policenauts - Video in static files
 
 Replace
-    * Crusader audio
-    * SPU
-    Then introduce a shared -replace command
     with a prompt before applying changes
     which can be skipped with -y (don't prompt to apply changes)
     or -n (essentially a dry-run)
+    * SPU
+    * Add ability to replace using a PNG with (semi-)transparent pixels
+    which would be painted over the original frame, then re-encoded
+    x Crusader audio
+    x Then introduce a shared -replace command
 
 Editing disc items
     * SPU items samples/second varies by clip
@@ -237,8 +237,6 @@ Create my own smaller/simpler arg parser
 
 General code stuff
     * Add unit tests to build.xml
-        * Unit tests require Java 6 while jPSXdec is built with Java 5 ...
-          can use 2 different Javas in ant?
         * Create unit test subproject?
     * Clean up all the TODOs
     * Proper handling for InterruptedExcetion
@@ -249,21 +247,15 @@ General code stuff
 Add @Override all the things
 
 Logger framework that supports thread context logging - removes all the log parameters
-Replace playback system with ExecutorService
 
-SectorClaimer is not thread safe! setRangeLimit() mutates the global instance
-
-* Super simplify but slow down IO.java
 ! Cleanup Main: Remove FeedbackStream and just use a Logger
-* show error/warn unused cmdline args
+/ show error/warn unused cmdline args
 
-! Have separate DiscItemBuilderGuiFactory to create a gui from a DiscItemBuilder and cache it
+* Have separate DiscItemBuilderGuiFactory to create a gui from a DiscItemBuilder and cache it
 * Log when frame rate detection fails
 
-* change xa playback to properly handle static (adjacent sector) streaming
+* change xa playback to better handle static (adjacent sector) streaming
 * Figure out how to better organize all the RGB and YCbCr pixel formats
-
-? Use ConcurrentLinkedQueue in player queue wrapped with bounds
 
 ? Optimize AviWriter with buffers
     - Construct audio/video chunks in ram before writing
@@ -277,7 +269,6 @@ SectorClaimer is not thread safe! setRangeLimit() mutates the global instance
     may remove the possibility of random access, unless there is smart
     limited scope contextual detection considering adjacent sectors
 
-? Can the 0 AC remover count them then have single message per frame?
 "Invalid Crusader header 00000000000000000000000000000000"
 	Any way to check where in the stream it is?
 
@@ -311,8 +302,6 @@ Video encoder
 
 Game specific
     * Finish testing LoD iki: GOAST.IKI (end of disc 2), DENIN2.INI (middle of disc 3), DRAGON1.IKI
-    * Add WCW to sector test
-    * Update LoM sector test
     * Finish Crusader tests
         . only audio
         . starts near end
@@ -338,7 +327,7 @@ Game specific
 ? Even when not upsampling chroma, utilize it for PsxYuv->JpgYuv matrix conversion
     ! Test how much difference there is between the two color sets
 ? When displaying progress, setup a timer to only update the display at most every second
-? Index doesn't indicate generic type that is used in cmdline save all
+* Index doesn't indicate generic type that is used in cmdline save all
 /?/ Add LIST:INFO:ISFT to AVI
 ? Save and load gui ini on every change?
 ? https://github.com/Georgeto/XFileDialog
@@ -349,6 +338,8 @@ Game specific
 
 Done or rejected /x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x/x
 
+//Remove .mov from STR extensions
+//Give up trying to verify CD sector header "File" should have any value
 // Indexing overhaul:
     //Introduce contextual information to help identify sector types
     //Identifying video sectors by combining the frame data along the way and checking if its valid (FF7, Lain, Dredd)
@@ -357,8 +348,6 @@ x Change visualization to output HTML page -> no, 20mb .html files are bad
 x Finish function "identifySector()" in DiscItem
   to more quickly figure out what type of sectors are read (since it won't
   have to go through the whole list of like 10 types).
-// Add partial replace tests
-// Add in a comment in log what sector types were found during indexing (for debugging)
 x Change sector reading to start by only reading the header, then read remaining as needed
     -> like to avoid handling possible ioexception everywhere
 x PSX may not like replaced tims, check palette effect -> removed bmp tim replace
@@ -374,37 +363,9 @@ x PSX may not like replaced tims, check palette effect -> removed bmp tim replac
             // unfortunately RandomAccessFile cannot be extended like this
         // use threads
         x otherwise stuck with a state machine
-// Verify Loggers and LogRecords and ResourceBundles, use another log system? -> my own logger
-// Finish RbGen
 // Localize Main help
-// Finish XA encoder
-// Look into adding ErrorHandler to my Loggers -> my own logger
-// Ensure cleaning AC=0 codes doesn't affect decoded output
-// Try to find audio from Gran Turismo
-// Remove need for video frame dimensions to be in sector
-//  Demuxer should provide frame dimensions either from the sector or from checking the demuxed frame
-//  Applies to: Dredd, Gran Turismo 2, Crusader already does this?
-// XA replace: give better feedback what stopped the replace
-// Save isofile: display output size for raw/normal
 / Add time log msg at end of save/index
-// Update launch4j
-// Update dir chooser - project is dead
-//Indexing
-    // ISO indexer keeps a bit array of all sectors in the CD and flags them as mode 1/2.
-    //When creating the DiscItemISO9660Files, it checks if the file contains mode 2 sectors
-// Duplicated frame number in header messes things up (iki)
-    // Remove need for frame numbers, and Dredd prebuilt index
-    x Just store the frame start sectors for Dredd
-    x Make Dredd indexer and Dredd Disc item that subclasses DiscItemVideoStream
-// Localize disc item help
-// Change the way video items split audio items: do it after indexing.
-   //It's conceptually better, and removes Audio indexer from having to know about video frames.
-   //However, different movie types split movies slightly differently
-   //And right now its the sectors that are the only game specific logic
-   //I would need to add game specific indexers
-x Add doxygen to build.xml
-    x Make doxygen config
-x Bug: Tree music icon is hard to see on blue background
+// Can the 0 AC remover count them then have single message per frame?
 
 ------------------------------------------
 User test feedback

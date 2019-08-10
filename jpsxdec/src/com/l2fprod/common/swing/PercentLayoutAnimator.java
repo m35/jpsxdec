@@ -33,7 +33,7 @@ import javax.swing.Timer;
 public class PercentLayoutAnimator implements ActionListener {
 
   private Timer animatorTimer;
-  private List tasks = new ArrayList();
+  private List<PercentTask> tasks = new ArrayList<PercentTask>();
   private PercentLayout layout;
   private Container container;
 

@@ -59,9 +59,9 @@ public interface ISectorAudioDecoder {
     /** Sector where the audio begins to play. */
     int getAbsolutePresentationStartSector();
 
-    @Deprecated
+    /** Physical start sector, not presentation start sector. */
     int getStartSector();
-    @Deprecated
+    /** Physical end sector, not presentation end sector. */
     int getEndSector();
 
     int getSampleFramesPerSecond();

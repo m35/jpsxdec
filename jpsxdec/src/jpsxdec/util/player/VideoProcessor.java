@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,50 +37,62 @@
 
 package jpsxdec.util.player;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /** Video processor thread manages the conversion of video source data
  * to a presentation image. */
-class VideoProcessor implements Runnable {
+class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
 
     private static final boolean DEBUG = false;
 
     private static final int CAPACITY = 50;
 
-    private final ObjectPlayStream<IDecodableFrame> _framesProcessingQueue =
-            new ObjectPlayStream<IDecodableFrame>(CAPACITY);
-    @CheckForNull
-    private Thread _thread;
+    private final ClosableArrayBlockingQueue<DecodableFrame> _framesProcessingQueue =
+            new ClosableArrayBlockingQueue<DecodableFrame>(CAPACITY);
 
     @Nonnull
-    private final IVideoTimer _vidTimer;
+    private final VideoTimer _vidTimer;
     @Nonnull
     private final VideoPlayer _vidPlayer;
+    @Nonnull
+    private final Thread _thread;
 
-    public VideoProcessor(@Nonnull IVideoTimer timer, @Nonnull VideoPlayer player) {
+    private IFrameProcessor _processor;
+
+    VideoProcessor(@Nonnull VideoTimer timer, @Nonnull VideoPlayer player) {
         _vidTimer = timer;
         _vidPlayer = player;
-        _framesProcessingQueue.writerClose();
-        _framesProcessingQueue.readerClose();
+        _thread = new Thread(this, getClass().getName());
     }
 
+    public void setProcessor(@Nonnull IFrameProcessor processor) {
+        _processor = processor;
+    }
+
+    public void start() {
+        if (_processor == null)
+            throw new IllegalStateException();
+        _thread.start();
+    }
+
+    @SuppressWarnings("unchecked")
     public void run() {
-        IDecodableFrame decodeFrame;
+        DecodableFrame decodeFrame;
         int[] aiImage = new int[_vidPlayer.getWidth() * _vidPlayer.getHeight()];
         try {
-            while ((decodeFrame = _framesProcessingQueue.read()) != null) {
+            while ((decodeFrame = _framesProcessingQueue.take()) != null) {
                 // check that we haven't passed presentation time
-                if (_vidTimer.shouldBeProcessed(decodeFrame.getPresentationTime()))
+                //System.out.println("Checking if to process frame at " + decodeFrame.lngPresentationNanos);
+                if (_vidTimer.shouldBeProcessed(decodeFrame.lngPresentationNanos))
                 {
                     if (DEBUG) System.out.println("Processor processing frame :)");
-                    VideoPlayer.VideoFrame frame = _vidPlayer._videoFramePool.borrow();
-                    frame.PresentationTime = decodeFrame.getPresentationTime();
+                    DecodedVideoFrame frame = new DecodedVideoFrame(_vidPlayer.getWidth(), _vidPlayer.getHeight());
+                    frame.lngPresentationNanos = decodeFrame.lngPresentationNanos;
                     // decode frame
-                    decodeFrame.decodeVideo(aiImage);
-                    frame.Img.setRGB(0, 0,
-                            frame.Img.getWidth(), frame.Img.getHeight(),
-                            aiImage, 0, frame.Img.getWidth());
+                    _processor.processFrame(decodeFrame.frame, aiImage);
+                    frame.image.setRGB(0, 0,
+                            frame.image.getWidth(), frame.image.getHeight(),
+                            aiImage, 0, frame.image.getWidth());
                     // submit to vid player
                     // will block if player is full
                     _vidPlayer.addFrame(frame);
@@ -90,38 +102,32 @@ class VideoProcessor implements Runnable {
             }
         } catch (Throwable ex) {
             ex.printStackTrace();
-        } finally {
-            _framesProcessingQueue.readerClose();
-            _vidPlayer.writerClose();
+            terminate();
+            return;
         }
+        System.out.println("VideoProcessor ending");
+        _vidPlayer.finish();
     }
 
-    public void writeFrame(@Nonnull IDecodableFrame frame) {
+    @SuppressWarnings("unchecked")
+    public void writeFrame(@Nonnull Object frame, long lngPresentationNanos) throws StopPlayingException {
+        if (DEBUG) System.out.println("Frame submitted for processing, present at " + lngPresentationNanos);
         try {
-            _framesProcessingQueue.write(frame);
+            if (!_framesProcessingQueue.add(new DecodableFrame(frame, lngPresentationNanos)))
+                throw new StopPlayingException();
         } catch (InterruptedException ex) {
-            ex.printStackTrace();
+            throw new StopPlayingException(ex);
         }
     }
-    
-    public void startBuffering() {
-        synchronized (_framesProcessingQueue.getSyncObject()) {
-            if (_framesProcessingQueue.isReaderClosed()) {
-                _framesProcessingQueue.writerOpen();
-                _framesProcessingQueue.readerOpen();
-                _thread = new Thread(this, getClass().getName());
-                _thread.start();
-            }
-        }
-    }
-    
-    /** Make sure player is stopped before calling this method or it will deadlock. */
-    public void stop() {
-        _framesProcessingQueue.readerClose();
+
+    public void finish() {
+        System.out.println("VideoProcessor request to end");
+        _framesProcessingQueue.closeWhenEmpty();
     }
 
-    public void writerClose() {
-        _framesProcessingQueue.writerClose();
+    public void terminate() {
+        _framesProcessingQueue.closeNow();
+        _vidPlayer.terminate();
     }
-
+    
 }

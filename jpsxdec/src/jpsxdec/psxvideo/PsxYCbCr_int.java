@@ -37,6 +37,7 @@
 
 package jpsxdec.psxvideo;
 
+import javax.annotation.Nonnull;
 import jpsxdec.formats.RGB;
 import jpsxdec.util.Maths;
 
@@ -62,7 +63,7 @@ public class PsxYCbCr_int {
     public static final long _0_7143  = 46812;  // Math.round(0.7143 * FIXED_MULT);
     public static final long _1_772   = 116224; // Math.round(1.772  * FIXED_MULT)+94;
 
-    public static void toRgb(int y, int cb, int cr, RGB rgb) {
+    public static void toRgb(int y, int cb, int cr, @Nonnull RGB rgb) {
         int Yshift = y + 128;
         long c_r =                 _1_402  * cr,
              c_g = -_0_3437 * cb - _0_7143 * cr,
@@ -72,7 +73,7 @@ public class PsxYCbCr_int {
         rgb.setB(Yshift + (int)Maths.shrRound(c_b, FIXED_BITS));
     }
     
-    final public void toRgb(RGB rgb1, RGB rgb2, RGB rgb3, RGB rgb4) {
+    final public void toRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
         int iChromRed   = (int)Maths.shrRound(                      _1_402  * cr , FIXED_BITS);
         int iChromGreen = (int)Maths.shrRound( -(_0_3437 * cb)  -  (_0_7143 * cr), FIXED_BITS);
         int iChromBlue  = (int)Maths.shrRound(   _1_772  * cb                    , FIXED_BITS);
@@ -99,6 +100,7 @@ public class PsxYCbCr_int {
         rgb4.setB(iYshift + iChromBlue);
     }
 
+    @Override
     public String toString() {
         return String.format( "([%d, %d, %d, %d] %d, %d)" , y1, y2, y3, y4, cb, cr);
     }

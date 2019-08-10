@@ -54,9 +54,9 @@ import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
 import jpsxdec.psxvideo.mdec.Calc;
+import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 import jpsxdec.util.BinaryDataNotRecognized;
@@ -225,7 +225,7 @@ public class STRv3 {
         
     }
 
-    public static class MdecInputStreamIterator extends MdecInputStream {
+    public static class MdecInputStreamIterator implements MdecInputStream {
 
         private final Iterator<MdecCode> _codes;
 
@@ -235,7 +235,7 @@ public class STRv3 {
 
         @Override
         public boolean readMdecCode(MdecCode code) {
-            code.set(_codes.next());
+            code.setFrom(_codes.next());
             return code.isEOD();
         }
     }
@@ -294,8 +294,7 @@ public class STRv3 {
             for (String sCode : asCodes) {
                 try {
                     v3.readMdecCode(code);
-                    if (!sCode.equals(code.toString()))
-                        System.out.println("Line "+lnr.getLineNumber()+": "+sLine);
+                    assertEquals("Line "+lnr.getLineNumber()+": "+sLine, sCode, formatMdec(code));
                 } catch (MdecException.ReadCorruption ex) {
                     if (!sCode.startsWith("!")) {
                         AssertionError e = new AssertionError("Line "+lnr.getLineNumber()+": "+sLine);
@@ -308,7 +307,12 @@ public class STRv3 {
         lnr.close();
     }
 
-
+    private static String formatMdec(MdecCode code) {
+        if (code.isEOD())
+            return "EOD";
+        else
+            return "("+code.getTop6Bits()+", "+code.getBottom10Bits()+")";
+    }
 
     private static abstract class Str3DcGenerator {
         private BitStreamUncompressor_STRv3 _v3;
@@ -333,7 +337,7 @@ public class STRv3 {
             _v3.readMdecCode(_code);
             if (_mdecCodesRead.length() > 0)
                 _mdecCodesRead.append('+');
-            _mdecCodesRead.append(_code);
+            _mdecCodesRead.append(formatMdec(_code));
             if (_code.getBottom10Bits() % 4 != 0)
                 throw new IllegalStateException(_code.toString());
             return _code;
@@ -492,6 +496,9 @@ public class STRv3 {
     }
 
     public static void main(String[] args) throws Exception {
+        System.out.println("*************************************");
+        System.out.println("** Generating DC test lookup files **");
+        System.out.println("*************************************");
         new DcGeneratorChroma().generate("v3_DC_CHROMA.txt");
         new DcGeneratorLuma().generate("v3_DC_LUMA.txt");
     }

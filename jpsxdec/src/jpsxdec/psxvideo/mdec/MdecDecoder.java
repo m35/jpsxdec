@@ -38,25 +38,23 @@
 package jpsxdec.psxvideo.mdec;
 
 import java.util.Arrays;
+import javax.annotation.Nonnull;
 
 /** Super class of the two different MDEC decoders: int and double. */
 public abstract class MdecDecoder {
 
     public static boolean DEBUG = false;
     
-    protected static final String[] BLOCK_NAMES = {
-        "Cr", "Cb", "Y1", "Y2", "Y3", "Y4"
-    };
-    
     protected static boolean debugPrintln(String s) {
         System.out.println(s);
         return true;
     }
 
-    protected final MdecInputStream.MdecCode _code = new MdecInputStream.MdecCode();
+    protected final MdecCode _code = new MdecCode();
 
-    protected final int _iMacBlockWidth;
+    private final int _iMacBlockWidth;
     protected final int _iMacBlockHeight;
+    protected final int _iTotalMacBlocks;
 
     /** Luma dimensions. */
     protected final int W, H;
@@ -66,14 +64,19 @@ public abstract class MdecDecoder {
     protected final int[] _aiLumaBlkOfsLookup;
     protected final int[] _aiChromaMacBlkOfsLookup;
 
-    protected final int[] _aiQuantizationTable =
-            MdecInputStream.getDefaultPsxQuantMatrixCopy();
+    protected final int[] _aiQuantizationTable = 
+            new int[MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length];
     
     protected final int[] _aiDebugPreqantBlock;
 
     protected MdecDecoder(int iWidth, int iHeight) {
+        System.arraycopy(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX, 0,
+                         _aiQuantizationTable, 0,
+                         MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
+
         _iMacBlockWidth = Calc.macroblockDim(iWidth);
         _iMacBlockHeight = Calc.macroblockDim(iHeight);
+        _iTotalMacBlocks = _iMacBlockWidth * _iMacBlockHeight;
         W = _iMacBlockWidth * 16;
         H = _iMacBlockHeight * 16;
         CW = _iMacBlockWidth * 8;
@@ -100,10 +103,10 @@ public abstract class MdecDecoder {
             }
         }
         
-        boolean blnAssert = false;
-        assert blnAssert = true;
+        boolean blnAssertsEnabled = false;
+        assert blnAssertsEnabled = true;
         
-        if (blnAssert && DEBUG)
+        if (blnAssertsEnabled && DEBUG)
             _aiDebugPreqantBlock = new int[64];
         else
             _aiDebugPreqantBlock = null;
@@ -134,18 +137,18 @@ public abstract class MdecDecoder {
 
     /** Reads an image from the MdecInputStream and decodes it to an internal
      *  PSX YCbCr buffer. */
-    abstract public void decode(MdecInputStream mdecStream)
+    abstract public void decode(@Nonnull MdecInputStream mdecStream)
             throws MdecException.EndOfStream, MdecException.ReadCorruption;
     
     /** Retrieve the contents of the internal PSX YCbCr buffer converted to RGB. */
-    abstract public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest,
+    abstract public void readDecodedRgb(int iDestWidth, int iDestHeight, @Nonnull int[] aiDest,
                                         int iOutStart, int iOutStride);
 
-    public void readDecodedRgb(int iDestWidth, int iDestHeight, int[] aiDest) {
+    public void readDecodedRgb(int iDestWidth, int iDestHeight, @Nonnull int[] aiDest) {
         readDecodedRgb(iDestWidth, iDestHeight, aiDest, 0, iDestWidth);
     }
 
-    public void setQuantizationTable(int[] aiNewTable) {
+    public void setQuantizationTable(@Nonnull int[] aiNewTable) {
         if (aiNewTable.length != _aiQuantizationTable.length)
             throw new IllegalArgumentException("Incorrect table size");
         System.arraycopy(aiNewTable, 0, _aiQuantizationTable, 0, _aiQuantizationTable.length);

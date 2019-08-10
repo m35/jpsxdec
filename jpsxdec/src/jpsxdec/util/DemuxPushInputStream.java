@@ -62,7 +62,7 @@ public class DemuxPushInputStream<T extends DemuxedData.Piece> extends InputStre
 
     private static final Logger LOG = Logger.getLogger(DemuxPushInputStream.class.getName());
 
-    /** Thrown when the stream is still open and the available data has
+    /** Thrown when the stream is still open but the available data has
      * been exhausted. */
     public static class NeedsMoreData extends IOException {
 
@@ -206,7 +206,7 @@ public class DemuxPushInputStream<T extends DemuxedData.Piece> extends InputStre
         return _readStream.isEof();
     }
 
-    public @CheckForNull T getCurrentPiece() {
+    public @Nonnull T getCurrentPiece() {
         return _readStream.getCurrentPiece();
     }
 
@@ -353,7 +353,7 @@ public class DemuxPushInputStream<T extends DemuxedData.Piece> extends InputStre
 
         public CopyablePieceSequenceStream(@Nonnull BufferedPushIterator.Iter<T> pieceInterator) {
             _pieceIterator = pieceInterator;
-            _currentPieceStream = new PieceInputStream(_pieceIterator.next());
+            _currentPieceStream = new PieceInputStream<T>(_pieceIterator.next());
             // find out how much is initially available
             _iAvailable = _currentPieceStream.available();
             BufferedPushIterator.Iter<T> it = _pieceIterator.copy();

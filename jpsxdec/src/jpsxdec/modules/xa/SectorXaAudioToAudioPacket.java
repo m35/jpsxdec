@@ -46,6 +46,7 @@ import javax.sound.sampled.AudioFormat;
 import jpsxdec.adpcm.XaAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.I;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.util.ByteArrayFPIS;
@@ -83,6 +84,7 @@ public class SectorXaAudioToAudioPacket implements SectorClaimToSectorXaAudio.Li
     public void feedXaSector(@Nonnull CdSector cdSector,
                              @CheckForNull SectorXaAudio xaSector,
                              @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
         if (cdSector.getSectorIndexFromStart() < _iStartSector ||
             cdSector.getSectorIndexFromStart() > _iEndSectorInclusive)

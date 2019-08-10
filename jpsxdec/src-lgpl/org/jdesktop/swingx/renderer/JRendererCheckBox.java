@@ -38,13 +38,13 @@ import org.jdesktop.swingx.painter.Painter;
  * 
  * @author Jeanette Winzenburg
  */
-public class JRendererCheckBox extends JCheckBox implements PainterAware {
-    protected Painter painter;
+public class JRendererCheckBox extends JCheckBox implements PainterAware<JRendererCheckBox> {
+    protected Painter<JRendererCheckBox> painter;
 
     /**
      * {@inheritDoc}
      */
-    public Painter getPainter() {
+    public Painter<JRendererCheckBox> getPainter() {
         return painter;
     }
 
@@ -52,7 +52,7 @@ public class JRendererCheckBox extends JCheckBox implements PainterAware {
     /**
      * {@inheritDoc}
      */
-    public void setPainter(Painter painter) {
+    public void setPainter(Painter<JRendererCheckBox> painter) {
         Painter old = getPainter();
         this.painter = painter;
         if (painter != null) {

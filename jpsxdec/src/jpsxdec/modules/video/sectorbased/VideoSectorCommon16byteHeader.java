@@ -58,20 +58,20 @@ public class VideoSectorCommon16byteHeader {
         iUsedDemuxedSize = cdSector.readSInt32LE(12);
     }
 
-    /** @return If the chunk number is invalid according to common convention. */
-    public boolean isChunkNumberStandard() {
+    /** @return If the chunk number is valid according to common convention. */
+    public boolean hasStandardChunkNumber() {
         return iChunkNumber >= 0;
     }
-    /** @return If the chunk count is invalid according to common convention. */
-    public boolean isChunksInFrameStandard() {
+    /** @return If the chunk count is valid according to common convention. */
+    public boolean hasStandardChunksInFrame() {
         return iChunksInThisFrame >= 1;
     }
-    /** @return If the frame number is invalid according to common convention. */
-    public boolean isFrameNumberStandard() {
+    /** @return If the frame number is valid according to common convention. */
+    public boolean hasStandardFrameNumber() {
         return iFrameNumber >= 0;
     }
-    /** @return If the used demux size is invalid according to common convention. */
-    public boolean isUsedDemuxSizeStandard() {
+    /** @return If the used demux size is valid according to common convention. */
+    public boolean hasStandardUsedDemuxSize() {
         return iUsedDemuxedSize >= 1;
     }
 }

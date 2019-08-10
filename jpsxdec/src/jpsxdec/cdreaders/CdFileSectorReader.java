@@ -52,7 +52,6 @@ import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.util.IO;
-import jpsxdec.util.IOException6;
 import jpsxdec.util.Misc;
 import jpsxdec.util.TaskCanceledException;
 
@@ -91,7 +90,7 @@ public class CdFileSectorReader implements Closeable {
     }
 
     /** Exception if there is an error reading from the CD file. */
-    public static class CdReadException extends IOException6 {
+    public static class CdReadException extends IOException {
 
         @Nonnull
         private final File _file;
@@ -106,7 +105,7 @@ public class CdFileSectorReader implements Closeable {
         }
     }
     /** Exception if there is an error writing to the CD file. */
-    public static class CdWriteException extends IOException6 {
+    public static class CdWriteException extends IOException {
 
         @Nonnull
         private final File _file;
@@ -138,7 +137,7 @@ public class CdFileSectorReader implements Closeable {
 
     /** Exception if there is an error re-opening the CD file
      * (like for write-access). */
-    public static class CdReopenException extends IOException6 {
+    public static class CdReopenException extends IOException {
 
         @Nonnull
         private final File _file;

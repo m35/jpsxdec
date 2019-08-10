@@ -37,11 +37,11 @@
 
 package jpsxdec.cdreaders;
 
+import java.util.Arrays;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
-import jpsxdec.util.Misc;
 
 
 /** Represents a single sector on a CD. */
@@ -136,8 +136,8 @@ public abstract class CdSector {
     /** Returns copy of the 'user data' portion of the sector. */
     final public @Nonnull byte[] getCdUserDataCopy() {
         int iStart = _iByteStartOffset + getHeaderDataSize();
-        return Misc.copyOfRange(_abSectorBytes,
-                                iStart, iStart + getCdUserDataSize());
+        return Arrays.copyOfRange(_abSectorBytes,
+                                  iStart, iStart + getCdUserDataSize());
     }
 
     /** Copies a block of bytes out of the user data portion of this CD sector to the supplied array.
@@ -155,9 +155,9 @@ public abstract class CdSector {
     /** Returns a copy of the underlying sector data, with raw
      * header/footer and everything it has. */
     final public @Nonnull byte[] getRawSectorDataCopy() {
-        return Misc.copyOfRange(_abSectorBytes,
-                                _iByteStartOffset,
-                                _iByteStartOffset+getRawCdSectorSize());
+        return Arrays.copyOfRange(_abSectorBytes,
+                                  _iByteStartOffset,
+                                  _iByteStartOffset+getRawCdSectorSize());
     }
 
     /** Returns an InputStream of the 'user data' portion of the sector. */

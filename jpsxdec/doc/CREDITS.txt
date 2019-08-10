@@ -68,6 +68,10 @@ Sony's official SDK movconv tool.
 
 Víctor González and Sergi Medina for the Spanish translation.
 
+Gianluigi "Infrid" Cusimano for adding the Italian translation.
+
+XBrav for adding support for Reboot video.
+
 The Hitmen for releasing invaluable source code related to PSX hacking.
 
 The countless people who created so many open source tools that I've used

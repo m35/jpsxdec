@@ -618,27 +618,7 @@ class CreateTim {
          * @return Palette index or -1 if not found. */
         public int getPixelPaletteIndex(int iPixelIndex) {
             short siTim16 = _asiTim16Image[iPixelIndex];
-            return binarySearch(siTim16);
-        }
-
-        /** Java 5 doesn't have binary search in a range. */
-        private int binarySearch(short siKey) {
-            int iMin = 0;
-            int iMax = _iColorCount;
-            // continue searching while [min,max] is not empty
-            while (iMax >= iMin) {
-                int iMid = (iMin + iMax) >>> 1;
-
-                // determine which subarray to search
-                if (_asiPalette[iMid] < siKey) // change min index to search upper subarray
-                    iMin = iMid + 1;
-                else if (_asiPalette[iMid] > siKey) // change max index to search lower subarray
-                    iMax = iMid - 1;
-                else // key found at index mid
-                    return iMid;
-            }
-            // key not found
-            return -1;
+            return Arrays.binarySearch(_asiPalette, 0, _iColorCount, siTim16);
         }
 
         public @Nonnull CLUT makeClut(int iClutX, int iClutY) {

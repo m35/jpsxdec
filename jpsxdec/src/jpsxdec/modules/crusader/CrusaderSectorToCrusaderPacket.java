@@ -43,6 +43,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.DemuxPushInputStream;
@@ -62,11 +63,13 @@ public class CrusaderSectorToCrusaderPacket {
     public interface PacketListener {
         void frame(@Nonnull CrusaderPacketHeaderReader.VideoHeader frame,
                    @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
-                   @Nonnull ILocalizedLogger log);
+                   @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
 
         void audio(@Nonnull CrusaderPacketHeaderReader.AudioHeader audio,
                    @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
-                   @Nonnull ILocalizedLogger log);
+                   @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
     }
 
     @CheckForNull
@@ -91,7 +94,7 @@ public class CrusaderSectorToCrusaderPacket {
     /** Returns if the sector was accepted by this movie.
      * A new {@link CrusaderSectorToCrusaderPacket} should be created for
      * each movie. */
-    public boolean sectorRead(@Nonnull SectorCrusader sector, @Nonnull ILocalizedLogger log) {
+    public boolean sectorRead(@Nonnull SectorCrusader sector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_iPrevCrusaderSector != -1) {
             if (sector.getCrusaderSectorNumber() < _iPrevCrusaderSector)
                 return false;
@@ -120,13 +123,13 @@ public class CrusaderSectorToCrusaderPacket {
     }
 
     /** Tells this to finish off the video and flush any remaining data. */
-    public void endVideo(@Nonnull ILocalizedLogger log) {
+    public void endVideo(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         _stream.close();
         read(log);
         _stream = null;
     }
 
-    private void read(@Nonnull ILocalizedLogger log) {
+    private void read(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         try {
             while (true) {
                 if (_header == null) {

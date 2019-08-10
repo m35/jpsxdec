@@ -57,7 +57,7 @@ public class JDirectoryChooserBeanInfo extends SimpleBeanInfo {
    * @return The additionalBeanInfo value
    */
   public BeanInfo[] getAdditionalBeanInfo() {
-    Vector bi = new Vector();
+    Vector<BeanInfo> bi = new Vector<BeanInfo>();
     BeanInfo[] biarr = null;
     try {
       for (Class cl = com.l2fprod.common.swing.JDirectoryChooser.class
@@ -119,7 +119,7 @@ public class JDirectoryChooserBeanInfo extends SimpleBeanInfo {
    */
   public PropertyDescriptor[] getPropertyDescriptors() {
     try {
-      Vector descriptors = new Vector();
+      Vector<PropertyDescriptor> descriptors = new Vector<PropertyDescriptor>();
       PropertyDescriptor descriptor = null;
 
       try {

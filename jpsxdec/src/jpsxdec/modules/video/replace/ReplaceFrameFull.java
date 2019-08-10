@@ -189,25 +189,27 @@ public class ReplaceFrameFull {
                     getFrameLookup().toString(), abNewFrame.length, frame.getDemuxSize()));
 
         // find out how many bytes and mdec codes are used by the new frame
-        BitStreamUncompressor verifyBsu;
+        BitStreamUncompressor verifiedBsu;
         try {
+            verifiedBsu = BitStreamUncompressor.identifyUncompressor(abNewFrame);
             // also verify it is the same bitstream type (for bs format)
-            verifyBsu = bsu.getType().makeNew(abNewFrame);
+            if (!verifiedBsu.getClass().equals(bsu.getClass()))
+                throw new BinaryDataNotRecognized();
         } catch (BinaryDataNotRecognized ex) {
             throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_BITSTREAM_MISMATCH(_imageFile), ex);
         }
 
         try {
-            verifyBsu.skipMacroBlocks(frame.getWidth(), frame.getHeight());
-            verifyBsu.skipPaddingBits();
+            verifiedBsu.skipMacroBlocks(frame.getWidth(), frame.getHeight());
+            verifiedBsu.skipPaddingBits();
         } catch (MdecException.EndOfStream ex) {
             throw new RuntimeException("Can't decode a frame we just encoded?", ex);
         } catch (MdecException.ReadCorruption ex) {
             throw new RuntimeException("Can't decode a frame we just encoded?", ex);
         }
 
-        int iUsedSize = ((verifyBsu.getBitPosition() + 15) / 16) * 2; // rounded up to nearest word
-        frame.writeToSectors(abNewFrame, iUsedSize, verifyBsu.getReadMdecCodeCount(), cd, log);
+        int iUsedSize = ((verifiedBsu.getBitPosition() + 15) / 16) * 2; // rounded up to nearest word
+        frame.writeToSectors(abNewFrame, iUsedSize, verifiedBsu.getReadMdecCodeCount(), cd, log);
     }
 
     private static byte[] readBitstreamFile(@Nonnull File imageFile, @Nonnull ILocalizedLogger log)

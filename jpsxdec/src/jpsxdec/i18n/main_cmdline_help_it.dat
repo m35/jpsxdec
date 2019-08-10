@@ -1,0 +1,69 @@
+
+java -jar jpsxdec.jar [ <file_input> or <file_indice> ]
+  Mostra l'interfaccia grafica, anche durante l'apertura di
+  <file_input> o <file_indice> (rilevamento automatico)
+
+java -jar jpsxdec.jar <-?, -h, -help>
+  Mostra questo aiuto
+
+java -jar jpsxdec.jar -f <file_input> -x <file_indice>
+  Crea un indice di <file_input> per salvarlo come <file_indice>
+
+java -jar jpsxdec.jar [ -x <file_indice> ] [ -f <file_input> ]
+                      <comando_principale_e_opzioni>
+  Comando principale dove è richiesto un file indice.
+  Usa un <file_indice> esistente (ignorando anche il <file_input> indicato
+  al suo interno) oppure crea un indice al volo per <file_input> (salvandolo
+  eventualmente come <file_indice>) ed eseguendo uno dei seguenti comando
+  <comando_principale_e_parametri>
+
+    -item/-i <#, id> <comando_voce_e_parametri>
+    -all/-a <video, audio, image, file> <comando_voce_e_parametri>
+      Esegue <comando_voce_e_parametri> su una voce dell'indice,
+      oppure su tutte le voci di un unico tipo (audio, video, file, immagine)
+
+        Se nessun altro comando è specificato:
+          Estrate la voce dall'indice processandola con i parametri facoltativi
+          (usa la funzione di aiuto sulla voce per conoscere i parametri)
+
+        -help/-h/-?
+          Mostra informazioni di aiuto riguardo la voce dell'indice
+
+        (consulta il manuale o la funzione di aiuto sulla voce interessata,
+        per una lista di possibili comandi)
+
+    -visualize <file_pdf_di_destinazione>
+      Mostra la disposizione dei settori e delle voci dell'indice
+
+java -jar jpsxdec.jar -f <file_input> <comando_principale_e_parametri>
+  Comando principale dove è richiesto solo un file in ingresso.
+
+    -copysect <#, #-#>
+      Copia settori su un altro file
+
+    -sectordump <file_destinazione>
+      Genera una lista in <file_destinazione> dei tipi di settori rilevati
+      (utile per fare debug)
+
+    -static <tim, bs, mdec> <parametri_bs_mdec>
+        Per bs o mdec (nessun parametro aggiuntivo richiesto per file TIM):
+
+        -dim <larghezza>x<altezza>
+          Risoluzione del fotogramma (parametro obbligatorio)
+
+        -quality/-q <bassa, alta, psx>
+          Qualità di decodifica (valore predefinito "alto").
+
+        -fmt <mdec, png, bmp, jpg>
+          Formato di destinazione (tipo predefinito PNG).
+
+        -up <medoto_sovracampionamento>
+          Medoto per sovracampionare la crominanza (metodo predefinito Bicubic)
+          Opzioni: NearestNeighbor, Bilinear, Bicubic, Bell,
+                   Mitchell, BSpline, Lanczos3, Hermite
+
+        -debug
+          Mostra informazioni dettagliate sul processo di decodifica
+          (Java deve essere avviato col parametro -ea)
+
+Per ulteriori dettagli sui comandi, consulta il manuale.

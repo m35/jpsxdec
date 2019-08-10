@@ -70,10 +70,8 @@ public class GuiFileFilters {
                        s.endsWith(".img") ||
                        s.endsWith(".mdf") ||
                        s.endsWith(".str") ||
-                       s.endsWith(".mov") ||
                        s.endsWith(".iki") ||
-                       s.endsWith(".xa") ||
-                       s.endsWith(".xai");
+                       s.endsWith(".xa");
             }
         },
         new FileFilter() {
@@ -103,8 +101,7 @@ public class GuiFileFilters {
             public boolean accept(File f) {
                 String s = f.getName().toLowerCase();
                 return f.isDirectory() ||
-                       s.endsWith(".xa") ||
-                       s.endsWith(".xai");
+                       s.endsWith(".xa");
             }
         },
     };

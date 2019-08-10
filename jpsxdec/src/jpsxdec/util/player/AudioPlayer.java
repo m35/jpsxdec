@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2019  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,49 +37,111 @@
 
 package jpsxdec.util.player;
 
-import java.util.logging.Level;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineEvent;
+import javax.sound.sampled.LineListener;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
-import jpsxdec.util.player.VideoPlayer.VideoFrame;
+import jpsxdec.util.IO;
 
-/** Manages writing audio data to the final {@link SourceDataLine}. */
-class AudioPlayer implements IVideoTimer {
+/** Manages writing audio data to the final {@link SourceDataLine}.
+ * A buffer sits between the data written to this class and the actual DataLine
+ * because DataLine seems to have a very small buffer itself.
+ * A thread manages copying the buffer into the DataLine.
+ *
+ * This also extends VideoTimer that manages the video playback using
+ * the audio timer. It conveniently uses the DataLine's listener to
+ * fire events. */
+class AudioPlayer extends VideoTimer implements Runnable, LineListener {
 
     private static final Logger LOG = Logger.getLogger(AudioPlayer.class.getName());
     private static final boolean DEBUG = false;
 
-    private static final int SECONDS_OF_BUFFER = 5;
-    private static final int FRAME_DELAY_FUDGE_TIME = 50;
+    private static final boolean IS_WINDOWS;
+    static {
+        IS_WINDOWS = System.getProperty("os.name").toLowerCase().contains("win");
+    }
 
-    @CheckForNull
-    private SourceDataLine _dataLine;
-    private final PlayingState _state = new PlayingState(PlayingState.State.STOPPED);
+    private static final long NANOS_PER_SECOND = 1000000000;
+
+    /** On Ubuntu it seems a big buffer causes issues when video is paused.
+     * The play time drifts a lot when paused and buffering, so when
+     * unpaused the video hangs a lot. Smaller buffer reduces that effect. */
+    private static final double SECONDS_OF_BUFFER_NON_WINDOWS = 0.1;
+    /** On windows it seems a small buffer causes stuttering, so use a big one. */
+    private static final double SECONDS_OF_BUFFER_WINDOWS = 5;
 
     @Nonnull
     private final AudioFormat _format;
-    private final double _dblTimeConvert;
     @Nonnull
-    private final PlayController _controller;
+    private final PipedInputStream _pipedInputStream;
+    @Nonnull
+    private final PipedOutputStream _pipedOutputStream;
 
-    public AudioPlayer(@Nonnull AudioFormat format, @Nonnull PlayController controller) {
+    private final double _dblSamplesPerNano;
+    private final int _iCopyBufferSize;
+
+    @Nonnull
+    private final Thread _thread;
+
+    private SourceDataLine _dataLine;
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // Experiment with using the system clock and intermittently sync with the audio time
+    private boolean _blnUseAudioAndSystemClockTogether = false;
+    private long _lngStartTime = -1;
+    private long _lngLastSync = -1;
+    private static final long RESYNC_EVERY_NANOS = NANOS_PER_SECOND / 2;
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    public AudioPlayer(@Nonnull AudioFormat format) {
         _format = format;
-        _controller = controller;
-        _dblTimeConvert = 1000000000. / _format.getSampleRate();
+
+        _dblSamplesPerNano = (double)NANOS_PER_SECOND / _format.getSampleRate();
+
+        int iPipeSize = _format.getFrameSize() * Math.round(_format.getSampleRate()) * 5;
+        _pipedInputStream = new PipedInputStream(iPipeSize);
+        try {
+            _pipedOutputStream = new PipedOutputStream(_pipedInputStream);
+        } catch (IOException ex) {
+            throw new RuntimeException("Should not happen", ex);
+        }
+        _iCopyBufferSize = (int) (format.getFrameSize() * format.getSampleRate() * 5);
+
+        _thread = new Thread(this, getClass().getName());
     }
 
-    private static @Nonnull SourceDataLine createOpenLine(@Nonnull AudioFormat format) 
+
+    public synchronized void initPaused() throws PlayerException {
+        if (_dataLine != null)
+            throw new IllegalStateException();
+        try {
+            _dataLine = createOpenLine(_format);
+            // Important note about dataline listeners:
+            // The events are not triggered when the is a buffer under-run
+            // although the docs kinda sugget that they are
+            _dataLine.addLineListener(this);
+            _thread.start();
+        } catch (LineUnavailableException ex) {
+            throw new PlayerException(ex);
+        }
+    }
+
+    private static @Nonnull SourceDataLine createOpenLine(@Nonnull AudioFormat format)
             throws LineUnavailableException
     {
-        
+
         final boolean blnUseDefault = true;
-        SourceDataLine dataLine;
+        SourceDataLine dataLine = null;
         if (blnUseDefault) {
             dataLine = AudioSystem.getSourceDataLine(format);
         } else {
@@ -87,190 +149,190 @@ class AudioPlayer implements IVideoTimer {
             Mixer.Info[] aoMixerInfos = AudioSystem.getMixerInfo();
             System.out.println("[AudioPlayer] Available mixers:");
             for (Mixer.Info mixerInfo : aoMixerInfos) {
-                System.out.println("[AudioPlayer] " + mixerInfo.getName());
+                System.out.println("[AudioPlayer] " + mixerInfo.getName() + " " + mixerInfo.getDescription());
             }
 
-            Mixer mixer = AudioSystem.getMixer(aoMixerInfos[0]);
-            dataLine = (SourceDataLine)mixer.getLine(info);
+            for (Mixer.Info mixerInfo : aoMixerInfos) {
+                Mixer mixer = AudioSystem.getMixer(mixerInfo);
+                try {
+                    System.out.println("[AudioPlayer] Trying " + mixerInfo.getName());
+                    if (mixerInfo.getName().contains("default"))
+                        continue;
+                    dataLine = (SourceDataLine)mixer.getLine(info);
+                    break;
+                } catch (LineUnavailableException ex) {
+                    ex.printStackTrace();
+                } catch (IllegalArgumentException ex) {
+                    ex.printStackTrace();
+                }
+            }
         }
-        /*  Start and Stop events are useless to me because they do not
-         *  occur when playing is stopped due to no data in the buffer.
-        dataLine.addLineListener(new LineListener() {
-            public void update(LineEvent event) {
-                System.out.println(event);
-            }
-        });
-        */
 
-        dataLine.open(format, format.getFrameSize() * (int)format.getSampleRate() * SECONDS_OF_BUFFER);
+        double dblSeconds;
+        if (IS_WINDOWS)
+            dblSeconds = SECONDS_OF_BUFFER_WINDOWS;
+        else
+            dblSeconds = SECONDS_OF_BUFFER_NON_WINDOWS;
+
+        int iRequestedBufferSize = (int) (format.getFrameSize() * format.getSampleRate() * dblSeconds);
+        dataLine.open(format, iRequestedBufferSize);
+        // for some reason on Ubuntu the audio starts as soon as data is fed to it
+        // no matter how many times .stop() is called
+        // somehow calling start() then stop() gets around it
+        dataLine.start();
+        dataLine.stop();
+        int iActualBufferSize = dataLine.getBufferSize();
+        System.out.println("Dataline requested buffer size " + iRequestedBufferSize + " actual buffer size " + iActualBufferSize);
         return dataLine;
     }
 
-    /** Will block until all audio was written or there is a player state change. */
-    public void write(@Nonnull byte[] abData, int iStart, int iLength) {
+    public void run() {
         try {
-            int iTotalWritten = 0;
-            while (iTotalWritten < iLength) {
-                if (_state.get() == PlayingState.State.STOPPED) {
+            byte[] abCopyBuffer = new byte[_iCopyBufferSize];
+            int iBytesToWrite = 0, iBytesWritten = 0;
+            while (true) {
+                if (!_dataLine.isOpen()) {
                     break;
                 }
-                int iWritten = _dataLine.write(abData, iTotalWritten, iLength - iTotalWritten);
-                iTotalWritten += iWritten;
-                if (iTotalWritten < iLength) {
-                    synchronized (_state) {
-                        if (_state.get() == PlayingState.State.PAUSED) {
-                            _state.waitForChange();
-                        } else {
-                            System.out.println("[AudioPlayer] Only " + iWritten + 
-                                    " bytes of audio was written. Progress: " +
-                                    iTotalWritten + "/" + iLength);
-                        }
-                    }
-                }
-            }
-        } catch (InterruptedException ex) {
-            LOG.log(Level.SEVERE, null, ex);
-            ex.printStackTrace();
-        }
-    }
 
-    /** Buffer of zeros for writing lots of zeros. */
-    @CheckForNull
-    private byte[] _abZeroBuff;
-
-    public void writeSilence(long lngSamples) {
-        try {
-            if (_abZeroBuff == null) {
-                _abZeroBuff = new byte[_format.getFrameSize() * 2048];
-            }
-            final long lngBytesToWrite = lngSamples * _format.getFrameSize();
-            long lngBytesLeft = lngBytesToWrite;
-            while (lngBytesLeft > 0) {
-                if (_state.get() == PlayingState.State.STOPPED) {
-                    break;
-                }
-                int iWritten = _dataLine.write(_abZeroBuff, 0, (int)Math.min(lngBytesLeft, _abZeroBuff.length));
-                lngBytesLeft -= iWritten;
-                if (lngBytesLeft > 0) {
-                    synchronized (_state) {
-                        if (_state.get() == PlayingState.State.PAUSED) {
-                            _state.waitForChange();
-                        } else {
-                            System.out.println("[AudioPlayer] Only " + iWritten +
-                                    " bytes of silence was written. Progress: " +
-                                    (lngBytesToWrite - lngBytesLeft) + "/" + lngBytesToWrite);
-                        }
-                    }
-                }
-            }
-        } catch (InterruptedException ex) {
-            LOG.log(Level.SEVERE, null, ex);
-            ex.printStackTrace();
-        }
-    }
-
-    public void drainAndClose() {
-        _dataLine.drain();
-        stop();
-    }
-    
-    public boolean isDone() {
-        return _state.get() == PlayingState.State.STOPPED;
-    }
-    
-    public void startPaused() throws LineUnavailableException {
-        synchronized (_state) {
-            if (_state.get() == PlayingState.State.STOPPED) {
-                _state.set(PlayingState.State.PAUSED);
-                _dataLine = createOpenLine(_format);
-            }
-        }
-    }
-
-    public void stop() {
-        synchronized (_state) {
-            switch (_state.get()) {
-                case PLAYING: case PAUSED:
-                    _dataLine.close();
-                    _state.set(PlayingState.State.STOPPED);
-                    _controller.notifyDonePlaying();
-            }
-        }
-    }
-
-    public void pause() {
-        synchronized (_state) {
-            if (_state.get() == PlayingState.State.PLAYING) {
-                _state.set(PlayingState.State.PAUSED);
-                _dataLine.stop();
-            }
-        }
-    }
-
-    public void unpause() {
-        synchronized (_state) {
-            if (_state.get() == PlayingState.State.PAUSED) {
-                _state.set(PlayingState.State.PLAYING);
-                _dataLine.start();
-            }
-        }
-    }
-
-    public long getNanoPlayTime() {
-        return (long)(_dataLine.getLongFramePosition() * _dblTimeConvert);
-    }
-
-    public @Nonnull Object getSyncObject() {
-        return _state;
-    }
-
-    public boolean shouldBeProcessed(long lngPresentationTime) {
-        synchronized (_state) {
-            switch (_state.get()) {
-                case PAUSED:
-                case PLAYING:
-                    long lngPlayTime = getNanoPlayTime();
-                    if (DEBUG) System.out.println("[AudioPlayer] Play time = " + lngPlayTime + " vs. Pres time = " + lngPresentationTime);
-                    return lngPresentationTime >= lngPlayTime;
-                case STOPPED:
-                    return false;
-                default:
-                    throw new RuntimeException("Should never happen");
-            }
-        }
-    }
-
-    public boolean waitToPresent(@Nonnull VideoFrame frame) {
-        try {
-            synchronized (_state) {
-                while (true) {
-                    switch (_state.get()) {
-                        case STOPPED:
-                            return false;
-                        case PAUSED:
-                            if (DEBUG) System.out.println("[AudioPlayer] AudioPlayer timer, waiting to present");
-                            _state.waitForChange();
-                            if (DEBUG) System.out.println("[AudioPlayer] AudioPlayer timer, not waiting anymore");
-                            break; // loop again to see the new state
-                        case PLAYING:
-                            long lngPos = getNanoPlayTime();
-                            long lngSleepTime;
-                            if ((lngSleepTime = frame.PresentationTime - lngPos) > FRAME_DELAY_FUDGE_TIME) {
-                                lngSleepTime -= FRAME_DELAY_FUDGE_TIME;
-                                _state.wait(lngSleepTime / 1000000, (int)(lngSleepTime % 1000000));
-                                break; // loop once more to see if the state changed
+                if (iBytesWritten < iBytesToWrite) {
+                    int iToWrite = iBytesToWrite - iBytesWritten;
+                    int iFrameRemainder = iToWrite % _format.getFrameSize();
+                    if (iFrameRemainder > 0)
+                        iToWrite -= iFrameRemainder;
+                    if (DEBUG) System.out.println("Writing " + iToWrite + " bytes of audio");
+                    int iWrorte = _dataLine.write(abCopyBuffer, iBytesWritten, iToWrite);
+                    if (DEBUG) System.out.println("Actually wrote " + iWrorte + " bytes of audio");
+                    iBytesWritten += iWrorte;
+                    if (iWrorte < iToWrite) {
+                        boolean blnDueToPause = false;
+                        // possible race condition here if the play state changed between writting audio data and checking state
+                        // but that shouln't cause any problems except trigger the message below
+                        synchronized (this) {
+                            if (isPaused()) {
+                                this.wait();
+                                blnDueToPause = true;
                             }
-                            return true;
-                        default:
-                            throw new RuntimeException("Should never happen");
+                        }
+                        if (!blnDueToPause) {
+                            // special to note that the dataline will continually reject audio while it is paused
+                            // so no need to log in that case, just wait
+                            System.out.println("[AudioPlayer] Only " + iWrorte +
+                                    " bytes of audio was written. Progress: " +
+                                    iBytesWritten + "/" + iBytesToWrite);
+                        }
+
+                    }
+                } else {
+                    iBytesToWrite = _pipedInputStream.read(abCopyBuffer);
+                    if (DEBUG) System.out.println("Got " + iBytesToWrite + " byts of audio");
+                    iBytesWritten = 0;
+                    if (iBytesToWrite < 0) {
+                        break;
                     }
                 }
             }
-        } catch (Throwable ex) {
-            LOG.log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            // this hopefully only happens because the reader was forcefully closed
+            System.out.println("Audio player IOException stop: " + ex.getMessage());
+            _dataLine.close();
+            super.terminate();
+            return;
+        } catch (InterruptedException ex) {
             ex.printStackTrace();
-            return false;
+            _dataLine.close();
+            super.terminate();
+            return;
+        }
+        _dataLine.drain();
+        _dataLine.close();
+        super.terminate();
+    }
+
+
+    public @Nonnull OutputStream getOutputStream() {
+        return _pipedOutputStream;
+    }
+
+    @Override
+    public synchronized void go() {
+        // synchronized since this is 2 operations
+        // and we don't want the player state to change in the middle
+        if (_dataLine != null) {
+            long lngNow = System.nanoTime();
+            _lngLastSync = lngNow;
+            _lngStartTime = lngNow - (long)(_dataLine.getLongFramePosition() * _dblSamplesPerNano);
+            _dataLine.start();
+        }
+        super.go();
+    }
+
+    @Override
+    public synchronized void pause() {
+        // synchronized to keep the dataline state in sync with the VideoTimer state
+        if (_dataLine != null) {
+            //_dataLine.flush();
+            _dataLine.stop();
+        }
+        super.pause();
+    }
+
+    public void finish() {
+        // it looks like it's thread-safe to close the stream
+        IO.closeSilently(_pipedOutputStream, LOG);
+    }
+
+    @Override
+    public void videoDone() {
+        // it doesn't matter if the video is done, we continue playing audio
+    }
+
+    @Override
+    public synchronized void terminate() {
+        // it looks like it's thread-safe to close the streams
+        // synchronized to keep the dataline state in sync with the VideoTimer state
+        // Make sure to close the player first!
+        // Otherwise possible deadlock if the thread is stuck writing when this is called
+        if (_dataLine != null) {
+            _dataLine.stop();
+            _dataLine.close();
+        }
+        IO.closeSilently(_pipedOutputStream, LOG);
+        IO.closeSilently(_pipedInputStream, LOG);
+        super.terminate();
+    }
+
+    public synchronized long getNanoTime() {
+        if (!_blnUseAudioAndSystemClockTogether || isPaused() || isTerminated()) {
+            return (long)(_dataLine.getLongFramePosition() * _dblSamplesPerNano);
+        } else {
+            long lngNow = System.nanoTime();
+            if (lngNow - _lngLastSync > RESYNC_EVERY_NANOS) {
+                long lngPlayTime = (long)(_dataLine.getLongFramePosition() * _dblSamplesPerNano);
+                long lngOldStartTime = _lngStartTime;
+                _lngStartTime = lngNow - lngPlayTime;
+                _lngLastSync = lngNow;
+                System.out.println("Resyncing from " + lngOldStartTime + " to " + _lngStartTime + " (" + ((_lngStartTime - lngOldStartTime) / (double)NANOS_PER_SECOND) + ")");
+                return lngPlayTime;
+            } else {
+                return lngNow - _lngStartTime;
+            }
         }
     }
 
+    /** Translate an audio event to this player's event. */
+    public void update(LineEvent event) {
+        LineEvent.Type type = event.getType();
+        PlayController.Event playerEvent;
+        if (type == LineEvent.Type.CLOSE)
+            playerEvent = PlayController.Event.End;
+        else if (type == LineEvent.Type.START)
+            playerEvent = PlayController.Event.Play;
+        else if (type == LineEvent.Type.STOP)
+            playerEvent = PlayController.Event.Pause;
+        else
+            return;
+
+        fire(playerEvent);
+    }
 }

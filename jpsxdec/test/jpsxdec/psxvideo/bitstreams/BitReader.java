@@ -206,14 +206,15 @@ public class BitReader {
         }
 
         for (int i = 0; i < MAKERS.length; i++) {
-            System.out.println(MAKERS[i].getClass()+" "+alngDuration[i]);
+            System.out.println(MAKERS[i]+" "+alngDuration[i]);
         }
 
-        assertTrue(alngDuration[2] + " !< " + alngDuration[0] + " if this fails it's because there is a faster way to implement the bit reader",
-                   alngDuration[2] < alngDuration[0]);
-        assertTrue(alngDuration[2] + " !< " + alngDuration[1] + " if this fails it's because there is a faster way to implement the bit reader",
-                   alngDuration[2] < alngDuration[1]);
-
+        assertTrue(alngDuration[1] + " !< " + alngDuration[0] + " if this fails it's because there is a faster way to implement the bit reader",
+                   alngDuration[1] < alngDuration[0]);
+        assertTrue(alngDuration[1] + " !< " + alngDuration[2] + " if this fails it's because there is a faster way to implement the bit reader",
+                   alngDuration[1] < alngDuration[2]);
+        assertTrue(alngDuration[1] + " !< " + alngDuration[3] + " if this fails it's because there is a faster way to implement the bit reader",
+                   alngDuration[1] < alngDuration[3]);
     }
 
     private interface ReaderMaker {
@@ -222,23 +223,34 @@ public class BitReader {
     private static ReaderMaker[] MAKERS = {
         new ReaderMaker() {
             public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-                return new LoopSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+                return new PreCheckBitSkip(abData, iDataSize, blnLittleEndian, iReadStart);
             }
+            public String toString() { return PreCheckBitSkip.class.getSimpleName(); }
+        },
+        new ReaderMaker() {
+            // This is the one implemented in ArrayBitReader
+            public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+                return new PostCheckBitSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+            }
+            public String toString() { return PostCheckBitSkip.class.getSimpleName(); }
         },
         new ReaderMaker() {
             public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-                return new BitSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+                return new PreCheckModSkip(abData, iDataSize, blnLittleEndian, iReadStart);
             }
+            public String toString() { return PreCheckModSkip.class.getSimpleName(); }
         },
         new ReaderMaker() {
             public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-                return new ModSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+                return new PostCheckModSkip(abData, iDataSize, blnLittleEndian, iReadStart);
             }
+            public String toString() { return PostCheckModSkip.class.getSimpleName(); }
         },
     };
 
-    private static class LoopSkip extends ArrayBitReader {
-        public LoopSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+    private static class PreCheckBitSkip extends ArrayBitReader {
+
+        public PreCheckBitSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
             super(abData, iDataSize, blnLittleEndian, iReadStart);
         }
 
@@ -246,8 +258,8 @@ public class BitReader {
         public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
-                _iByteOffset += -(_iBitsLeft / 16)*2;
-                _iBitsLeft = _iBitsLeft % 16;
+                _iByteOffset += ((-_iBitsLeft) >> 4) << 1;
+                _iBitsLeft = -((-_iBitsLeft) & 0xf);
                 if (_iBitsLeft < 0) {
                     _iBitsLeft += 16;
                     _iByteOffset += 2;
@@ -263,15 +275,15 @@ public class BitReader {
         }
     }
 
-    private static class BitSkip extends ArrayBitReader {
+    // This is the one implemented in ArrayBitReader
+    private static class PostCheckBitSkip extends ArrayBitReader {
 
-        public BitSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+        public PostCheckBitSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
             super(abData, iDataSize, blnLittleEndian, iReadStart);
         }
 
         @Override
         public void skipBits(int iCount) throws MdecException.EndOfStream {
-
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
                 _iByteOffset += ((-_iBitsLeft) >> 4) << 1;
@@ -293,8 +305,34 @@ public class BitReader {
         }
     }
 
-    private static class ModSkip extends ArrayBitReader {
-        public ModSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+    private static class PreCheckModSkip extends ArrayBitReader {
+        public PreCheckModSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
+            super(abData, iDataSize, blnLittleEndian, iReadStart);
+        }
+
+        @Override
+        public void skipBits(int iCount) throws MdecException.EndOfStream {
+            _iBitsLeft -= iCount;
+            if (_iBitsLeft < 0) {
+                _iByteOffset += -(_iBitsLeft / 16)*2;
+                _iBitsLeft = _iBitsLeft % 16;
+                if (_iBitsLeft < 0) {
+                    _iBitsLeft += 16;
+                    _iByteOffset += 2;
+                }
+                if (_iByteOffset > _iDataSize) {
+                    _iBitsLeft = 0;
+                    _iByteOffset = _iDataSize;
+                    throw new MdecException.EndOfStream(_iByteOffset + " > " + _iDataSize);
+                } else if (_iBitsLeft > 0) {
+                    _siCurrentWord = readWord(_iByteOffset-2);
+                }
+            }
+        }
+    }
+
+    private static class PostCheckModSkip extends ArrayBitReader {
+        public PostCheckModSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
             super(abData, iDataSize, blnLittleEndian, iReadStart);
         }
 

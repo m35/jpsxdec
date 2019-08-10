@@ -46,6 +46,7 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IIdentifiedSector;
@@ -78,15 +79,19 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
 
     @Nonnull
     private final HeaderFrameNumber.Format _headerFrameNumberFormat;
+    private static final String INDEPENDENT_BITSTREAM = "Independent bitstream";
+    private final boolean _blnHasIndependentBitstream;
 
     public DiscItemStrVideoStream(@Nonnull CdFileSectorReader cd, int iStartSector,
                                   int iEndSector, @Nonnull Dimensions dim,
                                   @Nonnull IndexSectorFrameNumber.Format indexSectorFrameNumberFormat,
                                   @Nonnull SectorBasedVideoInfo strVidInfo,
-                                  @Nonnull HeaderFrameNumber.Format headerFrameNumberFormat)
+                                  @Nonnull HeaderFrameNumber.Format headerFrameNumberFormat,
+                                  boolean blnHasIndependentBitstream)
     {
         super(cd, iStartSector, iEndSector, dim, indexSectorFrameNumberFormat, strVidInfo);
         _headerFrameNumberFormat = headerFrameNumberFormat;
+        _blnHasIndependentBitstream = blnHasIndependentBitstream;
     }
 
     public DiscItemStrVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
@@ -94,18 +99,29 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
     {
         super(cd, fields);
         _headerFrameNumberFormat = new HeaderFrameNumber.Format(fields);
+        if (fields.hasField(INDEPENDENT_BITSTREAM))
+            _blnHasIndependentBitstream = fields.getYesNo(INDEPENDENT_BITSTREAM);
+        else
+            _blnHasIndependentBitstream = true;
     }
 
     @Override
     public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
         _headerFrameNumberFormat.serialize(serial);
+        if (!_blnHasIndependentBitstream)
+            serial.addYesNo(INDEPENDENT_BITSTREAM, _blnHasIndependentBitstream);
         return serial;
     }
     
     @Override
     public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
+    }
+
+    @Override
+    public boolean hasIndependentBitstream() {
+        return _blnHasIndependentBitstream;
     }
 
     @Override
@@ -204,7 +220,9 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
             s2sv.setListener(new StrVideoSectorToDemuxedStrFrame(this));
         }
         
-        public void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log) {
+        public void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log) 
+                throws LoggedFailure
+        {
             FrameNumber fn = _frameNumberFormatter.next(frame.getStartSector(),
                                                         frame.getHeaderFrameNumber(), log);
             frame.setFrame(fn);

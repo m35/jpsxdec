@@ -55,6 +55,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
     denominator_ = f.getDenominator();
   }
 
+  @Override
   public String toString() {
     if (getDenominator() == 1)
       return String.format("%d", getNumerator());
@@ -234,6 +235,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
     return (l < r)? -1 : ((l == r)? 0: 1);
   }
 
+  @Override
   public boolean equals(Object other) {
     return compareTo((Fraction)other) == 0;
   }
@@ -242,6 +244,7 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
     return compareTo(n) == 0;
   }
 
+  @Override
   public int hashCode() {
     return (int) (numerator_ ^ denominator_);
   }

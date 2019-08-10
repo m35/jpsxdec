@@ -176,7 +176,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
                     throw new NumberFormatException();
                 setVolume(iVol / 100.0);
             } catch (NumberFormatException ex) {
-                fbs.printlnWarn(I.CMD_IGNORING_INVALID_VOLUME(vol.value));
+                fbs.printlnWarn(I.CMD_IGNORING_INVALID_VALUE_FOR_CMD(vol.value, "-vol"));
             }
         }
 
@@ -185,14 +185,14 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
             if (fmt != null) {
                 setContainerForamt(fmt);
             } else {
-                fbs.printlnWarn(I.CMD_IGNORING_INVALID_FORMAT(audfmt.value));
+                fbs.printlnWarn(I.CMD_IGNORING_INVALID_VALUE_FOR_CMD(audfmt.value, "-af,-audfmt"));
             }
         }
     }
-    public void printSelectedOptions(@Nonnull FeedbackStream fbs) {
-        fbs.println(I.CMD_AUDIO_FORMAT(_containerFormat.getCmdId()));
-        fbs.println(I.CMD_VOLUME_PERCENT(getVolume()));
-        fbs.println(I.CMD_FILENAME(getFileRelativePath()));
+    public void printSelectedOptions(@Nonnull ILocalizedLogger log) {
+        log.log(Level.INFO, I.CMD_AUDIO_FORMAT(_containerFormat.getCmdId()));
+        log.log(Level.INFO, I.CMD_VOLUME_PERCENT(getVolume()));
+        log.log(Level.INFO, I.CMD_FILENAME(getFileRelativePath()));
     }
 
     public @Nonnull ILocalizedMessage getOutputSummary() {
@@ -208,9 +208,9 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
             throws LoggedFailure, TaskCanceledException
     {
         clearGeneratedFiles();
+        printSelectedOptions(pl);
+
         final File outputFile = new File(outputDir, getFileRelativePath().getPath());
-        ISectorAudioDecoder decoder = _audItem.makeDecoder(getVolume());
-        AudioFormat audioFmt = decoder.getOutputFormat();
 
         try {
             IO.makeDirsForFile(outputFile);
@@ -218,6 +218,10 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
             throw new LoggedFailure(pl, Level.SEVERE, ex.getSourceMessage(), ex);
         }
 
+        // SectorClaimSystem -> ISectorAudioDecoder -> DecodedAudioPacket -> AudioOutputFileWriter
+
+        ISectorAudioDecoder decoder = _audItem.makeDecoder(getVolume());
+        AudioFormat audioFmt = decoder.getOutputFormat();
         final AudioOutputFileWriter audioWriter;
         try {
             audioWriter = new AudioOutputFileWriter(outputFile,

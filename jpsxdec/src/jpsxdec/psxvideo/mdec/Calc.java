@@ -42,7 +42,7 @@ public class Calc {
 
     /** Number of blocks necessary to store pixel size. */
     public static int blocks(int iPixelWidth, int iPixelHeight) {
-        return macroblocks(iPixelWidth, iPixelHeight) * 6;
+        return macroblocks(iPixelWidth, iPixelHeight) * MdecBlock.count();
     }
     /** Number of macroblocks necessary to store pixel size. */
     public static int macroblocks(int iPixelWidth, int iPixelHeight) {
@@ -59,4 +59,12 @@ public class Calc {
         return (iPixelDimension + 15) / 16;
     }
 
+    /** A strange value needed for video bitstreams and video sector headers.
+     *  It's the number of MDEC codes, divided by two, then rounded up to the
+     *  next closest multiple of 32 (if not already a multiple of 32).
+     *  In other words, its the number of 32-byte blocks it would take to hold
+     *  the MDEC codes. */
+    public static short calculateHalfCeiling32(int iMdecCodeCount) {
+        return (short) ((((iMdecCodeCount + 1) / 2) + 31) & ~31);
+    }
 }

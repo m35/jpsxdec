@@ -121,6 +121,7 @@ public class TabularFeedback {
         for (ArrayList<Cell> row : _rows) {
             iColCount = Math.max(iColCount, row.size());
         }
+        @SuppressWarnings("unchecked")
         ArrayList<String>[][] aaoCells = new ArrayList[iRowCount][iColCount];
 
         int[] aiRowHeights = new int[iRowCount];

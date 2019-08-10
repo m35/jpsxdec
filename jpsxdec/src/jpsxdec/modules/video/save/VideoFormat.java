@@ -61,13 +61,15 @@ public enum VideoFormat {
         public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 1; }
-        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH_PLUS; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH; }
+        public boolean mustHaveEvenDims()  { return true; };
     },
     AVI_JYUV(I.VID_AVI_JYUV_DESCRIPTION(), I.VID_AVI_JYUV_COMMAND()) {
         public String getExtension() { return ".avi"; }
         public boolean isAvi() { return true; }
         public int getDecodeQualityCount() { return 1; }
-        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH_PLUS; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH; }
+        public boolean mustHaveEvenDims()  { return true; };
     },
     IMGSEQ_PNG(I.VID_IMG_SEQ_PNG_DESCRIPTION(), I.VID_IMG_SEQ_PNG_COMMAND(),
                JavaImageFormat.PNG)
@@ -131,6 +133,7 @@ public enum VideoFormat {
     }
 
     public boolean isCroppable() { return true; }
+    public boolean mustHaveEvenDims()  { return false; };
 
     public int getDecodeQualityCount() { return MdecDecodeQuality.values().length; }
     public @Nonnull MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.values()[i]; }

@@ -140,8 +140,10 @@ public class AviWriterMJPG extends AviWriter {
     {
         super(outputfile, iWidth, iHeight, lngFrames, lngPerSecond, audioFormat, true, "MJPG", AVIstruct.string2int("MJPG"));
 
-        if (!CAN_ENCODE_JPEG)
+        if (!CAN_ENCODE_JPEG) {
+            closeSilentlyDueToError();
             throw new UnsupportedOperationException("Unable to create 'jpeg' images on this platform.");
+        }
 
         Iterator<ImageWriter> iter = ImageIO.getImageWritersByFormatName("jpeg");
         _imgWriter = iter.next();

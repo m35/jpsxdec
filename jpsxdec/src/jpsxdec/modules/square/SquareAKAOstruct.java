@@ -64,6 +64,7 @@ public class SquareAKAOstruct {
         BytesOfData = cdSector.readUInt32LE(iReadPos+32);
     }
     
+    @Override
     public String toString() {
         return String.format(
             "AKAO:%s frame-1:%d ?:%04x Size:%d",

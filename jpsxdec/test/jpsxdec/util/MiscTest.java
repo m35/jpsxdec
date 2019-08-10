@@ -37,30 +37,12 @@
 
 package jpsxdec.util;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import org.junit.*;
 import static org.junit.Assert.*;
 
 public class MiscTest {
-
-    public MiscTest() {
-    }
-
-    @BeforeClass
-    public static void setUpClass() {
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-    }
-
-    @Before
-    public void setUp() {
-    }
-
-    @After
-    public void tearDown() {
-    }
 
     @Test
     public void testObjEq() {
@@ -72,5 +54,12 @@ public class MiscTest {
         assertFalse(Misc.objectEquals("a", null));
         assertFalse(Misc.objectEquals(null, "b"));
         assertFalse(Misc.objectEquals("a", "b"));
+    }
+
+    @Test
+    public void testDateFromSeconds() {
+        assertEquals("0:00", MessageFormat.format("{0,time,m:ss}", Misc.dateFromSeconds(0)));
+        assertEquals("0:01", MessageFormat.format("{0,time,m:ss}", Misc.dateFromSeconds(1)));
+        assertEquals("1:30", MessageFormat.format("{0,time,m:ss}", Misc.dateFromSeconds(90)));
     }
 }

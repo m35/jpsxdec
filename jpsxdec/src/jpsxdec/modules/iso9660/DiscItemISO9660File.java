@@ -76,6 +76,7 @@ import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LocalizedFileNotFoundException;
 import jpsxdec.i18n.exception.LoggedFailure;
+import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.util.ArgParser;
 import jpsxdec.util.IO;
@@ -317,6 +318,7 @@ public class DiscItemISO9660File extends DiscItem {
                 throws LoggedFailure, TaskCanceledException
         {
             clearGeneratedFiles();
+            printSelectedOptions(pl);
             File outputFile = new File(outputDir, getPath().getPath());
 
             try {
@@ -364,11 +366,11 @@ public class DiscItemISO9660File extends DiscItem {
             pl.progressEnd();
         }
 
-        public void printSelectedOptions(@Nonnull FeedbackStream fbs) {
+        public void printSelectedOptions(@Nonnull ILocalizedLogger log) {
             if (getSaveRaw())
-                fbs.println(I.CMD_ISOFILE_SAVING_RAW(getRawSectorSize()));
+                log.log(Level.INFO, I.CMD_ISOFILE_SAVING_RAW(getRawSectorSize()));
             else
-                fbs.println(I.CMD_ISOFILE_SAVING_2048());
+                log.log(Level.INFO, I.CMD_ISOFILE_SAVING_2048());
         }
     }
 

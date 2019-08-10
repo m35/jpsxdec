@@ -91,15 +91,15 @@ public abstract class MdecException  {
         public EndOfStream() {
         }
 
-        public EndOfStream(String message) {
+        public EndOfStream(@Nonnull String message) {
             super(message);
         }
 
-        public EndOfStream(Throwable cause) {
+        public EndOfStream(@Nonnull Throwable cause) {
             super(cause);
         }
 
-        public EndOfStream(String message, Throwable cause) {
+        public EndOfStream(@Nonnull String message, @Nonnull Throwable cause) {
             super(message, cause);
         }
 

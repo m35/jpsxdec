@@ -28,9 +28,6 @@ java -jar jpsxdec.jar [ -x <index_file> ] [ -f <in_file> ]
         -help/-h/-?
           Display help about the index item
 
-        -play
-          Show real-time player for index item (audio/video items only)
-
         (see manual or item's help for full list of possible commands)
 
     -visualize <pdf_out_file>
@@ -64,10 +61,5 @@ java -jar jpsxdec.jar -f <in_file> <main_command_and_options>
 
         -debug
           Show detailed decoding steps (needs Java started with -ea)
-
-Universal option (optional):
-    -verbose/-v #
-    How much info to print:
-      0 = none, 1 = only errors, 2 = errors & warnings, 3 = normal, 4 = extra
 
 For all command-line options, see the manual.

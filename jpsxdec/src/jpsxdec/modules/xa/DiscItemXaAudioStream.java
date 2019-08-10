@@ -67,6 +67,7 @@ import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.Misc;
 import jpsxdec.util.TaskCanceledException;
 
 /** Represents a series of XA ADPCM sectors that combine to make an audio stream. */
@@ -226,7 +227,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
     @Override
     public @Nonnull ILocalizedMessage getInterestingDescription() {
-        Date secs = new Date(0, 0, 0, 0, 0, Math.max((int)getApproxDuration(), 1));
+        Date secs = Misc.dateFromSeconds(Math.max((int)getApproxDuration(), 1));
         return I.GUI_AUDIO_DESCRIPTION(secs, _iSampleFramesPerSecond, _blnIsStereo ? 2 : 1);
     }
     

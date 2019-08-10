@@ -86,6 +86,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
     }
 
     /** Returns a string description of the sector type. */
+    @Override
     public String toString() {
         return _sourceCdSector.toString();
     }

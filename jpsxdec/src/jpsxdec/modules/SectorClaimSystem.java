@@ -50,6 +50,8 @@ import jpsxdec.modules.cdaudio.SectorClaimToSectorCdAudio;
 import jpsxdec.modules.crusader.SectorClaimToSectorCrusader;
 import jpsxdec.modules.dredd.SectorClaimToDreddFrame;
 import jpsxdec.modules.iso9660.SectorClaimToSectorISO9660;
+import jpsxdec.modules.policenauts.SectorClaimToPolicenauts;
+import jpsxdec.modules.roadrash.SectorClaimToRoadRash;
 import jpsxdec.modules.square.SectorClaimToSquareAudioSector;
 import jpsxdec.modules.strvideo.SectorClaimToStrVideoSector;
 import jpsxdec.modules.xa.SectorClaimToSectorXaAudio;
@@ -96,6 +98,8 @@ public class SectorClaimSystem {
         scs.addClaimer(new SectorClaimToSectorAc3Video());
         scs.addClaimer(new SectorClaimToSectorCrusader());
         scs.addClaimer(new SectorClaimToDreddFrame());
+        scs.addClaimer(new SectorClaimToPolicenauts());
+        scs.addClaimer(new SectorClaimToRoadRash());
         scs.addClaimer(new SectorClaimToUnidentifiedSector());
         return scs;
     }
@@ -111,9 +115,10 @@ public class SectorClaimSystem {
         abstract public void sectorRead(@Nonnull ClaimableSector cs,
                                         @Nonnull IOIterator<ClaimableSector> peekIt,
                                         @Nonnull ILocalizedLogger log)
-                throws IOException;
+                throws IOException, ClaimerFailure;
 
-        abstract public void endOfSectors(@Nonnull ILocalizedLogger log);
+        abstract public void endOfSectors(@Nonnull ILocalizedLogger log)
+                throws ClaimerFailure;
 
         final public void setRangeLimit(int iStartSector, int iEndSectorInclusive) {
             _iStartSector = iStartSector;
@@ -166,6 +171,12 @@ public class SectorClaimSystem {
         }
     }
 
+    public static class ClaimerFailure extends RuntimeException {
+        public ClaimerFailure(Throwable cause) {
+            super(cause);
+        }
+    }
+
     /** The final sector after being processed by all claimers. */
     public static class ClaimedSector {
         @Nonnull
@@ -214,12 +225,13 @@ public class SectorClaimSystem {
         _outerMostIterator = new BufferedIOIterator<ClaimableSector>(core);
     }
 
-    public void addClaimer(@Nonnull SectorClaimer claimer) {
+    void addClaimer(@Nonnull SectorClaimer claimer) {
         SectorClaimInception wrapping = new SectorClaimInception(_outerMostIterator, claimer);
         _outerMostIterator = new BufferedIOIterator<ClaimableSector>(wrapping);
         _iterators.add(wrapping);
     }
 
+    @SuppressWarnings("unchecked")
     public @Nonnull <T extends SectorClaimer> T getClaimer(@Nonnull Class<T> clazz) {
         for (SectorClaimInception iterator : _iterators) {
             if (iterator._claimer.getClass() == clazz) {
@@ -239,7 +251,9 @@ public class SectorClaimSystem {
         return _outerMostIterator.hasNext();
     }
     
-    public @Nonnull ClaimedSector next(@Nonnull ILocalizedLogger log) throws CdFileSectorReader.CdReadException {
+    public @Nonnull ClaimedSector next(@Nonnull ILocalizedLogger log) 
+            throws CdFileSectorReader.CdReadException, ClaimerFailure
+    {
         try {
             _log = log;
             ClaimableSector next;

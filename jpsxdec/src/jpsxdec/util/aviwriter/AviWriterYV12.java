@@ -74,8 +74,10 @@ public class AviWriterYV12 extends AviWriter {
         super(outFile, iWidth, iHeight, lngFrames, lngPerSecond, audioFormat,
                 false, "YV12", AVIstruct.string2int("YV12"));
 
-        if (((iWidth | iHeight) & 1) != 0)
+        if (((iWidth | iHeight) & 1) != 0) {
+            closeSilentlyDueToError();
             throw new IllegalArgumentException("Dimensions must be divisible by 2");
+        }
 
         _iFrameYByteSize = iWidth * iHeight;
         _iFrameCByteSize = iWidth * iHeight / 4;

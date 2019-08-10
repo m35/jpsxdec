@@ -46,6 +46,7 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.DemuxedData;
 import jpsxdec.util.Fraction;
 
@@ -53,7 +54,8 @@ import jpsxdec.util.Fraction;
 public class DemuxedFrameWithNumberAndDims implements IDemuxedFrame {
 
     public interface Listener {
-        void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log);
+        void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
         void endOfSectors(@Nonnull ILocalizedLogger log);
     }
 
@@ -81,6 +83,10 @@ public class DemuxedFrameWithNumberAndDims implements IDemuxedFrame {
         if (_frameNumber == null)
             throw new IllegalStateException();
         return _frameNumber;
+    }
+
+    public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
+        return null;
     }
 
     public int getWidth() { return _iWidth; }
@@ -113,7 +119,7 @@ public class DemuxedFrameWithNumberAndDims implements IDemuxedFrame {
 
     @Override
     public String toString() {
-        return String.format("Frame %d sectors %d-%d %dx%d %d chunks %d bytes",
+        return String.format("Frame %d sectors %d-%d %dx%d chunks:%d bytes:%d",
                 getHeaderFrameNumber(),
                 getStartSector(), getEndSector(),
                 getWidth(), getHeight(), _demux.getPieceCount(),

@@ -189,6 +189,14 @@ class FrameNumberNumber {
                 }
             }
 
+            public int getStartFrameValue() {
+                return _iStartFrameValue;
+            }
+
+            public int getLastFrameValue() {
+                return _iEndFrameValue;
+            }
+
             public @Nonnull Format makeFormat() {
                 return new Format(_iStartFrameValue, _iEndFrameValue,
                                   _iDuplicate, _iDuplicateMax);

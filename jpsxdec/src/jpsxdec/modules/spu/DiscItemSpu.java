@@ -54,6 +54,7 @@ import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.util.ExposedBAOS;
+import jpsxdec.util.Misc;
 
 /** Represents a PlayStation Sound Processing Unit (SPU) audio clip. 
  * There's no way to know the sample rate of SPU clips, so the user
@@ -147,7 +148,7 @@ public class DiscItemSpu extends DiscItem implements DiscItem.IHasStartOffset {
     public @Nonnull ILocalizedMessage getInterestingDescription() {
         int iPcmSampleCount = _iSoundUnitCount * SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT;
         double dblApproxDuration = iPcmSampleCount / (double)_iSampleRate;
-        Date secs = new Date(0, 0, 0, 0, 0, Math.max((int)dblApproxDuration, 1));
+        Date secs = Misc.dateFromSeconds(Math.max((int)dblApproxDuration, 1));
         return new UnlocalizedMessage(MessageFormat.format("{0} samples at {1} Hz = {2,time,m:ss}", iPcmSampleCount, _iSampleRate, secs)); // I18N
     }
 

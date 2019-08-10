@@ -79,6 +79,7 @@ public class CombinedBuilderListener<T extends DiscItemSaverBuilder> {
      * All listening controls will be notified of the change.
      * @return if the {@link DiscItemSaverBuilder} is compatible.
      */
+    @SuppressWarnings("unchecked")
     public boolean changeSourceBuilder(@Nonnull DiscItemSaverBuilder saverBuilder) {
         if (_cls.equals(saverBuilder.getClass())) {
             T oldBuilder = _saverBuilder;

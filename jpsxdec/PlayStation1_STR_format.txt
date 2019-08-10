@@ -1,6 +1,6 @@
                       The PlayStation 1 Video (STR) Format
                                v1.11, ? 2017?
-                           http://jpsxdec.kenai.com/
+                         https://github.com/m35/jpsxdec
                           http://jpsxdec.blogspot.com/
 
 --------------------------------------------------------------------------------

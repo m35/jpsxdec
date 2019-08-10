@@ -48,6 +48,7 @@ import jpsxdec.cdreaders.CdSectorXaSubHeader;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv3;
+import jpsxdec.psxvideo.bitstreams.StrHeader;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.DemuxedData;
@@ -73,30 +74,30 @@ public class DreddDemuxer {
             return null;
 
         // only first chunk can we check for bitstream header
-        BitStreamUncompressor.Type bsuType = hasBitstreamHeader(cdSector, 4);
+        StrHeader strHeader = hasBitstreamHeader(cdSector, 4);
         int iFirstHeaderSize;
-        if (bsuType != null) {
+        if (strHeader != null) {
             iFirstHeaderSize = 4;
         } else {
-            bsuType = hasBitstreamHeader(cdSector, 44);
-            if (bsuType != null)
+            strHeader = hasBitstreamHeader(cdSector, 44);
+            if (strHeader != null)
                 iFirstHeaderSize = 44;
             else
                 return null;
         }
 
-        return new DreddDemuxer(bsuType, new SectorDreddVideo(cdSector, iChunk, iFirstHeaderSize));
+        return new DreddDemuxer(strHeader, new SectorDreddVideo(cdSector, iChunk, iFirstHeaderSize));
     }
 
     @Nonnull
-    private final BitStreamUncompressor.Type _bsuType;
+    private final StrHeader _strHeader;
     @Nonnull
     private final ArrayList<SectorDreddVideo> _sectors = new ArrayList<SectorDreddVideo>(MAX_CHUNKS_PER_FRAME);
 
-    public DreddDemuxer(@Nonnull BitStreamUncompressor.Type bsuType,
+    public DreddDemuxer(@Nonnull StrHeader strHeader,
                         @Nonnull SectorDreddVideo firstDreddFrameSector)
     {
-        _bsuType = bsuType;
+        _strHeader = strHeader;
         _sectors.add(firstDreddFrameSector);
     }
 
@@ -155,7 +156,7 @@ public class DreddDemuxer {
         }
         byte[] abDemuxBuffer = baos.toByteArray();
 
-        if (!checkHeight(abDemuxBuffer, _bsuType)) {
+        if (!checkHeight(abDemuxBuffer, _strHeader)) {
             LOG.log(Level.WARNING, "Possible Dredd frame failed bitstream check starting with sector {0}",
                                    _sectors.get(0));
             return null;
@@ -199,26 +200,20 @@ public class DreddDemuxer {
         return true;
     }
 
-    /** Returns if this is a v2 or v3 frame. Be sure to keep in sync with
-     * {@link jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2#checkHeader(byte[])}
-     * and
-     * {@link jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv3#checkHeader(byte[])}.
-     */
-    private static @CheckForNull BitStreamUncompressor.Type hasBitstreamHeader(@Nonnull CdSector cdSector, int iOfs) {
+    /** Returns if this is a v2 or v3 frame. */
+    private static @CheckForNull StrHeader hasBitstreamHeader(@Nonnull CdSector cdSector, int iOfs) {
         if (cdSector.getCdUserDataSize() + iOfs < 8)
             return null;
 
         byte[] abHeader = new byte[8];
         cdSector.getCdUserDataCopy(iOfs, abHeader, 0, abHeader.length);
 
-        BitStreamUncompressor_STRv2.StrV2Header v2 =
-                new BitStreamUncompressor_STRv2.StrV2Header(abHeader, abHeader.length);
+        StrHeader v2 = new BitStreamUncompressor_STRv2.StrV2Header(abHeader, abHeader.length);
         if (v2.isValid())
-            return BitStreamUncompressor.Type.STRv2;
-        BitStreamUncompressor_STRv3.StrV3Header v3 =
-                new BitStreamUncompressor_STRv3.StrV3Header(abHeader, abHeader.length);
+            return v2;
+        StrHeader v3 = new BitStreamUncompressor_STRv3.StrV3Header(abHeader, abHeader.length);
         if (v3.isValid())
-            return BitStreamUncompressor.Type.STRv3;
+            return v3;
 
         return null;
     }
@@ -230,10 +225,10 @@ public class DreddDemuxer {
 
     /** Uncompresses the bitstream by a minium amount to ensure it is valid. */
     private static boolean checkHeight(@Nonnull byte[] abFullFrame,
-                                       @Nonnull BitStreamUncompressor.Type bsuType)
+                                       @Nonnull StrHeader strHeader)
     {
         try {
-            BitStreamUncompressor bsu = bsuType.makeNew(abFullFrame);
+            BitStreamUncompressor bsu = strHeader.makeNew(abFullFrame);
             bsu.skipMacroBlocks(FRAME_WIDTH, FRAME_HEIGHT_B);
             return true;
         } catch (MdecException.EndOfStream ex) {

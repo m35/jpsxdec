@@ -79,6 +79,7 @@ public class RGB {
         return 0xFF000000 | clampr | clampg | clampb;
     }
 
+    @Override
     public String toString() {
         return String.format("(%d, %d, %d)", r, g, b);
     }

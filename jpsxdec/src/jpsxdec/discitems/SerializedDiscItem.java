@@ -237,6 +237,10 @@ public class SerializedDiscItem {
     // =========================================================================
     // Reading fields
     
+    public boolean hasField(@Nonnull String sFieldName) {
+        return _fields.containsKey(sFieldName);
+    }
+
     public @Nonnull String getString(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = _fields.get(sFieldName);
         if (sValue == null) throw new LocalizedDeserializationFail(I.SERIALIZATION_FIELD_NOT_FOUND(sFieldName));
@@ -260,7 +264,7 @@ public class SerializedDiscItem {
         try {
             return Long.parseLong(sValue);
         } catch (NumberFormatException e) {
-            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_LONG(sValue));
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_NUMBER(sValue));
         }
     }
     
@@ -270,7 +274,7 @@ public class SerializedDiscItem {
         try {
             return Integer.parseInt(sValue);
         } catch (NumberFormatException e) {
-            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_INT(sValue));
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_NUMBER(sValue));
         }
     }
 
@@ -282,7 +286,7 @@ public class SerializedDiscItem {
         try {
             return Integer.parseInt(sValue);
         } catch (NumberFormatException e) {
-            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_INT(sValue));
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_NUMBER(sValue));
         }
     }
 

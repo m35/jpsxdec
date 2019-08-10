@@ -39,6 +39,7 @@ package jpsxdec.modules.ac3;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 
 /** Collects Ace Combat 3 sectors and generates frames. 
@@ -47,7 +48,8 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 public class SectorAc3VideoToDemuxedAc3Frame implements SectorClaimToSectorAc3Video.Listener {
 
     public static interface Listener {
-        void frameComplete(@Nonnull DemuxedAc3Frame frame, @Nonnull ILocalizedLogger log);
+        void frameComplete(@Nonnull DemuxedAc3Frame frame, @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
     }
 
     private final int _iChannel;
@@ -70,6 +72,7 @@ public class SectorAc3VideoToDemuxedAc3Frame implements SectorClaimToSectorAc3Vi
 
     public @Nonnull Ac3AddResult feedSector(@Nonnull SectorAceCombat3Video vidSector, 
                                             @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
         if (vidSector.getChannel() != _iChannel)
             return Ac3AddResult.WrongChannel;
@@ -89,7 +92,7 @@ public class SectorAc3VideoToDemuxedAc3Frame implements SectorClaimToSectorAc3Vi
         return Ac3AddResult.Same;
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) {
+    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentFrame == null)
             return;
         if (_listener != null)

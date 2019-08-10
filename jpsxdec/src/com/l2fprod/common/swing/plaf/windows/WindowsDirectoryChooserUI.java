@@ -324,13 +324,13 @@ public class WindowsDirectoryChooserUI extends BasicFileChooserUI implements
       // split the full path into individual files to locate them in
       // the tree
       // model
-      List files = new ArrayList();
+      List<File> files = new ArrayList<File>();
       files.add(file);
       while ((file = chooser.getFileSystemView().getParentDirectory(file)) != null) {
         files.add(0, file);
       }
 
-      List path = new ArrayList();
+      List<DefaultMutableTreeNode> path = new ArrayList<DefaultMutableTreeNode>();
 
       // start from the root
       DefaultMutableTreeNode node = (DefaultMutableTreeNode)tree.getModel()
@@ -457,7 +457,7 @@ public class WindowsDirectoryChooserUI extends BasicFileChooserUI implements
       return;
     }
 
-    List files = new ArrayList();
+    List<File> files = new ArrayList<File>();
     for (int i = 0, c = selectedPaths.length; i < c; i++) {
       LazyMutableTreeNode node = (LazyMutableTreeNode)selectedPaths[i]
         .getLastPathComponent();
@@ -639,7 +639,7 @@ public class WindowsDirectoryChooserUI extends BasicFileChooserUI implements
         chooser.getFileSystemView().getFiles(
           getFile(),
           chooser.isFileHidingEnabled());
-      ArrayList nodes = new ArrayList();
+      ArrayList<FileTreeNode> nodes = new ArrayList<FileTreeNode>();
       // keep only directories, no "file" in the tree.
       if (files != null) {
         for (int i = 0, c = files.length; i < c; i++) {
@@ -652,7 +652,7 @@ public class WindowsDirectoryChooserUI extends BasicFileChooserUI implements
         }
       }
       // sort directories, FileTreeNode implements Comparable
-      FileTreeNode[] result = (FileTreeNode[])nodes
+      FileTreeNode[] result = nodes
         .toArray(new FileTreeNode[0]);
       Arrays.sort(result);
       return result;
@@ -712,7 +712,7 @@ public class WindowsDirectoryChooserUI extends BasicFileChooserUI implements
    */
   private static final class Queue extends Thread {
 
-    private volatile Stack nodes = new Stack();
+    private volatile Stack<QueueItem> nodes = new Stack<QueueItem>();
 
     private Object lock = new Object();
 

@@ -125,6 +125,7 @@ public class SpuSaverBuilder extends DiscItemSaverBuilder {
                 return _sExtension;
         }
 
+        @Override
         public String toString() {
             if (_jFmt != null)
                 return _jFmt.toString();
@@ -318,14 +319,14 @@ public class SpuSaverBuilder extends DiscItemSaverBuilder {
             // TODO
         }
     }
-    public void printSelectedOptions(@Nonnull FeedbackStream fbs) {
+    public void printSelectedOptions(@Nonnull ILocalizedLogger log) {
         SpuSaverFormat fmt = getContainerFormat();
         JavaAudioFormat jFmt = fmt.getJavaType();
         if (jFmt != null) {
-            fbs.println(I.CMD_VOLUME_PERCENT(_dblVolume));
-            fbs.println(I.CMD_AUDIO_FORMAT(jFmt.getCmdId()));
+            log.log(Level.INFO, I.CMD_VOLUME_PERCENT(_dblVolume));
+            log.log(Level.INFO, I.CMD_AUDIO_FORMAT(jFmt.getCmdId()));
         }
-        fbs.println(I.CMD_FILENAME(getFileRelativePath()));
+        log.log(Level.INFO, I.CMD_FILENAME(getFileRelativePath()));
     }
 
     public @Nonnull ILocalizedMessage getOutputSummary() {
@@ -341,6 +342,7 @@ public class SpuSaverBuilder extends DiscItemSaverBuilder {
             throws LoggedFailure, TaskCanceledException
     {
         clearGeneratedFiles();
+        printSelectedOptions(pl);
         pl.progressStart(1);
         File outputFile = new File(directory, getFileRelativePath().getPath());
 

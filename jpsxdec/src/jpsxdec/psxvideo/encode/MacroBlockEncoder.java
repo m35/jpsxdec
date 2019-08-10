@@ -39,26 +39,35 @@ package jpsxdec.psxvideo.encode;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import javax.annotation.Nonnull;
+import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import static jpsxdec.psxvideo.mdec.MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 
 /** Encodes a single macroblock into MDEC codes. */
-public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
+public class MacroBlockEncoder implements Iterable<MdecCode> {
 
     private static final boolean DEBUG = false;
 
     private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
-            MdecInputStream.getDefaultPsxQuantMatrixCopy();
+            new int[MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length];
+    static {
+        System.arraycopy(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX, 0,
+                         PSX_DEFAULT_QUANTIZATION_MATRIX, 0,
+                         MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
+    }
     
     // TODO: Change to use a Forward DCT more closely resembling the PSX
     private final StephensIDCT _DCT = new StephensIDCT();
 
     private final double[][] _aadblYBlockVectors = new double[4][];
+    @Nonnull
     private final double[] _adblCbBlockVector;
+    @Nonnull
     private final double[] _adblCrBlockVector;
 
+    @Nonnull
     private int[] _aiQscales, _aiSquashQscales;
 
     public final int X, Y;
@@ -67,7 +76,7 @@ public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
      * It is calculated using my best guess as an approach. */
     private double _dblEnergy = 0;
     
-    MacroBlockEncoder(PsxYCbCrImage ycbcr, int iMacroBlockX, int iMacroBlockY) {
+    MacroBlockEncoder(@Nonnull PsxYCbCrImage ycbcr, int iMacroBlockX, int iMacroBlockY) {
 
         X = iMacroBlockX;
         Y = iMacroBlockY;
@@ -96,7 +105,7 @@ public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
 
     }
 
-    private double[] preEncodeBlock(double[] adblBlock, int iBlock) {
+    private @Nonnull double[] preEncodeBlock(@Nonnull double[] adblBlock, int iBlock) {
         if (DEBUG) {
             System.out.println("Pre DCT");
             for (int y = 0; y < 8; y++) {
@@ -139,7 +148,7 @@ public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
     }
 
 
-    private double[] preQuantizeZigZagBlock(double[] adblBlock, int iBlock) {
+    private @Nonnull double[] preQuantizeZigZagBlock(@Nonnull double[] adblBlock, int iBlock) {
         double[] adblVector = new double[8*8];
         // partially quantize it
         adblVector[0] = (int)Math.round(adblBlock[0]
@@ -165,22 +174,22 @@ public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
         return _dblEnergy;
     }
     
-    public void setToFullEncode(int[] aiQscales) {
+    public void setToFullEncode(@Nonnull int[] aiQscales) {
         if (aiQscales.length != 6)
             throw new IllegalArgumentException();
         _aiSquashQscales = _aiQscales = aiQscales.clone();
     }
-    public void setToPartialEncode(int[] aiQscales, int[] aiSquashQscales) {
+    public void setToPartialEncode(@Nonnull int[] aiQscales, @Nonnull int[] aiSquashQscales) {
         if (aiQscales.length != 6)
             throw new IllegalArgumentException();
         _aiQscales = aiQscales.clone();
         _aiSquashQscales = aiSquashQscales.clone();
     }
 
-    public Iterator<MdecCode> iterator() {
+    public @Nonnull Iterator<MdecCode> iterator() {
         if (_aiQscales == null || _aiSquashQscales == null)
             throw new IllegalStateException();
-        ArrayList<MdecInputStream.MdecCode> codes = new ArrayList<MdecInputStream.MdecCode>();
+        ArrayList<MdecCode> codes = new ArrayList<MdecCode>();
         encodeBlock(_adblCrBlockVector, codes, _aiQscales[0], _aiSquashQscales[0]);
         encodeBlock(_adblCbBlockVector, codes, _aiQscales[1], _aiSquashQscales[1]);
         encodeBlock(_aadblYBlockVectors[0], codes, _aiQscales[2], _aiSquashQscales[2]);
@@ -192,11 +201,11 @@ public class MacroBlockEncoder implements Iterable<MdecInputStream.MdecCode> {
 
     // -------------------------------------------------------------------------
 
-    private void encodeBlock(double[] adblVector,
-                             ArrayList<MdecInputStream.MdecCode> out,
+    private void encodeBlock(@Nonnull double[] adblVector,
+                             @Nonnull ArrayList<MdecCode> out,
                              int iQscale, int iSquashQscale)
     {
-        final MdecInputStream.MdecCode code = new MdecInputStream.MdecCode();
+        final MdecCode code = new MdecCode();
         code.setTop6Bits(iQscale);
         code.setBottom10Bits((int)Math.round(adblVector[0]));
         out.add(code.copy());

@@ -220,6 +220,7 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
             return _lngDecryptedOffset;
         }
 
+        @Override
         public String toString() {
             return String.format("\"%s\" \"%s\" %02x%02x%02x%02x%02x? %08x -> %d",
                                  _sSourceFilePath, _sItemName,

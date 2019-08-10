@@ -49,7 +49,6 @@ import javax.annotation.Nonnull;
 import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.util.IO;
-import jpsxdec.util.IOException6;
 import jpsxdec.util.Misc;
 import jpsxdec.util.TaskCanceledException;
 
@@ -64,7 +63,7 @@ public class DiscPatcher {
 
     private static final Logger LOG = Logger.getLogger(DiscPatcher.class.getName());
 
-    public static class CreatePatchFileException extends IOException6 {
+    public static class CreatePatchFileException extends IOException {
         @Nonnull
         private final File _file;
 
@@ -79,7 +78,7 @@ public class DiscPatcher {
 
     }
 
-    public static class WritePatchException extends IOException6 {
+    public static class WritePatchException extends IOException {
         @Nonnull
         private final File _file;
 
@@ -93,7 +92,7 @@ public class DiscPatcher {
         }
     }
 
-    public static class PatchReadException extends IOException6 {
+    public static class PatchReadException extends IOException {
         @Nonnull
         private final File _file;
 
@@ -107,7 +106,7 @@ public class DiscPatcher {
         }
     }
 
-    public static class ApplyPatchToCdException extends IOException6 {
+    public static class ApplyPatchToCdException extends IOException {
         @Nonnull
         private final File _file;
 
@@ -160,6 +159,15 @@ public class DiscPatcher {
             }
         }
 
+        @Override
+        public boolean equals(Object o) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int hashCode() {
+            throw new UnsupportedOperationException();
+        }
     }
 
     @Nonnull

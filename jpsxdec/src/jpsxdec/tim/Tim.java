@@ -429,6 +429,7 @@ public class Tim {
         return null;
     }
     
+    @Override
     public String toString() {
         String s = String.format(
             "%dx%d %dbpp xy(%d, %d) WWidth:%d Len:%d",

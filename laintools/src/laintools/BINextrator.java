@@ -49,7 +49,6 @@ public class BINextrator {
     public static int DebugVerbose = 2;
 
     public static void main(String[] args) {
-        //args = new String[] {"BIN.BIN-hacked", "bin-bin"};
         if (args.length < 2) {
             System.out.println("Expecting 2 parameters: <bin-file> <out-base-name>");
             return;

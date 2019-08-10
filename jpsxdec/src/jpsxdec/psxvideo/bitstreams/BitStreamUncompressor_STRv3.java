@@ -43,22 +43,30 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedIncompatibleException;
+import jpsxdec.psxvideo.mdec.MdecBlock;
+import jpsxdec.psxvideo.mdec.MdecCode;
+import jpsxdec.psxvideo.mdec.MdecContext;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.MdecInputStream.MdecCode;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.Misc;
 
 /** Uncompressor for demuxed STR v3 video bitstream data.
  * Makes use of most of STR v2 code. Adds v3 handling for DC values. */
-public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
+public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor {
 
     private static final Logger LOG = Logger.getLogger(BitStreamUncompressor_STRv3.class.getName());
 
     public static class StrV3Header extends StrHeader {
-        public StrV3Header(byte[] abFrameData, int iDataSize) {
+        public StrV3Header(@Nonnull byte[] abFrameData, int iDataSize) {
             super(abFrameData, iDataSize, 3);
+        }
+
+        public @Nonnull BitStreamUncompressor_STRv3 makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
+                throws BinaryDataNotRecognized
+        {
+            return BitStreamUncompressor_STRv3.makeV3(abBitstream, iBitstreamSize);
         }
     }
 
@@ -81,7 +89,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         StrV3Header header = new StrV3Header(abFrameData, iDataSize);
         if (!header.isValid())
             return null;
-        ArrayBitReader bitReader = makeStrBitReader(abFrameData, iDataSize);
+        ArrayBitReader bitReader = BitStreamUncompressor_STRv2.makeStrBitReader(abFrameData, iDataSize);
 
         return new BitStreamUncompressor_STRv3(header, bitReader);
     }
@@ -116,8 +124,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             }
         }
 
-        abstract public int readDc(@Nonnull ArrayBitReader bitReader, 
-                                   @CheckForNull MdecDebugger debug)
+        abstract public int readDc(@Nonnull ArrayBitReader bitReader)
                 throws MdecException.EndOfStream;
         /** Attempts to encode a DC value that has already been diff'ed from
          *  the previous value and divided by 4.
@@ -137,7 +144,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         }
 
         @Override
-        public int readDc(@Nonnull ArrayBitReader bitReader, @CheckForNull MdecDebugger debug) {
+        public int readDc(@Nonnull ArrayBitReader bitReader) {
             return _iDifferential;
         }
 
@@ -173,11 +180,11 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         }
 
         @Override
-        public int readDc(@Nonnull ArrayBitReader bitReader, @CheckForNull MdecDebugger debug)
+        public int readDc(@Nonnull ArrayBitReader bitReader)
                 throws MdecException.EndOfStream
         {
             int iDC_Differential = bitReader.readUnsignedBits(_iDifferentialBitLen);
-            assert !DEBUG || debug.append(Misc.bitsToString(iDC_Differential, _iDifferentialBitLen));
+            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(Misc.bitsToString(iDC_Differential, _iDifferentialBitLen));
             // top bit == 0 means it's negative
             if ((iDC_Differential & _iTopBitMask) == 0) {
                 iDC_Differential += _iNegativeDifferentialMin;
@@ -280,116 +287,131 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
     // ## Instance stuff ######################################################
     // ########################################################################
 
-    /** Holds the previous DC values during a version 3 frame decoding. */
-    private int _iPreviousCr_DC = 0,
-                _iPreviousCb_DC = 0,
-                _iPreviousY_DC = 0;
+    @Nonnull
+    private final StrV3Header _header;
 
     public BitStreamUncompressor_STRv3(@Nonnull StrV3Header header,
                                        @Nonnull ArrayBitReader bitReader)
     {
-        super(header, bitReader);
+        super(bitReader, ZeroRunLengthAcLookup_STR.AC_VARIABLE_LENGTH_CODES_MPEG1,
+              new QuantizationDcReader_STRv3(header.getQuantizationScale()),
+              BitStreamUncompressor_STRv2.AC_ESCAPE_CODE_STR,
+              FRAME_END_PADDING_BITS_STRV3);
+        _header = header;
     }
 
-    @Override
-    protected void readQscaleAndDC(@Nonnull MdecCode code)
-            throws MdecException.ReadCorruption, MdecException.EndOfStream
-    {
-        code.setTop6Bits(_header.getQscale());
-        switch (getCurrentMacroBlockSubBlock()) {
-            case 0:
-                code.setBottom10Bits(_iPreviousCr_DC = readV3DcChroma(_iPreviousCr_DC));
-                return;
-            case 1:
-                code.setBottom10Bits(_iPreviousCb_DC = readV3DcChroma(_iPreviousCb_DC));
-                return;
-            default:
-                readV3DcLuma();
-                code.setBottom10Bits(_iPreviousY_DC);
+    private static class QuantizationDcReader_STRv3 implements IQuantizationDc {
+
+        private final int _iFrameQuantizationScale;
+
+        /** Holds the previous DC values during a version 3 frame decoding. */
+        private int _iPreviousCr_DC = 0,
+                    _iPreviousCb_DC = 0,
+                    _iPreviousY_DC = 0;
+
+        public QuantizationDcReader_STRv3(int iFrameQuantizationScale) {
+            _iFrameQuantizationScale = iFrameQuantizationScale;
+        }
+
+        public void readQuantizationScaleAndDc(@Nonnull ArrayBitReader bitReader,
+                                               @Nonnull MdecContext context,
+                                               @Nonnull MdecCode code)
+                throws MdecException.ReadCorruption, MdecException.EndOfStream
+        {
+            code.setTop6Bits(_iFrameQuantizationScale);
+            switch (context.getCurrentBlock()) {
+                case Cr:
+                    code.setBottom10Bits(_iPreviousCr_DC = readV3DcChroma(_iPreviousCr_DC, bitReader, context));
+                    return;
+                case Cb:
+                    code.setBottom10Bits(_iPreviousCb_DC = readV3DcChroma(_iPreviousCb_DC, bitReader, context));
+                    return;
+                default:
+                    readV3DcLuma(bitReader, context);
+                    code.setBottom10Bits(_iPreviousY_DC);
+            }
+        }
+
+
+        private int readV3DcChroma(int iPreviousDC, @Nonnull ArrayBitReader bitReader, @Nonnull MdecContext context)
+                throws MdecException.ReadCorruption, MdecException.EndOfStream
+        {
+            // Peek enough bits
+            int iBits = bitReader.peekUnsignedBits(DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE);
+
+            DcVariableLengthCode dcVlc = CHROMA_LOOKUP[iBits];
+
+            if (dcVlc == null) {
+                throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC(
+                        context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(),
+                        Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE)));
+            }
+
+            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(dcVlc.VariableLengthCode);
+
+            // skip the variable length code bits
+            bitReader.skipBits(dcVlc.VariableLengthCode.length());
+
+            iPreviousDC += dcVlc.readDc(bitReader);
+
+            if (iPreviousDC < -512 || iPreviousDC > 511) {
+                throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_CHROMA_DC_OOB(
+                        context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(),
+                        iPreviousDC));
+            }
+
+            return iPreviousDC;
+        }
+
+        private void readV3DcLuma(@Nonnull ArrayBitReader bitReader, @Nonnull MdecContext context) throws MdecException.ReadCorruption, MdecException.EndOfStream {
+            // Peek enough bits
+            int iBits = bitReader.peekUnsignedBits(DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE);
+
+            DcVariableLengthCode dcVlc = LUMA_LOOKUP[iBits];
+
+            if (dcVlc == null) {
+                throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_LUMA_DC_VLC(
+                        context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(),
+                        Misc.bitsToString(iBits, DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE)));
+            }
+
+            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(dcVlc.VariableLengthCode);
+
+            // skip the variable length code bits
+            bitReader.skipBits(dcVlc.VariableLengthCode.length());
+
+            _iPreviousY_DC += dcVlc.readDc(bitReader);
+
+            if (_iPreviousY_DC < -512 || _iPreviousY_DC > 511) {
+                throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_LUMA_DC_OOB(
+                        context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(),
+                        _iPreviousY_DC));
+            }
         }
     }
 
-    
-    private int readV3DcChroma(int iPreviousDC)
-            throws MdecException.ReadCorruption, MdecException.EndOfStream
-    {
-        // Peek enough bits
-        int iBits = _bitReader.peekUnsignedBits(DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE);
-        
-        DcVariableLengthCode dcVlc = CHROMA_LOOKUP[iBits];
-        
-        if (dcVlc == null) {
-            throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC(
-                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
-                    Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE)));
-        }
 
-        assert !DEBUG || _debug.append(dcVlc.VariableLengthCode);
-
-        // skip the variable length code bits
-        _bitReader.skipBits(dcVlc.VariableLengthCode.length());
-
-        iPreviousDC += dcVlc.readDc(_bitReader, _debug);
-
-        if (iPreviousDC < -512 || iPreviousDC > 511) {
-            throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_CHROMA_DC_OOB(
-                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
-                    iPreviousDC));
-        }
-
-        return iPreviousDC;
-    }
-    
-    private void readV3DcLuma() throws MdecException.ReadCorruption, MdecException.EndOfStream {
-        // Peek enough bits
-        int iBits = _bitReader.peekUnsignedBits(DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE);
-        
-        DcVariableLengthCode dcVlc = LUMA_LOOKUP[iBits];
-        
-        if (dcVlc == null) {
-            throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_LUMA_DC_VLC(
-                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
-                    Misc.bitsToString(iBits, DC_LUMA_LONGEST_VARIABLE_LENGTH_CODE)));
-        }
-            
-        assert !DEBUG || _debug.append(dcVlc.VariableLengthCode);
-
-        // skip the variable length code bits
-        _bitReader.skipBits(dcVlc.VariableLengthCode.length());
-
-        _iPreviousY_DC += dcVlc.readDc(_bitReader, _debug);
-
-        if (_iPreviousY_DC < -512 || _iPreviousY_DC > 511) {
-            throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_LUMA_DC_OOB(
-                    getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
-                    _iPreviousY_DC));
+    private static class FrameEndPaddingBits_STRv3 implements IFrameEndPaddingBits {
+        @Override
+        public void skipPaddingBits(@Nonnull ArrayBitReader bitReader) throws MdecException.EndOfStream {
+            int iPaddingBits = bitReader.readUnsignedBits(11);
+            if (iPaddingBits != b11111111110) {
+                LOG.log(Level.WARNING, "Incorrect padding bits {0}", Misc.bitsToString(iPaddingBits, 11));
+            }
         }
     }
+    private static final FrameEndPaddingBits_STRv3 FRAME_END_PADDING_BITS_STRV3 = new FrameEndPaddingBits_STRv3();
 
-
-    @Override
-    public void skipPaddingBits() throws MdecException.EndOfStream {
-        int iPaddingBits = _bitReader.readUnsignedBits(11);
-        if (iPaddingBits != b11111111110) {
-            LOG.log(Level.WARNING, "Incorrect padding bits {0}", Misc.bitsToString(iPaddingBits, 11));
-        }
-    }
-
-    @Override
-    public @Nonnull Type getType() {
-        return Type.STRv3;
-    }
-    
     @Override
     public @Nonnull BitStreamCompressor_STRv3 makeCompressor() {
-        return new BitStreamCompressor_STRv3(getFullMacroBlocksRead());
+        return new BitStreamCompressor_STRv3(_context.getTotalMacroBlocksRead());
     }
 
     // =========================================================================
     
     /** Note unlike all other compressors, STRv3 is LOSSY when encoding
      * DC coefficients. */
-    public static class BitStreamCompressor_STRv3 extends BitStreamCompressor_STRv2 {
+    public static class BitStreamCompressor_STRv3 extends BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 {
 
         BitStreamCompressor_STRv3(int iMacroBlockCount) {
             super(iMacroBlockCount);
@@ -402,8 +424,8 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
         protected int getFrameQscale(@Nonnull byte[] abFrameData) throws LocalizedIncompatibleException {
             StrV3Header header = new StrV3Header(abFrameData, abFrameData.length);
             if (!header.isValid())
-                throw new LocalizedIncompatibleException(I.FRAME_NOT_STRV3());
-            return header.getQscale();
+                throw new LocalizedIncompatibleException(I.FRAME_IS_NOT_BITSTREAM_FORMAT("STRv3"));
+            return header.getQuantizationScale();
         }
         
         
@@ -424,7 +446,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
                     _iPreviousY_DcRound4;
 
         @Override
-        protected @Nonnull String encodeDC(int iDC, int iBlock) throws MdecException.TooMuchEnergy {
+        protected @Nonnull String encodeDC(int iDC, @Nonnull MdecBlock block) throws MdecException.TooMuchEnergy {
             // round to the nearest multiple of 4
             // TODO: Maybe try to expose this quality loss somehow
             int iDcRound4 = (int)Math.round(iDC / 4.0) * 4;
@@ -434,13 +456,13 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor_STRv2 {
             // and save the rounded DC for the next iteration
             DcVariableLengthCode[] lookupTable;
             int iDcDiffRound4Div4;
-            switch (iBlock) {
-                case 0:
+            switch (block) {
+                case Cr:
                     iDcDiffRound4Div4 = (iDcRound4 - _iPreviousCr_DcRound4) / 4;
                     _iPreviousCr_DcRound4 = iDcRound4;
                     lookupTable = DC_Chroma_VarLenCodes;
                     break;
-                case 1:
+                case Cb:
                     iDcDiffRound4Div4 = (iDcRound4 - _iPreviousCb_DcRound4) / 4;
                     _iPreviousCb_DcRound4 = iDcRound4;
                     lookupTable = DC_Chroma_VarLenCodes;

@@ -37,49 +37,58 @@
 
 package jpsxdec.modules.player;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import javax.annotation.Nonnull;
-import javax.sound.sampled.AudioFormat;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.modules.video.save.AudioSync;
+import jpsxdec.util.IO;
 
-/** Receives audio packets and sends them to the inner {@link MediaPlayer}
+/** Receives audio packets and sends them to the inner {@link OutputStream}
  * making sure to add silence if there is any gap in the packets.
  * This ensures the audio stays in sync with the playback. */
 public class AudioPlayerSectorTimedWriter implements DecodedAudioPacket.Listener {
 
     @Nonnull
-    private final MediaPlayer _player;
+    private final OutputStream _audioOut;
     @Nonnull
     private final AudioSync _audioSync;
 
     private long _lngSampleFramesWritten = 0;
 
-    public AudioPlayerSectorTimedWriter(@Nonnull MediaPlayer player, int iMovieStartSector,
-                                        int iSectorsPerSecond, int iSamplesPerSecond)
+    public AudioPlayerSectorTimedWriter(@Nonnull OutputStream audioOutputStream,
+                                        int iMovieStartSector,
+                                        int iSectorsPerSecond,
+                                        int iSamplesPerSecond)
     {
-        _player = player;
-        AudioFormat fmt = _player.getAudioFormat();
-        if (fmt == null)
-            throw new IllegalArgumentException("Media player without audio passed to AudioPlayerSectorTimedWriter");
+        _audioOut = audioOutputStream;
         _audioSync = new AudioSync(iMovieStartSector, iSectorsPerSecond, iSamplesPerSecond);
     }
 
     public void audioPacketComplete(@Nonnull DecodedAudioPacket packet, @Nonnull ILocalizedLogger log) {
-        // already confirmed that _player has an audio format
-        if (!packet.getAudioFormat().matches(_player.getAudioFormat()))
-            throw new IllegalArgumentException("Incompatable audio format.");
+        try {
+            long lngSampleFrameDiff = _audioSync.calculateAudioToCatchUp(packet.getPresentationSector(), _lngSampleFramesWritten);
+            if (lngSampleFrameDiff > 0) {
+                System.out.println("Audio out of sync " + lngSampleFrameDiff + " samples, adding silence.");
+                long lngSilentBytes = lngSampleFrameDiff * packet.getAudioFormat().getFrameSize();
+                while (lngSilentBytes > 0) {
+                    int iToWrite = (int) Math.min((long)Integer.MAX_VALUE, lngSilentBytes);
+                    IO.writeZeros(_audioOut, iToWrite);
+                    lngSilentBytes -= iToWrite;
+                }
+                // TODO move this inside the loop in case there is an error it will keep the inner state correct
+                _lngSampleFramesWritten += lngSampleFrameDiff;
+            }
 
-        long lngSampleFrameDiff = _audioSync.calculateAudioToCatchUp(packet.getPresentationSector(), _lngSampleFramesWritten);
-        if (lngSampleFrameDiff > 0) {
-            System.out.println("Audio out of sync " + lngSampleFrameDiff + " samples, adding silence.");
-            _player.writeSilence(lngSampleFrameDiff);
-            _lngSampleFramesWritten += lngSampleFrameDiff;
+            _lngSampleFramesWritten += packet.getSampleFrameCount();
+
+            byte[] abData = packet.getData();
+            //System.out.println("Sending " + abData.length + " bytes of audio");
+            _audioOut.write(abData);
+        } catch (IOException ex) {
+            // wrap the exception and have the MediaPlayer catch it outside the pipeline
+            throw new WrapIOException(ex);
         }
-
-        _lngSampleFramesWritten += packet.getSampleFrameCount();
-
-        byte[] abData = packet.getData();
-        _player.writeAudio(abData, 0, abData.length);
     }
 }

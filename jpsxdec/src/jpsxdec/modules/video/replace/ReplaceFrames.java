@@ -69,7 +69,6 @@ import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameCompareIs;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.util.IO;
-import jpsxdec.util.IOException6;
 import jpsxdec.util.TaskCanceledException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -99,7 +98,7 @@ public class ReplaceFrames {
 
     }
 
-    public static class XmlReadException extends IOException6 {
+    public static class XmlReadException extends IOException {
 
         public XmlReadException(IOException cause) {
             super(cause);
@@ -196,9 +195,9 @@ public class ReplaceFrames {
             StreamResult result = new StreamResult(new File(sFile));
             transformer.transform(source, result);
         } catch (ParserConfigurationException ex) {
-            throw new IOException6(ex);
+            throw new IOException(ex);
         } catch (TransformerException ex) {
-            throw new IOException6(ex);
+            throw new IOException(ex);
         }
     }
 

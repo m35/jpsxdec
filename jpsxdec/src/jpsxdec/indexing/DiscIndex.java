@@ -73,7 +73,6 @@ import jpsxdec.modules.iso9660.DiscItemISO9660File;
 import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
 import jpsxdec.modules.strvideo.DiscItemStrVideoStream;
 import jpsxdec.util.IO;
-import jpsxdec.util.IOException6;
 import jpsxdec.util.Misc;
 import jpsxdec.util.TaskCanceledException;
 
@@ -101,7 +100,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         }
     }
 
-    public static class IndexReadException extends IOException6 {
+    public static class IndexReadException extends IOException {
 
         @Nonnull
         private final File _file;
@@ -599,8 +598,10 @@ public class DiscIndex implements Iterable<DiscItem> {
                 int iNewSectNumber = h.calculateSectorNumber();
                 if (iNewSectNumber != -1) {
                     if (_iCurrentHeaderSectorNumber >= 0) {
-                        if (_iCurrentHeaderSectorNumber + 1 != iNewSectNumber)
-                            _log.log(Level.WARNING, I.INDEX_SECTOR_HEADER_NUM_BREAK(_iCurrentHeaderSectorNumber, iNewSectNumber));
+                        if (_iCurrentHeaderSectorNumber + 1 != iNewSectNumber) {
+                            _log.log(Level.WARNING, I.INDEX_SECTOR_CORRUPTED_AT(cdSector.getSectorIndexFromStart()));
+                            LOG.log(Level.WARNING, "Non-continuous sector header number: {0} -> {1}", new Object[]{_iCurrentHeaderSectorNumber, iNewSectNumber});
+                        }
                     }
                     _iCurrentHeaderSectorNumber = iNewSectNumber;
                 } else {
@@ -612,8 +613,10 @@ public class DiscIndex implements Iterable<DiscItem> {
 
             switch (cdSector.getType()) {
                 case MODE1:
-                    if (_iMode1Count < _iMode2Count)
-                        _log.log(Level.WARNING, I.INDEX_MODE1_AMONG_MODE2(cdSector.getSectorIndexFromStart()));
+                    if (_iMode1Count < _iMode2Count) {
+                        _log.log(Level.WARNING, I.INDEX_SECTOR_CORRUPTED_AT(cdSector.getSectorIndexFromStart()));
+                        LOG.log(Level.WARNING, "Sector {0} is Mode 1 found among Mode 2 sectors", new Object[]{cdSector.getSectorIndexFromStart()});
+                    }
                     _iMode1Count++;
                     break;
                 case UNKNOWN2048:

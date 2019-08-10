@@ -39,12 +39,14 @@ package jpsxdec.modules.square;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 
 
 public class SquareAudioSectorToSquareAudioSectorPair implements SectorClaimToSquareAudioSector.Listener {
     public interface Listener {
-        void pairDone(@Nonnull SquareAudioSectorPair pair, @Nonnull ILocalizedLogger log);
+        void pairDone(@Nonnull SquareAudioSectorPair pair, @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
         void endOfSectors(@Nonnull ILocalizedLogger log);
     }
 
@@ -62,7 +64,9 @@ public class SquareAudioSectorToSquareAudioSectorPair implements SectorClaimToSq
         _listener = listener;
     }
 
-    public void sectorRead(@Nonnull ISquareAudioSector audSector, @Nonnull ILocalizedLogger log) {
+    public void sectorRead(@Nonnull ISquareAudioSector audSector, @Nonnull ILocalizedLogger log) 
+            throws LoggedFailure
+    {
 
         if (_leftAudioSector != null) {
             if (isPair(_leftAudioSector, audSector)) {
@@ -98,7 +102,7 @@ public class SquareAudioSectorToSquareAudioSectorPair implements SectorClaimToSq
         }
     }
 
-    private void leftOnlyDone(@Nonnull ILocalizedLogger log) {
+    private void leftOnlyDone(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         _listener.pairDone(new SquareAudioSectorPair(
                            _leftAudioSector, null,
                            _leftAudioSector.getHeaderFrameNumber(),
@@ -119,7 +123,7 @@ public class SquareAudioSectorToSquareAudioSectorPair implements SectorClaimToSq
                 left.getSectorNumber() + 1 == right.getSectorNumber();
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) {
+    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_listener != null) {
             if (_leftAudioSector != null)
                 leftOnlyDone(log);

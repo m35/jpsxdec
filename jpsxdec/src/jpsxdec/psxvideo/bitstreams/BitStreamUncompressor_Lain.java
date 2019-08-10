@@ -46,6 +46,9 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2;
 import jpsxdec.psxvideo.encode.MacroBlockEncoder;
 import jpsxdec.psxvideo.encode.MdecEncoder;
+import jpsxdec.psxvideo.mdec.MdecBlock;
+import jpsxdec.psxvideo.mdec.MdecCode;
+import jpsxdec.psxvideo.mdec.MdecContext;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.BinaryDataNotRecognized;
@@ -149,11 +152,13 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         return new BitStreamUncompressor_Lain(header, bitReader);
     }
 
-
+    public static final ZeroRunLengthAc ESCAPE_CODE = new ZeroRunLengthAc(BitStreamCode._000001___________, true, false);
+    public static final ZeroRunLengthAc END_OF_BLOCK = new ZeroRunLengthAc(BitStreamCode._10_______________,
+            MdecCode.MDEC_END_OF_DATA_TOP6, MdecCode.MDEC_END_OF_DATA_BOTTOM10, false, true);
 
     /** The custom Serial Experiments Lain PlayStation game
      *  AC coefficient variable-length (Huffman) code table. */
-    private final static AcLookup AC_VARIABLE_LENGTH_CODES_LAIN = new AcLookup()
+    private final static ZeroRunLengthAcLookup AC_VARIABLE_LENGTH_CODES_LAIN = new ZeroRunLengthAcLookup.Builder()
       // Code               "Run" "Level"
         ._11s                ( 0  , 1  )
         ._011s               ( 0  , 2  )
@@ -265,7 +270,10 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         ._0000000000011100s  ( 0  , 60 )
         ._0000000000011101s  ( 9  , 2  )
         ._0000000000011110s  ( 24 , 1  )
-        ._0000000000011111s  ( 18 , 1  );
+        ._0000000000011111s  ( 18 , 1  )
+        .add(ESCAPE_CODE)
+        .add(END_OF_BLOCK)
+        .build();
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
@@ -275,117 +283,124 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     private final LainHeader _header;
 
     public BitStreamUncompressor_Lain(@Nonnull LainHeader header, @Nonnull ArrayBitReader bitReader) {
-        super(AC_VARIABLE_LENGTH_CODES_LAIN, bitReader);
+        super(bitReader, AC_VARIABLE_LENGTH_CODES_LAIN, 
+              new QuantizationDcReader_Lain(header.getLumaQscale(), header.getChromaQscale()),
+              AC_ESCAPE_CODE_LAIN, FRAME_END_PADDING_BITS_NONE);
         _header = header;
     }
 
-    @Override
-    protected void readQscaleAndDC(@Nonnull MdecCode code) throws MdecException.EndOfStream {
-        code.setBottom10Bits( _bitReader.readSignedBits(10) );
-        assert !DEBUG || _debug.append(Misc.bitsToString(code.getBottom10Bits(), 10));
-        if (getCurrentMacroBlockSubBlock() < 2)
-            code.setTop6Bits(_header.getChromaQscale());
-        else
-            code.setTop6Bits(_header.getLumaQscale());
-    }
+    private static class QuantizationDcReader_Lain implements IQuantizationDc {
 
+        private final int _iFrameLumaQuantizationScale;
+        private final int _iFrameChromaQuantizationScale;
 
-    
-    protected void readEscapeAcCode(@Nonnull MdecCode code) throws MdecException.EndOfStream
-    {
-
-        int iBits = _bitReader.readUnsignedBits(6+8);
-
-        // Get the (6 bit) run of zeros from the bits already read
-        // 17 bits: eeeeeezzzzzz_____ : e = escape code, z = run of zeros
-        code.setTop6Bits( (iBits >>> 8) & 63 );
-        assert !DEBUG || _debug.append(Misc.bitsToString(code.getTop6Bits(), 6));
-
-        // Lain
-            
-        /* Lain playstation uses mpeg1 specification escape code
-        Fixed Length Code       Level
-        forbidden               -256
-        1000 0000 0000 0001     -255
-        1000 0000 0000 0010     -254
-        ...
-        1000 0000 0111 1111     -129
-        1000 0000 1000 0000     -128
-        1000 0001               -127
-        1000 0010               -126
-        ...
-        1111 1110               -2
-        1111 1111               -1
-        forbidden                0
-        0000 0001                1
-        0000 0010                2
-        ...
-        0111 1110               126
-        0111 1111               127
-        0000 0000 1000 0000     128
-        0000 0000 1000 0001     129
-        ...
-        0000 0000 1111 1110     254
-        0000 0000 1111 1111     255
-         */
-        // Chop down to the first 8 bits
-        iBits = iBits & 0xff;
-        int iACCoefficient;
-        if (iBits == 0x00) {
-            // If it's the special 00000000
-            // Positive
-            assert !DEBUG || _debug.append("00000000");
-
-            iACCoefficient = _bitReader.readUnsignedBits(8);
-
-            assert !DEBUG || _debug.append(Misc.bitsToString(iACCoefficient, 8));
-
-            code.setBottom10Bits(iACCoefficient);
-        } else if (iBits  == 0x80) {
-            // If it's the special 10000000
-            // Negative
-            assert !DEBUG || _debug.append("10000000");
-
-            iACCoefficient = -256 + _bitReader.readUnsignedBits(8);
-
-            assert !DEBUG || _debug.append(Misc.bitsToString(iACCoefficient, 8));
-
-            code.setBottom10Bits(iACCoefficient);
-        } else {
-            // Otherwise we already have the value
-            assert !DEBUG || _debug.append(Misc.bitsToString(iBits, 8));
-
-            // changed to signed
-            iACCoefficient = (byte)iBits;
-            
-            code.setBottom10Bits(iACCoefficient);
+        public QuantizationDcReader_Lain(int iFrameLumaQuantizationScale, 
+                                         int iFrameChromaQuantizationScale)
+        {
+            _iFrameLumaQuantizationScale = iFrameLumaQuantizationScale;
+            _iFrameChromaQuantizationScale = iFrameChromaQuantizationScale;
         }
 
+        public void readQuantizationScaleAndDc(@Nonnull ArrayBitReader bitReader,
+                                               @Nonnull MdecContext context,
+                                               @Nonnull MdecCode code)
+                throws MdecException.EndOfStream
+        {
+            code.setBottom10Bits(bitReader.readSignedBits(10) );
+            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(Misc.bitsToString(code.getBottom10Bits(), 10));
+            if (context.getCurrentBlock().isChroma())
+                code.setTop6Bits(_iFrameChromaQuantizationScale);
+            else
+                code.setTop6Bits(_iFrameLumaQuantizationScale);
+        }
     }
+
+    private static class AcEscapeCode_Lain implements IAcEscapeCode {
+
+        public void readAcEscapeCode(@Nonnull ArrayBitReader bitReader, @Nonnull MdecCode code) throws MdecException.EndOfStream
+        {
+
+            int iBits = bitReader.readUnsignedBits(6+8);
+
+            // Get the (6 bit) run of zeros from the bits already read
+            // 17 bits: eeeeeezzzzzz_____ : e = escape code, z = run of zeros
+            code.setTop6Bits( (iBits >>> 8) & 63 );
+            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(Misc.bitsToString(code.getTop6Bits(), 6));
+
+            // Lain
+
+            /* Lain playstation uses mpeg1 specification escape code
+            Fixed Length Code       Level
+            forbidden               -256
+            1000 0000 0000 0001     -255
+            1000 0000 0000 0010     -254
+            ...
+            1000 0000 0111 1111     -129
+            1000 0000 1000 0000     -128
+            1000 0001               -127
+            1000 0010               -126
+            ...
+            1111 1110               -2
+            1111 1111               -1
+            forbidden                0
+            0000 0001                1
+            0000 0010                2
+            ...
+            0111 1110               126
+            0111 1111               127
+            0000 0000 1000 0000     128
+            0000 0000 1000 0001     129
+            ...
+            0000 0000 1111 1110     254
+            0000 0000 1111 1111     255
+             */
+            // Chop down to the first 8 bits
+            iBits = iBits & 0xff;
+            int iACCoefficient;
+            if (iBits == 0x00) {
+                // If it's the special 00000000
+                // Positive
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits("00000000");
+
+                iACCoefficient = bitReader.readUnsignedBits(8);
+
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(Misc.bitsToString(iACCoefficient, 8));
+
+                code.setBottom10Bits(iACCoefficient);
+            } else if (iBits  == 0x80) {
+                // If it's the special 10000000
+                // Negative
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits("10000000");
+
+                iACCoefficient = -256 + bitReader.readUnsignedBits(8);
+
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(Misc.bitsToString(iACCoefficient, 8));
+
+                code.setBottom10Bits(iACCoefficient);
+            } else {
+                // Otherwise we already have the value
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(Misc.bitsToString(iBits, 8));
+
+                // changed to signed
+                iACCoefficient = (byte)iBits;
+
+                code.setBottom10Bits(iACCoefficient);
+            }
+
+        }
+    }
+    private static final AcEscapeCode_Lain AC_ESCAPE_CODE_LAIN = new AcEscapeCode_Lain();
 
     @Override
-    public void skipPaddingBits() {
-        // Lain doesn't have ending padding bits
-    }
-
-    @Override
-    public @Nonnull Type getType() {
-        return Type.Lain;
-    }
-
     public String toString() {
-        return String.format("%s Qscale L=%d C=%d 3800=%x Offset=%d MB=%d.%d Mdec count=%d",
-                getType(), _header.getLumaQscale(), _header.getChromaQscale(),
-                _header.getMagic3800orFrame(),
-                _bitReader.getWordPosition(),
-                getFullMacroBlocksRead(), getCurrentMacroBlockSubBlock(),
-                getReadMdecCodeCount());
+        return super.toString() + " Qscale L=" + _header.getLumaQscale()
+                                        +" C=" + _header.getChromaQscale();
     }
 
 
     @Override
     public @Nonnull BitStreamCompressor_Lain makeCompressor() {
-        return new BitStreamCompressor_Lain(getFullMacroBlocksRead(), _header.getMagic3800orFrame());
+        return new BitStreamCompressor_Lain(_context.getTotalMacroBlocksRead(), _header.getMagic3800orFrame());
     }
 
     // =========================================================================
@@ -458,7 +473,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         {
             LainHeader header = new LainHeader(abOriginal, abOriginal.length);
             if (!header.isValid())
-                throw new LocalizedIncompatibleException(I.FRAME_NOT_LAIN());
+                throw new LocalizedIncompatibleException(I.FRAME_IS_NOT_BITSTREAM_FORMAT("Lain"));
             
             final int iFrameLQscale = header.getLumaQscale();
             final int iFrameCQscale = header.getChromaQscale();
@@ -515,8 +530,8 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         }
 
         @Override
-        protected void setBlockQscale(int iBlock, int iQscale) throws IncompatibleException {
-            if (iBlock < 2) {
+        protected void setBlockQscale(@Nonnull MdecBlock block, int iQscale) throws IncompatibleException {
+            if (block.isChroma()) {
                 if (_iChromaQscale < 0)
                     _iChromaQscale = iQscale;
                 else if (_iChromaQscale != iQscale) {
@@ -560,7 +575,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         }
 
         @Override
-        protected @Nonnull AcLookup getAcVaribleLengthCodeList() {
+        protected @Nonnull ZeroRunLengthAcLookup getAcVaribleLengthCodeList() {
             return AC_VARIABLE_LENGTH_CODES_LAIN;
         }
 
@@ -580,12 +595,12 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                         "Unable to escape %s, AC code too large for Lain", code));
             
             if (code.getBottom10Bits() >= -127 && code.getBottom10Bits() <= 127) {
-                return AcLookup.ESCAPE_CODE.BitString + sTopBits + Misc.bitsToString(code.getBottom10Bits(), 8);
+                return ESCAPE_CODE.getBitString() + sTopBits + Misc.bitsToString(code.getBottom10Bits(), 8);
             } else {
                 if (code.getBottom10Bits() > 0) {
-                    return AcLookup.ESCAPE_CODE.BitString + sTopBits + "00000000" + Misc.bitsToString(code.getBottom10Bits(), 8);
+                    return ESCAPE_CODE.getBitString() + sTopBits + "00000000" + Misc.bitsToString(code.getBottom10Bits(), 8);
                 } else {
-                    return AcLookup.ESCAPE_CODE.BitString + sTopBits + "10000000" + Misc.bitsToString(code.getBottom10Bits()+256, 8);
+                    return ESCAPE_CODE.getBitString() + sTopBits + "10000000" + Misc.bitsToString(code.getBottom10Bits()+256, 8);
                 }
             }
         }

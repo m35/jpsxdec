@@ -49,7 +49,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 
 /** Wraps an InputStream (or creates a FileInputStream) to read MDEC values from. */
-public class MdecInputStreamReader extends MdecInputStream {
+public class MdecInputStreamReader implements MdecInputStream {
 
     private static final Logger LOG = Logger.getLogger(MdecInputStreamReader.class.getName());
 
@@ -100,11 +100,13 @@ public class MdecInputStreamReader extends MdecInputStream {
      * {@link MdecInputStream} to an {@link OutputStream}.
      * Errors are monitored, but does not throw exceptions on bad data
      * (although source and destination streams might). */
-    public static void writeMdecBlocks(@Nonnull MdecInputStream mdecIn,
+    public static void writeMdecBlocks(@Nonnull MdecInputStream sourceMdecIn,
                                        @Nonnull OutputStream streamOut,
                                        int iBlockCount)
             throws MdecException.EndOfStream, MdecException.ReadCorruption, IOException
     {
+        Ac0Checker mdecIn = Ac0Checker.wrapWithChecker(sourceMdecIn, false);
+
         MdecCode code = new MdecCode();
         int iBlock = 0;
         while (iBlock < iBlockCount) {
@@ -131,6 +133,8 @@ public class MdecInputStreamReader extends MdecInputStream {
                 LOG.warning("non-EOD code found in at EOD position!");
             IO.writeInt16LE(streamOut, code.toMdecWord());
         }
+
+        mdecIn.logIfAny0AcCoefficient();
     }
 
 }

@@ -43,6 +43,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSectorXaSubHeader;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
@@ -52,13 +53,13 @@ public class SectorClaimToSectorXaAudio extends SectorClaimSystem.SectorClaimer 
     public interface Listener {
         void feedXaSector(@Nonnull CdSector cdSector,
                           @CheckForNull SectorXaAudio xaSector,
-                          @Nonnull ILocalizedLogger log);
+                          @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
         void xaEof(int iChannel);
 
         public void endOfSectors(@Nonnull ILocalizedLogger log);
     }
 
-    @CheckForNull
     private final ArrayList<Listener> _listeners = new ArrayList<Listener>();
 
     public SectorClaimToSectorXaAudio() {
@@ -70,7 +71,7 @@ public class SectorClaimToSectorXaAudio extends SectorClaimSystem.SectorClaimer 
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException
+            throws IOException, SectorClaimSystem.ClaimerFailure
     {
         if (cs.isClaimed())
             return;
@@ -90,7 +91,11 @@ public class SectorClaimToSectorXaAudio extends SectorClaimSystem.SectorClaimer 
 
         if (sectorIsInRange(cs.getSector().getSectorIndexFromStart())) {
             for (Listener listener : _listeners) {
-                listener.feedXaSector(cdSector, xaSect, log);
+                try {
+                    listener.feedXaSector(cdSector, xaSect, log);
+                } catch (LoggedFailure ex) {
+                    throw new SectorClaimSystem.ClaimerFailure(ex);
+                }
             }
 
             CdSectorXaSubHeader sh = cdSector.getSubHeader();

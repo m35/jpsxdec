@@ -47,6 +47,7 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.indexing.DiscIndexer;
@@ -129,7 +130,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements SectorCla
             _sac3v2dac3frame = new SectorAc3VideoToDemuxedAc3Frame(iChannel, this);
         }
 
-        public void feedSector(@Nonnull SectorAceCombat3Video vidSector) {
+        public void feedSector(@Nonnull SectorAceCombat3Video vidSector) throws LoggedFailure {
             Ac3AddResult result = _sac3v2dac3frame.feedSector(vidSector, _indexer._errLog);
             if (result == Ac3AddResult.WrongChannel)
                 throw new RuntimeException("AC3 sector was not accepted for some reason.");
@@ -183,6 +184,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements SectorCla
 
     public Ac3AddResult feedSector(@Nonnull SectorAceCombat3Video vidSector,
                                    @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
         Integer oiChannel = vidSector.getChannel();
         Ac3Channel channel = _activeStreams.get(oiChannel);

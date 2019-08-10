@@ -37,6 +37,7 @@
 
 package jpsxdec.modules.video.sectorbased;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IIdentifiedSector;
@@ -48,6 +49,6 @@ public interface ISelfDemuxingVideoSector extends IIdentifiedSector {
     public interface IDemuxer {
         boolean addSectorIfPartOfFrame(@Nonnull ISelfDemuxingVideoSector sector);
         boolean isFrameComplete();
-        @Nonnull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log);
+        @CheckForNull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log);
     }
 }

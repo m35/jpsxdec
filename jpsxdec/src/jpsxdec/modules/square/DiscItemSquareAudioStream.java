@@ -67,6 +67,7 @@ import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
+import jpsxdec.util.Misc;
 import jpsxdec.util.TaskCanceledException;
 
 /** Represents a series of Square SPU ADPCM sectors that combine to make an audio stream.
@@ -155,7 +156,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     @Override
     public @Nonnull ILocalizedMessage getInterestingDescription() {
         // unable to find ANY sources of info about how to localize durations
-        Date secs = new Date(0, 0, 0, 0, 0, (int)Math.max(getSampleFrameCount() / _iSampleFramesPerSecond, 1));
+        Date secs = Misc.dateFromSeconds((int)Math.max(getSampleFrameCount() / _iSampleFramesPerSecond, 1));
         return I.GUI_AUDIO_DESCRIPTION(secs, _iSampleFramesPerSecond, 2);
     }
 

@@ -41,6 +41,7 @@ import argparser.BooleanHolder;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItemSaverBuilder;
@@ -49,6 +50,7 @@ import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.TabularFeedback;
 import jpsxdec.i18n.exception.LoggedFailure;
+import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
@@ -240,9 +242,9 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
     }
 
     @Override
-    protected void printSelectedAudioOptions(FeedbackStream fbs) {
+    protected void printSelectedAudioOptions(@Nonnull ILocalizedLogger log) {
         for (DiscItemAudioStream discItemAudioStream : collectSelectedAudio()) {
-            fbs.println(discItemAudioStream.getDetails());
+            log.log(Level.INFO, discItemAudioStream.getDetails());
         }
     }
 
@@ -261,6 +263,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
             throws LoggedFailure, TaskCanceledException
     {
         clearGeneratedFiles();
+        printSelectedOptions(pl);
 
         final ISectorAudioDecoder audDecoder;
         final ISectorClaimToDemuxedFrame demuxer = _sourceVidItem.makeDemuxer();
@@ -272,8 +275,8 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         else
             audDecoder = new AudioStreamsCombiner(parallelAudio, getAudioVolume());
 
-        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory);
-        vs.save(pl, demuxer, audDecoder);
+        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, demuxer, audDecoder);
+        vs.save(pl);
     }
 
 }

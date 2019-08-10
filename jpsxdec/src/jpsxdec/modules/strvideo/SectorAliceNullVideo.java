@@ -74,14 +74,14 @@ public class SectorAliceNullVideo extends IdentifiedSector {
         if (_header.lngMagic != ALICE_VIDEO_SECTOR_MAGIC)
                 return;
 
-        if (!_header.isChunkNumberStandard())
+        if (!_header.hasStandardChunkNumber())
                 return;
         if (_header.iChunksInThisFrame < 3)
                 return;
 
         // null frames between movies have a frame number of 0xFFFF
         // the high bit signifies the end of a video
-        if (!_header.isFrameNumberStandard())
+        if (!_header.hasStandardFrameNumber())
                 return;
 
         // make sure all 16 bytes are zero

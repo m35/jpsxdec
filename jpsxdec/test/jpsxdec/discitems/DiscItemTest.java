@@ -43,6 +43,7 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.util.ArgParser;
 import org.junit.*;
@@ -84,7 +85,7 @@ public class DiscItemTest {
         public boolean copySettingsTo(DiscItemSaverBuilder other) { return false; }
         public void printHelp(FeedbackStream fbs) {}
         public void commandLineOptions(ArgParser ap, FeedbackStream fbs) {}
-        public void printSelectedOptions(FeedbackStream fbs) {}
+        public void printSelectedOptions(ILocalizedLogger log) {}
         public ILocalizedMessage getOutputSummary() { return new UnlocalizedMessage("test"); }
         public DiscItemSaverBuilderGui getOptionPane() { return new SBG(); }
         public void startSave(ProgressLogger pl, File directory) {}

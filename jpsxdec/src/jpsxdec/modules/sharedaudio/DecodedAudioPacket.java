@@ -39,6 +39,7 @@ package jpsxdec.modules.sharedaudio;
 
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.util.Fraction;
 
@@ -47,7 +48,8 @@ public class DecodedAudioPacket {
     
     public interface Listener {
         void audioPacketComplete(@Nonnull DecodedAudioPacket packet,
-                                 @Nonnull ILocalizedLogger log);
+                                 @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
     }
 
     /** Channel that this audio packet belongs to.

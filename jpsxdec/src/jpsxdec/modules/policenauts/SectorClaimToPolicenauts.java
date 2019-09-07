@@ -39,7 +39,6 @@ package jpsxdec.modules.policenauts;
 
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
@@ -53,8 +52,6 @@ import jpsxdec.util.IOIterator;
 
 public class SectorClaimToPolicenauts extends SectorClaimSystem.SectorClaimer  {
 
-    private static final Logger LOG = Logger.getLogger(SectorClaimToPolicenauts.class.getName());
-
     public interface Listener {
         void videoStart(int iWidth, int iHeight, @Nonnull ILocalizedLogger log);
         void feedPacket(@Nonnull SPacketData packet, @Nonnull ILocalizedLogger log)
@@ -63,46 +60,39 @@ public class SectorClaimToPolicenauts extends SectorClaimSystem.SectorClaimer  {
     }
 
 
-    private static class KlbsSectorRange {
+    private static final class KlbsSectorRange {
         /** Stream to read the packet data in this KLBS set of sectors.
          * Once all are read, the stream ends, but we want to stick around to 
          * collect any more sectors in this KLBS. */
         @CheckForNull
         private KlbsStreamReader _stream;
         private final int _iKlbsEndSectorInclusive;
-        private SectorPN_KLBS _klbsSector;
         private boolean _blnAtEnd = false;
 
-        public KlbsSectorRange(@Nonnull SectorPN_KLBS klbsSector) {
-            _klbsSector = klbsSector;
+        public KlbsSectorRange(@Nonnull SectorPN_KLBS klbsSector, @Nonnull ILocalizedLogger log) {
             _stream = new KlbsStreamReader(klbsSector);
             _iKlbsEndSectorInclusive = klbsSector.getEndSectorInclusive();
+            readIntoSector(klbsSector, SectorPN_KLBS.SIZEOF_KLBS_HEADER, log);
         }
 
-        public @Nonnull SectorPN_KLBS start(@Nonnull ILocalizedLogger log) {
-            SectorPN_KLBS klbsSector = _klbsSector;
-            _klbsSector = null; // free up the KLBS sector memory and underlying buffer
-            doRead(klbsSector, log);
-            return klbsSector;
-        }
-
-        public @Nonnull SectorPolicenauts addSector(@Nonnull CdSector cdSector, @Nonnull ILocalizedLogger log) {
-            _blnAtEnd = cdSector.getSectorIndexFromStart() >= _iKlbsEndSectorInclusive;
-            SectorPolicenauts pnSector = new SectorPolicenauts(cdSector, _blnAtEnd);
-            if (_stream != null) {
-                _stream.addSector(pnSector);
-                doRead(pnSector, log);
-            }
+        public @Nonnull SectorPolicenauts readSector(@Nonnull CdSector cdSector, @Nonnull ILocalizedLogger log) {
+            if (_blnAtEnd)
+                throw new AssertionError();
+            boolean blnAtEnd = cdSector.getSectorIndexFromStart() >= _iKlbsEndSectorInclusive;
+            SectorPolicenauts pnSector = new SectorPolicenauts(cdSector, blnAtEnd);
+            readIntoSector(pnSector, 0, log);
+            _blnAtEnd = blnAtEnd;
             return pnSector;
         }
 
-        public boolean atEnd() {
-            return _blnAtEnd;
-        }
+        public void readIntoSector(@Nonnull SectorPolicenauts pnSector, int iSkip, @Nonnull ILocalizedLogger log) {
+            if (_stream == null)
+                return;
+            if (_blnAtEnd)
+                throw new AssertionError();
 
-        private void doRead(SectorPolicenauts pnSector, @Nonnull ILocalizedLogger log) {
             try {
-                List<SPacketData> finishedPackets = _stream.readAllAvailablePackets();
+                List<SPacketData> finishedPackets = _stream.readSectorPackets(pnSector, iSkip);
                 if (_stream.allRead())
                     _stream = null;
                 pnSector.setPacketsEndingInThisSector(finishedPackets);
@@ -143,26 +133,38 @@ public class SectorClaimToPolicenauts extends SectorClaimSystem.SectorClaimer  {
                 _listener.videoStart(vmnkSector.getWidth(), vmnkSector.getHeight(), log);
         } else {
             SectorPolicenauts pnSector = null;
+
             SectorPN_KLBS klbsSector = new SectorPN_KLBS(cs.getSector());
             if (klbsSector.getProbability() == 100) {
                 checkCorruptionIfExistingKlbs(log);
-                _currentKlbs = new KlbsSectorRange(klbsSector);
-                klbsSector = _currentKlbs.start(log);
-                cs.claim(klbsSector);
+                // new KLBS, set things up
                 pnSector = klbsSector;
+                _currentKlbs = new KlbsSectorRange(klbsSector, log);
+                cs.claim(klbsSector);
             } else if (_currentKlbs != null) {
-                pnSector = _currentKlbs.addSector(cs.getSector(), log);
-                cs.claim(pnSector);
-                if (_currentKlbs.atEnd())
+                pnSector = _currentKlbs.readSector(cs.getSector(), log);
+                // all done?
+                if (_currentKlbs._blnAtEnd)
                     _currentKlbs = null;
             }
 
+            if (pnSector != null)
+                cs.claim(pnSector);
+
+            // notify listeners
             if (_listener != null && pnSector != null) {
                 for (SPacketData sPacketData : pnSector) {
-                    try {
-                        _listener.feedPacket(sPacketData, log);
-                    } catch (LoggedFailure ex) {
-                        throw new SectorClaimSystem.ClaimerFailure(ex);
+
+                    // Only send packets that are fully in the active sector range
+                    // (in practice there should never be a packet crossing the border)
+                    if (sectorIsInRange(sPacketData.getStartSector()) &&
+                        sectorIsInRange(sPacketData.getEndSectorInclusive()))
+                    {
+                        try {
+                            _listener.feedPacket(sPacketData, log);
+                        } catch (LoggedFailure ex) {
+                            throw new SectorClaimSystem.ClaimerFailure(ex);
+                        }
                     }
                 }
             }

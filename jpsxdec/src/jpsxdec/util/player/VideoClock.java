@@ -48,8 +48,8 @@ class VideoClock extends VideoTimer implements Runnable {
     @Nonnull
     private final Thread _eventThread;
     // TODO want unbounded queue
-    private final ClosableArrayBlockingQueue<PlayController.Event> _eventQueue =
-            new ClosableArrayBlockingQueue<PlayController.Event>(100);
+    private final ClosableBoundedBlockingQueue<PlayController.Event> _eventQueue =
+            new ClosableBoundedBlockingQueue<PlayController.Event>(100);
 
     public VideoClock() {
         _eventThread = new Thread(this, getClass().getName() + " event dispatcher");

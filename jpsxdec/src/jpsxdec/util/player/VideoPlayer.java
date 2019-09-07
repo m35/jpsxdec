@@ -46,8 +46,8 @@ class VideoPlayer implements Runnable {
 
     private static final int CAPACITY = 50;
 
-    private final ClosableArrayBlockingQueue<DecodedVideoFrame> _frameDisplayQueue =
-            new ClosableArrayBlockingQueue<DecodedVideoFrame>(CAPACITY);
+    private final ClosableBoundedBlockingQueue<DecodedVideoFrame> _frameDisplayQueue =
+            new ClosableBoundedBlockingQueue<DecodedVideoFrame>(CAPACITY);
 
     private final int _iWidth, _iHeight;
 

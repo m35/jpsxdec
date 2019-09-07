@@ -38,6 +38,7 @@
 package jpsxdec.util;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 
 /** Exception returned by constructors when a supplied stream or data
  *  does not provide the correct information to generate a class. 
@@ -50,6 +51,11 @@ public class BinaryDataNotRecognized extends Exception {
 
     public BinaryDataNotRecognized(@CheckForNull String message) {
         super(message);
+    }
+
+    /** @see String#format(java.lang.String, java.lang.Object...) */
+    public BinaryDataNotRecognized(@Nonnull String sFormat, Object... aoArgs) {
+        super(String.format(sFormat, aoArgs));
     }
 
     public BinaryDataNotRecognized(Throwable cause) {

@@ -3846,6 +3846,18 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
+    <pre>RoadRash data corruption</pre>
+    </td></tr></table>
+    <ul>
+       <li>SectorClaimToRoadRash.java</li>
+    </ul>
+    */
+    public static @Nonnull ILocalizedMessage ROADRASH_DATA_CORRUPTION() {
+        return msg("ROADRASH_DATA_CORRUPTION", "RoadRash data corruption");
+    }
+
+    /**
+    <table border="1"><tr><td>
     <pre>Crusader: No Remorse audio is corrupted</pre>
     </td></tr></table>
     <p>&quot;Crusader: No Remorse&quot; is the name of a game</p>

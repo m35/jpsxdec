@@ -63,7 +63,8 @@ import org.junit.runners.Suite;
     jpsxdec.util.DemuxPushInputStreamTest.class,
     jpsxdec.util.DemuxedDataTest.class,
     jpsxdec.util.IOTest.class,
-    jpsxdec.util.MiscTest.class
+    jpsxdec.util.MiscTest.class,
+    jpsxdec.util.player.ClosableBoundedBlockingQueueTest.class
 })
 public class AllTestsSuite {
 

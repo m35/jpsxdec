@@ -40,11 +40,25 @@ package jpsxdec.util.player;
 import javax.annotation.Nonnull;
 
 /**
- * A class provided by the user that will feed audio and video data into the
- * supplied {@link PlayController}. Note that this is the same
- * {@link PlayController} that is used to set this reader
- * {@link PlayController#setReader(jpsxdec.util.player.IMediaDataReader)},
- * so the {@link PlayController} can be accessed either way.
+ * A class provided by the user that will read audio and/or video data
+ * and send it to the {@link PlayController}.
+ *
+ * Write raw video frame data to {@link PlayController#getFrameWriter()}
+ * that will later be sent to {@link IFrameProcessor} in another thread.
+ * Write PCM data to {@link PlayController#getAudioOutputStream()}.
+ * 
+ * The player will start this reader in its own thread, and the reader should
+ * loop until data is exhausted. Then the reader should just simply return,
+ * which will end the thread and media playback once all audio/video has been
+ * presented.
+ *
+ * If an error occurs, the reader can also simply return if it's ok for any
+ * pending audio/video to finish playing, or throw {@link StopPlayingException}
+ * to immediately terminate all playback and discard any buffered data.
+ *
+ * Note that the {@link PlayController} given in the
+ * {@link #demuxThread(PlayController)} is the same one that this reader is set
+ * in {@link PlayController#setReader(IMediaDataReader)}, so use it either way.
  */
 public interface IMediaDataReader {
     void demuxThread(@Nonnull PlayController controller) throws StopPlayingException;

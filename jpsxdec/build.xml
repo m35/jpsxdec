@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="jpsxdec" default="zip" basedir=".">
 
-    <!-- Set JAVA_HOME to 1.5 jdk directory before running this build -->
+    <!-- Set JAVA_HOME to 1.6 jdk directory before running this build -->
 
     <description>
         Build jPSXdec for releasing.
@@ -9,7 +9,7 @@
 
     <!-- ====== global build properties ====== -->
     
-    <property name="jpsxdec.ver" value="v0-99-9_rev3898"/>
+    <property name="jpsxdec.ver" value="v1-00_rev3921"/>
 
     <!-- sources -->
     <property name="src.dir.rel"      location="src"      relative="true"/>
@@ -67,7 +67,17 @@
         <mkdir dir="${build-lgpl.dir}"/>
         <javac srcdir="${src-lgpl.dir}" destdir="${build-lgpl.dir}" includeantruntime="false"
             source="${javac.source.ver}" target="${javac.target.ver}"
-            encoding="Cp1252" debug="true" />
+               encoding="Cp1252" debug="true">
+            <compilerarg value="-Xlint:finally"/>
+            <compilerarg value="-Xlint:deprecation"/>
+            <compilerarg value="-Xlint:options"/>
+            <compilerarg value="-Xlint:overrides"/>
+            <compilerarg value="-Xlint:rawtypes"/>
+            <compilerarg value="-Xlint:static"/>
+            <compilerarg value="-Xlint:unchecked"/>
+            <compilerarg value="-Xlint:varargs"/>
+            <compilerarg value="-Werror"/>
+        </javac>
 
         <!-- Copy over resources -->
         <copy todir="${build-lgpl.dir}" verbose="true">
@@ -90,7 +100,17 @@
         <mkdir dir="${build.dir}"/>
         <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
             source="${javac.source.ver}" classpath="${release.dir}/${jar-lgpl.file}"
-            target="${javac.target.ver}" encoding="Cp1252" debug="true" />
+               target="${javac.target.ver}" encoding="Cp1252" debug="true">
+            <compilerarg value="-Xlint:finally"/>
+            <compilerarg value="-Xlint:deprecation"/>
+            <compilerarg value="-Xlint:options"/>
+            <compilerarg value="-Xlint:overrides"/>
+            <compilerarg value="-Xlint:rawtypes"/>
+            <compilerarg value="-Xlint:static"/>
+            <compilerarg value="-Xlint:unchecked"/>
+            <compilerarg value="-Xlint:varargs"/>
+            <compilerarg value="-Werror"/>
+        </javac>
             
         <!-- Copy over resources -->
         <copy todir="${build.dir}" verbose="true">

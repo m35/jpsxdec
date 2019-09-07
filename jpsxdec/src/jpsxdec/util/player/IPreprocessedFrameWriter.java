@@ -39,7 +39,16 @@ package jpsxdec.util.player;
 
 import javax.annotation.Nonnull;
 
-
+/**
+ * Class to write raw frame data to by the {@link IMediaDataReader}.
+ */
 public interface IPreprocessedFrameWriter {
+    /**
+     * Write raw frame data to this function along with the presentation time
+     * that the frame should appear in nano-seconds from the start of the video.
+     * The frame will later be decoded by {@link IFrameProcessor}.
+     * Note that {@link StopPlayingException} may be thrown if the video
+     * has been terminated.
+     */
     void writeFrame(@Nonnull Object frame, long lngPresentationNanos) throws StopPlayingException;
 }

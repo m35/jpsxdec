@@ -208,7 +208,7 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
             } else if (packet.isVideo()) {
                 FrameNumber fn = _fnf.next(packet.getStartSector(), packet.getTimestamp(), log);
                 if (_frameListener != null) {
-                    _frameListener.frameComplete(new DemuxPolicenautsFrame(_iWidth, _iHeight, packet, fn,
+                    _frameListener.frameComplete(new DemuxedPolicenautsFrame(_iWidth, _iHeight, packet, fn,
                             SPacket.SECTORS150_PER_TIMESTAMP.multiply(packet.getTimestamp()).add(_iStartSector)));
                 }
             }

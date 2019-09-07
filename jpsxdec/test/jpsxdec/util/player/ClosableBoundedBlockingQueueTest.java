@@ -42,7 +42,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-public class ClosableArrayBlockingQueueTest {
+public class ClosableBoundedBlockingQueueTest {
 
     @Rule
     public Timeout globalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
@@ -51,7 +51,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testAdd() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(1);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(1);
 
         assertTrue(queue.add(OBJECT1));
         assertFalse(queue.isClosed());
@@ -59,7 +59,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testAddTakeSameThread() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(1);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(1);
 
         assertTrue(queue.add(OBJECT1));
         String actual = queue.take();
@@ -69,7 +69,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testAddTake2SameThread() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(1);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(1);
 
         assertTrue(queue.add(OBJECT1));
         String actual = queue.take();
@@ -83,7 +83,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testClosed() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(1);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(1);
 
         queue.closeNow();
         assertFalse(queue.add(OBJECT1));
@@ -94,7 +94,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testCloseNow() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(3);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(3);
 
         assertTrue(queue.add(OBJECT1));
         assertTrue(queue.add(OBJECT1));
@@ -107,7 +107,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testPoison() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(3);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(3);
 
         assertTrue(queue.add(OBJECT1));
         queue.closeWhenEmpty();
@@ -125,7 +125,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testTakeTakeAdd() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(1);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(1);
 
         OtherTake otherTake = new OtherTake(queue);
         otherTake.start();
@@ -162,7 +162,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testCloseThread() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(1);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(1);
 
         OtherTake otherTake = new OtherTake(queue);
         otherTake.start();
@@ -198,7 +198,7 @@ public class ClosableArrayBlockingQueueTest {
 
     @Test
     public void testPoisonThread() throws Exception {
-        ClosableArrayBlockingQueue<String> queue = new ClosableArrayBlockingQueue<String>(1);
+        ClosableBoundedBlockingQueue<String> queue = new ClosableBoundedBlockingQueue<String>(1);
 
         OtherTake otherTake = new OtherTake(queue);
         otherTake.start();
@@ -233,10 +233,10 @@ public class ClosableArrayBlockingQueueTest {
     }
 
     private static class OtherTake extends Thread {
-        private final ClosableArrayBlockingQueue<String> _otherMine;
+        private final ClosableBoundedBlockingQueue<String> _otherMine;
         private transient String _taken;
         private transient Exception _ex;
-        public OtherTake(ClosableArrayBlockingQueue<String> otherMine) {
+        public OtherTake(ClosableBoundedBlockingQueue<String> otherMine) {
             _otherMine = otherMine;
         }
         @Override

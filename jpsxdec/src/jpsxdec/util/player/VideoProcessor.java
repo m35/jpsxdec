@@ -39,16 +39,18 @@ package jpsxdec.util.player;
 
 import javax.annotation.Nonnull;
 
-/** Video processor thread manages the conversion of video source data
- * to a presentation image. */
+/**
+ * Video processor thread manages the conversion of video source data
+ * to a presentation image.
+ */
 class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
 
     private static final boolean DEBUG = false;
 
     private static final int CAPACITY = 50;
 
-    private final ClosableArrayBlockingQueue<DecodableFrame> _framesProcessingQueue =
-            new ClosableArrayBlockingQueue<DecodableFrame>(CAPACITY);
+    private final ClosableBoundedBlockingQueue<DecodableFrame> _framesProcessingQueue =
+            new ClosableBoundedBlockingQueue<DecodableFrame>(CAPACITY);
 
     @Nonnull
     private final VideoTimer _vidTimer;

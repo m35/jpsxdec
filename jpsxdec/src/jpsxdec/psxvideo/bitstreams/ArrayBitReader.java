@@ -172,7 +172,7 @@ public class ArrayBitReader {
                     iRet = (iRet << iCount) | ((_siCurrentWord & 0xFFFF) >>> _iBitsLeft);
                 }
             } catch (MdecException.EndOfStream ex) {
-                LOG.log(Level.INFO, "Bitstream is about to end", ex);
+                LOG.log(Level.FINE, "Bitstream is about to end", ex);
                 // _iBitsLeft will == 0
                 return iRet << iCount;
             }

@@ -50,7 +50,7 @@ import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.Fraction;
 
 
-public class DemuxPolicenautsFrame implements IDemuxedFrame {
+public class DemuxedPolicenautsFrame implements IDemuxedFrame {
     private final int _iWidth, _iHeight;
     private final SPacketData _data;
     @Nonnull
@@ -58,10 +58,10 @@ public class DemuxPolicenautsFrame implements IDemuxedFrame {
     @Nonnull
     private final Fraction _presentationSector;
 
-    public DemuxPolicenautsFrame(int iWidth, int iHeight, 
-                                 @Nonnull SPacketData data,
-                                 @Nonnull FrameNumber frameNumber,
-                                 @Nonnull Fraction presentationSector)
+    public DemuxedPolicenautsFrame(int iWidth, int iHeight,
+                                   @Nonnull SPacketData data,
+                                   @Nonnull FrameNumber frameNumber,
+                                   @Nonnull Fraction presentationSector)
     {
         _iWidth = iWidth;
         _iHeight = iHeight;
@@ -87,7 +87,7 @@ public class DemuxPolicenautsFrame implements IDemuxedFrame {
     }
 
     public int getEndSector() {
-        return _data.getEndSector();
+        return _data.getEndSectorInclusive();
     }
 
     public @Nonnull Fraction getPresentationSector() {

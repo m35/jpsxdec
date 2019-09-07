@@ -43,8 +43,8 @@ import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
 import jpsxdec.util.BinaryDataNotRecognized;
-import jpsxdec.util.DemuxPushInputStream;
-import jpsxdec.util.IO;
+import jpsxdec.util.ByteArrayFPIS;
+import jpsxdec.util.PushAvailableInputStream;
 
 
 public class KlbsStreamReader {
@@ -58,7 +58,7 @@ public class KlbsStreamReader {
     private final int _iKlbsEndSectorInclusive;
 
     @Nonnull
-    private final DemuxPushInputStream<SectorPolicenauts> _sectorStream;
+    private final PushAvailableInputStream<SectorPolicenauts> _sectorStream = new PushAvailableInputStream<SectorPolicenauts>();
 
     private List<SPacketPos> _sPackets;
     private int _iNextRequiredBytes = 0;
@@ -70,34 +70,31 @@ public class KlbsStreamReader {
         _iKlbsStartSector = klbsSector.getSectorNumber();
         _iKlbsEndSectorInclusive = klbsSector.getEndSectorInclusive();
 
-        _sectorStream = new DemuxPushInputStream<SectorPolicenauts>(klbsSector);
-
-        try {
-            IO.skip(_sectorStream, SectorPN_KLBS.SIZEOF_KLBS_HEADER);
-        } catch (IOException ex) {
-            throw new RuntimeException("Should not happen", ex);
-        }
-
         _iNextRequiredBytes = _iEntryCount * SPacket.SIZEOF;
-    }
-
-    public void addSector(@Nonnull SectorPolicenauts sector) {
-        _sectorStream.addPiece(sector);
     }
 
     public boolean allRead() {
         return _iState == DONE;
     }
 
-    public @Nonnull List<SPacketData> readAllAvailablePackets() throws BinaryDataNotRecognized {
+    public List<SPacketData> readSectorPackets(@Nonnull SectorPolicenauts sector, int iSkip)
+            throws BinaryDataNotRecognized
+    {
         try {
-            return doReadAllAvailablePackets();
+            ByteArrayFPIS is = sector.getCdSector().getCdUserDataStream();
+            if (iSkip > 0)
+                is.skip(iSkip);
+
+            _sectorStream.addStream(is, sector);
+            return doReadAllAvailablePackets(sector);
         } catch (IOException ex) {
             throw new RuntimeException("Should not happen", ex);
         }
     }
 
-    private @Nonnull List<SPacketData> doReadAllAvailablePackets() throws BinaryDataNotRecognized, IOException {
+    private @Nonnull List<SPacketData> doReadAllAvailablePackets(@Nonnull SectorPolicenauts sector)
+            throws BinaryDataNotRecognized, IOException
+    {
 
         List<SPacketData> finishedPackets = null;
 
@@ -113,8 +110,8 @@ public class KlbsStreamReader {
                     SPacketPos packetPos = _sPackets.get(_iPacketDataRead);
                     skipZeroes(packetPos.getPaddingBeforeThisPacket());
 
-                    _sectorStream.mark(packetPos.getSize());
                     SPacketData packetData = packetPos.read(_sectorStream);
+                    assert _sectorStream.getCurrentMeta() == sector;
                     if (finishedPackets == null)
                         finishedPackets = new ArrayList<SPacketData>(3);
                     finishedPackets.add(packetData);
@@ -131,16 +128,17 @@ public class KlbsStreamReader {
         }
 
         if (finishedPackets == null)
-            finishedPackets = Collections.emptyList();
+            return Collections.emptyList();
+
         return finishedPackets;
     }
 
     private void skipZeroes(int iCount) throws IOException, BinaryDataNotRecognized {
         while (iCount > 0) {
-            int iPos = _sectorStream.getOffsetInCurrentPiece();
             int iByte = _sectorStream.read();
             if (iByte != 0) {
-                throw new BinaryDataNotRecognized("Expected 0 at " + iPos + " in sector " + _sectorStream.getCurrentPiece() +" but got " + iByte);
+                throw new BinaryDataNotRecognized("Expected 0 in sector %s but got %d",
+                                                  _sectorStream.getCurrentMeta(),  iByte);
             }
             iCount--;
         }

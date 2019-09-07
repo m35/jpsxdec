@@ -118,13 +118,11 @@ public class DiscIndexerRoadRash extends DiscIndexer implements SectorClaimToRoa
         @CheckForNull
         private VidBuilder _vidBuilder;
         @Nonnull
-        private final RoadRashPacket.VLC0 _vlcPacket;
         private int _iSpuSoundUnitPairCount = 0;
         private final int _iStartSector;
         private int _iEndSector;
 
-        public MovieBuilder(RoadRashPacket.VLC0 vlcPacket, int iStartSector) {
-            this._vlcPacket = vlcPacket;
+        public MovieBuilder(int iStartSector) {
             _iStartSector = iStartSector;
             _iEndSector = iStartSector;
         }
@@ -170,7 +168,7 @@ public class DiscIndexerRoadRash extends DiscIndexer implements SectorClaimToRoa
                 if (!(packet.packet instanceof RoadRashPacket.VLC0)) {
                     throw new BinaryDataNotRecognized();
                 }
-                _movieBuilder = new MovieBuilder((RoadRashPacket.VLC0) packet.packet, packet.iStartSector);
+                _movieBuilder = new MovieBuilder(packet.iStartSector);
             } else {
                 _movieBuilder.addPacket(packet, 0);
             }

@@ -37,30 +37,41 @@
 
 package jpsxdec.modules.roadrash;
 
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IdentifiedSector;
 
 /** Just a simple sector wrapper for Road Rash to claim sectors. */
-public class SectorRoadRash extends IdentifiedSector {
+public class SectorRoadRash extends IdentifiedSector implements Iterable<RoadRashPacketSectors> {
 
     /** If the sector is at the start, end, or middle (0) of the stream (bit flags). */
     public static final int START = 1, END = 2;
 
     private final int _iStartEnd;
-    @Nonnull
-    private final List<RoadRashPacket> _packetsEndingInThisSector;
 
-    public SectorRoadRash(@Nonnull CdSector cdSector, @Nonnull List<RoadRashPacket> packetsEndingInThisSector, int iStartEnd) {
+    @Nonnull
+    private List<RoadRashPacketSectors> _packetsEndingInThisSector = Collections.emptyList();
+
+    public SectorRoadRash(@Nonnull CdSector cdSector, int iStartEnd) {
         super(cdSector);
-        _packetsEndingInThisSector = packetsEndingInThisSector;
         _iStartEnd = iStartEnd;
         setProbability(100);
     }
 
     public String getTypeName() {
         return "RoadRash";
+    }
+
+    void setPacketsEndingInThisSector(@Nonnull List<RoadRashPacketSectors> packetsEndingInThisSector) {
+        _packetsEndingInThisSector = packetsEndingInThisSector;
+    }
+
+    @Override
+    public @Nonnull Iterator<RoadRashPacketSectors> iterator() {
+        return _packetsEndingInThisSector.iterator();
     }
 
     @Override

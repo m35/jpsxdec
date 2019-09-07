@@ -739,7 +739,7 @@ public abstract class AviWriter implements Closeable {
             _iSize = (int)(lngCurPos - (_lngPos + 4)); // calculate number of bytes since start of chunk
 
             // pad to 4 byte boundary
-            int iNon4bytes = (int)(_iSize % 4);
+            int iNon4bytes = _iSize % 4;
             if (iNon4bytes > 0) {
                 int iBytesToPad = 4 - iNon4bytes;
                 raf.write(ZEROES3, 0, iBytesToPad);

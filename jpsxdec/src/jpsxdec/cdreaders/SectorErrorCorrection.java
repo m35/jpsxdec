@@ -226,8 +226,7 @@ public class SectorErrorCorrection {
             abRawSectorData[0x818+3] = (byte)((lngEdc >> 24) & 0xff);
 
             // save the binary coded decimal sector number
-            byte[] bcd = new byte[4];
-            System.arraycopy(abRawSectorData, 12, bcd, 0, 4);
+            byte[] bcd = Arrays.copyOfRange(abRawSectorData, 12, 12+4);
             // fill the binary coded decimal sector number with zeros
             Arrays.fill(abRawSectorData, 12, 12+4, (byte)0);
             // fill the ECC P and ECC Q with zeros

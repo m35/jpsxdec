@@ -48,7 +48,16 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.util.Fraction;
 
-/** Canvas where video frames will appear on the screen. */
+/**
+ * Canvas where video frames will appear on the screen.
+ *
+ * Java has the ability to run full screen and double buffered, so displaying a
+ * small panel shouldn't be a problem. My research found more than one way to do
+ * it. I went with the current way using a {@link BufferStrategy} with 2
+ * buffers, and it has proved to be reliable, so didn't test alternatives.
+ *
+ * It exposes the option to change the video's aspect ratio.
+ */
 class VideoScreen extends Canvas {
 
     private final int _iWidth, _iHeight;
@@ -60,8 +69,6 @@ class VideoScreen extends Canvas {
     @Nonnull
     private Dimension _minDims;
 
-    /** Squash oversized frames to fit in TV. */
-    private boolean _blnSquashWidth = false;
     @Nonnull
     private Object _renderingHintInterpolation =
             RenderingHints.VALUE_INTERPOLATION_BILINEAR;
@@ -87,11 +94,28 @@ class VideoScreen extends Canvas {
         _renderingHintInterpolation = interpolation;
     }
 
-    /** Squash oversized frames to fit in TV. */
+    //--------------------------------------------------------------------------
+    /** 
+     * This is jPSXdec specific, can ignore.
+     * Some PlayStation videos had an excessively long width, over 600 pixels,
+     * but the PlayStation's display only allowed 320 pixel width.
+     * The games would squash the width to fit into 320 pixels.
+     * This causes this video player to do the same.
+     */
     public void setSquashWidth(boolean blnSquash) {
         _blnSquashWidth = blnSquash;
         updateDims();
     }
+    /** Squash oversized frames to fit in TV. */
+    private boolean _blnSquashWidth = false;
+    private int getSrcWidth() {
+        if (_blnSquashWidth && _iWidth > 320) {
+            return 320;
+        } else {
+            return _iWidth;
+        }
+    }
+    //--------------------------------------------------------------------------
 
     private void updateDims() {
         _minDims = new Dimension(getSrcWidth(),
@@ -122,14 +146,6 @@ class VideoScreen extends Canvas {
             paint(g);
             g.dispose();
             _buffStrategy.show();
-        }
-    }
-
-    private int getSrcWidth() {
-        if (_blnSquashWidth && _iWidth > 320) {
-            return 320;
-        } else {
-            return _iWidth;
         }
     }
 

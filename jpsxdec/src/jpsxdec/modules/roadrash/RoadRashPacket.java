@@ -56,99 +56,189 @@ import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.bitstreams.ZeroRunLengthAc;
 import jpsxdec.psxvideo.bitstreams.ZeroRunLengthAcLookup;
 import jpsxdec.psxvideo.mdec.MdecCode;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.IO;
 
 /**
- * Support for "Road Rash 3D" videos.
- * Road Rash takes a unique approach to bitstreams, every movie has its own unique VLC table.
+ * Support for "Road Rash 3D" videos -- but actually support for a video format
+ * used in at least 2 games made by Electronic Arts.
+ * It takes a unique approach to bitstreams, every movie has its own unique VLC table.
  * There's a lot of big-endian data in here.
  */
 public abstract class RoadRashPacket {
-
-    public static final int MIN_PACKET_SIZE = 456;
-    public static final int MAX_PACKET_SIZE = 14200;
-
-    public static final long MAGIC_VLC0 = 0x564c4330;
-    public static final long MAGIC_MDEC = 0x4d444543;
-    public static final long MAGIC_au00 = 0x61753030;
-    public static final long MAGIC_au01 = 0x61753031;
-
+    
+    public static final int FRAMES_PER_SECOND = 15;
+    public static final int SECTORS150_PER_FRAME = 10;
     public static final int SAMPLE_FRAMES_PER_SECOND = 22050;
     public static final int SAMPLE_FRAMES_PER_SECTOR = SAMPLE_FRAMES_PER_SECOND / 150;
     static {
-        if (SAMPLE_FRAMES_PER_SECOND % 150 != 0)
+        if (SAMPLE_FRAMES_PER_SECOND % 150 != 0) // assert
             throw new RuntimeException("Road Rash sample rate doesn't cleanly divide by sector rate");
     }
 
+    /** 456 for Road Rash. Just a sanity check.
+     * Theoretical smallest AU packet could be 32 bytes (15*2 round up).
+     * Theoretical smallest MDEC packet could be dims+str header+at least 1
+     * macro block, whatever that adds up to. */
+    public static final int MIN_PACKET_SIZE = 32;
+    /** All packets: 14200 for Road Rash, 15464 for SCUS-94276.
+     * Just a size sanity check of 50 sectors. */
+    public static final int MAX_PACKET_SIZE = 50 * 2048;
+    /** 10 minutes. */
+    private static final int MAX_PRESENTATION_SAMPLE_FRAME = SAMPLE_FRAMES_PER_SECOND * 60 * 10;
+    /** 10 minutes. */
+    private static final int MAX_FRAME_NUMBER = FRAMES_PER_SECOND * 60* 10;
+    private static final int MIN_FRAME_DIMENSIONS = 16;
+    private static final int MAX_FRAME_DIMENSIONS = 640;
+
+    public static final long MAGIC_VLC0 = 0x564c4330;
+    private static final long MAGIC_MDEC = 0x4d444543;
+    private static final long MAGIC_au00 = 0x61753030;
+    private static final long MAGIC_au01 = 0x61753031;
+
     public static final AudioFormat ROAD_RASH_AUDIO_FORMAT = new AudioFormat(SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
 
-    // =========================================================================
 
-    public static @CheckForNull RoadRashPacket readPacket(@Nonnull InputStream is)
-            throws EOFException, IOException
-    {
+    private static int _iMinPacketSize = Integer.MAX_VALUE;
+    private static int _iMaxPacketSize = 0;
 
-        long lngMagic = IO.readUInt32BE(is);
-        if (lngMagic != MAGIC_VLC0 &&
-            lngMagic != MAGIC_au00 &&
-            lngMagic != MAGIC_au01 &&
-            lngMagic != MAGIC_MDEC)
+    public static class Header {
+        public static final int SIZEOF = 8;
+
+        public static Header read(@Nonnull InputStream is)
+                throws EOFException, IOException, BinaryDataNotRecognized
         {
-            return null;
+            return read(is, true);
         }
 
-        int iPacketSize = IO.readSInt32BE(is);
-        if (iPacketSize % 4 != 0)
-            throw new RuntimeException();
-        if (iPacketSize < MIN_PACKET_SIZE || iPacketSize > MAX_PACKET_SIZE)
-            throw new RuntimeException();
-        if (lngMagic == MAGIC_au00 || lngMagic == MAGIC_au01) {
-            return AU.readPacket(lngMagic, iPacketSize, is);
-        }
-        if (lngMagic == MAGIC_MDEC) {
-            return MDEC.readPacket(lngMagic, iPacketSize, is);
-        }
-        if (lngMagic == MAGIC_VLC0) {
-            return VLC0.readPacket(lngMagic, iPacketSize, is);
+        private static Header read(@Nonnull InputStream is, boolean blnThrowEx)
+                throws EOFException, IOException, BinaryDataNotRecognized
+        {
+            long lngPacketType = IO.readUInt32BE(is);
+
+            // check for all zeroes, will mean the end
+            if (lngPacketType == 0) {
+                int iHeaderPacketSize = IO.readSInt32BE(is);
+                if (iHeaderPacketSize != 0) {
+                    if (blnThrowEx)
+                        throw new BinaryDataNotRecognized("0 packet type with non zero header %08x", iHeaderPacketSize);
+                    else
+                        return null;
+                }
+
+                return new Header(0, 0);
+            }
+
+            if (lngPacketType != MAGIC_VLC0 &&
+                lngPacketType != MAGIC_au00 &&
+                lngPacketType != MAGIC_au01 &&
+                lngPacketType != MAGIC_MDEC)
+            {
+                if (blnThrowEx)
+                    throw new BinaryDataNotRecognized("Unknown packet type %08x", lngPacketType);
+                else
+                    return null;
+            }
+
+            int iHeaderPacketSize = IO.readSInt32BE(is);
+            if (iHeaderPacketSize % 4 != 0) {
+                if (blnThrowEx)
+                    throw new BinaryDataNotRecognized("Invalid packet size " + iHeaderPacketSize);
+                else
+                    return null;
+            }
+            if (iHeaderPacketSize < MIN_PACKET_SIZE || iHeaderPacketSize > MAX_PACKET_SIZE) {
+                if (blnThrowEx)
+                    throw new BinaryDataNotRecognized("Invalid packet size " + iHeaderPacketSize);
+                else
+                    return null;
+            }
+
+            if (iHeaderPacketSize < _iMinPacketSize)
+                _iMinPacketSize = iHeaderPacketSize;
+            if (iHeaderPacketSize > _iMaxPacketSize)
+                _iMaxPacketSize = iHeaderPacketSize;
+
+            return new Header(lngPacketType, iHeaderPacketSize);
         }
 
-        throw new RuntimeException("Should have been handled before this");
+        private final long _lngPacketType;    // @0 4 bytes (BE)
+        private final int _iHeaderPacketSize; // @4 4 bytes BE
+
+        private Header(long lngPacketType, int iHeaderPacketSize) {
+            _lngPacketType = lngPacketType;
+            _iHeaderPacketSize = iHeaderPacketSize;
+        }
+
+        public long getPacketType() {
+            return _lngPacketType;
+        }
+
+        public int getPayloadSize() {
+            return _iHeaderPacketSize - 8;
+        }
+
+        public boolean isEndPacket() {
+            return _iHeaderPacketSize == 0;
+        }
+
+        public @Nonnull RoadRashPacket readPacket(@Nonnull InputStream is)
+                throws EOFException, IOException, BinaryDataNotRecognized
+        {
+            if (_lngPacketType == MAGIC_au00 || _lngPacketType == MAGIC_au01) {
+                return new AU(this, is);
+            }
+            if (_lngPacketType == MAGIC_MDEC) {
+                return new MDEC(this, is);
+            }
+            if (_lngPacketType == MAGIC_VLC0) {
+                return VLC0.read(this, is, true);
+            }
+            
+            throw new BinaryDataNotRecognized("Trying to read not a packet " + this);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Header %08x size %d", _lngPacketType, _iHeaderPacketSize);
+        }
     }
 
-    // =========================================================================
+    // #########################################################################
+    // #########################################################################
 
-    public static final int HEADER_SIZEOF = 8;
-
-    private final long _lngPacketType;    // @0 4 bytes (BE)
-    private final int _iHeaderPacketSize; // @4 4 bytes BE
-
-    /** Only payload data that is actual payload,
-     * not including any additional payload sub-headers */
     @Nonnull
-    private final byte[] _abPayloadAfterHeaders;
+    private final Header _header;
 
-    public RoadRashPacket(long lngPacketType, int iHeaderPacketSize,
-                          @Nonnull byte[] abPayloadAfterHeaders)
-    {
-        _lngPacketType = lngPacketType;
-        _iHeaderPacketSize = iHeaderPacketSize;
-        _abPayloadAfterHeaders = abPayloadAfterHeaders;
+    private RoadRashPacket(@Nonnull Header header) {
+        _header = header;
     }
 
     public long getPacketType() {
-        return _lngPacketType;
+        return _header._lngPacketType;
     }
 
-    public int getHeaderPacketSize() {
-        return _iHeaderPacketSize;
+    public int getPacketSizeInHeader() {
+        return _header._iHeaderPacketSize;
     }
 
-    protected @Nonnull byte[] getPayload() {
-        return _abPayloadAfterHeaders;
-    }
+    // #########################################################################
+    // #########################################################################
 
-    // =========================================================================
+    public static @CheckForNull VLC0 readVlc0(@Nonnull InputStream is) throws EOFException, IOException {
+
+        try {
+            Header header = Header.read(is, false);
+            if (header == null)
+                return null;
+            
+            VLC0 vlc = VLC0.read(header, is, false);
+            return vlc;
+        } catch (BinaryDataNotRecognized ex) {
+            throw new RuntimeException("Should not happen", ex);
+        }
+    }
 
     /**
      * "VLC" is known to mean "variable-length code/codes/coding".
@@ -156,12 +246,20 @@ public abstract class RoadRashPacket {
      */
     public static class VLC0 extends RoadRashPacket {
 
-        public static @CheckForNull VLC0 readPacket(long lngMagic, int iPacketSize, @Nonnull InputStream is)
-                throws EOFException, IOException
+        public static final int SIZEOF = Header.SIZEOF + ROAD_RASH_BIT_CODE_ORDER.length * 2;
+
+        private static VLC0 read(@Nonnull Header header, @Nonnull InputStream is, boolean blnThrowEx)
+                throws BinaryDataNotRecognized, EOFException, IOException
         {
-            if (iPacketSize != (ROAD_RASH_BIT_CODE_ORDER.length * 2) + 8)
-                throw new RuntimeException();
-            byte[] abPacketPayload = IO.readByteArray(is, iPacketSize - 8);
+
+            if (header._iHeaderPacketSize != (ROAD_RASH_BIT_CODE_ORDER.length * 2) + 8) {
+                if (blnThrowEx)
+                    throw new BinaryDataNotRecognized();
+                else
+                    return null;
+            }
+
+            byte[] abPacketPayload = IO.readByteArray(is, header._iHeaderPacketSize - 8);
 
             ZeroRunLengthAcLookup.Builder bldr = new ZeroRunLengthAcLookup.Builder();
             MdecCode[] aoVlcHeaderMdecCodesForReference = new MdecCode[ROAD_RASH_BIT_CODE_ORDER.length];
@@ -169,8 +267,12 @@ public abstract class RoadRashPacket {
             for (int i = 0; i < ROAD_RASH_BIT_CODE_ORDER.length; i++) {
                 int iMdec = IO.readUInt16LE(abPacketPayload, i * 2);
                 MdecCode mdecCode = new MdecCode(iMdec);
-                if (!mdecCode.isValid())
-                    throw new RuntimeException();
+                if (!mdecCode.isValid()) {
+                    if (blnThrowEx)
+                        throw new BinaryDataNotRecognized();
+                    else
+                        return null;
+                }
                 aoVlcHeaderMdecCodesForReference[i] = mdecCode;
 
                 ZeroRunLengthAc bitCode = new ZeroRunLengthAc(ROAD_RASH_BIT_CODE_ORDER[i],
@@ -181,7 +283,7 @@ public abstract class RoadRashPacket {
                 bldr.add(bitCode);
             }
 
-            return new VLC0(lngMagic, iPacketSize, abPacketPayload, bldr.build(), aoVlcHeaderMdecCodesForReference);
+            return new VLC0(header, bldr.build(), aoVlcHeaderMdecCodesForReference);
         }
 
         @Nonnull
@@ -189,18 +291,16 @@ public abstract class RoadRashPacket {
         @Nonnull
         private final MdecCode[] _aoVlcHeaderMdecCodesForReference;
 
-        public VLC0(long lngPacketType, int iHeaderPacketSize,
-                                  @Nonnull byte[] abPayloadAfterHeaders,
-                                  @Nonnull ZeroRunLengthAcLookup vlcLookup,
-                                  @Nonnull MdecCode[] aoVlcHeaderMdecCodesForReference)
+        private VLC0(@Nonnull Header header, @Nonnull ZeroRunLengthAcLookup vlcLookup,
+                     @Nonnull MdecCode[] aoVlcHeaderMdecCodesForReference)
         {
-            super(lngPacketType, iHeaderPacketSize, abPayloadAfterHeaders);
-            _vlcLookup = vlcLookup;
+            super(header);
             _aoVlcHeaderMdecCodesForReference = aoVlcHeaderMdecCodesForReference;
+            _vlcLookup = vlcLookup;
         }
 
-        public @Nonnull BitStreamUncompressor makeFrameBitStreamUncompressor(@Nonnull MDEC mdecPacket) {
-            return new BitStreamUncompressorRoadRash(mdecPacket.getPayload(), _vlcLookup, mdecPacket.getQuantizationScale());
+        public @Nonnull BitStreamUncompressor makeFrameBitStreamUncompressor(@Nonnull RoadRashPacket.MDEC mdecPacket) {
+            return new BitStreamUncompressorRoadRash(mdecPacket.getBitstream(), _vlcLookup, mdecPacket.getQuantizationScale());
         }
 
         /** For debugging. */
@@ -221,43 +321,48 @@ public abstract class RoadRashPacket {
         }
     }
 
+    // #########################################################################
+    // #########################################################################
 
-    // =========================================================================
+    private static int _iMaxPresentationSampleFrame = 0;
+    private static int _iMinAuPacketSize = Integer.MAX_VALUE;
+    private static int _iMaxAuPacketSize = 0;
 
     public static class AU extends RoadRashPacket {
-        
-        public static @CheckForNull AU readPacket(
-                long lngMagic, int iPacketSize, @Nonnull InputStream is)
-                throws EOFException, IOException
-        {
-            if (iPacketSize < 1576 || iPacketSize > 6348)
-                return null;
 
-            int iPresentationSampleFrame = IO.readSInt32BE(is);
-            if (iPresentationSampleFrame < 0 || iPresentationSampleFrame > 1312556)
-                throw new RuntimeException();
-
-            // I don't know what these values are, but they're always the same
-            int i2048 = IO.readSInt16BE(is);
-            if (i2048 != 2048)
-                throw new RuntimeException();
-            int i512 = IO.readSInt16BE(is);
-            if (i512 != 512)
-                throw new RuntimeException();
-
-            byte[] abPacketPayload = IO.readByteArray(is, iPacketSize - 8 - 8);
-            return new AU(lngMagic, iPacketSize, abPacketPayload, iPresentationSampleFrame);
-        }
-        
         private final int _iPresentationSampleFrame; // @8  4 bytes BE
         // 2048                                      // @12 2 bytes BE
         // 512                                       // @16 2 bytes BE
 
-        public AU(long lngPacketType, int iHeaderPacketSize,
-                  @Nonnull byte[] abPayloadAfterHeaders, int iPresentationSampleFrame)
+        @Nonnull
+        private final byte[] _abCompressedSpu;
+
+        public AU(@Nonnull Header header, @Nonnull InputStream is) 
+                throws EOFException, IOException, BinaryDataNotRecognized
         {
-            super(lngPacketType, iHeaderPacketSize, abPayloadAfterHeaders);
-            _iPresentationSampleFrame = iPresentationSampleFrame;
+            super(header);
+
+            if (header._iHeaderPacketSize < _iMinAuPacketSize)
+                _iMinAuPacketSize = header._iHeaderPacketSize;
+            if (header._iHeaderPacketSize > _iMaxAuPacketSize)
+                _iMaxAuPacketSize = header._iHeaderPacketSize;
+
+            _iPresentationSampleFrame = IO.readSInt32BE(is);
+            if (_iPresentationSampleFrame < 0 || _iPresentationSampleFrame > MAX_PRESENTATION_SAMPLE_FRAME)
+                throw new BinaryDataNotRecognized("Unexpected presentation sample frame " + _iPresentationSampleFrame);
+
+            if (_iPresentationSampleFrame > _iMaxPresentationSampleFrame)
+                _iMaxPresentationSampleFrame = _iPresentationSampleFrame;
+
+            // I don't know what these values are, but they're always the same
+            int i2048 = IO.readSInt16BE(is);
+            if (i2048 != 2048)
+                throw new BinaryDataNotRecognized("%d != 2048", i2048);
+            int i512 = IO.readSInt16BE(is);
+            if (i512 != 512)
+                throw new BinaryDataNotRecognized("%d != 512", i512);
+
+            _abCompressedSpu = IO.readByteArray(is, header._iHeaderPacketSize - 8 - 8);
         }
 
         public boolean isLastAudioPacket() {
@@ -269,21 +374,22 @@ public abstract class RoadRashPacket {
         }
 
         public int getSpuSoundUnitPairCount() {
-            int iSoundUnits = getPayload().length / 15;
+            int iSoundUnits = _abCompressedSpu.length / 15;
             return iSoundUnits / 2;
         }
 
         public @Nonnull DecodedAudioPacket decode(@Nonnull SpuAdpcmDecoder.Stereo decoder) {
-            List<SpuAdpcmSoundUnit> units = unpackSpu(getPayload());
+            List<SpuAdpcmSoundUnit> units = unpackSpu(_abCompressedSpu);
 
             // each audio packet is split in half: half for left channel, half for right
+            // I believe there can be a few 0 bytes padding the end to a multiple of 4
             int iHalf = units.size() / 2;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             for (int iUnit = 0; iUnit < iHalf; iUnit++) {
                 try {
                     decoder.decode(units.get(iUnit), units.get(iHalf + iUnit), out);
                 } catch (IOException ex) {
-                    throw new RuntimeException("Should nothappen", ex);
+                    throw new RuntimeException("Should not happen", ex);
                 }
             }
 
@@ -303,6 +409,8 @@ public abstract class RoadRashPacket {
         }
 
     }
+
+    // .........................................................................
 
     /** I guess to make the audio 1/16 smaller they chose to remove the
      * 2nd byte in each SPU sound unit, which is usually 0, but I found
@@ -329,45 +437,20 @@ public abstract class RoadRashPacket {
         return units;
     }
 
-    // =========================================================================
+
+    // #########################################################################
+    // #########################################################################
+
+    private static int _iMinMdecPacketSize = Integer.MAX_VALUE;
+    private static int _iMaxMdecPacketSize = 0;
+
+    private static int _iMinWidth = Integer.MAX_VALUE;
+    private static int _iMaxWidth = 0;
+    private static int _iMinHeight = Integer.MAX_VALUE;
+    private static int _iMaxHeight = 0;
+    private static int _iMaxFrameNumber = 0;
 
     public static class MDEC extends RoadRashPacket {
-
-        public static @CheckForNull MDEC readPacket(
-                long lngMagic, int iPacketSize, @Nonnull InputStream is)
-                throws EOFException, IOException
-        {
-            if (iPacketSize < 688 || iPacketSize > 14200)
-                throw new RuntimeException();
-
-            int iWidth = IO.readSInt16BE(is);
-            int iHeight = IO.readSInt16BE(is);
-
-            if ((iWidth != 144 || iHeight != 112) &&
-                (iWidth != 208 || iHeight != 144) &&
-                (iWidth != 320 || iHeight != 144) &&
-                (iWidth != 320 || iHeight != 224))
-            {
-                throw new RuntimeException();
-            }
-
-            int iFrameNumber = IO.readSInt32BE(is);
-            if ((iFrameNumber < 0 || iFrameNumber > 893) && iFrameNumber != 0x7fffad1c)
-                throw new RuntimeException();
-
-            byte[] abStrHeader = IO.readByteArray(is, BitStreamUncompressor_STRv2.StrV2Header.SIZEOF);
-
-            BitStreamUncompressor_STRv2.StrV2Header strHeader = 
-                    new BitStreamUncompressor_STRv2.StrV2Header(abStrHeader, abStrHeader.length);
-
-            if (!strHeader.isValid())
-                throw new RuntimeException();
-            if (strHeader.getQuantizationScale() < 1 || strHeader.getQuantizationScale() > 17)
-                throw new RuntimeException();
-
-            byte[] abPacketPayload = IO.readByteArray(is, iPacketSize - 8 - 8 - abStrHeader.length);
-            return new MDEC(lngMagic, iPacketSize, abPacketPayload, iWidth, iHeight, iFrameNumber, strHeader);
-        }
 
         private final int _iWidth;       // @8  2 bytes BE
         private final int _iHeight;      // @10 2 bytes BE
@@ -375,16 +458,52 @@ public abstract class RoadRashPacket {
         @Nonnull
         private final BitStreamUncompressor_STRv2.StrV2Header _strHeader;  // @16 8 bytes
 
-        public MDEC(long lngPacketType, int iHeaderPacketSize,
-                    @Nonnull byte[] abPayloadAfterHeaders,
-                    int iWidth, int iHeight, int iFrameNumber,
-                    @Nonnull BitStreamUncompressor_STRv2.StrV2Header strHeader)
+        @Nonnull
+        private final byte[] _abBitstream;
+
+        public MDEC(@Nonnull Header header, @Nonnull InputStream is)
+                throws EOFException, IOException, BinaryDataNotRecognized
         {
-            super(lngPacketType, iHeaderPacketSize, abPayloadAfterHeaders);
-            _iWidth = iWidth;
-            _iHeight = iHeight;
-            _iFrameNumber = iFrameNumber;
-            _strHeader = strHeader;
+            super(header);
+
+            if (header._iHeaderPacketSize < _iMinMdecPacketSize)
+                _iMinMdecPacketSize = header._iHeaderPacketSize;
+            if (header._iHeaderPacketSize > _iMaxMdecPacketSize)
+                _iMaxMdecPacketSize = header._iHeaderPacketSize;
+
+            _iWidth = IO.readSInt16BE(is);
+            _iHeight = IO.readSInt16BE(is);
+
+            if (_iWidth < MIN_FRAME_DIMENSIONS || _iWidth > MAX_FRAME_DIMENSIONS ||
+                _iHeight < MIN_FRAME_DIMENSIONS || _iHeight > MAX_FRAME_DIMENSIONS)
+            {
+                throw new BinaryDataNotRecognized("Unexpected dimensions %dx%d", _iWidth, _iHeight);
+            }
+
+            if (_iWidth < _iMinWidth)
+                _iMinWidth = _iWidth;
+            if (_iWidth > _iMaxWidth)
+                _iMaxWidth = _iWidth;
+            if (_iHeight < _iMinHeight)
+                _iMinHeight = _iHeight;
+            if (_iHeight > _iMaxHeight)
+                _iMaxHeight = _iHeight;
+
+            _iFrameNumber = IO.readSInt32BE(is);
+            if ((_iFrameNumber < 0 || _iFrameNumber > MAX_FRAME_NUMBER) && _iFrameNumber != 0x7fffad1c)
+                throw new BinaryDataNotRecognized("Unexpected frame number " + _iFrameNumber);
+
+            if (_iFrameNumber > _iMaxFrameNumber)
+                _iMaxFrameNumber = _iFrameNumber;
+
+            byte[] abStrHeader = IO.readByteArray(is, BitStreamUncompressor_STRv2.StrV2Header.SIZEOF);
+
+            _strHeader = new BitStreamUncompressor_STRv2.StrV2Header(abStrHeader, abStrHeader.length);
+
+            if (!_strHeader.isValid())
+                throw new BinaryDataNotRecognized("Invalid STRv2 header");
+
+            _abBitstream = IO.readByteArray(is, header._iHeaderPacketSize - 8 - 8 - abStrHeader.length);
         }
 
         public int getWidth() {
@@ -401,6 +520,10 @@ public abstract class RoadRashPacket {
 
         public int getQuantizationScale() {
             return _strHeader.getQuantizationScale();
+        }
+
+        public byte[] getBitstream() {
+            return _abBitstream;
         }
 
         @Override

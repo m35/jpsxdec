@@ -358,10 +358,10 @@ public final class IO {
     //== 32-bit == big-endian == write =========================================
 
     public static void writeInt32BE(@Nonnull OutputStream stream, int i) throws IOException {
-        stream.write((int)((i >>> 24) & 0xff));
-        stream.write((int)((i >>> 16) & 0xff));
-        stream.write((int)((i >>>  8) & 0xff));
-        stream.write((int)( i         & 0xff));
+        stream.write((i >>> 24) & 0xff);
+        stream.write((i >>> 16) & 0xff);
+        stream.write((i >>>  8) & 0xff);
+        stream.write( i         & 0xff);
     }
 
     // #########################################################################

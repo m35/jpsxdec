@@ -38,13 +38,29 @@
 package jpsxdec.util.player;
 
 import java.awt.Canvas;
+import java.io.IOException;
 import java.io.OutputStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.util.Fraction;
 
-/** Primary public interface to controlling a player. */
+/** 
+ * Primary public interface to controlling a player.
+ *
+ * Start by creating an instance, specifying the video dimensions or
+* {@link AudioFormat}, or both. Make your own reader that implements
+* {@link IMediaDataReader} and register it with
+* {@link PlayController#setReader(IMediaDataReader)}
+* This reader will supply all video frames, PCM audio data, or both.
+* If there is video, also create a frame processor that implements
+* {@link IFrameProcessor} and register it with
+* {@link PlayController#setVidProcressor(IFrameProcessor)}.
+* Add {@link PlayerListener}s to listen to {@link Event}s.
+*
+* After that is complete call {@link #activate()} to initialize and start the
+* player, but paused. Run {@link #unpause()} to start the playback.
+*/
 public class PlayController {
 
     public static final Fraction PAL_ASPECT_RATIO = new Fraction(59, 54);
@@ -101,6 +117,9 @@ public class PlayController {
     }
 
 
+    /**
+     * Initialize and start the player, but paused.
+     */
     public void activate() throws PlayerException {
         try {
             _videoTimer.initPaused();
@@ -114,8 +133,11 @@ public class PlayController {
         }
     }
 
+    /**
+     * Terminate all playback immediately (or as immediately as possible).
+     */
     public void terminate() {
-        // this will kill the audio player if it is
+        // this will kill the audio player if the timer is the AudioPlayer
         _videoTimer.terminate();
 
         // can't kill the reader thread, we're dependent on the reader to exit
@@ -152,7 +174,9 @@ public class PlayController {
         return (_vidPlayer != null);
     }
 
-    /** Only available if playing video. */
+    /** 
+     * Only available if playing video.
+     */
     public @CheckForNull Canvas getVideoScreen() {
         if (_vidPlayer != null)
             return _vidPlayer.getScreen();
@@ -160,7 +184,15 @@ public class PlayController {
             return null;
     }
 
-    /** Only available if playing audio. */
+    /**
+     * Should only be called by the {@link IMediaDataReader}.
+     * Write PCM audio data here in the format that was provided in the
+     * constructor.
+     * Note that the {@link OutputStream} may throw an {@link IOException}
+     * if the audio playback has been terminated.
+     *
+     * Only available if playing audio.
+     */
     public @CheckForNull OutputStream getAudioOutputStream() {
         if (_audPlayer != null)
             return _audPlayer.getOutputStream();
@@ -168,18 +200,26 @@ public class PlayController {
             return null;
     }
 
-    /** Write completed frames to this writer. */
+    /** 
+     * Should only be called by the {@link IMediaDataReader}.
+     * Write completed frames to this writer.
+     */
     public @CheckForNull IPreprocessedFrameWriter getFrameWriter() {
         return _videoProcessorThread;
     }
 
-    /** Adjust the rendered frame with this aspect ratio. */
+    /** 
+     * Adjust the rendered frame with this aspect ratio.
+     */
     public void setAspectRatio(@Nonnull Fraction aspectRatio) {
         if (_vidPlayer != null)
             _vidPlayer.getScreen().setAspectRatio(aspectRatio);
     }
 
-    /** Squash oversized frames to fit in TV. */
+    /** 
+     * This is jPSXdec specific, can ignore.
+     * @see VideoScreen#setSquashWidth(boolean)
+     */
     public void setSquashWidth(boolean blnSquash) {
         if (_vidPlayer != null)
             _vidPlayer.getScreen().setSquashWidth(blnSquash);

@@ -1,5 +1,5 @@
                       The PlayStation 1 Video (STR) Format
-                               v1.11, ? 2017?
+                               pre v1.20, 2019
                          https://github.com/m35/jpsxdec
                           http://jpsxdec.blogspot.com/
 
@@ -81,7 +81,6 @@ v1.20
     - other minor tweaks
 
 Left to do:
-* Confirm Legend of Mana format
 * Add more game formats as they are found...
 --------------------------------------------------------------------------------
 
@@ -112,7 +111,7 @@ Left to do:
 ##    4.3. Final Fantasy VII
 ##    4.4. Final Fantasy VIII
 ##    4.5. Final Fantasy IX
-##    4.6. Chrono Cross (and Legend of Mana?)
+##    4.6. Chrono Cross and Legend of Mana
 ##    4.7. Serial Experiments Lain
 ##    4.8. Alice in Cyber Land
 ##    4.9. Ace Combat 4 Electrosphere
@@ -722,6 +721,8 @@ While not necessary for custom decoding, games expect the extra block and will c
  ------------------------------------------------------------------------------
 
 Once you've reached the END_OF_BLOCK code, the sum of all the zero-value AC Coefficients, plus the number of non-zero AC Coefficients read, should be less than or equal to 63.
+
+Side note: it is rumored that some game developers intentionally chose to obfuscate their video encoding and bitstreams formats to keep people from understanding the video format. I've never seen any indication of this.
 
 ################################################################################
 ## 2.2.3. Convert to MDEC format
@@ -1512,16 +1513,16 @@ Offset
 A curious but minor note about FF9 variable length codes: the (0, 30) MDEC code uses the corresponding variable length code, but the (0, -30) MDEC code never uses the corresponding variable length code, and is instead compressed using the escape code.
 
 ################################################################################
-## 3.6. Chrono Cross (and Legend of Mana?)
+## 3.6. Chrono Cross and Legend of Mana
 ################################################################################
 
-Like FF8 and FF9, Chrono Cross frames are 10 sectors long, starting with 2 sectors for audio, followed by 8 sectors of video. It uses FF9 style audio sectors, but standard STR video sectors. *All* audio and video sectors are "Mode 2 Form 1".
+Like FF8 and FF9, Chrono Cross and Legend of Mana frames are 10 sectors long, starting with 2 sectors for audio, followed by 8 sectors of video. It uses FF9 style audio sectors, but standard STR video sectors. *All* audio and video sectors are "Mode 2 Form 1".
 
 ===============
 ==== Audio ====
 ===============
 
-:: Chrono Cross Audio Sector Header ::
+:: Chrono Cross/Legend of Mana Audio Sector ::
 
 Offset
     0 +-----------------------------------------------------------------------+
@@ -1561,7 +1562,7 @@ Offset
       |    Unknown (160 bytes)
  2048 +-----------------------------------------------------------------------+
 
-Like the final FF9 movie, with 1680 bytes of audio data, the audio plays back at 44100 samples/second.
+With 1680 bytes of audio data the audio plays back at 44100 samples/second (like the final FF9 movie).
 
 Chrono Cross:
     On disc 1, video frame sectors are standard.

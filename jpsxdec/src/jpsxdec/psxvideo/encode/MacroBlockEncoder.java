@@ -38,6 +38,7 @@
 package jpsxdec.psxvideo.encode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import javax.annotation.Nonnull;
 import jpsxdec.psxvideo.mdec.MdecCode;
@@ -50,13 +51,8 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
 
     private static final boolean DEBUG = false;
 
-    private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
-            new int[MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length];
-    static {
-        System.arraycopy(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX, 0,
-                         PSX_DEFAULT_QUANTIZATION_MATRIX, 0,
-                         MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
-    }
+    private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX = 
+            Arrays.copyOf(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX, MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
     
     // TODO: Change to use a Forward DCT more closely resembling the PSX
     private final StephensIDCT _DCT = new StephensIDCT();

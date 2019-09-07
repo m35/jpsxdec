@@ -12,49 +12,55 @@
 Important TODO
 ==============
 
-Presentation sector RANGE
-    Background
+# Presentation sector RANGE #
+    _Background_
 Video frames maintain the last sector number that contained frame data.
 This sector is then (usually) used to determine the timing when a frame
 should appear, called the "presentation sector".
-    Issue
+    _Issue_
 Often there are small gaps between video frames.
 The last sector of a vide frame doesn't have to be the presentation sector
 It could land anywhere within that gab.
 If a video frame ends early, its presentation sector will be off
 leading to warnings. Some flexibility should be allowed so these warnings
 don't appear.
-    Suggested solution
+    _Suggested solution_
 Replace the concept of a presentation sector with a presentation sector range.
 * video presentation sector *range* to avoid system thinking we've deviated from the frame rate too much
 * iki frame presentation time is unhappy since it ends early, add a range of presentation sectors
-    Effect to the user
+    _Effect to the user_
 Reduce warning that presentation sector is a frame ahead/behind
 
 Order of published sectors is wrong in new identification pipeline (Dredd esp)
-    Should instead publish a runnable that will be
-    fired once all processing has bubbled up to the top
-    This could also make debugging a lot easier
-    without a 12 layer stack
+    Change design to be 3 steps
+    1. Identify sectors
+       In some cases all the data processing will end up here
+       Processed data can be attached to the sector it is associated with
+    2. Process identified sectors
+       For sectors data that was already processed in step 1,
+       just pull out of the attached sector
+    3. Forward processed data to listeners
+    This could also make debugging a lot easier without a 12 layer stack
 
 **ROBUST FRAME RATE DETECTION**
-    Background
+    _Background_
 Most videos have a pretty consistent frame rate.
 Some videos seem to have a NTSC fractional offset.
 Some videos have variable frame rates.
 The video encoder used to make the videos uses some random logic where to place frames.
-    Suggested solution
-After 10 years I still don't know
+    _Suggested solution_
+After 10 years I still don't know...
 Maybe there's a way by checking how much variance there is between frame lengths
 Can we calculate the variance (stddev) and choose the smallest?
-By PSX design, max possible frame rate is 75 or 150 fps, could always just fall back to those.
-Maybe add serialized value: Precise fps:Y/N to know the difference
-Maybe change the output format to something that does support variable frame rates (mkv or mov)
-    Effect to the user
-Better frame rates
-Finish full .iki handling (UmJammer Lammy .ik2) by detecting variable frame rates
+How about linear regression/least sum of squares?
+By PSX design, max possible frame rate is 75 or 150 fps, could just fall back to those (gross)
+Maybe add serialized value: Precise fps:Y/N to help know the difference
+Containers mkv and mov support variable frame rates, but do not support raw rgb uncompressed video :(
+    _Effect to the user_
+More correct frame rates
+AVIs generated for videos with variable frame rates are currently a mess - would like to fix that
 
-ISO9660 detection and replace
+# ISO9660 detection and replace #
     Redo generating paths backwards
     Handle files existing beyond the end of the disc
     ! Digimon World 2 has island directory records, use them?
@@ -65,11 +71,11 @@ ISO9660 detection and replace
 Improvements
 ============
 
-Java 6 Console
-    Background
+# Java 6 Console #
+    _Background_
 Java <= 5 only had stdout PrintStream, which does not allow choosing the text 
 encoder (for non-English languages)
-    Suggested solution
+    _Suggested solution_
 Use Java 6 Console to use proper encoding when printing to the console.
 
 GUI improvements
@@ -123,7 +129,6 @@ Add list box when indexing that will show the items as they are discovered
 ? Make tutorial on ripping a game and using jpsxdec
 ? Update manual to cover game ripping
 
-Log "Writing dup frame for frame" to user log with "to keep audio and video in sync"
 Log "Ahead of reading by x frames" more like "out of sync with frame timing" maybe?
 "Frame in sectors 129921-129927 is missing chunk 6" -> "Frame found in sectors x-x is incomplete or missing data"
 
@@ -132,7 +137,7 @@ Issues
 ======
 ! Command-line selection of parallel audio? not currently supported
 
-[GUI, internal] Java SouceDataLine is unreliable
+[GUI, internal] Java SourceDataLine is unreliable
     Write a wrapper to fix the issues
     * Bug: audio playback position is randomly reset by SDK
     * No events are triggered when the audio buffer runs out
@@ -143,22 +148,21 @@ Issues
 	and check again if things are as expected,
 	but also waking up to other events as well.
 
-Serious Real-time media playback/preview issues
+Real-time audio/video playback issues
     Linux playback is hit-or-miss
-        * OpenJDK Ubuntu video playback doesn't process frames
-        * Oracle Java Ubuntu VM audio auto-starts when it shouldn't
-    jPSXdec still has issues in several cases
-        /?/ Bug: Audio that starts way before, ends way after, or has long breaks is not handled by player (ff tactics FFTST.STR)
-        * Bug: when audio doesn't start for a prolonged period, video frame queue fills and blocks
-        /?/ Bug: Player doesn't let you play movie with 1 frame
-        /?/ Bug: video player repeats prior frames and audio when frame type is not detected
+        / Latest OpenJDK seems to finally be reliable on Ubuntu
+    jPSXdec still has issues in a few cases
+        * When audio doesn't start for a prolonged period, video frame queue fills and blocks
+        * Playback ends when audio ends, even if frames remain
+        Add a little silence per frame until the audio starts,
+        then keep adding silence per frame after audio ends, until no more video frames.
+        Hard part is knowing when audio starts/ends.
+        (see replacing presentation sector with presentation time)
         * Pause video-only playback when reading is delayed
-        /?/ Bug: end of playing race condition locks gui
-        /?/ Bug: Player automatically plays video-only content when it is very short
         * Skip audio in the rare case it is behind sector reading
             ? Need to address static (sequential sector) audio
     ? playback audio volume?
-    x I'm never going to add seeking, way too much work
+    x Never going to add seeking, way too much work
 
 Proper handling when directory box is empty
     I'm not sure if the directory box really works when empty, check that
@@ -179,14 +183,15 @@ Games to investigate
 * Discworld 2
 * BrainDead 13
 * Syphon Filter 3
-* "Love Game's - Wai Wai Tennis [Service Price] [SLPS-01647] have intro.str file weighing 33 megabytes. In jpsxdec did not see."
+* Love Games - Wai Wai Tennis [Service Price] [SLPS-01647] INTRO.STR
 * Fear Effect
 * Kowloon's Gate
 * Jackie Chan Stuntmaster
 * Firemen 2
 * Magic the Gathering
 * Aconcagua ending video
-// Policenauts - Video in static files
+* Sentient
+* Panekit
 
 Replace
     with a prompt before applying changes
@@ -239,17 +244,21 @@ General code stuff
     * Add unit tests to build.xml
         * Create unit test subproject?
     * Clean up all the TODOs
-    * Proper handling for InterruptedExcetion
+    * Proper handling for InterruptedException
     * Cleanup IllegalArgumentException and IllegalStateExceptions
     * Findbug fixes
     * Replace package.html with package-info.java
+    Add @Override all the things
 
-Add @Override all the things
+Replace "presentation sector" with just "presentation time"
+    Presentation sector made sense when it was just sector based videos
+    Now it's become a hinderance because the timestamps are needed
+    to help fix the real-time player issue when video starts way before/after audio
 
 Logger framework that supports thread context logging - removes all the log parameters
 
 ! Cleanup Main: Remove FeedbackStream and just use a Logger
-/ show error/warn unused cmdline args
+/?/ show error/warn unused cmdline args
 
 * Have separate DiscItemBuilderGuiFactory to create a gui from a DiscItemBuilder and cache it
 * Log when frame rate detection fails

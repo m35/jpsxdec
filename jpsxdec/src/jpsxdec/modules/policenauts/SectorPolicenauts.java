@@ -43,10 +43,9 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IdentifiedSector;
-import jpsxdec.util.DemuxedData;
 
 /** Just a simple sector wrapper for Policenauts to claim sectors. */
-public class SectorPolicenauts extends IdentifiedSector implements Iterable<SPacketData>, DemuxedData.Piece {
+public class SectorPolicenauts extends IdentifiedSector implements Iterable<SPacketData> {
 
     private boolean _blnIsEnd;
 
@@ -66,22 +65,16 @@ public class SectorPolicenauts extends IdentifiedSector implements Iterable<SPac
     }
 
     void setPacketsEndingInThisSector(@Nonnull List<SPacketData> packetsEndingInThisSector) {
+        assert endsInThisSector(packetsEndingInThisSector);
         _packetsEndingInThisSector = packetsEndingInThisSector;
     }
 
-    @Override
-    public int getDemuxPieceSize() {
-        return getCdSector().getCdUserDataSize();
-    }
-
-    @Override
-    public byte getDemuxPieceByte(int i) {
-        return getCdSector().readUserDataByte(i);
-    }
-
-    @Override
-    public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
-        getCdSector().getCdUserDataCopy(0, abOut, iOutPos, getDemuxPieceSize());
+    private boolean endsInThisSector(@Nonnull List<SPacketData> packetsEndingInThisSector) {
+        for (SPacketData sPacketData : packetsEndingInThisSector) {
+            if (sPacketData.getEndSectorInclusive() != getSectorNumber())
+                return false;
+        }
+        return true;
     }
 
     @Override

@@ -590,10 +590,9 @@ class CreateTim {
             for (int i = 0; i < aiArgb.length; i++) {
                 _asiTim16Image[i] = color32toColor16(aiArgb[i]);
             }
-            short[] asiSortedTim = new short[_asiTim16Image.length];
-            // using arraycopy seems to be faster than .clone()
+            // using copyof seems to be faster than .clone()
             // and faster than copying the values in the for loop
-            System.arraycopy(_asiTim16Image, 0, asiSortedTim, 0, asiSortedTim.length);
+            short[] asiSortedTim = Arrays.copyOf(_asiTim16Image, _asiTim16Image.length);
 
             // sort one copy to extract the unique palette items
             Arrays.sort(asiSortedTim);

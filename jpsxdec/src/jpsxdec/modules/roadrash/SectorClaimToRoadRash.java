@@ -37,21 +37,17 @@
 
 package jpsxdec.modules.roadrash;
 
-import java.io.EOFException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.CdSectorDemuxPiece;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.util.DemuxPushInputStream;
-import jpsxdec.util.DemuxPushInputStream.NeedsMoreData;
-import jpsxdec.util.IO;
+import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IOIterator;
 
 public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
@@ -77,62 +73,7 @@ public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
     }
 
     @CheckForNull
-    private DemuxPushInputStream<CdSectorDemuxPiece> _sectorStream;
-    private boolean _blnVidEnd = false;
-
-    private @Nonnull List<RoadRashPacketSectors> readAsManyPacketsAsPossible() {
-        List<RoadRashPacketSectors> finishedPackets = new ArrayList<RoadRashPacketSectors>();
-        if (_sectorStream == null) throw new IllegalStateException();
-
-        if (_sectorStream.available() < RoadRashPacket.MIN_PACKET_SIZE)
-            return finishedPackets;
-
-        while (true) {
-            _sectorStream.mark(RoadRashPacket.MAX_PACKET_SIZE);
-            int iStartSector = _sectorStream.getCurrentPiece().getSectorNumber();
-
-            try {
-                RoadRashPacket packet = RoadRashPacket.readPacket(_sectorStream);
-
-                if (packet != null) {
-                    int iEndSector = _sectorStream.getCurrentPiece().getSectorNumber();
-                    finishedPackets.add(new RoadRashPacketSectors(packet, iStartSector, iEndSector));
-                } else {
-
-                    // possibly end of stream
-                    _sectorStream.reset();
-
-                    // check for 8 zeroes
-                    int iIsZero = IO.readSInt32BE(_sectorStream);
-                    if (iIsZero == 0) {
-                        _sectorStream.mark(RoadRashPacket.MAX_PACKET_SIZE);
-                        iIsZero = IO.readSInt32BE(_sectorStream);
-                        if (iIsZero == 0) {
-                            // 8 zeroes, definitely end of stream
-                            _blnVidEnd = true;
-                            return finishedPackets;
-                        }
-
-                        // so there were 4 zeroes, but now there is some non-zero data
-                        // don't end the stream, but this is definitely data corruption
-                        LOG.warning("Corrupted Road Rash stream");
-                        _sectorStream.reset(); // do another loop
-                    }
-                }
-
-            } catch (NeedsMoreData ex) {
-                // backup and try again when there's more data
-                _sectorStream.reset();
-                return finishedPackets;
-            } catch (EOFException ex) {
-                // stream was closed and we hit the end
-                return finishedPackets;
-            } catch (IOException ex) {
-                throw new RuntimeException("Should not happen");
-            }
-
-        }
-    }
+    private RoadRashStreamReader _sectorStream;
 
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
@@ -146,82 +87,73 @@ public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
             return;
         }
 
-        int iStartEnd = 0;
+        try {
 
-        if (_sectorStream == null) {
-            // No current movie
+            SectorRoadRash rrSector = null;
 
-            long lngMagic = cdSector.readUInt32BE(0);
-            if (lngMagic == RoadRashPacket.MAGIC_VLC0) {
-                // Probably a movie
+            if (_sectorStream == null) {
+                // No current movie
+                long lngMagic = cdSector.readUInt32BE(0);
+                if (lngMagic == RoadRashPacket.MAGIC_VLC0) {
 
-                DemuxPushInputStream<CdSectorDemuxPiece> stream = new DemuxPushInputStream<CdSectorDemuxPiece>(new CdSectorDemuxPiece(cdSector));
-                RoadRashPacket firstPacket;
-                try {
-                    firstPacket = RoadRashPacket.readPacket(stream);
-                } catch (IOException ex) {
-                    throw new RuntimeException("Should not happen");
+                    // we've found a header, now make sure the whole VLC packet is valid
+                    RoadRashPacket.VLC0 vlc;
+                    try {
+                        vlc = RoadRashPacket.readVlc0(cdSector.getCdUserDataStream());
+                    } catch (IOException ex) {
+                        throw new RuntimeException("Should not happen");
+                    }
+                    if (vlc != null) {
+                        // new video
+                        _sectorStream = new RoadRashStreamReader();
+                        rrSector = _sectorStream.readSectorPackets(cdSector, RoadRashPacket.VLC0.SIZEOF, vlc);
+                        // tell listener to end any existing videos
+                        if (_listener != null)
+                            _listener.endVideo(log);
+                    }
                 }
 
-                if (firstPacket instanceof RoadRashPacket.VLC0) {
-                    // Definitely a movie
-                    // send first packet to listener
-                    _sectorStream = stream;
-                    iStartEnd = SectorRoadRash.START;
+            } else {
+                // add to existing stream
+                rrSector = _sectorStream.readSectorPackets(cdSector, 0, null);
+            }
+
+            if (rrSector != null) {
+
+                cs.claim(rrSector);
+
+                for (RoadRashPacketSectors finishedPacket : rrSector) {
+                    
+
                     if (_listener != null) {
-                        try {
-                            _listener.feedPacket(new RoadRashPacketSectors(firstPacket,
-                                    cdSector.getSectorIndexFromStart(), cdSector.getSectorIndexFromStart()), log);
-                        } catch (LoggedFailure ex) {
-                            throw new SectorClaimSystem.ClaimerFailure(ex);
+                        // Only send packets that are fully in the active sector range
+                        // (in practice there should never be a packet crossing the border)
+                        if (sectorIsInRange(finishedPacket.iStartSector) &&
+                            sectorIsInRange(finishedPacket.iEndSector))
+                        {
+                            try {
+                                _listener.feedPacket(finishedPacket, log);
+                            } catch (LoggedFailure ex) {
+                                throw new SectorClaimSystem.ClaimerFailure(ex);
+                            }
                         }
                     }
+
                 }
             }
 
-        } else {
-            // add to existing stream
-            _sectorStream.addPiece(new CdSectorDemuxPiece(cdSector));
-        }
-
-        if (_sectorStream != null) {
-
-            List<RoadRashPacketSectors> finishedPackets = readAsManyPacketsAsPossible();
-
-            List<RoadRashPacket> rrps = new ArrayList<RoadRashPacket>(finishedPackets.size());
-            for (RoadRashPacketSectors finishedPacket : finishedPackets) {
-                if (finishedPacket.packet instanceof RoadRashPacket.VLC0) {
-                    throw new RuntimeException("Should not happen unless data is corrupted");
-                }
-                
-                if (_listener != null) {
-                    // Only send packets that are fully in the active sector range
-                    // (in practice there should never be a packet crossing the border)
-                    if (sectorIsInRange(finishedPacket.iStartSector) &&
-                        sectorIsInRange(finishedPacket.iEndSector))
-                    {
-                        try {
-                            _listener.feedPacket(finishedPacket, log);
-                        } catch (LoggedFailure ex) {
-                            throw new SectorClaimSystem.ClaimerFailure(ex);
-                        }
-                    }
-                }
-                
-                rrps.add(finishedPacket.packet);
-            }
-
-            if (_blnVidEnd)
-                iStartEnd |= SectorRoadRash.END;
-            cs.claim(new SectorRoadRash(cdSector, rrps, iStartEnd));
-            if (_blnVidEnd)
+            if (_sectorStream != null && _sectorStream.isEnd()) {
+                _sectorStream = null;
                 endVideo(log);
+            }
+        } catch (BinaryDataNotRecognized ex) {
+            log.log(Level.SEVERE, I.ROADRASH_DATA_CORRUPTION(), ex);
+            _sectorStream = null;
         }
     }
 
     private void endVideo(@Nonnull ILocalizedLogger log) {
         if (_sectorStream != null) {
-            _blnVidEnd = false;
             _sectorStream = null;
             if (_listener != null)
                 _listener.endVideo(log);

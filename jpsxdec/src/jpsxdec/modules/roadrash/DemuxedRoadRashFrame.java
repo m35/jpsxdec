@@ -105,12 +105,12 @@ public class DemuxedRoadRashFrame implements IDemuxedFrame {
     }
 
     public int getDemuxSize() {
-        return _mdecPacket.getPayload().length;
+        return _mdecPacket.getBitstream().length;
     }
 
     /** Not really useful, but why not. */
     public @Nonnull byte[] copyDemuxData() {
-        return Arrays.copyOfRange(_mdecPacket.getPayload(), 0, getDemuxSize());
+        return Arrays.copyOfRange(_mdecPacket.getBitstream(), 0, getDemuxSize());
     }
 
     public void printSectors(PrintStream ps) {

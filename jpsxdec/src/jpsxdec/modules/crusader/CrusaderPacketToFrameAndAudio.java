@@ -40,6 +40,7 @@ package jpsxdec.modules.crusader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -147,9 +148,7 @@ public class CrusaderPacketToFrameAndAudio implements CrusaderSectorToCrusaderPa
             assert abAudioDemuxBuffer.length < audio.getByteSize(); // should be
 
             // resize the array
-            byte[] abFullSizeBuffer = new byte[audio.getByteSize()];
-            System.arraycopy(abAudioDemuxBuffer, 0, abFullSizeBuffer, 0, abAudioDemuxBuffer.length);
-            abAudioDemuxBuffer = abFullSizeBuffer;
+            abAudioDemuxBuffer = Arrays.copyOf(abAudioDemuxBuffer, audio.getByteSize());
         }
 
         // .. decode the audio data .............................

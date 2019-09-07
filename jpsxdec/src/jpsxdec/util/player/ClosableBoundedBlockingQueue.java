@@ -46,12 +46,22 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /**
- * Normal array blocking queue but will the ability to 'close' it and
- * 'poison' it. closeNow() will immediately unblock any waiting threads.
- * closeWhenEmpty() will unblock any writers and will reject anything
+ * Normal bounded blocking queue but will the ability to 'close' it and
+ * 'poison' it. {@link #closeNow()}. will immediately unblock any waiting threads.
+ * {@link #closeWhenEmpty()} will unblock any writers and will reject anything
  * else being added. When the queue is empty, it will be flagged as closed.
-*/
-public class ClosableArrayBlockingQueue<T> {
+ *
+ * Items can be added in two ways. {@link #add(Object)} will block if the queue
+ * is full and wait until it is no longer full, or the queue is closed.
+ * {@link #addWithCapacityCheck(Object)} will never block, but if the queue
+ * is full it will throw {@link IllegalStateException}. This 2nd method
+ * is useful when you want an effectively unbounded queue and don't expect
+ * the queue size to grow beyond its capacity. You could set the capacity
+ * to {@link Integer#MAX_VALUE} which would be effectively unbounded,
+ * or just some large number that should never happen, but if it does, something
+ * bad has happened.
+ */
+public class ClosableBoundedBlockingQueue<T> {
 
     private static final Object POISON_PILL = new Object();
 
@@ -79,7 +89,7 @@ public class ClosableArrayBlockingQueue<T> {
     @CheckForNull
     private Thread _takingThread;
 
-    public ClosableArrayBlockingQueue(int iCapacity) {
+    public ClosableBoundedBlockingQueue(int iCapacity) {
         _iCapacity = iCapacity;
         _queue = new ArrayDeque<Object>();
         _lock = new ReentrantLock();

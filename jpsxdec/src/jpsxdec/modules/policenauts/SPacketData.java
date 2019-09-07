@@ -94,8 +94,8 @@ public class SPacketData {
         return _sPacketPos.getStartSector();
     }
 
-    public int getEndSector() {
-        return _sPacketPos.getEndSector();
+    public int getEndSectorInclusive() {
+        return _sPacketPos.getEndSectorInclusive();
     }
 
     public int getTimestamp() {

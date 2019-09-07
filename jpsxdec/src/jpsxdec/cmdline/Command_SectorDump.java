@@ -43,6 +43,7 @@ import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.log.DebugLogger;
@@ -84,10 +85,18 @@ class Command_SectorDump extends Command {
             while (it.hasNext()) {
                 SectorClaimSystem.ClaimedSector cs = it.next(DebugLogger.Log);
                 IIdentifiedSector idSect = cs.getClaimer();
-                if (idSect != null)
+                if (idSect != null) {
                     ps.println(idSect);
-                else
-                    ps.println(cs.getSector());
+                } else {
+                    CdSector cdSector = cs.getSector();
+                    StringBuilder sb = new StringBuilder();
+                    // also add the first 32 bytes for unknown sectors
+                    // may be helpful for debugging
+                    for (int i = 0; i < 32; i++) {
+                        sb.append(String.format("%02x", cdSector.readUserDataByte(i)));
+                    }
+                    ps.println(cdSector + " " + sb);
+                }
                 counter.increment(idSect);
             }
             for (Map.Entry<String, Integer> entry : counter) {

@@ -606,7 +606,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
             ab = _bottom8.toByteArray();
 
             byte[] abHdr = new byte[10];
-            IO.writeInt16LE(abHdr, 0, (short)Calc.calculateHalfCeiling32(iMdecCodeCount));
+            IO.writeInt16LE(abHdr, 0, Calc.calculateHalfCeiling32(iMdecCodeCount));
             IO.writeInt16LE(abHdr, 2, (short)0x3800);
             IO.writeInt16LE(abHdr, 4, (short)_iWidth);
             IO.writeInt16LE(abHdr, 6, (short)_iHeight);

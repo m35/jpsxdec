@@ -64,15 +64,13 @@ public abstract class MdecDecoder {
     protected final int[] _aiLumaBlkOfsLookup;
     protected final int[] _aiChromaMacBlkOfsLookup;
 
-    protected final int[] _aiQuantizationTable = 
-            new int[MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length];
+    protected final int[] _aiQuantizationTable;
     
     protected final int[] _aiDebugPreqantBlock;
 
     protected MdecDecoder(int iWidth, int iHeight) {
-        System.arraycopy(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX, 0,
-                         _aiQuantizationTable, 0,
-                         MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
+        _aiQuantizationTable = Arrays.copyOf(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX,
+                                             MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
 
         _iMacBlockWidth = Calc.macroblockDim(iWidth);
         _iMacBlockHeight = Calc.macroblockDim(iHeight);

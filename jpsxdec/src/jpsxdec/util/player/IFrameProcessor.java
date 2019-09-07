@@ -43,6 +43,8 @@ import javax.annotation.Nonnull;
  * A class provided by the user that will accept raw frames, process them
  * and then copy the final frame data into the provided int array
  * in xRGB format. Top 8 bits ignored, next 24 bits are red, green, and blue.
+ * This will be called for every frame in the same video processing thread.
+ * This allows the processor to maintain some kind of state between frames.
  */
 public interface IFrameProcessor<T> {
     void processFrame(@Nonnull T frame, @Nonnull int[] drawHere);

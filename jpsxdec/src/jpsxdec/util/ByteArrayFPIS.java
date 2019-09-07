@@ -97,12 +97,9 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
         return super.pos - _iBufStart;
     }
 
-    public int getRemainig() {
-        return super.count - getOffset();
-    }
-    
+    /** The original size of the stream. */
     public int getStreamByteSize() {
-        return super.count;
+        return super.count - _iBufStart;
     }
     
     public @Nonnull ByteArrayFPIS copy() {

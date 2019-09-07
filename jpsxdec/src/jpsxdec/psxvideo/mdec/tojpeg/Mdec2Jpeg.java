@@ -102,11 +102,55 @@ public class Mdec2Jpeg {
     //--------------------------------------------------------------------------
 
     /** Special JPEG quantization table.
-     * For indexes where ((default PSX quantization) % 8) == 0,
-     * use (default PSX quantization) / 8). This results in the following
-     * quantization table.
+     *
+     * The MDEC quantization table.
      * <pre>
-     *  [ 1, 2, 1, 1, 1, 1, 1, 1 ]
+     * [  2, 16, 19, 22, 26, 27, 29, 34 ]
+     * [ 16, 16, 22, 24, 27, 29, 34, 37 ]
+     * [ 19, 22, 26, 27, 29, 34, 34, 38 ]
+     * [ 22, 22, 26, 27, 29, 34, 37, 40 ]
+     * [ 22, 26, 27, 29, 32, 35, 40, 48 ]
+     * [ 26, 27, 29, 32, 35, 40, 48, 58 ]
+     * [ 26, 27, 29, 34, 38, 46, 56, 69 ]
+     * [ 27, 29, 35, 38, 46, 56, 69, 83 ]
+     *</pre>
+     *
+     * MPEG1/MDEC use fixed-point math, where 3 bits are the fractional part.
+     * So after multiplying by the above table, the value is then divided by 8
+     * to get the integer part.
+     * JPEG by design just uses integer values, so we're faced with a dilemma.
+     * Are we stuck chopping off those bits so we can start using integer values?
+     *
+     * Unfortunately yes.
+     *
+     * So using a JPEG quantization table of all 1's would be perfectly reasonable
+     * since that's the best we're going to get quality wise.
+     *
+     * In the lucky cases where values are evenly divisible by 8, three will
+     * be no loss in precision. Otherwise, farewell bits...
+     *
+     * But while we can't improve the quality of the resulting JPEG, we can
+     * slightly reduce its size.
+     * Note some values in the MPEG1/MDEC quantization table are already
+     * divisible by 8.
+     * <pre>
+     * [  2, 16* 19, 22, 26, 27, 29, 34 ]
+     * [ 16* 16* 22, 24, 27, 29, 34, 37 ]
+     * [ 19, 22, 26, 27, 29, 34, 34, 38 ]
+     * [ 22, 22, 26, 27, 29, 34, 37, 40*]
+     * [ 22, 26, 27, 29, 32* 35, 40* 48*]
+     * [ 26, 27, 29, 32* 35, 40* 48* 58 ]
+     * [ 26, 27, 29, 34, 38, 46, 56* 69 ]
+     * [ 27, 29, 35, 38, 46, 56* 69, 83 ]
+     *</pre>
+     * If we use a JPEG quantization of 1, in these cases we already know the
+     * bottom 3 bits will be zero. So why not use a better JPEG quantization
+     * than 1?
+     *
+     * So for most, the quantization value will be 1, but for those lucky values,
+     * the quantization value will be MDEC/8. Which leaves us this:
+     * <pre>
+     *  [ 2* 2, 1, 1, 1, 1, 1, 1 ]
      *  [ 2, 2, 1, 3, 1, 1, 1, 1 ]
      *  [ 1, 1, 1, 1, 1, 1, 1, 1 ]
      *  [ 1, 1, 1, 1, 1, 1, 1, 5 ]
@@ -114,13 +158,24 @@ public class Mdec2Jpeg {
      *  [ 1, 1, 1, 4, 1, 5, 6, 1 ]
      *  [ 1, 1, 1, 1, 1, 1, 7, 1 ]
      *  [ 1, 1, 1, 1, 1, 7, 1, 1 ]
-     * </pre> */
-    // TODO: can optimize output size by picking the GCD quantization
-    // Perform an initial scan of the entire image and pick the GCD of every
-    // coefficient. That resulting GCD will be the quantization table
-    // for this image.
-    // In the process we can also ensure the resulting coefficients aren't too
-    // big and adjust the table as necessary.
+     * </pre>
+     * Note that the DC coefficient in the top left is not divided by 8 so
+     * remains the same.
+     * 
+     * The math below does all these checks and calculates this table.
+     *
+     * During the quantization conversion, we can check if the value is 1,
+     * then calculate normally and cut off those 3 bits. If not 1,
+     * then skip the division by 8 since it's already done.
+     */
+
+    /*
+    TODO: can optimize output size even more by checking all values through
+    the image and see if their greatest common denominator is larger than 1.
+    If so, we can use that instead of just 1.
+    (along the way we could also check for data errors ahead of time)
+    But that is a ton of work with likely only a tiny reduction in size.
+    */
     private static final int[] JPEG_QUANTIZATION_TABLE_ZIGZAG = new int[64];
     
     /** PSX standard quantization table in zig-zag order. */
@@ -136,6 +191,26 @@ public class Mdec2Jpeg {
             else
                 JPEG_QUANTIZATION_TABLE_ZIGZAG[i] = 1;
         }
+        assert verifyTable(JPEG_QUANTIZATION_TABLE_ZIGZAG);
+    }
+
+    /** Because I don't trust myself. */
+    private static boolean verifyTable(int[] aiActual) {
+        int[] aiExpeced = {
+            2, 2, 1, 1, 1, 1, 1, 1,
+            2, 2, 1, 3, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 5,
+            1, 1, 1, 1, 4, 1, 5, 6,
+            1, 1, 1, 4, 1, 5, 6, 1,
+            1, 1, 1, 1, 1, 1, 7, 1,
+            1, 1, 1, 1, 1, 7, 1, 1,
+        };
+        for (int i = 0; i < aiExpeced.length; i++) {
+            if (aiExpeced[MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[i]] != aiActual[i])
+                return false;
+        }
+        return aiExpeced.length == aiActual.length;
     }
 
     private static final byte[] COMMENT_BYTES;
@@ -270,17 +345,20 @@ public class Mdec2Jpeg {
                     int iJpegQScale = JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition];
                     int iVal;
                     if (iJpegQScale == 1) {
+                        // The JPEG quantization scale is 1, so simply do the
+                        // math and cut off the bottom 3 bits :(
                         iVal = (code.getBottom10Bits()
                                 * PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
                                 * iCurrentBlockQscale + 4) >> 3;
                     } else {
                         // normally would multiply by
                         // PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                        // and divide by 8, but
+                        // and divide by 8 (like above), but the
                         // JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                        // will take care of that
+                        // has already been dividied by 8, so it will handle that
                         iVal = code.getBottom10Bits() * iCurrentBlockQscale;
                     }
+
                     if (iVal < -1023 || iVal > 1023) {
                         // if this happens we would need to go back and
                         // increase values in the quantization table.

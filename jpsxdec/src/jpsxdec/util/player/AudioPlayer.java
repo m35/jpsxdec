@@ -53,14 +53,16 @@ import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
 import jpsxdec.util.IO;
 
-/** Manages writing audio data to the final {@link SourceDataLine}.
+/**
+ * Manages writing audio data to the final {@link SourceDataLine}.
  * A buffer sits between the data written to this class and the actual DataLine
  * because DataLine seems to have a very small buffer itself.
  * A thread manages copying the buffer into the DataLine.
  *
  * This also extends VideoTimer that manages the video playback using
  * the audio timer. It conveniently uses the DataLine's listener to
- * fire events. */
+ * fire events.
+ */
 class AudioPlayer extends VideoTimer implements Runnable, LineListener {
 
     private static final Logger LOG = Logger.getLogger(AudioPlayer.class.getName());

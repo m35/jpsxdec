@@ -1,3 +1,16 @@
+v1.00 rev3921 (7 Sept 2019) The "ran out of version numbers" release
+    Bug fixes:
+    - Unsupported EA videos caused error
+    Known issues:
+    - Videos with variable frame rates cause a lot of problems:
+      * Usually unable to detect when videos have a variable frame rate
+      * The audio and video become out of sync when saving a video with 
+        variable frame rates as AVI
+      * Even when a video is identified as having a variable frame rate,
+        some video players do not play the generated AVI correctly (primarily 
+        on Windows). Try a more reliable player (such as VLC media player).
+    - Real-time playback doesn't work for videos with a long audio delay
+    - Real-time playback stops early if audio ends before video ends
 v0.99.9 rev3898 (9 Aug 2019)
     - Added Italian translation (thanks Gianluigi "Infrid" Cusimano!)
     - Updated Spanish translation (still many thanks to Víctor González, Sergi Medina!)

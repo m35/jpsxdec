@@ -83,7 +83,7 @@ public class SPacketPos {
     private final int _iKlbsEndSectorNumInclusive;
     private final int _iIndexInKlbs;
     private final int _iStartSector;
-    private final int _iStartOfs;
+    private final int _iStartSectorOfs;
 
     /** 1 FMV has an incorrect size, so we'll correct it later. */
     private int _iCorrectedSize;
@@ -97,7 +97,7 @@ public class SPacketPos {
         _iKlbsEndSectorNumInclusive = iKlbsEndSectorNumInclusive;
         _iIndexInKlbs = iIndexInKlbs;
         _iStartSector = iKlbsStartSectorNum + (sPacket.getOffset() / CdSector.SECTOR_SIZE_2048_ISO);
-        _iStartOfs = sPacket.getOffset() % CdSector.SECTOR_SIZE_2048_ISO;
+        _iStartSectorOfs = sPacket.getOffset() % CdSector.SECTOR_SIZE_2048_ISO;
 
         _iCorrectedSize = sPacket.getSize();
     }
@@ -142,8 +142,8 @@ public class SPacketPos {
         if (nextPacket.getPacket().getTimestamp() < _sPacket.getTimestamp()) {
             LOG.log(Level.INFO, "{0} < {1}", new Object[]{nextPacket, _sPacket});
             if (nextPacket.getPacket().getTimestamp() + 15 < _sPacket.getTimestamp()) {
-                throw new BinaryDataNotRecognized("Next packet timestamp " + nextPacket.getPacket().getTimestamp() +
-                                                  " < current packet timestamp " + _sPacket.getTimestamp());
+                throw new BinaryDataNotRecognized("Next packet timestamp %i < current packet timestamp %i",
+                                                  nextPacket.getPacket().getTimestamp(), _sPacket.getTimestamp());
             }
         }
 
@@ -169,15 +169,19 @@ public class SPacketPos {
         return _iStartSector;
     }
 
-    public int getEndSector() {
-        return _iStartSector + (_sPacket.getOffset() + _iCorrectedSize) / CdSector.SECTOR_SIZE_2048_ISO;
+    public int getEndSectorInclusive() {
+        int iSector = _iStartSector + (_iStartSectorOfs + _iCorrectedSize) / CdSector.SECTOR_SIZE_2048_ISO;
+        assert iSector == _iKlbsStartSectorNum + (_sPacket.getOffset() + _iCorrectedSize) / CdSector.SECTOR_SIZE_2048_ISO;
+        if (((_iStartSectorOfs + _iCorrectedSize) % CdSector.SECTOR_SIZE_2048_ISO) == 0)
+            return iSector - 1;
+        return iSector;
     }
 
     /** The packet data is padded to a 4 byte boundary, so there is often
      * a few bytes between packets */
-    public int bytesToThisPacket(int iFromSector, int iFromOffset) {
+    public int bytesToThisPacket(int iFromSector, int iFromSectorOffset) {
         int iSectorDiff = _iStartSector - iFromSector;
-        int iOfsDiff = _iStartOfs - iFromOffset;
+        int iOfsDiff = _iStartSectorOfs - iFromSectorOffset;
         int i = iSectorDiff * CdSector.SECTOR_SIZE_2048_ISO + iOfsDiff;
         return i;
     }
@@ -189,7 +193,7 @@ public class SPacketPos {
     @Override
     public String toString() {
         return String.format("Start %d [%d] sector.ofs %d.%d %s",
-                             _iKlbsStartSectorNum, _iIndexInKlbs, _iStartSector, _iStartOfs, _sPacket);
+                             _iKlbsStartSectorNum, _iIndexInKlbs, _iStartSector, _iStartSectorOfs, _sPacket);
     }
 
 }

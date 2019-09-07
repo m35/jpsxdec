@@ -41,6 +41,7 @@ import java.awt.Component;
 import java.awt.FontMetrics;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -103,9 +104,7 @@ public class GuiTree extends JXTreeTable {
             if (DiscIndexerSpu.ENABLE_SPU_SUPPORT) {
                 return aoValues;
             } else {
-                Select[] aoSelect = new Select[aoValues.length - 1];
-                System.arraycopy(aoValues, 0, aoSelect, 0, aoSelect.length);
-                return aoSelect;
+                return Arrays.copyOfRange(aoValues, 0, aoValues.length - 1);
             }
         }
 

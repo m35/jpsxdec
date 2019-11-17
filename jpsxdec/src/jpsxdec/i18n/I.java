@@ -1,7 +1,7 @@
 /*
  * jPSXdec Translations
  * Copyright (c) 2015-2019 
- * Michael Sabin, VÌctor Gonz·lez, Sergi Medina, Gianluigi "Infrid" Cusimano
+ * Michael Sabin, V√≠ctor Gonz√°lez, Sergi Medina, Gianluigi "Infrid" Cusimano
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

@@ -24,6 +24,7 @@ package org.jdesktop.swingx.util;
 import java.awt.Color;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
+import java.awt.LinearGradientPaint;
 import java.awt.Paint;
 import java.awt.Rectangle;
 import java.awt.TexturePaint;
@@ -83,6 +84,28 @@ public class PaintUtils {
             new Point2D.Double(0, 1),
             new Color(58, 66, 82));
     
+    
+    //originally included in LinearGradientPainter
+    public static final Paint ORANGE_DELIGHT = new LinearGradientPaint(
+            new Point2D.Double(0, 0),
+            new Point2D.Double(1, 0),
+            new float[] {0f, .5f, .51f, 1f},
+            new Color[] {
+                new Color(248, 192, 75),
+                new Color(253, 152, 6),
+                new Color(243, 133, 0),
+                new Color(254, 124, 0)});
+    
+    //originally included in LinearGradientPainter
+    public static final Paint BLACK_STAR = new LinearGradientPaint(
+            new Point2D.Double(0, 0),
+            new Point2D.Double(1, 0),
+            new float[] {0f, .5f, .51f, 1f},
+            new Color[] {
+                new Color(54, 62, 78),
+                new Color(32, 39, 55),
+                new Color(74, 82, 96),
+                new Color(123, 132, 145)});
     
     private PaintUtils() {
     }

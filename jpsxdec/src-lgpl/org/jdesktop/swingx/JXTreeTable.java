@@ -44,6 +44,7 @@ import javax.swing.JComponent;
 import javax.swing.JTable;
 import javax.swing.JTree;
 import javax.swing.ListSelectionModel;
+import javax.swing.RowSorter;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
@@ -187,6 +188,10 @@ public class JXTreeTable extends JXTable {
         // renderer-related initialization
         init(renderer); // private method
         initActions();
+        // disable sorting
+        super.setSortable(false);
+        super.setAutoCreateRowSorter(false);
+        super.setRowSorter(null);
         // no grid
         setShowGrid(false, false);
 
@@ -228,6 +233,7 @@ public class JXTreeTable extends JXTable {
         // propagate the lineStyle property to the renderer
         PropertyChangeListener l = new PropertyChangeListener() {
 
+            @Override
             public void propertyChange(PropertyChangeEvent evt) {
                 JXTreeTable.this.renderer.putClientProperty(evt.getPropertyName(), evt.getNewValue());
                 
@@ -255,6 +261,7 @@ public class JXTreeTable extends JXTable {
             super(name);
         }
 
+        @Override
         public void actionPerformed(ActionEvent evt) {
             if ("expand-all".equals(getName())) {
         expandAll();
@@ -266,6 +273,94 @@ public class JXTreeTable extends JXTable {
     }
     
 
+    /** 
+     * {@inheritDoc} <p>
+     * Overridden to do nothing. 
+     * 
+     * TreeTable is not sortable because there is no equivalent to 
+     * RowSorter (which is targeted to linear structures) for 
+     * hierarchical data.
+     * 
+     */
+    @Override
+    public void setSortable(boolean sortable) {
+        // no-op
+    }
+
+    /** 
+     * {@inheritDoc} <p>
+     * Overridden to do nothing. 
+     * 
+     * TreeTable is not sortable because there is no equivalent to 
+     * RowSorter (which is targeted to linear structures) for 
+     * hierarchical data.
+     * 
+     */
+    @Override
+    public void setAutoCreateRowSorter(boolean autoCreateRowSorter) {
+    }
+
+    /** 
+     * {@inheritDoc} <p>
+     * Overridden to do nothing. 
+     * 
+     * TreeTable is not sortable because there is no equivalent to 
+     * RowSorter (which is targeted to linear structures) for 
+     * hierarchical data.
+     * 
+     */
+    @Override
+    public void setRowSorter(RowSorter<? extends TableModel> sorter) {
+    }
+
+    /**
+     * Hook into super's setAutoCreateRowSorter for use in sub-classes which want to experiment
+     * with tree table sorting/filtering.<p>
+     *
+     * <strong> NOTE: While subclasses may use this method to allow access to 
+     * super that usage alone will not magically turn sorting/filtering on! They have 
+     * to implement an appropriate RowSorter/SortController
+     * as well. This is merely a hook to hang themselves, as requested in Issue #479-swingx
+     * </strong> 
+     * 
+     * @param autoCreateRowSorter
+     */
+    protected void superSetAutoCreateRowSorter(boolean autoCreateRowSorter) {
+        super.setAutoCreateRowSorter(autoCreateRowSorter);
+    }
+    
+    /**
+     * Hook into super's setSortable for use in sub-classes which want to experiment
+     * with tree table sorting/filtering.<p>
+     *
+     * <strong> NOTE: While subclasses may use this method to allow access to 
+     * super that usage alone will not magically turn sorting/filtering on! They have 
+     * to implement an appropriate RowSorter/SortController
+     * as well. This is merely a hook to hang themselves, as requested in Issue #479-swingx
+     * </strong> 
+     * 
+     * @param sortable
+     */
+    protected void superSetSortable(boolean sortable) {
+        super.setSortable(sortable);
+    }
+    
+    /**
+     * Hook into super's setRowSorter for use in sub-classes which want to experiment
+     * with tree table sorting/filtering.<p>
+     *
+     * <strong> NOTE: While subclasses may use this method to allow access to 
+     * super that usage alone will not magically turn sorting/filtering on! They have 
+     * to implement an appropriate RowSorter/SortController
+     * as well. This is merely a hook to hang themselves, as requested in Issue #479-swingx
+     * </strong> 
+     * 
+     * @param sorter
+     */
+    protected void superSetRowSorter(RowSorter <? extends TableModel> sorter) {
+        super.setRowSorter(sorter);
+    }
+    
     /**
      * {@inheritDoc} <p>
      * 
@@ -496,7 +591,8 @@ public class JXTreeTable extends JXTable {
                     if (renderer.getComponentOrientation().isLeftToRight() ? x < nodeBounds.x
                             : x > nodeBounds.x + nodeBounds.width) {
                         return new MouseEvent(renderer, e.getID(), e.getWhen(),
-                                e.getModifiers(), x, e.getY(), e
+                                e.getModifiers(), x, e.getY(),
+                                e.getXOnScreen(), e.getYOnScreen(), e
                                         .getClickCount(), false, e.getButton());
                     }
                 }
@@ -610,7 +706,8 @@ public class JXTreeTable extends JXTable {
                                         && (thw < 0 || x < nb.x + nb.width
                                                 + thw)) {
                             return new MouseEvent(renderer, e.getID(), e
-                                    .getWhen(), e.getModifiers(), x, e.getY(), e
+                                    .getWhen(), e.getModifiers(), x, e.getY(),
+                                    e.getXOnScreen(), e.getYOnScreen(), e
                                             .getClickCount(), false, e
                                             .getButton());
                         }
@@ -2162,6 +2259,7 @@ public class JXTreeTable extends JXTable {
          * when the selection of the list changse.
          */
         class ListSelectionHandler implements ListSelectionListener {
+            @Override
             public void valueChanged(ListSelectionEvent e) {
                 if (!e.getValueIsAdjusting()) {
                     updateSelectedPathsFromSelectedRows();
@@ -2196,15 +2294,18 @@ public class JXTreeTable extends JXTable {
             tree.addTreeExpansionListener(new TreeExpansionListener() {
                 // Don't use fireTableRowsInserted() here; the selection model
                 // would get updated twice.
+                @Override
                 public void treeExpanded(TreeExpansionEvent event) {
                     updateAfterExpansionEvent(event);
                 }
 
+                @Override
                 public void treeCollapsed(TreeExpansionEvent event) {
                     updateAfterExpansionEvent(event);
                 }
             });
             tree.addPropertyChangeListener("model", new PropertyChangeListener() {
+                @Override
                 public void propertyChange(PropertyChangeEvent evt) {
                     TreeTableModel model = (TreeTableModel) evt.getOldValue();
                     model.removeTreeModelListener(getTreeModelListener());
@@ -2266,6 +2367,7 @@ public class JXTreeTable extends JXTable {
          * 
          * Implemented to return the the underlying TreeTableModel. 
          */
+        @Override
         public TreeTableModel getTreeTableModel() {
             return (TreeTableModel) tree.getModel();
         }
@@ -2278,6 +2380,7 @@ public class JXTreeTable extends JXTable {
             return getTreeTableModel().getColumnClass(column);
         }
 
+        @Override
         public int getColumnCount() {
             return getTreeTableModel().getColumnCount();
         }
@@ -2287,10 +2390,12 @@ public class JXTreeTable extends JXTable {
             return getTreeTableModel().getColumnName(column);
         }
 
+        @Override
         public int getRowCount() {
             return tree.getRowCount();
         }
 
+        @Override
         public Object getValueAt(int row, int column) {
             // Issue #270-swingx: guard against invisible row
             Object node = nodeForRow(row);
@@ -2326,6 +2431,7 @@ public class JXTreeTable extends JXTable {
             if (treeModelListener == null) {
                 treeModelListener = new TreeModelListener() {
                     
+                    @Override
                     public void treeNodesChanged(TreeModelEvent e) {
 //                        LOG.info("got tree event: changed " + e);
                         delayedFireTableDataUpdated(e);
@@ -2334,15 +2440,18 @@ public class JXTreeTable extends JXTable {
                     // We use delayedFireTableDataChanged as we can
                     // not be guaranteed the tree will have finished processing
                     // the event before us.
+                    @Override
                     public void treeNodesInserted(TreeModelEvent e) {
                         delayedFireTableDataChanged(e, 1);
                     }
 
+                    @Override
                     public void treeNodesRemoved(TreeModelEvent e) {
 //                        LOG.info("got tree event: removed " + e);
                        delayedFireTableDataChanged(e, 2);
                     }
 
+                    @Override
                     public void treeStructureChanged(TreeModelEvent e) {
                         // ?? should be mapped to structureChanged -- JW
                         if (isTableStructureChanged(e)) {
@@ -2381,6 +2490,7 @@ public class JXTreeTable extends JXTable {
          */
         private void delayedFireTableStructureChanged() {
             SwingUtilities.invokeLater(new Runnable() {
+                @Override
                 public void run() {
                     fireTableStructureChanged();
                 }
@@ -2393,6 +2503,7 @@ public class JXTreeTable extends JXTable {
          */
         private void delayedFireTableDataChanged() {
             SwingUtilities.invokeLater(new Runnable() {
+                @Override
                 public void run() {
                     fireTableDataChanged();
                 }
@@ -2413,6 +2524,7 @@ public class JXTreeTable extends JXTable {
             // quick test if tree throws for unrelated path. Seems like not.
 //            tree.getRowForPath(new TreePath("dummy"));
             SwingUtilities.invokeLater(new Runnable() {
+                @Override
                 public void run() {
                     int indices[] = tme.getChildIndices();
                     TreePath path = tme.getTreePath();
@@ -2469,6 +2581,7 @@ public class JXTreeTable extends JXTable {
         protected void delayedFireTableDataUpdated(final TreeModelEvent tme) {
             final boolean expanded = tree.isExpanded(tme.getTreePath());
             SwingUtilities.invokeLater(new Runnable() {
+                @Override
                 public void run() {
                     int indices[] = tme.getChildIndices();
                     TreePath path = tme.getTreePath();
@@ -2707,6 +2820,7 @@ public class JXTreeTable extends JXTable {
         protected PropertyChangeListener createRolloverListener() {
             PropertyChangeListener l = new PropertyChangeListener() {
 
+                @Override
                 public void propertyChange(PropertyChangeEvent evt) {
                     if ((treeTable == null) || (treeTable != evt.getSource()))
                         return;
@@ -2922,6 +3036,7 @@ public class JXTreeTable extends JXTable {
         }
 
 
+        @Override
         public Component getTableCellRendererComponent(JTable table,
             Object value,
             boolean isSelected, boolean hasFocus, int row, int column) {
@@ -3034,6 +3149,7 @@ public class JXTreeTable extends JXTable {
             /**
              * {@inheritDoc} <p>
              */
+            @Override
             public String getString(Object node) {
 //                int treeColumn = treeTable.getTreeTableModel().getHierarchicalColumn();
 //                if (treeColumn >= 0) {

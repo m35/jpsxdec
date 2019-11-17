@@ -369,6 +369,7 @@ public abstract class AbstractPainter<T> extends AbstractBean implements Painter
     /**
      * @inheritDoc
      */
+    @Override
     public final void paint(Graphics2D g, T obj, int width, int height) {
         if (g == null) {
             throw new NullPointerException("The Graphics2D must be supplied");

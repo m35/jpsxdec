@@ -94,6 +94,7 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
      * Implemented to map to Rollover properties as needed. This implemenation calls
      * updateRollover with both ROLLOVER_KEY and CLICKED_KEY properties. 
      */
+    @Override
     public void mouseReleased(MouseEvent e) {
         Point oldCell = new Point(rollover); 
         // JW: fix for #456-swingx - rollover not updated after end of dragging
@@ -134,6 +135,7 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
      * Implemented to map to client property rollover and fire only if client
      * coordinate changed.
      */
+    @Override
     public void mouseEntered(MouseEvent e) {
 //        LOG.info("" + e);
         isDragging = false;
@@ -144,6 +146,7 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
      * Implemented to remove client properties rollover and clicked. if the
      * source is a JComponent. Does nothing otherwise.
      */
+    @Override
     public void mouseExited(MouseEvent e) {
         isDragging = false;
 //        screenLocation = null;
@@ -160,12 +163,14 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
     /**
      * Implemented to do nothing.
      */
+    @Override
     public void mouseClicked(MouseEvent e) {
     }
 
     /**
      * Implemented to do nothing.
      */
+    @Override
     public void mousePressed(MouseEvent e) {
     }
 
@@ -173,6 +178,7 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
     /**
      * Implemented to set a dragging flag to true.
      */
+    @Override
     public void mouseDragged(MouseEvent e) {
         isDragging = true;
     }
@@ -181,6 +187,7 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
      * Implemented to map to client property rollover and fire only if client
      * coordinate changed.
      */
+    @Override
     public void mouseMoved(MouseEvent e) {
         updateRollover(e, ROLLOVER_KEY, false);
     }
@@ -188,13 +195,16 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
     //---------------- ComponentListener
     
     
+    @Override
     public void componentShown(ComponentEvent e) {
     }
     
+    @Override
     public void componentResized(ComponentEvent e) {
         updateRollover(e);
     }
     
+    @Override
     public void componentMoved(ComponentEvent e) {
         updateRollover(e);
     }
@@ -212,6 +222,7 @@ public abstract class RolloverProducer implements MouseListener, MouseMotionList
         updateClientProperty((JComponent) e.getComponent(), ROLLOVER_KEY, true);
     }
     
+    @Override
     public void componentHidden(ComponentEvent e) {
     }
 

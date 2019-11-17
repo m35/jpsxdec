@@ -110,6 +110,7 @@ public final class CapsLockSupport extends AbstractBean implements KeyEventDispa
     /**
      * This is an implementation detail and should not be considered public.
      */
+    @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         if (e.getID() == KeyEvent.KEY_PRESSED) {
             int keyCode = e.getKeyCode();

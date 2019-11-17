@@ -68,8 +68,24 @@ public class ForwardingRepaintManager extends RepaintManager {
      * {@inheritDoc}
      */
     @Override
+    public void addDirtyRegion(Applet applet, int x, int y, int w, int h) {
+        delegate.addDirtyRegion(applet, x, y, w, h);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void addDirtyRegion(JComponent c, int x, int y, int w, int h) {
         delegate.addDirtyRegion(c, x, y, w, h);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void addDirtyRegion(Window window, int x, int y, int w, int h) {
+        delegate.addDirtyRegion(window, x, y, w, h);
     }
 
     /**

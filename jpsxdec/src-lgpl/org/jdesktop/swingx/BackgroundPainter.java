@@ -44,6 +44,7 @@ class BackgroundPainter implements Painter<JComponent>, Serializable {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void paint(Graphics2D g, JComponent object, int width, int height) {
         if (color == null) {
             return;

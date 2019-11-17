@@ -382,8 +382,8 @@ public final class IO {
 
     public static long readSInt64BE(@Nonnull byte[] ab, int i) {
         long lngRet = 0;
-        for (int j = 0; j < 8; j++) {
-            byte iByte = ab[i+j];
+        for (int j = i; j < i+8; j++) {
+            int iByte = ab[j] & 0xff;
             lngRet = (lngRet << 8) | iByte;
         }
         return lngRet;

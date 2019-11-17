@@ -97,6 +97,7 @@ public class BasicStatusBarUI extends StatusBarUI {
         /**
          * {@inheritDoc}
          */
+        @Override
         public void mouseClicked(MouseEvent e) {
             //does nothing
         }
@@ -104,6 +105,7 @@ public class BasicStatusBarUI extends StatusBarUI {
         /**
          * {@inheritDoc}
          */
+        @Override
         public void mouseEntered(MouseEvent e) {
             if (isHandleAreaPoint(e.getPoint())) {
                 if (statusBar.getComponentOrientation().isLeftToRight()) {
@@ -121,6 +123,7 @@ public class BasicStatusBarUI extends StatusBarUI {
         /**
          * {@inheritDoc}
          */
+        @Override
         public void mouseExited(MouseEvent e) {
             if (!validPress) {
                 window.setCursor(null);
@@ -130,6 +133,7 @@ public class BasicStatusBarUI extends StatusBarUI {
         /**
          * {@inheritDoc}
          */
+        @Override
         public void mousePressed(MouseEvent e) {
             validPress = SwingUtilities.isLeftMouseButton(e) && isHandleAreaPoint(e.getPoint()); 
             startingPoint = e.getPoint();
@@ -139,6 +143,7 @@ public class BasicStatusBarUI extends StatusBarUI {
         /**
          * {@inheritDoc}
          */
+        @Override
         public void mouseReleased(MouseEvent e) {
             validPress = !SwingUtilities.isLeftMouseButton(e);
             window.validate();
@@ -148,6 +153,7 @@ public class BasicStatusBarUI extends StatusBarUI {
         /**
          * {@inheritDoc}
          */
+        @Override
         public void mouseDragged(MouseEvent e) {
             if (validPress) {
                 Rectangle wb = window.getBounds();
@@ -171,6 +177,7 @@ public class BasicStatusBarUI extends StatusBarUI {
         /**
          * {@inheritDoc}
          */
+        @Override
         public void mouseMoved(MouseEvent e) {
             if (isHandleAreaPoint(e.getPoint())) {
                 if (statusBar.getComponentOrientation().isLeftToRight()) {
@@ -188,6 +195,7 @@ public class BasicStatusBarUI extends StatusBarUI {
         /**
          * {@inheritDoc}
          */
+        @Override
         public void propertyChange(PropertyChangeEvent evt) {
             if ("ancestor".equals(evt.getPropertyName())) {
                 window = SwingUtilities.getWindowAncestor(statusBar);
@@ -459,14 +467,22 @@ public class BasicStatusBarUI extends StatusBarUI {
         return new LayoutManager2() {
             private Map<Component,Constraint> constraints = new HashMap<Component,Constraint>();
             
+            @Override
             public void addLayoutComponent(String name, Component comp) {addLayoutComponent(comp, null);}
+            @Override
             public void removeLayoutComponent(Component comp) {constraints.remove(comp);}
+            @Override
             public Dimension minimumLayoutSize(Container parent) {return preferredLayoutSize(parent);}
+            @Override
             public Dimension maximumLayoutSize(Container target) {return new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE);}
+            @Override
             public float getLayoutAlignmentX(Container target) {return .5f;}
+            @Override
             public float getLayoutAlignmentY(Container target) {return .5f;}
+            @Override
             public void invalidateLayout(Container target) {}
             
+            @Override
             public void addLayoutComponent(Component comp, Object constraint) {
                 //we accept an Insets, a ResizeBehavior, or a Constraint.
                 if (constraint instanceof Insets) {
@@ -478,6 +494,7 @@ public class BasicStatusBarUI extends StatusBarUI {
                 constraints.put(comp, (Constraint)constraint);
             }
             
+            @Override
             public Dimension preferredLayoutSize(Container parent) {
                 Dimension prefSize = new Dimension();
                 int count = 0;
@@ -508,6 +525,7 @@ public class BasicStatusBarUI extends StatusBarUI {
                 return prefSize;
             }
             
+            @Override
             public void layoutContainer(Container parent) {
                 /*
                  * Layout algorithm:

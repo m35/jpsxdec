@@ -93,6 +93,7 @@ class ToggleActionPropertyChangeListener implements PropertyChangeListener {
     }
 
     
+    @Override
     public void propertyChange(PropertyChangeEvent evt) {
         AbstractButton button = checkReferent((Action) evt.getSource());
         if (button == null) return;

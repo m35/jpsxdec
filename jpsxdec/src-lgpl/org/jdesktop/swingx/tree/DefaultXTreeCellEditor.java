@@ -168,6 +168,7 @@ public class DefaultXTreeCellEditor extends DefaultTreeCellEditor implements UID
     /**
      * Implement UIDependent. Quick hack for #1060-swingx: icons lost on laf toggle.
      */
+    @Override
     public void updateUI() {
         if (getRenderer() != null) {
             SwingUtilities.updateComponentTreeUI(getRenderer());

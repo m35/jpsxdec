@@ -380,6 +380,7 @@ public abstract class ComponentProvider<T extends JComponent>
     /**
      * {@inheritDoc}
      */
+    @Override
     public void updateUI() {
         SwingUtilities.updateComponentTreeUI(rendererComponent);
     }

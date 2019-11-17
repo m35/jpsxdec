@@ -273,6 +273,7 @@ public class NumberEditorExt extends DefaultCellEditor {
          */
         textField.addPropertyChangeListener("editValid",
                 new PropertyChangeListener() {
+            @Override
             public void propertyChange(PropertyChangeEvent evt) {
                 if (evt.getNewValue() == Boolean.TRUE) {
                     ((JFormattedTextField) evt.getSource())
@@ -327,6 +328,7 @@ public class NumberEditorExt extends DefaultCellEditor {
          */
         textField.addPropertyChangeListener("editValid",
                 new PropertyChangeListener() {
+                    @Override
                     public void propertyChange(PropertyChangeEvent evt) {
                         if (evt.getNewValue() == Boolean.TRUE) {
                             ((JFormattedTextField) evt.getSource())

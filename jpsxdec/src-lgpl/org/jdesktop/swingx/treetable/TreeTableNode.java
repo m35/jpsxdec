@@ -36,6 +36,7 @@ public interface TreeTableNode extends TreeNode {
      * 
      * @return an enumeration of {@code TreeTableNode}s
      */
+    @Override
     Enumeration<? extends TreeTableNode> children();
 
     /**
@@ -60,6 +61,7 @@ public interface TreeTableNode extends TreeNode {
      *            the index of the child
      * @return the {@code TreeTableNode} corresponding to the specified index
      */
+    @Override
     TreeTableNode getChildAt(int childIndex);
 
     /**
@@ -76,6 +78,7 @@ public interface TreeTableNode extends TreeNode {
      * @return the parent {@code TreeTableNode} or {@code null} if this node has
      *         no parent (such nodes are usually root nodes).
      */
+    @Override
     TreeTableNode getParent();
 
     /**

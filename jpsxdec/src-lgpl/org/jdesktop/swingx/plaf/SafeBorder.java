@@ -8,6 +8,7 @@ import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.Insets;
 import java.awt.Rectangle;
+import java.awt.Component.BaselineResizeBehavior;
 
 import javax.swing.border.AbstractBorder;
 import javax.swing.plaf.UIResource;
@@ -23,6 +24,22 @@ public class SafeBorder extends AbstractBorder implements UIResource {
 
     public SafeBorder(AbstractBorder delegate) {
         this.delegate = delegate;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getBaseline(Component c, int width, int height) {
+        return delegate.getBaseline(c, width, height);
+    }
+
+    /** 
+     * {@inheritDoc}
+     */
+    @Override
+    public BaselineResizeBehavior getBaselineResizeBehavior(Component c) {
+        return delegate.getBaselineResizeBehavior(c);
     }
 
     /** 

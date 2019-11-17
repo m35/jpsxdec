@@ -212,6 +212,7 @@ public abstract class LookAndFeelAddons {
         
         try {
             cl = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+                @Override
                 public ClassLoader run() {
                     return LookAndFeelAddons.class.getClassLoader();
                 }
@@ -223,6 +224,7 @@ public abstract class LookAndFeelAddons {
             
             try {
                 cl = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+                    @Override
                     public ClassLoader run() {
                         return t.getContextClassLoader();
                     }
@@ -233,6 +235,7 @@ public abstract class LookAndFeelAddons {
         if (cl == null) {
             try {
                 cl = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+                    @Override
                     public ClassLoader run() {
                         return ClassLoader.getSystemClassLoader();
                     }
@@ -280,6 +283,7 @@ public abstract class LookAndFeelAddons {
     public static String getCrossPlatformAddonClassName() {
         try {
             return AccessController.doPrivileged(new PrivilegedAction<String>() {
+                @Override
                 public String run() {
                     return System.getProperty("swing.crossplatformlafaddon",
                             "org.jdesktop.swingx.plaf.metal.MetalLookAndFeelAddons");
@@ -444,6 +448,7 @@ public abstract class LookAndFeelAddons {
     // TRACKING OF THE CURRENT LOOK AND FEEL
     //
     private static class UpdateAddon implements PropertyChangeListener {
+        @Override
         public void propertyChange(PropertyChangeEvent evt) {
             try {
                 setAddon(getBestMatchAddonClassName());

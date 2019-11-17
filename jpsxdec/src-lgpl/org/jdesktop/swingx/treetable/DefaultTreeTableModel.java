@@ -173,6 +173,7 @@ public class DefaultTreeTableModel extends AbstractTreeTableModel {
      *             or is not managed by this model, or {@code column} is not a
      *             valid column index
      */
+    @Override
     public Object getValueAt(Object node, int column) {
         if (!isValidTreeTableNode(node)) {
             throw new IllegalArgumentException(
@@ -218,6 +219,7 @@ public class DefaultTreeTableModel extends AbstractTreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public int getColumnCount() {
         return columnIdentifiers.size();
     }
@@ -243,6 +245,7 @@ public class DefaultTreeTableModel extends AbstractTreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Object getChild(Object parent, int index) {
         if (!isValidTreeTableNode(parent)) {
             throw new IllegalArgumentException(
@@ -255,6 +258,7 @@ public class DefaultTreeTableModel extends AbstractTreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public int getChildCount(Object parent) {
         if (!isValidTreeTableNode(parent)) {
             throw new IllegalArgumentException(
@@ -267,6 +271,7 @@ public class DefaultTreeTableModel extends AbstractTreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public int getIndexOfChild(Object parent, Object child) {
         if (!isValidTreeTableNode(parent) || !isValidTreeTableNode(child)) {
             return -1;

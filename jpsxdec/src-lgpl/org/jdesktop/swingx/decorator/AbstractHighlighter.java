@@ -166,6 +166,7 @@ public abstract class AbstractHighlighter implements Highlighter {
      * @see #doHighlight(Component, ComponentAdapter)
      * @see #getHighlightPredicate()
      */
+    @Override
     public Component highlight(Component component, ComponentAdapter adapter) {
         if (canHighlight(component, adapter) && 
                 getHighlightPredicate().isHighlighted(component, adapter)) {
@@ -228,6 +229,7 @@ public abstract class AbstractHighlighter implements Highlighter {
      * @param l the ChangeListener to add
      * @see #removeChangeListener
      */
+    @Override
     public final void addChangeListener(ChangeListener l) {
         listenerList.add(ChangeListener.class, l);
     }
@@ -238,6 +240,7 @@ public abstract class AbstractHighlighter implements Highlighter {
      * @param l the <code>ChangeListener</code> to remove
      * @see #addChangeListener
      */
+    @Override
     public final void removeChangeListener(ChangeListener l) {
         listenerList.remove(ChangeListener.class, l);
     }
@@ -255,6 +258,7 @@ public abstract class AbstractHighlighter implements Highlighter {
      *
      * @since 1.4
      */
+    @Override
     public final ChangeListener[] getChangeListeners() {
         return listenerList.getListeners(ChangeListener.class);
     }

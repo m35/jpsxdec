@@ -1069,7 +1069,7 @@ Status
 [ ]  SCUS-94278  Official U.S. PlayStation Magazine 16 [Demo]
 [ ]  SCUS-94279  Official U.S. PlayStation Magazine 17 [Demo]
 [ ]  SCUS-94280  Official U.S. PlayStation Magazine 18 [Demo]
-[ ]  SCUS-94281  Official U.S. PlayStation Magazine 19 [Demo]
+[!]  SCUS-94281  Official U.S. PlayStation Magazine 19 [Demo]
 [ ]  SCUS-94282  Official U.S. PlayStation Magazine 20 - May '99 [Demo]
 [ ]  SCUS-94429  Official U.S. PlayStation Magazine 21 [Demo]
 [ ]  SCUS-94430  Official U.S. PlayStation Magazine 22 [Demo]
@@ -1155,8 +1155,7 @@ Status
 [ ]  SCUS-94483  PlayStation [Demo]
 [ ]  SCUS-94799  PlayStation 2001 [Demo]
 [ ]  SCUS-94960  PlayStation Picks (Green) [Demo]
-[ ]  SCUS-94952  PlayStation Picks (Purple) [Demo]
-[ ]  SCUS-94952  PlayStation Picks (Purple) [Demo] (SCUS-94952)
+[f]  SCUS-94952  PlayStation Picks (Purple) [Demo]
 [ ]  SCUS-94259  PlayStation Underground 2.2 [Disc1] [Demo]
 [ ]  SCUS-94260  PlayStation Underground 2.2 [Disc2] [Demo]
 [ ]  SCUS-94269  PlayStation Underground 2.3 [Disc1] [Demo]
@@ -1221,8 +1220,8 @@ Status
 [ ]  SLUS-00486  PoyPoy
 [ ]  SLUS-00126  Primal Rage
 [ ]  SLUS-00817  Pro 18 - World Tour Golf
-[o]  SLUS-01260  Pro Pinball - Big Race USA
-[ ]  SLUS-01261  Pro Pinball - Fantastic Journey
+[ ]  SLUS-01260  Pro Pinball - Big Race USA
+[o]  SLUS-01261  Pro Pinball - Fantastic Journey
 [ ]  SLUS-00639  Pro Pinball - Timeshock!
 [ ]  SLUS-00371  Pro Pinball (The Web)
 [ ]  SLUS-90039  Pro Pinball Timeshock [Demo]
@@ -1458,7 +1457,7 @@ Status
 [ ]  SLUS-00562  Star Wars - Masters of Teras Kasi
 [!]  SLUS-00381  Star Wars - Rebel Assault II [Disc1of2]
 [!]  SLUS-00386  Star Wars - Rebel Assault II [Disc2of2]
-[ ]  SLUS-00057  Starblade Alpha
+[+]  SLUS-00057  Starblade Alpha
 [ ]  SLUS-01302  Starfighter Sanvein
 [ ]  SLUS-00094  Starwinder - The Ultimate Space Race
 [ ]  SLUS-00093  Steel Harbinger
@@ -1718,7 +1717,7 @@ Status
 [ ]  SLUS-00831  WWF Attitude
 [ ]  SLUS-00246  WWF In Your House
 [ ]  SLUS-00927  WWF Smackdown!
-[ ]  SLUS-01234  WWF Smackdown! 2 - Know Your Role
+[o]  SLUS-01234  WWF Smackdown! 2 - Know Your Role
 [ ]  SLUS-00495  WWF Warzone
 [ ]  SLUS-00013  WWF Wrestlemania - The Arcade Game
 [ ]  SLUS-90021  X-360 - Surrounding Your World with Sound [Demo]
@@ -2328,7 +2327,7 @@ Status
 [ ]  SLES-02893  Disney's Dinosauri
 [ ]  SLES-02892  Disney's Dinosaurier
 [ ]  SLES-04063  Disney's Dinosaurs
-[ ]  SCES-03015  Disney's Ein K√¬nigreich f√ºr ein Lama
+[ ]  SCES-03015  Disney's Ein K√∂nigreich f√ºr ein Lama
 [ ]  SLES-03984  Disney's Evail avec Winnie l'Ourson
 [ ]  SLES-03178  Disney's Goofy's Fun House
 [ ]  SLES-03639  Disney's Goofy's Fun House
@@ -2450,7 +2449,7 @@ Status
 [ ]  SLES-12995  Driver 2 - Back on the Streets [Disc2of2]
 [ ]  SLES-12997  Driver 2 - Back on the Streets [Disc2of2]
 [ ]  SLES-04045  Dropzone
-[ ]  SLES-03864  DSF Fu√&#159  ball Manager 2002
+[ ]  SLES-03864  DSF Fu√üball Manager 2002
 [ ]  SLES-02621  Ducati - World Racing Challenge
 [ ]  SLES-02821  Ducati Life - World Racing Challenge
 [ ]  SLES-03377  Ducati World
@@ -2769,9 +2768,9 @@ Status
 [ ]  SLES-00082  G-Police [Disc1of2] [Original & Platinum]
 [ ]  SLES-10854  G-Police [Disc2of2]
 [ ]  SLES-10082  G-Police [Disc2of2] [Original & Platinum]
-[ ]  SCES-00984  Gran Turismo
-[ ]  SCES-02380  Gran Turismo 2 [Arcade Mode Disc]
-[ ]  SCES-12380  Gran Turismo 2 [GT Mode Disc]
+[+]  SCES-00984  Gran Turismo
+[+]  SCES-02380  Gran Turismo 2 [Arcade Mode Disc]
+[o]  SCES-12380  Gran Turismo 2 [GT Mode Disc]
 [ ]  SLES-01714  Grand Theft Auto - London 1969
 [ ]  SLES-03389  Grand Theft Auto - Mission Pack #1 - London 1969 [Original & Collector's Edition Set Disc2of3]
 [ ]  SLES-00032  Grand Theft Auto [Original & Collector's Edition Set Disc1of3]
@@ -3840,7 +3839,7 @@ Status
 [ ]  SLES-00656  Star Wars - Rebel Assault II - The Hidden Empire [Disc1of2]
 [ ]  SLES-10584  Star Wars - Rebel Assault II [Disc2of2]
 [ ]  SLES-10656  Star Wars - Rebel Assault II [Disc2of2]
-[ ]  SCES-00034  Starblade Alpha
+[+]  SCES-00034  Starblade Alpha
 [ ]  SLES-00293  Starfighter 3000
 [ ]  SLES-00090  Starwinder - The Ultimate Space Race
 [ ]  SLED-01553  Station 1 [Demo]
@@ -3941,7 +3940,7 @@ Status
 [ ]  SLES-03241  Technomage - Return of Eternity
 [ ]  SCES-00005  Tekken [Original & Platinum]
 [o]  SCES-00255  Tekken 2
-[ ]  SCES-01237  Tekken 3 [Original & Platinum]
+[f]  SCES-01237  Tekken 3 [Original & Platinum]
 [ ]  SCED-01146  Tekken 3 OUKPSM Collector's Edition
 [ ]  SLES-00316  Tempest X3
 [ ]  SLES-00534  Ten Pin Alley
@@ -5683,7 +5682,7 @@ Status
 [ ]  SCPS-45008  Final Fantasy VII [Disc2of3]
 [ ]  SLPS-00701  Final Fantasy VII [Disc2of3]
 [ ]  SCPS-45009  Final Fantasy VII [Disc3of3]
-[ ]  SLPS-00702  Final Fantasy VII [Disc3of3]
+[f]  SLPS-00702  Final Fantasy VII [Disc3of3]
 [ ]  SCPS-45375  Final Fantasy VIII [Disc1of4]
 [ ]  SLPS-01880  Final Fantasy VIII [Disc1of4]
 [ ]  SLPM-87384  Final Fantasy VIII [Disc1of4] [Ultimate Hits]
@@ -5929,7 +5928,7 @@ Status
 [ ]  SLPM-86042  Gradius Gaiden
 [ ]  SLPM-86103  Gradius Gaiden [PlayStation The Best]
 [ ]  SLPM-87323  Gradius Gaiden [PSone Books]
-[ ]  SCPS-10045  Gran Turismo
+[+]  SCPS-10045  Gran Turismo
 [ ]  SCPS-91128  Gran Turismo [PlayStation The Best]
 [ ]  SCPS-91301  Gran Turismo [PSone Books]
 [ ]  SCPS-10116  Gran Turismo 2 [Arcade Disc]
@@ -6625,7 +6624,7 @@ Status
 [ ]  SLPS-02976  Kowloon's Gate [Artdink Best Choice] [Disc2of4]
 [ ]  SLPS-02977  Kowloon's Gate [Artdink Best Choice] [Disc3of4]
 [ ]  SLPS-02978  Kowloon's Gate [Artdink Best Choice] [Disc4of4]
-[ ]  SLPS-00669  Kowloon's Gate [Disc1of4]
+[f]  SLPS-00669  Kowloon's Gate [Disc1of4]
 [ ]  SLPS-00706  Kowloon's Gate [Disc1of4]
 [ ]  SLPS-00670  Kowloon's Gate [Disc2of4]
 [ ]  SLPS-00707  Kowloon's Gate [Disc2of4]
@@ -6633,6 +6632,7 @@ Status
 [ ]  SLPS-00708  Kowloon's Gate [Disc3of4]
 [ ]  SLPS-00672  Kowloon's Gate [Disc4of4]
 [ ]  SLPS-00709  Kowloon's Gate [Disc4of4]
+[ ]  SLPM-80080  Kowloon's Gate [Special Disc]
 [ ]  SLPS-01775  Koyasai - A Sherd of Youthful Memories
 [ ]  SLPS-00492  Krazy Ivan
 [ ]  SLPS-02385  Kukuro Sea Toro - Eternal Eyes
@@ -7911,7 +7911,7 @@ Status
 [ ]  SLPS-02293  Ramen Hashi
 [ ]  SLPS-03139  Ramen Hashi [TomyKore The Best]
 [ ]  SLPS-01546  Rami-Chan no Odeo Surogoku - Keio Yugekitai Gaiden (Guerrilla Warfare Party)
-[ ]  SLPS-00522  Ranma ≈&#147   - Battle Renaissance
+[ ]  SLPS-00522  Ranma ¬Ω - Battle Renaissance
 [ ]  SLPS-01553  Rapid Angel, The
 [ ]  SCPS-10060  Rapid Racer
 [ ]  SCPS-45282  Rapid Racer

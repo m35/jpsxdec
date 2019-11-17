@@ -85,6 +85,7 @@ public interface HighlightPredicate {
          * 
          * Implemented to return true always.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return true;
         }
@@ -101,6 +102,7 @@ public interface HighlightPredicate {
          * 
          * Implemented to return false always.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return false;
         }
@@ -120,6 +122,7 @@ public interface HighlightPredicate {
          * 
          * @see org.jdesktop.swingx.rollover.RolloverProducer
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             if (!adapter.getComponent().isEnabled()) return false;
             Point p = (Point) adapter.getComponent().getClientProperty(
@@ -142,6 +145,7 @@ public interface HighlightPredicate {
          * 
          * @see org.jdesktop.swingx.rollover.RolloverProducer
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             if (!adapter.getComponent().isEnabled()) return false;
             Point p = (Point) adapter.getComponent().getClientProperty(
@@ -163,6 +167,7 @@ public interface HighlightPredicate {
          * 
          * @see org.jdesktop.swingx.rollover.RolloverProducer
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             if (!adapter.getComponent().isEnabled()) return false;
             Point p = (Point) adapter.getComponent().getClientProperty(
@@ -181,6 +186,7 @@ public interface HighlightPredicate {
          * 
          * Implemented to return true is the given adapter isEditable, false otherwise.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return adapter.isEditable();
         }
@@ -195,6 +201,7 @@ public interface HighlightPredicate {
          * 
          * Implemented to return false is the given adapter isEditable, true otherwise.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return !adapter.isEditable();
         }
@@ -209,6 +216,7 @@ public interface HighlightPredicate {
          * 
          * Implemented to return true if the given adapter isLeaf, false otherwise.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return adapter.isLeaf();
         }
@@ -223,6 +231,7 @@ public interface HighlightPredicate {
          * 
          * Implemented to return false if the given adapter isLeaf, true otherwise.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return !adapter.isLeaf();
         }
@@ -233,6 +242,7 @@ public interface HighlightPredicate {
      */
     public static final HighlightPredicate IS_SELECTED = new HighlightPredicate() {
 
+        @Override
         public boolean isHighlighted(Component renderer,
                 ComponentAdapter adapter) {
             return adapter.isSelected();
@@ -246,6 +256,7 @@ public interface HighlightPredicate {
      * @author Karl Schaefer
      */
     public static final HighlightPredicate IS_TEXT_TRUNCATED = new HighlightPredicate() {
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             JComponent c = renderer instanceof JComponent ? (JComponent) renderer : null;
             String text = adapter.getString();
@@ -290,6 +301,7 @@ public interface HighlightPredicate {
          * 
          * Implemented to return truw if the given adapter hasFocus, false otherwise.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return adapter.hasFocus();
         }
@@ -303,6 +315,7 @@ public interface HighlightPredicate {
      */
     public static final HighlightPredicate EVEN = new HighlightPredicate() {
 
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return adapter.row % 2 == 0;
         }
@@ -318,6 +331,7 @@ public interface HighlightPredicate {
      */
     public static final HighlightPredicate ODD = new HighlightPredicate() {
 
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return !EVEN.isHighlighted(renderer, adapter);
         }
@@ -329,6 +343,7 @@ public interface HighlightPredicate {
      */
      public static final HighlightPredicate BIG_DECIMAL_NEGATIVE = new HighlightPredicate() {
 
+        @Override
         public boolean isHighlighted(Component renderer,
                 ComponentAdapter adapter) {
             return (adapter.getValue() instanceof BigDecimal) 
@@ -342,6 +357,7 @@ public interface HighlightPredicate {
      */
      public static final HighlightPredicate INTEGER_NEGATIVE = new HighlightPredicate() {
 
+        @Override
         public boolean isHighlighted(Component renderer,
                 ComponentAdapter adapter) {
             return (adapter.getValue() instanceof Number) 
@@ -379,6 +395,7 @@ public interface HighlightPredicate {
          * {@inheritDoc}
          * Implemented to return the negation of the given predicate.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return !predicate.isHighlighted(renderer, adapter);
         }
@@ -422,6 +439,7 @@ public interface HighlightPredicate {
          * Implemented to return false if any of the contained predicates is
          * false or if there are no predicates.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             for (HighlightPredicate hp : predicate) {
                 if (!hp.isHighlighted(renderer, adapter)) return false;
@@ -470,6 +488,7 @@ public interface HighlightPredicate {
          * Implemented to return true if any of the contained predicates is
          * true.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             for (HighlightPredicate hp : predicate) {
                 if (hp.isHighlighted(renderer, adapter)) return true;
@@ -510,6 +529,7 @@ public interface HighlightPredicate {
          * Implemented to return true if the adapter's row falls into a 
          * odd group number.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             // JW: oddness check is okay - adapter.row must be a valid view coordinate
             return (adapter.row / linesPerGroup) % 2 == 1;
@@ -552,6 +572,7 @@ public interface HighlightPredicate {
          * is contained in this predicates list.
          * 
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             int modelIndex = adapter.convertColumnIndexToModel(adapter.column);
             return columnList.contains(modelIndex);
@@ -597,6 +618,7 @@ public interface HighlightPredicate {
          * is contained in this predicates list.
          * 
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             int modelIndex = adapter.convertColumnIndexToModel(adapter.column);
             Object identifier = adapter.getColumnIdentifierAt(modelIndex);
@@ -643,6 +665,7 @@ public interface HighlightPredicate {
          * in this predicates list.
          * 
          */
+        @Override
         public boolean isHighlighted(Component renderer,
                 ComponentAdapter adapter) {
             int depth = adapter.getDepth();
@@ -692,6 +715,7 @@ public interface HighlightPredicate {
          * Implemented to return true if the adapter value equals the 
          * this predicate's compare value.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             if (compareValue == null) return adapter.getValue() == null;
             return compareValue.equals(adapter.getValue());
@@ -743,6 +767,7 @@ public interface HighlightPredicate {
          * Implemented to return true if the adapter value is an instance
          * of this predicate's class type.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return adapter.getValue() != null ? 
                     clazz.isAssignableFrom(adapter.getValue().getClass()) : false;
@@ -796,6 +821,7 @@ public interface HighlightPredicate {
          * Implemented to return true if the adapter value is an instance
          * of this predicate's class type.
          */
+        @Override
         public boolean isHighlighted(Component renderer, ComponentAdapter adapter) {
             return clazz.isAssignableFrom(adapter.getColumnClass());
         }

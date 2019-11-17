@@ -245,6 +245,7 @@ class Command_Items {
                         xaItem.getSourceCd().beginPatching();
                         xaItem.replaceXa(replaceLog, patchXa);
                     } else {
+                        xaItem.getSourceCd().beginPatching();
                         xaItem.replaceXa(replaceLog, new File(replaceXa.value));
                     }
                     fbs.printlnWarn(I.CMD_BACKUP_DISC_IMAGE_WARNING());

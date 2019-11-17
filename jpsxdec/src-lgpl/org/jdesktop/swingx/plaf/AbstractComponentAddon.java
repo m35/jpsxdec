@@ -44,14 +44,17 @@ public abstract class AbstractComponentAddon implements ComponentAddon {
         this.name = name;
     }
 
+    @Override
     public final String getName() {
         return name;
     }
 
+    @Override
     public void initialize(LookAndFeelAddons addon) {
         addon.loadDefaults(getDefaults(addon));
     }
 
+    @Override
     public void uninitialize(LookAndFeelAddons addon) {
         // commented after Issue 446. Maybe addon should keep track of its
         // added defaults to correctly remove them on uninitialize

@@ -39,6 +39,7 @@ public final class IconValues {
     @SuppressWarnings("serial")
     public static final IconValue NONE = new IconValue() {
     
+        @Override
         public Icon getIcon(Object value) {
             return IconValue.NULL_ICON;
         }
@@ -51,6 +52,7 @@ public final class IconValues {
     @SuppressWarnings("serial")
     public static final IconValue ICON = new IconValue() {
     
+        @Override
         public Icon getIcon(Object value) {
             if (value instanceof Icon) {
                 return (Icon) value;
@@ -66,6 +68,7 @@ public final class IconValues {
      */
     @SuppressWarnings("serial")
     public static final IconValue FILE_ICON = new IconValue() {
+        @Override
         public Icon getIcon(Object value) {
             if (value instanceof File) {
                 FileSystemView fsv = FileSystemView.getFileSystemView();

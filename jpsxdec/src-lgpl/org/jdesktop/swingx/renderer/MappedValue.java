@@ -57,6 +57,7 @@ public class MappedValue implements StringValue, IconValue, BooleanValue {
      * returns an empty String, if not.
      *  
      */
+    @Override
     public String getString(Object value) {
         if (stringDelegate != null) {
             return stringDelegate.getString(value);
@@ -71,6 +72,7 @@ public class MappedValue implements StringValue, IconValue, BooleanValue {
      * returns null, if not.
      *  
      */
+    @Override
     public Icon getIcon(Object value) {
         if (iconDelegate != null) {
             return iconDelegate.getIcon(value);
@@ -85,6 +87,7 @@ public class MappedValue implements StringValue, IconValue, BooleanValue {
      * returns false, if not.
      *  
      */
+    @Override
     public boolean getBoolean(Object value) {
         if (booleanDelegate != null) {
             return booleanDelegate.getBoolean(value);

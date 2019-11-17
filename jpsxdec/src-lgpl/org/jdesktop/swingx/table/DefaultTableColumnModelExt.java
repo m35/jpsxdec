@@ -87,6 +87,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
     /**
      * {@inheritDoc}
      */
+    @Override
     public List<TableColumn> getColumns(boolean includeHidden) {
         if (includeHidden) {
             return new ArrayList<TableColumn>(initialColumns);
@@ -97,6 +98,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
     /**
      * {@inheritDoc}
      */
+    @Override
     public int getColumnCount(boolean includeHidden) {
         if (includeHidden) {
             return initialColumns.size();
@@ -107,6 +109,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
     /**
      * {@inheritDoc}
      */
+    @Override
     public TableColumnExt getColumnExt(Object identifier) {
         for (Iterator<TableColumn> iter = initialColumns.iterator(); iter.hasNext();) {
             TableColumn column = iter.next();
@@ -120,6 +123,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
     /**
      * {@inheritDoc}
      */
+    @Override
     public TableColumnExt getColumnExt(int columnIndex) {
         TableColumn column = getColumn(columnIndex);
         if (column instanceof TableColumnExt) {
@@ -285,6 +289,7 @@ public class DefaultTableColumnModelExt extends DefaultTableColumnModel
      * propertyChangeListener if column is hidden 
      */
     private class VisibilityListener implements PropertyChangeListener, Serializable {        
+        @Override
         public void propertyChange(PropertyChangeEvent evt) {
             if ("visible".equals(evt.getPropertyName())) {
                 TableColumnExt columnExt = (TableColumnExt)evt.getSource();

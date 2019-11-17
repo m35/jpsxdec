@@ -55,9 +55,29 @@ public class TableCellContext extends CellContext {
             boolean selected, boolean focused, boolean expanded, boolean leaf) {
         this.component = component;
         installState(value, row, column, selected, focused, expanded, leaf);
+        this.dropOn = checkDropOnState();
     }
     
     
+    /**
+     * 
+     */
+    private boolean checkDropOnState() {
+        if ((getComponent() == null) || !isValidRow() || !isValidColumn()) {
+            return false;
+        }
+        JTable.DropLocation dropLocation = getComponent().getDropLocation();
+        if (dropLocation != null
+                && !dropLocation.isInsertRow()
+                && !dropLocation.isInsertColumn()
+                && dropLocation.getRow() == row
+                && dropLocation.getColumn() == column) {
+            return true;
+        }
+        return false;
+    }
+
+
     @Override
     public JTable getComponent() {
         return (JTable) super.getComponent();

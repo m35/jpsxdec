@@ -62,6 +62,7 @@ public abstract class RolloverController<T extends JComponent> implements
 
     protected T component;
 
+    @Override
     public void propertyChange(PropertyChangeEvent evt) {
         // JW: should not happen ... being paranoid. 
         if ((component == null) || (component != evt.getSource()))
@@ -220,6 +221,7 @@ public abstract class RolloverController<T extends JComponent> implements
      */
     protected Action createExecuteButtonAction() {
         return new UIAction(null) {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 click(getFocusedCell());
             }

@@ -174,6 +174,7 @@ public class CompoundHighlighter extends AbstractHighlighter
      * 
      * Implemented to call updateUI on contained Highlighters.
      */
+    @Override
     public void updateUI() {
         for (Highlighter highlighter : highlighters) {
             updateUI(highlighter);
@@ -205,6 +206,7 @@ public class CompoundHighlighter extends AbstractHighlighter
     protected ChangeListener createHighlighterChangeListener() {
         return highlighterChangeListener = new ChangeListener() {
 
+            @Override
             public void stateChanged(ChangeEvent e) {
                 fireStateChanged();
             }

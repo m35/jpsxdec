@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.util.logging.Logger;
 
 import javax.swing.JTable;
+import javax.swing.SortOrder;
 import javax.swing.SwingUtilities;
 import javax.swing.event.MouseInputListener;
 import javax.swing.table.JTableHeader;
@@ -177,6 +178,7 @@ public class JXTableHeader extends JTableHeader
      * 
      * 
      */
+    @Override
     public void columnPropertyChange(PropertyChangeEvent event) {
        if (isColumnEvent(event)) return;
        resizeAndRepaint(); 
@@ -484,6 +486,7 @@ public class JXTableHeader extends JTableHeader
     protected PropertyChangeListener createTablePropertyChangeListener() {
         PropertyChangeListener l = new PropertyChangeListener() {
             
+            @Override
             public void propertyChange(PropertyChangeEvent evt) {
                 if ("enabled".equals(evt.getPropertyName())) {
                     updateEnabledFromTable();
@@ -546,11 +549,14 @@ public class JXTableHeader extends JTableHeader
      */
     private class HeaderListener implements MouseInputListener, Serializable {
         private TableColumn cachedResizingColumn;
+        private SortOrder[] cachedSortOrderCycle;
+        private int sortColumn = -1;
         
         /**
          * Packs column on double click in resize region. Resorts 
          * column on double click if enabled and not in resize region.
          */
+        @Override
         public void mouseClicked(MouseEvent e) {
             if (shouldIgnore(e)) {
                 return;
@@ -562,6 +568,7 @@ public class JXTableHeader extends JTableHeader
         /**
          * Resets sort enablement always, set resizing marker if available.
          */
+        @Override
         public void mousePressed(MouseEvent e) {
             if (shouldIgnore(e)) {
                 return;
@@ -573,6 +580,7 @@ public class JXTableHeader extends JTableHeader
          * Sets resizing marker if available, disables table sorting if in 
          * resize region and sort gesture (aka: single click).
          */
+        @Override
         public void mouseReleased(MouseEvent e) {
             if (shouldIgnore(e)) {
                 return;
@@ -627,12 +635,24 @@ public class JXTableHeader extends JTableHeader
             cachedResizingColumn = null;
         }
 
+        /**
+         * Returns true if the mouseEvent happened in the resizing region.
+         * 
+         * @param e
+         * @return
+         */
+        private boolean isInResizeRegion(MouseEvent e) {
+            return cachedResizingColumn != null; // inResize;
+        }
+
+        @Override
         public void mouseEntered(MouseEvent e) {
         }
 
         /**
          * Resets all cached state.
          */
+        @Override
         public void mouseExited(MouseEvent e) {
             uncacheResizingColumn();
         }
@@ -640,6 +660,7 @@ public class JXTableHeader extends JTableHeader
         /**
          * Resets all cached state.
          */
+        @Override
         public void mouseDragged(MouseEvent e) {
             uncacheResizingColumn();
         }
@@ -647,6 +668,7 @@ public class JXTableHeader extends JTableHeader
         /**
          * Resets all cached state.
          */
+        @Override
         public void mouseMoved(MouseEvent e) {
         }
     }

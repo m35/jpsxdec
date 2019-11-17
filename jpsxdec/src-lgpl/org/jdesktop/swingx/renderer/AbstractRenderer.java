@@ -72,6 +72,7 @@ public abstract class AbstractRenderer
     /**
      * {@inheritDoc}
      */
+    @Override
     public String getString(Object value) {
         return componentController.getString(value);
     }
@@ -81,6 +82,7 @@ public abstract class AbstractRenderer
     /**
      * {@inheritDoc}
      */
+    @Override
     public void doClick() {
         if (isEnabled()) {
             ((RolloverRenderer) componentController).doClick();
@@ -90,6 +92,7 @@ public abstract class AbstractRenderer
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isEnabled() {
         return (componentController instanceof RolloverRenderer)
                 && ((RolloverRenderer) componentController).isEnabled();
@@ -98,6 +101,7 @@ public abstract class AbstractRenderer
     /**
      * {@inheritDoc}
      */
+    @Override
     public void updateUI() {
         componentController.updateUI();
     }

@@ -53,6 +53,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
@@ -61,6 +62,7 @@ import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSectorHeader;
+import jpsxdec.cmdline.SectorCounter;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.IndexId;
 import jpsxdec.discitems.SerializedDiscItem;
@@ -132,6 +134,9 @@ public class DiscIndex implements Iterable<DiscItem> {
             throws TaskCanceledException
     {
         _sourceCD = cdReader;
+
+        if (!_sourceCD.hasSectorHeader())
+            pl.log(Level.WARNING, I.GUI_DISC_NO_RAW_HEADERS_WARNING());
         
         final List<DiscIndexer> indexers = DiscIndexer.createIndexers(pl);
 
@@ -139,7 +144,7 @@ public class DiscIndex implements Iterable<DiscItem> {
             indexer.indexInit(_iterate, _sourceCD);
         }
 
-        SectorHeaderChecker checker = new SectorHeaderChecker(pl);
+        SectorHeaderChecker headerChecker = new SectorHeaderChecker(pl);
 
         int iEndSector = cdReader.getSectorCount() - 1;
         pl.progressStart(iEndSector);
@@ -153,11 +158,13 @@ public class DiscIndex implements Iterable<DiscItem> {
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();
 
+        SectorCounter sectorCounter = new SectorCounter();
 
         try {
             while (sectorIter.hasNext()) {
                 SectorClaimSystem.ClaimedSector cs = sectorIter.next(pl);
-                checker.indexingSectorRead(cs.getSector());
+                headerChecker.indexingSectorRead(cs.getSector());
+                sectorCounter.increment(cs.getClaimer());
                 int iSector = cs.getSector().getSectorIndexFromStart();
                 pl.progressUpdate(iSector);
 
@@ -202,6 +209,9 @@ public class DiscIndex implements Iterable<DiscItem> {
         pl.log(Level.INFO, I.PROCESS_TIME((lngEnd - lngStart) / 1000.0));
         pl.progressEnd();
 
+        for (Map.Entry<String, Integer> entry : sectorCounter) {
+            LOG.log(Level.INFO, "{0} {1,number,#}", new Object[]{entry.getKey(), entry.getValue()});
+        }
     }
 
 

@@ -160,19 +160,22 @@ public abstract class DiscItemVideoStream extends DiscItem {
         demuxer.setFrameListener(new IDemuxedFrame.Listener() {
             public void frameComplete(IDemuxedFrame frame) {
                 ps.println(frame);
-                ps.println("  Available demux size: " + frame.getDemuxSize());
-                frame.printSectors(ps); // ideally would be indented by 4
+                ps.println("Available demux size: " + frame.getDemuxSize());
+                frame.printSectors(ps);
                 
                 try {
                     MdecInputStream mis = frame.getCustomFrameMdecStream();
-                    if (mis == null) {
+                    ParsedMdecImage parsed;
+                    if (mis != null) {
+                        parsed = new ParsedMdecImage(mis, getWidth(), getHeight());
+                        ps.println("Frame data info: " + mis);
+                    } else {
                         byte[] abBitStream = frame.copyDemuxData();
                         BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream, frame.getDemuxSize());
+                        parsed = new ParsedMdecImage(uncompressor, getWidth(), getHeight());
                         uncompressor.skipPaddingBits();
-                        mis = uncompressor;
+                        ps.println("Frame data info: " + uncompressor);
                     }
-                    ParsedMdecImage parsed = new ParsedMdecImage(mis, getWidth(), getHeight());
-                    ps.println("  Frame data info: " + mis);
                     if (blnMore) {
                         int iMbWidth  = Calc.macroblockDim(getWidth()),
                             iMbHeight = Calc.macroblockDim(getHeight());
@@ -186,13 +189,15 @@ public abstract class DiscItemVideoStream extends DiscItem {
                         }
                     }
                 } catch (BinaryDataNotRecognized ex) {
-                    ps.println("  Frame not recognized");
+                    ps.println("Frame not recognized");
                 } catch (Exception ex) {
                     ex.printStackTrace(ps);
                 }
+                System.out.println("_____________________________________________________________________");
             }
         });
 
+        System.out.println(this);
         SectorClaimSystem it = createClaimSystem();
         demuxer.attachToSectorClaimer(it);
         while (it.hasNext()) {

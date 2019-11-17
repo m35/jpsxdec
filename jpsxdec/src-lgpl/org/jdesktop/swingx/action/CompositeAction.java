@@ -106,6 +106,7 @@ public class CompositeAction extends AbstractActionExt {
      * Callback for composite actions. This method will redispatch the 
      * ActionEvent to all the actions held in the list.
      */
+    @Override
     public void actionPerformed(ActionEvent evt) {
         ActionManager manager = ActionManager.getInstance();
             

@@ -61,12 +61,14 @@ public class TreeExpansionBroadcaster implements TreeExpansionListener {
     }
 
     // -------------------- TreeExpansionListener
+    @Override
     public void treeExpanded(TreeExpansionEvent event) {
         if (!hasListeners())
             return;
         fireTreeExpanded(retarget(event));
     }
 
+    @Override
     public void treeCollapsed(TreeExpansionEvent event) {
         if (!hasListeners())
             return;

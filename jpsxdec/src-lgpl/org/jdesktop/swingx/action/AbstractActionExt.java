@@ -44,8 +44,10 @@ public abstract class AbstractActionExt extends AbstractAction
 
     /**
      * The key for the large icon
+     * <p>
+     * As of SwingX 1.6.3 is now has the same value as {@link Action#LARGE_ICON_KEY}, which is new to 1.6.
      */
-    public static final String LARGE_ICON = "__LargeIcon__";;
+    public static final String LARGE_ICON = Action.LARGE_ICON_KEY;
 
     /**
      * The key for the button group
@@ -56,9 +58,6 @@ public abstract class AbstractActionExt extends AbstractAction
      * The key for the flag which indicates that this is a state type.
      */
     public static final String IS_STATE = "__State__";
-
-
-    public static final String SELECTED_KEY = "__Selected__";
 
     /**
      * Default constructor, does nothing.
@@ -439,6 +438,7 @@ public abstract class AbstractActionExt extends AbstractAction
      * @param e the ItemEvent fired by a ItemSelectable on changing the selected 
      *    state.
      */
+    @Override
     public void itemStateChanged(ItemEvent e) {
         if (isStateAction()) {
             setSelected(ItemEvent.SELECTED == e.getStateChange());

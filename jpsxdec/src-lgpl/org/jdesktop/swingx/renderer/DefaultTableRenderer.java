@@ -162,6 +162,7 @@ public class DefaultTableRenderer extends AbstractRenderer
      * @param column the column of the cell to render
      * @return the default table cell renderer
      */
+    @Override
     public Component getTableCellRendererComponent(JTable table, Object value,
             boolean isSelected, boolean hasFocus, int row, int column) {
         cellContext.installContext(table, value, row, column, isSelected, hasFocus,

@@ -302,6 +302,7 @@ public class TableColumnExt extends TableColumn implements UIDependent {
      */
     protected ChangeListener createHighlighterChangeListener() {
         return new ChangeListener() {
+            @Override
             public void stateChanged(ChangeEvent e) {
                 if (ignoreHighlighterStateChange) return;
                 firePropertyChange("highlighterStateChanged", false, true);
@@ -695,6 +696,7 @@ public class TableColumnExt extends TableColumn implements UIDependent {
      * updates the contained highlighters.
      * 
      */
+    @Override
     public void updateUI() {
         updateHighlighterUI();
         updateRendererUI(getCellRenderer());

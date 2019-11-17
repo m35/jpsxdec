@@ -104,6 +104,7 @@ public class TargetableAction extends AbstractActionExt {
      * @param evt event which will be forwarded to the TargetManager
      * @see TargetManager
      */
+    @Override
     public void actionPerformed(ActionEvent evt) {
         if (!isStateAction()) {
             // Do not process this event if it's a toggle action.

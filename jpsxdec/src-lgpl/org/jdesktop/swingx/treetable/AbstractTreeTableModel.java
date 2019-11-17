@@ -85,6 +85,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Class<?> getColumnClass(int column) {
         return Object.class;
     }
@@ -92,6 +93,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public String getColumnName(int column) {
         //Copied from AbstractTableModel.
         //Should use same defaults when possible.
@@ -107,6 +109,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public int getHierarchicalColumn() {
         if (getColumnCount() == 0) {
             return -1;
@@ -118,6 +121,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Object getRoot() {
         return root;
     }
@@ -125,6 +129,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isCellEditable(Object node, int column) {
         // RG: Fix Issue 49 -- Cell not editable, by default.
         // Subclasses might override this to return true.
@@ -138,6 +143,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
      * @param   node  a node in the tree, obtained from this data source
      * @return  true if <code>node</code> is a leaf
      */
+    @Override
     public boolean isLeaf(Object node) {
         return getChildCount(node) == 0;
     }
@@ -157,6 +163,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
      * @see #isCellEditable
      * @see javax.swing.table.TableModel#setValueAt(Object, int, int)
      */
+    @Override
     public void setValueAt(Object value, Object node, int column) {
         //does nothing
     }
@@ -173,6 +180,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
      * @param newValue
      *            the new value from the <code>TreeCellEditor</code>
      */
+    @Override
     public void valueForPathChanged(TreePath path, Object newValue) {
         //does nothing
     }
@@ -180,6 +188,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addTreeModelListener(TreeModelListener l) {
         modelSupport.addTreeModelListener(l);
     }
@@ -187,6 +196,7 @@ public abstract class AbstractTreeTableModel implements TreeTableModel {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void removeTreeModelListener(TreeModelListener l) {
         modelSupport.removeTreeModelListener(l);
     }

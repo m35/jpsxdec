@@ -45,14 +45,17 @@ public class ColumnControlIcon implements Icon, UIResource {
     public ColumnControlIcon() {
     }
 
+    @Override
     public int getIconWidth() {
         return width;
     }
 
+    @Override
     public int getIconHeight() {
         return height;
     }
 
+    @Override
     public void paintIcon(Component c, Graphics g, int x, int y) {
         Color color = c.getForeground();
         g.setColor(color);

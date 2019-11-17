@@ -226,6 +226,7 @@ public interface TableColumnModelExt extends TableColumnModel {
      *  
      * @param x  a <code>TableColumnModelListener</code> object
      */
+    @Override
     public void addColumnModelListener(TableColumnModelListener x);
 
     

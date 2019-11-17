@@ -1,7 +1,7 @@
 /* 
  * $Id: SwingPropertyChangeSupport.java,v 1.1 2005/06/18 21:27:14 idk Exp $
  * 
- * Copyright © 2005 Sun Microsystems, Inc. All rights
+ * Copyright Â© 2005 Sun Microsystems, Inc. All rights
  * reserved. Use is subject to license terms.
  */
 

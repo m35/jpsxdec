@@ -43,6 +43,7 @@ public final class StringValues {
      */
     @SuppressWarnings("serial")
     public final static StringValue EMPTY = new StringValue() {
+        @Override
         public String getString(Object value) {
             return "";
         }
@@ -55,6 +56,7 @@ public final class StringValues {
      */
     @SuppressWarnings("serial")
     public final static StringValue TO_STRING = new StringValue() {
+        @Override
         public String getString(Object value) {
             return (value != null) ? value.toString() : StringValues.EMPTY.getString(value);
         }
@@ -67,6 +69,7 @@ public final class StringValues {
      */
     @SuppressWarnings("serial")
     public static final StringValue FILE_NAME = new StringValue() {
+        @Override
         public String getString(Object value) {
             if (value instanceof File) {
                 FileSystemView fsv = FileSystemView.getFileSystemView();
@@ -85,6 +88,7 @@ public final class StringValues {
      */
     @SuppressWarnings("serial")
     public static final StringValue FILE_TYPE = new StringValue() {
+        @Override
         public String getString(Object value) {
             if (value instanceof File) {
                 FileSystemView fsv = FileSystemView.getFileSystemView();
@@ -173,6 +177,7 @@ public final class StringValues {
             this.delegate = toString;
         }
 
+        @Override
         public String getString(Object value) {
             return delegate.getString(value);
         }

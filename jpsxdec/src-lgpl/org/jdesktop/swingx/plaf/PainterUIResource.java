@@ -53,6 +53,7 @@ public class PainterUIResource<T extends JComponent> implements Painter<T>, UIRe
     /**
      * {@inheritDoc}
      */
+    @Override
     public void paint(Graphics2D g, T component, int width, int height) {
         if (p != null) {
             p.paint(g, component, width, height);

@@ -9,7 +9,7 @@
 
     <!-- ====== global build properties ====== -->
     
-    <property name="jpsxdec.ver" value="v1-00_rev3921"/>
+    <property name="jpsxdec.ver" value="v1-01_rev3936"/>
 
     <!-- sources -->
     <property name="src.dir.rel"      location="src"      relative="true"/>
@@ -67,7 +67,7 @@
         <mkdir dir="${build-lgpl.dir}"/>
         <javac srcdir="${src-lgpl.dir}" destdir="${build-lgpl.dir}" includeantruntime="false"
             source="${javac.source.ver}" target="${javac.target.ver}"
-               encoding="Cp1252" debug="true">
+               encoding="UTF-8" debug="true">
             <compilerarg value="-Xlint:finally"/>
             <compilerarg value="-Xlint:deprecation"/>
             <compilerarg value="-Xlint:options"/>
@@ -100,7 +100,7 @@
         <mkdir dir="${build.dir}"/>
         <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
             source="${javac.source.ver}" classpath="${release.dir}/${jar-lgpl.file}"
-               target="${javac.target.ver}" encoding="Cp1252" debug="true">
+               target="${javac.target.ver}" encoding="UTF-8" debug="true">
             <compilerarg value="-Xlint:finally"/>
             <compilerarg value="-Xlint:deprecation"/>
             <compilerarg value="-Xlint:options"/>

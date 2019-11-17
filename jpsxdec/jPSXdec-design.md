@@ -6,6 +6,44 @@ This documents the design of jPSXdec as of version 1.00.
 Please also reference `TODO.txt` and `PlayStation1_STR_format.txt`
 to get a bigger perspective on how/why jPSXdec is designed.
 
+## "jPSXdec"?
+
+When choosing a name for this program, I wanted something unique
+so it would be easy to search for.
+
+## `j`
+
+TBH I like the tradition of naming Java programs with the `j` prefix.
+As a Java developer, I am also a Java power user.
+When I know a program is Java based, I can make better use of it,
+and hack it if needed.
+
+## `PSX`
+
+I know there's controversy around using PSX to describe the PS1.
+I wasn't aware of that at the time, and several other tools used
+PSX, so followed their lead.
+
+## `dec`
+
+This was originally intended to mean "decoding",
+similar to the use of "dec" in the term "codec" (which stands
+for "coding and decoding").
+
+Since then, the "dec" could also maybe mean 
+
+* *d*coding
+* *e*ncoding
+* *c*onverting
+
+## How do you say it?
+
+The most straight forward way to say it would be "jay-pee-ess-ex-deck",
+so it's probably the best. I personally rarely refer to the program by name, 
+and often informally shorten it to just "jPSX"* or "PlayStation converter"
+when talking to others about it.
+
+* Note: The name "jpsx" is already taken by the Java only PS1 emulator.
 
 ## Java 6
 
@@ -561,6 +599,8 @@ The GUI was written in Swing, long before JavaFX existed. I know recently
 there's been some confusion around if Java would drop Swing or JavaFX support
 at some point. Whatever the case, the Swing UI will remain unless there is
 some pressing need to convert to JavaFX.
+
+I admit the UI design was inspired by PsxMC.
 
 
 ## `jpsxdec.Main`

@@ -1,3 +1,7 @@
+v1.01 rev3936 (16 Nov 2019)
+    - Added support for Starblade Alpha videos
+    Bug fixes:
+    - Replacing audio throws an exception
 v1.00 rev3921 (7 Sept 2019) The "ran out of version numbers" release
     Bug fixes:
     - Unsupported EA videos caused error
@@ -13,7 +17,7 @@ v1.00 rev3921 (7 Sept 2019) The "ran out of version numbers" release
     - Real-time playback stops early if audio ends before video ends
 v0.99.9 rev3898 (9 Aug 2019)
     - Added Italian translation (thanks Gianluigi "Infrid" Cusimano!)
-    - Updated Spanish translation (still many thanks to Víctor González, Sergi Medina!)
+    - Updated Spanish translation (still many thanks to VÃ­ctor GonzÃ¡lez, Sergi Medina!)
     - Minimum required Java version is now version 6
     - Updated to be compatible with Java version 9 and higher
     - Added support for ReBoot video (thanks to XBrav!)
@@ -33,7 +37,7 @@ v0.99.9 rev3898 (9 Aug 2019)
       some video players (primarily on Windows). Use a more reliable player 
       such as VLC media player.
 v0.99.8 rev3788 (21 Jan 2019)
-    - Updated Spanish translation (still many thanks to Víctor González, Sergi Medina)
+    - Updated Spanish translation (still many thanks to VÃ­ctor GonzÃ¡lez, Sergi Medina)
     - Updated Japanese translation (still using Google translate)
     - More thorough searching for content in input files (indexing is slower)
     - Index format changed, indexes need to be regenerated
@@ -88,7 +92,7 @@ v0.99.7 rev3397 (8 Jan 2017) The "road to v1.0" release
     - Improved internationalization
     - Introduced new bugs ;)
 v0.99.6 rev3146 (3 June 2016)
-    - Update Spanish translation (many thanks Víctor González, Sergi Medina)
+    - Update Spanish translation (many thanks VÃ­ctor GonzÃ¡lez, Sergi Medina)
     - Allow replacing FF7 frames with STRv2 frame format
     - Added support for Gran Turismo (1 and 2) videos
     - Simplified error/warning messages
@@ -120,7 +124,7 @@ v0.99.6 rev3146 (3 June 2016)
     - Some .iki frame rate detection is wrong
     - Audio + Video playback on Linux might be choppy or not display
 v0.99.5 rev3006 (5 Jul 2015)
-    - Spanish translation provided by Víctor González
+    - Spanish translation provided by VÃ­ctor GonzÃ¡lez
     - Index format changed, indexes need to be regenerated
     Bug fixes:
     - Indexing fails if XA sector channel = 255 (JPSXDEC-6 reported by truston)

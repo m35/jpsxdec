@@ -35,17 +35,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import javax.annotation.Nonnull;
 
-/** Wraps a standard {@link RoadRashPacket} with the sectors it was found in. */
-public class RoadRashPacketSectors {
+/** Wraps a standard {@link EAVideoPacket} with the sectors it was found in. */
+public class EAVideoPacketSectors {
     @Nonnull
-    public final RoadRashPacket packet;
+    public final EAVideoPacket packet;
     public final int iStartSector, iEndSector;
 
-    public RoadRashPacketSectors(@Nonnull RoadRashPacket packet, int iStartSector, int iEndSector) {
+    public EAVideoPacketSectors(@Nonnull EAVideoPacket packet, int iStartSector, int iEndSector) {
         this.packet = packet;
         this.iStartSector = iStartSector;
         this.iEndSector = iEndSector;

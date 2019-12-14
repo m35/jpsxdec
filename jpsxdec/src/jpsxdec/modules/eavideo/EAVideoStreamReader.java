@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,13 +47,13 @@ import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.PushAvailableInputStream;
 
-public class RoadRashStreamReader {
+public class EAVideoStreamReader {
 
     @Nonnull
     private final PushAvailableInputStream<CdSector> _sectorStream = new PushAvailableInputStream<CdSector>();
 
     @CheckForNull
-    private RoadRashPacket.Header _header;
+    private EAVideoPacket.Header _header;
 
     private int _iCurrentPacketStartSector;
     private boolean _blnEnd = false;
@@ -62,7 +62,7 @@ public class RoadRashStreamReader {
         return _blnEnd;
     }
 
-    public @Nonnull SectorRoadRash readSectorPackets(@Nonnull CdSector sector, int iSkip, @CheckForNull RoadRashPacket.VLC0 vlc)
+    public @Nonnull SectorEAVideo readSectorPackets(@Nonnull CdSector sector, int iSkip, @CheckForNull EAVideoPacket.VLC0 vlc)
             throws BinaryDataNotRecognized
     {
         if (_blnEnd)
@@ -81,23 +81,23 @@ public class RoadRashStreamReader {
         }
     }
 
-    private @Nonnull SectorRoadRash doReadSectorPackets(@Nonnull CdSector sector, @CheckForNull RoadRashPacket.VLC0 vlc)
+    private @Nonnull SectorEAVideo doReadSectorPackets(@Nonnull CdSector sector, @CheckForNull EAVideoPacket.VLC0 vlc)
             throws BinaryDataNotRecognized, IOException
     {
 
-        List<RoadRashPacketSectors> finishedPackets = null;
+        List<EAVideoPacketSectors> finishedPackets = null;
         if (vlc != null) {
-            finishedPackets = new ArrayList<RoadRashPacketSectors>(5);
-            finishedPackets.add(new RoadRashPacketSectors(vlc, sector.getSectorIndexFromStart(), sector.getSectorIndexFromStart()));
+            finishedPackets = new ArrayList<EAVideoPacketSectors>(5);
+            finishedPackets.add(new EAVideoPacketSectors(vlc, sector.getSectorIndexFromStart(), sector.getSectorIndexFromStart()));
         }
 
         while (true) {
             if (_header == null) {
-                if (_sectorStream.available() < RoadRashPacket.Header.SIZEOF)
+                if (_sectorStream.available() < EAVideoPacket.Header.SIZEOF)
                     break;
 
                 _iCurrentPacketStartSector = _sectorStream.getCurrentMeta().getSectorIndexFromStart();
-                _header = RoadRashPacket.Header.read(_sectorStream);
+                _header = EAVideoPacket.Header.read(_sectorStream);
             } else if (_header.isEndPacket()) {
                 // end of stream
                 _blnEnd = true;
@@ -108,7 +108,7 @@ public class RoadRashStreamReader {
 
                 int iBefore = _sectorStream.available();
 
-                RoadRashPacket packet = _header.readPacket(_sectorStream);
+                EAVideoPacket packet = _header.readPacket(_sectorStream);
 
                 int iAfter = _sectorStream.available();
 
@@ -118,10 +118,10 @@ public class RoadRashStreamReader {
                 assert _sectorStream.getCurrentMeta() == sector;
 
                 if (finishedPackets == null)
-                    finishedPackets = new ArrayList<RoadRashPacketSectors>(5);
+                    finishedPackets = new ArrayList<EAVideoPacketSectors>(5);
 
                 int iPacketEndSector = _sectorStream.getCurrentMeta().getSectorIndexFromStart();
-                finishedPackets.add(new RoadRashPacketSectors(packet, _iCurrentPacketStartSector, iPacketEndSector));
+                finishedPackets.add(new EAVideoPacketSectors(packet, _iCurrentPacketStartSector, iPacketEndSector));
 
                 _header = null;
             }
@@ -129,11 +129,11 @@ public class RoadRashStreamReader {
 
         int iStartEnd = 0;
         if (vlc != null)
-            iStartEnd = SectorRoadRash.START;
+            iStartEnd = SectorEAVideo.START;
         if (_blnEnd)
-            iStartEnd += SectorRoadRash.END;
+            iStartEnd += SectorEAVideo.END;
 
-        SectorRoadRash rrSector = new SectorRoadRash(sector, iStartEnd);
+        SectorEAVideo rrSector = new SectorEAVideo(sector, iStartEnd);
         if (finishedPackets != null)
             rrSector.setPacketsEndingInThisSector(finishedPackets);
 

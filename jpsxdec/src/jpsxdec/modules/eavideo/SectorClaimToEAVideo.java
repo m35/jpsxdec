@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -50,12 +50,12 @@ import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IOIterator;
 
-public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
+public class SectorClaimToEAVideo extends SectorClaimSystem.SectorClaimer {
 
-    private static final Logger LOG = Logger.getLogger(SectorClaimToRoadRash.class.getName());
+    private static final Logger LOG = Logger.getLogger(SectorClaimToEAVideo.class.getName());
 
     public interface Listener {
-        void feedPacket(@Nonnull RoadRashPacketSectors packet, @Nonnull ILocalizedLogger log)
+        void feedPacket(@Nonnull EAVideoPacketSectors packet, @Nonnull ILocalizedLogger log)
                 throws LoggedFailure;
         void endVideo(@Nonnull ILocalizedLogger log);
     }
@@ -63,9 +63,9 @@ public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
     @CheckForNull
     private Listener _listener;
 
-    public SectorClaimToRoadRash() {
+    public SectorClaimToEAVideo() {
     }
-    public SectorClaimToRoadRash(@Nonnull Listener listener) {
+    public SectorClaimToEAVideo(@Nonnull Listener listener) {
         _listener = listener;
     }
     public void setListener(@CheckForNull Listener listener) {
@@ -73,7 +73,7 @@ public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
     }
 
     @CheckForNull
-    private RoadRashStreamReader _sectorStream;
+    private EAVideoStreamReader _sectorStream;
 
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
@@ -89,24 +89,24 @@ public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
 
         try {
 
-            SectorRoadRash rrSector = null;
+            SectorEAVideo rrSector = null;
 
             if (_sectorStream == null) {
                 // No current movie
                 long lngMagic = cdSector.readUInt32BE(0);
-                if (lngMagic == RoadRashPacket.MAGIC_VLC0) {
+                if (lngMagic == EAVideoPacket.MAGIC_VLC0) {
 
                     // we've found a header, now make sure the whole VLC packet is valid
-                    RoadRashPacket.VLC0 vlc;
+                    EAVideoPacket.VLC0 vlc;
                     try {
-                        vlc = RoadRashPacket.readVlc0(cdSector.getCdUserDataStream());
+                        vlc = EAVideoPacket.readVlc0(cdSector.getCdUserDataStream());
                     } catch (IOException ex) {
                         throw new RuntimeException("Should not happen");
                     }
                     if (vlc != null) {
                         // new video
-                        _sectorStream = new RoadRashStreamReader();
-                        rrSector = _sectorStream.readSectorPackets(cdSector, RoadRashPacket.VLC0.SIZEOF, vlc);
+                        _sectorStream = new EAVideoStreamReader();
+                        rrSector = _sectorStream.readSectorPackets(cdSector, EAVideoPacket.VLC0.SIZEOF, vlc);
                         // tell listener to end any existing videos
                         if (_listener != null)
                             _listener.endVideo(log);
@@ -122,7 +122,7 @@ public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
 
                 cs.claim(rrSector);
 
-                for (RoadRashPacketSectors finishedPacket : rrSector) {
+                for (EAVideoPacketSectors finishedPacket : rrSector) {
                     
 
                     if (_listener != null) {
@@ -143,11 +143,10 @@ public class SectorClaimToRoadRash extends SectorClaimSystem.SectorClaimer {
             }
 
             if (_sectorStream != null && _sectorStream.isEnd()) {
-                _sectorStream = null;
                 endVideo(log);
             }
         } catch (BinaryDataNotRecognized ex) {
-            log.log(Level.SEVERE, I.ROADRASH_DATA_CORRUPTION(), ex);
+            log.log(Level.SEVERE, I.EA_VIDEO_DATA_CORRUPTION(), ex);
             _sectorStream = null;
         }
     }

@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import java.util.Arrays;
 import java.util.List;
@@ -61,10 +61,10 @@ import jpsxdec.modules.video.packetbased.DiscItemPacketBasedVideoStream;
 import jpsxdec.modules.video.packetbased.SectorClaimToAudioAndFrame;
 import jpsxdec.util.Fraction;
 
-/** A Road Rash audio/video stream. */
-public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
+/** An audio/video stream found in some Electronic Arts games. */
+public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
 
-    public static final String TYPE_ID = "RoadRash";
+    public static final String TYPE_ID = "EA Video";
     private static final int SECTORS_PER_FRAME = 10;
     private static final int FPS = 15;
 
@@ -72,7 +72,7 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
     @CheckForNull
     private final HeaderFrameNumber.Format _headerFrameNumberFormat;
 
-    public DiscItemRoadRash(@Nonnull CdFileSectorReader cd,
+    public DiscItemEAVideo(@Nonnull CdFileSectorReader cd,
                             int iStartSector, int iEndSector,
                             @Nonnull Dimensions dim,
                             @Nonnull IndexSectorFrameNumber.Format sectorIndexFrameNumberFormat,
@@ -83,7 +83,7 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
         _headerFrameNumberFormat = headerFrameNumberFormat;
     }
 
-    public DiscItemRoadRash(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemEAVideo(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -153,7 +153,7 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
     @Override
     public int getAudioSampleFramesPerSecond() {
         if (hasAudio())
-            return RoadRashPacket.SAMPLE_FRAMES_PER_SECOND;
+            return EAVideoPacket.SAMPLE_FRAMES_PER_SECOND;
         else
             return -1;
     }
@@ -167,7 +167,7 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
     }
 
     public class Demuxer extends SectorClaimToAudioAndFrame
-                         implements SectorClaimToRoadRash.Listener
+                         implements SectorClaimToEAVideo.Listener
     {
         // only one of these two will not be null
         @CheckForNull
@@ -183,7 +183,7 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
         private DecodedAudioPacket.Listener _audioListener;
 
         @CheckForNull
-        private RoadRashPacket.VLC0 _vlcPacket;
+        private EAVideoPacket.VLC0 _vlcPacket;
 
         public Demuxer(double dblVolume,
                        @CheckForNull IFrameNumberFormatterWithHeader fnfwh,
@@ -195,19 +195,19 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
         }
 
         public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-            SectorClaimToRoadRash s2cs = scs.getClaimer(SectorClaimToRoadRash.class);
+            SectorClaimToEAVideo s2cs = scs.getClaimer(SectorClaimToEAVideo.class);
             s2cs.setListener(this);
             s2cs.setRangeLimit(getStartSector(), getEndSector());
         }
 
-        public void feedPacket(@Nonnull RoadRashPacketSectors packet, @Nonnull ILocalizedLogger log) throws LoggedFailure {
-            if (packet.packet instanceof RoadRashPacket.AU) {
-                RoadRashPacket.AU au = (RoadRashPacket.AU)packet.packet;
+        public void feedPacket(@Nonnull EAVideoPacketSectors packet, @Nonnull ILocalizedLogger log) throws LoggedFailure {
+            if (packet.packet instanceof EAVideoPacket.AU) {
+                EAVideoPacket.AU au = (EAVideoPacket.AU)packet.packet;
                 DecodedAudioPacket aup = au.decode(_audioDecoder);
                 if (_audioListener != null)
                     _audioListener.audioPacketComplete(aup, log);
-            } else if (packet.packet instanceof RoadRashPacket.MDEC) {
-                RoadRashPacket.MDEC mdecPacket = (RoadRashPacket.MDEC) packet.packet;
+            } else if (packet.packet instanceof EAVideoPacket.MDEC) {
+                EAVideoPacket.MDEC mdecPacket = (EAVideoPacket.MDEC) packet.packet;
 
                 int iFrameNumber = mdecPacket.getFrameNumber();
                 FrameNumber fn;
@@ -223,11 +223,11 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
                     // But is there anything we can really do about it?
                     // The location of the packet can't really tell us anything
                     // So I guess we're stuck just using the frame index :P
-                    int iPresentationSector = iFrameNumber * SECTORS_PER_FRAME + DiscItemRoadRash.this.getAbsolutePresentationStartSector();
-                    _frameListener.frameComplete(new DemuxedRoadRashFrame(packet, mdecPacket, _vlcPacket, fn, new Fraction(iPresentationSector)));
+                    int iPresentationSector = iFrameNumber * SECTORS_PER_FRAME + DiscItemEAVideo.this.getAbsolutePresentationStartSector();
+                    _frameListener.frameComplete(new DemuxedEAFrame(packet, mdecPacket, _vlcPacket, fn, new Fraction(iPresentationSector)));
                 }
-            } else if (packet.packet instanceof RoadRashPacket.VLC0) {
-                _vlcPacket = (RoadRashPacket.VLC0)packet.packet;
+            } else if (packet.packet instanceof EAVideoPacket.VLC0) {
+                _vlcPacket = (EAVideoPacket.VLC0)packet.packet;
             }
             
         }
@@ -245,7 +245,7 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
         }
 
         public @Nonnull AudioFormat getOutputFormat() {
-            return RoadRashPacket.ROAD_RASH_AUDIO_FORMAT;
+            return EAVideoPacket.EA_VIDEO_AUDIO_FORMAT;
         }
 
         public double getVolume() {
@@ -253,19 +253,19 @@ public class DiscItemRoadRash extends DiscItemPacketBasedVideoStream {
         }
 
         public int getAbsolutePresentationStartSector() {
-            return DiscItemRoadRash.this.getStartSector();
+            return DiscItemEAVideo.this.getStartSector();
         }
 
         public int getStartSector() {
-            return DiscItemRoadRash.this.getStartSector();
+            return DiscItemEAVideo.this.getStartSector();
         }
 
         public int getEndSector() {
-            return DiscItemRoadRash.this.getEndSector();
+            return DiscItemEAVideo.this.getEndSector();
         }
 
         public int getSampleFramesPerSecond() {
-            return RoadRashPacket.SAMPLE_FRAMES_PER_SECOND;
+            return EAVideoPacket.SAMPLE_FRAMES_PER_SECOND;
         }
 
         public int getDiscSpeed() {

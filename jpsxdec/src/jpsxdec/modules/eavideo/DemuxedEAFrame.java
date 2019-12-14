@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import java.io.PrintStream;
 import java.util.Arrays;
@@ -49,24 +49,24 @@ import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.Fraction;
 
 
-public class DemuxedRoadRashFrame implements IDemuxedFrame {
+public class DemuxedEAFrame implements IDemuxedFrame {
 
     @Nonnull
-    private final RoadRashPacketSectors _sectors;
+    private final EAVideoPacketSectors _sectors;
     @Nonnull
-    private final RoadRashPacket.MDEC _mdecPacket;
+    private final EAVideoPacket.MDEC _mdecPacket;
     @Nonnull
-    private final RoadRashPacket.VLC0 _vlc;
+    private final EAVideoPacket.VLC0 _vlc;
     @Nonnull
     private final FrameNumber _frameNumber;
     @Nonnull
     private final Fraction _presentationSector;
 
-    public DemuxedRoadRashFrame(@Nonnull RoadRashPacketSectors sectors,
-                                @Nonnull RoadRashPacket.MDEC mdecPacket,
-                                @Nonnull RoadRashPacket.VLC0 vlc,
-                                @Nonnull FrameNumber frameNumber,
-                                @Nonnull Fraction presentationSector)
+    public DemuxedEAFrame(@Nonnull EAVideoPacketSectors sectors,
+                          @Nonnull EAVideoPacket.MDEC mdecPacket,
+                          @Nonnull EAVideoPacket.VLC0 vlc,
+                          @Nonnull FrameNumber frameNumber,
+                          @Nonnull Fraction presentationSector)
     {
         _sectors = sectors;
         _mdecPacket = mdecPacket;
@@ -118,7 +118,7 @@ public class DemuxedRoadRashFrame implements IDemuxedFrame {
     }
 
     public void writeToSectors(byte[] abNewDemux, int iNewUsedSize, int iNewMdecCodeCount, CdFileSectorReader cd, ILocalizedLogger log) throws LoggedFailure {
-        throw new UnsupportedOperationException("No support for replacing Road Rash frames");
+        throw new UnsupportedOperationException("No support for replacing EA video frames");
     }
 
 }

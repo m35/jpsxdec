@@ -40,11 +40,10 @@ package jpsxdec.psxvideo.bitstreams;
 import java.io.PrintStream;
 import java.util.Iterator;
 import java.util.TreeSet;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import static jpsxdec.psxvideo.bitstreams.BitStreamCode.*;
 import jpsxdec.psxvideo.mdec.MdecCode;
-import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.util.Misc;
 
 /** Creates ultra fast bit-stream lookup tables. */
 public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
@@ -312,7 +311,7 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
      *
      * @param i17bits  Integer containing 17 bits to decode.
      */
-    public @Nonnull ZeroRunLengthAc lookup(final int i17bits) throws MdecException.ReadCorruption {
+    public @CheckForNull ZeroRunLengthAc lookup(final int i17bits) {
         if        ((i17bits & b10000000000000000) != 0) {
             assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println("Table 0 offset " + ((i17bits >> 14) & 3));
             return    _aoTable_1xx[(i17bits >> 14) & 3];
@@ -326,19 +325,14 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
             assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println("Table 3 offset " + (i17bits & 0xff));
             return    _aoTable_000000000xxxxxxxx[i17bits & 0xff];
         } else {
-            throw new MdecException.ReadCorruption(UNMATCHED_AC_VLC(i17bits));
+            return null;
         }
-    }
-
-    private static @Nonnull String UNMATCHED_AC_VLC(int i17bits) {
-        return "Unmatched AC variable length code: " +
-               Misc.bitsToString(i17bits, LONGEST_BITSTREAM_CODE_17BITS);
     }
 
     // ..................................................
 
     /** Alternative lookup method that is slower that {@link #lookup(int)}. */
-    public @Nonnull ZeroRunLengthAc lookup_slow1(final int i17bits) throws MdecException.ReadCorruption {
+    public @CheckForNull ZeroRunLengthAc lookup_slow1(final int i17bits) {
         if        ((i17bits & b11000000000000000) == b10000000000000000) {
             return _aoList[_10_______________.ordinal()];
         } else if ((i17bits & b11000000000000000) == b11000000000000000) {
@@ -361,14 +355,14 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
                 array =      _aoTable_000000000xxxxxxxx;
                 c = i17bits & 0xff;
             } else {
-                throw new MdecException.ReadCorruption(UNMATCHED_AC_VLC(i17bits));
+                return null;
             }
             return array[c];
         }
     }
 
     /** Alternative lookup method that is slower that {@link #lookup(int)}. */
-    public @Nonnull ZeroRunLengthAc lookup_slow2(final int i17bits) throws MdecException.ReadCorruption {
+    public @CheckForNull ZeroRunLengthAc lookup_slow2(final int i17bits) {
         if ((i17bits &        b11000000000000000) == b10000000000000000) {
             return _aoList[_10_______________.ordinal()];
         } else if ((i17bits & b11000000000000000) == b11000000000000000) {
@@ -386,13 +380,13 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
             } else if ((i17bits & b00000000011100000) != 0) {
                 return       _aoTable_000000000xxxxxxxx[i17bits & 0xff];
             } else {
-                throw new MdecException.ReadCorruption(UNMATCHED_AC_VLC(i17bits));
+                return null;
             }
         }
     }
 
     /** Alternative lookup method that is slower that {@link #lookup(int)}. */
-    public @Nonnull ZeroRunLengthAc lookup_slow3(final int i17bits) throws MdecException.ReadCorruption {
+    public @CheckForNull ZeroRunLengthAc lookup_slow3(final int i17bits) {
         if ((i17bits & b10000000000000000) != 0) {       // 1st bit is 1?
             if ((i17bits & b01000000000000000) == 0) {   // initial bits == '10'?
                 return _aoList[_10_______________.ordinal()];
@@ -418,7 +412,7 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
                 array =      _aoTable_000000000xxxxxxxx;
                 c = i17bits & 0xff;
             } else {
-                throw new MdecException.ReadCorruption(UNMATCHED_AC_VLC(i17bits));
+                return null;
             }
             return array[c];
         }
@@ -442,7 +436,7 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
             b0000000000010000_ = 0x0010 << 1;
 
     /** This lookup approach was used in 0.96.0 and earlier. */
-    public @Nonnull ZeroRunLengthAc lookup_old(final int i17bits) throws MdecException.ReadCorruption {
+    public @CheckForNull ZeroRunLengthAc lookup_old(final int i17bits) {
         final BitStreamCode vlc;
 
         // Walk through the bits, one-by-one
@@ -486,7 +480,7 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
         } else if ((i17bits & b0000000000010000_) != 0) {      // "000000000001xxxx"
             vlc = BitStreamCode.get(95 + (int)((i17bits >>> 1) & 15));
         } else {
-            throw new MdecException.ReadCorruption(UNMATCHED_AC_VLC(i17bits));
+            return null;
         }
 
         // Take either the positive (0) or negitive (1) AC coefficient,
@@ -497,16 +491,6 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
         } else {
             // negative
             return _aoList[vlc.ordinal() + 1];
-        }
-    }
-
-    public @Nonnull ZeroRunLengthAc lookup(@Nonnull String sBits) throws IllegalArgumentException {
-        int i = Integer.parseInt(sBits, 2);
-        i <<= LONGEST_BITSTREAM_CODE_17BITS - sBits.length();
-        try {
-            return lookup(i);
-        } catch (MdecException.ReadCorruption ex) {
-            throw new IllegalArgumentException(ex);
         }
     }
 

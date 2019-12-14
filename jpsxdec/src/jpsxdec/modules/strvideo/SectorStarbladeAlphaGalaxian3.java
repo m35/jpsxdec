@@ -46,8 +46,8 @@ import jpsxdec.modules.video.sectorbased.SectorAbstractVideo;
 import jpsxdec.modules.video.sectorbased.VideoSectorCommon16byteHeader;
 
 
-/** Starblade Alpha video sector. */
-public class SectorStarbladeAlpha extends SectorAbstractVideo {
+/** Video sector type used in Starblade Alpha and Galaxian 3. */
+public class SectorStarbladeAlphaGalaxian3 extends SectorAbstractVideo {
     
     @Nonnull
     private final VideoSectorCommon16byteHeader _header;
@@ -76,7 +76,7 @@ public class SectorStarbladeAlpha extends SectorAbstractVideo {
             return 32;
     }
     
-    public SectorStarbladeAlpha(@Nonnull CdSector cdSector) {
+    public SectorStarbladeAlphaGalaxian3(@Nonnull CdSector cdSector) {
         super(cdSector);
         _header = new VideoSectorCommon16byteHeader(cdSector);
         if (isSuperInvalidElseReset()) return;
@@ -119,7 +119,7 @@ public class SectorStarbladeAlpha extends SectorAbstractVideo {
     // .. Public methods ...................................................
 
     public @Nonnull String getTypeName() {
-        return "Starblade Alpha";
+        return "Starblade Alpha/Galaxian 3";
     }
 
     public String toString() {

@@ -55,12 +55,12 @@ Specifically src/jpsxdec/i18n/I.java and Translations*.properties
 
 Copyright:
     Michael Sabin
-    VÌctor Gonz·lez
+    V√≠ctor Gonz√°lez
     Sergi Medina
     Gianluigi "Infrid" Cusimano
 
 English and Japanese by Michael Sabin
-Spanish by VÌctor Gonz·lez and Sergi Medina
+Spanish by V√≠ctor Gonz√°lez and Sergi Medina
 Italian by Gianluigi "Infrid" Cusimano
 
 Licensed under the Apache License, Version 2.0

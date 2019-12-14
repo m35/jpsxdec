@@ -44,6 +44,7 @@ import jpsxdec.psxvideo.mdec.MdecContext;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.Misc;
 
 /** Converts a (demuxed) video frame bitstream into an {@link MdecInputStream},
  * that can then be fed into an MDEC decoder to produce an image. */
@@ -161,6 +162,12 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
         } else {
             int i17bits = _bitReader.peekUnsignedBits(BitStreamCode.LONGEST_BITSTREAM_CODE_17BITS);
             ZeroRunLengthAc bitCode = _lookupTable.lookup(i17bits);
+            if (bitCode == null) {
+                String s = "Unmatched AC variable length code: " + 
+                           Misc.bitsToString(i17bits, BitStreamCode.LONGEST_BITSTREAM_CODE_17BITS) +
+                           " " + this;
+                throw new MdecException.ReadCorruption(s);
+            }
             _bitReader.skipBits(bitCode.getBitLength());
 
             assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(bitCode.getBitString());

@@ -54,7 +54,7 @@ import jpsxdec.modules.strvideo.SectorFF7Video;
 import jpsxdec.modules.strvideo.SectorIkiVideo;
 import jpsxdec.modules.strvideo.SectorLainVideo;
 import jpsxdec.modules.strvideo.SectorReBoot;
-import jpsxdec.modules.strvideo.SectorStarbladeAlpha;
+import jpsxdec.modules.strvideo.SectorStarbladeAlphaGalaxian3;
 import jpsxdec.modules.strvideo.SectorStrVideo;
 
 /** Shared place for all modules to register order sensitive
@@ -78,7 +78,7 @@ public class VideoSectorIdentifier {
         if ((vid = isVideo(new SectorGTVideo(cdSector), cs)) != null) return vid;
         if ((vid = isVideo(new SectorChronoXVideo(cdSector), cs)) != null) return vid;
         if ((vid = isVideo(new SectorAconcaguaVideo(cdSector), cs)) != null) return vid;
-        if ((vid = isVideo(new SectorStarbladeAlpha(cdSector), cs)) != null) return vid;
+        if ((vid = isVideo(new SectorStarbladeAlphaGalaxian3(cdSector), cs)) != null) return vid;
         if (isMatch(new SectorChronoXVideoNull(cdSector), cs)) return null;
         if ((vid = isVideo(new SectorLainVideo(cdSector), cs)) != null) return vid;
 

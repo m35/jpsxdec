@@ -687,7 +687,7 @@ Status
 [ ]  SLUS-01014  ISS Pro Evolution
 [ ]  SLUS-00674  ISS Soccer Pro '98
 [ ]  SLUS-01457  Italian Job, The
-[ ]  SLUS-00684  Jackie Chan Stuntmaster
+[+f] SLUS-00684  Jackie Chan Stuntmaster
 [ ]  SLUS-00854  Jade Cocoon - Legend of Tamamayu
 [ ]  SLUS-90054  Jade Cocoon - Story of the Tamamayu [Demo]
 [ ]  SCUS-94176  Jampack Vol.1 [Demo]
@@ -800,7 +800,7 @@ Status
      00C1B085  Madden NFL '96
 [ ]  SLUS-00018  Madden NFL '97
 [ ]  SLUS-00516  Madden NFL '98
-[ ]  SLUS-00729  Madden NFL '99
+[+]  SLUS-00729  Madden NFL '99
 [ ]  SLUS-00029  Magic Carpet
 [ ]  SLUS-00247  Magic the Gathering - Battlemage
 [ ]  SLUS-01471  Marble Master
@@ -924,7 +924,7 @@ Status
 [ ]  SLUS-01166  NASCAR Heat
 [ ]  SLUS-01050  NASCAR Racers
 [ ]  SLUS-00374  NASCAR Racing
-[ ]  SLUS-01068  NASCAR Rumble
+[+]  SLUS-01068  NASCAR Rumble
 [ ]  SLUS-01403  NASCAR Thunder 2002
 [ ]  SLUS-01502  NASCAR Thunder 2003
 [ ]  SLUS-01571  NASCAR Thunder 2004
@@ -4384,7 +4384,7 @@ Status
 [ ]  SLPM-86073  Akumajo Dracula X - Gekka no Yasoukyoku [PlayStation The Best]
 [ ]  SLPM-87328  Akumajo Dracula X - Gekka no Yasoukyoku [PSone Books]
 [ ]  SLPS-02961  Alabama
-[f]  SLPS-00636  Alice in Cyberland
+[+f] SLPS-00636  Alice in Cyberland
 [ ]  SLPS-01003  Alice on Borderlines [Disc1of3]
 [ ]  SLPS-01004  Alice on Borderlines [Disc2of3]
 [ ]  SLPS-01005  Alice on Borderlines [Disc3of3]
@@ -5665,7 +5665,7 @@ Status
 [ ]  SLPM-86081  Final Fantasy V
 [ ]  SCPS-45387  Final Fantasy VI
 [ ]  SLPM-86198  Final Fantasy VI
-[f]  SLPS-01060  Final Fantasy VII - International [Bonus Disc]
+[+f] SLPS-01060  Final Fantasy VII - International [Bonus Disc]
 [ ]  SLPS-91443  Final Fantasy VII - International [Bonus Disc] [PSone Books]
 [ ]  SLPM-87383  Final Fantasy VII - International [Bonus Disc] [Ultimate Hits]
 [ ]  SLPS-01057  Final Fantasy VII - International [Disc1of3]
@@ -5682,7 +5682,7 @@ Status
 [ ]  SCPS-45008  Final Fantasy VII [Disc2of3]
 [ ]  SLPS-00701  Final Fantasy VII [Disc2of3]
 [ ]  SCPS-45009  Final Fantasy VII [Disc3of3]
-[f]  SLPS-00702  Final Fantasy VII [Disc3of3]
+[+f] SLPS-00702  Final Fantasy VII [Disc3of3]
 [ ]  SCPS-45375  Final Fantasy VIII [Disc1of4]
 [ ]  SLPS-01880  Final Fantasy VIII [Disc1of4]
 [ ]  SLPM-87384  Final Fantasy VIII [Disc1of4] [Ultimate Hits]
@@ -5797,7 +5797,7 @@ Status
 [ ]  SLPS-03313  Gakkou o Tsukurou!! Koushou Sensei Monogatari [Reprint]
 [ ]  SLPS-01852  Gakuen Sentai Solblast
 [ ]  SLPS-01638  Gakuensai
-[ ]  SLPS-00270  Galaxian 3
+[+]  SLPS-00270  Galaxian 3
 [ ]  SLPS-00138  Galaxy Fight - Universal Warriors
 [ ]  SLPS-02596  Gale Gunner
 [ ]  SLPS-03305  Gale Gunner [ASCII Casual Collection]

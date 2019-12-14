@@ -67,10 +67,6 @@ public abstract class MdecException  {
     }
 
 
-    public static String STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC(int macroBlockIndex, int blockIndex, @Nonnull String variableLengthCodeBits) {
-        return String.format("Error uncompressing macro block %d.%d: Unknown chroma DC variable length code %s", macroBlockIndex, blockIndex, variableLengthCodeBits);
-    }
-
     public static String STRV3_BLOCK_UNCOMPRESS_ERR_CHROMA_DC_OOB(int macroBlockIndex, int blockIndex, int outOfBoundsValue) {
         return String.format("Error uncompressing macro block %d.%d: Chroma DC out of bounds: %d", macroBlockIndex, blockIndex, outOfBoundsValue);
     }

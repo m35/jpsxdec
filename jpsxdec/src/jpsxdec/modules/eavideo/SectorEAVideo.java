@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -44,8 +44,8 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IdentifiedSector;
 
-/** Just a simple sector wrapper for Road Rash to claim sectors. */
-public class SectorRoadRash extends IdentifiedSector implements Iterable<RoadRashPacketSectors> {
+/** Just a simple sector wrapper for EA videos to claim sectors. */
+public class SectorEAVideo extends IdentifiedSector implements Iterable<EAVideoPacketSectors> {
 
     /** If the sector is at the start, end, or middle (0) of the stream (bit flags). */
     public static final int START = 1, END = 2;
@@ -53,24 +53,24 @@ public class SectorRoadRash extends IdentifiedSector implements Iterable<RoadRas
     private final int _iStartEnd;
 
     @Nonnull
-    private List<RoadRashPacketSectors> _packetsEndingInThisSector = Collections.emptyList();
+    private List<EAVideoPacketSectors> _packetsEndingInThisSector = Collections.emptyList();
 
-    public SectorRoadRash(@Nonnull CdSector cdSector, int iStartEnd) {
+    public SectorEAVideo(@Nonnull CdSector cdSector, int iStartEnd) {
         super(cdSector);
         _iStartEnd = iStartEnd;
         setProbability(100);
     }
 
     public String getTypeName() {
-        return "RoadRash";
+        return "EA video";
     }
 
-    void setPacketsEndingInThisSector(@Nonnull List<RoadRashPacketSectors> packetsEndingInThisSector) {
+    void setPacketsEndingInThisSector(@Nonnull List<EAVideoPacketSectors> packetsEndingInThisSector) {
         _packetsEndingInThisSector = packetsEndingInThisSector;
     }
 
     @Override
-    public @Nonnull Iterator<RoadRashPacketSectors> iterator() {
+    public @Nonnull Iterator<EAVideoPacketSectors> iterator() {
         return _packetsEndingInThisSector.iterator();
     }
 

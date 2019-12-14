@@ -979,7 +979,7 @@ public class I {
     </ul>
     */
     public static @Nonnull ILocalizedMessage GUI_DISC_NO_RAW_HEADERS_WARNING() {
-        return msg("GUI_DISC_NO_RAW_HEADERS_WARNING", "Disc image does not have raw headers -- audio may not be detected.");
+        return new _PlaceholderMessage("File does not have raw sector headers -- audio may not be detected.");
     }
 
     /**
@@ -3852,8 +3852,8 @@ Do you want to replace it?</pre>
        <li>SectorClaimToRoadRash.java</li>
     </ul>
     */
-    public static @Nonnull ILocalizedMessage ROADRASH_DATA_CORRUPTION() {
-        return msg("ROADRASH_DATA_CORRUPTION", "RoadRash data corruption");
+    public static @Nonnull ILocalizedMessage EA_VIDEO_DATA_CORRUPTION() {
+        return new _PlaceholderMessage("EA video data corruption");
     }
 
     /**

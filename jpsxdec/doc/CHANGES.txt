@@ -1,5 +1,9 @@
+v1.02 rev3950 (13 Dec 2019)
+    - Added support for Jackie Chan Stuntmaster videos
+    Bug fixes:
+    - Some videos in EA games are not detected
 v1.01 rev3936 (16 Nov 2019)
-    - Added support for Starblade Alpha videos
+    - Added support for Starblade Alpha and Galaxian 3 videos
     Bug fixes:
     - Replacing audio throws an exception
 v1.00 rev3921 (7 Sept 2019) The "ran out of version numbers" release

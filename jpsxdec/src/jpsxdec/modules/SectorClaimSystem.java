@@ -49,9 +49,9 @@ import jpsxdec.modules.ac3.SectorClaimToSectorAc3Video;
 import jpsxdec.modules.cdaudio.SectorClaimToSectorCdAudio;
 import jpsxdec.modules.crusader.SectorClaimToSectorCrusader;
 import jpsxdec.modules.dredd.SectorClaimToDreddFrame;
+import jpsxdec.modules.eavideo.SectorClaimToEAVideo;
 import jpsxdec.modules.iso9660.SectorClaimToSectorISO9660;
 import jpsxdec.modules.policenauts.SectorClaimToPolicenauts;
-import jpsxdec.modules.roadrash.SectorClaimToRoadRash;
 import jpsxdec.modules.square.SectorClaimToSquareAudioSector;
 import jpsxdec.modules.strvideo.SectorClaimToStrVideoSector;
 import jpsxdec.modules.xa.SectorClaimToSectorXaAudio;
@@ -99,7 +99,7 @@ public class SectorClaimSystem {
         scs.addClaimer(new SectorClaimToSectorCrusader());
         scs.addClaimer(new SectorClaimToDreddFrame());
         scs.addClaimer(new SectorClaimToPolicenauts());
-        scs.addClaimer(new SectorClaimToRoadRash());
+        scs.addClaimer(new SectorClaimToEAVideo());
         scs.addClaimer(new SectorClaimToUnidentifiedSector());
         return scs;
     }

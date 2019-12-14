@@ -54,9 +54,9 @@ import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.ac3.DiscIndexerAceCombat3Video;
 import jpsxdec.modules.crusader.DiscIndexerCrusader;
 import jpsxdec.modules.dredd.DiscIndexerDredd;
+import jpsxdec.modules.eavideo.DiscIndexerEAVideo;
 import jpsxdec.modules.iso9660.DiscIndexerISO9660;
 import jpsxdec.modules.policenauts.DiscIndexerPolicenauts;
-import jpsxdec.modules.roadrash.DiscIndexerRoadRash;
 import jpsxdec.modules.spu.DiscIndexerSpu;
 import jpsxdec.modules.square.DiscIndexerSquareAudio;
 import jpsxdec.modules.strvideo.DiscIndexerStrVideo;
@@ -81,7 +81,7 @@ public abstract class DiscIndexer {
             new DiscIndexerPolicenauts(),
             new DiscIndexerCrusader(log),
             new DiscIndexerDredd(log),
-            new DiscIndexerRoadRash(),
+            new DiscIndexerEAVideo(),
         };
         ArrayList<DiscIndexer> indexers = new ArrayList<DiscIndexer>(Arrays.asList(coreIndexers));
 

@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import javax.annotation.Nonnull;
 import jpsxdec.psxvideo.bitstreams.ArrayBitReader;
@@ -45,11 +45,11 @@ import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.bitstreams.ZeroRunLengthAcLookup;
 
-public class BitStreamUncompressorRoadRash extends BitStreamUncompressor {
+public class BitStreamUncompressor_EA extends BitStreamUncompressor {
 
     private final int _iQuantizationScale;
 
-    public BitStreamUncompressorRoadRash(@Nonnull byte[] abMdecPacketPayload,
+    public BitStreamUncompressor_EA(@Nonnull byte[] abMdecPacketPayload,
                                          @Nonnull ZeroRunLengthAcLookup lookupTable,
                                          int iQuantizationScale)
     {
@@ -65,8 +65,8 @@ public class BitStreamUncompressorRoadRash extends BitStreamUncompressor {
 
     @Override
     public @Nonnull BitStreamCompressor makeCompressor() {
-        // Writing a Road Rashvideo encoder would be a significant amount of work.
-        // And that might be ok, except to properly replace Road Rash videos would
+        // Writing a EA video encoder would be a significant amount of work.
+        // And that might be ok, except to properly replace EA videos would
         // require re-building all of the packets from start to finish.
         // That is beyond the scope jPSXdec's functionality. Modders will have
         // to handle that part on their own.
@@ -84,7 +84,7 @@ public class BitStreamUncompressorRoadRash extends BitStreamUncompressor {
     static final int BITSTREAM_ESCAPE_CODE = 0x7c1f;
 
     /** The VLC0 packet contains a list of MDEC codes that are mapped to bit-codes in this order. */
-    static final BitStreamCode[] ROAD_RASH_BIT_CODE_ORDER = {
+    static final BitStreamCode[] EA_VIDEO_BIT_CODE_ORDER = {
         BitStreamCode._10_______________,
         BitStreamCode._110______________,
         BitStreamCode._111______________,
@@ -312,8 +312,8 @@ public class BitStreamUncompressorRoadRash extends BitStreamUncompressor {
     };
 
     static {
-        if (ROAD_RASH_BIT_CODE_ORDER.length != BitStreamCode.getTotalCount())
-            throw new AssertionError("Road Rash VLC code count is wrong");
+        if (EA_VIDEO_BIT_CODE_ORDER.length != BitStreamCode.getTotalCount())
+            throw new AssertionError("EA VLC code count is wrong");
     }
 
 }

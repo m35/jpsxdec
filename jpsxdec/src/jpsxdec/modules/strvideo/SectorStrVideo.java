@@ -51,26 +51,25 @@ import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.util.IO;
 
 
-/** This is the sector for standard v2 and v3 video frame chunk sectors.
- * We will call these "STR" sectors since they follow the only real standard
- * of video streams. */
+/** This is the sector for standard v2 and v3 video frame chunk sectors
+ * (which some minor variations).  We will call these "STR" sectors since
+ * they follow the only real standard of video streams. */
 public class SectorStrVideo extends SectorAbstractVideo {
     
-    // .. Static stuff .....................................................
-
+    /** The most common video sector magic number.
+     * Shared by most types of video sectors. */
     public static final long VIDEO_SECTOR_MAGIC = 0x80010160L;
 
-    // .. Fields ..........................................................
 
     @Nonnull
-    private final VideoSectorCommon16byteHeader _header;
-    private int  _iWidth;                //  16   [2 bytes]
-    private int  _iHeight;               //  18   [2 bytes]
-    private int  _iRunLengthCodeCount;   //  20   [2 bytes]
-    // 0x3800                            //  22   [2 bytes]
-    private int  _iQuantizationScale;    //  24   [2 bytes]
-    private int  _iVersion;              //  26   [2 bytes]
-    private long _lngUnknown;            //  28   [4 bytes]
+    private final VideoSectorCommon16byteHeader _header; //  0    [16 bytes]
+    private int  _iWidth;                                //  16   [2 bytes]
+    private int  _iHeight;                               //  18   [2 bytes]
+    private int  _iMdecCodeCount;                        //  20   [2 bytes]
+    private int  _iMagic3800;                            //  22   [2 bytes]
+    private int  _iQuantizationScale;                    //  24   [2 bytes]
+    private int  _iVersion;                              //  26   [2 bytes]
+    private long _lng0orFrameStartSector;                //  28   [4 bytes]
     //   32 TOTAL
 
     @Override
@@ -101,32 +100,35 @@ public class SectorStrVideo extends SectorAbstractVideo {
         if (_iWidth < 1) return;
         _iHeight = cdSector.readSInt16LE(18);
         if (_iHeight < 1) return;
-        _iRunLengthCodeCount = cdSector.readUInt16LE(20);
-        if (_iRunLengthCodeCount < 1) return;
-        int iMagic3800 = cdSector.readUInt16LE(22);
-        if (iMagic3800 != 0x3800) return;
+        _iMdecCodeCount = cdSector.readUInt16LE(20);
+        if (_iMdecCodeCount < 1) return;
+        _iMagic3800 = cdSector.readUInt16LE(22);
+        // [SLUS-00684] Jackie Chan Stuntmaster has 0 in place of the 3800
+        // Not much point creating a separate sector type just for that
+        if (_iMagic3800 != 0x3800 && _iMagic3800 != 0) return;
         _iQuantizationScale = cdSector.readSInt16LE(24);
         if (_iQuantizationScale < 1) return;
         _iVersion = cdSector.readUInt16LE(26);
-        // Tekken 2 and FF Tactics are too cool to have video sectors and frames labeled as v2
-        // They have to make things difficult and be labeled as v1
+        // Some games claim to be v1 when they work just like v2
+        // e.g. Tekken 2 and FF Tactics
         if (_iVersion < 1 || _iVersion > 3) return;
-        _lngUnknown = cdSector.readUInt32LE(28);
 
-        int iProbability = _lngUnknown == 0 ? 100 : 90;
-        if (_iVersion == 1) iProbability -= 5;
-        setProbability(iProbability);
+        // Usually 0, but for some videos the value is the sector that the frame
+        // started at, relative to the start of the video
+        // (Super Puzzle Fighter 2 and Resident Evil, so may be found in other Capcom games)
+        _lng0orFrameStartSector = cdSector.readUInt32LE(28);
+
+        setProbability(100);
     }
 
-    // .. Public methods ...................................................
 
     public @Nonnull String getTypeName() {
         return "STR";
     }
 
     public String toString() {
-        return String.format("%s %s frame:%d chunk:%d/%d %dx%d ver:%d " +
-            "{demux frame size=%d rlc=%d qscale=%d ??=%08x}",
+        return String.format("%s %s frame:%d chunk:%d/%d %dx%d ver:%d qscale:%d 3800:%04x" +
+            "{demux size:%d rlc:%d 0:%d}",
             getTypeName(),
             super.cdToString(),
             _header.iFrameNumber,
@@ -135,10 +137,11 @@ public class SectorStrVideo extends SectorAbstractVideo {
             _iWidth,
             _iHeight,
             _iVersion,
-            _header.iUsedDemuxedSize,
-            _iRunLengthCodeCount,
             _iQuantizationScale,
-            _lngUnknown
+            _iMagic3800,
+            _header.iUsedDemuxedSize,
+            _iMdecCodeCount,
+            _lng0orFrameStartSector
             );
     }
 

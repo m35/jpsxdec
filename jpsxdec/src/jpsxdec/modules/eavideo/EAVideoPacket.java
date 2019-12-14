@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -49,7 +49,6 @@ import javax.sound.sampled.AudioFormat;
 import jpsxdec.adpcm.SoundUnitDecoder;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
 import jpsxdec.adpcm.SpuAdpcmSoundUnit;
-import static jpsxdec.modules.roadrash.BitStreamUncompressorRoadRash.ROAD_RASH_BIT_CODE_ORDER;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
@@ -59,14 +58,20 @@ import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.IO;
+import static jpsxdec.modules.eavideo.BitStreamUncompressor_EA.EA_VIDEO_BIT_CODE_ORDER;
 
 /**
- * Support for "Road Rash 3D" videos -- but actually support for a video format
- * used in at least 2 games made by Electronic Arts.
+ * Support for videos found in several Electronic Arts games.
+ * Most of the time videos are found in files with .WVE extention.
+ * Known games:
+ * - Road Rash 3D
+ * - PlayStation Magazine Demo Disc 14
+ * - NASCAR Rumble
+ * - Madden 99
  * It takes a unique approach to bitstreams, every movie has its own unique VLC table.
  * There's a lot of big-endian data in here.
  */
-public abstract class RoadRashPacket {
+public abstract class EAVideoPacket {
     
     public static final int FRAMES_PER_SECOND = 15;
     public static final int SECTORS150_PER_FRAME = 10;
@@ -74,15 +79,15 @@ public abstract class RoadRashPacket {
     public static final int SAMPLE_FRAMES_PER_SECTOR = SAMPLE_FRAMES_PER_SECOND / 150;
     static {
         if (SAMPLE_FRAMES_PER_SECOND % 150 != 0) // assert
-            throw new RuntimeException("Road Rash sample rate doesn't cleanly divide by sector rate");
+            throw new RuntimeException("EA video sample rate doesn't cleanly divide by sector rate");
     }
 
-    /** 456 for Road Rash. Just a sanity check.
+    /** 456 for EA videos. Just a sanity check.
      * Theoretical smallest AU packet could be 32 bytes (15*2 round up).
      * Theoretical smallest MDEC packet could be dims+str header+at least 1
      * macro block, whatever that adds up to. */
     public static final int MIN_PACKET_SIZE = 32;
-    /** All packets: 14200 for Road Rash, 15464 for SCUS-94276.
+    /** All packets: 14200 for EA videos, 15464 for SCUS-94276.
      * Just a size sanity check of 50 sectors. */
     public static final int MAX_PACKET_SIZE = 50 * 2048;
     /** 10 minutes. */
@@ -97,7 +102,7 @@ public abstract class RoadRashPacket {
     private static final long MAGIC_au00 = 0x61753030;
     private static final long MAGIC_au01 = 0x61753031;
 
-    public static final AudioFormat ROAD_RASH_AUDIO_FORMAT = new AudioFormat(SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
+    public static final AudioFormat EA_VIDEO_AUDIO_FORMAT = new AudioFormat(SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
 
 
     private static int _iMinPacketSize = Integer.MAX_VALUE;
@@ -183,7 +188,7 @@ public abstract class RoadRashPacket {
             return _iHeaderPacketSize == 0;
         }
 
-        public @Nonnull RoadRashPacket readPacket(@Nonnull InputStream is)
+        public @Nonnull EAVideoPacket readPacket(@Nonnull InputStream is)
                 throws EOFException, IOException, BinaryDataNotRecognized
         {
             if (_lngPacketType == MAGIC_au00 || _lngPacketType == MAGIC_au01) {
@@ -211,7 +216,7 @@ public abstract class RoadRashPacket {
     @Nonnull
     private final Header _header;
 
-    private RoadRashPacket(@Nonnull Header header) {
+    private EAVideoPacket(@Nonnull Header header) {
         _header = header;
     }
 
@@ -244,15 +249,15 @@ public abstract class RoadRashPacket {
      * "VLC" is known to mean "variable-length code/codes/coding".
      * Huffman coding is the kind of VLC logic used in PlayStation games.
      */
-    public static class VLC0 extends RoadRashPacket {
+    public static class VLC0 extends EAVideoPacket {
 
-        public static final int SIZEOF = Header.SIZEOF + ROAD_RASH_BIT_CODE_ORDER.length * 2;
+        public static final int SIZEOF = Header.SIZEOF + EA_VIDEO_BIT_CODE_ORDER.length * 2;
 
         private static VLC0 read(@Nonnull Header header, @Nonnull InputStream is, boolean blnThrowEx)
                 throws BinaryDataNotRecognized, EOFException, IOException
         {
 
-            if (header._iHeaderPacketSize != (ROAD_RASH_BIT_CODE_ORDER.length * 2) + 8) {
+            if (header._iHeaderPacketSize != (EA_VIDEO_BIT_CODE_ORDER.length * 2) + 8) {
                 if (blnThrowEx)
                     throw new BinaryDataNotRecognized();
                 else
@@ -262,9 +267,9 @@ public abstract class RoadRashPacket {
             byte[] abPacketPayload = IO.readByteArray(is, header._iHeaderPacketSize - 8);
 
             ZeroRunLengthAcLookup.Builder bldr = new ZeroRunLengthAcLookup.Builder();
-            MdecCode[] aoVlcHeaderMdecCodesForReference = new MdecCode[ROAD_RASH_BIT_CODE_ORDER.length];
+            MdecCode[] aoVlcHeaderMdecCodesForReference = new MdecCode[EA_VIDEO_BIT_CODE_ORDER.length];
 
-            for (int i = 0; i < ROAD_RASH_BIT_CODE_ORDER.length; i++) {
+            for (int i = 0; i < EA_VIDEO_BIT_CODE_ORDER.length; i++) {
                 int iMdec = IO.readUInt16LE(abPacketPayload, i * 2);
                 MdecCode mdecCode = new MdecCode(iMdec);
                 if (!mdecCode.isValid()) {
@@ -275,9 +280,9 @@ public abstract class RoadRashPacket {
                 }
                 aoVlcHeaderMdecCodesForReference[i] = mdecCode;
 
-                ZeroRunLengthAc bitCode = new ZeroRunLengthAc(ROAD_RASH_BIT_CODE_ORDER[i],
+                ZeroRunLengthAc bitCode = new ZeroRunLengthAc(EA_VIDEO_BIT_CODE_ORDER[i],
                         mdecCode.getTop6Bits(), mdecCode.getBottom10Bits(),
-                        mdecCode.toMdecWord() == BitStreamUncompressorRoadRash.BITSTREAM_ESCAPE_CODE,
+                        mdecCode.toMdecWord() == BitStreamUncompressor_EA.BITSTREAM_ESCAPE_CODE,
                         mdecCode.isEOD());
 
                 bldr.add(bitCode);
@@ -299,16 +304,16 @@ public abstract class RoadRashPacket {
             _vlcLookup = vlcLookup;
         }
 
-        public @Nonnull BitStreamUncompressor makeFrameBitStreamUncompressor(@Nonnull RoadRashPacket.MDEC mdecPacket) {
-            return new BitStreamUncompressorRoadRash(mdecPacket.getBitstream(), _vlcLookup, mdecPacket.getQuantizationScale());
+        public @Nonnull BitStreamUncompressor makeFrameBitStreamUncompressor(@Nonnull EAVideoPacket.MDEC mdecPacket) {
+            return new BitStreamUncompressor_EA(mdecPacket.getBitstream(), _vlcLookup, mdecPacket.getQuantizationScale());
         }
 
         /** For debugging. */
         public void printCodes() {
             for (int i = 0; i < _aoVlcHeaderMdecCodesForReference.length; i++) {
                 MdecCode mdec = _aoVlcHeaderMdecCodesForReference[i];
-                System.out.format("%04X %-8s %s", mdec.toMdecWord(), mdec, ROAD_RASH_BIT_CODE_ORDER[i]);
-                if (mdec.toMdecWord() == BitStreamUncompressorRoadRash.BITSTREAM_ESCAPE_CODE)
+                System.out.format("%04X %-8s %s", mdec.toMdecWord(), mdec, EA_VIDEO_BIT_CODE_ORDER[i]);
+                if (mdec.toMdecWord() == BitStreamUncompressor_EA.BITSTREAM_ESCAPE_CODE)
                     System.out.println(" (escape code)");
                 else
                     System.out.println();
@@ -328,7 +333,7 @@ public abstract class RoadRashPacket {
     private static int _iMinAuPacketSize = Integer.MAX_VALUE;
     private static int _iMaxAuPacketSize = 0;
 
-    public static class AU extends RoadRashPacket {
+    public static class AU extends EAVideoPacket {
 
         private final int _iPresentationSampleFrame; // @8  4 bytes BE
         // 2048                                      // @12 2 bytes BE
@@ -398,7 +403,7 @@ public abstract class RoadRashPacket {
 
             Fraction presentationSector = new Fraction(_iPresentationSampleFrame, SAMPLE_FRAMES_PER_SECTOR);
 
-            return new DecodedAudioPacket(0, ROAD_RASH_AUDIO_FORMAT, presentationSector, out.toByteArray());
+            return new DecodedAudioPacket(0, EA_VIDEO_AUDIO_FORMAT, presentationSector, out.toByteArray());
         }
 
         @Override
@@ -450,7 +455,7 @@ public abstract class RoadRashPacket {
     private static int _iMaxHeight = 0;
     private static int _iMaxFrameNumber = 0;
 
-    public static class MDEC extends RoadRashPacket {
+    public static class MDEC extends EAVideoPacket {
 
         private final int _iWidth;       // @8  2 bytes BE
         private final int _iHeight;      // @10 2 bytes BE

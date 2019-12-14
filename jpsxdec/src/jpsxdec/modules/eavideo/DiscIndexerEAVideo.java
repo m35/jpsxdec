@@ -35,7 +35,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.roadrash;
+package jpsxdec.modules.eavideo;
 
 import java.util.Collection;
 import java.util.logging.Level;
@@ -55,20 +55,20 @@ import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.util.BinaryDataNotRecognized;
 
-public class DiscIndexerRoadRash extends DiscIndexer implements SectorClaimToRoadRash.Listener {
+public class DiscIndexerEAVideo extends DiscIndexer implements SectorClaimToEAVideo.Listener {
 
-    private static final Logger LOG = Logger.getLogger(DiscIndexerRoadRash.class.getName());
+    private static final Logger LOG = Logger.getLogger(DiscIndexerEAVideo.class.getName());
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToRoadRash ui = scs.getClaimer(SectorClaimToRoadRash.class);
+        SectorClaimToEAVideo ui = scs.getClaimer(SectorClaimToEAVideo.class);
         ui.setListener(this);
     }
 
     @Override
     public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) throws LocalizedDeserializationFail {
-        if (DiscItemRoadRash.TYPE_ID.equals(fields.getType()))
-            return new DiscItemRoadRash(getCd(), fields);
+        if (DiscItemEAVideo.TYPE_ID.equals(fields.getType()))
+            return new DiscItemEAVideo(getCd(), fields);
         return null;
     }
 
@@ -88,16 +88,16 @@ public class DiscIndexerRoadRash extends DiscIndexer implements SectorClaimToRoa
         @Nonnull
         private final HeaderFrameNumber.Format.Builder _headerFrameNumberBuilder;
 
-        public VidBuilder(@Nonnull RoadRashPacket.MDEC firstMdec, int iStartSector) {
+        public VidBuilder(@Nonnull EAVideoPacket.MDEC firstMdec, int iStartSector) {
             _dims = new Dimensions(firstMdec.getWidth(), firstMdec.getHeight());
             _indexSectorFrameNumberBuilder = new IndexSectorFrameNumber.Format.Builder(iStartSector);
             _headerFrameNumberBuilder = new HeaderFrameNumber.Format.Builder(firstMdec.getFrameNumber());
         }
 
-        public void addFrame(@Nonnull RoadRashPacket.MDEC mdec, int iStartSector) throws BinaryDataNotRecognized {
+        public void addFrame(@Nonnull EAVideoPacket.MDEC mdec, int iStartSector) throws BinaryDataNotRecognized {
             if (!_dims.equals(mdec.getWidth(), mdec.getHeight()) ||
                 mdec.getFrameNumber() < _headerFrameNumberBuilder.getLastFrameNumber())
-                throw new BinaryDataNotRecognized("Road Rash data corruption");
+                throw new BinaryDataNotRecognized("EA video data corruption");
 
             _headerFrameNumberBuilder.addHeaderFrameNumber(mdec.getFrameNumber());
             _indexSectorFrameNumberBuilder.addFrameStartSector(iStartSector);
@@ -127,29 +127,29 @@ public class DiscIndexerRoadRash extends DiscIndexer implements SectorClaimToRoa
             _iEndSector = iStartSector;
         }
 
-        public void addPacket(@Nonnull RoadRashPacketSectors packet, int iStartSector) throws BinaryDataNotRecognized {
+        public void addPacket(@Nonnull EAVideoPacketSectors packet, int iStartSector) throws BinaryDataNotRecognized {
             _iEndSector = packet.iEndSector;
-            if (packet.packet instanceof RoadRashPacket.AU) {
-                RoadRashPacket.AU au = (RoadRashPacket.AU)packet.packet;
+            if (packet.packet instanceof EAVideoPacket.AU) {
+                EAVideoPacket.AU au = (EAVideoPacket.AU)packet.packet;
                 _iSpuSoundUnitPairCount += au.getSpuSoundUnitPairCount();
-            } else if (packet.packet instanceof RoadRashPacket.MDEC) {
+            } else if (packet.packet instanceof EAVideoPacket.MDEC) {
                 if (_vidBuilder == null) {
-                    _vidBuilder = new VidBuilder((RoadRashPacket.MDEC) packet.packet, packet.iStartSector);
+                    _vidBuilder = new VidBuilder((EAVideoPacket.MDEC) packet.packet, packet.iStartSector);
                 } else {
-                    _vidBuilder.addFrame((RoadRashPacket.MDEC) packet.packet, packet.iStartSector);
+                    _vidBuilder.addFrame((EAVideoPacket.MDEC) packet.packet, packet.iStartSector);
                 }
-            } else if (packet.packet instanceof RoadRashPacket.VLC0) {
+            } else if (packet.packet instanceof EAVideoPacket.VLC0) {
                 throw new BinaryDataNotRecognized();
             } else {
                 throw new RuntimeException("??");
             }
         }
 
-        public @Nonnull DiscItemRoadRash makeItem(@Nonnull CdFileSectorReader cd) throws BinaryDataNotRecognized {
+        public @Nonnull DiscItemEAVideo makeItem(@Nonnull CdFileSectorReader cd) throws BinaryDataNotRecognized {
             if (_vidBuilder == null)
                 throw new BinaryDataNotRecognized();
 
-            DiscItemRoadRash item = new DiscItemRoadRash(cd, _iStartSector, _iEndSector,
+            DiscItemEAVideo item = new DiscItemEAVideo(cd, _iStartSector, _iEndSector,
                     _vidBuilder._dims,
                     _vidBuilder._indexSectorFrameNumberBuilder.makeFormat(),
                     _vidBuilder.getFrameFormat(),
@@ -161,11 +161,11 @@ public class DiscIndexerRoadRash extends DiscIndexer implements SectorClaimToRoa
     @CheckForNull
     private MovieBuilder _movieBuilder;
 
-    public void feedPacket(@Nonnull RoadRashPacketSectors packet, @Nonnull ILocalizedLogger log) {
+    public void feedPacket(@Nonnull EAVideoPacketSectors packet, @Nonnull ILocalizedLogger log) {
 
         try {
             if (_movieBuilder == null) {
-                if (!(packet.packet instanceof RoadRashPacket.VLC0)) {
+                if (!(packet.packet instanceof EAVideoPacket.VLC0)) {
                     throw new BinaryDataNotRecognized();
                 }
                 _movieBuilder = new MovieBuilder(packet.iStartSector);
@@ -173,7 +173,7 @@ public class DiscIndexerRoadRash extends DiscIndexer implements SectorClaimToRoa
                 _movieBuilder.addPacket(packet, 0);
             }
         } catch (BinaryDataNotRecognized ex) {
-            LOG.log(Level.SEVERE, "Road Rash data corruption", ex);
+            LOG.log(Level.SEVERE, "EA video data corruption", ex);
             endVideo(log);
         }
     }
@@ -181,10 +181,10 @@ public class DiscIndexerRoadRash extends DiscIndexer implements SectorClaimToRoa
     public void endVideo(@Nonnull ILocalizedLogger log) {
         if (_movieBuilder != null) {
             try {
-                DiscItemRoadRash item = _movieBuilder.makeItem(getCd());
+                DiscItemEAVideo item = _movieBuilder.makeItem(getCd());
                 addDiscItem(item);
             } catch (BinaryDataNotRecognized ex) {
-                LOG.log(Level.SEVERE, "Road Rash data corruption", ex);
+                LOG.log(Level.SEVERE, "EA video data corruption", ex);
             }
             _movieBuilder = null;
         }

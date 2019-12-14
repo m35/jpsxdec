@@ -342,9 +342,10 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor {
             DcVariableLengthCode dcVlc = CHROMA_LOOKUP[iBits];
 
             if (dcVlc == null) {
-                throw new MdecException.ReadCorruption(MdecException.STRV3_BLOCK_UNCOMPRESS_ERR_UNKNOWN_CHROMA_DC_VLC(
-                        context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(),
-                        Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE)));
+                String s = "Unknown chroma DC variable length code: " +
+                           Misc.bitsToString(iBits, DC_CHROMA_LONGEST_VARIABLE_LENGTH_CODE) +
+                           " at " + context;
+                throw new MdecException.ReadCorruption(s);
             }
 
             assert !BitStreamDebugging.DEBUG || BitStreamDebugging.appendBits(dcVlc.VariableLengthCode);

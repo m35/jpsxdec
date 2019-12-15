@@ -97,25 +97,26 @@ public class SectorClaimToEAVideo extends SectorClaimSystem.SectorClaimer {
                 if (lngMagic == EAVideoPacket.MAGIC_VLC0) {
 
                     // we've found a header, now make sure the whole VLC packet is valid
-                    EAVideoPacket.VLC0 vlc;
+                    EAVideoPacket.VLC0 vlcPacket;
                     try {
-                        vlc = EAVideoPacket.readVlc0(cdSector.getCdUserDataStream());
+                        vlcPacket = EAVideoPacket.readVlc0(cdSector.getCdUserDataStream());
                     } catch (IOException ex) {
                         throw new RuntimeException("Should not happen");
                     }
-                    if (vlc != null) {
+                    if (vlcPacket != null) {
                         // new video
-                        _sectorStream = new EAVideoStreamReader();
-                        rrSector = _sectorStream.readSectorPackets(cdSector, EAVideoPacket.VLC0.SIZEOF, vlc);
                         // tell listener to end any existing videos
                         if (_listener != null)
                             _listener.endVideo(log);
+
+                        _sectorStream = new EAVideoStreamReader();
+                        rrSector = _sectorStream.readSectorPackets(cdSector, vlcPacket);
                     }
                 }
 
             } else {
                 // add to existing stream
-                rrSector = _sectorStream.readSectorPackets(cdSector, 0, null);
+                rrSector = _sectorStream.readSectorPackets(cdSector, null);
             }
 
             if (rrSector != null) {

@@ -62,14 +62,10 @@ import static jpsxdec.modules.eavideo.BitStreamUncompressor_EA.EA_VIDEO_BIT_CODE
 
 /**
  * Support for videos found in several Electronic Arts games.
- * Most of the time videos are found in files with .WVE extention.
- * Known games:
- * - Road Rash 3D
- * - PlayStation Magazine Demo Disc 14
- * - NASCAR Rumble
- * - Madden 99
- * It takes a unique approach to bitstreams, every movie has its own unique VLC table.
- * There's a lot of big-endian data in here.
+ * Many of the videos are found in files with .WVE extention.
+ * Many of the EA Sports titles use this video format.
+ *
+ * It takes a unique approach to bitstreams: every movie has its own unique VLC table.
  */
 public abstract class EAVideoPacket {
     
@@ -78,7 +74,7 @@ public abstract class EAVideoPacket {
     public static final int SAMPLE_FRAMES_PER_SECOND = 22050;
     public static final int SAMPLE_FRAMES_PER_SECTOR = SAMPLE_FRAMES_PER_SECOND / 150;
     static {
-        if (SAMPLE_FRAMES_PER_SECOND % 150 != 0) // assert
+        if (SAMPLE_FRAMES_PER_SECOND % 150 != 0) // assert sanity check
             throw new RuntimeException("EA video sample rate doesn't cleanly divide by sector rate");
     }
 
@@ -93,59 +89,53 @@ public abstract class EAVideoPacket {
     /** 10 minutes. */
     private static final int MAX_PRESENTATION_SAMPLE_FRAME = SAMPLE_FRAMES_PER_SECOND * 60 * 10;
     /** 10 minutes. */
-    private static final int MAX_FRAME_NUMBER = FRAMES_PER_SECOND * 60* 10;
+    private static final int MAX_FRAME_NUMBER = FRAMES_PER_SECOND * 60 * 10;
     private static final int MIN_FRAME_DIMENSIONS = 16;
     private static final int MAX_FRAME_DIMENSIONS = 640;
 
+    // Every packet begins with one of these magic values (big-endian)
     public static final long MAGIC_VLC0 = 0x564c4330;
     private static final long MAGIC_MDEC = 0x4d444543;
     private static final long MAGIC_au00 = 0x61753030;
     private static final long MAGIC_au01 = 0x61753031;
 
-    public static final AudioFormat EA_VIDEO_AUDIO_FORMAT = new AudioFormat(SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
+    public static @Nonnull Type readHeaderType(@Nonnull InputStream is) 
+            throws EOFException, IOException, BinaryDataNotRecognized
+    {
+        long lngPacketType = IO.readUInt32BE(is);
+        if (lngPacketType == MAGIC_au00)
+            return Type.au00;
+        if (lngPacketType == MAGIC_au01)
+            return Type.au01;
+        if (lngPacketType == MAGIC_MDEC)
+            return Type.MDEC;
+        if (lngPacketType == 0)
+            return Type.ZEROES;
+        if (lngPacketType == MAGIC_VLC0)
+            return Type.VLC0;
+        throw new BinaryDataNotRecognized("Unknown packet type %08x", lngPacketType);
+    }
 
+    public static enum Type {
+        VLC0,
+        MDEC,
+        au00,
+        au01,
+        ZEROES; // basically means there's no more data
 
-    private static int _iMinPacketSize = Integer.MAX_VALUE;
-    private static int _iMaxPacketSize = 0;
+        public static final int SIZEOF = 4;
 
-    public static class Header {
-        public static final int SIZEOF = 8;
-
-        public static Header read(@Nonnull InputStream is)
-                throws EOFException, IOException, BinaryDataNotRecognized
-        {
-            return read(is, true);
+        public int bytesNeededToFinishHeader() {
+            return 4;
         }
 
-        private static Header read(@Nonnull InputStream is, boolean blnThrowEx)
+        public @Nonnull Header readHeader(@Nonnull InputStream is) throws EOFException, IOException, BinaryDataNotRecognized {
+            return doReadHeader(is, true);
+        }
+
+        private @CheckForNull Header doReadHeader(@Nonnull InputStream is, boolean blnThrowEx)
                 throws EOFException, IOException, BinaryDataNotRecognized
         {
-            long lngPacketType = IO.readUInt32BE(is);
-
-            // check for all zeroes, will mean the end
-            if (lngPacketType == 0) {
-                int iHeaderPacketSize = IO.readSInt32BE(is);
-                if (iHeaderPacketSize != 0) {
-                    if (blnThrowEx)
-                        throw new BinaryDataNotRecognized("0 packet type with non zero header %08x", iHeaderPacketSize);
-                    else
-                        return null;
-                }
-
-                return new Header(0, 0);
-            }
-
-            if (lngPacketType != MAGIC_VLC0 &&
-                lngPacketType != MAGIC_au00 &&
-                lngPacketType != MAGIC_au01 &&
-                lngPacketType != MAGIC_MDEC)
-            {
-                if (blnThrowEx)
-                    throw new BinaryDataNotRecognized("Unknown packet type %08x", lngPacketType);
-                else
-                    return null;
-            }
-
             int iHeaderPacketSize = IO.readSInt32BE(is);
             if (iHeaderPacketSize % 4 != 0) {
                 if (blnThrowEx)
@@ -165,48 +155,53 @@ public abstract class EAVideoPacket {
             if (iHeaderPacketSize > _iMaxPacketSize)
                 _iMaxPacketSize = iHeaderPacketSize;
 
-            return new Header(lngPacketType, iHeaderPacketSize);
+            return new Header(this, iHeaderPacketSize);
         }
+    }
 
-        private final long _lngPacketType;    // @0 4 bytes (BE)
+    public static final AudioFormat EA_VIDEO_AUDIO_FORMAT = new AudioFormat(SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
+
+    private static int _iMinPacketSize = Integer.MAX_VALUE;
+    private static int _iMaxPacketSize = 0;
+
+    public static class Header {
+
+        @Nonnull
+        private final Type _packetType;       // @0 4 bytes BE
         private final int _iHeaderPacketSize; // @4 4 bytes BE
 
-        private Header(long lngPacketType, int iHeaderPacketSize) {
-            _lngPacketType = lngPacketType;
+        private Header(@Nonnull Type type, int iHeaderPacketSize) {
+            _packetType = type;
             _iHeaderPacketSize = iHeaderPacketSize;
         }
 
-        public long getPacketType() {
-            return _lngPacketType;
+        public @Nonnull Type getPacketType() {
+            return _packetType;
         }
 
         public int getPayloadSize() {
             return _iHeaderPacketSize - 8;
         }
 
-        public boolean isEndPacket() {
-            return _iHeaderPacketSize == 0;
-        }
-
         public @Nonnull EAVideoPacket readPacket(@Nonnull InputStream is)
                 throws EOFException, IOException, BinaryDataNotRecognized
         {
-            if (_lngPacketType == MAGIC_au00 || _lngPacketType == MAGIC_au01) {
+            if (_packetType == Type.au00 || _packetType == Type.au01) {
                 return new AU(this, is);
             }
-            if (_lngPacketType == MAGIC_MDEC) {
+            if (_packetType == Type.MDEC) {
                 return new MDEC(this, is);
             }
-            if (_lngPacketType == MAGIC_VLC0) {
+            if (_packetType == Type.VLC0) {
                 return VLC0.read(this, is, true);
             }
             
-            throw new BinaryDataNotRecognized("Trying to read not a packet " + this);
+            throw new RuntimeException("?");
         }
 
         @Override
         public String toString() {
-            return String.format("Header %08x size %d", _lngPacketType, _iHeaderPacketSize);
+            return String.format("Header %s size %d", _packetType, _iHeaderPacketSize);
         }
     }
 
@@ -220,8 +215,8 @@ public abstract class EAVideoPacket {
         _header = header;
     }
 
-    public long getPacketType() {
-        return _header._lngPacketType;
+    public @Nonnull Type getPacketType() {
+        return _header._packetType;
     }
 
     public int getPacketSizeInHeader() {
@@ -234,7 +229,11 @@ public abstract class EAVideoPacket {
     public static @CheckForNull VLC0 readVlc0(@Nonnull InputStream is) throws EOFException, IOException {
 
         try {
-            Header header = Header.read(is, false);
+            Type type = readHeaderType(is);
+            if (type != Type.VLC0)
+                return null;
+            
+            Header header = type.doReadHeader(is, false);
             if (header == null)
                 return null;
             
@@ -251,7 +250,10 @@ public abstract class EAVideoPacket {
      */
     public static class VLC0 extends EAVideoPacket {
 
-        public static final int SIZEOF = Header.SIZEOF + EA_VIDEO_BIT_CODE_ORDER.length * 2;
+        // 4 bytes for packet type
+        // + 4 bytes for packet size
+        // + size of VLC table (should always be the same)
+        public static final int SIZEOF = Type.SIZEOF + 4 + EA_VIDEO_BIT_CODE_ORDER.length * 2;
 
         private static VLC0 read(@Nonnull Header header, @Nonnull InputStream is, boolean blnThrowEx)
                 throws BinaryDataNotRecognized, EOFException, IOException
@@ -324,6 +326,7 @@ public abstract class EAVideoPacket {
         public String toString() {
             return "VLC0";
         }
+
     }
 
     // #########################################################################
@@ -367,11 +370,13 @@ public abstract class EAVideoPacket {
             if (i512 != 512)
                 throw new BinaryDataNotRecognized("%d != 512", i512);
 
+            // -8 for header magic + header size
+            // -8 for 2048 and 512
             _abCompressedSpu = IO.readByteArray(is, header._iHeaderPacketSize - 8 - 8);
         }
 
         public boolean isLastAudioPacket() {
-            return getPacketType() == MAGIC_au01;
+            return getPacketType() == Type.au01;
         }
 
         public int calcSampleFramesGenerated() {
@@ -398,7 +403,7 @@ public abstract class EAVideoPacket {
                 }
             }
 
-            if (out.size() != calcSampleFramesGenerated() * 4)
+            if (out.size() != calcSampleFramesGenerated() * 4) // sanity check
                 throw new RuntimeException();
 
             Fraction presentationSector = new Fraction(_iPresentationSampleFrame, SAMPLE_FRAMES_PER_SECTOR);
@@ -408,8 +413,8 @@ public abstract class EAVideoPacket {
 
         @Override
         public String toString() {
-            return String.format("au0%c start sample frame:%d sample frames:%d",
-                                 isLastAudioPacket() ? '1' : '0',
+            return String.format("%s start sample frame:%d sample frames:%d",
+                                 getPacketType().name(),
                                  _iPresentationSampleFrame, calcSampleFramesGenerated());
         }
 
@@ -434,6 +439,7 @@ public abstract class EAVideoPacket {
             // Maybe the leftover 2 bytes in some audio packets?
             // Maybe the timestamp?
             // More debugging is nedded
+            // In any case, it's not necessary for just decoding the audio
             abSpuSoundUnit[1] = 0;
             System.arraycopy(abPayload, iBytesUsed+1, abSpuSoundUnit, 2, 14);
             units.add(new SpuAdpcmSoundUnit(abSpuSoundUnit));
@@ -527,7 +533,7 @@ public abstract class EAVideoPacket {
             return _strHeader.getQuantizationScale();
         }
 
-        public byte[] getBitstream() {
+        public @Nonnull byte[] getBitstream() {
             return _abBitstream;
         }
 

@@ -9,7 +9,7 @@
 
     <!-- ====== global build properties ====== -->
     
-    <property name="jpsxdec.ver" value="v1-02_rev3950"/>
+    <property name="jpsxdec.ver" value="v1-03_rev3953"/>
 
     <!-- sources -->
     <property name="src.dir.rel"      location="src"      relative="true"/>

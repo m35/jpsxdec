@@ -50,4 +50,9 @@ public class EAVideoPacketSectors {
         this.iStartSector = iStartSector;
         this.iEndSector = iEndSector;
     }
+
+    @Override
+    public String toString() {
+        return String.format("[%d-%d] %s", iStartSector, iEndSector, packet.toString());
+    }
 }

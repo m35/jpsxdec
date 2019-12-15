@@ -1,3 +1,6 @@
+v1.03 rev3953 (15 Dec 2019)
+    Bug fixes:
+    - Some videos in EA games are still not detected
 v1.02 rev3950 (13 Dec 2019)
     - Added support for Jackie Chan Stuntmaster videos
     Bug fixes:

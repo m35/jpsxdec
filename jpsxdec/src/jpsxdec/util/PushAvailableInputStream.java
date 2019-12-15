@@ -71,10 +71,15 @@ public class PushAvailableInputStream<META> extends InputStream {
     private int _iPendingAvailable = 0;
 
     public void addStream(@Nonnull InputStream is, @Nonnull META meta) throws IOException {
-        if (!_pieces.isEmpty())
+        // remove the current head if it is empty, and skip any additional empty pieces
+        while (!_pieces.isEmpty() && _pieces.peek().is.available() == 0)
+            _pieces.remove();
+
+        if (!_pieces.isEmpty()) {
             // if the queue is empty, don't add to the pending available
-            // its available cound will be in the stream itself
-            _iPendingAvailable += is.available(); 
+            // its available count will be in the stream itself
+            _iPendingAvailable += is.available();
+        }
         _pieces.add(new Pair<META>(is, meta));
     }
 

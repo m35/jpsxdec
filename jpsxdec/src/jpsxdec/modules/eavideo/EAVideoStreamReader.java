@@ -53,6 +53,9 @@ public class EAVideoStreamReader {
     private final PushAvailableInputStream<CdSector> _sectorStream = new PushAvailableInputStream<CdSector>();
 
     @CheckForNull
+    private EAVideoPacket.Type _headerType;
+
+    @CheckForNull
     private EAVideoPacket.Header _header;
 
     private int _iCurrentPacketStartSector;
@@ -62,7 +65,7 @@ public class EAVideoStreamReader {
         return _blnEnd;
     }
 
-    public @Nonnull SectorEAVideo readSectorPackets(@Nonnull CdSector sector, int iSkip, @CheckForNull EAVideoPacket.VLC0 vlc)
+    public @Nonnull SectorEAVideo readSectorPackets(@Nonnull CdSector sector, @CheckForNull EAVideoPacket.VLC0 vlc)
             throws BinaryDataNotRecognized
     {
         if (_blnEnd)
@@ -70,18 +73,19 @@ public class EAVideoStreamReader {
 
         try {
             ByteArrayFPIS is = sector.getCdUserDataStream();
-            if (iSkip > 0)
-                is.skip(iSkip);
+            if (vlc != null) {
+                is.skip(EAVideoPacket.VLC0.SIZEOF);
+            }
 
             _sectorStream.addStream(is, sector);
 
-            return doReadSectorPackets(sector, vlc);
+            return readSectorPacketsThrowsIOEx(sector, vlc);
         } catch (IOException ex) {
             throw new RuntimeException("Should not happen", ex);
         }
     }
 
-    private @Nonnull SectorEAVideo doReadSectorPackets(@Nonnull CdSector sector, @CheckForNull EAVideoPacket.VLC0 vlc)
+    private @Nonnull SectorEAVideo readSectorPacketsThrowsIOEx(@Nonnull CdSector sector, @CheckForNull EAVideoPacket.VLC0 vlc)
             throws BinaryDataNotRecognized, IOException
     {
 
@@ -92,17 +96,30 @@ public class EAVideoStreamReader {
         }
 
         while (true) {
-            if (_header == null) {
-                if (_sectorStream.available() < EAVideoPacket.Header.SIZEOF)
-                    break;
 
-                _iCurrentPacketStartSector = _sectorStream.getCurrentMeta().getSectorIndexFromStart();
-                _header = EAVideoPacket.Header.read(_sectorStream);
-            } else if (_header.isEndPacket()) {
-                // end of stream
-                _blnEnd = true;
-                break;
+            if (_header == null) {
+
+                if (_headerType == null) {
+                    // enough data to read the header type?
+                    if (_sectorStream.available() < EAVideoPacket.Type.SIZEOF)
+                        break;
+                    _iCurrentPacketStartSector = _sectorStream.getCurrentMeta().getSectorIndexFromStart();
+                    _headerType = EAVideoPacket.readHeaderType(_sectorStream);
+
+                    // end of stream encountered?
+                    if (_headerType == EAVideoPacket.Type.ZEROES) {
+                        _blnEnd = true;
+                        break;
+                    }
+                } else {
+                    // enough data to read the header size?
+                    if (_sectorStream.available() < _headerType.bytesNeededToFinishHeader())
+                        break;
+                    _header = _headerType.readHeader(_sectorStream);
+                    _headerType = null;
+                }
             } else {
+                // enough data to read the header payload?
                 if (_sectorStream.available() < _header.getPayloadSize())
                     break;
 

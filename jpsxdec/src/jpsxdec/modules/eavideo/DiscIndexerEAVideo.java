@@ -127,7 +127,7 @@ public class DiscIndexerEAVideo extends DiscIndexer implements SectorClaimToEAVi
             _iEndSector = iStartSector;
         }
 
-        public void addPacket(@Nonnull EAVideoPacketSectors packet, int iStartSector) throws BinaryDataNotRecognized {
+        public void addPacket(@Nonnull EAVideoPacketSectors packet) throws BinaryDataNotRecognized {
             _iEndSector = packet.iEndSector;
             if (packet.packet instanceof EAVideoPacket.AU) {
                 EAVideoPacket.AU au = (EAVideoPacket.AU)packet.packet;
@@ -170,7 +170,12 @@ public class DiscIndexerEAVideo extends DiscIndexer implements SectorClaimToEAVi
                 }
                 _movieBuilder = new MovieBuilder(packet.iStartSector);
             } else {
-                _movieBuilder.addPacket(packet, 0);
+                if (packet.packet instanceof EAVideoPacket.VLC0) {
+                    endVideo(log);
+                    _movieBuilder = new MovieBuilder(packet.iStartSector);
+                } else {
+                    _movieBuilder.addPacket(packet);
+                }
             }
         } catch (BinaryDataNotRecognized ex) {
             LOG.log(Level.SEVERE, "EA video data corruption", ex);

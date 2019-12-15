@@ -557,7 +557,7 @@ Status
 [ ]  SLUS-01172  Frogger 2 - Swampy's Revenge
 [ ]  SLUS-01011  Front Mission 3
 [ ]  SLUS-90034  Future Cop - L.A.P.D. [Demo]
-[ ]  SLUS-00739  Future Cop L.A.P.D.
+[+]  SLUS-00739  Future Cop L.A.P.D.
 [ ]  SLUS-80690  G Darius, Devil Dice, Brunswick Circuit Bowling (Trade) [Demo]
 [ ]  SLUS-01258  Galaga - Destination Earth
 [ ]  SLUS-90077  Galerians [Demo]
@@ -791,7 +791,7 @@ Status
 [ ]  SLUS-01306  M & M's Shell Shocked
 [ ]  SLUS-00383  Machine Head
 [ ]  SLUS-00470  Machine Hunter
-[ ]  SLUS-00961  Madden NFL 2000
+[+]  SLUS-00961  Madden NFL 2000
 [ ]  SLUS-01241  Madden NFL 2001
 [ ]  SLUS-01402  Madden NFL 2002
 [ ]  SLUS-01482  Madden NFL 2003
@@ -915,19 +915,19 @@ Status
 [ ]  SLUS-00416  Namco Museum Vol.4
 [ ]  SLUS-00417  Namco Museum Vol.5
 [ ]  SLUS-00325  Nanotek Warrior
-[ ]  SLUS-00962  NASCAR 2000
-[ ]  SLUS-01263  NASCAR 2001
-[ ]  SLUS-00521  NASCAR '98
-[ ]  SLUS-00647  NASCAR '98 - Collector's Edition
-[ ]  SLUS-00740  NASCAR '99
-[ ]  SLUS-00883  NASCAR '99 Legacy
+[+]  SLUS-00962  NASCAR 2000
+[+]  SLUS-01263  NASCAR 2001
+[+]  SLUS-00521  NASCAR '98
+[+]  SLUS-00647  NASCAR '98 - Collector's Edition
+[+]  SLUS-00740  NASCAR '99
+[+]  SLUS-00883  NASCAR '99 Legacy
 [ ]  SLUS-01166  NASCAR Heat
 [ ]  SLUS-01050  NASCAR Racers
 [ ]  SLUS-00374  NASCAR Racing
 [+]  SLUS-01068  NASCAR Rumble
-[ ]  SLUS-01403  NASCAR Thunder 2002
-[ ]  SLUS-01502  NASCAR Thunder 2003
-[ ]  SLUS-01571  NASCAR Thunder 2004
+[+]  SLUS-01403  NASCAR Thunder 2002
+[+]  SLUS-01502  NASCAR Thunder 2003
+[+]  SLUS-01571  NASCAR Thunder 2004
 [ ]  SLUS-00926  NBA Basketball 2000
 [ ]  SLUS-00492  NBA Fastbreak '98
 [ ]  SLUS-00329  NBA Hangtime
@@ -1315,7 +1315,7 @@ Status
 [ ]  SLUS-00565  Riven - The Sequel to Myst [Disc4of5]
 [ ]  SLUS-00580  Riven - The Sequel to Myst [Disc5of5]
 [ ]  SLUS-00035  Road Rash
-[ ]  SLUS-01053  Road Rash - Jailbreak
+[+]  SLUS-01053  Road Rash - Jailbreak
 [+]  SLUS-00524  Road Rash 3D
 [ ]  SLUS-01024  Roadsters
 [ ]  SLUS-00316  Robo-Pit
@@ -1489,8 +1489,8 @@ Status
 [o]  SLUS-00418  Super Puzzle Fighter II Turbo
 [ ]  SLUS-01464  Super Shot Soccer
 [ ]  SLUS-01052  Superbikes 2000
-[ ]  SLUS-01005  SuperCross 2000
-[ ]  SLUS-01319  SuperCross 2001
+[+]  SLUS-01005  SuperCross 2000
+[+]  SLUS-01319  SuperCross 2001
 [ ]  SCUS-94453  SuperCross Circuit
 [ ]  SCUS-94396  Supercross Circuit [Demo]
 [ ]  SLUS-00712  Superman

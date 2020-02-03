@@ -7,8 +7,6 @@
 
 See [what's new](jpsxdec/doc/CHANGES.txt).
 
-Requires Java version 6 or higher.
-
 | Found jPSXdec useful? Leave a tip. |
 |:----------------------------------:|
 | [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=VRERX898F2H9C&item_name=jPSXdec+tips&currency_code=USD&source=url "") |

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -72,8 +72,8 @@ public class SectorLainVideo extends SectorAbstractVideo {
         _header = new VideoSectorCommon16byteHeader(cdSector);
         if (isSuperInvalidElseReset()) return;
 
-        // only if it has a sector header should we check if it reports DATA or VIDEO
-        if (subModeMaskMatch(SubMode.MASK_DATA | SubMode.MASK_VIDEO, 0))
+        // if it has a sector header, make sure DATA flag are set
+        if (subModeExistsAndMaskDoesNotEqual(SubMode.MASK_DATA, SubMode.MASK_DATA))
             return;
 
         if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;

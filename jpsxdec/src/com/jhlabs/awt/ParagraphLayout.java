@@ -27,15 +27,15 @@ public class ParagraphLayout extends ConstraintLayout {
 	public final static int NEW_PARAGRAPH_TOP_VALUE = 2;
 	public final static int NEW_LINE_VALUE = 3;
 
-	public final static Integer NEW_PARAGRAPH = new Integer(0x01);
-	public final static Integer NEW_PARAGRAPH_TOP = new Integer(0x02);
-	public final static Integer NEW_LINE = new Integer(0x03);
-	public final static Integer STRETCH_H = new Integer(0x04);
-	public final static Integer STRETCH_V = new Integer(0x08);
-	public final static Integer STRETCH_HV = new Integer(0x0c);
-	public final static Integer NEW_LINE_STRETCH_H = new Integer(0x07);
-	public final static Integer NEW_LINE_STRETCH_V = new Integer(0x0b);
-	public final static Integer NEW_LINE_STRETCH_HV = new Integer(0x0f);
+	public final static Integer NEW_PARAGRAPH = Integer.valueOf(0x01);
+	public final static Integer NEW_PARAGRAPH_TOP = Integer.valueOf(0x02);
+	public final static Integer NEW_LINE = Integer.valueOf(0x03);
+	public final static Integer STRETCH_H = Integer.valueOf(0x04);
+	public final static Integer STRETCH_V = Integer.valueOf(0x08);
+	public final static Integer STRETCH_HV = Integer.valueOf(0x0c);
+	public final static Integer NEW_LINE_STRETCH_H = Integer.valueOf(0x07);
+	public final static Integer NEW_LINE_STRETCH_V = Integer.valueOf(0x0b);
+	public final static Integer NEW_LINE_STRETCH_HV = Integer.valueOf(0x0f);
 
 	protected int hGapMajor, vGapMajor;
 	protected int hGapMinor, vGapMinor;

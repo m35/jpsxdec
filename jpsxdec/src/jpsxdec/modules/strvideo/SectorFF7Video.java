@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -71,9 +71,9 @@ public class SectorFF7Video extends SectorAbstractVideo {
         _header = new VideoSectorCommon16byteHeader(cdSector);
         if (isSuperInvalidElseReset()) return;
 
-        // SubMode flags "--FT-A--" should never be set
+        // SubMode flags "--2T-A--" should never be set
         // at least 1 movie doesn't have audio, video, or data flags set
-        if (!subModeMaskMatch(SubMode.MASK_FORM | SubMode.MASK_TRIGGER | SubMode.MASK_AUDIO, 0))
+        if (subModeExistsAndMaskDoesNotEqual(SubMode.MASK_FORM | SubMode.MASK_TRIGGER | SubMode.MASK_AUDIO, 0))
             return;
 
         if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;

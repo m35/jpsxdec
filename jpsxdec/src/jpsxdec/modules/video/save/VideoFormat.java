@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2019  Michael Sabin
+ * Copyright (C) 2012-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,6 +39,7 @@ package jpsxdec.modules.video.save;
 
 import java.util.ArrayList;
 import java.util.List;
+import jpsxdec.i18n._PlaceholderMessage;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.formats.JavaImageFormat;
@@ -85,6 +86,11 @@ public enum VideoFormat {
                JavaImageFormat.BMP)
     {
         public String getExtension() { return "." + JavaImageFormat.BMP.getExtension(); }
+    },
+    IMGSEQ_TIFF(new _PlaceholderMessage("Image sequence: tiff"), new _PlaceholderMessage("tif"),
+            JavaImageFormat.TIFF)
+    {
+        public String getExtension() { return "." + JavaImageFormat.TIFF.getExtension(); }
     },
     IMGSEQ_BITSTREAM(I.VID_IMG_SEQ_BS_DESCRIPTION(), I.VID_IMG_SEQ_BS_COMMAND()) {
         public String getExtension() { return ".bs"; }

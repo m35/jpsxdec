@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019  Michael Sabin
+ * Copyright (C) 2019-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -75,7 +75,10 @@ public class DiscIndexerEAVideo extends DiscIndexer implements SectorClaimToEAVi
     @Override
     public void listPostProcessing(@Nonnull Collection<DiscItem> allItems) {
     }
-
+    @Override
+    public boolean filterChild(DiscItem parent, DiscItem child) {
+        return false;
+    }
     @Override
     public void indexGenerated(@Nonnull DiscIndex index) {
     }

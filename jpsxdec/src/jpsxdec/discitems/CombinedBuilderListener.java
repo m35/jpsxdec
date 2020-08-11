@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2019  Michael Sabin
+ * Copyright (C) 2016-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,7 +51,7 @@ public class CombinedBuilderListener<T extends DiscItemSaverBuilder> {
     private final ArrayList<ChangeListener> _controlsListening = new ArrayList<ChangeListener>();
     /** Class of {@link DiscItemSaverBuilder} that will be accepted. */
     @Nonnull
-    private final Class _cls;
+    private final Class<?> _cls;
     /** Current {@link DiscItemSaverBuilder} that is being listened to. */
     @Nonnull
     private T _saverBuilder;

@@ -53,7 +53,7 @@ public class JRendererCheckBox extends JCheckBox implements PainterAware<JRender
      * {@inheritDoc}
      */
     public void setPainter(Painter<JRendererCheckBox> painter) {
-        Painter old = getPainter();
+        Painter<JRendererCheckBox> old = getPainter();
         this.painter = painter;
         if (painter != null) {
             // ui maps to !opaque

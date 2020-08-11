@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2019  Michael Sabin
+ * Copyright (C) 2013-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,79 +40,62 @@ package jpsxdec.tim;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import javax.annotation.Nonnull;
-import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.psxvideo.PsxRgb;
 import jpsxdec.util.IO;
 
 /** The TIM Color Lookup Table (CLUT). */
 class CLUT {
 
-    /** Size of the CLUT header in bytes. */
+    /** 
+     * Size of the CLUT header in bytes.
+     */
     public final static int HEADER_SIZE = 12;
 
-    /** Dimensions of the CLUT in pixels. */
-    private final int _iClutWidth, _iClutHeight;
-    /** X position of the CLUT in pixels.
-     * Not sure how it is used in the PSX, but it is often 0. */
-    private final int _iClutX;
-    /** Y position of the CLUT in pixels.
-     * Not sure how it is used in the PSX, but it is often 0. */
-    private final int _iClutY;
-    /** Tim ABGR1555. */
+    /**
+     * Dimensions of the CLUT in pixels.
+     * CLUTs are always 16 bits-per-pixel, so the width in the header is the pixel width.
+     */
+    private final int _iClutPixelWidth, _iClutPixelHeight;
+
+    /** 
+     * X,Y position of the CLUT in pixels.
+     * This can be used to indicate where to copy the CLUT into the VRAM.
+     */
+    private final int _iClutX, _iClutY;
+
+    /** 
+     * Tim 16 bit pixels ABGR1555.
+     */
     @Nonnull
     final short[] _asiColorData;
 
-    /** Read a CLUT from an InputStream. */
-    public CLUT(@Nonnull InputStream is) throws IOException, BinaryDataNotRecognized {
-        long lngLength = IO.readUInt32LE(is);
-        if (lngLength == 0) throw new BinaryDataNotRecognized();
-        _iClutX = IO.readUInt16LE(is);
-        _iClutY = IO.readUInt16LE(is);
-        _iClutWidth = IO.readUInt16LE(is);
-        if (_iClutWidth == 0) throw new BinaryDataNotRecognized();
-        _iClutHeight = IO.readUInt16LE(is);
-        if (_iClutHeight == 0) throw new BinaryDataNotRecognized();
-
-        if (lngLength != calculateLength())
-            throw new BinaryDataNotRecognized();
-
-        _asiColorData = new short[_iClutWidth * _iClutHeight];
-        for (int i = 0; i < _asiColorData.length; i++)
-            _asiColorData[i] = IO.readSInt16LE(is);
-    }
-
-    /** Create a CLUT based on a ready-made CLUT palette. */
-    public CLUT(@Nonnull short[] asiPalette, int iX, int iY, int iPixelWidth) {
-        if (iX < 0 || iY < 0)
-            throw new IllegalArgumentException("Invalid CLUT X,Y (" + iX + ", " + iY + ")");
-        if (iPixelWidth < 1)
-            throw new IllegalArgumentException("Invalid CLUT width " + iPixelWidth);
-        if (asiPalette.length % iPixelWidth != 0)
-            throw new IllegalArgumentException("CLUT size "+asiPalette.length+
-                                                " not divisible by CLUT width "+iPixelWidth);
+    CLUT(@Nonnull short[] asiPalette, int iX, int iY, int iPixelWidth, int iPixelHeight) {
+        // The caller should validate the parameters
         _asiColorData = asiPalette;
         _iClutX = iX;
         _iClutY = iY;
-        _iClutWidth = iPixelWidth;
-        _iClutHeight = asiPalette.length / _iClutWidth;
+        _iClutPixelWidth = iPixelWidth;
+        _iClutPixelHeight = iPixelHeight;
     }
 
     /** Write the CLUT to a stream. */
     public void write(@Nonnull OutputStream os) throws IOException {
-        IO.writeInt32LE(os, calculateLength());
+        IO.writeInt32LE(os, calculateClutSizeInBytes());
         IO.writeInt16LE(os, _iClutX);
         IO.writeInt16LE(os, _iClutY);
-        IO.writeInt16LE(os, _iClutWidth);
-        IO.writeInt16LE(os, _iClutHeight);
+        IO.writeInt16LE(os, _iClutPixelWidth);
+        IO.writeInt16LE(os, _iClutPixelHeight);
         for (short i : _asiColorData)
             IO.writeInt16LE(os, i);
     }
 
-    /** Returns the length of the CLUT structure in bytes. */
-    private long calculateLength() {
-        return _iClutWidth * _iClutHeight * 2 + 12;
+    /** 
+     * Returns the length of the CLUT structure in bytes.
+     */
+    private int calculateClutSizeInBytes() {
+        return _asiColorData.length * 2 + HEADER_SIZE;
     }
 
     /** Returns Tim ABGR1555 color value. */
@@ -133,17 +116,11 @@ class CLUT {
         return _iClutY;
     }
 
-    /** Returns width of the CLUT in pixels.
-        * This is useful to know for some strange Tims found in the wild. */
-    public int getWidth() {
-        return _iClutWidth;
-    }
-
     public @Nonnull BufferedImage toBufferedImage() {
-        BufferedImage bi = new BufferedImage(_iClutWidth, _iClutHeight, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage bi = new BufferedImage(_iClutPixelWidth, _iClutPixelHeight, BufferedImage.TYPE_INT_ARGB);
         int[] aiBufferArgb = ((DataBufferInt)bi.getRaster().getDataBuffer()).getData();
         for (int i = 0; i < aiBufferArgb.length; i++) {
-            aiBufferArgb[i] = Tim.color16toColor32(_asiColorData[i]);
+            aiBufferArgb[i] = PsxRgb.psxABGR1555toARGB8888(_asiColorData[i], Tim.SEMI_TRANSPARENT);
         }
         return bi;
     }
@@ -151,12 +128,12 @@ class CLUT {
     @Override
     public String toString() {
         return String.format(
-                "%dx%d xy(%d, %d) Len:%d",
-                _iClutWidth,
-                _iClutHeight,
+                "%dx%d xy(%d, %d) Size:%d",
+                _iClutPixelWidth,
+                _iClutPixelHeight,
                 _iClutX,
                 _iClutY,
-                calculateLength());
+                calculateClutSizeInBytes());
     }
 
 }

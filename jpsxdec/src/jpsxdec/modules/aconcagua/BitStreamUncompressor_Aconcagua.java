@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019  Michael Sabin
+ * Copyright (C) 2019-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -205,7 +205,7 @@ import jpsxdec.util.Misc;
  * Having said all that, we all make poor design decisions in our lives. Trying
  * to spin up your own version of some other program because you could do it
  * better--only to be wrong, but you're stuck with it now. It happens to all of
- * us. I'm sure someone in the devolpment team wished they could go back and do
+ * us. I'm sure someone in the development team wished they could go back and do
  * it differently.
  */
 public class BitStreamUncompressor_Aconcagua implements MdecInputStream {

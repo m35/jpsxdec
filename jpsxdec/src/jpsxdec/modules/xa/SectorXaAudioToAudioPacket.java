@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2019  Michael Sabin
+ * Copyright (C) 2017-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,6 +59,7 @@ public class SectorXaAudioToAudioPacket implements SectorClaimToSectorXaAudio.Li
     @Nonnull
     private final XaAdpcmDecoder _decoder;
     private final ByteArrayOutputStream _tempBuffer = new ByteArrayOutputStream();
+    private final int _iFileNumber;
     private final int _iChannel;
     private final int _iSampleFramesPerSecond;
     @Nonnull
@@ -68,11 +69,13 @@ public class SectorXaAudioToAudioPacket implements SectorClaimToSectorXaAudio.Li
     private final int _iStartSector;
     private final int _iEndSectorInclusive;
 
-    public SectorXaAudioToAudioPacket(@Nonnull XaAdpcmDecoder decoder, int iSampleFramesPerSecond, int iChannel,
+    public SectorXaAudioToAudioPacket(@Nonnull XaAdpcmDecoder decoder, int iSampleFramesPerSecond,
+                                      int iFileNumber, int iChannel,
                                       int iStartSector, int iEndSectorInclusive) {
         _decoder = decoder;
         _audioFormat = decoder.getOutputFormat(iSampleFramesPerSecond);
         _iSampleFramesPerSecond = iSampleFramesPerSecond;
+        _iFileNumber = iFileNumber;
         _iChannel = iChannel;
         _iStartSector = iStartSector;
         _iEndSectorInclusive = iEndSectorInclusive;
@@ -92,7 +95,8 @@ public class SectorXaAudioToAudioPacket implements SectorClaimToSectorXaAudio.Li
 
         if (xaSector == null)
             return;
-        if (xaSector.getChannel() != _iChannel ||
+        if (xaSector.getFileNumber() != _iFileNumber ||
+            xaSector.getChannel() != _iChannel ||
             xaSector.getAdpcmBitsPerSample() != _decoder.getAdpcmBitsPerSample() ||
             xaSector.isStereo() != _decoder.isStereo() ||
             xaSector.getSamplesPerSecond() != _iSampleFramesPerSecond)
@@ -119,7 +123,7 @@ public class SectorXaAudioToAudioPacket implements SectorClaimToSectorXaAudio.Li
             _listener.audioPacketComplete(packet, log);
         }
     }
-    public void xaEof(int iChannel) {
+    public void xaEof(int iFileNumber, int iChannel) {
     }
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
     }

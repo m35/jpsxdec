@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2019  Michael Sabin
+ * Copyright (C) 2017-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -385,13 +385,17 @@ public class DemuxPushInputStream<T extends DemuxedData.Piece> extends InputStre
         public int read() {
             if (isEof())
                 return -1;
-            while (_currentPieceStream.isEof() && _pieceIterator.hasNext()) {
-                _currentPieceStream = new PieceInputStream<T>(_pieceIterator.next());
-            }
+            skipEofStreams();
             if (isEof())
                 return -1;
             _iAvailable--;
             return _currentPieceStream.read();
+        }
+
+        private void skipEofStreams() {
+            while (_currentPieceStream.isEof() && _pieceIterator.hasNext()) {
+                _currentPieceStream = new PieceInputStream<T>(_pieceIterator.next());
+            }
         }
 
         @Override
@@ -399,16 +403,11 @@ public class DemuxPushInputStream<T extends DemuxedData.Piece> extends InputStre
             if (isEof())
                 return -1;
             long lngTotalBytesSkipped = 0;
-            while (_currentPieceStream.isEof() && _pieceIterator.hasNext()) {
-                _currentPieceStream = new PieceInputStream<T>(_pieceIterator.next());
-            }
             while (lngTotalBytesSkipped < lngBytesToSkip && !isEof()) {
+                skipEofStreams();
                 long lngBytesSkipped = _currentPieceStream.skip(lngBytesToSkip - lngTotalBytesSkipped);
                 if (lngBytesSkipped > 0)
                     lngTotalBytesSkipped += lngBytesSkipped;
-                while (_currentPieceStream.isEof() && _pieceIterator.hasNext()) {
-                    _currentPieceStream = new PieceInputStream<T>(_pieceIterator.next());
-                }
             }
             _iAvailable -= lngTotalBytesSkipped;
             return lngTotalBytesSkipped == 0 ? -1 : lngTotalBytesSkipped;

@@ -48,7 +48,7 @@ import jpsxdec.util.IO;
 
 public class ReplaceAudioImages {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
 
         if (args.length < 5) {
             System.out.println("Requires 5 arguments");
@@ -182,14 +182,14 @@ public class ReplaceAudioImages {
         }
 
     }
-    private static final byte[] image2pkTim(File png) throws IOException {
+    private static final byte[] image2pkTim(File png) throws Exception {
         if (!png.exists())
             throw new FileNotFoundException(png.toString());
         BufferedImage bi = ImageIO.read(png);
         return image2pkTim(bi);
     }
 
-    private static final byte[] image2pkTim(BufferedImage bi) throws IOException {
+    private static final byte[] image2pkTim(BufferedImage bi) throws Exception {
         // convert to tim
         Tim newTim = Tim.create(bi, 8);
         ByteArrayOutputStream temp = new ByteArrayOutputStream();
@@ -266,7 +266,7 @@ public class ReplaceAudioImages {
             _iIndex = iSiteTableIndex;
         }
         
-        abstract public byte[] readData() throws IOException;
+        abstract public byte[] readData() throws Exception;
 
         public int getIndex() {
             return _iIndex;
@@ -314,7 +314,7 @@ public class ReplaceAudioImages {
             _source = source;
         }
 
-        public byte[] readData() throws IOException{
+        public byte[] readData() throws Exception {
             if (_source.getName().endsWith(".png")) {
                 return image2pkTim(_source);
             } else {
@@ -370,7 +370,7 @@ public class ReplaceAudioImages {
         private final SiteImageFromSITE[] _aoSiteTable;
         
 
-        public SiteImageProvider(char cSite, File imgageDir, File siteFile) throws IOException {
+        public SiteImageProvider(char cSite, File imgageDir, File siteFile) throws Exception {
             _cSite = cSite;            
             _dir = imgageDir;
             _aoFiles = imgageDir.listFiles();
@@ -449,7 +449,7 @@ public class ReplaceAudioImages {
             return _aoSiteTable[iSiteTableIndex];
         }
 
-        public void write(RandomAccessFile slps, OutputStream os, boolean blnReal) throws IOException {
+        public void write(RandomAccessFile slps, OutputStream os, boolean blnReal) throws Exception {
             
             int iOutOffset = 0, iDummyOffset = -1;
             System.out.println("Site" + _cSite +": Seeking to offset of site table in slps " + _iOffsetInSlps);

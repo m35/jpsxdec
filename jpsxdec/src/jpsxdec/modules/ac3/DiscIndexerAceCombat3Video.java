@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2019  Michael Sabin
+ * Copyright (C) 2014-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,10 +37,7 @@
 
 package jpsxdec.modules.ac3;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.TreeMap;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
@@ -49,20 +46,17 @@ import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.indexing.DiscIndex;
-import jpsxdec.indexing.DiscIndexer;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.strvideo.DiscIndexerStrVideo;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
+import jpsxdec.modules.video.sectorbased.DiscIndexerSectorBasedVideo;
 import jpsxdec.modules.video.sectorbased.SectorBasedVideoInfoBuilder;
 
 /** Searches for Ace Combat 3: Electrosphere video streams.
  * Only case I've seen that video streams are interleaved. */
-public class DiscIndexerAceCombat3Video extends DiscIndexer implements SectorClaimToSectorAc3Video.Listener
+public class DiscIndexerAceCombat3Video extends DiscIndexerSectorBasedVideo.SubIndexer
+        implements SectorClaimToSectorAc3Video.Listener
 {
-
-    private static final Logger LOG = Logger.getLogger(DiscIndexerAceCombat3Video.class.getName());
 
     private static class VidBuilder {
 
@@ -149,8 +143,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements SectorCla
                 return;
 
             DiscItemAceCombat3VideoStream video = _videoBuilder.endOfMovie(_indexer.getCd());
-            _indexer._completedVideos.add(video);
-            _indexer.addDiscItem(video);
+            _indexer.addVideo(video);
             _videoBuilder = null;
         }
 
@@ -161,7 +154,6 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements SectorCla
     @Nonnull
     private final ILocalizedLogger _errLog;
     private final TreeMap<Integer, Ac3Channel> _activeStreams = new TreeMap<Integer, Ac3Channel>();
-    private final Collection<DiscItemAceCombat3VideoStream> _completedVideos = new ArrayList<DiscItemAceCombat3VideoStream>();
 
     public DiscIndexerAceCombat3Video(@Nonnull ILocalizedLogger errLog) {
         _errLog = errLog;
@@ -202,16 +194,6 @@ public class DiscIndexerAceCombat3Video extends DiscIndexer implements SectorCla
             channel.endVideo();
         }
         _activeStreams.clear();
-    }
-
-    @Override
-    public void listPostProcessing(@Nonnull Collection<DiscItem> allItems) {
-        if (_completedVideos.size() > 0)
-            DiscIndexerStrVideo.audioSplit(_completedVideos, allItems);
-    }
-
-    @Override
-    public void indexGenerated(@Nonnull DiscIndex index) {
     }
 
 }

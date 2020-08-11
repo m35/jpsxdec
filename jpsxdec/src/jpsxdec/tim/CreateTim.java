@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2019  Michael Sabin
+ * Copyright (C) 2013-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,205 +44,154 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.psxvideo.PsxRgb;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IO;
+import jpsxdec.util.IncompatibleException;
 
 /** Private functions to generate a {@link Tim} image. */
 class CreateTim {
 
-    private static final Logger LOG = Logger.getLogger(CreateTim.class.getName());
-    
-
-    /** Quickly reads a stream to determine if the data is a Tim image.
-     * @return info about the Tim image, otherwise null. */
-    public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream) 
+    /**
+     * Quickly reads a stream to determine if the data is a Tim image.
+     * @return info about the Tim image, otherwise null.
+     */
+    public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream)
             throws EOFException, IOException
     {
-        // tag
-        if (IO.readUInt8(inStream) != Tim.TAG_MAGIC)
-            return null;
-        // version
-        if (IO.readUInt8(inStream) != Tim.VERSION_0)
-            return null;
-        // unkn 1
-        if (IO.readUInt16LE(inStream) != 0)
-            return null;
+        TimValidator validator = new TimValidator();
 
-        int iBpp_blnHasColorLookupTbl = IO.readUInt16LE(inStream);
-        if ((iBpp_blnHasColorLookupTbl & 0xFFF4) != 0)
+        if (!validator.tagIsValid(inStream))
             return null;
-        // unkn 2
-        if (IO.readUInt16LE(inStream) != 0)
+        if (!validator.versionIsValid(inStream)) 
+            return null;
+        if (!validator.unknownIsValid(inStream))
+            return null;
+        if (!validator.bppAndClutIsValid(inStream))
+            return null;
+        if (!validator.unknownIsValid(inStream))
             return null;
 
-        //-------------------------------------------------
-
-        int iBitsPerPixel = Tim.BITS_PER_PIX[iBpp_blnHasColorLookupTbl & 3];
-
-        final int iPaletteCount;
-        // has CLUT
-        if ((iBpp_blnHasColorLookupTbl & 8) != 0) {
-
-            long lngLength = IO.readUInt32LE(inStream);
-            if (lngLength <= 0)
+        int iPaletteCount;
+        if (validator.hasClut()) {
+            if (!validator.clutByteSizeIsValid(inStream))
+                return null;
+            if (!validator.clutXisValid(inStream))
+                return null;
+            if (!validator.clutYisValid(inStream))
+                return null;
+            if (!validator.clutPixelWidthIsValid(inStream))
+                return null;
+            if (!validator.clutPixelHeightIsValid(inStream))
                 return null;
 
-            // clut x,y
-            IO.skip(inStream, 4);
-
-            int iClutWidth = IO.readUInt16LE(inStream);
-            if (iClutWidth == 0)
+            if (!validator.clutIsConsistent())
                 return null;
 
-            int iClutHeight = IO.readUInt16LE(inStream);
-            if (iClutHeight == 0)
-                return null;
+            IO.skip(inStream, validator.getClutImageDataByteSize());
 
-            if (lngLength != (iClutWidth * iClutHeight * 2 + 12))
-                return null;
-
-            // User CUE reported an issue with some strange TIM images from
-            // "Guardian's Crusade" that report 16 bits-per-pixel, but also
-            // have a CLUT (bug "JPSXDEC-4").
-            // See read() for more details.
-            if (iBitsPerPixel == 16) {
-                if (iClutWidth < 256)
-                    iBitsPerPixel = 4;
-                else
-                    iBitsPerPixel = 8;
-                LOG.log(Level.WARNING, "TIM reports 16 bits/pixel, but it also has a CLUT. Assuming {0,number,#} bits/pixel", iBitsPerPixel);
-            } else if (iBitsPerPixel == 24) {
-                LOG.log(Level.WARNING, "TIM reports 24 bits/pixel, but it also has a CLUT. Assuming 8 bits/pixel");
-                iBitsPerPixel = 8;
-            }
-
-            iPaletteCount = (iClutWidth * iClutHeight) / (1 << iBitsPerPixel);
-
-            IO.skip(inStream, iClutWidth * iClutHeight * 2);
-        } else {
+            iPaletteCount = Tim.calcPaletteCount(validator.getClutImageDataWordSize(), validator.getBitPerPixel());
+       } else {
             iPaletteCount = 1;
         }
 
-        long lngImageLength = IO.readUInt32LE(inStream);
-        if (lngImageLength == 0)
+
+        if (!validator.timByteSizeIsValid(inStream))
+            return null;
+        if (!validator.timXisValid(inStream))
+            return null;
+        if (!validator.timYisValid(inStream))
+            return null;
+        if (!validator.wordWidthIsValid(inStream))
+            return null;
+        if (!validator.pixelHeightIsValid(inStream))
             return null;
 
-        // image x,y
-        IO.skip(inStream, 4);
-
-        int iImageWordWidth = IO.readUInt16LE(inStream);
-        if (iImageWordWidth == 0)
+        TimValidator.TimConsistency consistency = validator.timIsConsistent();
+        if (consistency == TimValidator.TimConsistency.INCONSISTENT)
             return null;
 
-        int iImageHeight = IO.readUInt16LE(inStream);
-        if (iImageHeight == 0)
-            return null;
+        IO.skip(inStream, validator.getImageDataByteSize());
 
-        if (lngImageLength != iImageWordWidth * iImageHeight * 2 + 12)
-            return null;
-
-        IO.skip(inStream, (iImageWordWidth * iImageHeight) * 2);
-
-        int iPixelWidth;
-        switch (iBitsPerPixel) {
-            case 4:  iPixelWidth = iImageWordWidth * 2 * 2; break;
-            case 8:  iPixelWidth = iImageWordWidth * 2    ; break;
-            case 16: iPixelWidth = iImageWordWidth        ; break;
-            case 24: iPixelWidth = iImageWordWidth * 2 / 3; break;
-            default: throw new RuntimeException("Impossible Tim BPP " + iBitsPerPixel);
-        }
-
-        return new TimInfo(iPaletteCount, iBitsPerPixel, iPixelWidth, iImageHeight);
+        return new TimInfo(iPaletteCount, validator.getBitPerPixel(),
+                           validator.getPixelWidth(), validator.getPixelHeight());
     }
-
-    /** Parse and deserialize a TIM file from a stream. */
+    
+    /**
+     * Parse and deserialize a TIM file from a stream.
+     */
     public static @Nonnull Tim read(@Nonnull InputStream inStream)
             throws EOFException, IOException, BinaryDataNotRecognized
     {
-        final boolean DBG = false;
-        int iTag = IO.readUInt8(inStream);
-        if (DBG) System.err.println(String.format("%02x", iTag));
-        if (iTag != Tim.TAG_MAGIC) // 0x10
+        TimValidator validator = new TimValidator();
+
+        if (!validator.tagIsValid(inStream))
             throw new BinaryDataNotRecognized();
-
-        int iVersion = IO.readUInt8(inStream);
-        if (DBG) System.err.println(String.format("%02x", iVersion));
-        if (iVersion != Tim.VERSION_0)
+        if (!validator.versionIsValid(inStream))
             throw new BinaryDataNotRecognized();
-
-        int iUnknown1 = IO.readUInt16LE(inStream);
-        if (DBG) System.err.println(String.format("%04x", iUnknown1));
-        if (iUnknown1 != 0)
+        if (!validator.unknownIsValid(inStream))
             throw new BinaryDataNotRecognized();
-
-        int iBpp_blnHasColorLookupTbl = IO.readUInt16LE(inStream);
-        if (DBG) System.err.println(String.format("%04x", iBpp_blnHasColorLookupTbl));
-        if ((iBpp_blnHasColorLookupTbl & 0xFFF4) != 0)
+        if (!validator.bppAndClutIsValid(inStream))
             throw new BinaryDataNotRecognized();
-
-        int iUnknown2 = IO.readUInt16LE(inStream);
-        if (DBG) System.err.println(String.format("%04x", iUnknown2));
-        if (iUnknown2 != 0)
+        if (!validator.unknownIsValid(inStream))
             throw new BinaryDataNotRecognized();
-
-        //-------------------------------------------------
-
-        boolean blnHasColorLookupTable = (iBpp_blnHasColorLookupTbl & 0x8) != 0;
-        int iBitsPerPixel = Tim.BITS_PER_PIX[iBpp_blnHasColorLookupTbl & 3];
 
         CLUT clut = null;
-        if (blnHasColorLookupTable) {
-            clut = new CLUT(inStream);
-            // User CUE reported an issue with some strange TIM images from
-            // "Guardian's Crusade" that report 16 bits-per-pixel, but also
-            // have a CLUT (bug "JPSXDEC-4").
-            // Turns out the image data was actually 4 or 8 bits-per-pixels.
-            // The CLUT width seemed to correlate with the bits-per-pixel
-            // (width < 256 : 4 bits/pixel, width >= 256 : 8 bits/pixel)
-            // No clear way to handle this case, so we'll change the code
-            // to at least handle these unique images the best we can.
-            if (iBitsPerPixel == 16) {
-                if (clut.getWidth() < 256)
-                    iBitsPerPixel = 4;
-                else
-                    iBitsPerPixel = 8;
-                LOG.log(Level.WARNING, "TIM reports 16 bits/pixel, but it also has a CLUT. Assuming {0,number,#} bits/pixel", iBitsPerPixel);
-            } else if (iBitsPerPixel == 24) {
-                LOG.log(Level.WARNING, "TIM reports 24 bits/pixel, but it also has a CLUT. Assuming 8 bits/pixel");
-                iBitsPerPixel = 8;
-            }
-        }
+        if (validator.hasClut()) {
+            if (!validator.clutByteSizeIsValid(inStream))
+                throw new BinaryDataNotRecognized();
+            if (!validator.clutXisValid(inStream))
+                throw new BinaryDataNotRecognized();
+            if (!validator.clutYisValid(inStream))
+                throw new BinaryDataNotRecognized();
+            if (!validator.clutPixelWidthIsValid(inStream))
+                throw new BinaryDataNotRecognized();
+            if (!validator.clutPixelHeightIsValid(inStream))
+                throw new BinaryDataNotRecognized();
 
-        long lngImageLength = IO.readUInt32LE(inStream);
-        if (lngImageLength == 0) throw new BinaryDataNotRecognized();
-        int iTimX = IO.readUInt16LE(inStream);
-        int iTimY = IO.readUInt16LE(inStream);
-        int iImageWordWidth = IO.readUInt16LE(inStream);
-        if (iImageWordWidth == 0) throw new BinaryDataNotRecognized();
-        int iPixelHeight = IO.readUInt16LE(inStream);
-        if (iPixelHeight == 0) throw new BinaryDataNotRecognized();
+            if (!validator.clutIsConsistent())
+                throw new BinaryDataNotRecognized();
 
-        if (lngImageLength != iImageWordWidth * iPixelHeight * 2 + Tim.HEADER_SIZE)
+            short[] asiColorData = new short[validator.getClutImageDataWordSize()];
+            for (int i = 0; i < asiColorData.length; i++)
+                asiColorData[i] = IO.readSInt16LE(inStream);
+            
+            clut = new CLUT(asiColorData, validator.getClutX(), validator.getClutY(), validator.getClutPixelWidth(), validator.getClutPixelHeight());
+       }
+
+        if (!validator.timByteSizeIsValid(inStream))
+            throw new BinaryDataNotRecognized();
+        if (!validator.timXisValid(inStream))
+            throw new BinaryDataNotRecognized();
+        if (!validator.timYisValid(inStream))
+            throw new BinaryDataNotRecognized();
+        if (!validator.wordWidthIsValid(inStream))
+            throw new BinaryDataNotRecognized();
+        if (!validator.pixelHeightIsValid(inStream))
             throw new BinaryDataNotRecognized();
 
-        byte[] abImageData = IO.readByteArray(inStream, (iImageWordWidth * iPixelHeight) * 2);
+        TimValidator.TimConsistency consistency = validator.timIsConsistent();
 
-        int iPixelWidth;
-        switch (iBitsPerPixel) {
-            case 4:  iPixelWidth = iImageWordWidth * 2 * 2; break;
-            case 8:  iPixelWidth = iImageWordWidth * 2    ; break;
-            case 16: iPixelWidth = iImageWordWidth        ; break;
-            case 24: iPixelWidth = iImageWordWidth * 2 / 3; break;
-            default: throw new RuntimeException("Impossible Tim BPP " + iBitsPerPixel);
-        }
-        return new Tim(abImageData, iTimX, iTimY, iPixelWidth, iPixelHeight, iBitsPerPixel, clut);
+        if (consistency == TimValidator.TimConsistency.INCONSISTENT)
+            throw new BinaryDataNotRecognized();
+
+        byte[] abImageData = IO.readByteArray(inStream, validator.getImageDataByteSize());
+        return new Tim(abImageData, validator.getTimX(), validator.getTimY(), 
+                       validator.getWordWidth(), validator.getPixelHeight(),
+                       validator.getBitPerPixel(), clut,
+                       consistency == TimValidator.TimConsistency.INCONSISTENT_BUT_VALID);
     }
-    
-    /** Creates a TIM with the same or similar color-model of a {@link BufferedImage}.
+
+    /**
+     * Creates a TIM with the same or similar color-model of a {@link BufferedImage}.
+     *
+     * {@link BufferedImage} bpp map:
+     * {@code 32 -> 16} (no CLUT)
+     * {@code 8 -> 8} (256 color CLUT)
+     * {@code 4 -> 4} (16 color CLUT)
+     *
      * @param iTimX Tim X coordinate.
      * @param iTimY Tim Y coordinate.
      * @param iClutX CLUT X coordinate.
@@ -252,67 +201,82 @@ class CreateTim {
                                       int iTimX, int iTimY,
                                       int iClutX, int iClutY)
     {
-        int iSrcBpp = findBitsPerPixel(bi);
-        if (iSrcBpp == 32)
-            iSrcBpp = 16; // use 16 BPP (instead of 24) since it's the most common
-        else if (iSrcBpp == 4 && bi.getWidth() % 4 != 0) {
-            LOG.warning("Trying to create 4bpp Tim with width not divisible by 4. Converting to 8bpp.");
-            iSrcBpp = 8; // 4bpp width must be divisible by 4, so try the next higher bpp
-        }
+        final int iSrcBpp = findBitsPerPixel(bi);
 
-        if (iSrcBpp == 8 && bi.getWidth() % 2 != 0) {
-            LOG.warning("Trying to create 8bpp Tim with uneven width. Converting to 16bpp.");
-            iSrcBpp = 16; // 16bpp is the only one that might allow for an even width (untested)
+        int iTargetBpp;
+
+        if (iSrcBpp == 32)
+            // use 16 BPP (instead of 24) since it's the most common
+            // if 24 bpp is needed, use other function
+            iTargetBpp = 16; 
+        else
+            iTargetBpp = iSrcBpp;
+
+        try {
+            return create(bi, iTargetBpp, iTimX, iTimY, iClutX, iClutY);
+        } catch (IncompatibleException ex) {
+            throw new RuntimeException("Should not happen", ex);
         }
-        return create(bi, iSrcBpp, iTimX, iTimY, iClutX, iClutY);
     }
 
-    /** Creates a TIM from a BufferedImage with the specified bits-per-pixel. 
-     * @throws IllegalArgumentException if anything is weird.
+    /**
+     * Creates a TIM from a BufferedImage with the specified bits-per-pixel.
+     *
      * @param iBitsPerPixel 4, 8, 16, or 24.
      * @param iTimX Tim X coordinate.
      * @param iTimY Tim Y coordinate.
      * @param iClutX CLUT X coordinate. Ignored if bpp is 16 or 24.
-     * @param iClutY CLUT Y coordinate. Ignored if bpp is 16 or 24. */
+     * @param iClutY CLUT Y coordinate. Ignored if bpp is 16 or 24.
+     *
+     * @throws IncompatibleException if unable to convert an 8 bpp {@link BufferedImage}
+     *                               to a 4 bpp Tim because there are too many colors used.
+     */
     public static @Nonnull Tim create(@Nonnull BufferedImage bi, int iBitsPerPixel,
                                       int iTimX, int iTimY,
                                       int iClutX, int iClutY)
+            throws IncompatibleException
     {
-        int iPaletteLength;
-        switch (iBitsPerPixel) {
-            case 16: return create16(bi, iTimX, iTimY);
-            case 24: return create24(bi, iTimX, iTimY);
+        TimValidator validator = new TimValidator();
+        if (!validator.bppIsValid(iBitsPerPixel))
+            throw new IllegalArgumentException();
+        if (!validator.timXisValid(iTimX))
+            throw new IllegalArgumentException();
+        if (!validator.timYisValid(iTimY))
+            throw new IllegalArgumentException();
+        if (!validator.pixelWidthIsValid(bi.getWidth()))
+            throw new IllegalArgumentException();
+        if (!validator.pixelHeightIsValid(bi.getHeight()))
+            throw new IllegalArgumentException();
 
+        int iPaletteLength;
+        switch (validator.getBitPerPixel()) {
+            case 16: return create16(bi, validator);
+            case 24: return create24(bi, validator);
             case 4:
-                if (bi.getWidth() % 4 != 0)
-                    throw new IllegalArgumentException(
-                        "Image width ("+bi.getWidth()+") is not divisible by 4 so cannot be converted to 4bpp Tim");
                 iPaletteLength = 16;
                 break;
             case 8: 
-                if (bi.getWidth() % 2 != 0)
-                    throw new IllegalArgumentException(
-                        "Image width ("+bi.getWidth()+") is not divisible by 2 so cannot be converted to 8bpp Tim");
                 iPaletteLength = 256;
                 break;
-                
-            default: throw new IllegalArgumentException("Invalid bits per pixel " + iBitsPerPixel);
+            default: throw new RuntimeException();
         }
 
         final int iSrcBpp = findBitsPerPixel(bi);
         
         Tim tim;
 
-        if (iSrcBpp <= iBitsPerPixel) {
+        if (iSrcBpp <= validator.getBitPerPixel()) {
             // src = 4, dest = 4
             // src = 4, dest = 8
             // src = 8, dest = 8
             IndexColorModel icm = (IndexColorModel) bi.getColorModel();
             short[] asiClut = extractPalette(icm, iPaletteLength);
-            CLUT clut = new CLUT(asiClut, iClutX, iClutY, iPaletteLength);
+            CLUT clut = new CLUT(asiClut, validator.getClutX(), validator.getClutY(), iPaletteLength, 1);
 
-            byte[] abIndexes = extractIndexes(bi, iBitsPerPixel == 4);
-            tim = new Tim(abIndexes, iTimX, iTimY, bi.getWidth(), bi.getHeight(), iBitsPerPixel, clut);
+            byte[] abIndexes = extractIndexes(bi, validator.getBitPerPixel() == 4);
+            tim = new Tim(abIndexes, validator.getTimX(), validator.getTimY(), 
+                          validator.getWordWidth(), validator.getPixelHeight(),
+                          validator.getBitPerPixel(), clut);
         } else if (iSrcBpp == 8) {
             // src = 8, dest = 4
             
@@ -328,7 +292,7 @@ class CreateTim {
                     aiMapper[iIdx] = iNewPalSize;
                     iNewPalSize++;
                     if (iNewPalSize > 16)
-                        throw new IllegalArgumentException("Unable to fit image into 16 colors");
+                        throw new IncompatibleException("Unable to fit image into 16 colors");
                 }
             }
 
@@ -348,33 +312,44 @@ class CreateTim {
             icm.getRGBs(ai256Palette);
             short[] asiClut = new short[16];
             for (int i = 0; i < iNewPalSize; i++) {
-                asiClut[i] = color32toColor16(ai256Palette[aiMapper[i]]);
+                asiClut[i] = PsxRgb.ARGB8888toPsxABGR1555(ai256Palette[aiMapper[i]]);
             }
-            CLUT clut = new CLUT(asiClut, iClutX, iClutY, iPaletteLength);
+            CLUT clut = new CLUT(asiClut, validator.getClutX(), validator.getClutY(), iPaletteLength, 1);
 
-            tim = new Tim(abTimImg, iTimX, iTimY, bi.getWidth(), bi.getHeight(), iBitsPerPixel, clut);
+            tim = new Tim(abTimImg, validator.getTimX(), validator.getTimY(), validator.getWordWidth(), validator.getPixelHeight(), validator.getBitPerPixel(), clut);
 
         } else {
             // src = 32, dest = 4
             // src = 32, dest = 8
-            tim = createPalettedTim(bi, iBitsPerPixel == 4, iTimX, iTimY, iClutX, iClutY);
+            tim = createPalettedTim(bi, validator.getBitPerPixel() == 4, validator);
         }
         
         return tim;
     }
 
-    /** Create a TIM image with a custom CLUT.
+    /**
+     * Create a TIM image with a custom CLUT.
      * This is the most advanced method of creating a TIM image.
-     * It allows one to create a TIM with multiple CLUT palettes.  
+     * It allows you to create a TIM with multiple CLUT palettes.
+     *
      * @param iTimX Tim X coordinate.
      * @param iTimY Tim Y coordinate.
      * @param iClutX CLUT X coordinate.
      * @param iClutY CLUT Y coordinate.
-     * @param iBitsPerPixel Either 4 or 8. */
+     * @param iBitsPerPixel Either 4 or 8.
+     *
+     * @throws IllegalArgumentException if 
+     *      the {@link BufferedImage} does not have an {@link IndexColorModel},
+     *      or the colors of the palette indexes in the {@link BufferedImage} do not match the first palette in the CLUT.
+     */
     public static @Nonnull Tim create(@Nonnull BufferedImage bi, int iTimX, int iTimY,
                                       @Nonnull BufferedImage clutImg, int iClutX, int iClutY,
                                       int iBitsPerPixel)
     {
+        TimValidator validator = new TimValidator();
+        if (!validator.bppIsValid(iBitsPerPixel, true))
+            throw new IllegalArgumentException();
+
         int iPaletteSize;
         if (iBitsPerPixel == 4)
             iPaletteSize = 16;
@@ -383,6 +358,24 @@ class CreateTim {
         else
             throw new IllegalArgumentException("Unable to create a paletted Tim with " + iBitsPerPixel + " bpp");
 
+        if (!validator.clutXisValid(iClutX))
+            throw new IllegalArgumentException();
+        if (!validator.clutYisValid(iClutY))
+            throw new IllegalArgumentException();
+        if (!validator.clutPixelWidthIsValid(clutImg.getWidth()))
+            throw new IllegalArgumentException();
+        if (!validator.clutPixelHeightIsValid(clutImg.getHeight()))
+            throw new IllegalArgumentException();
+
+        if (!validator.timXisValid(iTimX))
+            throw new IllegalArgumentException();
+        if (!validator.timYisValid(iTimY))
+            throw new IllegalArgumentException();
+        if (!validator.pixelWidthIsValid(bi.getWidth()))
+            throw new IllegalArgumentException();
+        if (!validator.pixelHeightIsValid(bi.getHeight()))
+            throw new IllegalArgumentException();
+
         ColorModel cm = bi.getColorModel();
         if (!(cm instanceof IndexColorModel))
             throw new IllegalArgumentException("Image must have IndexColorModel");
@@ -390,8 +383,6 @@ class CreateTim {
         
         int[] aiPaletteArgb = new int[iPaletteSize];
         icm.getRGBs(aiPaletteArgb);
-
-        int iWidth = bi.getWidth(), iHeight = bi.getHeight();
 
         // verify that the image palette matches the clut first palette
         int[] aiClut = clutImg.getRGB(0, 0, clutImg.getWidth(), clutImg.getHeight(), null, 0, clutImg.getWidth());
@@ -403,12 +394,12 @@ class CreateTim {
         // convert the 32bit RGBA8888 palette into TIM 16bit ABGR1555
         short[] asiClut = new short[aiClut.length];
         for (int i = 0; i < aiClut.length; i++) {
-            asiClut[i] = color32toColor16(aiClut[i]);
+            asiClut[i] = PsxRgb.ARGB8888toPsxABGR1555(aiClut[i]);
         }
-        CLUT c = new CLUT(asiClut, iClutX, iClutY, clutImg.getWidth());
+        CLUT clut = new CLUT(asiClut, validator.getClutX(), validator.getClutY(), validator.getClutPixelWidth(), validator.getClutPixelHeight());
 
         byte[] abTimImg = extractIndexes(bi, iBitsPerPixel == 4);
-        return new Tim(abTimImg, iTimX, iTimY, iWidth, iHeight, iBitsPerPixel, c);
+        return new Tim(abTimImg, validator.getTimX(), validator.getTimY(), validator.getWordWidth(), validator.getPixelHeight(), validator.getBitPerPixel(), clut);
     }
 
     //--------------------------------------------------------------------------
@@ -475,61 +466,53 @@ class CreateTim {
         // convert the 32bit ARGB8888 palette into TIM 16bit ABGR1555
         short[] asiClut = new short[aiPalette.length];
         for (int i = 0; i < aiPalette.length; i++) {
-            asiClut[i] = color32toColor16(aiPalette[i]);
+            asiClut[i] = PsxRgb.ARGB8888toPsxABGR1555(aiPalette[i]);
         }
         return asiClut;
     }
 
     /** Convert image to 16 bpp Tim. */
-    private static @Nonnull Tim create16(@Nonnull BufferedImage bi, int iTimX, int iTimY) {
+    private static @Nonnull Tim create16(@Nonnull BufferedImage bi, @Nonnull TimValidator validator) {
         int[] aiArgb = bi.getRGB(0, 0, bi.getWidth(), bi.getHeight(), null, 0, bi.getWidth());
         byte[] abTim16 = new byte[aiArgb.length * 2];
         for (int i = 0, o = 0; i < aiArgb.length; i++, o+=2) {
             int iArgb = aiArgb[i];
-            short siTimAbgr = color32toColor16(iArgb);
+            short siTimAbgr = PsxRgb.ARGB8888toPsxABGR1555(iArgb);
             IO.writeInt16LE(abTim16, o, siTimAbgr);
         }
-        return new Tim(abTim16, iTimX, iTimY, bi.getWidth(), bi.getHeight(), 16, null);
+        return new Tim(abTim16, validator.getTimX(), validator.getTimY(), validator.getWordWidth(), validator.getPixelHeight(), 16, null);
     }
 
     /** Convert image to 24 bpp Tim. */
-    private static @Nonnull Tim create24(@Nonnull BufferedImage bi, int iTimX, int iTimY) {
-        final int iWidth = bi.getWidth(), iHeight = bi.getHeight();
-        int[] aiArgb = bi.getRGB(0, 0, iWidth, iHeight, null, 0, iWidth);
-        byte[] abTim24;
-        if (iWidth % 2 != 0)
-            throw new IllegalArgumentException("24-bit Tim must have even width");
-        abTim24 = new byte[aiArgb.length * 3];
+    private static @Nonnull Tim create24(@Nonnull BufferedImage bi, @Nonnull TimValidator validator) {
+        int[] aiArgb = bi.getRGB(0, 0, bi.getWidth(), bi.getHeight(), null, 0, bi.getWidth());
+        byte[] abTim24 = new byte[aiArgb.length * 3];
         for (int i = 0, o = 0; i < aiArgb.length; i++, o+=3) {
             int iArgb = aiArgb[i];
             abTim24[o+0]= (byte)(iArgb >> 16);
             abTim24[o+1]= (byte)(iArgb >>  8);
             abTim24[o+2]= (byte)(iArgb      );
         }
-        return new Tim(abTim24, iTimX, iTimY, iWidth, iHeight, 24, null);
+        return new Tim(abTim24, validator.getTimX(), validator.getTimY(), validator.getWordWidth(), validator.getPixelHeight(), 24, null);
     }
 
-    /** Manually generates a palette from the image.
+    /**
+     * Manually generates a palette from the image.
      * Ignores its {@link IndexColorModel} if it has one.
      * @throws IllegalArgumentException if the image has too many colors to fit into the palette.
      */
     private static @Nonnull Tim createPalettedTim(@Nonnull BufferedImage bi,
                                                   boolean bln4bppOrNot8bpp,
-                                                  int iTimX, int iTimY,
-                                                  int iClutX, int iClutY)
+                                                  @Nonnull TimValidator validator)
     {
-        final int iWidth = bi.getWidth(), iHeight = bi.getHeight();
-        
         int iPaletteSize;
         if (bln4bppOrNot8bpp) {
-            assert iWidth % 4 == 0; // should be checked by caller
             iPaletteSize = 16;
         } else {
-            assert iWidth % 2 == 0; // should be checked by caller
             iPaletteSize = 256;
         }
 
-        int[] aiArgb = bi.getRGB(0, 0, iWidth, iHeight, null, 0, iWidth);
+        int[] aiArgb = bi.getRGB(0, 0, bi.getWidth(), bi.getHeight(), null, 0, bi.getWidth());
 
         PaletteMaker pal = new PaletteMaker(aiArgb, iPaletteSize);
 
@@ -552,9 +535,10 @@ class CreateTim {
             abTimImg[o] = (byte)iPaletteIdx;
         }
 
-        CLUT clut = pal.makeClut(iClutX, iClutY);
+        CLUT clut = pal.makeClut(validator.getClutX(), validator.getClutY());
 
-        return new Tim(abTimImg, iTimX, iTimY, iWidth, iHeight, bln4bppOrNot8bpp ? 4 : 8, clut);
+        int iBpp = bln4bppOrNot8bpp ? 4 : 8;
+        return new Tim(abTimImg, validator.getTimX(), validator.getTimY(), validator.getWordWidth(), validator.getPixelHeight(), iBpp, clut);
     }
 
     /** Little class to break up the palette generation logic in
@@ -588,7 +572,7 @@ class CreateTim {
             // make 2 copies of the image data converted to Tim 16bpp
             _asiTim16Image = new short[aiArgb.length];
             for (int i = 0; i < aiArgb.length; i++) {
-                _asiTim16Image[i] = color32toColor16(aiArgb[i]);
+                _asiTim16Image[i] = PsxRgb.ARGB8888toPsxABGR1555(aiArgb[i]);
             }
             // using copyof seems to be faster than .clone()
             // and faster than copying the values in the for loop
@@ -621,74 +605,8 @@ class CreateTim {
         }
 
         public @Nonnull CLUT makeClut(int iClutX, int iClutY) {
-            return new CLUT(_asiPalette, iClutX, iClutY, _asiPalette.length);
+            return new CLUT(_asiPalette, iClutX, iClutY, _asiPalette.length, 1);
         }
     }
     
-    /** Works the same as
-     * <pre>
-     * int CONVERT_8_TO_5_BIT(int i) {
-     *   return (int)Math.round(i*255/31.0);
-     * }
-     * </pre> */
-    private static final int[] CONVERT_8_TO_5_BIT =
-    {
-        0,  0,  0,  0,  0,
-        1,  1,  1,  1,  1,  1,  1,  1,
-        2,  2,  2,  2,  2,  2,  2,  2,
-        3,  3,  3,  3,  3,  3,  3,  3,
-        4,  4,  4,  4,  4,  4,  4,  4,  4,
-        5,  5,  5,  5,  5,  5,  5,  5,
-        6,  6,  6,  6,  6,  6,  6,  6,
-        7,  7,  7,  7,  7,  7,  7,  7,
-        8,  8,  8,  8,  8,  8,  8,  8,
-        9,  9,  9,  9,  9,  9,  9,  9,  9,
-        10, 10, 10, 10, 10, 10, 10, 10,
-        11, 11, 11, 11, 11, 11, 11, 11,
-        12, 12, 12, 12, 12, 12, 12, 12,
-        13, 13, 13, 13, 13, 13, 13, 13, 13,
-        14, 14, 14, 14, 14, 14, 14, 14,
-        15, 15, 15, 15, 15, 15, 15, 15,
-        16, 16, 16, 16, 16, 16, 16, 16,
-        17, 17, 17, 17, 17, 17, 17, 17,
-        18, 18, 18, 18, 18, 18, 18, 18, 18,
-        19, 19, 19, 19, 19, 19, 19, 19,
-        20, 20, 20, 20, 20, 20, 20, 20,
-        21, 21, 21, 21, 21, 21, 21, 21,
-        22, 22, 22, 22, 22, 22, 22, 22, 22,
-        23, 23, 23, 23, 23, 23, 23, 23,
-        24, 24, 24, 24, 24, 24, 24, 24,
-        25, 25, 25, 25, 25, 25, 25, 25,
-        26, 26, 26, 26, 26, 26, 26, 26,
-        27, 27, 27, 27, 27, 27, 27, 27, 27,
-        28, 28, 28, 28, 28, 28, 28, 28,
-        29, 29, 29, 29, 29, 29, 29, 29,
-        30, 30, 30, 30, 30, 30, 30, 30,
-        31, 31, 31, 31, 31,
-    }; static { assert CONVERT_8_TO_5_BIT.length == 256; }
-
-    /** ARGB8888 to Tim ABGR1555. */
-    private static short color32toColor16(int i) {
-        int a = (i >>> 24) & 0xFF;
-        int r = CONVERT_8_TO_5_BIT[(i >>> 16) & 0xFF];
-        int g = CONVERT_8_TO_5_BIT[(i >>>  8) & 0xFF];
-        int b = CONVERT_8_TO_5_BIT[(i       ) & 0xFF];
-        int bgr = (b << 10) | (g << 5) | r;
-        if (a == 0) {
-            // if totally transparent
-            bgr = 0;
-            a   = 0;
-        } else if (a == 255) {
-            // if totally opaque
-            if (bgr == 0) // if totally opaque & black
-                a = 1;
-            else // if totally opaque & not black
-                a = 0;
-        } else {
-            // if partially transparent
-            a = 1;
-        }
-        return (short)((a << 15) | bgr);
-    }
-
 }

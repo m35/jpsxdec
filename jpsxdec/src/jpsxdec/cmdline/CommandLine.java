@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2019  Michael Sabin
+ * Copyright (C) 2013-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -189,7 +189,7 @@ public class CommandLine {
             throw new CommandLineException(I.CMD_COMMAND_NEEDS_DISC());
         Feedback.println(I.IO_OPENING_FILE(sDiscFile));
         try {
-            CdFileSectorReader cd = new CdFileSectorReader(new File(sDiscFile));
+            CdFileSectorReader cd = CdFileSectorReader.open(sDiscFile);
             Feedback.println(I.CMD_DISC_IDENTIFIED(cd.getTypeDescription()));
             return cd;
         } catch (CdFileSectorReader.CdFileNotFoundException ex) {

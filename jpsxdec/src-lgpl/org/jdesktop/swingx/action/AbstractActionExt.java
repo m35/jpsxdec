@@ -236,7 +236,7 @@ public abstract class AbstractActionExt extends AbstractAction
 
     public void setMnemonic(String mnemonic) {
         if (mnemonic != null && mnemonic.length() > 0) {
-            putValue(Action.MNEMONIC_KEY, new Integer(mnemonic.charAt(0)));
+            putValue(Action.MNEMONIC_KEY, Integer.valueOf(mnemonic.charAt(0)));
         }
     }
 
@@ -256,7 +256,7 @@ public abstract class AbstractActionExt extends AbstractAction
      * @see Action#putValue
      */
     public void setMnemonic(int mnemonic) {
-        putValue(Action.MNEMONIC_KEY, new Integer(mnemonic));
+        putValue(Action.MNEMONIC_KEY, Integer.valueOf(mnemonic));
     }
 
     /**

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -63,6 +63,7 @@ import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.TabularFeedback;
 import jpsxdec.i18n.TabularFeedback.Cell;
 import jpsxdec.i18n.UnlocalizedMessage;
+import jpsxdec.i18n._PlaceholderMessage;
 import jpsxdec.i18n.exception.LocalizedFileNotFoundException;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
@@ -92,11 +93,11 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             _javaFmt = eJavaFmt;
         }
 
-        private @Nonnull String getId() {
+        private @Nonnull String getUiId() {
             if (_javaFmt == null)
                 return "tim";
             else
-                return _javaFmt.getId();
+                return _javaFmt.getUiId();
         }
 
         /** @throws UnsupportedOperationException if this is {@link #TIM}. */
@@ -277,7 +278,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
     private @CheckForNull TimSaveFormat fromCmdLine(@Nonnull String sCmdLine) {
         for (TimSaveFormat fmt : _validFormats) {
-            if (fmt.getId().equalsIgnoreCase(sCmdLine))
+            if (fmt.getUiId().equalsIgnoreCase(sCmdLine))
                 return fmt;
         }
         return null;
@@ -408,6 +409,9 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
             throw new LoggedFailure(pl, Level.SEVERE, I.TIM_DATA_NOT_FOUND(), ex);
         }
 
+        if (tim.timHasIssues()) {
+            pl.log(Level.WARNING, new _PlaceholderMessage("Adapting for inconsistencies in Tim image {0}", tim));
+        }
         pl.event(I.IO_WRITING_FILE(outputFile.getName()));
         try {
             IO.makeDirsForFile(outputFile);
@@ -455,7 +459,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                     pl.event(I.IO_WRITING_FILE(f.toString()));
                     IO.makeDirsForFile(f);
                     try {
-                        boolean blnOk = ImageIO.write(bi, _imageFormat.getId(), f);
+                        boolean blnOk = ImageIO.write(bi, _imageFormat.getImageIOid(), f);
                         if (blnOk)
                             addGeneratedFile(f);
                         else

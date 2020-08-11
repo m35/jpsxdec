@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -71,6 +71,55 @@ public class CdFileSectorReader implements Closeable {
     private static final Logger LOG = Logger.getLogger(CdFileSectorReader.class.getName());
 
     private static final int DEFAULT_SECTOR_BUFFER_COUNT   = 16;
+
+    public static CdFileSectorReader open(@Nonnull String sDiscImageFileName)
+            throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
+    {
+        return open(new File(sDiscImageFileName));
+    }
+
+    public static CdFileSectorReader open(@Nonnull File discImageFile)
+            throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
+    {
+        return new CdFileSectorReader(discImageFile);
+    }
+
+    public static CdFileSectorReader open(@Nonnull File discImageFile, boolean blnAllowWrites)
+            throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
+    {
+        return new CdFileSectorReader(discImageFile, blnAllowWrites);
+    }
+
+    public static CdFileSectorReader open(@Nonnull File discImageFile, boolean blnAllowWrites, int iSectorsToBuffer)
+            throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
+    {
+        return new CdFileSectorReader(discImageFile, blnAllowWrites, iSectorsToBuffer);
+    }
+
+    public static CdFileSectorReader openWithSectorSize(@Nonnull File discImageFile, int iSectorSize)
+            throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
+    {
+        return new CdFileSectorReader(discImageFile, iSectorSize);
+    }
+
+    public static CdFileSectorReader openWithSectorSize(@Nonnull File discImageFile, int iSectorSize, boolean blnAllowWrites, int iSectorsToBuffer)
+            throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
+    {
+        return new CdFileSectorReader(discImageFile, iSectorSize, blnAllowWrites, iSectorsToBuffer);
+    }
+
+    public static CdFileSectorReader deserialize(@Nonnull String sSerialization, boolean blnAllowWrites)
+            throws LocalizedDeserializationFail, CdFileNotFoundException, CdReadException
+    {
+        return new CdFileSectorReader(sSerialization, blnAllowWrites);
+    }
+
+    public static CdFileSectorReader deserialize(@Nonnull String sSerialization, boolean blnAllowWrites, int iSectorsToBuffer)
+            throws LocalizedDeserializationFail, CdFileNotFoundException, CdReadException
+    {
+        return new CdFileSectorReader(sSerialization, blnAllowWrites, iSectorsToBuffer);
+    }
+
 
     /** Exception if a CD file is not found or cannot be opened. */
     public static class CdFileNotFoundException extends FileNotFoundException {
@@ -159,7 +208,7 @@ public class CdFileSectorReader implements Closeable {
     @Nonnull
     private RandomAccessFile _inputFile;
     @Nonnull
-    private final File _sourceFile;
+    private final File _discImageFile;
     /** Creates sectors from the data based on the type of disc image it is. */
     @Nonnull
     private final SectorFactory _sectorFactory;
@@ -179,32 +228,33 @@ public class CdFileSectorReader implements Closeable {
     /* Constructors --------------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
 
-    public CdFileSectorReader(@Nonnull File inputFile)
+    /** Tries to guess the sector size. */
+    private CdFileSectorReader(@Nonnull File discImageFile)
             throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
     {
-        this(inputFile, false, DEFAULT_SECTOR_BUFFER_COUNT);
+        this(discImageFile, false, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    public CdFileSectorReader(@Nonnull File inputFile, boolean blnAllowWrites)
+    /** Tries to guess the sector size. */
+    private CdFileSectorReader(@Nonnull File discImageFile, boolean blnAllowWrites)
             throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
     {
-        this(inputFile, blnAllowWrites, DEFAULT_SECTOR_BUFFER_COUNT);
+        this(discImageFile, blnAllowWrites, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    /** Opens a CD file for reading. Tries to guess the CD size. */
-    public CdFileSectorReader(@Nonnull File sourceFile,
-                              boolean blnAllowWrites, int iSectorsToBuffer)
+    /** Tries to guess the sector size. */
+    private CdFileSectorReader(@Nonnull File discImageFile, boolean blnAllowWrites, int iSectorsToBuffer)
             throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
     {
-        LOG.info(sourceFile.getPath());
+        LOG.info(discImageFile.getPath());
 
-        _sourceFile = sourceFile;
+        _discImageFile = discImageFile;
         _iSectorsToCache = iSectorsToBuffer;
 
         try {
-            _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
+            _inputFile = new RandomAccessFile(discImageFile, blnAllowWrites ? "rw" : "r");
         } catch (FileNotFoundException ex) {
-            throw new CdFileNotFoundException(sourceFile, ex);
+            throw new CdFileNotFoundException(discImageFile, ex);
         }
 
         boolean blnExceptionThrown = true;
@@ -236,7 +286,7 @@ public class CdFileSectorReader implements Closeable {
                 }
 
             } catch (IOException ex) {
-                throw new CdReadException(sourceFile, ex);
+                throw new CdReadException(discImageFile, ex);
             }
             _sectorFactory = factory;
 
@@ -252,28 +302,27 @@ public class CdFileSectorReader implements Closeable {
                                    _sectorFactory.get1stSectorOffset());
     }
 
-    public CdFileSectorReader(@Nonnull File inputFile, int iSectorSize)
+    /** Uses the given sector size. */
+    private CdFileSectorReader(@Nonnull File discImageFile, int iSectorSize)
             throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
     {
-        this(inputFile, iSectorSize, false, DEFAULT_SECTOR_BUFFER_COUNT);
+        this(discImageFile, iSectorSize, false, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    /** Opens a CD file for reading using the provided sector size.
-     * @throws FileTooSmallToIdentifyException If the disc image doesn't match the sector size.
-     */
-    public CdFileSectorReader(@Nonnull File sourceFile,
-            int iSectorSize, boolean blnAllowWrites, int iSectorsToBuffer)
+    /** Uses the given sector size. */
+    private CdFileSectorReader(@Nonnull File discImageFile, int iSectorSize,
+                               boolean blnAllowWrites, int iSectorsToBuffer)
             throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
     {
-        LOG.info(sourceFile.getPath());
+        LOG.info(discImageFile.getPath());
 
-        _sourceFile = sourceFile;
+        _discImageFile = discImageFile;
         _iSectorsToCache = iSectorsToBuffer;
 
         try {
-            _inputFile = new RandomAccessFile(sourceFile, blnAllowWrites ? "rw" : "r");
+            _inputFile = new RandomAccessFile(discImageFile, blnAllowWrites ? "rw" : "r");
         } catch (FileNotFoundException ex) {
-            throw new CdFileNotFoundException(sourceFile, ex);
+            throw new CdFileNotFoundException(discImageFile, ex);
         }
 
         boolean blnExceptionThrown = true;
@@ -296,7 +345,7 @@ public class CdFileSectorReader implements Closeable {
             }
             blnExceptionThrown = false;
         } catch (IOException ex) {
-            throw new CdReadException(sourceFile, ex);
+            throw new CdReadException(discImageFile, ex);
         } finally {
             if (blnExceptionThrown)
                 IO.closeSilently(_inputFile, LOG);
@@ -309,13 +358,15 @@ public class CdFileSectorReader implements Closeable {
                                    _sectorFactory.get1stSectorOffset());
     }
 
-    public CdFileSectorReader(@Nonnull String sSerialization, boolean blnAllowWrites)
+    /** Deserializes the CD. */
+    private CdFileSectorReader(@Nonnull String sSerialization, boolean blnAllowWrites)
             throws LocalizedDeserializationFail, CdFileNotFoundException, CdReadException
     {
         this(sSerialization, blnAllowWrites, DEFAULT_SECTOR_BUFFER_COUNT);
     }
 
-    public CdFileSectorReader(@Nonnull String sSerialization, boolean blnAllowWrites, int iSectorsToBuffer)
+    /** Deserializes the CD. */
+    private CdFileSectorReader(@Nonnull String sSerialization, boolean blnAllowWrites, int iSectorsToBuffer)
             throws LocalizedDeserializationFail, CdFileNotFoundException, CdReadException
     {
         String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
@@ -347,12 +398,12 @@ public class CdFileSectorReader implements Closeable {
             throw new LocalizedDeserializationFail(I.CD_DESERIALIZE_FAIL(sSerialization), ex);
         }
 
-        _sourceFile = new File(asValues[1]);
+        _discImageFile = new File(asValues[1]);
 
         try {
-            _inputFile = new RandomAccessFile(_sourceFile, blnAllowWrites ? "rw" : "r");
+            _inputFile = new RandomAccessFile(_discImageFile, blnAllowWrites ? "rw" : "r");
         } catch (FileNotFoundException ex) {
-            throw new CdFileNotFoundException(_sourceFile, ex);
+            throw new CdFileNotFoundException(_discImageFile, ex);
         }
 
         _iSectorsToCache = iSectorsToBuffer;
@@ -366,12 +417,29 @@ public class CdFileSectorReader implements Closeable {
 
     }
 
+    /** Fake constructor for testing.
+     * Ideally we'd use an interface for the CD sector reader which this class
+     * would implement, then tests could create a fake/mock CD sector reader
+     * to use for testing. But that ended up being a lot of work for little
+     * benefit. However, if any other kind of CD sector reader is added,
+     * then we would want to switch to the interface design. */
+    protected CdFileSectorReader(File discImageFile,
+                                 RandomAccessFile inputFile,
+                                 int iSectorCount)
+    {
+        _inputFile = inputFile;
+        _discImageFile = discImageFile;
+        _sectorFactory = null;
+        _iSectorCount = iSectorCount;
+    }
+
+
     private int calculateSectorCount() throws CdReadException {
         try {
             return (int)((_inputFile.length() - _sectorFactory.get1stSectorOffset())
                     / _sectorFactory.getRawSectorSize());
         } catch (IOException ex) {
-            throw new CdReadException(_sourceFile, ex);
+            throw new CdReadException(_discImageFile, ex);
         }
     }
 
@@ -385,7 +453,7 @@ public class CdFileSectorReader implements Closeable {
 
     public @Nonnull String serialize() {
         return String.format(SERIALIZATION,
-                _sourceFile.getPath(),
+                _discImageFile.getPath(),
                 _sectorFactory.getRawSectorSize(),
                 _iSectorCount,
                 _sectorFactory.get1stSectorOffset());
@@ -430,7 +498,7 @@ public class CdFileSectorReader implements Closeable {
     }
 
     public @Nonnull File getSourceFile() {
-        return _sourceFile;
+        return _discImageFile;
     }
 
     /** Returns the actual offset in bytes from the start of the source file
@@ -467,7 +535,7 @@ public class CdFileSectorReader implements Closeable {
                 if (iBytesRead < _sectorFactory.getRawSectorSize())
                     throw new RuntimeException("Should have already verified this should not happen");
             } catch (IOException ex) {
-                throw new CdReadException(_sourceFile, ex);
+                throw new CdReadException(_discImageFile, ex);
             }
 
             // made sure everything is good before we save the cache
@@ -501,7 +569,7 @@ public class CdFileSectorReader implements Closeable {
             // clearing the cache could be done here, but it wouldn't
             // affect anything that has already been read (which is most things)
         } catch (IOException ex) {
-            throw new CdWriteException(_sourceFile, ex);
+            throw new CdWriteException(_discImageFile, ex);
         }
     }
 
@@ -555,9 +623,9 @@ public class CdFileSectorReader implements Closeable {
     void reopenForWriting() throws CdReopenException {
         try {
             _inputFile.close(); // expose close exception
-            _inputFile = new RandomAccessFile(_sourceFile, "rw");
+            _inputFile = new RandomAccessFile(_discImageFile, "rw");
         } catch (IOException ex) {
-            throw new CdReopenException(_sourceFile, ex);
+            throw new CdReopenException(_discImageFile, ex);
         }
     }
 
@@ -646,8 +714,8 @@ public class CdFileSectorReader implements Closeable {
             {
                 if (isXaSector(cdFile, lngSectStart, abTestSectorData)) {
                     // we've found an XA audio sector
-                    // maybe try to find another just to be sure?
 
+                    // now find another just to be sure
                     // only check up to 146 sectors because, if the sector size is actually 2352,
                     // then around 147, the offset difference adds up to another whole 2352 sector
                     // this also avoids loop-around collision with 2448 sector size
@@ -678,7 +746,7 @@ public class CdFileSectorReader implements Closeable {
             cdFile.seek(lngSectorStart);
             IO.readByteArray(cdFile, abReusableBuffer);
             CdSector cdSector = new CdSector2336(0, abReusableBuffer, 0, lngSectorStart);
-            XaAnalysis xa = XaAnalysis.analyze(cdSector, 254);
+            XaAnalysis xa = XaAnalysis.analyze(cdSector, CdSector.MAX_VALID_CHANNEL);
             return (xa != null && xa.iProbability == 100);
         }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,18 +45,26 @@ import javax.imageio.ImageIO;
 /** Keeps track of Java framework's image formats. */
 public enum JavaImageFormat {
 
-    PNG("png", true, true),
-    BMP("bmp", true, false), // Java doesn't support bmp with alpha channel
-    GIF("gif", false, false);
+    PNG("png",   "png", "png", true, true),
+    BMP("bmp",   "bmp", "bmp", true, false), // Java doesn't support bmp with alpha channel
+    GIF("gif",   "gif", "gif", false, false),
+    TIFF("tiff", "tif", "tif", true, false);
 
+    @Nonnull
+    private final String _sUiId;
+    @Nonnull
+    private final String _sImageIOid;
     @Nonnull
     private final String _sExtension;
     private final boolean _blnTrueColor;
     private final boolean _blnAlpha;
     private final boolean _blnAvailable;
 
-    JavaImageFormat(@Nonnull String id, boolean blnTrueColor, boolean blnAlpha) {
-        _sExtension = id;
+    JavaImageFormat(@Nonnull String sUiId, @Nonnull String sImageIOid, @Nonnull String sExtension, boolean blnTrueColor, boolean blnAlpha) {
+        _sUiId = sUiId;
+        _sImageIOid = sImageIOid;
+        _sExtension = sExtension;
+
         _blnTrueColor = blnTrueColor;
         _blnAlpha = blnAlpha;
 
@@ -64,7 +72,7 @@ public enum JavaImageFormat {
 
         boolean blnAvailable = false;
         for (String s : asValues) {
-            if (s.equalsIgnoreCase(id)) {
+            if (s.equalsIgnoreCase(_sImageIOid)) {
                 blnAvailable = true;
                 break;
             }
@@ -72,10 +80,14 @@ public enum JavaImageFormat {
         _blnAvailable = blnAvailable;
     }
 
+    public @Nonnull String getUiId() {
+        return _sUiId;
+    }
+
     /** Unique id identifying this image format.
      * Also the id used for ImageIO operations. */
-    public @Nonnull String getId() {
-        return _sExtension;
+    public @Nonnull String getImageIOid() {
+        return _sImageIOid;
     }
 
     public @Nonnull String getExtension() {
@@ -96,7 +108,7 @@ public enum JavaImageFormat {
 
     @Override
     public String toString() {
-        return _sExtension;
+        return _sUiId;
     }
 
     public static @Nonnull List<JavaImageFormat> getAvailable() {

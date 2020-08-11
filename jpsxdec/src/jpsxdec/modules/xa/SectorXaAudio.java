@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,21 +43,12 @@ import jpsxdec.adpcm.XaAdpcmDecoder;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSectorXaSubHeader;
 import jpsxdec.cdreaders.XaAnalysis;
-import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.util.ByteArrayFPIS;
 
 
 /** Standard audio sector for XA. */
 public class SectorXaAudio extends IdentifiedSector {
-
-    /** Maximum channel number (inclusive) that will be considered for
-     * XA sector.
-     * My understanding is channel is technically supposed to be
-     * between 0 and 31. Some games seem to use values outside of that range 
-     * for both valid and null XA audio sectors. */
-    public static final int MAX_VALID_CHANNEL = 254;
-    
 
     private int _iSamplesPerSecond;
     private int _iBitsPerSample;
@@ -68,7 +59,7 @@ public class SectorXaAudio extends IdentifiedSector {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
-        XaAnalysis analysis = XaAnalysis.analyze(cdSector, MAX_VALID_CHANNEL);
+        XaAnalysis analysis = XaAnalysis.analyze(cdSector, CdSector.MAX_VALID_CHANNEL);
         if (analysis == null)
             return;
 
@@ -79,6 +70,12 @@ public class SectorXaAudio extends IdentifiedSector {
         _iErrors = analysis.iErrors;
 
         setProbability(analysis.iProbability);        
+    }
+
+    public int getFileNumber() {
+        CdSectorXaSubHeader sh = getCdSector().getSubHeader();
+        assert sh != null;
+        return sh.getFileNumber();
     }
 
     public int getChannel() {
@@ -157,26 +154,6 @@ public class SectorXaAudio extends IdentifiedSector {
         return sb.toString();
     }
 
-    public boolean matchesPrevious(@Nonnull IIdentifiedSector prevSect) {
-        if (!(prevSect instanceof SectorXaAudio))
-            return false;
-
-        SectorXaAudio prevXA = (SectorXaAudio)prevSect;
-
-        if (getChannel() != prevXA.getChannel() ||
-            getAdpcmBitsPerSample() != prevXA.getAdpcmBitsPerSample() ||
-            getSamplesPerSecond() != prevXA.getSamplesPerSecond() ||
-            isStereo() != prevXA.isStereo())
-            return false;
-        int iStride = getSectorNumber() - prevSect.getSectorNumber();
-        if (iStride == 1)
-            return true;
-        if (calculateDiscSpeed(_iSamplesPerSecond, _blnStereo, _iBitsPerSample, iStride) > 0)
-            return true;
-        else
-            return false;
-    }
-
     /** Checks if the sector doesn't generate any sound. Note that this
      *  does not mean, if the sector was decoded as part of an ADPCM stream,
      *  that it would actually produce only silence. Because ADPCM uses prior
@@ -199,80 +176,6 @@ public class SectorXaAudio extends IdentifiedSector {
             }
         }
         return true;
-    }
-
-    /** Return 1 for 1x, 2 for 2x, or -1 for impossible.
-     * <pre>
-     * Disc Speed = ( Samples/sec * Mono/Stereo * Stride * Bits/sample ) / 16128
-     *
-     * Samples/sec  Mono/Stereo  Bits/sample  Stride  Disc Speed
-     *   18900           1           4          2      invalid
-     *   18900           1           4          4      invalid
-     *   18900           1           4          8      invalid
-     *   18900           1           4          16       75    "Level C"
-     *   18900           1           4          32       150   "Level C"
-     *
-     *   18900           1           8          2      invalid
-     *   18900           1           8          4        150   "Level A"
-     *   18900           1           8          8        75    "Level A"
-     *   18900           1           8          16     invalid
-     *   18900           1           8          32     invalid
-     *
-     *   18900           2           4          2      invalid
-     *   18900           2           4          4      invalid
-     *   18900           2           4          8        75    "Level C"
-     *   18900           2           4          16       150   "Level C"
-     *   18900           2           4          32     invalid
-     *
-     *   18900           2           8          2      invalid
-     *   18900           2           8          4        75    "Level A"
-     *   18900           2           8          8        150   "Level A"
-     *   18900           2           8          16     invalid
-     *   18900           2           8          32     invalid
-     *
-     *   37800           1           4          2      invalid
-     *   37800           1           4          4      invalid
-     *   37800           1           4          8        75    "Level B"
-     *   37800           1           4          16       150   "Level B"
-     *   37800           1           4          32     invalid
-     *
-     *   37800           1           8          2      invalid
-     *   37800           1           8          4        75    "Level A"
-     *   37800           1           8          8        150   "Level A"
-     *   37800           1           8          16     invalid
-     *   37800           1           8          32     invalid
-     *
-     *   37800           2           4          2      invalid
-     *   37800           2           4          4        75    "Level B"
-     *   37800           2           4          8        150   "Level B"
-     *   37800           2           4          16     invalid
-     *   37800           2           4          32     invalid
-     *
-     *   37800           2           8          2        75    "Level A"
-     *   37800           2           8          4        150   "Level A"
-     *   37800           2           8          8      invalid
-     *   37800           2           8          16     invalid
-     *   37800           2           8          32     invalid
-     *</pre>*/
-    public static int calculateDiscSpeed(int iSamplesPerSecond,
-                                         boolean blnStereo, 
-                                         int iBitsPerSample,
-                                         int iSectorStride)
-    {
-        if (iSectorStride < 1)
-            return -1;
-
-        int iDiscSpeed_x_16128 = iSamplesPerSecond *
-                               (blnStereo ? 2 : 1) *
-                                iSectorStride *
-                                iBitsPerSample;
-
-        if (iDiscSpeed_x_16128 == 75 * 16128)
-            return 1; // 1x = 75 sectors/sec
-        else if (iDiscSpeed_x_16128 == 150 * 16128)
-            return 2; // 2x = 150 sectors/sec
-        else
-            return -1;
     }
 
     public int getErrorCount() {

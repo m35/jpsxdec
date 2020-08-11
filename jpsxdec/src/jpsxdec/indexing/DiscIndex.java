@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -185,7 +186,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         // sort the numbered index list according to the start sector & hierarchy level
         Collections.sort(_iterate, SORT_BY_SECTOR_HIERARHCY);
 
-        _root = buildTree(_iterate);
+        _root = buildTree(_iterate, indexers);
 
         // copy the items to the hash
         int iIndex = 0;
@@ -215,11 +216,16 @@ public class DiscIndex implements Iterable<DiscItem> {
     }
 
 
-    private @Nonnull ArrayList<DiscItem> buildTree(@Nonnull Collection<DiscItem> allItems) {
+    private static @Nonnull ArrayList<DiscItem> buildTree(@Nonnull Collection<DiscItem> allItems, 
+                                                          @Nonnull Collection<DiscIndexer> indexers)
+    {
 
         ArrayList<DiscItem> rootItems = new ArrayList<DiscItem>();
 
-        for (DiscItem child : allItems) {
+        ItemLoop:
+        for (Iterator<DiscItem> iterator = allItems.iterator(); iterator.hasNext();) {
+            DiscItem child = iterator.next();
+
             DiscItem bestParent = null;
             int iBestParentRating = 0;
             for (DiscItem parent : allItems) {
@@ -229,11 +235,21 @@ public class DiscIndex implements Iterable<DiscItem> {
                     iBestParentRating = iRating;
                 }
             }
-            if (bestParent == null)
+
+            for (DiscIndexer indexer : indexers) {
+                if (indexer.filterChild(bestParent, child)) {
+                    LOG.log(Level.INFO, "Filtered child item {0}", child);
+                    iterator.remove();
+                    continue ItemLoop;
+                }
+            }
+
+            if (bestParent == null) {
                 rootItems.add(child);
-            else
+            } else {
                 if (!bestParent.addChild(child))
                     throw new RuntimeException(bestParent + " should have accepted " + child);
+            }
         }
 
         IndexId id = new IndexId(0);
@@ -330,13 +346,6 @@ public class DiscIndex implements Iterable<DiscItem> {
         } catch (FileNotFoundException ex) {
             throw new IndexNotFoundException(indexFile, ex);
         }
-        BufferedReader reader;
-        try {
-            reader = new BufferedReader(new InputStreamReader(fis, "UTF-8"));
-        } catch (UnsupportedEncodingException ex) {
-            IO.closeSilently(fis, LOG);
-            throw new RuntimeException("Every implementation of the Java platform is required to support UTF-8", ex);
-        }
 
         String sSourceCdLine = null;
         ArrayList<String> serializedLines = new ArrayList<String>();
@@ -346,6 +355,7 @@ public class DiscIndex implements Iterable<DiscItem> {
         // Only check that:
         // * header is correct
         // * there is 1 and only 1 serialized CD line
+        BufferedReader reader = new BufferedReader(new InputStreamReader(fis, Charset.forName("UTF-8")));
         try {
             // make sure the first line matches the current version
             String sLine;
@@ -405,7 +415,7 @@ public class DiscIndex implements Iterable<DiscItem> {
                 }
                 _sourceCD = cdReader;
             } else {
-                _sourceCD = new CdFileSectorReader(sSourceCdLine, blnAllowWrites);
+                _sourceCD = CdFileSectorReader.deserialize(sSourceCdLine, blnAllowWrites);
             }
         }
 

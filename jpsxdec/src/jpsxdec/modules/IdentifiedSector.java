@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,17 +45,22 @@ import jpsxdec.cdreaders.CdSectorXaSubHeader;
  *  with special meaning. */
 public abstract class IdentifiedSector implements IIdentifiedSector {
 
-    /** Convenience function to check that, if the sector has a sub header,
-     * the submode bits are as expected. 
-     * @return true if the sector does not have a sub header, 
-     *         or the sub header submode bits match the expected bits after
-     *         being masked
-     */
-    final protected boolean subModeMaskMatch(int iMask, int iExpected) {
+    /** Convenience function to check that the sector has a sub header,
+     *  and the submode bits are as expected. */
+    final protected boolean subModeExistsAndMaskEquals(int iMask, int iExpected) {
         CdSectorXaSubHeader sh = _sourceCdSector.getSubHeader();
         if (sh == null)
-            return true;
+            return false;
         return sh.getSubMode().mask(iMask) == iExpected;
+    }
+
+    /** Convenience function to check that the sector has a sub header,
+     *  and the submode bits are NOT as expected. */
+    final protected boolean subModeExistsAndMaskDoesNotEqual(int iMask, int iExpected) {
+        CdSectorXaSubHeader sh = _sourceCdSector.getSubHeader();
+        if (sh == null)
+            return false;
+        return sh.getSubMode().mask(iMask) != iExpected;
     }
 
 

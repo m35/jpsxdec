@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2019  Michael Sabin
+ * Copyright (C) 2014-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,8 +37,6 @@
 
 package jpsxdec.modules.dredd;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
@@ -46,15 +44,14 @@ import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.indexing.DiscIndex;
-import jpsxdec.indexing.DiscIndexer;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.strvideo.DiscIndexerStrVideo;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
+import jpsxdec.modules.video.sectorbased.DiscIndexerSectorBasedVideo;
 import jpsxdec.modules.video.sectorbased.SectorBasedVideoInfoBuilder;
 
 
-public class DiscIndexerDredd extends DiscIndexer implements SectorClaimToDreddFrame.Listener
+public class DiscIndexerDredd extends DiscIndexerSectorBasedVideo.SubIndexer
+        implements SectorClaimToDreddFrame.Listener
 {
 
     private static class VidBuilder {
@@ -93,16 +90,8 @@ public class DiscIndexerDredd extends DiscIndexer implements SectorClaimToDreddF
 
     }
 
-    @Nonnull
-    private final ILocalizedLogger _errLog;
-    private final Collection<DiscItemDreddVideoStream> _completedVideos = new ArrayList<DiscItemDreddVideoStream>();
     @CheckForNull
     private VidBuilder _videoBuilder;
-
-
-    public DiscIndexerDredd(@Nonnull ILocalizedLogger errLog) {
-        _errLog = errLog;
-    }
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
@@ -132,23 +121,12 @@ public class DiscIndexerDredd extends DiscIndexer implements SectorClaimToDreddF
             return;
 
         DiscItemDreddVideoStream video = _videoBuilder.endOfMovie(getCd());
-        _completedVideos.add(video);
-        addDiscItem(video);
+        addVideo(video);
         _videoBuilder = null;
     }
 
     public void endOfSectors(ILocalizedLogger log) {
         videoBreak(log);
-    }
-
-    @Override
-    public void listPostProcessing(@Nonnull Collection<DiscItem> allItems) {
-        if (_completedVideos.size() > 0)
-            DiscIndexerStrVideo.audioSplit(_completedVideos, allItems);
-    }
-
-    @Override
-    public void indexGenerated(@Nonnull DiscIndex index) {
     }
 
 }

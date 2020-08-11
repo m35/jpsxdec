@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -375,7 +375,7 @@ public class Gui extends javax.swing.JFrame {
             _settings.setImageDir(dir.getAbsolutePath());
         try {
 
-            CdFileSectorReader cd = new CdFileSectorReader(file);
+            CdFileSectorReader cd = CdFileSectorReader.open(file);
 
             if (!cd.hasSectorHeader())
                 JOptionPane.showMessageDialog(this, I.GUI_DISC_NO_RAW_HEADERS_WARNING());

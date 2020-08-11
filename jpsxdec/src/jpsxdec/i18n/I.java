@@ -2619,7 +2619,7 @@ Do you want to replace it?</pre>
     </ul>
     */
     public static @Nonnull ILocalizedMessage CMD_VOLUME_PERCENT(double volumeLevelPercent) {
-        return msg("CMD_VOLUME_PERCENT", "Volume: {0,number,#%}%", volumeLevelPercent);
+        return new _PlaceholderMessage("Volume: {0,number,#%}", volumeLevelPercent);
     }
 
     /**

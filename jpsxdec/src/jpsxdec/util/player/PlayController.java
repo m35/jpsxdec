@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019  Michael Sabin
+ * Copyright (C) 2019-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -110,7 +110,7 @@ public class PlayController {
         _readerThread.setReader(reader);
     }
 
-    public void setVidProcressor(@Nonnull IFrameProcessor processor) {
+    public void setVidProcressor(@Nonnull IFrameProcessor<?> processor) {
         if (_videoProcessorThread == null)
             throw new IllegalArgumentException();
         _videoProcessorThread.setProcessor(processor);

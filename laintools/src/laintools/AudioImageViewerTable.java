@@ -99,7 +99,7 @@ public class AudioImageViewerTable extends JTable implements ListSelectionListen
             _sourcePlanel.setImage(item.image());
             try {
                 _renderPlanel.setImage(item.generateImage());
-            } catch (IOException ex) {
+            } catch (Exception ex) {
                 ex.printStackTrace();
             }
         }
@@ -160,7 +160,7 @@ public class AudioImageViewerTable extends JTable implements ListSelectionListen
         }
     }
 
-    public void dump() throws IOException {
+    public void dump() throws Exception {
         getSiteModel().dump(getSiteModel().getSite());
     }
 
@@ -319,7 +319,7 @@ class SiteJTableModel extends AbstractTableModel {
         return _items.get(i);
     }
 
-    public void dump(String sDir) throws IOException {
+    public void dump(String sDir) throws Exception {
         for (SiteJTableItemModel siteJTableItemModel : _items) {
             siteJTableItemModel.dump(sDir);
         }
@@ -451,7 +451,7 @@ class SiteJTableItemModel {
         return generateFilename();
     }
 
-    public BufferedImage generateImage() throws IOException {
+    public BufferedImage generateImage() throws Exception {
         if (format() == Formats.NoSave)
             return null;
 
@@ -524,7 +524,7 @@ class SiteJTableItemModel {
         return bi;
     }
 
-    public void dump(String sDir) throws IOException {
+    public void dump(String sDir) throws Exception {
         switch (_eFormat) {
             case NoSave: break;
             case Original:
@@ -558,7 +558,7 @@ class SiteJTableItemModel {
     }
 
 
-    private static ByteArrayOutputStream makeCompressedTim(BufferedImage bi, int iBitsPerPix) throws IOException {
+    private static ByteArrayOutputStream makeCompressedTim(BufferedImage bi, int iBitsPerPix) throws Exception {
         // convert to tim
         Tim newTim = Tim.create(bi, iBitsPerPix);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();

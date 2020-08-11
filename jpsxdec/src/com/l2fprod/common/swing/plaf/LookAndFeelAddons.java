@@ -82,11 +82,7 @@ public class LookAndFeelAddons {
     try {
       setAddon(addonClassname);
       setTrackingLookAndFeelChanges(true);      
-    } catch (InstantiationException e) {
-      e.printStackTrace();
-    } catch (IllegalAccessException e) {
-      e.printStackTrace();
-    } catch (ClassNotFoundException e) {
+    } catch (Exception e) {
       e.printStackTrace();
     }
   }
@@ -94,15 +90,15 @@ public class LookAndFeelAddons {
   private static LookAndFeelAddons currentAddon;
 
   public void initialize() {
-    for (Iterator iter = contributedComponents.iterator(); iter.hasNext();) {
-      ComponentAddon addon = (ComponentAddon)iter.next();
+    for (Iterator<ComponentAddon> iter = contributedComponents.iterator(); iter.hasNext();) {
+      ComponentAddon addon = iter.next();
       addon.initialize(this);
     }
   }
 
   public void uninitialize() {
-    for (Iterator iter = contributedComponents.iterator(); iter.hasNext();) {
-      ComponentAddon addon = (ComponentAddon)iter.next();
+    for (Iterator<ComponentAddon> iter = contributedComponents.iterator(); iter.hasNext();) {
+      ComponentAddon addon = iter.next();
       addon.uninitialize(this);
     }
   }
@@ -136,14 +132,13 @@ public class LookAndFeelAddons {
   }
 
   public static void setAddon(String addonClassName)
-    throws InstantiationException, IllegalAccessException,
-    ClassNotFoundException {
+    throws Exception {
     setAddon(Class.forName(addonClassName));
   }
 
-  public static void setAddon(Class addonClass) throws InstantiationException,
-    IllegalAccessException {
-    LookAndFeelAddons addon = (LookAndFeelAddons)addonClass.newInstance();
+  public static void setAddon(Class<?> addonClass) throws InstantiationException,
+    Exception {
+    LookAndFeelAddons addon = (LookAndFeelAddons)addonClass.getDeclaredConstructor().newInstance();
     setAddon(addon);
   }
    
@@ -261,7 +256,7 @@ public class LookAndFeelAddons {
     // solve issue with ClassLoader not able to find classes
     String uiClassname = (String)UIManager.get(component.getUIClassID());
     try {
-      Class uiClass = Class.forName(uiClassname);
+      Class<?> uiClass = Class.forName(uiClassname);
       UIManager.put(uiClassname, uiClass);
     } catch (Exception e) {
       // we ignore the ClassNotFoundException

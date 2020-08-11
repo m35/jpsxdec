@@ -21,7 +21,7 @@ import javax.annotation.Nonnull;
  * An immutable class representing fractions as pairs of longs.
  * Fractions are always maintained in reduced form.
  **/
-public class Fraction implements Cloneable, Comparable, java.io.Serializable {
+public class Fraction implements Cloneable, Comparable<Fraction> {
   public static final Fraction ZERO = new Fraction(0, 1);
 
   protected final long numerator_;
@@ -210,12 +210,11 @@ public class Fraction implements Cloneable, Comparable, java.io.Serializable {
    * reflecting whether this Fraction is less, equal or greater than 
    * the value of Fraction other.
    **/
-  public int compareTo(Object other) {
-    Fraction b = (Fraction)(other);
+  public int compareTo(Fraction other) {
     long an = getNumerator();
     long ad = getDenominator();
-    long bn = b.getNumerator();
-    long bd = b.getDenominator();
+    long bn = other.getNumerator();
+    long bd = other.getDenominator();
     long l = an*bd;
     long r = bn*ad;
     return (l < r)? -1 : ((l == r)? 0: 1);

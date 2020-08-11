@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -64,17 +64,14 @@ public class SectorXaNull extends IdentifiedSector {
 
         // if it's not flagged as a null sector...
         SubMode sm = sh.getSubMode();
-        if (sm.getAudio() || sm.getVideo() || sm.getData())
-        {
+        if (sm.getAudio() || sm.getVideo() || sm.getData()) {
             // if it's flagged as an audio sector, then it's not a null sector
-            if (!sm.getAudio()) return;
+            if (!sm.getAudio())
+                return;
 
             // if it has a valid channel number, then it's not a null sector
-            if (sh.getChannel() >= 0 || sh.getChannel() < 32) {
+            if (sh.getChannel() >= 0 || sh.getChannel() < CdSector.MAX_VALID_CHANNEL)
                 return;
-                // Ace Combat 3 has several AUDIO sectors with channel 255
-                // that seem to be "null" sectors
-            }
         }
 
         setProbability(100);

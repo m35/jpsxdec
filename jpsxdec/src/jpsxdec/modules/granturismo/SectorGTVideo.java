@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2019  Michael Sabin
+ * Copyright (C) 2015-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -83,8 +83,8 @@ public class SectorGTVideo extends IdentifiedSector
         _header = new VideoSectorCommon16byteHeader(cdSector);
         if (isSuperInvalidElseReset()) return;
 
-        // only if it has a sector header should we check if it reports DATA
-        if (subModeMaskMatch(SubMode.MASK_DATA, 0))
+        // the DATA flag should be set
+        if (subModeExistsAndMaskDoesNotEqual(SubMode.MASK_DATA, SubMode.MASK_DATA))
             return;
 
         if (_header.lngMagic != GT_MAGIC)

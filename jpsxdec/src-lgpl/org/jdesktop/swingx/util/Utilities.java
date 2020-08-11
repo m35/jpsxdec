@@ -134,7 +134,7 @@ public class Utilities {
     
     /** reference to map that maps allowed key names to their values (String, Integer)
     and reference to map for mapping of values to their names */
-    private static Reference<Object> namesAndValues;
+    private static Reference<HashMap[]> namesAndValues;
 
     /** Get the operating system on which NetBeans is running.
     * @return one of the <code>OS_*</code> constants (such as {@link #OS_WINNT})
@@ -315,7 +315,7 @@ public class Utilities {
     */
     private static synchronized HashMap[] initNameAndValues() {
         if (namesAndValues != null) {
-            HashMap[] arr = (HashMap[]) namesAndValues.get();
+            HashMap[] arr = namesAndValues.get();
 
             if (arr != null) {
                 return arr;
@@ -347,7 +347,7 @@ public class Utilities {
 
                     try {
                         int numb = fields[i].getInt(null);
-                        Integer value = new Integer(numb);
+                        Integer value = Integer.valueOf(numb);
                         names.put(name, value);
                         values.put(value, name);
                     } catch (IllegalArgumentException ex) {
@@ -359,18 +359,18 @@ public class Utilities {
 
         if (names.get("CONTEXT_MENU") == null) { // NOI18N
 
-            Integer n = new Integer(0x20C);
+            Integer n = Integer.valueOf(0x20C);
             names.put("CONTEXT_MENU", n); // NOI18N
             values.put(n, "CONTEXT_MENU"); // NOI18N
 
-            n = new Integer(0x20D);
+            n = Integer.valueOf(0x20D);
             names.put("WINDOWS", n); // NOI18N
             values.put(n, "WINDOWS"); // NOI18N
         }
 
         HashMap[] arr = { names, values };
 
-        namesAndValues = new SoftReference<Object>(arr);
+        namesAndValues = new SoftReference<HashMap[]>(arr);
 
         return arr;
     }
@@ -390,7 +390,7 @@ public class Utilities {
 
         HashMap[] namesAndValues = initNameAndValues();
 
-        String c = (String) namesAndValues[1].get(new Integer(stroke.getKeyCode()));
+        String c = (String) namesAndValues[1].get(Integer.valueOf(stroke.getKeyCode()));
 
         if (c == null) {
             sb.append(stroke.getKeyChar());

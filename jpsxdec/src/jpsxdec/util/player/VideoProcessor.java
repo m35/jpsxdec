@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019  Michael Sabin
+ * Copyright (C) 2019-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,8 +49,8 @@ class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
 
     private static final int CAPACITY = 50;
 
-    private final ClosableBoundedBlockingQueue<DecodableFrame> _framesProcessingQueue =
-            new ClosableBoundedBlockingQueue<DecodableFrame>(CAPACITY);
+    private final ClosableBoundedBlockingQueue<DecodableFrame<?>> _framesProcessingQueue =
+            new ClosableBoundedBlockingQueue<DecodableFrame<?>>(CAPACITY);
 
     @Nonnull
     private final VideoTimer _vidTimer;
@@ -67,7 +67,7 @@ class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
         _thread = new Thread(this, getClass().getName());
     }
 
-    public void setProcessor(@Nonnull IFrameProcessor processor) {
+    public void setProcessor(@Nonnull IFrameProcessor<?> processor) {
         _processor = processor;
     }
 
@@ -79,7 +79,7 @@ class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
 
     @SuppressWarnings("unchecked")
     public void run() {
-        DecodableFrame decodeFrame;
+        DecodableFrame<?> decodeFrame;
         int[] aiImage = new int[_vidPlayer.getWidth() * _vidPlayer.getHeight()];
         try {
             while ((decodeFrame = _framesProcessingQueue.take()) != null) {
@@ -115,7 +115,7 @@ class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
     public void writeFrame(@Nonnull Object frame, long lngPresentationNanos) throws StopPlayingException {
         if (DEBUG) System.out.println("Frame submitted for processing, present at " + lngPresentationNanos);
         try {
-            if (!_framesProcessingQueue.add(new DecodableFrame(frame, lngPresentationNanos)))
+            if (!_framesProcessingQueue.add(new DecodableFrame<Object>(frame, lngPresentationNanos)))
                 throw new StopPlayingException();
         } catch (InterruptedException ex) {
             throw new StopPlayingException(ex);

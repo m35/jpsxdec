@@ -88,7 +88,7 @@ public class PatchLainImage {
         System.out.println("Replacing " + sReplaceFile);
 
         File replaceFile = new File(sReplaceFile);
-        CdFileSectorReader replaceDisc = new CdFileSectorReader(replaceFile, 2048);
+        CdFileSectorReader replaceDisc = CdFileSectorReader.openWithSectorSize(replaceFile, 2048);
         if (replaceDisc.getSectorCount() > isoFile.getSectorLength())
             throw new RuntimeException(sReplaceFile + " too big to fit " + isoFile);
         CdFileSectorReader destDisc = isoFile.getSourceCd();

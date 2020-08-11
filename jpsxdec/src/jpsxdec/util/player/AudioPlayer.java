@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019  Michael Sabin
+ * Copyright (C) 2019-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -96,6 +96,8 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
     private final Thread _thread;
 
     private SourceDataLine _dataLine;
+
+    private boolean _blnWasStarted = false;
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Experiment with using the system clock and intermittently sync with the audio time
@@ -234,6 +236,18 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
                     }
                 }
             }
+
+            // Check before we exit this block...
+            // Dataline javadoc: "The drain() method blocks until this internal buffer becomes empty"
+            // Lies! .drain() will return immediately if the audio data is small and has not been played.
+            // So wait until some audio was played before exiting (or until notified to stop).
+            synchronized (this) {
+                while (!_blnWasStarted) {
+                    System.out.println("Out of audio data, but player has not been started");
+                    this.wait();
+                }
+            }
+
         } catch (IOException ex) {
             // this hopefully only happens because the reader was forcefully closed
             System.out.println("Audio player IOException stop: " + ex.getMessage());
@@ -249,6 +263,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
         _dataLine.drain();
         _dataLine.close();
         super.terminate();
+        System.out.println("AudioPlayer ending");
     }
 
 
@@ -265,6 +280,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
             _lngLastSync = lngNow;
             _lngStartTime = lngNow - (long)(_dataLine.getLongFramePosition() * _dblSamplesPerNano);
             _dataLine.start();
+            _blnWasStarted = true;
         }
         super.go();
     }
@@ -280,6 +296,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
     }
 
     public void finish() {
+        if (DEBUG) System.out.println("AudioPlayer.finish()");
         // it looks like it's thread-safe to close the stream
         IO.closeSilently(_pipedOutputStream, LOG);
     }

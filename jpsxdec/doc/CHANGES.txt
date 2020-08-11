@@ -1,3 +1,16 @@
+v1.04 rev3987 (10 Aug 2020)
+    - More robust XA audio detection
+    - Support for saving images as TIFF in Java 9+
+    - Ignore silent XA streams
+    - Improved Tim detection, including
+      Github issue #29 "TIM image not found in file" by gmarty
+    Bug fixes:
+    - Replacing XA with pcm audio doesn't actually make any changes,
+      broken since v0.99.8
+      (Github issue #30 '"-replacexa" command does not work' by ViToTiV)
+    - Real-time audio player doesn't play tiny clips
+    - Error when Tim image ends at sector boundary
+    - Sector type detection issues
 v1.03 rev3953 (15 Dec 2019)
     Bug fixes:
     - Some videos in EA games are still not detected

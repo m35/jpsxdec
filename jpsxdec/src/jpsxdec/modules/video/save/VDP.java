@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2019  Michael Sabin
+ * Copyright (C) 2013-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -428,7 +428,7 @@ public class VDP {
         @Nonnull
         private final VideoFileNameFormatter _formatter;
         @Nonnull
-        private final String _sFmt;
+        private final String _sImageIOid;
         @Nonnull
         private final BufferedImage _rgbImg;
         @Nonnull
@@ -438,7 +438,7 @@ public class VDP {
 
         public Decoded2JavaImage(@Nonnull VideoFileNameFormatter formatter, @Nonnull JavaImageFormat eFmt, int iWidth, int iHeight, @Nonnull ILocalizedLogger log) {
             _formatter = formatter;
-            _sFmt = eFmt.getId();
+            _sImageIOid = eFmt.getImageIOid();
             _rgbImg = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
             _log = log;
         }
@@ -459,7 +459,7 @@ public class VDP {
             }
 
             try {
-                if (ImageIO.write(_rgbImg, _sFmt, f)) {
+                if (ImageIO.write(_rgbImg, _sImageIOid, f)) {
                     if (_fileGenListener != null)
                         _fileGenListener.fileGenerated(f);
                 } else {

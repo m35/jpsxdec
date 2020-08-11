@@ -521,8 +521,8 @@ public final class ImageUtilities {
         // override the superclass behaviour to not pollute
         // the heap with useless properties strings. Saves tens of KBs
         @Override
-        public void setProperties(Hashtable props) {
-            props = (Hashtable) props.clone();
+        public void setProperties(Hashtable<?,?> props) {
+            props = (Hashtable<?,?>) props.clone();
             consumer.setProperties(props);
         }
     }

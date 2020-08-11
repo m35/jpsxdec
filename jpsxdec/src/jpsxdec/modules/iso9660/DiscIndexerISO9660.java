@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -325,6 +325,10 @@ public class DiscIndexerISO9660 extends DiscIndexer implements SectorClaimToSect
     
     @Override
     public void listPostProcessing(Collection<DiscItem> allItems) {
+    }
+    @Override
+    public boolean filterChild(DiscItem parent, DiscItem child) {
+        return false;
     }
 
 }

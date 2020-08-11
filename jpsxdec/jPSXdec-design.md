@@ -680,6 +680,25 @@ style that makes this easy. Hunting for a solution, I ran across this
 `ParagraphLayout`, and it has been absolutely brilliant.
 
 
+# Memory use
+
+jPSXdec reference graph is fairly simple.
+
+The root for a disc in memory is `CdFileSectorReader` and `DiscIndex`.
+Once a disc is loaded, no memory is allocated or released.
+And once the `CdFileSectorReader` is closed and discarded, everything
+associated with a disc is freed
+(assuming nothing else is holding onto some exposed internal reference).
+
+The UI is also pretty simple. Most is allocated once and never freed.
+The real-time audio/video player is created and freed on every view.
+
+The only memory growth that could be noticed would come from the
+`DiscItemSaverBuilder` used to save every `DiscItem`. Initially each `DiscItems`'s
+`DiscItemSaverBuilder` start as `null` and are only allocated when the disc item
+is selected in the GUI. But that should be minimal. And once the disc is closed,
+those are all freed as well.
+
 # Appendix 1:  Adding support for a new game
 
 Other than the frame-rate detection limitations, jPSXdec has all the features to

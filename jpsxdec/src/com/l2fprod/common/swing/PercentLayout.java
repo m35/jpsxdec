@@ -68,7 +68,7 @@ public class PercentLayout implements LayoutManager2 {
 
   static class NumberConstraint extends Constraint {
     public NumberConstraint(int d) {
-      this(new Integer(d));
+      this(Integer.valueOf(d));
     }
     public NumberConstraint(Integer d) {
       super(d);
@@ -340,7 +340,7 @@ public class PercentLayout implements LayoutManager2 {
         Constraint constraint =
           (Constraint)m_ComponentToConstraint.get(components[i]);
         if (constraint == REMAINING_SPACE) {
-          remaining.add(new Integer(i));
+          remaining.add(Integer.valueOf(i));
           sizes[i] = 0;
         }
       }

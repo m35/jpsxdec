@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -87,7 +87,8 @@ public class SectorChronoXAudio extends IdentifiedSector implements ISquareAudio
 
         // since all Chrono Cross movie sectors are in Mode 2 Form 1, we can 
         // still decode the movie even if there is no raw sector header.
-        if (!subModeMaskMatch(SubMode.MASK_DATA | SubMode.MASK_FORM, SubMode.MASK_DATA))
+        // DATA must be set, and FORM must not be set
+        if (subModeExistsAndMaskDoesNotEqual(SubMode.MASK_DATA | SubMode.MASK_FORM, SubMode.MASK_DATA))
             return;
 
         // make sure the magic nubmer is correct

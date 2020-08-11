@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2019  Michael Sabin
+ * Copyright (C) 2017-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,6 @@ import java.util.ArrayList;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdSectorXaSubHeader;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
@@ -55,9 +54,7 @@ public class SectorClaimToSectorXaAudio extends SectorClaimSystem.SectorClaimer 
                           @CheckForNull SectorXaAudio xaSector,
                           @Nonnull ILocalizedLogger log)
                 throws LoggedFailure;
-        void xaEof(int iChannel);
-
-        public void endOfSectors(@Nonnull ILocalizedLogger log);
+        void endOfSectors(@Nonnull ILocalizedLogger log);
     }
 
     private final ArrayList<Listener> _listeners = new ArrayList<Listener>();
@@ -95,17 +92,6 @@ public class SectorClaimToSectorXaAudio extends SectorClaimSystem.SectorClaimer 
                     listener.feedXaSector(cdSector, xaSect, log);
                 } catch (LoggedFailure ex) {
                     throw new SectorClaimSystem.ClaimerFailure(ex);
-                }
-            }
-
-            CdSectorXaSubHeader sh = cdSector.getSubHeader();
-            if (sh != null && sh.getSubMode().getEofMarker() &&
-                sh.getChannel() <= SectorXaAudio.MAX_VALID_CHANNEL)
-            {
-                // if the sector's EOF bit was set, this stream is closed
-                // this is important for many games
-                for (Listener listener : _listeners) {
-                    listener.xaEof(sh.getChannel());
                 }
             }
         }

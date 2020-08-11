@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -67,8 +67,8 @@ public class SectorCopy {
                    IOException // closing discs
     {
         
-        CdFileSectorReader src = new CdFileSectorReader(new File(sSource));
-        CdFileSectorReader dest = new CdFileSectorReader(new File(sDest), true);
+        CdFileSectorReader src = CdFileSectorReader.open(sSource);
+        CdFileSectorReader dest = CdFileSectorReader.open(new File(sDest), true);
         
         if (src.getSectorCount() > dest.getSectorCount())
             throw new IllegalArgumentException("Source file is larger than dest file");

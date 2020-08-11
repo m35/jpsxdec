@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -80,10 +80,10 @@ public class SavingGuiTable extends AbstractTableModel {
         };
 
         @Nonnull
-        private final Class _type;
+        private final Class<?> _type;
         @Nonnull
         private final ILocalizedMessage _name;
-        COLUMNS(@Nonnull Class type, @Nonnull ILocalizedMessage name) {
+        COLUMNS(@Nonnull Class<?> type, @Nonnull ILocalizedMessage name) {
             _type = type;
             _name = name;
         }

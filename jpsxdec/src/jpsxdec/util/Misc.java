@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,6 @@ package jpsxdec.util;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -63,22 +62,14 @@ public final class Misc {
      * @see Charset
      */
     public static @Nonnull byte[] stringToAscii(@Nonnull String string) {
-        try {
-            return string.getBytes("US-ASCII");
-        } catch (UnsupportedEncodingException ex) {
-            throw new RuntimeException(ex);
-        }
+        return string.getBytes(Charset.forName("US-ASCII"));
     }
 
     public static @Nonnull String asciiToString(@Nonnull byte[] ascii) {
         return asciiToString(ascii, 0, ascii.length);
     }
     public static @Nonnull String asciiToString(@Nonnull byte[] ascii, int iOffset, int iLength) {
-        try {
-            return new String(ascii, iOffset, iLength, "US-ASCII");
-        } catch (UnsupportedEncodingException ex) {
-            throw new RuntimeException(ex);
-        }
+        return new String(ascii, iOffset, iLength, Charset.forName("US-ASCII"));
     }
 
     /** Makes a date X number of seconds past the year 0. */
@@ -194,7 +185,7 @@ public final class Misc {
         return CURRENT_URI.relativize(f.toURI()).toString();
     }
 
-    public static @Nonnull String join(@Nonnull Iterable ao, @Nonnull String sBetween) {
+    public static @Nonnull String join(@Nonnull Iterable<?> ao, @Nonnull String sBetween) {
         StringBuilder sb = new StringBuilder();
         boolean blnFirst = true;
         for (Object o : ao) {

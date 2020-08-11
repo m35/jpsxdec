@@ -324,7 +324,7 @@ public class ActionContainerFactory {
         if (container != null) {
             intCode ^= container.hashCode();
         }
-        Integer hashCode = new Integer(intCode);
+        Integer hashCode = Integer.valueOf(intCode);
 
         ButtonGroup group = groupMap.get(hashCode);
         if (group == null) {

@@ -144,8 +144,8 @@ public abstract class AbstractComponentAddon implements ComponentAddon {
    */
   protected void addResource(List<Object> defaults, String bundleName) {
     ResourceBundle bundle = ResourceBundle.getBundle(bundleName);
-    for (Enumeration keys = bundle.getKeys(); keys.hasMoreElements(); ) {
-      String key = (String)keys.nextElement();      
+    for (Enumeration<String> keys = bundle.getKeys(); keys.hasMoreElements(); ) {
+      String key = keys.nextElement();      
       defaults.add(key);
       defaults.add(bundle.getObject(key));
     }

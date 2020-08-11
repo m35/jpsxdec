@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -63,6 +63,16 @@ public abstract class CdSector {
     public final static int SECTOR_USER_DATA_SIZE_MODE2FORM2       = 2324;
     /** CD audio sector payload size: 2352. */
     public final static int SECTOR_USER_DATA_SIZE_CD_AUDIO         = 2352;
+
+    /** Maximum channel number (inclusive) that will be considered for
+     * XA sector.
+     * My understanding is channel is technically supposed to be
+     * between 0 and 31. Some games seem to use values outside of that range
+     * for both valid and null XA audio sectors.
+     * Ace Combat 3 has several AUDIO sectors with channel 255
+     * that seem to be "null" sectors, so all other values will be valid. */
+    public static final int MAX_VALID_CHANNEL = 254;
+
 
     public enum Type {
         CD_AUDIO(SECTOR_USER_DATA_SIZE_CD_AUDIO),

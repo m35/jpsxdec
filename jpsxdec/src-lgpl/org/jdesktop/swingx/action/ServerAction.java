@@ -107,7 +107,7 @@ public class ServerAction extends AbstractAction {
 
     @SuppressWarnings("unchecked")
     private Map<String, String> getParams() {
-        return (Map)getValue(PARAMS);
+        return (Map<String, String>)getValue(PARAMS);
     }
 
     private void setParams(Map<String, String> params) {
@@ -145,7 +145,7 @@ public class ServerAction extends AbstractAction {
 
     @SuppressWarnings("unchecked")
     private Map<String, String> getHeaders() {
-        return (Map)getValue(HEADERS);
+        return (Map<String, String>)getValue(HEADERS);
     }
 
     private void setHeaders(Map<String, String> headers) {

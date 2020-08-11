@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2019  Michael Sabin
+ * Copyright (C) 2013-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -185,9 +185,9 @@ class Command_Visualize extends Command {
         }
     }
 
-    private final HashMap<Class, Color> colorLookup = new HashMap<Class, Color>();
+    private final HashMap<Class<?>, Color> colorLookup = new HashMap<Class<?>, Color>();
 
-    private @Nonnull Color classToColor(@Nonnull Class c) {
+    private @Nonnull Color classToColor(@Nonnull Class<?> c) {
         Color color = colorLookup.get(c.getClass());
         if (color == null) {
             int iClr = c.getName().hashCode();

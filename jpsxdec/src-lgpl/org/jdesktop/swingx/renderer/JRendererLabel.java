@@ -101,7 +101,7 @@ public class JRendererLabel extends JLabel implements PainterAware<JRendererLabe
      * {@inheritDoc}
      */
     public void setPainter(Painter<JRendererLabel> painter) {
-        Painter old = getPainter();
+        Painter<JRendererLabel> old = getPainter();
         this.painter = painter;
         firePropertyChange("painter", old, getPainter());
     }

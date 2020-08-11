@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -79,8 +79,8 @@ public class TimPaletteSelector extends javax.swing.JPanel {
         int iWidth = this.getWidth() - 4;
         int iHeight = this.getHeight() - 4;
         
-        double dblHScale = iWidth / (double)_tim.getWidth();
-        double dblVScale = iHeight / (double)_tim.getHeight();
+        double dblHScale = iWidth / (double)_tim.getPixelWidth();
+        double dblVScale = iHeight / (double)_tim.getPixelHeight();
         
         double dblScale;
         if (dblHScale < dblVScale)
@@ -90,8 +90,8 @@ public class TimPaletteSelector extends javax.swing.JPanel {
         
         if (dblScale > 2) dblScale = 2;
         
-        iWidth = (int)(_tim.getWidth() * dblScale);
-        iHeight = (int)(_tim.getHeight() * dblScale);
+        iWidth = (int)(_tim.getPixelWidth() * dblScale);
+        iHeight = (int)(_tim.getPixelHeight() * dblScale);
 
         BufferedImage bi = _tim.toBufferedImage(_iPalette);
 

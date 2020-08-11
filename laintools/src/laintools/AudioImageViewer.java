@@ -274,7 +274,7 @@ public class AudioImageViewer extends javax.swing.JFrame {
     private void _guiDumpSiteAActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiDumpSiteAActionPerformed
         try {
             _guiSiteATable.dump();
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(AudioImageViewer.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event__guiDumpSiteAActionPerformed
@@ -282,7 +282,7 @@ public class AudioImageViewer extends javax.swing.JFrame {
     private void _guiDumpSiteBActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiDumpSiteBActionPerformed
         try {
             _guiSiteBTable.dump();
-        } catch (IOException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(AudioImageViewer.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event__guiDumpSiteBActionPerformed

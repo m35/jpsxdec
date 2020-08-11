@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2019  Michael Sabin
+ * Copyright (C) 2007-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,9 +40,11 @@ package jpsxdec.modules.xa;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -72,29 +74,14 @@ import jpsxdec.util.TaskCanceledException;
 
 /** Represents a series of XA ADPCM sectors that combine to make an audio stream. */
 public class DiscItemXaAudioStream extends DiscItemAudioStream {
+
+    private static final Logger LOG = Logger.getLogger(DiscItemXaAudioStream.class.getName());
+
     /** Type identifier for this disc item. */
     public static final String TYPE_ID = "XA";
 
-    /** Serialization key for Channel. */
-    private final static String CHANNEL_KEY = "Channel";
-
-    /** CD stream channel number. Should be between 0 and 31, inclusive. */
-    private final int _iChannel;
-    
-    /** Serialization key for sample rate. */
-    private static final String SAMPLES_PER_SEC_KEY = "Samples/Sec";
-    /** Sample rate of the audio stream. Should be either 37800 or 18900. */
-    private final int _iSampleFramesPerSecond;
-
-    /** Serialization key for stereo. */
-    private static final String STEREO_KEY = "Stereo?";
-    /** If the audio is in stereo. */
-    private final boolean _blnIsStereo;
-
-    /** Serialization key for bits/sample. */
-    private final static String BITSPERSAMPLE_KEY = "Bits/Sample";
-    /** ADPCM bits per sample that the audio is encoded as. Should be 4 or 8. */
-    private final int _iBitsPerSample;
+    @Nonnull
+    private final XaAudioFormat _format;
 
     /** Serialization key for audio sector stride. */
     private final static String STRIDE_KEY = "Sector stride";
@@ -114,30 +101,24 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
      *      or invalid (sector stride is 1)
      * </ul>
      */
-    private int _iDiscSpeed;
+    private final int _iDiscSpeed;
+
+    @CheckForNull
+    private final BitSet _sectorsWithAudio;
 
     public DiscItemXaAudioStream(@Nonnull CdFileSectorReader cd,
                                  int iStartSector, int iEndSector,
-                                 int iChannel, int iSamplesPerSecond,
-                                 boolean blnIsStereo, int iBitsPerSample,
-                                 int iStride)
+                                 @Nonnull XaAudioFormat format,
+                                 int iStride,
+                                 @CheckForNull BitSet sectorsWithAudio)
     {
         super(cd, iStartSector, iEndSector);
         
-        if (iChannel < 0 || iChannel > SectorXaAudio.MAX_VALID_CHANNEL) throw new IllegalArgumentException(
-                "Channel " + iChannel + " is not between 0 and " + SectorXaAudio.MAX_VALID_CHANNEL);
-        if (iBitsPerSample != 4 && iBitsPerSample != 8)
-            throw new IllegalArgumentException("Bits/sample " + iBitsPerSample + " is not 4 or 8");
-        if (iSamplesPerSecond != 37800 && iSamplesPerSecond != 18900)
-            throw new IllegalArgumentException();
         if (iStride != -1 && iStride != 1 && iStride != 2 &&
             iStride != 4 && iStride != 8 && iStride != 16 && iStride != 32)
             throw new IllegalArgumentException("Illegal audio sector stride " + iStride);
-        
-        _iSampleFramesPerSecond = iSamplesPerSecond;
-        _blnIsStereo = blnIsStereo;
-        _iChannel = iChannel;
-        _iBitsPerSample = iBitsPerSample;
+
+        _format = format;
         _iSectorStride = iStride;
 
         // if there is no sector stride (iStride == -1, 1 sector long)
@@ -145,25 +126,24 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         if (_iSectorStride == -1 || _iSectorStride == 1) {
             _iDiscSpeed = -1;
         } else {
-            _iDiscSpeed = SectorXaAudio.calculateDiscSpeed(_iSampleFramesPerSecond, _blnIsStereo, _iBitsPerSample, _iSectorStride);
+            _iDiscSpeed = _format.calculateDiscSpeed(_iSectorStride);
             if (_iDiscSpeed < 1)
                 throw new RuntimeException(String.format(
                         "Disc speed calc doesn't add up: Samples/sec %d Stereo %s Bits/sample %s Stride %d",
-                        _iSampleFramesPerSecond, String.valueOf(_blnIsStereo),
-                        _iBitsPerSample, _iSectorStride));
+                        _format.iSampleFramesPerSecond, String.valueOf(_format.blnIsStereo),
+                        _format.iBitsPerSample, _iSectorStride));
         }
+
+        _sectorsWithAudio = sectorsWithAudio;
     }
 
     public DiscItemXaAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
-        
-        _blnIsStereo = fields.getYesNo(STEREO_KEY);
-        _iSampleFramesPerSecond = fields.getInt(SAMPLES_PER_SEC_KEY);
-        _iChannel = fields.getInt(CHANNEL_KEY);
 
-        _iBitsPerSample = fields.getInt(BITSPERSAMPLE_KEY);
+        _format = new XaAudioFormat(fields);
+
         _iSectorStride = fields.getInt(STRIDE_KEY);
         if (_iSectorStride != -1 && _iSectorStride != 1 && _iSectorStride != 2 &&
             _iSectorStride != 4 && _iSectorStride != 8 && _iSectorStride != 16 && _iSectorStride != 32)
@@ -177,16 +157,16 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         else if ("?".equals(sDiscSpeed))
             _iDiscSpeed = -1;
         else throw new LocalizedDeserializationFail(I.FIELD_HAS_INVALID_VALUE_STR(DISC_SPEED_KEY, sDiscSpeed));
+
+        _sectorsWithAudio = null;
     }
     
     @Override
     public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
 
-        fields.addNumber(CHANNEL_KEY, _iChannel);
-        fields.addYesNo(STEREO_KEY, _blnIsStereo);
-        fields.addNumber(SAMPLES_PER_SEC_KEY, _iSampleFramesPerSecond);
-        fields.addNumber(BITSPERSAMPLE_KEY, _iBitsPerSample);
+        _format.serialize(fields);
+
         fields.addNumber(STRIDE_KEY, _iSectorStride);
         switch (_iDiscSpeed) {
             case 1:  fields.addString(DISC_SPEED_KEY, "1x"); break;
@@ -206,11 +186,12 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
     }
 
     public int getChannel() {
-        return _iChannel;
+        return _format.iChannel;
     }
-    
+
+    @Override
     public boolean isStereo() {
-        return _blnIsStereo;
+        return _format.blnIsStereo;
     }
 
     public int getSectorStride() {
@@ -228,16 +209,12 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
     @Override
     public @Nonnull ILocalizedMessage getInterestingDescription() {
         Date secs = Misc.dateFromSeconds(Math.max((int)getApproxDuration(), 1));
-        return I.GUI_AUDIO_DESCRIPTION(secs, _iSampleFramesPerSecond, _blnIsStereo ? 2 : 1);
+        return I.GUI_AUDIO_DESCRIPTION(secs, _format.iSampleFramesPerSecond, _format.blnIsStereo ? 2 : 1);
     }
     
-
+    @Override
     public int getSampleFramesPerSecond() {
-        return _iSampleFramesPerSecond;
-    }
-
-    public int getAdpcmBitsPerSample() {
-        return _iBitsPerSample;
+        return _format.iSampleFramesPerSecond;
     }
 
     public int getPresentationStartSector() {
@@ -246,25 +223,42 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
     @Override
     public double getApproxDuration() {
-        return getSampleFrameCount() / (double)_iSampleFramesPerSecond;
+        return getSampleFrameCount() / (double)_format.iSampleFramesPerSecond;
     }
 
     public long getSampleFrameCount() {
         int iAudioSectorCount = getAudioSectorCount();
         return (long)iAudioSectorCount *
-                XaAdpcmDecoder.pcmSampleFramesGeneratedFromXaAdpcmSector(_iBitsPerSample, _blnIsStereo);
+                XaAdpcmDecoder.pcmSampleFramesGeneratedFromXaAdpcmSector(_format.iBitsPerSample, _format.blnIsStereo);
     }
 
     private int getAudioSectorCount() {
+        return calculateAudioSectorCount(getSectorLength(), _iSectorStride);
+    }
+
+    private static int calculateAudioSectorCount(int iSectorLength, int iSectorStride) {
         int iAudioSectorCount;
-        int iSectorLength = getSectorLength();
         if (iSectorLength == 1)
             iAudioSectorCount = 1;
         else {
-            assert _iSectorStride > 0;
-            iAudioSectorCount = getSectorLength() / _iSectorStride + 1;
+            assert iSectorStride > 0;
+            iAudioSectorCount = iSectorLength / iSectorStride + 1;
         }
         return iAudioSectorCount;
+    }
+
+    public boolean isConfirmedToBeSilent() {
+        if (_sectorsWithAudio == null)
+            return false; // without the bitset, we can't confirm if it is silent
+        return _sectorsWithAudio.isEmpty();
+    }
+
+    @Override
+    public String toString() {
+        if (isConfirmedToBeSilent())
+            return super.toString() + " // (SILENT)";
+        else
+            return super.toString();
     }
 
     public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume) {
@@ -272,20 +266,36 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
     }
 
     public @Nonnull XaAdpcmDecoder makeXaDecoder(double dblVolume) {
-        return new XaAdpcmDecoder(getAdpcmBitsPerSample(),
+        return new XaAdpcmDecoder(_format.iBitsPerSample,
                                   isStereo(), dblVolume);
     }
 
+    /** Returns an array with 2 elements. */
     public @Nonnull DiscItemXaAudioStream[] split(int iBeforeSector) {
         if (iBeforeSector <= getStartSector() || iBeforeSector > getEndSector())
             throw new IllegalArgumentException("Split sector outside the bounds of XA audio stream");
 
         int iFirstEnd = iBeforeSector - ((iBeforeSector - getStartSector()-1) % _iSectorStride) - 1;
         int iSecondStart = iBeforeSector + (_iSectorStride - (iBeforeSector - getStartSector()-1) % _iSectorStride) - 1;
+
+        BitSet firstSectorsWithAudio = null;
+        BitSet secondSectorsWithAudio = null;
+        if (_sectorsWithAudio != null) {
+            int iSectorsInFirst = calculateAudioSectorCount(iFirstEnd - getStartSector() + 1, _iSectorStride);
+            if (iSectorsInFirst >= _sectorsWithAudio.length()) {
+                firstSectorsWithAudio = _sectorsWithAudio;
+                secondSectorsWithAudio = new BitSet();
+            } else {
+                firstSectorsWithAudio = _sectorsWithAudio.get(0, iSectorsInFirst);
+                secondSectorsWithAudio = _sectorsWithAudio.get(iSectorsInFirst, _sectorsWithAudio.length());
+            }
+        }
+
+
         DiscItemXaAudioStream first = new DiscItemXaAudioStream(getSourceCd(), getStartSector(), iFirstEnd,
-                _iChannel, _iSampleFramesPerSecond, _blnIsStereo, _iBitsPerSample, _iSectorStride);
+                                                                _format, _iSectorStride, firstSectorsWithAudio);
         DiscItemXaAudioStream second = new DiscItemXaAudioStream(getSourceCd(), iSecondStart, getEndSector(),
-                _iChannel, _iSampleFramesPerSecond, _blnIsStereo, _iBitsPerSample, _iSectorStride);
+                                                                 _format, _iSectorStride, secondSectorsWithAudio);
         return new DiscItemXaAudioStream[] { first, second };
     }
 
@@ -302,7 +312,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         AudioInputStream ais = AudioSystem.getAudioInputStream(audioFile);
         try {
             AudioFormat fmt = ais.getFormat();
-            boolean blnFormatEquals = Math.abs(fmt.getSampleRate() - _iSampleFramesPerSecond) < 1f;
+            boolean blnFormatEquals = Math.abs(fmt.getSampleRate() - _format.iSampleFramesPerSecond) < 1f;
             blnFormatEquals &= ( isStereo()  && (fmt.getChannels() == 2) )
                                 ||
                                ( !isStereo() && (fmt.getChannels() == 1) );
@@ -318,34 +328,38 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
             XaAdpcmEncoder encoder;
             try {
-                encoder = new XaAdpcmEncoder(ais, _iBitsPerSample);
+                encoder = new XaAdpcmEncoder(ais, _format.iBitsPerSample);
             } catch (IncompatibleException ex) {
                 throw new RuntimeException("This should have been checked above", ex);
             }
 
-            SectorClaimSystem it = createClaimSystem();
-            pl.progressStart(getSectorLength());
-            for (int iSector = 0; it.hasNext(); iSector++) {
-                IIdentifiedSector origIdSect = it.next(pl).getClaimer();
-                if (origIdSect instanceof SectorXaAudio && isPartOfStream((SectorXaAudio)origIdSect)) {
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    long lngSampleFramesReadBefore = encoder.getSampleFramesRead();
-                    pl.log(Level.INFO, I.WRITING_SAMPLES_TO_SECTOR(lngSampleFramesReadBefore, origIdSect.toString()));
-                    // don't care if encoder is eof
-                    // if (encoder.isEof()) ...
-                    pl.log(Level.INFO, I.CMD_PATCHING_SECTOR_DESCRIPTION(origIdSect.toString()));
-                    if (pl.isSeekingEvent())
-                        pl.event(I.CMD_PATCHING_SECTOR_NUMBER(origIdSect.getSectorNumber()));
-                    CdSector origSect = origIdSect.getCdSector();
-                    getSourceCd().addPatch(origSect.getSectorIndexFromStart(), 0, baos.toByteArray());
+            try {
+                SectorClaimSystem it = createClaimSystem();
+                pl.progressStart(getSectorLength());
+                for (int iSector = 0; it.hasNext(); iSector++) {
+                    IIdentifiedSector origIdSect = it.next(pl).getClaimer();
+                    if (origIdSect instanceof SectorXaAudio && isPartOfStream((SectorXaAudio)origIdSect)) {
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        long lngSampleFramesReadBefore = encoder.getSampleFramesRead();
+                        pl.log(Level.INFO, I.WRITING_SAMPLES_TO_SECTOR(lngSampleFramesReadBefore, origIdSect.toString()));
+                        encoder.encode1Sector(baos);
+                        assert !encoder.isEof();
+                        pl.log(Level.INFO, I.CMD_PATCHING_SECTOR_DESCRIPTION(origIdSect.toString()));
+                        if (pl.isSeekingEvent())
+                            pl.event(I.CMD_PATCHING_SECTOR_NUMBER(origIdSect.getSectorNumber()));
+                        CdSector origSect = origIdSect.getCdSector();
+                        getSourceCd().addPatch(origSect.getSectorIndexFromStart(), 0, baos.toByteArray());
 
-                    pl.progressUpdate(iSector);
+                        pl.progressUpdate(iSector);
+                    }
                 }
+                it.close(pl);
+                pl.progressEnd();
+            } finally {
+                IO.closeSilently(encoder, LOG);
             }
-            it.close(pl);
-            pl.progressEnd();
         } finally {
-            IO.closeSilently(ais, Logger.getLogger(DiscItemXaAudioStream.class.getName()));
+            IO.closeSilently(ais, LOG);
         }
 
     }
@@ -361,15 +375,15 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
         // if missing sector? no, that's not right unless the index is busted
         if (getSampleFramesPerSecond() != other.getSampleFramesPerSecond() ||
-            _blnIsStereo    != other._blnIsStereo    ||
-            _iBitsPerSample != other._iBitsPerSample ||
+            _format.blnIsStereo    != other._format.blnIsStereo    ||
+            _format.iBitsPerSample != other._format.iBitsPerSample ||
             getAudioSectorCount() != other.getAudioSectorCount())
         {
             // Don't want to use sector length in case one of them consists of
             // all adjacent sectors and the other one doesn't
             throw new LocalizedIncompatibleException(I.XA_REPLACE_FORMAT_MISMATCH(
-                other._iBitsPerSample, other.getSampleFrameCount(),other._blnIsStereo ? 2 : 1,other.getSampleFramesPerSecond(),
-                      _iBitsPerSample,       getSampleFrameCount(),      _blnIsStereo ? 2 : 1,      getSampleFramesPerSecond()));
+                other._format.iBitsPerSample, other.getSampleFrameCount(),other._format.blnIsStereo ? 2 : 1,other.getSampleFramesPerSecond(),
+                      _format.iBitsPerSample,       getSampleFrameCount(),      _format.blnIsStereo ? 2 : 1,      getSampleFramesPerSecond()));
         }
         // there should be no missing XA sectors in either of these items
         // if there are, the index is out of sync with the actual disc
@@ -415,7 +429,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         public XAConverter(double dblVolume) {
             __xa2ap = new SectorXaAudioToAudioPacket(
                     DiscItemXaAudioStream.this.makeXaDecoder(dblVolume),
-                    _iSampleFramesPerSecond, _iChannel,
+                    _format.iSampleFramesPerSecond, _format.iFileNumber, _format.iChannel,
                     DiscItemXaAudioStream.this.getStartSector(),
                     DiscItemXaAudioStream.this.getEndSector());
         }
@@ -434,7 +448,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         }
 
         public int getSampleFramesPerSecond() {
-            return _iSampleFramesPerSecond;
+            return _format.iSampleFramesPerSecond;
         }
 
         public @Nonnull AudioFormat getOutputFormat() {
@@ -462,9 +476,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
     public boolean isPartOfStream(@Nonnull SectorXaAudio xaSector) {
         return xaSector.getSectorNumber() >= getStartSector() &&
                xaSector.getSectorNumber() <= getEndSector() &&
-               xaSector.getAdpcmBitsPerSample() == _iBitsPerSample &&
-               xaSector.getChannel() == _iChannel &&
-               xaSector.isStereo() == _blnIsStereo;
+               _format.equals(new XaAudioFormat(xaSector));
     }
 
 }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2019  Michael Sabin
+ * Copyright (C) 2017-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -131,7 +131,7 @@ public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
         // the only way to know a video ends is by the EOF marker
         CdSectorXaSubHeader sh = cs.getSector().getSubHeader();
         if (sh != null &&
-            sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_EOF_MARKER) != 0)
+            sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_END_OF_FILE) != 0)
         {
             if (_listener != null)
                 _listener.videoBreak(log);

@@ -182,16 +182,12 @@ Games to investigate
 * Star Wars - Rebel Assault II
 * Discworld 2
 * BrainDead 13
-* Syphon Filter 3
 * Love Games - Wai Wai Tennis [Service Price] [SLPS-01647] INTRO.STR
 * Fear Effect
-* Kowloon's Gate
-* Jackie Chan Stuntmaster
-* Firemen 2
 * Magic the Gathering
 * Aconcagua ending video
 * Sentient
-* Panekit
+* Panekit - Infinitive Crafting Toy Case
 
 Replace
     with a prompt before applying changes

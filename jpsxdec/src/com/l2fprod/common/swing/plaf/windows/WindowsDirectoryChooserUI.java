@@ -504,9 +504,10 @@ public class WindowsDirectoryChooserUI extends BasicFileChooserUI implements
     }
   }
 
+  @SuppressWarnings("unchecked")
   private void enqueueChildren(FileTreeNode node) {
-    for (Enumeration e = node.children(); e.hasMoreElements();) {
-      addToQueue((FileTreeNode)e.nextElement(), tree);
+    for (Enumeration<FileTreeNode> e = node.children(); e.hasMoreElements();) {
+      addToQueue(e.nextElement(), tree);
     }
   }
 
@@ -607,7 +608,7 @@ public class WindowsDirectoryChooserUI extends BasicFileChooserUI implements
     }
   }
 
-  private class FileTreeNode extends LazyMutableTreeNode implements Comparable {
+  private class FileTreeNode extends LazyMutableTreeNode implements Comparable<Object> {
 
     public FileTreeNode(File file) {
       super(file);

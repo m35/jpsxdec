@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2019  Michael Sabin
+ * Copyright (C) 2014-2020  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -76,14 +76,13 @@ public class XaAnalysis {
 
         CdSectorXaSubHeader sh = cdSector.getSubHeader();
         if (sh == null) return null;
-        if (sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_FORM | CdSectorXaSubHeader.SubMode.MASK_AUDIO) !=
-                                (CdSectorXaSubHeader.SubMode.MASK_FORM | CdSectorXaSubHeader.SubMode.MASK_AUDIO)) return null;
-        // Ace Combat 3 has several sectors with channel 255
-        // They seem to be "null" sectors
+        if (sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_FORM | CdSectorXaSubHeader.SubMode.MASK_AUDIO | CdSectorXaSubHeader.SubMode.MASK_REAL_TIME) !=
+                                (CdSectorXaSubHeader.SubMode.MASK_FORM | CdSectorXaSubHeader.SubMode.MASK_AUDIO | CdSectorXaSubHeader.SubMode.MASK_REAL_TIME))
+            return null;
         if (sh.getChannel() < 0 || sh.getChannel() > iMaxValidChannel) return null;
 
         boolean blnStereo = sh.getCodingInfo().isStereo();
-        int iSamplesPerSecond = sh.getCodingInfo().getSampleRate();
+        int iSamplesPerSecond = sh.getCodingInfo().getSamplesPerSecond();
         int iBitsPerSample = sh.getCodingInfo().getBitsPerSample();
 
         // TODO: check Sound Parameters values that the index is valid

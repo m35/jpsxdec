@@ -46,6 +46,7 @@ import javax.imageio.ImageIO;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.IO;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.IncompatibleException;
 
 public class ReplaceLoF {
 
@@ -101,7 +102,7 @@ public class ReplaceLoF {
     }
 
     
-    private static void patchLoFTim(Tim lofTim) throws IOException, BinaryDataNotRecognized {
+    private static void patchLoFTim(Tim lofTim) throws IOException, BinaryDataNotRecognized, IncompatibleException {
         // palette 3 is the one that looks best for LoF
         // but any palette is fine
         BufferedImage image = lofTim.toBufferedImage(3);
@@ -119,9 +120,10 @@ public class ReplaceLoF {
         dupTest.replaceImageData(image, clut);
         baos.reset();
         dupTest.write(baos);
-        
+
+        // Sanity check that Tim logic is working
         if (!Arrays.equals(abOriginal, baos.toByteArray())) {
-            throw new RuntimeException("Failed trying to recreate the Tim exactly");
+            throw new RuntimeException("Something went wrong trying to recreate the Tim exactly");
         }
 
         blankRectangle(image, 0, 48, 192, 24);
@@ -149,7 +151,7 @@ public class ReplaceLoF {
         }
     }
     
-    private static void patchVersionTim(Tim version, String sVersion) throws IOException {
+    private static void patchVersionTim(Tim version, String sVersion) throws IOException, IncompatibleException {
         final Color TEXT_COLOR = new Color(0xff, 0xff, 0xff);
         
         BufferedImage img = version.toBufferedImage(1);

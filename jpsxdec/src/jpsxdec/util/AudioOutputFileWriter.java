@@ -124,6 +124,7 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
 
     }
 
+    @Override
     public void run() {
         try {
             // start writing the audio file
@@ -175,6 +176,7 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
         return _format;
     }
 
+    @Override
     public void close() throws IOException {
 
         // flush out the rest of the data written before closing the stream

@@ -56,7 +56,7 @@ import jpsxdec.util.Misc;
  * presenting messages to the developer.
  */
 class LocalizedMessage implements ILocalizedMessage {
-    
+
     private static final Logger LOG = Logger.getLogger(LocalizedMessage.class.getName());
 
     @Nonnull
@@ -77,11 +77,13 @@ class LocalizedMessage implements ILocalizedMessage {
         _sEnglishDefault = sEnglishDefault;
         _aoArguments = null;
     }
-    
+
+    @Override
     public void logEnglish(@Nonnull Logger log, @Nonnull Level level) {
         logEnglish(log, level, null);
     }
 
+    @Override
     public void logEnglish(@Nonnull Logger log, @Nonnull Level level, @CheckForNull Throwable ex) {
         LogRecord lr = new LogRecord(level, _sEnglishDefault);
         lr.setLoggerName(log.getName());
@@ -92,6 +94,7 @@ class LocalizedMessage implements ILocalizedMessage {
         log.log(lr);
     }
 
+    @Override
     public @Nonnull String getEnglishMessage() {
         if (_aoArguments == null)
             return _sEnglishDefault;
@@ -108,7 +111,8 @@ class LocalizedMessage implements ILocalizedMessage {
             return MessageFormat.format(_sEnglishDefault, aoArgCopy);
         }
     }
-    
+
+    @Override
     public @Nonnull String getLocalizedMessage() {
         String sMessage = lookupValue();
         if (sMessage == null)
@@ -130,7 +134,7 @@ class LocalizedMessage implements ILocalizedMessage {
         }
         return null;
     }
-    
+
     @Override
     public String toString() {
         return getLocalizedMessage();
@@ -156,10 +160,11 @@ class LocalizedMessage implements ILocalizedMessage {
             return false;
         if (!Arrays.deepEquals(this._aoArguments, other._aoArguments))
             return false;
-        
+
         return true;
     }
 
+    @Override
     public boolean equalsIgnoreCase(String s) {
         String sMessage = lookupValue();
         return _sEnglishDefault.equalsIgnoreCase(s) || (sMessage != null && sMessage.equalsIgnoreCase(s));

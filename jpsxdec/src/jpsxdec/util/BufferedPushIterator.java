@@ -107,6 +107,7 @@ public class BufferedPushIterator<T> implements Iterable<T> {
 
     /** Any number of iterators can be created to read from the same sequence
      * of elements added to this push iterator. */
+    @Override
     public @Nonnull Iter<T> iterator() {
         if (_tail._value == null) {
             return new Iter<T>(_tail);
@@ -132,9 +133,11 @@ public class BufferedPushIterator<T> implements Iterable<T> {
         public @Nonnull T peekPrevious() throws NoSuchElementException {
             return _head.previous();
         }
+        @Override
         public boolean hasNext() {
             return _head.hasNext();
         }
+        @Override
         public @Nonnull T next() throws NoSuchElementException {
             _head = _head.next();
             return _head.previous();
@@ -145,6 +148,7 @@ public class BufferedPushIterator<T> implements Iterable<T> {
             return new Iter<T>(_head);
         }
 
+        @Override
         public void remove() {
             // we have no word like remove in our iterator
             throw new UnsupportedOperationException();

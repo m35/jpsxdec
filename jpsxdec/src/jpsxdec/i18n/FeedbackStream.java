@@ -150,11 +150,13 @@ public class FeedbackStream {
 
     private class FbsLogger implements ILocalizedLogger {
 
+        @Override
         public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg) {
             log(level, msg, null);
         }
 
-        public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg, 
+        @Override
+        public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg,
                         @CheckForNull Throwable debugException)
         {
             LOG.log(level, msg.getEnglishMessage(), debugException);

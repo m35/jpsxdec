@@ -39,8 +39,9 @@ package jpsxdec.modules.aconcagua;
 
 import java.util.List;
 import javax.annotation.Nonnull;
-import jpsxdec.modules.video.sectorbased.*;
 import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
+import jpsxdec.modules.video.sectorbased.VideoSectorWithFrameNumberDemuxer;
 
 
 public class AconcaguaDemuxer extends VideoSectorWithFrameNumberDemuxer {

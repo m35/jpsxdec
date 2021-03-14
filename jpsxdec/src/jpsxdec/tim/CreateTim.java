@@ -65,7 +65,7 @@ class CreateTim {
 
         if (!validator.tagIsValid(inStream))
             return null;
-        if (!validator.versionIsValid(inStream)) 
+        if (!validator.versionIsValid(inStream))
             return null;
         if (!validator.unknownIsValid(inStream))
             return null;
@@ -118,7 +118,7 @@ class CreateTim {
         return new TimInfo(iPaletteCount, validator.getBitPerPixel(),
                            validator.getPixelWidth(), validator.getPixelHeight());
     }
-    
+
     /**
      * Parse and deserialize a TIM file from a stream.
      */
@@ -157,7 +157,7 @@ class CreateTim {
             short[] asiColorData = new short[validator.getClutImageDataWordSize()];
             for (int i = 0; i < asiColorData.length; i++)
                 asiColorData[i] = IO.readSInt16LE(inStream);
-            
+
             clut = new CLUT(asiColorData, validator.getClutX(), validator.getClutY(), validator.getClutPixelWidth(), validator.getClutPixelHeight());
        }
 
@@ -178,7 +178,7 @@ class CreateTim {
             throw new BinaryDataNotRecognized();
 
         byte[] abImageData = IO.readByteArray(inStream, validator.getImageDataByteSize());
-        return new Tim(abImageData, validator.getTimX(), validator.getTimY(), 
+        return new Tim(abImageData, validator.getTimX(), validator.getTimY(),
                        validator.getWordWidth(), validator.getPixelHeight(),
                        validator.getBitPerPixel(), clut,
                        consistency == TimValidator.TimConsistency.INCONSISTENT_BUT_VALID);
@@ -208,7 +208,7 @@ class CreateTim {
         if (iSrcBpp == 32)
             // use 16 BPP (instead of 24) since it's the most common
             // if 24 bpp is needed, use other function
-            iTargetBpp = 16; 
+            iTargetBpp = 16;
         else
             iTargetBpp = iSrcBpp;
 
@@ -255,14 +255,14 @@ class CreateTim {
             case 4:
                 iPaletteLength = 16;
                 break;
-            case 8: 
+            case 8:
                 iPaletteLength = 256;
                 break;
             default: throw new RuntimeException();
         }
 
         final int iSrcBpp = findBitsPerPixel(bi);
-        
+
         Tim tim;
 
         if (iSrcBpp <= validator.getBitPerPixel()) {
@@ -274,12 +274,12 @@ class CreateTim {
             CLUT clut = new CLUT(asiClut, validator.getClutX(), validator.getClutY(), iPaletteLength, 1);
 
             byte[] abIndexes = extractIndexes(bi, validator.getBitPerPixel() == 4);
-            tim = new Tim(abIndexes, validator.getTimX(), validator.getTimY(), 
+            tim = new Tim(abIndexes, validator.getTimX(), validator.getTimY(),
                           validator.getWordWidth(), validator.getPixelHeight(),
                           validator.getBitPerPixel(), clut);
         } else if (iSrcBpp == 8) {
             // src = 8, dest = 4
-            
+
             // find used indexes
             int[] aiIndexes = bi.getRaster().getPixels(0, 0, bi.getWidth(), bi.getHeight(), (int[])null);
             Arrays.sort(aiIndexes);
@@ -323,7 +323,7 @@ class CreateTim {
             // src = 32, dest = 8
             tim = createPalettedTim(bi, validator.getBitPerPixel() == 4, validator);
         }
-        
+
         return tim;
     }
 
@@ -338,7 +338,7 @@ class CreateTim {
      * @param iClutY CLUT Y coordinate.
      * @param iBitsPerPixel Either 4 or 8.
      *
-     * @throws IllegalArgumentException if 
+     * @throws IllegalArgumentException if
      *      the {@link BufferedImage} does not have an {@link IndexColorModel},
      *      or the colors of the palette indexes in the {@link BufferedImage} do not match the first palette in the CLUT.
      */
@@ -380,7 +380,7 @@ class CreateTim {
         if (!(cm instanceof IndexColorModel))
             throw new IllegalArgumentException("Image must have IndexColorModel");
         IndexColorModel icm = (IndexColorModel)cm;
-        
+
         int[] aiPaletteArgb = new int[iPaletteSize];
         icm.getRGBs(aiPaletteArgb);
 
@@ -425,7 +425,7 @@ class CreateTim {
 
     /** Returns Tim image data consisting of 4 or 8 bpp indexes.
      * If 4 bpp, assumes image width is divisible by 2. */
-    private static @Nonnull byte[] extractIndexes(@Nonnull BufferedImage bi, 
+    private static @Nonnull byte[] extractIndexes(@Nonnull BufferedImage bi,
                                                   boolean bln4bppOrNot8bpp)
     {
         int[] aiIndexes = bi.getRaster().getPixels(0, 0, bi.getWidth(), bi.getHeight(), (int[])null);
@@ -550,7 +550,7 @@ class CreateTim {
      * slow as this one.
      */
     private static class PaletteMaker {
-        
+
         /** Generated Tim ABGR1555 palette.
          * Either 16 (for 4bpp) or 256 (for 8bpp) in length.
          * Only the first {@link #_iColorCount} values are meaningful, the rest are 0.
@@ -562,7 +562,7 @@ class CreateTim {
         private int _iColorCount;
 
         /** Image converted to ABGR1555 Tim colors. */
-        @Nonnull 
+        @Nonnull
         private final short[] _asiTim16Image;
 
         /** Converts the image to ABGR1555 Tim colors and generates the palette.
@@ -608,5 +608,5 @@ class CreateTim {
             return new CLUT(_asiPalette, iClutX, iClutY, _asiPalette.length, 1);
         }
     }
-    
+
 }

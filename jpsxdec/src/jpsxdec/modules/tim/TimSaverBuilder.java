@@ -63,7 +63,6 @@ import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.TabularFeedback;
 import jpsxdec.i18n.TabularFeedback.Cell;
 import jpsxdec.i18n.UnlocalizedMessage;
-import jpsxdec.i18n._PlaceholderMessage;
 import jpsxdec.i18n.exception.LocalizedFileNotFoundException;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
@@ -82,10 +81,10 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
     /** Valid formats for saving Tim images. */
     public static class TimSaveFormat {
-        
+
         @CheckForNull
         private final JavaImageFormat _javaFmt;
-        
+
         private TimSaveFormat() {
             _javaFmt = null;
         }
@@ -106,7 +105,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                 throw new UnsupportedOperationException("TIM does not have a Java image format");
             return _javaFmt;
         }
-        
+
         @Override
         public String toString() {
             if (_javaFmt == null)
@@ -147,7 +146,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         TRUE_COLOR_ALPHA_FORMAT_LIST.add(TIM);
         PALETTE_FORMAT_LIST.add(TIM);
     }
-    
+
     public static @Nonnull List<TimSaveFormat> getValidFormats(int iBpp) {
         switch (iBpp) {
             case 4:
@@ -219,7 +218,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     }
 
     // .................................................................
-    
+
     public void setImageFormat(@Nonnull TimSaveFormat fmt) {
         _saveFormat = fmt;
         firePossibleChange();
@@ -235,7 +234,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     }
 
     // .................................................................
-    
+
     public @Nonnull ILocalizedMessage getOutputFilesSummary() {
         if (_saveFormat == TIM)
             return new UnlocalizedMessage(makeTimFileName());
@@ -284,6 +283,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         return null;
     }
 
+    @Override
     public void commandLineOptions(@Nonnull ArgParser ap, @Nonnull FeedbackStream fbs) {
         if (!ap.hasRemaining())
             return;
@@ -337,6 +337,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         }
     }
 
+    @Override
     public void printHelp(@Nonnull FeedbackStream fbs) {
         TabularFeedback tfb = new TabularFeedback();
         tfb.setRowSpacing(1);
@@ -353,6 +354,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         tfb.write(fbs.getUnderlyingStream());
     }
 
+    @Override
     public void printSelectedOptions(@Nonnull
     ILocalizedLogger log) {
         log.log(Level.INFO, I.CMD_TIM_SAVE_FORMAT(getImageFormat().getExtension()));
@@ -363,10 +365,12 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         return _timItem.getSuggestedBaseName() + ".tim";
     }
 
+    @Override
     public @Nonnull ILocalizedMessage getOutputSummary() {
         return getOutputFilesSummary();
     }
 
+    @Override
     public @Nonnull DiscItemSaverBuilderGui getOptionPane() {
         return new TimSaverBuilderGui(this);
     }
@@ -374,7 +378,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     // ------------------------------------------------------------------------
 
     @Override
-    public void startSave(@Nonnull ProgressLogger pl, @CheckForNull File directory) 
+    public void startSave(@Nonnull ProgressLogger pl, @CheckForNull File directory)
             throws LoggedFailure, TaskCanceledException
     {
         clearGeneratedFiles();
@@ -410,7 +414,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         }
 
         if (tim.timHasIssues()) {
-            pl.log(Level.WARNING, new _PlaceholderMessage("Adapting for inconsistencies in Tim image {0}", tim));
+            pl.log(Level.WARNING, I.TIM_HAS_ISSUES_CAN_BE_EXTRACTED(tim.toString()));
         }
         pl.event(I.IO_WRITING_FILE(outputFile.getName()));
         try {
@@ -434,7 +438,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     }
 
 
-    public void startSaveImage(@Nonnull ProgressLogger pl, @CheckForNull File outputDir, 
+    public void startSaveImage(@Nonnull ProgressLogger pl, @CheckForNull File outputDir,
                                @Nonnull String[] _asOutputFiles, @Nonnull JavaImageFormat _imageFormat)
             throws LoggedFailure, TaskCanceledException
     {

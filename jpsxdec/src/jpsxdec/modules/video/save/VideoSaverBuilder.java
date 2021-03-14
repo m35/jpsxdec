@@ -86,6 +86,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         _imgFmtListNoBs.remove(VideoFormat.IMGSEQ_BITSTREAM);
     }
 
+    @Override
     public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder otherBuilder) {
         if (otherBuilder instanceof VideoSaverBuilder) {
             VideoSaverBuilder other = (VideoSaverBuilder) otherBuilder;
@@ -107,6 +108,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         return false;
     }
 
+    @Override
     public @Nonnull DiscItemVideoStream getDiscItem() {
         return _sourceVidItem;
     }
@@ -127,7 +129,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
             // the frame types defined in the video should match the available
             // frame types of the start and end frames
             // if not, something weird happened
-            
+
             FormattedFrameNumber start = startFrame.getNumber(getFileNumberType());
             if (start == null)
                 throw new IllegalStateException("Video should have had a start and end header frame number type");
@@ -172,7 +174,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                (findDiscSpeed() < 1);
     }
     public @Nonnull Fraction getFps() {
-        return Fraction.divide( 
+        return Fraction.divide(
                 getSingleSpeed() ? 75 : 150,
                 _sourceVidItem.getSectorsPerFrame());
     }
@@ -354,7 +356,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     // .........................................................................
-    
+
     @CheckForNull
     private FrameLookup _saveEndFrame = null;
     public @CheckForNull FrameLookup getSaveEndFrame() {
@@ -367,6 +369,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     ////////////////////////////////////////////////////////////////////////////
 
+    @Override
     final public void printHelp(@Nonnull FeedbackStream fbs) {
         TabularFeedback tfb = new TabularFeedback();
         makeHelpTable(tfb);
@@ -428,10 +431,11 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         tfb.addCell(c);
     }
 
+    @Override
     public void commandLineOptions(@Nonnull ArgParser ap, @Nonnull FeedbackStream fbs) {
         if (!ap.hasRemaining())
             return;
-        
+
         StringHolder vidfmt = ap.addStringOption("-vidfmt","-vf");
         BooleanHolder nocrop = ap.addBoolOption(false, "-nocrop"); // only non demux & mdec formats
         StringHolder quality = ap.addStringOption("-quality","-q");
@@ -501,9 +505,9 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
 
         if (vidfmt.value != null) {
             VideoFormat vf = VideoFormat.fromCmdLine(vidfmt.value);
-            if (vf != null) 
+            if (vf != null)
                 setVideoFormat(vf);
-             else 
+             else
                 fbs.printlnWarn(I.CMD_IGNORING_INVALID_VALUE_FOR_CMD(vidfmt.value, "-vf,-vidfmt"));
         }
 
@@ -538,7 +542,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     @Override
     public void printSelectedOptions(@Nonnull ILocalizedLogger log) {
         VideoFormat vidFmt = getVideoFormat();
-        
+
         log.log(Level.INFO, I.CMD_VIDEO_FORMAT(getVideoFormat().toString()));
 
         if (vidFmt.getDecodeQualityCount() > 0) {
@@ -549,7 +553,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                 log.log(Level.INFO, I.CMD_UPSAMPLE_QUALITY(chroma.getDescription().getLocalizedMessage()));
             }
         }
-        
+
         if (getCrop_enabled())
             log.log(Level.INFO, I.CMD_CROPPING(getCrop() ? 1 : 0));
 
@@ -608,11 +612,13 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     protected final VDP.GeneratedFileListener thisGeneratedFileListener =
                 new VDP.GeneratedFileListener() {
+                    @Override
                     public void fileGenerated(File f) {
                         addGeneratedFile(f);
                     }
                 };
-    
+
+    @Override
     abstract public void startSave(@Nonnull ProgressLogger pl, @CheckForNull File directory)
             throws LoggedFailure, TaskCanceledException;
 
@@ -630,6 +636,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
 
     abstract public boolean hasAudio();
     abstract public boolean getSavingAudio();
-    
+
     abstract public boolean getEmulatePsxAvSync();
 }

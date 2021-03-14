@@ -67,6 +67,7 @@ class Command_CopySect extends Command {
     @Nonnull
     private int[] _aiStartEndSectors;
 
+    @Override
     protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         _aiStartEndSectors = parseNumberRange(s);
         if (_aiStartEndSectors == null) {
@@ -76,6 +77,7 @@ class Command_CopySect extends Command {
         }
     }
 
+    @Override
     public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         CdFileSectorReader cdReader = getCdReader();
         String sOutputFile = String.format("%s%d-%d.dat",
@@ -90,7 +92,7 @@ class Command_CopySect extends Command {
         } catch (FileNotFoundException ex) {
             throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(sOutputFile), ex);
         }
-        
+
         OutputStream os = null;
         try {
             os = new BufferedOutputStream(fos);
@@ -98,7 +100,7 @@ class Command_CopySect extends Command {
             boolean blnAddCdxaHeader;
             if (iRawSectorSize == CdSector.SECTOR_SIZE_2048_ISO) {
                 blnAddCdxaHeader = false;
-            } else { 
+            } else {
                 if (!ap.hasRemaining()) {
                     blnAddCdxaHeader = true;
                 } else {

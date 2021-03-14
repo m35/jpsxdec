@@ -140,6 +140,7 @@ public class DemuxedData<T extends DemuxedData.Piece> implements Iterable<T> {
     // TODO find some way to remove iterator here
     // it's used for printing the sectors and replacing them mainly I think
     @SuppressWarnings("unchecked")
+    @Override
     public @Nonnull Iterator<T> iterator() {
         // this cast is particularly interesting because there's really no way around it
         // but logically it is perfectly safe

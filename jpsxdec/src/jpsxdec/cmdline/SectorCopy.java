@@ -66,13 +66,13 @@ public class SectorCopy {
                    DiscPatcher.PatchReadException,
                    IOException // closing discs
     {
-        
+
         CdFileSectorReader src = CdFileSectorReader.open(sSource);
         CdFileSectorReader dest = CdFileSectorReader.open(new File(sDest), true);
-        
+
         if (src.getSectorCount() > dest.getSectorCount())
             throw new IllegalArgumentException("Source file is larger than dest file");
-        
+
         if (iDestStartSector + src.getSectorCount() > dest.getSectorCount())
             throw new IllegalArgumentException("Source file will run off the end of dest file");
 
@@ -83,9 +83,9 @@ public class SectorCopy {
             System.out.println("Overriting sector " + (iDestStartSector + iOfsSect));
             dest.addPatch(iDestStartSector + iOfsSect, 0, abSrcUserData);
         }
-        
+
         System.out.println(src.getSectorCount() + " sectors overwritten.");
-        
+
         src.close();
 
         try {
@@ -94,7 +94,7 @@ public class SectorCopy {
             throw new RuntimeException(ex);
         }
         dest.close();
-        
+
     }
 
 }

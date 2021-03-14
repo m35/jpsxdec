@@ -42,10 +42,11 @@ import java.util.Arrays;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.Fraction;
 
@@ -70,47 +71,58 @@ public class DemuxedPolicenautsFrame implements IDemuxedFrame {
         _presentationSector = presentationSector;
     }
 
+    @Override
     public int getWidth() {
         return _iWidth;
     }
 
+    @Override
     public int getHeight() {
         return _iHeight;
     }
 
+    @Override
     public @Nonnull FrameNumber getFrame() {
         return _frameNumber;
     }
 
+    @Override
     public int getStartSector() {
         return _data.getStartSector();
     }
 
+    @Override
     public int getEndSector() {
         return _data.getEndSectorInclusive();
     }
 
+    @Override
     public @Nonnull Fraction getPresentationSector() {
         return _presentationSector;
     }
 
+    @Override
     public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
         return null;
     }
 
+    @Override
     public int getDemuxSize() {
         return _data.getData().length;
     }
 
+    @Override
     public @Nonnull byte[] copyDemuxData() {
-        return Arrays.copyOfRange(_data.getData(), 0, getDemuxSize());
+        return Arrays.copyOf(_data.getData(), getDemuxSize());
     }
 
+    @Override
     public void printSectors(PrintStream ps) {
         // TODO?
     }
 
-    public void writeToSectors(byte[] abNewDemux, int iNewUsedSize, int iNewMdecCodeCount, CdFileSectorReader cd, ILocalizedLogger log) throws LoggedFailure {
+    @Override
+    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, CdFileSectorReader cd, ILocalizedLogger log) {
         throw new UnsupportedOperationException("Replacing Policenauts frames is not supported");
     }
 }

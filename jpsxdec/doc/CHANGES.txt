@@ -1,3 +1,18 @@
+v1.05 (beta) rev4052 (14 Mar 2021)
+    - Support for Panekit - Infinitive Crafting Toy Case videos
+    - Support for Star Wars - Rebel Assault II - The Hidden Empire videos
+    - New video detection framework should identify even more unique video variations
+    - Added new full frame replace option: size-limit="original non-zero"
+      (see manual for details)
+      (Github issue #32 "Resident Evil 2 Video bug" by gledson999)
+    - Renamed command-line "-replacexa" option to "-replaceaudio" 
+      (see manual for details)
+    - Support for replacing audio streams used in several SquareSoft games
+      (Github issue #35 "How to replace modified video w audio in Chrono Cross?"
+       by saifhashmi210)
+    - Tiny quality improvement to video frame encoding
+    Bug fixes:
+    - Header frame number in image sequence file names is incorrect
 v1.04 rev3987 (10 Aug 2020)
     - More robust XA audio detection
     - Support for saving images as TIFF in Java 9+

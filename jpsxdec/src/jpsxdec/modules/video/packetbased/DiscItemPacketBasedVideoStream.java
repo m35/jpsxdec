@@ -68,7 +68,7 @@ public abstract class DiscItemPacketBasedVideoStream extends DiscItemVideoStream
         super(cd, iStartSector, iEndSector, dim, sectorIndexFrameNumberFormat);
         _iSoundUnitCount = iSoundUnitCount;
     }
-    
+
     public DiscItemPacketBasedVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {

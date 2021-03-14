@@ -50,7 +50,9 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IIdentifiedSector;
+import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
@@ -168,7 +170,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemSectorBasedVideoStrea
     public void fpsDump(@Nonnull PrintStream ps) throws CdFileSectorReader.CdReadException {
         SectorClaimSystem it = createClaimSystem();
         for (int iSector = 0; it.hasNext(); iSector++) {
-            IIdentifiedSector isect = it.next(DebugLogger.Log).getClaimer();
+            IIdentifiedSector isect = it.next(DebugLogger.Log);
             if (isect instanceof SectorAceCombat3Video) {
                 SectorAceCombat3Video vidSect = (SectorAceCombat3Video) isect;
                 ps.println(String.format("%-5d %-4d %d/%d",
@@ -189,44 +191,64 @@ public class DiscItemAceCombat3VideoStream extends DiscItemSectorBasedVideoStrea
     public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer() {
         return new Demuxer(_iMaxInvFrame,
                            _headerFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat),
-                           _iChannel, getStartSector(), getEndSector());
+                           _iChannel, makeSectorRange());
     }
 
 
     /** Public facing (external) demuxer for Ace Combat 3.
-     * Wraps {@link Ac3Demuxer} and sets the {@link FrameNumber} for completed 
+     * Sets the {@link FrameNumber} for completed
      * frames before passing them onto the {@link IDemuxedFrame.Listener}. */
-    public static class Demuxer implements ISectorClaimToDemuxedFrame, SectorAc3VideoToDemuxedAc3Frame.Listener {
-
-        private final SectorAc3VideoToDemuxedAc3Frame _sv2f;
+    public static class Demuxer implements IdentifiedSectorListener<SectorAceCombat3Video>,
+                                           ISectorClaimToDemuxedFrame,
+                                           SectorAc3VideoToDemuxedAc3Frame.Listener
+    {
         private final int _iEndFrameNumber;
         @Nonnull
         private final IFrameNumberFormatterWithHeader _frameNumberFormatter;
-        private final int _iStartSector, _iEndSectorInclusive;
+        @Nonnull
+        private final SectorAc3VideoToDemuxedAc3Frame _sv2f;
+
         @CheckForNull
         private IDemuxedFrame.Listener _listener;
 
         public Demuxer(int iEndFrameNumber,
                        @Nonnull IFrameNumberFormatterWithHeader frameNumberFormatter,
-                       int iChannel, int iStartSector, int iEndSectorInclusive)
+                       int iChannel, @Nonnull SectorRange sectorRange)
         {
-            _sv2f = new SectorAc3VideoToDemuxedAc3Frame(iChannel, this);
-            _frameNumberFormatter = frameNumberFormatter;
             _iEndFrameNumber = iEndFrameNumber;
-            _iStartSector = iStartSector;
-            _iEndSectorInclusive = iEndSectorInclusive;
+            _frameNumberFormatter = frameNumberFormatter;
+            _sv2f = new SectorAc3VideoToDemuxedAc3Frame(iChannel, sectorRange, this);
         }
 
+        //----------------------------------------------------------------------
+
+        @Override
+        public @Nonnull Class<SectorAceCombat3Video> getListeningFor() {
+            return SectorAceCombat3Video.class;
+        }
+        @Override
+        public void feedSector(@Nonnull SectorAceCombat3Video idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
+            _sv2f.feedSector(idSector, log);
+        }
+        @Override
+        public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+            _sv2f.endOfSectors(log);
+        }
+
+        //----------------------------------------------------------------------
+
+        @Override
         public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-            SectorClaimToSectorAc3Video s2ac3s = scs.getClaimer(SectorClaimToSectorAc3Video.class);
-            s2ac3s.setListener(_sv2f);
-            s2ac3s.setRangeLimit(_iStartSector, _iEndSectorInclusive);
+            scs.addIdListener(this);
         }
-
+        @Override
         public void setFrameListener(@Nonnull IDemuxedFrame.Listener listener) {
             _listener = listener;
         }
 
+        //----------------------------------------------------------------------
+
+        @Override
         public void frameComplete(@Nonnull DemuxedAc3Frame frame, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             FrameNumber fn = _frameNumberFormatter.next(frame.getStartSector(),
                                                         _iEndFrameNumber - frame.getInvertedHeaderFrameNumber(),

@@ -66,7 +66,8 @@ public class SquareAudioSectorPairToAudioPacket implements SquareAudioSectorToSq
         _listener = listener;
     }
 
-    public void pairDone(@Nonnull SquareAudioSectorPair pair, @Nonnull ILocalizedLogger log) 
+    @Override
+    public void pairDone(@Nonnull SquareAudioSectorPair pair, @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
         _buffer.reset();
@@ -86,6 +87,7 @@ public class SquareAudioSectorPairToAudioPacket implements SquareAudioSectorToSq
         }
     }
 
+    @Override
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
         // there's no work-in-progress to send to listener
     }

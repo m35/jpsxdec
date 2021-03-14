@@ -41,15 +41,17 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IdentifiedSector;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.DemuxedData;
 
-/** Judge Dredd video sector. 
+/** Judge Dredd video sector.
  * <p>
  * Judge Dredd does not make video sector identification easy. Requires
  * contextual information about the surrounding sectors to
  * uniquely determine if a sector really is a Dredd video sector. */
-public class SectorDreddVideo extends IdentifiedSector 
+public class SectorDreddVideo extends IdentifiedSector
         implements DemuxedData.Piece, SectorBasedFrameReplace.IReplaceableVideoSector
 {
 
@@ -58,10 +60,11 @@ public class SectorDreddVideo extends IdentifiedSector
     /** Dredd sector header size is either 4 or 44. */
     private int _iHeaderSize;
 
+    @Override
     public int getVideoSectorHeaderSize() { return _iHeaderSize; }
 
     @CheckForNull
-    private DemuxedDreddFrame _dreddFrame;
+    DemuxedDreddFrame _dreddFrame;
 
     /** Performs initial, partial sector identification.
      * Additional verification is necessary which requires contextual information. */
@@ -72,15 +75,7 @@ public class SectorDreddVideo extends IdentifiedSector
         _iHeaderSize = iHeaderSize;
     }
 
-    void setDreddFrame(@Nonnull DemuxedDreddFrame frame) {
-        _dreddFrame = frame;
-    }
-    @Nonnull DemuxedDreddFrame getDreddFrame() {
-        if (_dreddFrame == null)
-            throw new IllegalStateException();
-        return _dreddFrame;
-    }
-
+    @Override
     public @Nonnull String getTypeName() {
         return "Dredd";
     }
@@ -95,14 +90,17 @@ public class SectorDreddVideo extends IdentifiedSector
         return _dreddFrame.getSectorCount();
     }
 
+    @Override
     final public int getDemuxPieceSize() {
         return getCdSector().getCdUserDataSize() - getVideoSectorHeaderSize();
     }
 
+    @Override
     final public byte getDemuxPieceByte(int i) {
         return getCdSector().readUserDataByte(getVideoSectorHeaderSize() + i);
     }
 
+    @Override
     final public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
         getCdSector().getCdUserDataCopy(getVideoSectorHeaderSize(), abOut,
                 iOutPos, getDemuxPieceSize());
@@ -110,16 +108,24 @@ public class SectorDreddVideo extends IdentifiedSector
 
     @Override
     public String toString() {
-        String s = String.format("%s %s chunk %d frame %s",
-                getTypeName(), cdToString(), getChunkNumber(), _dreddFrame);
-        if (_iHeaderSize == 4)
-            return s;
-        else
-            return s + " + Unknown data";
+        StringBuilder sb = new StringBuilder(
+            String.format("%s %s chunk %d", getTypeName(), cdToString(), getChunkNumber())
+        );
+
+        if (_dreddFrame != null) {
+            sb.append(" frame ").append(_dreddFrame);
+        }
+
+        if (_iHeaderSize != 4)
+            sb.append(" + Unknown data");
+
+        return sb.toString();
     }
 
-    public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                         int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+    @Override
+    public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                         @Nonnull BitStreamAnalysis newFrame,
+                                         @Nonnull byte[] abCurrentVidSectorHeader)
     {
         // nothing to replace
     }

@@ -64,14 +64,14 @@ public class SoundUnitEncoder {
         public final int iRange;
         /** If at least 1 ADPCM sample had to be clamped to fit. */
         public final boolean blnHadToClamp;
-        
+
         /** Encoded ADPCM data samples.
          * 8 bits/sample uses the whole byte.
          * 4 bits/sample uses the least significant nibble. */
         @Nonnull
         public final byte[] abEncodedAdpcm;
 
-        private EncodedUnit(int iFilterIndex, int iRange, boolean blnHadToClamp, 
+        private EncodedUnit(int iFilterIndex, int iRange, boolean blnHadToClamp,
                             @Nonnull byte[] abEncodedAdpcm)
         {
             this.iFilterIndex = iFilterIndex;
@@ -257,7 +257,7 @@ public class SoundUnitEncoder {
         /** Encoded data goes here. */
         private final byte[] _abEncodedAdpcm = new byte[SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT];
 
-        /** If at least 1 ADPCM sample had to be clamped to fit. 
+        /** If at least 1 ADPCM sample had to be clamped to fit.
          * Try to avoid this this {@link FilterRangeEncoder} if clamping occurred. */
         private boolean _blnHadToClamp = false;
 
@@ -277,7 +277,9 @@ public class SoundUnitEncoder {
         }
 
         /** Checks if this sound unit provides better encoding than the supplied
-         *  sound unit. The decider. */
+         *  sound unit.
+         * TODO: This may not be the best way to decide the winning encoded sound unit,
+         * but it should be a reasonable choice. */
         public boolean isBetterThan(@Nonnull FilterRangeEncoder other) {
             return _dblMaxDelta < other._dblMaxDelta;
         }
@@ -372,7 +374,7 @@ public class SoundUnitEncoder {
             return _blnHadToClamp;
         }
     }
-    
+
     // =========================================================================
     // static
 

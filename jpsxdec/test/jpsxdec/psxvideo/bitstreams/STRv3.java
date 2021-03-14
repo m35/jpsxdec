@@ -60,16 +60,13 @@ import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
 import jpsxdec.util.BinaryDataNotRecognized;
-import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import static org.junit.Assert.*;
 import org.junit.Test;
+import testutil.Util;
 
 
 public class STRv3 {
-
-    public STRv3() {
-    }
 
     @Test
     public void encodeDc511() throws Exception {
@@ -259,7 +256,7 @@ public class STRv3 {
                 new BitStreamUncompressor_STRv3.BitStreamCompressor_STRv3(
                         Calc.macroblocks(bi.getWidth(), bi.getHeight()));
         byte[] abBs = comp.compress(enc.getStream());
-        byte[] abExpected = IO.readEntireStream(getClass().getResourceAsStream("testmax-EXPECTED.bs"));
+        byte[] abExpected = Util.readResource(STRv3.class, "testmax-EXPECTED.bs");
         assertArrayEquals(abExpected, abBs);
     }
 
@@ -279,7 +276,7 @@ public class STRv3 {
 
         InputStream is = STRv3.class.getResourceAsStream(sFile);
         is = new GZIPInputStream(is);
-        LineNumberReader lnr = new LineNumberReader(new InputStreamReader(is));
+        LineNumberReader lnr = new LineNumberReader(new InputStreamReader(is, Misc.US_ASCII));
         String sLine;
         while ((sLine = lnr.readLine()) != null) {
             //System.out.println(sLine);
@@ -287,9 +284,9 @@ public class STRv3 {
             assertEquals(sLine, 2, as.length);
             String sBits = as[0].replace("+", "");
             String[] asCodes = as[1].split("\\+");
-            BitStreamWriter bw = STRv2.writeHeader(3);
+            BitStreamWriter bw = new BitStreamWriter();
             bw.write(sBits);
-            byte[] ab = bw.toByteArray();
+            byte[] ab = STRv2.writeHeader(3, bw.toByteArray(BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER));
             BitStreamUncompressor_STRv3 v3 = BitStreamUncompressor_STRv3.makeV3(ab);
             for (String sCode : asCodes) {
                 try {
@@ -344,13 +341,13 @@ public class STRv3 {
         }
 
         private void initFrame() throws IOException {
-            _bw = STRv2.writeHeader(3);
+            _bw = new BitStreamWriter();
             _mdecCodeBitsWritten.clear();
             _mdecCodesRead.setLength(0);
         }
 
         private void closeAndReset() throws IOException, BinaryDataNotRecognized {
-            byte[] ab = _bw.toByteArray();
+            byte[] ab = STRv2.writeHeader(3, _bw.toByteArray(BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER));
             _v3 = BitStreamUncompressor_STRv3.makeV3(ab);
             _bw.reset();
             _mdecCodesRead.setLength(0);
@@ -366,7 +363,7 @@ public class STRv3 {
         public void generate(String sFile) throws Exception {
             PrintStream ps = new PrintStream(
                     new BufferedOutputStream(
-                    new FileOutputStream(sFile)));
+                    new FileOutputStream(sFile)), true, "US-ASCII");
 
             for (int iBits = 0; iBits < 1 << getDcCodeBitLength(); iBits++) {
                 ps.print(genFirstBlock(iBits));

@@ -53,7 +53,7 @@ public class StephensIDCT implements IDCT_double {
 
     /**
      * This method init the Cosine Transform Matrix and the Transposed CT.
-     * These are used by the inverse DCT. 
+     * These are used by the inverse DCT.
      */
     private void initMatrix()
     {
@@ -102,6 +102,7 @@ public class StephensIDCT implements IDCT_double {
      * @param input N * N Matrix
      * @param out The pixel array output
      */
+    @Override
     public void IDCT(double[] input, int iOutputOffset, double[] out) {
         assert(input.length == N*N);
         double temp1;
@@ -133,6 +134,7 @@ public class StephensIDCT implements IDCT_double {
 
     }
 
+    @Override
     public void IDCT_1NonZero(double[] adblIdctMatrix, int iNonZeroPos, int iOutputOffset, double[] adblOutput) {
         IDCT(adblIdctMatrix, iOutputOffset, adblOutput);
     }

@@ -46,7 +46,7 @@ public class ExposedBAOS extends ByteArrayOutputStream {
 
     public ExposedBAOS() {
     }
-    
+
     public ExposedBAOS(int size) {
         super(size);
     }

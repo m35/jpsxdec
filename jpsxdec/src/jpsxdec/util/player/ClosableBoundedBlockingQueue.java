@@ -97,7 +97,7 @@ public class ClosableBoundedBlockingQueue<T> {
         _notFull  = _lock.newCondition();
     }
 
-    /** 
+    /**
      * Blocks only if the queue is full, and the queue is not closed or poisoned.
      * @return if the queue is still open and not poisoned (false if not)
      * @throws NullPointerException  if the argument is null
@@ -222,7 +222,7 @@ public class ClosableBoundedBlockingQueue<T> {
                 throw new IllegalStateException(otherThread.getName() + " thread is dead, throwing exception to make sure this thread (" +
                                                 Thread.currentThread().getName() + ") won't block forever");
             } else if (otherThread == Thread.currentThread()) {
-                throw new IllegalStateException("The last thread to add entries was THIS thread (" + 
+                throw new IllegalStateException("The last thread to add entries was THIS thread (" +
                                                 Thread.currentThread().getName() +
                                                 "), throwing exception to make sure this won't block forever");
             }

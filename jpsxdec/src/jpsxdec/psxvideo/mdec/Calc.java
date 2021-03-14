@@ -60,10 +60,10 @@ public class Calc {
     }
 
     /** A strange value needed for video bitstreams and video sector headers.
-     *  It's the number of MDEC codes, divided by two, then rounded up to the
-     *  next closest multiple of 32 (if not already a multiple of 32).
-     *  In other words, its the number of 32-byte blocks it would take to hold
-     *  the MDEC codes. */
+     * It's the number of MDEC codes, divided by two, then rounded up to the
+     * next closest multiple of 32 (if not already a multiple of 32).
+     * Another way to look at it is the number of MDEC codes rounded up to a
+     * multiple of 64, then divided by two. */
     public static short calculateHalfCeiling32(int iMdecCodeCount) {
         return (short) ((((iMdecCodeCount + 1) / 2) + 31) & ~31);
     }

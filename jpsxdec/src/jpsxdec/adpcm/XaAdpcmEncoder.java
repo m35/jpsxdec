@@ -97,6 +97,7 @@ public class XaAdpcmEncoder implements Closeable {
 
         private LogContext() {}
 
+        @Override
         public @Nonnull LogContext copy() {
             LogContext cpy = new LogContext();
             cpy.iEncodedSectorCount = iEncodedSectorCount;
@@ -106,7 +107,7 @@ public class XaAdpcmEncoder implements Closeable {
             cpy.lngSamplesFramesRead = lngSamplesFramesRead;
             return cpy;
         }
-        
+
         @Override
         public String toString() {
             return String.format(
@@ -127,7 +128,7 @@ public class XaAdpcmEncoder implements Closeable {
      * @param iEncodeToAdpcmBitsPerSample Must be 4 or 8
      * @throws UnsupportedOperationException if source audio format is incorrect.
      */
-    public XaAdpcmEncoder(@Nonnull AudioInputStream ais, int iEncodeToAdpcmBitsPerSample) 
+    public XaAdpcmEncoder(@Nonnull AudioInputStream ais, int iEncodeToAdpcmBitsPerSample)
             throws IncompatibleException
     {
         if (iEncodeToAdpcmBitsPerSample == 4)
@@ -147,7 +148,7 @@ public class XaAdpcmEncoder implements Closeable {
 
         // will verify all other format details are valid
         _audioShortReader = new AudioShortReader(ais);
-        
+
         int iChannels = fmt.getChannels();
         _aoEncoders = new SoundUnitEncoder[iChannels];
         for (int i = 0; i < iChannels; i++) {
@@ -168,6 +169,7 @@ public class XaAdpcmEncoder implements Closeable {
         return _audioShortReader.isEof();
     }
 
+    @Override
     public void close() throws IOException {
         _audioShortReader.close();
     }
@@ -194,7 +196,7 @@ public class XaAdpcmEncoder implements Closeable {
         _logContext.iSoundGroup = -1;
         _logContext.iEncodedSectorCount++;
     }
-    
+
     private void encodeSoundGroup(@Nonnull OutputStream os) throws IOException {
         SoundUnitEncoder.EncodedUnit[] aoEncoded;
         if (_blnEncode4BitsElse8Bits)
@@ -227,7 +229,7 @@ public class XaAdpcmEncoder implements Closeable {
         // write the sound parameters and the encoded samples
         if (_blnEncode4BitsElse8Bits) {
             // aoEncoded.length == AdpcmSoundGroup.SOUND_UNITS_IN_4_BIT_SOUND_GROUP == 8
-        
+
             // 0,1,2,3, 0,1,2,3, 4,5,6,7, 4,5,6,7
             for (int i = 0; i < 4; i++) {
                 os.write(aoEncoded[i].getSoundParameter());
@@ -258,7 +260,7 @@ public class XaAdpcmEncoder implements Closeable {
                     os.write(aoEncoded[i].getSoundParameter());
                 }
             }
-            
+
             // 0,1,2,3, 0,1,2,3, 0,1,2,3 ...
             for (int i = 0; i < SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT; i++) {
                 os.write(aoEncoded[0].abEncodedAdpcm[i]);
@@ -269,5 +271,5 @@ public class XaAdpcmEncoder implements Closeable {
 
         }
     }
-        
+
 }

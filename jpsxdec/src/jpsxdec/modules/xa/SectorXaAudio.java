@@ -59,7 +59,7 @@ public class SectorXaAudio extends IdentifiedSector {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
-        XaAnalysis analysis = XaAnalysis.analyze(cdSector, CdSector.MAX_VALID_CHANNEL);
+        XaAnalysis analysis = XaAnalysis.analyze(cdSector);
         if (analysis == null)
             return;
 
@@ -69,7 +69,7 @@ public class SectorXaAudio extends IdentifiedSector {
 
         _iErrors = analysis.iErrors;
 
-        setProbability(analysis.iProbability);        
+        setProbability(analysis.iProbability);
     }
 
     public int getFileNumber() {
@@ -106,7 +106,8 @@ public class SectorXaAudio extends IdentifiedSector {
                 0, getDemuxPieceSize());
     }
 
-    
+
+    @Override
     public @Nonnull String getTypeName() {
         return "XA Audio";
     }

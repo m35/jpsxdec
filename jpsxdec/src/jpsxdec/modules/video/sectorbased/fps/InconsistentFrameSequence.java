@@ -153,10 +153,10 @@ public class InconsistentFrameSequence {
             throw new RuntimeException(ex);
         }
     }
-    
+
     private @CheckForNull String readNextLine() throws IOException {
         String sLine = _reader.readLine();
-        if (sLine == null) { 
+        if (sLine == null) {
             // if at the end of the resource, but we're looping
             if (_header.iLoopSector >= 0) {
                 // close and reopen the text resource

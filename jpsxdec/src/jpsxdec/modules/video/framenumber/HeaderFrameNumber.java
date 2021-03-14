@@ -156,7 +156,7 @@ public class HeaderFrameNumber extends FrameNumber {
             }
             if (headerNumber.tooManyDuplicates()) {
                 log.log(Level.WARNING, I.FRAMES_UNEXPECTED_NUMBER());
-                LOG.log(Level.WARNING, 
+                LOG.log(Level.WARNING,
                         "Expected only {0} frames with the header frame number {1}, but found {2}",
                         new Object[]{headerNumber.getExpectedDuplicateMax(),
                                      headerNumber.getFrameValue(),
@@ -164,6 +164,7 @@ public class HeaderFrameNumber extends FrameNumber {
             }
         }
 
+        @Override
         public @Nonnull HeaderFrameNumber next(int iSector, int iHeaderFrame, @Nonnull ILocalizedLogger log) {
             IndexSectorFrameNumber f1 = _indexSectorFrameNumberFormatter.next(iSector, log);
             FrameNumberNumber hnn = _headerFormatter.next(iHeaderFrame);

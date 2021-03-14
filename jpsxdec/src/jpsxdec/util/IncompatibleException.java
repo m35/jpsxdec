@@ -55,5 +55,5 @@ public class IncompatibleException extends Exception {
     public IncompatibleException(Throwable cause) {
         super(cause);
     }
-   
+
 }

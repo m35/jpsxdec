@@ -55,7 +55,7 @@ class Component {
     /** Track DC values while writing the JPEG. */
     public int PreviousDC;
 
-    public Component(int iComponentIndex, int iQuantizationTableIndex, 
+    public Component(int iComponentIndex, int iQuantizationTableIndex,
                      int iHSampling, int iVSampling,
                      int iDcHuffTableIndex, int iAcHuffTableIndex,
                      int iMcuWidth, int iMcuHeight)

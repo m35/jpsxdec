@@ -135,7 +135,7 @@ public class SectorBasedVideoSaverBuilderGui extends DiscItemSaverBuilderGui {
         @Override
         final public String toString() { return _name.getLocalizedMessage(); }
     }
-    
+
     private class ParallelAudio extends AbstractTableModel implements ChangeListener {
 
         @Nonnull final JTable __tbl;
@@ -147,34 +147,42 @@ public class SectorBasedVideoSaverBuilderGui extends DiscItemSaverBuilderGui {
             SavingGuiTable.autoResizeColWidth(__tbl); // TODO: bad dependency
         }
 
+        @Override
         public int getRowCount() {
             return _bh.getBuilder().getParallelAudioCount();
         }
 
+        @Override
         public int getColumnCount() {
             return COLUMNS.values().length;
         }
 
+        @Override
         public String getColumnName(int columnIndex) {
             return COLUMNS.values()[columnIndex].toString();
         }
 
+        @Override
         public Class<?> getColumnClass(int columnIndex) {
             return COLUMNS.values()[columnIndex].type();
         }
 
+        @Override
         public boolean isCellEditable(int rowIndex, int columnIndex) {
             return COLUMNS.values()[columnIndex].editable();
         }
 
+        @Override
         public Object getValueAt(int rowIndex, int columnIndex) {
             return COLUMNS.values()[columnIndex].get(_bh.getBuilder(), rowIndex);
         }
 
+        @Override
         public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
             COLUMNS.values()[columnIndex].set(_bh.getBuilder(), rowIndex, aValue);
         }
 
+        @Override
         public void stateChanged(ChangeEvent e) {
             __tbl.setEnabled(_bh.getBuilder().getParallelAudio_enabled());
             this.fireTableDataChanged();

@@ -46,6 +46,7 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.DemuxedData;
 import jpsxdec.util.Fraction;
@@ -79,42 +80,52 @@ public class DemuxedFrameWithNumberAndDims implements IDemuxedFrame {
     public void setFrame(@Nonnull FrameNumber frameNumber) {
         _frameNumber = frameNumber;
     }
+    @Override
     public @Nonnull FrameNumber getFrame() {
         if (_frameNumber == null)
             throw new IllegalStateException();
         return _frameNumber;
     }
 
+    @Override
     public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
         return null;
     }
 
+    @Override
     public int getWidth() { return _iWidth; }
+    @Override
     public int getHeight() { return _iHeight; }
+    @Override
     public int getStartSector() { return _demux.getStartSector(); }
+    @Override
     public int getEndSector() { return _demux.getEndSector(); }
+    @Override
     public @Nonnull Fraction getPresentationSector() { return new Fraction(getEndSector()); }
     public int getHeaderFrameNumber() { return _iHeaderFrameNumber; }
 
+    @Override
     public int getDemuxSize() { return _demux.getDemuxSize(); }
+    @Override
     public @Nonnull byte[] copyDemuxData() {
         return _demux.copyDemuxData();
     }
 
+    @Override
     public void printSectors(@Nonnull PrintStream ps) {
         for (SectorBasedFrameReplace.IReplaceableVideoSector vidSector : _demux) {
             ps.println(vidSector);
         }
     }
 
-    public void writeToSectors(@Nonnull byte[] abNewDemux,
-                               int iNewUsedSize, int iNewMdecCodeCount,
+    @Override
+    public void writeToSectors(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                               @Nonnull BitStreamAnalysis newFrame,
                                @Nonnull CdFileSectorReader cd,
                                @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
-        SectorBasedFrameReplace.writeToSectors(abNewDemux, iNewUsedSize, iNewMdecCodeCount, cd, log,
-                                               _demux);
+        SectorBasedFrameReplace.writeToSectors(existingFrame, newFrame, cd, log, _demux);
     }
 
     @Override

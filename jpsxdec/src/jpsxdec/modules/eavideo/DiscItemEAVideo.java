@@ -49,6 +49,7 @@ import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
@@ -167,7 +168,7 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
     }
 
     public class Demuxer extends SectorClaimToAudioAndFrame
-                         implements SectorClaimToEAVideo.Listener
+                         implements EASectorToEAPacket.Listener
     {
         // only one of these two will not be null
         @CheckForNull
@@ -185,6 +186,8 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
         @CheckForNull
         private EAVideoPacket.VLC0 _vlcPacket;
 
+        private final SectorRange _sectorRange = makeSectorRange();
+
         public Demuxer(double dblVolume,
                        @CheckForNull IFrameNumberFormatterWithHeader fnfwh,
                        @CheckForNull IFrameNumberFormatter fnf)
@@ -194,13 +197,21 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
             _fnf = fnf;
         }
 
+        @Override
         public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-            SectorClaimToEAVideo s2cs = scs.getClaimer(SectorClaimToEAVideo.class);
-            s2cs.setListener(this);
-            s2cs.setRangeLimit(getStartSector(), getEndSector());
+            EASectorToEAPacket.attachToSectorClaimer(scs, this);
         }
 
+        @Override
         public void feedPacket(@Nonnull EAVideoPacketSectors packet, @Nonnull ILocalizedLogger log) throws LoggedFailure {
+            // Only process packets that are fully in the active sector range
+            // (in practice there should never be a packet crossing the border)
+            if (!_sectorRange.sectorIsInRange(packet.iStartSector) ||
+                !_sectorRange.sectorIsInRange(packet.iEndSector))
+            {
+                return;
+            }
+
             if (packet.packet instanceof EAVideoPacket.AU) {
                 EAVideoPacket.AU au = (EAVideoPacket.AU)packet.packet;
                 DecodedAudioPacket aup = au.decode(_audioDecoder);
@@ -229,45 +240,55 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
             } else if (packet.packet instanceof EAVideoPacket.VLC0) {
                 _vlcPacket = (EAVideoPacket.VLC0)packet.packet;
             }
-            
+
         }
 
+        @Override
         public void endVideo(@Nonnull ILocalizedLogger log) {
             // probably doesn't matter
         }
 
+        @Override
         public void setFrameListener(@CheckForNull IDemuxedFrame.Listener listener) {
             _frameListener = listener;
         }
 
+        @Override
         public void setAudioListener(@CheckForNull DecodedAudioPacket.Listener listener) {
             _audioListener = listener;
         }
 
+        @Override
         public @Nonnull AudioFormat getOutputFormat() {
             return EAVideoPacket.EA_VIDEO_AUDIO_FORMAT;
         }
 
+        @Override
         public double getVolume() {
             return _audioDecoder.getVolume();
         }
 
+        @Override
         public int getAbsolutePresentationStartSector() {
             return DiscItemEAVideo.this.getStartSector();
         }
 
+        @Override
         public int getStartSector() {
             return DiscItemEAVideo.this.getStartSector();
         }
 
+        @Override
         public int getEndSector() {
             return DiscItemEAVideo.this.getEndSector();
         }
 
+        @Override
         public int getSampleFramesPerSecond() {
             return EAVideoPacket.SAMPLE_FRAMES_PER_SECOND;
         }
 
+        @Override
         public int getDiscSpeed() {
             return 2;
         }

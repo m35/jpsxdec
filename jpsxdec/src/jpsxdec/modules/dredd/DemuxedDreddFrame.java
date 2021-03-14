@@ -45,13 +45,15 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.DemuxedData;
 import jpsxdec.util.Fraction;
 
 
-public class DemuxedDreddFrame implements IDemuxedFrame { 
+public class DemuxedDreddFrame implements IDemuxedFrame {
 
     /** All Dredd frames are 320 pixels wide. */
     public static final int FRAME_WIDTH = 320;
@@ -70,30 +72,37 @@ public class DemuxedDreddFrame implements IDemuxedFrame {
         _iHeight = iHeight;
     }
 
+    @Override
     public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
         return null;
     }
 
+    @Override
     public int getHeight() {
         return _iHeight;
     }
 
+    @Override
     public int getStartSector() {
         return _demux.getStartSector();
     }
 
+    @Override
     public int getEndSector() {
         return _demux.getEndSector();
     }
 
+    @Override
     public int getWidth() {
         return FRAME_WIDTH;
     }
 
+    @Override
     public @Nonnull Fraction getPresentationSector() {
         return new Fraction(getEndSector());
     }
 
+    @Override
     public @Nonnull FrameNumber getFrame() {
         if (_frame == null)
             throw new IllegalStateException();
@@ -107,6 +116,7 @@ public class DemuxedDreddFrame implements IDemuxedFrame {
     }
 
 
+    @Override
     public int getDemuxSize() {
         return _demux.getDemuxSize();
     }
@@ -116,24 +126,26 @@ public class DemuxedDreddFrame implements IDemuxedFrame {
     }
 
 
+    @Override
     public @Nonnull byte[] copyDemuxData() {
         return _demux.copyDemuxData();
     }
 
+    @Override
     public void printSectors(@Nonnull PrintStream ps) {
         for (SectorDreddVideo sdv : _demux) {
             ps.println(sdv);
         }
     }
 
-    public void writeToSectors(@Nonnull byte[] abNewDemux, int iNewUsedSize,
-                               int iNewMdecCodeCount, @Nonnull CdFileSectorReader cd,
+    @Override
+    public void writeToSectors(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                               @Nonnull BitStreamAnalysis newFrame,
+                               @Nonnull CdFileSectorReader cd,
                                @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
-        SectorBasedFrameReplace.writeToSectors(abNewDemux, iNewUsedSize,
-                                               iNewMdecCodeCount, cd, log,
-                                               _demux);
+        SectorBasedFrameReplace.writeToSectors(existingFrame, newFrame, cd, log, _demux);
     }
 
     @Override

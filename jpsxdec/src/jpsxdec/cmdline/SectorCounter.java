@@ -72,6 +72,7 @@ public class SectorCounter implements Iterable<Map.Entry<String, Integer>> {
         _sectorCounts.put(sName, iCount);
     }
 
+    @Override
     public @Nonnull Iterator<Map.Entry<String, Integer>> iterator() {
         return _sectorCounts.entrySet().iterator();
     }

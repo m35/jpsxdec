@@ -68,7 +68,7 @@ public class WholeNumberSectorsPerFrame {
 
     // TODO: how can we detect if the video has a variable frame rate?
     // maybe detect when rates change by some factor?
-    
+
     /** The last sector of the previous frame. */
     private int _iPrevFrameEndSector;
 
@@ -89,7 +89,7 @@ public class WholeNumberSectorsPerFrame {
     }
 
     /** Should be called for every frame.
-     * 
+     *
      * @return  If any sector/frame possibilities exist other than 1.
      */
     public boolean matchesNextVideo(int iNextFrameStartSector, int iNextFrameEndSector) {
@@ -116,7 +116,7 @@ public class WholeNumberSectorsPerFrame {
             blnRet = false;
         } else {
             // can add more
-            
+
             blnRet = false; // assume we won't find any
             for (Iterator<SectorsPerFrameFromStart> it = _startingPoints.iterator(); it.hasNext();) {
                 SectorsPerFrameFromStart possibleStart = it.next();
@@ -173,7 +173,7 @@ public class WholeNumberSectorsPerFrame {
     }
 
 
-    /** Removes Integer values that are just factors of other 
+    /** Removes Integer values that are just factors of other
      *  Integer values in the Collection and returns the result.
      *  The original Collection is not modified. */
     private static @Nonnull TreeSet<Integer> removeFactors(@Nonnull TreeSet<Integer> sourceValues)
@@ -209,7 +209,7 @@ public class WholeNumberSectorsPerFrame {
     }
 
 
-    /** Tracks possible sectors/frame for a video, assuming the 2nd frame 
+    /** Tracks possible sectors/frame for a video, assuming the 2nd frame
      * started at a particular sector. */
     private static class SectorsPerFrameFromStart implements Comparable<SectorsPerFrameFromStart> {
         /** Number of the sector that we are assuming the 2nd frame in a video started at. */
@@ -265,9 +265,9 @@ public class WholeNumberSectorsPerFrame {
             _possibleSectorsPerFrame = retainedPossibleSPF;
             return _possibleSectorsPerFrame.size() > 0;
         }
-        
+
         /** Sort based on starting sector. */
-        // [implements Comparable]
+        @Override
         public int compareTo(SectorsPerFrameFromStart o) {
             return Misc.intCompare(_iFrame2StartSector, o._iFrame2StartSector);
         }

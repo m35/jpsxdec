@@ -126,7 +126,7 @@ public class VideoSaver {
             } break;
 
             case IMGSEQ_BMP:
-            case IMGSEQ_PNG: 
+            case IMGSEQ_PNG:
             case IMGSEQ_TIFF: {
                 addBitstream2Mdec();
                 addMdec2Decoded(log);
@@ -159,7 +159,7 @@ public class VideoSaver {
                 VDP.Decoded2JYuvAvi d2jyuv;
                 if (_audioDecoder == null)
                     d2jyuv = new VDP.Decoded2JYuvAvi(getAviFile(), _vsb.getWidth(), _vsb.getHeight(), makeVSync(), log);
-                else 
+                else
                     d2jyuv = new VDP.Decoded2JYuvAvi(getAviFile(), _vsb.getWidth(), _vsb.getHeight(), makeAvSync(_audioDecoder), _audioDecoder.getOutputFormat(), log);
                 _pipeline.setToAvi(d2jyuv);
                 toAvi = d2jyuv;
@@ -171,7 +171,7 @@ public class VideoSaver {
                 VDP.Decoded2YuvAvi d2yuv;
                 if (_audioDecoder == null)
                     d2yuv = new VDP.Decoded2YuvAvi(getAviFile(), _vsb.getWidth(), _vsb.getHeight(), makeVSync(), log);
-                else 
+                else
                     d2yuv = new VDP.Decoded2YuvAvi(getAviFile(), _vsb.getWidth(), _vsb.getHeight(), makeAvSync(_audioDecoder), _audioDecoder.getOutputFormat(), log);
                 _pipeline.setToAvi(d2yuv);
                 toAvi = d2yuv;
@@ -266,7 +266,7 @@ public class VideoSaver {
             for (int iSector = 0; it.hasNext(); iSector++) {
                 IIdentifiedSector identifiedSector; // keep it out here so I can see what it was while debugging
                 try {
-                    identifiedSector = it.next(pl).getClaimer();
+                    identifiedSector = it.next(pl);
                 } catch (CdFileSectorReader.CdReadException ex) {
                     throw new LoggedFailure(pl, Level.SEVERE,
                             I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
@@ -297,7 +297,7 @@ public class VideoSaver {
         FrameNumber curFrm = f2bs.getCurrentFrame();
         if (curFrm == null)
             return;
-        
+
         ILocalizedMessage msg = curFrm.getDescription(_vsb.getFileNumberType());
         if (msg == null) {
             // if this video saver was created correctly, the frame number

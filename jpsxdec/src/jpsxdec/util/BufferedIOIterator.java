@@ -75,7 +75,7 @@ public class BufferedIOIterator<T> implements IOIterator<T> {
                 return source.hasNext();
             return true;
         }
-        public @Nonnull Element<T> next(@Nonnull IOIterator<T> source) 
+        public @Nonnull Element<T> next(@Nonnull IOIterator<T> source)
                 throws NoSuchElementException, IOException
         {
             if (_next == null)
@@ -126,15 +126,17 @@ public class BufferedIOIterator<T> implements IOIterator<T> {
     public @Nonnull T peekPrevious() throws NoSuchElementException {
         return _head.previous();
     }
+    @Override
     public boolean hasNext() {
         return _head.hasNext(_source);
     }
+    @Override
     public @Nonnull T next() throws NoSuchElementException, IOException {
         _head = _head.next(_source);
         return _head.previous();
     }
 
-    /** Like {@link #hasNext()}, except returns if the {@link #next()} will 
+    /** Like {@link #hasNext()}, except returns if the {@link #next()} will
      * come form a previously buffered read, or from the source iterator. */
     public boolean isNextBuffered() {
         return _head.hasBufferedNext();

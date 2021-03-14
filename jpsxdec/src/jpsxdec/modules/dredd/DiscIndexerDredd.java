@@ -45,13 +45,14 @@ import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.sectorbased.DiscIndexerSectorBasedVideo;
 import jpsxdec.modules.video.sectorbased.SectorBasedVideoInfoBuilder;
 
 
 public class DiscIndexerDredd extends DiscIndexerSectorBasedVideo.SubIndexer
-        implements SectorClaimToDreddFrame.Listener
+        implements DreddSectorToDreddFrame.Listener
 {
 
     private static class VidBuilder {
@@ -95,13 +96,13 @@ public class DiscIndexerDredd extends DiscIndexerSectorBasedVideo.SubIndexer
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToDreddFrame s2df = scs.getClaimer(SectorClaimToDreddFrame.class);
-        s2df.setListener(this);
+        DreddSectorToDreddFrame s2f = new DreddSectorToDreddFrame(SectorRange.ALL, this);
+        scs.addIdListener(s2f);
     }
 
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         if (DiscItemDreddVideoStream.TYPE_ID.equals(fields.getType()))
@@ -109,6 +110,7 @@ public class DiscIndexerDredd extends DiscIndexerSectorBasedVideo.SubIndexer
         return null;
     }
 
+    @Override
     public void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log) {
         if (_videoBuilder != null && !_videoBuilder.addFrame(frame))
             videoBreak(log);
@@ -116,6 +118,7 @@ public class DiscIndexerDredd extends DiscIndexerSectorBasedVideo.SubIndexer
             _videoBuilder = new VidBuilder(frame);
     }
 
+    @Override
     public void videoBreak(ILocalizedLogger log) {
         if (_videoBuilder == null)
             return;
@@ -125,6 +128,7 @@ public class DiscIndexerDredd extends DiscIndexerSectorBasedVideo.SubIndexer
         _videoBuilder = null;
     }
 
+    @Override
     public void endOfSectors(ILocalizedLogger log) {
         videoBreak(log);
     }

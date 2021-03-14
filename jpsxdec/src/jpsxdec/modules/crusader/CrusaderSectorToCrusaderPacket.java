@@ -54,12 +54,12 @@ import jpsxdec.util.IO;
 /** Unlike other pipelines, there isn't an end-to-end path from sector to
  * presentation. Due to the way Crusader streams are, there really needs
  * to be a bridge that handles {@link SectorCrusader}s as they come
- * identified off the disc. 
+ * identified off the disc.
  * This object is only valid for 1 movie. Create a new one once this is done. */
 public class CrusaderSectorToCrusaderPacket {
 
     private static final Logger LOG = Logger.getLogger(CrusaderSectorToCrusaderPacket.class.getName());
-    
+
     public interface PacketListener {
         void frame(@Nonnull CrusaderPacketHeaderReader.VideoHeader frame,
                    @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
@@ -82,8 +82,6 @@ public class CrusaderSectorToCrusaderPacket {
     @CheckForNull
     private CrusaderPacketHeaderReader.Header _header;
 
-    public CrusaderSectorToCrusaderPacket() {
-    }
     public CrusaderSectorToCrusaderPacket(@Nonnull PacketListener listener) {
         _packetListener = listener;
     }
@@ -113,7 +111,7 @@ public class CrusaderSectorToCrusaderPacket {
         read(log);
         return true;
     }
-    
+
     private void addPiece(@Nonnull CrusaderDemuxPiece piece) {
         if (_stream == null) {
             _stream = new DemuxPushInputStream<CrusaderDemuxPiece>(piece);
@@ -161,7 +159,7 @@ public class CrusaderSectorToCrusaderPacket {
                         LOG.log(Level.WARNING, "Crusader packet header size {0} != demux size {1}",
                                                 new Object[]{_header.getByteSize(), demux.getDemuxSize()});
                     }
-                    
+
                     if (_header instanceof CrusaderPacketHeaderReader.VideoHeader) {
                         if (_packetListener != null)
                             _packetListener.frame((CrusaderPacketHeaderReader.VideoHeader)_header, demux, log);

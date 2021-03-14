@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
@@ -50,7 +51,9 @@ import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.DebugLogger;
+import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.player.MediaPlayer;
@@ -63,9 +66,11 @@ import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.ParallelAudio;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
+import jpsxdec.modules.video.replace.ReplaceFrames;
 import jpsxdec.modules.xa.DiscItemXaAudioStream;
 import jpsxdec.util.Fraction;
 import jpsxdec.util.Misc;
+import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
 
 /** Represents generic sector-based PlayStation video streams
@@ -107,7 +112,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
         int iDiscSpeed = getDiscSpeed();
         if (iDiscSpeed > 0)
             serial.addNumber(DISC_SPEED_KEY, iDiscSpeed);
-        
+
         return serial;
     }
 
@@ -191,9 +196,9 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
                           secs150,
                           Fraction.divide(75, getSectorsPerFrame()).asDouble(),
                           secs75);
-        }                
+        }
     }
-    
+
 
     @Override
     public @Nonnull SectorBasedVideoSaverBuilder makeSaverBuilder() {
@@ -213,6 +218,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
     public void fpsDump2(@Nonnull final PrintStream ps) throws CdFileSectorReader.CdReadException {
         ISectorClaimToDemuxedFrame demuxer = makeDemuxer();
         demuxer.setFrameListener(new IDemuxedFrame.Listener() {
+            @Override
             public void frameComplete(IDemuxedFrame frame) {
                 ps.println((frame.getStartSector()-getStartSector())+"-"+
                            (frame.getEndSector()-getStartSector()));
@@ -221,7 +227,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
         SectorClaimSystem it = createClaimSystem();
         demuxer.attachToSectorClaimer(it);
         while (it.hasNext()) {
-            IIdentifiedSector isect = it.next(DebugLogger.Log).getClaimer();
+            IIdentifiedSector isect = it.next(DebugLogger.Log);
         }
         it.close(DebugLogger.Log);
     }
@@ -250,6 +256,25 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
             mp = new MediaPlayer(this, makeDemuxer());
         }
         return mp.getPlayController();
+    }
+
+    public void replaceFrames(@Nonnull ProgressLogger pl, @Nonnull String sXmlFile)
+            throws LoggedFailure, TaskCanceledException
+    {
+        ReplaceFrames replacers;
+        try {
+            replacers = new ReplaceFrames(sXmlFile);
+        } catch (ReplaceFrames.XmlFileNotFoundException ex) {
+            throw new LoggedFailure(pl, Level.SEVERE,
+                                    I.IO_OPENING_FILE_NOT_FOUND_NAME(sXmlFile), ex);
+        } catch (ReplaceFrames.XmlReadException ex) {
+            throw new LoggedFailure(pl, Level.SEVERE,
+                                    I.IO_READING_FILE_ERROR_NAME(sXmlFile), ex);
+        } catch (LocalizedDeserializationFail ex) {
+            throw new LoggedFailure(pl, Level.SEVERE,
+                                    ex.getSourceMessage(), ex);
+        }
+        replacers.replaceFrames(this, getSourceCd(), pl);
     }
 
 }

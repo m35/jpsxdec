@@ -43,7 +43,6 @@ import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.log.DebugLogger;
@@ -61,11 +60,13 @@ class Command_SectorDump extends Command {
         super("-sectordump");
     }
 
+    @Override
     protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         _sOutfile = s;
         return null;
     }
 
+    @Override
     public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         CdFileSectorReader cdReader = getCdReader();
         _fbs.println(I.CMD_GENERATING_SECTOR_LIST());
@@ -80,25 +81,15 @@ class Command_SectorDump extends Command {
                     throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(_sOutfile), ex);
                 }
             }
+            ps.println(cdReader.getSourceFile());
             SectorCounter counter = new SectorCounter();
             SectorClaimSystem it = SectorClaimSystem.create(cdReader);
             while (it.hasNext()) {
-                SectorClaimSystem.ClaimedSector cs = it.next(DebugLogger.Log);
-                IIdentifiedSector idSect = cs.getClaimer();
-                if (idSect != null) {
-                    ps.println(idSect);
-                } else {
-                    CdSector cdSector = cs.getSector();
-                    StringBuilder sb = new StringBuilder();
-                    // also add the first 32 bytes for unknown sectors
-                    // may be helpful for debugging
-                    for (int i = 0; i < 32; i++) {
-                        sb.append(String.format("%02x", cdSector.readUserDataByte(i)));
-                    }
-                    ps.println(cdSector + " " + sb);
-                }
+                IIdentifiedSector idSect = it.next(DebugLogger.Log);
+                ps.println(idSect);
                 counter.increment(idSect);
             }
+            it.close(DebugLogger.Log);
             for (Map.Entry<String, Integer> entry : counter) {
                 ps.println(entry.getKey() + " " + entry.getValue());
             }

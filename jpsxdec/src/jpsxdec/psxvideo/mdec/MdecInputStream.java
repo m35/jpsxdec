@@ -46,7 +46,7 @@ public interface MdecInputStream {
 
     /** Reads the next MDEC code from the stream into the provided
      * {@link MdecCode} object.
-     * 
+     *
      *  @return true if the EOD code was read. */
     boolean readMdecCode(@Nonnull MdecCode code)
             throws MdecException.EndOfStream, MdecException.ReadCorruption;

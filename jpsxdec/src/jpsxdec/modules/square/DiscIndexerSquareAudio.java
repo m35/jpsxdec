@@ -48,6 +48,7 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.indexing.DiscIndexer;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 
 /** Watches for Square's unique audio format streams.
  * All known games that use Square audio run their streaming media at 2x
@@ -106,7 +107,7 @@ public class DiscIndexerSquareAudio extends DiscIndexer
     @Nonnull
     private final ILocalizedLogger _errLog;
     private final SquareAudioSectorToSquareAudioSectorPair _sas2sasp =
-            new SquareAudioSectorToSquareAudioSectorPair(this);
+            new SquareAudioSectorToSquareAudioSectorPair(SectorRange.ALL, this);
     @CheckForNull
     private AudioBuilder _audBldr;
 
@@ -115,7 +116,7 @@ public class DiscIndexerSquareAudio extends DiscIndexer
     }
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         if (DiscItemSquareAudioStream.TYPE_ID.equals(fields.getType()))
@@ -125,11 +126,11 @@ public class DiscIndexerSquareAudio extends DiscIndexer
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToSquareAudioSector s2sqs = scs.getClaimer(SectorClaimToSquareAudioSector.class);
-        s2sqs.setListener(_sas2sasp);
+        scs.addIdListener(_sas2sasp);
     }
 
 
+    @Override
     public void pairDone(@Nonnull SquareAudioSectorPair pair,
                          @Nonnull ILocalizedLogger log)
     {
@@ -149,6 +150,7 @@ public class DiscIndexerSquareAudio extends DiscIndexer
             _audBldr = new AudioBuilder(pair);
         }
     }
+    @Override
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
         if (_audBldr != null) {
             // submit the in-progress audio stream

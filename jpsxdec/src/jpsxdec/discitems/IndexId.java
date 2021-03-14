@@ -155,7 +155,7 @@ public class IndexId {
     public boolean isParent(@Nonnull IndexId parentId) {
         if (isRoot())
             return false;
-        
+
         // check if the other item is part of the same file
         File parentFile = parentId._sourceFile;
         if (!Misc.objectEquals(_sourceFile, parentFile))

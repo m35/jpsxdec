@@ -88,6 +88,7 @@ class Command_Static extends Command {
     @Nonnull
     private StaticType _eStaticType;
 
+    @Override
     protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         for (StaticType type : StaticType.values()) {
             if (s.equalsIgnoreCase(type.name())) {
@@ -98,6 +99,7 @@ class Command_Static extends Command {
         return I.CMD_INVALID_VALUE_FOR_CMD(s, "-static");
     }
 
+    @Override
     public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         File inFile = getInFile();
         switch (_eStaticType) {
@@ -190,10 +192,10 @@ class Command_Static extends Command {
                     }
 
                     if (!fileAndIssueListener.blnHadIssue) {
-                        _fbs.println(I.CMD_FRAME_CONVERT_OK()); 
+                        _fbs.println(I.CMD_FRAME_CONVERT_OK());
                     }
                     _fbs.println(I.CMD_NUM_FILES_CREATED(fileAndIssueListener.genFiles.size()));
-                    
+
                 } catch (LoggedFailure ex) {
                     _fbs.printErr(ex.getSourceMessage());
                 }
@@ -212,13 +214,16 @@ class Command_Static extends Command {
         public FileAndIssueListener(FeedbackStream fbs) {
             this.fbs = fbs;
         }
+        @Override
         public void fileGenerated(File f) {
             genFiles.add(f);
         }
+        @Override
         public void onWarn(ILocalizedMessage msg) {
             fbs.printlnWarn(msg);
             blnHadIssue = true;
         }
+        @Override
         public void onErr(ILocalizedMessage msg) {
             fbs.printlnErr(msg);
             blnHadIssue = true;

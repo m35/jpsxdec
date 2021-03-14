@@ -1,7 +1,7 @@
                       The PlayStation 1 Video (STR) Format
                                pre v1.20, 2019
                          https://github.com/m35/jpsxdec
-                          http://jpsxdec.blogspot.com/
+                          https://jpsxdec.blogspot.com/
 
 --------------------------------------------------------------------------------
 This document, copyright (c) 2008-2017 Michael Sabin, is licensed under a MIT License. Permission has been obtained to also include some source code comments from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this license is at the end of this file. Note that the related jPSXdec program is NOT licensed under the MIT license, but is under a non-commercial license.
@@ -128,8 +128,7 @@ Left to do:
 
 Sony PlayStation 1 videos, usually with the extension STR, MOV, or BIN, contain compressed video data similar to an MPEG1 movie. They also contain interleaved audio using a unique form of Adaptive Differential Pulse Code Modulation (ADPCM) compression.
 
-This document attempts to explain the decoding process of a single video frame. XA ADPCM audio as defined by the "Green Book" compact disc standard is not covered in this document. Jonathan Atkins has done an excellent job of describing the XA ADPCM audio format (http://freshmeat.net/projects/cdxa/). Alternatively, Wikipedia claims 
-"the 1994 version of the standard was eventually made available for free by Philips" https://en.wikipedia.org/wiki/Green_Book_%28CD_standard%29
+This document attempts to explain the decoding process of a single video frame. XA ADPCM audio as defined by the "Green Book" compact disc standard is not covered in this document. Jonathan Atkins has done an excellent job of describing the XA ADPCM audio format (http://freshmeat.net/projects/cdxa/). Alternatively, Wikipedia claims "the 1994 version of the standard was eventually made available for free by Philips" https://en.wikipedia.org/wiki/Green_Book_%28CD_standard%29
 
 Like MPEG1 streams, the decoding process is long and rather complicated. Specifically, Chapters 2.2 and 2.3 closely resemble two aspects of MPEG1 decoding: translation of variable length codes, and macro-block decoding.
 
@@ -140,11 +139,12 @@ The most helpful source would be the MPEG-1 specification (ISO/IEC 11172, specif
 There are some free alternatives that will help, but don't apply as well as the MPEG-1 spec. H.261, the first specification using MPEG-like encoding, is available for free from ITU-T. Also available from ITU-T is H.262, which (according to Wikipedia) is free and "completely identical in all aspects" to the MPEG-2 specification. Finally, you could also search for information about JPEG encoding, which can be found in many places on the web.
 
 ################################################################################
-## Conventions used
+## Conventions used in this document
 ################################################################################
 
-Octets are referred to as 'bytes'. 
-Hex values are preceeded with '0x'.
+Octets are referred to as 'bytes'.
+A 'nibble' refers to either the most significant or least significant 4 bits of a byte.
+Hex values are preceded with '0x'.
 All other numeric values are decimal unless there is a note about it being binary.
 
 
@@ -157,7 +157,7 @@ All other numeric values are decimal unless there is a note about it being binar
 ## 1.1. How data is stored on the disc
 ################################################################################
 
-All compact discs are composed of hundreds of thousands of sectors (technically called "frames"). Each sector holds exactly 2352 bytes of data. There are three important sector formats to be aware of: "Mode 1" (from the "Red Book" standard), and "Mode 2 Form 1" and "Mode 2 Form 2" (from the "Green Book" standard).
+All compact discs are composed of hundreds of thousands of sectors that are numbered via logical block addressing (LBA). Each sector holds exactly 2352 bytes of data. There are three important sector formats to be aware of: "Mode 1" (from the "Red Book" standard), and "Mode 2 Form 1" and "Mode 2 Form 2" (from the "Green Book" standard).
 
 For a normal "Red Book" "Mode 1" sector, there are 24 bytes of header information, and 280 bytes of error correction at the end. This leaves 2048 of data per sector for information. "Mode 1" sectors are what nearly all computer software and operating systems are designed to work with. When you copy a file from a standard CD, you are only copying the 2048 bytes in the middle of the sectors.
 
@@ -179,7 +179,7 @@ XA stands for "eXtended Architecture" (extending the "Yellow Book" standard). Th
  |           |                                                     |       |
  +-----------+-----------------------------------------------------+-------+
 
-These "Mode 2 From 2" sectors are intermingled with "Mode 2 Form 1" sectors. Modern operating systems don't often like "Mode 2 Form 2" sectors so they may not be accessible by normal copy operations.
+These "Mode 2 From 2" sectors are often intermingled with "Mode 2 Form 1" sectors. Modern operating systems don't often like "Mode 2 Form 2" sectors so they may not be accessible by normal copy operations.
 
 Understanding the full "Mode 2 From 1" and "Mode 2 From 2" formats is really only necessary for decoding PlayStation 1 audio sectors, but it can also help with identifying video sectors.
 
@@ -204,11 +204,11 @@ Sector Offset
     |                      |  Mode (1 byte)
     |                      |    Should always be 2 for PlayStation games
  16 +----------------------+--------------------------------------------------+
-    | Sub-header | Interleaved file (1 byte)
-    | (8 bytes)  |   1 if this file is interleaved, or 0 if not
-    |            |  (but can often be found with other values)
+    | Sub-header | Interleaved file number (1 byte)
+    | (8 bytes)  |   
+    |            |   
  17 +--        --+------------------------------------------------------------+
-    |            | Channel number (1 byte)
+    |            | Interleaved channel number (1 byte)
     |            |   The sub-channel in this 'file'. Video, audio and data
     |            |   sectors can be mixed into the same channel or can be
     |            |   on separate channels. Usually used for multiple audio
@@ -216,22 +216,24 @@ Sector Offset
     |            |   channels 0, 1, 2, 3 and 4)
  18 +--        --+------------------------------------------------------------+
     |            | Submode (1 byte)
-    |            |   bit 7: eof_marker -- set if this sector is the end
-    |            |                        of the 'file'
-    |            |   bit 6: real_time  -- always set in normal PSX STR streams
-    |            |   bit 5: form       -- 0 = Form 1 (2048 user data bytes)
-    |            |                        1 = Form 2 (2324 user data bytes)
-    |            |   bit 4: trigger    -- for use by reader application
-    |            |                        (not applicable to this document)
-    |            |   bit 3: DATA       -- set to indicate DATA  sector
-    |            |   bit 2: AUDIO      -- set to indicate AUDIO sector
-    |            |   bit 1: VIDEO      -- set to indicate VIDEO sector
-    |            |   bit 0: end_audio  -- end of audio frame
-    |            |                        (rarely set on PSX discs)
+    |            |   bit 7: End of File   -- set if this sector is the end
+    |            |                           of a 'file'
+    |            |   bit 6: Real Time     -- always set in normal PSX STR streams
+    |            |   bit 5: Form          -- 0 = Form 1 (2048 user data bytes)
+    |            |                           1 = Form 2 (2324 user data bytes)
+    |            |   bit 4: Trigger       -- when set generates an interrupt for 
+    |            |                           the application (not applicable to 
+    |            |                           this document)
+    |            |   bit 3: DATA          -- set to indicate DATA  sector
+    |            |   bit 2: AUDIO         -- set to indicate AUDIO sector
+    |            |   bit 1: VIDEO         -- set to indicate VIDEO sector
+    |            |   bit 0: End of Record -- should be mandatory to indicate the 
+    |            |                           last sector for real-time records
+    |            |                           but rarely set on PlayStation discs
     |            |
-    |            |   bits 1, 2 and 3 are mutually exclusive
+    |            |   bits 1, 2 and 3 should be mutually exclusive
  19 +--        --+------------------------------------------------------------+
-    |            | Coding info (1 byte)
+    |            | Coding information (1 byte)
     |            | If Submode.AUDIO bit is set:
     |            |   bit 7: reserved -- should always be 0
     |            |   bit 6: emphasis -- boost audio volume (ignored by us)
@@ -293,7 +295,7 @@ Because audio "Mode 2 Form 2" sectors use the entire sector, it is necessary to 
 
 The most common and easily accessible way to read the full raw sectors off the disc is to copy the entire disc to a raw image file. This disc image format is commonly referred to as "BIN/CUE", or "BIN/TOC". There are many programs that can do this for every operating system. Note that the common "ISO" disc image format does NOT copy the full raw sector data off the disc (it only copies 2048 bytes of data from each disc sector).
 
-Alternatively, you may find tools to copy just the raw sectors that contain a file (such as the antiquated PSmplay tool). There is no standard on how to save these raw sectors copied off a CD. Depending on the tool used, the specifics of the resulting file may vary. Some programs add some form of a "RIFF" header at the start of the file.
+Alternatively, you may find tools to copy just the raw sectors that contain a file (such as the antiquated PSmplay tool). As far as I know there is no standard on how to save these raw sectors copied off a CD. Depending on the tool used, the specifics of the resulting file may vary. Some programs add some form of a "RIFF" header at the start of the file.
 
 Finally, your operating system may actually let you copy the data off the disc using the normal method of copying files. You must check, however, that it is copying the full 2352 bytes of data, and not just 2048 like ISO image files.
 
@@ -303,8 +305,8 @@ Finally, your operating system may actually let you copy the data off the disc u
 
 There are three major steps the PlayStation goes through to decode one frame out of a STR file.
 
-1) Read all the video sectors that contain the frame 'chunks' from the disc and "demultiplex" them into a solid stream (the PlayStation hardware/libraries and the game do this...I think)
-2) Uncompress the demultiplexed bitstream data into MDEC compatible run length codes (it is entirely the game's responsibility to do this, but I think the standard PlayStation libraries help)
+1) Read all the video sectors that contain the frame 'chunks' from the disc and "demultiplex" them into a solid stream (the PlayStation hardware and system libraries do this)
+2) Uncompress the demultiplexed bitstream data into MDEC compatible run length codes (done using system libraries that most games use)
 3) Translate all those run length codes into actual image data, in 24 or 15 bit RGB format (what the MDEC chip does)
 
 The following sub-sections attempt to emulate these 3 steps.
@@ -342,8 +344,8 @@ Offset   Size   Endian --------------------------------------------------------
                            multiple of 4 (if not already a multiple of 4)
  16 . . . 2 . . little . Width of frame in pixels
  18 . . . 2 . . little . Height of frame in pixels
- 20 . . . 2 . . little . The number of 32-byte blocks it would take to hold
-                           the uncompressed MDEC codes
+ 20 . . . 2 . . little . The number of MDEC codes in the frame, rounded up to
+                           a multiple of 64, divided by 2
  22 . . . 2 . . little . Always 0x3800
  24 . . . 2 . . little . Frame's quantization scale
  26 . . . 2 . . little . Version of the video frame
@@ -366,9 +368,9 @@ That was the easy part. It gets harder from here.
 ## 2.2. Uncompress the demultiplexed data
 ################################################################################
 
-There are two common and understood video frame formats found on PlayStation game discs: version 2, and version 3 (I'm not sure what happened to version 1). These two formats are used in the majority of PlayStation games. My guess is they were part of the standard development tools given to game developers.
+There are two common and understood video frame formats found on PlayStation game discs: version 2, and version 3 (I'm not sure what happened to version 1). These two formats are used in the majority of PlayStation games. These were part of the standard development tools given to game developers.
 
-It would be convenient if every movie found in every game used these two formats. However, since it is the game's responsibility to decompress the data from the disc, some studious game developers used their own method. Alas, the only way one could ever understand the decoding scheme used by some games would be to reverse engineer the game's code.
+It would be convenient if every movie found in every game used these two formats. However, since it is ultimately the game's responsibility to decompress the data from the disc, some studious game developers used their own method. Alas, the only way one could ever understand the decoding scheme used by some games would be to reverse engineer the game's code.
 
 So let us uncompress a version 2, or version 3 frame.
 
@@ -440,7 +442,7 @@ For version 2 frames, the DC Coefficient of all 6 blocks are encoded the same:
 	
 Very simple. This is better quality than MPEG-1 because it provides 10-bits of DC precision while MPEG-1 only can handle 8 bits.
 
-For version 3 frames, each Chroma Red (Cr) DC Coefficient is relative to the previous Cr DC Coefficient, and each Chroma Blue (Cb) DC Coefficient is relative to the previous Cb DC Coefficient. They are also encoded using a tricky arrangement of binary "variable length codes" (also referred to as "Huffman codes").
+For version 3 frames, each Chroma Red (Cr) DC Coefficient is relative to the previous Cr DC Coefficient, and each Chroma Blue (Cb) DC Coefficient is relative to the previous Cb DC Coefficient. They are also encoded using a tricky arrangement of binary "variable length codes" (specifically "Huffman codes").
 
      Binary          Number of bits
     Variable         used to store          Negative          Positive
@@ -455,14 +457,12 @@ For version 3 frames, each Chroma Red (Cr) DC Coefficient is relative to the pre
     01                     1                   -1                1
     00                     0                    0                0
 
-After the variable length code, are is a number of bits to store the DC Coefficient (as described in the table). The first of these bits is the sign bit. If it's 0, then use the 'Negative Differential' on the remaining bits. If it's 1, use the 'Positive Differential' on the remaining bits. Once that value is determined, it is then multiplied by 4. This multiplication is necessary because v3 frames only have 8-bits of DC precision, which is the same precision as MPEG-1 video.
+After the variable length code is the number of bits to store the DC Coefficient (as described in the table). The first of these bits is the sign bit. If it's 0, then use the 'Negative Differential' on the remaining bits. If it's 1, use the 'Positive Differential' on the remaining bits. Once that value is determined, it is then multiplied by 4. This multiplication is necessary because v3 frames only have 8-bits of DC precision (which is the same precision as MPEG-1 video).
 
  -- Pseudocode to decode version 3 DC Coefficient for Cr or Cb -----------------
 
-    /* 
-    At the start of the frame, initialize
+    /*  At the start of the frame, initialize */
     Previous_DC_Coefficient = 0
-    */
 
     If Peek_Next_Bits() == "11111110"
         Skip_Bits(8)
@@ -660,12 +660,12 @@ Every block is terminated by an END_OF_BLOCK code.
 
    10                         END_OF_BLOCK
 
-Finally, it seems frames end with an extra 11 bits.
+Finally, it seems frames end with 10 extra bits.
 
-	0111 1111 110             v2 end of frame
-	1111 1111 110             v3 end of frame
+   0111 1111 11               v2 end of frame
+   1111 1111 11               v3 end of frame
   
-While not necessary for custom decoding, games expect the extra block and will crash if not present. I suspect the block is added to make the game's bit-reader faster since it doesn't have to consider partially hitting the end of the buffer when reading bits.
+While not necessary for custom decoding, games expect the extra block and will crash if not present. I suspect the bits are added to make the game's bit-reader faster since it doesn't have to consider partially hitting the end of the buffer when reading bits.
 
  -- Pseudocode to decode AC Coefficients in one block --------------------------
 
@@ -722,7 +722,7 @@ While not necessary for custom decoding, games expect the extra block and will c
 
 Once you've reached the END_OF_BLOCK code, the sum of all the zero-value AC Coefficients, plus the number of non-zero AC Coefficients read, should be less than or equal to 63.
 
-Side note: it is rumored that some game developers intentionally chose to obfuscate their video encoding and bitstreams formats to keep people from understanding the video format. I've never seen any indication of this.
+Side note: it is rumored that some game developers intentionally chose to obfuscate their video encoding and bitstreams formats to keep people from understanding the video format. I have only ever seen one case of this in the game Panekit - Infinitive Crafting Toy Case in the bit stream headers.
 
 ################################################################################
 ## 2.2.3. Convert to MDEC format
@@ -976,27 +976,27 @@ Here it is in pseudocode:
 
 Looking closely at the formula, you may notice it is essentially two matrix multiplications using the following table of values (rounded to 3 decimal points for the sake of space):
 
-             [ 0.354  0.354  0.354  0.354  0.354  0.354  0.354  0.354 ]
-             [ 0.490  0.416  0.278  0.098 -0.098 -0.278 -0.416 -0.490 ]
-             [ 0.462  0.191 -0.191 -0.462 -0.462 -0.191  0.191  0.462 ]
-             [ 0.416 -0.098 -0.490 -0.278  0.278  0.490  0.098 -0.416 ]
-IDCT_table = [ 0.354 -0.354 -0.354  0.354  0.354 -0.354 -0.354  0.354 ]
-             [ 0.278 -0.490  0.098  0.416 -0.416 -0.098  0.490 -0.278 ]
-             [ 0.191 -0.462  0.462 -0.191 -0.191  0.462 -0.462  0.191 ]
-             [ 0.098 -0.278  0.416 -0.490  0.490 -0.416  0.278 -0.098 ]
+              [ 0.354  0.354  0.354  0.354  0.354  0.354  0.354  0.354 ]
+              [ 0.490  0.416  0.278  0.098 -0.098 -0.278 -0.416 -0.490 ]
+              [ 0.462  0.191 -0.191 -0.462 -0.462 -0.191  0.191  0.462 ]
+              [ 0.416 -0.098 -0.490 -0.278  0.278  0.490  0.098 -0.416 ]
+IDCT_matrix = [ 0.354 -0.354 -0.354  0.354  0.354 -0.354 -0.354  0.354 ]
+              [ 0.278 -0.490  0.098  0.416 -0.416 -0.098  0.490 -0.278 ]
+              [ 0.191 -0.462  0.462 -0.191 -0.191  0.462 -0.462  0.191 ]
+              [ 0.098 -0.278  0.416 -0.490  0.490 -0.416  0.278 -0.098 ]
 
-IDCT_table^transposed * Dequantized_Matrix * IDCT_table
+IDCT_matrix^transposed * Dequantized_Matrix * IDCT_matrix
 
 Like the quantization table, the IDCT matrix is programmable in the MDEC chip, but (nearly?) all games use the same table:
 
-             [ 23170  23170  23170  23170  23170  23170  23170  23170 ]
-             [ 32138  27245  18204   6392  -6393 -18205 -27246 -32139 ]
-             [ 30273  12539 -12540 -30274 -30274 -12540  12539  30273 ]
-             [ 27245  -6393 -32139 -18205  18204  32138   6392 -27246 ]
-             [ 23170 -23171 -23171  23170  23170 -23171 -23171  23170 ]
-             [ 18204 -32139   6392  27245 -27246  -6393  32138 -18205 ]
-             [ 12539 -30274  30273 -12540 -12540  30273 -30274  12539 ]
-             [  6392 -18205  27245 -32139  32138 -27246  18204  -6393 ]
+              [ 23170  23170  23170  23170  23170  23170  23170  23170 ]
+              [ 32138  27245  18204   6392  -6393 -18205 -27246 -32139 ]
+              [ 30273  12539 -12540 -30274 -30274 -12540  12539  30273 ]
+              [ 27245  -6393 -32139 -18205  18204  32138   6392 -27246 ]
+              [ 23170 -23171 -23171  23170  23170 -23171 -23171  23170 ]
+              [ 18204 -32139   6392  27245 -27246  -6393  32138 -18205 ]
+              [ 12539 -30274  30273 -12540 -12540  30273 -30274  12539 ]
+              [  6392 -18205  27245 -32139  32138 -27246  18204  -6393 ]
 
 The MDEC chip optimizes the math by using fixed point integer arithmetic. All those integers are approximately equal to the floating point values multiplied by 65536.
 
@@ -1089,7 +1089,7 @@ And with that we have a 16x16 RGB macro block. Repeat this process for every mac
 ## 4. Variations by some PSX games
 ###############################################################################
 
-As stated before, it is the game's responsibility to read the video data from the disc and prepare it to be fed into the MDEC chip. While most game developers used the standard approach in chapters 2.1 and 2.2, there are a number of games that did it their own way.
+As stated before, it is ultimately the game's responsibility to read the video data from the disc and prepare it to be fed into the MDEC chip. While most game developers used the standard approach in chapters 2.1 and 2.2, there are a number of games that did it their own way.
 
 Note that this information should be mostly correct, but there are likely errors here and there.
 
@@ -1099,7 +1099,7 @@ Note that this information should be mostly correct, but there are likely errors
 
 Extended Architecture (XA) Adaptive Pulse Code Modulation (ADPCM) is documented in other places (see the Introduction for more information). This audio data is decoded and played directly off the disc.
 
-The PlayStation Sound Processing Unit (SPU) also natively decodes a similar type of ADPCM data. This data is usually found in ".VAG" files (which apparently stands for "very audio good"). It is also used directly in several PlayStation FMVs, so it is important to understand.
+The PlayStation Sound Processing Unit (SPU) also natively decodes a similar type of ADPCM data (specifically BBR https://en.wikipedia.org/wiki/Bit_Rate_Reduction). This data is usually found in ".VAG" files (which apparently stands for "very audio good"). It is also used directly in several PlayStation FMVs, so it is important to understand.
 
 :: SPU-ADPCM Sound Unit ::
 
@@ -1175,7 +1175,7 @@ Some known games that do this:
 * Final Fantasy VII
 * Tekken 2
 
-In many cases the variable-length-code escape codes will sometimes decode to some # of zeros, followed by an AC Coefficient of zero (e.g. (6, 0) ). This is a pretty big waste of space that degrades the quality. This never seems to happen in version 2 or version 3 frames.
+In many cases the variable-length-code escape codes will sometimes decode to some # of zeros, followed by an AC Coefficient of zero (e.g. (6, 0) ). This is a pretty big waste of space that degrades the image quality. This never seems to happen in version 2 or version 3 frames.
 
 ################################################################################
 ## 3.3. Final Fantasy VII
@@ -1200,12 +1200,12 @@ Offset   Size   Endian --------------------------------------------------------
  28 . . . 2 . . little . Always zero
  32 ---------------------------------------------------------------------------
 
-At the start of *some* demultiplexed frames is an additional 40 bytes of camera information. Otherwise the normal Demultiplexed STR frame header is used.
+At the start of *some* demultiplexed frames is an additional 40 bytes of unknown data (camera position?). After that, the normal Demultiplexed STR frame header begins.
 
 :: FF7 Demultiplexed frame for some movies ::
 
 Offset   Size   Endian --------------------------------------------------------
-  0 . . . 40  .  n/a   . Camera data
+  0 . . . 40  .  n/a   . Unknown data
  40 . . . 2 . . little . Number of MDEC codes divided by two, and rounded up to
                            a multiple of 32 (if not already a multiple of 32)
  42 . . . 2 . . little . Always 0x3800
@@ -1575,7 +1575,7 @@ TODO: Add final video info
 ## 3.7. Serial Experiments Lain
 ################################################################################
 
-Serial Experiments Lain may be the only game that used its own unique set of compressed variable-length (huffman) codes. But besides that, and a slightly different frame sectors header, everything is in the standard format.
+Serial Experiments Lain is one of the few games that used its own unique set of compressed variable-length (huffman) codes. But besides that, and a slightly different frame sectors header, everything is in the standard format.
 
 :: S.E. Lain Video Sector Header ::
 
@@ -1822,6 +1822,7 @@ The .iki video format (found in files with .iki or .ik2 extension) is used in at
  * Legend of Dragoon
  * PaRappa The Rapper
  * UmJammer Lammy
+ * Gran Turismo
 
 Unlike other video format variations, it takes full advantage of the capabilities of the MDEC chip by letting each block have its own quantization scale (as opposed to having one quantization scale for the entire frame).
 
@@ -1947,31 +1948,32 @@ Offset   Size   Endian --------------------------------------------------------
   8 . . 2040 . . n/a . . Multiplexed data
 2048 ---------------------------------------------------------------------------
 
-The sectors are demultiplexed into a continuous stream. The data is broken up into 'chunks' that are either audio or video. When one chunk ends, the next one immediately begins.
+The sectors are demultiplexed into a continuous stream. The data is broken up into 'packets' that are either audio or video. When one packet ends, the next one immediately begins.
 
-:: Crusader Demultiplexed Video Chunk ::
+:: Crusader Demultiplexed Video Packet ::
 
 Offset   Size   Endian --------------------------------------------------------
-  0 . . . 4 . .  big . . Chunk identifier: MDEC
-  4 . . . 4 . .  big . . Size of the chunk in bytes, including this header
+  0 . . . 4 . .  big . . Packet identifier: MDEC
+  4 . . . 4 . .  big . . Size of the packet in bytes, including this header
   8 . . . 2 . .  big . . Video frame width in pixels
   10  . . 2 . .  big . . Video frame height in pixels
   12  . . 4 . .  big . . Video frame number
   16  (Size-16)  n/a . . STR v2 bitstream
   Size ------------------------------------------------------------------------
 
-:: Crusader Demultiplexed Audio Chunk ::
+Video frames are standard v2.
+
+:: Crusader Demultiplexed Audio Packet ::
 
 Offset   Size   Endian --------------------------------------------------------
-  0 . . . 4 . .  big . . Chunk identifier: ad20 or ad21
-  4 . . . 4 . .  big . . Size of the chunk in bytes, including this header
+  0 . . . 4 . .  big . . Packet identifier: ad20 or ad21
+  4 . . . 4 . .  big . . Size of the packet in bytes, including this header
   8 . . . 4 . .  big . . The number of samples already written to the stream
   12  . . 4 . .  big . . Always 0x08000200
   16  (Size-16)  n/a . . SPU audio data
   Size ------------------------------------------------------------------------
 
-Video frames are standard v2.
-Audio is encoded using SPU-ADPCM found in section 3.1. The audio plays back at 22050Hz stereo, with the left channel in the first half of the payload, and the right channel is in the second half. The 'ad21' identifier indicates the last audio chunk in the stream.
+Audio is encoded using SPU-ADPCM found in section 3.1. The audio plays back at 22050Hz stereo, with the left channel in the first half of the payload, and the right channel is in the second half. The 'ad21' identifier indicates the last audio packet in the stream.
 
 ################################################################################
 ## 3.13. Gran Turismo

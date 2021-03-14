@@ -44,8 +44,8 @@ import javax.annotation.Nonnull;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.util.Misc;
 
-/** A (hopefully) very fast bit reader. It can be initialized to read the bits
- * in big-endian order, or in 16-bit little-endian order. */
+/** A (hopefully) very fast bit reader.
+ *  The order the bytes read are determined by a {@link IByteOrder}. */
 public class ArrayBitReader {
 
     private static final Logger LOG = Logger.getLogger(ArrayBitReader.class.getName());
@@ -53,16 +53,18 @@ public class ArrayBitReader {
     /** Data to be read as a binary stream. */
     @Nonnull
     private final byte[] _abData;
-    /** Size of the data (ignores data array size). */
-    protected final int _iDataSize;
-    /** If 16-bit words should be read in big or little endian order. */
-    private final boolean _blnLittleEndian;
-    /** Offset of first byte in the current word being read from the source buffer. */
-    protected int _iByteOffset;
-    /** The current 16-bit word value from the source data. */
-    protected short _siCurrentWord;
-    /** Bits remaining to be read from the current word. */
-    protected int _iBitsLeft;
+    @Nonnull
+    private final IByteOrder _byteOrder;
+
+    private final int _iStartOffset;
+    protected final int _iEndOffset;
+
+    protected int _iCurrentOffset = 0;
+
+    /** The current 16-bit short value from the source data. */
+    protected short _siCurrentShort;
+    /** Bits remaining to be read from the current short. */
+    protected int _iBitsLeft = 0;
 
     /** Quick lookup table to mask remaining bits. */
     private static final int BIT_MASK[] = {
@@ -77,60 +79,50 @@ public class ArrayBitReader {
         0x1FFFFFFF, 0x3FFFFFFF, 0x7FFFFFFF, 0xFFFFFFFF,
     };
 
-    /** Start reading from the start of the array with the requested
-     * endian-ness. */
-    public ArrayBitReader(@Nonnull byte[] abData, int iDataSize, boolean blnLittleEndian)
+    /** Start reading from a requested point in the array.
+     *  @param iStartOffset  Must be an even number. */
+    public ArrayBitReader(@Nonnull byte[] abData, @Nonnull IByteOrder byteOrder, int iStartOffset, int iEndOffset)
     {
-        this(abData, iDataSize, blnLittleEndian, 0);
-    }
-
-    /** Start reading from a requested point in the array with the requested
-     *  endian-ness. 
-     *  @param iReadStart  Position in array to start reading. Must be an even number. */
-    public ArrayBitReader(@Nonnull byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart)
-    {
-        if (iReadStart < 0 || iReadStart > abData.length)
+        if (iStartOffset < 0 || iStartOffset > abData.length)
             throw new IllegalArgumentException("Read start out of array bounds.");
-        if ((iReadStart & 1) != 0)
-            throw new IllegalArgumentException("Data start must be on word boundary.");
-        if (iDataSize < 0 || iDataSize > abData.length)
-            throw new IllegalArgumentException("Invalid data size " + iDataSize);
-        _iDataSize = iDataSize & ~1; // trim off an extra byte if the size is not an even value
-        if (_iDataSize != iDataSize)
-            LOG.log(Level.WARNING, "Bitstream length is an odd number {0}, rounding to even number", iDataSize);
-        _iByteOffset = iReadStart;
+        if ((iStartOffset & 1) != 0)
+            throw new IllegalArgumentException("Start offset must be a multiple of 2.");
+        if (iEndOffset < 0 || iEndOffset > abData.length)
+            throw new IllegalArgumentException("Invalid data size " + iEndOffset);
+        _iEndOffset = iEndOffset & ~1; // trim off an extra byte if the size is not an even value
+        if (_iEndOffset != iEndOffset)
+            LOG.log(Level.WARNING, "Bitstream end offset is an odd number {0}, rounding down to even number", iEndOffset);
+        _iStartOffset = iStartOffset;
         _abData = abData;
-        _iBitsLeft = 0;
-        _blnLittleEndian = blnLittleEndian;
+        _byteOrder = byteOrder;
     }
 
-    /** Reads 16-bits at the requested offset in the proper endian order. */
-    protected short readWord(int i) throws MdecException.EndOfStream {
-        if (i + 1 >= _iDataSize)
-            throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(i));
-        int b1, b2;
-        if (_blnLittleEndian) {
-            b1 = _abData[i  ] & 0xFF;
-            b2 = _abData[i+1] & 0xFF;
-        } else {
-            b1 = _abData[i+1] & 0xFF;
-            b2 = _abData[i  ] & 0xFF;
-        }
-        return (short)((b2 << 8) + b1);
+    /** Reads 16-bits at the requested offset. */
+    protected short readShort(int iByteIndex) throws MdecException.EndOfStream {
+        int iOffset1 = _iStartOffset + _byteOrder.getByteOffset(iByteIndex);
+        int iOffset2 = _iStartOffset + _byteOrder.getByteOffset(iByteIndex+1);
+
+        if (iOffset1 >= _iEndOffset || iOffset2 >= _iEndOffset)
+            throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(iByteIndex));
+
+        int b1 = _abData[iOffset1] & 0xff;
+        int b2 = _abData[iOffset2] & 0xff;
+
+        return (short)((b1 << 8) | b2);
     }
 
-    /** Returns the offset to the current word that the bit reader is reading. */
-    public int getWordPosition() {
-        return _iByteOffset;
+    /** Returns the offset to the current short that the bit reader is reading. */
+    public int getCurrentShortPosition() {
+        return _iStartOffset + _iCurrentOffset;
     }
-    
+
     public int getBitsRead() {
-        return _iByteOffset * 8 - _iBitsLeft;
+        return (_iStartOffset + _iCurrentOffset) * 8 - _iBitsLeft;
     }
 
     /** Returns the number of bits remaining in the source data. */
     public int getBitsRemaining() {
-        return (_iDataSize - _iByteOffset) * 8 + _iBitsLeft;
+        return (_iEndOffset - _iStartOffset - _iCurrentOffset) * 8 + _iBitsLeft;
     }
 
     /** Reads the requested number of bits.
@@ -140,36 +132,36 @@ public class ArrayBitReader {
             throw new IllegalArgumentException("Bits to read are out of range " + iCount);
         if (iCount == 0)
             return 0;
-        
-        // want to read the next 16-bit word only when it is needed
+
+        // want to read the next 16-bit short only when it is needed
         // so we don't try to buffer data beyond the array
         if (_iBitsLeft == 0) {
-            _siCurrentWord = readWord(_iByteOffset);
-            _iByteOffset += 2;
+            _siCurrentShort = readShort(_iCurrentOffset);
+            _iCurrentOffset += 2;
             _iBitsLeft = 16;
         }
 
         int iRet;
         if (iCount <= _iBitsLeft) { // iCount <= _iBitsLeft <= 16
-            iRet = (_siCurrentWord >>> (_iBitsLeft - iCount)) & BIT_MASK[iCount];
+            iRet = (_siCurrentShort >>> (_iBitsLeft - iCount)) & BIT_MASK[iCount];
             _iBitsLeft -= iCount;
         } else {
-            iRet = _siCurrentWord & BIT_MASK[_iBitsLeft];
+            iRet = _siCurrentShort & BIT_MASK[_iBitsLeft];
             iCount -= _iBitsLeft;
             _iBitsLeft = 0;
 
             try {
                 while (iCount >= 16) {
-                    iRet = (iRet << 16) | (readWord(_iByteOffset) & 0xFFFF);
-                    _iByteOffset += 2;
+                    iRet = (iRet << 16) | (readShort(_iCurrentOffset) & 0xFFFF);
+                    _iCurrentOffset += 2;
                     iCount -= 16;
                 }
 
                 if (iCount > 0) { // iCount < 16
-                    _siCurrentWord = readWord(_iByteOffset);
-                    _iByteOffset += 2;
+                    _siCurrentShort = readShort(_iCurrentOffset);
+                    _iCurrentOffset += 2;
                     _iBitsLeft = 16 - iCount;
-                    iRet = (iRet << iCount) | ((_siCurrentWord & 0xFFFF) >>> _iBitsLeft);
+                    iRet = (iRet << iCount) | ((_siCurrentShort & 0xFFFF) >>> _iBitsLeft);
                 }
             } catch (MdecException.EndOfStream ex) {
                 LOG.log(Level.FINE, "Bitstream is about to end", ex);
@@ -180,53 +172,53 @@ public class ArrayBitReader {
 
         return iRet;
     }
-    
-    /** Reads the requested number of bits then sets the sign 
+
+    /** Reads the requested number of bits then sets the sign
      *  according to the highest bit.
      * @param iCount  expected to be from 0 to 31  */
     public int readSignedBits(int iCount) throws MdecException.EndOfStream {
         return (readUnsignedBits(iCount) << (32 - iCount)) >> (32 - iCount); // extend sign bit
-    }    
-    
+    }
+
     /** @param iCount  expected to be from 1 to 31  */
     public int peekUnsignedBits(int iCount) throws MdecException.EndOfStream {
-        int iSaveOffs = _iByteOffset;
+        int iSaveOffs = _iCurrentOffset;
         int iSaveBitsLeft = _iBitsLeft;
-        short siSaveCurrentWord = _siCurrentWord;
+        short siSaveCurrentShort = _siCurrentShort;
         try {
             return readUnsignedBits(iCount);
         } finally {
-            _iByteOffset = iSaveOffs;
+            _iCurrentOffset = iSaveOffs;
             _iBitsLeft = iSaveBitsLeft;
-            _siCurrentWord = siSaveCurrentWord;
+            _siCurrentShort = siSaveCurrentShort;
         }
     }
-    
+
     /** @param iCount  expected to be from 0 to 31  */
     public int peekSignedBits(int iCount) throws MdecException.EndOfStream {
         return (peekUnsignedBits(iCount) << (32 - iCount)) >> (32 - iCount); // extend sign bit
-    }    
-    
+    }
+
     public void skipBits(int iCount) throws MdecException.EndOfStream {
 
         _iBitsLeft -= iCount;
         if (_iBitsLeft < 0) {
             // same as _iByteOffset += -(_iBitsLeft / 16)*2;
-            _iByteOffset += ((-_iBitsLeft) >> 4) << 1;
+            _iCurrentOffset += ((-_iBitsLeft) >> 4) << 1;
             // same as _iBitsLeft = _iBitsLeft % 16;
             _iBitsLeft = -((-_iBitsLeft) & 0xf);
-            if (_iByteOffset > _iDataSize) { // clearly out of bounds
+            if (_iCurrentOffset > _iEndOffset) { // clearly out of bounds
                 _iBitsLeft = 0;
-                _iByteOffset = _iDataSize;
-                throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(_iByteOffset));
+                _iCurrentOffset = _iEndOffset;
+                throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(_iCurrentOffset));
             } else if (_iBitsLeft < 0) { // _iBitsLeft should be <= 0
-                if (_iByteOffset == _iDataSize) { // also out of bounds
+                if (_iCurrentOffset == _iEndOffset) { // also out of bounds
                     _iBitsLeft = 0;
-                    throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(_iByteOffset));
+                    throw new MdecException.EndOfStream(MdecException.END_OF_BITSTREAM(_iCurrentOffset));
                 }
                 _iBitsLeft += 16;
-                _siCurrentWord = readWord(_iByteOffset);
-                _iByteOffset += 2;
+                _siCurrentShort = readShort(_iCurrentOffset);
+                _iCurrentOffset += 2;
             }
         }
     }

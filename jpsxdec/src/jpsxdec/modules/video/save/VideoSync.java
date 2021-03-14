@@ -41,7 +41,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.util.Fraction;
 
 /** Used to ensure the writing of video frames matches the timing of the
- * reading of video frames. 
+ * reading of video frames.
  * All presentation sectors must be relative to the initial presentation sector
  * given in the constructor. */
 public class VideoSync {
@@ -59,7 +59,7 @@ public class VideoSync {
      * for quick reference. */
     @Nonnull
     private final Fraction _secondsPerFrame;
-    
+
     public VideoSync(int iFirstPresentationSector,
                      int iSectorsPerSecond,
                      @Nonnull Fraction sectorsPerFrame)
@@ -105,7 +105,7 @@ public class VideoSync {
         // [0.5, infinity) -> write frames to catch up
         // (-0.5, 0.5) -> Movie time == presentation time
         // (-infinity, -0.5] -> skip frames?
-        
+
         if (framesDiff.compareTo(NegPoint5) > 0) { // movie time is (more or less) equal to, or behind presentation time
             // return 0, or positive number of frames to have movie time catchup to presentation time
             iFrameCatchupNeeded = (int)Math.round(framesDiff.asDouble());

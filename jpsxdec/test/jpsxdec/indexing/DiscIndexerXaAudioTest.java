@@ -48,26 +48,6 @@ import org.junit.*;
 
 public class DiscIndexerXaAudioTest {
     
-    public DiscIndexerXaAudioTest() {
-    }
-    
-    @BeforeClass
-    public static void setUpClass() {
-    }
-    
-    @AfterClass
-    public static void tearDownClass() {
-    }
-    
-    @Before
-    public void setUp() {
-    }
-    
-    @After
-    public void tearDown() {
-    }
-
-    
     private static class DummyIdentifiedSector extends IdentifiedSector {
 
         private static final int SECTOR_HEADER[] = {
@@ -117,7 +97,7 @@ public class DiscIndexerXaAudioTest {
         DiscIndexerXaAudio xaIndexer = new DiscIndexerXaAudio(DebugLogger.Log);
         // just testing that nothing terrible happens
         DummyIdentifiedSector s = new DummyIdentifiedSector();
-        xaIndexer.feedXaSector(s.getCdSector(), null, DebugLogger.Log);
+        xaIndexer.feedSector(s, DebugLogger.Log);
     }
     
 }

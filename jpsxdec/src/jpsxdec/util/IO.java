@@ -54,7 +54,7 @@ public final class IO {
      * exception. Returns null if no exception is thrown.
      * By accepting a null resource, it also handles the case that the given
      * resource was never created. In this case it does nothing and returns null. */
-    public static @CheckForNull IOException closeSilently(@CheckForNull Closeable obj, 
+    public static @CheckForNull IOException closeSilently(@CheckForNull Closeable obj,
                                                           @Nonnull Logger log)
     {
         if (obj != null) {
@@ -69,7 +69,7 @@ public final class IO {
             return null;
         }
     }
-    
+
     //== 4-bit =================================================================
 
     public static void writeInt4x2(@Nonnull OutputStream stream, byte bTop, byte bBottom)
@@ -215,7 +215,7 @@ public final class IO {
 
     // #########################################################################
     // #########################################################################
-    
+
     //== 32-bit == little-endian == signed == read =============================
 
     public static int readSInt32LE(@Nonnull InputStream stream) throws EOFException, IOException {
@@ -285,7 +285,7 @@ public final class IO {
     }
 
     //== 32-bit == big-endian == signed == read ================================
-    
+
     public static int readSInt32BE(@Nonnull InputStream stream) throws EOFException, IOException {
         int b1, b2, b3, b4;
         if ((b1 = stream.read()) < 0 ||
@@ -397,7 +397,7 @@ public final class IO {
     /** Because the {@link InputStream#read(byte[])} method won't always read
      *  the entire array in one call. */
     public static @Nonnull byte[] readByteArray(@Nonnull InputStream stream,
-                                                int iBytesToRead) 
+                                                int iBytesToRead)
             throws EOFException, IOException
     {
         assert iBytesToRead > 0;
@@ -419,7 +419,7 @@ public final class IO {
     //== read byte array (byte[]) ==============================================
 
     public static void readByteArray(@Nonnull InputStream stream,
-                                     @Nonnull byte[] abBuffer) 
+                                     @Nonnull byte[] abBuffer)
             throws EOFException, IOException
     {
         readByteArray(stream, abBuffer, 0, abBuffer.length);
@@ -443,7 +443,7 @@ public final class IO {
         if (iBytesRead < iBytesToRead)
             throw new EOFException();
     }
-    
+
     public static void readByteArray(@Nonnull RandomAccessFile stream,
                                      @Nonnull byte[] abBuffer,
                                      int iStartOffset, int iBytesToRead)
@@ -587,19 +587,19 @@ public final class IO {
 
     //== write entire ==========================================================
 
-    public static void writeFile(@Nonnull String sFile, @Nonnull byte[] ab) 
+    public static void writeFile(@Nonnull String sFile, @Nonnull byte[] ab)
             throws FileNotFoundException, IOException
     {
         writeFile(new File(sFile), ab);
     }
-    
-    public static void writeFile(@Nonnull File file, @Nonnull byte[] ab) 
+
+    public static void writeFile(@Nonnull File file, @Nonnull byte[] ab)
             throws FileNotFoundException, IOException
     {
         writeFile(file, ab, 0, ab.length);
     }
-    
-    public static void writeFile(@Nonnull File file, @Nonnull byte[] ab, int iStart, int iLen) 
+
+    public static void writeFile(@Nonnull File file, @Nonnull byte[] ab, int iStart, int iLen)
             throws FileNotFoundException, IOException
     {
         FileOutputStream fos = new FileOutputStream(file);
@@ -630,13 +630,13 @@ public final class IO {
         while ((i = is.read(b)) > 0)
             os.write(b, 0, i);
     }
-    
+
     //== read entire ===========================================================
 
     public static @Nonnull byte[] readFile(@Nonnull String sFile) throws FileNotFoundException, IOException {
         return readFile(new File(sFile));
     }
-    
+
     public static @Nonnull byte[] readFile(@Nonnull File file) throws FileNotFoundException, IOException {
         // using RandomAccessFile for easy access to file size
         RandomAccessFile stream = new RandomAccessFile(file, "r");
@@ -666,11 +666,11 @@ public final class IO {
      * will change in the file system. If there is an error, some part of the
      * directory structure may have been created.
      *
-     * @throws LocalizedFileNotFoundException 
+     * @throws LocalizedFileNotFoundException
      *              Contains user visible details of the failure.
      *              Either there was some unknown error that occurred,
      *              or a file already exists with that name.
-     * 
+     *
      * @see File#mkdirs()
      */
     public static void makeDirs(@CheckForNull File dir) throws LocalizedFileNotFoundException {

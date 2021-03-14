@@ -52,7 +52,7 @@ public class DateAndTimeFormat extends ISO9660Struct {
     final public String Second;
     final public String HundredthsSecond;
     final public int GreenwichOffset;
-    
+
     public DateAndTimeFormat(@Nonnull InputStream is) throws IOException {
         Year             = readS(is, 4);
         Month            = readS(is, 2);
@@ -63,12 +63,12 @@ public class DateAndTimeFormat extends ISO9660Struct {
         HundredthsSecond = readS(is, 2);
         GreenwichOffset  = read1(is) - 128;
     }
-    
+
     @Override
     public String toString() {
         return String.format(
             "%s/%s/%s %s:%s:%s.%s %d",
-            Month, Day, Year, 
+            Month, Day, Year,
             Hour, Minute, Second, HundredthsSecond,
             GreenwichOffset * 15 / 60
         );

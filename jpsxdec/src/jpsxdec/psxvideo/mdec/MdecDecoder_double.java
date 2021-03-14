@@ -97,6 +97,7 @@ public class MdecDecoder_double extends MdecDecoder {
         _upsampler = u;
     }
 
+    @Override
     public void decode(@Nonnull MdecInputStream sourceMdecInStream)
             throws MdecException.EndOfStream, MdecException.ReadCorruption
     {
@@ -253,6 +254,7 @@ public class MdecDecoder_double extends MdecDecoder {
 
     final static boolean YUV_TESTS = false;
 
+    @Override
     public void readDecodedRgb(int iDestWidth, int iDestHeight, @Nonnull int[] aiDest,
                                int iOutStart, int iOutStride)
     {
@@ -395,7 +397,7 @@ public class MdecDecoder_double extends MdecDecoder {
     }
 
 
-    
+
     private void nearestNeighborUpsample(@Nonnull double[] in, @Nonnull double[] out) {
         int outOfs = 0;
         int inOfs = 0;

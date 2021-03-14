@@ -50,7 +50,7 @@ public interface IIdentifiedSector {
 
     /** @return Human readable sector type (used for reference and debugging).*/
     public @Nonnull String getTypeName();
-    
+
     /** Returns the sector index from the start of the file. */
     public int getSectorNumber();
 

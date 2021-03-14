@@ -44,6 +44,8 @@ import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.Fraction;
 
@@ -53,7 +55,7 @@ public interface IDemuxedFrame {
     public interface Listener {
         void frameComplete(@Nonnull IDemuxedFrame frame) throws LoggedFailure;
     }
-    
+
     int getWidth();
 
     int getHeight();
@@ -65,7 +67,7 @@ public interface IDemuxedFrame {
 
     int getEndSector();
 
-    /** The sector when the frame should be displayed. 
+    /** The sector when the frame should be displayed.
      * This can be relative to 0, the start of the disc, or some other
      * consistent starting sector for the video this frame is in. */
     @Nonnull Fraction getPresentationSector();
@@ -82,8 +84,8 @@ public interface IDemuxedFrame {
 
     void printSectors(@Nonnull PrintStream ps);
 
-    void writeToSectors(@Nonnull byte[] abNewDemux,
-                        int iNewUsedSize, int iNewMdecCodeCount,
+    void writeToSectors(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                        @Nonnull BitStreamAnalysis newFrame,
                         @Nonnull CdFileSectorReader cd,
                         @Nonnull ILocalizedLogger log)
             throws LoggedFailure;

@@ -49,33 +49,34 @@ public class SectorCrusader extends IdentifiedSector {
     private static final long MAGIC = 0xAABBCCDDL;
     public static final int HEADER_SIZE = 8;
     private static final int MAX_CRUSADER_SECTOR = 15524;
-    
+
     /** Size of Crusader user data (assuming nothing is wrong with the sector). */
-    public static final int CRUSADER_IDENTIFIED_USER_DATA_SIZE = 
+    public static final int CRUSADER_IDENTIFIED_USER_DATA_SIZE =
             CdSector.SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1 - HEADER_SIZE;
-    
+
     private int _iCrusaderSectorNumber;
-    
+
     public SectorCrusader(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
-        
+
         long lngMagic = cdSector.readUInt32BE(0);
         if (lngMagic != MAGIC)
             return;
 
         _iCrusaderSectorNumber = cdSector.readSInt32BE(4);
-        if (_iCrusaderSectorNumber < 0 || 
+        if (_iCrusaderSectorNumber < 0 ||
             _iCrusaderSectorNumber > MAX_CRUSADER_SECTOR)
             return;
 
         if (super.getCdSector().getCdUserDataSize() != CdSector.SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1)
             throw new RuntimeException("Crusader sector size isn't right");
-        
+
         setProbability(100);
     }
 
-    
+
+    @Override
     public @Nonnull String getTypeName() {
         return "Crusader";
     }
@@ -83,7 +84,7 @@ public class SectorCrusader extends IdentifiedSector {
     public int getCrusaderSectorNumber() {
         return _iCrusaderSectorNumber;
     }
-    
+
     public int getIdentifiedUserDataSize() {
         return CRUSADER_IDENTIFIED_USER_DATA_SIZE;
     }

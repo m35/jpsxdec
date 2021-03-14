@@ -41,8 +41,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
-        
-/** Represents the 
+
+/** Represents the
  * <a href="http://msdn2.microsoft.com/en-us/library/ms779638(VS.85).aspx">AVISTREAMHEADER</a>
  * C structure.
  * <p>
@@ -71,8 +71,8 @@ class AVISTREAMHEADER extends AVIstruct {
          public /*short int*/ short top             = 0;
          public /*short int*/ short right           = 0;
          public /*short int*/ short bottom          = 0;
-     //}  rcFrame    
-    
+     //}  rcFrame
+
     @Override
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
         IO.writeInt32LE(raf, fcc);
@@ -90,17 +90,17 @@ class AVISTREAMHEADER extends AVIstruct {
         IO.writeInt32LE(raf, (int)dwSuggestedBufferSize);
         IO.writeInt32LE(raf, (int)dwQuality);
         IO.writeInt32LE(raf, (int)dwSampleSize);
-        
+
         IO.writeInt16LE(raf, left);
         IO.writeInt16LE(raf, top);
         IO.writeInt16LE(raf, right);
         IO.writeInt16LE(raf, bottom);
-        
+
     }
-    
+
     @Override
     public int sizeof() {
         return 64;
     }
-    
+
 }

@@ -78,6 +78,7 @@ class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public void run() {
         DecodableFrame<?> decodeFrame;
         int[] aiImage = new int[_vidPlayer.getWidth() * _vidPlayer.getHeight()];
@@ -112,6 +113,7 @@ class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public void writeFrame(@Nonnull Object frame, long lngPresentationNanos) throws StopPlayingException {
         if (DEBUG) System.out.println("Frame submitted for processing, present at " + lngPresentationNanos);
         try {
@@ -131,5 +133,5 @@ class VideoProcessor implements Runnable, IPreprocessedFrameWriter {
         _framesProcessingQueue.closeNow();
         _vidPlayer.terminate();
     }
-    
+
 }

@@ -55,7 +55,7 @@ public class SectorISO9660DirectoryRecords extends IdentifiedSector
 
     @CheckForNull
     private ArrayList<DirectoryRecord> _dirRecords;
-    
+
     public SectorISO9660DirectoryRecords(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
@@ -71,7 +71,7 @@ public class SectorISO9660DirectoryRecords extends IdentifiedSector
         } catch (BinaryDataNotRecognized ex) {
             return;
         }
-        
+
         _dirRecords = new ArrayList<DirectoryRecord>();
         _dirRecords.add(firstRec);
         try {
@@ -91,10 +91,12 @@ public class SectorISO9660DirectoryRecords extends IdentifiedSector
         return getCdSector().getCdUserDataStream();
     }
 
+    @Override
     public @Nonnull String getTypeName() {
         return "ISO9660 Directory Records";
     }
 
+    @Override
     public @Nonnull Iterator<DirectoryRecord> iterator() {
         if (_dirRecords == null)
             throw new IllegalStateException();

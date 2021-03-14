@@ -54,11 +54,13 @@ public class DebugLogger implements ILocalizedLogger {
     private DebugLogger() {
     }
 
+    @Override
     public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg) {
         msg.logEnglish(LOG, level);
         System.out.println(msg.getEnglishMessage());
     }
 
+    @Override
     public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg, @CheckForNull Throwable debugException) {
         msg.logEnglish(LOG, level, debugException);
         System.out.println(msg.getEnglishMessage());

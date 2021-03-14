@@ -77,7 +77,7 @@ public class SectorErrorCorrection {
         203,  89,  95, 176, 156, 169, 160,  81,  11, 245,  22, 235, 122, 117,  44, 215,
          79, 174, 213, 233, 230, 231, 173, 232, 116, 214, 244, 234, 168,  80,  88, 175,
     };
-    
+
     private static final short rs_l12_alog[/*255*/] = {
           1,   2,   4,   8,  16,  32,  64, 128,  29,  58, 116, 232, 205, 135,  19,  38,
          76, 152,  45,  90, 180, 117, 234, 201, 143,   3,   6,  12,  24,  48,  96, 192,
@@ -96,7 +96,7 @@ public class SectorErrorCorrection {
          18,  36,  72, 144,  61, 122, 244, 245, 247, 243, 251, 235, 203, 139,  11,  22,
          44,  88, 176, 125, 250, 233, 207, 131,  27,  54, 108, 216, 173,  71, 142,
     };
-    
+
     private static final short DQ[/*2*/][/*43*/] = {
         {190, 96,250,132,59, 81,159,154,200,  7,111,245,10,20, 41,156,168, 79,173,231,229,171,210,240,17, 67,215, 43,120,  8,199, 74,102,220,251, 95,175, 87,166,113, 75,198,25},
         { 97,251,133, 60,82,160,155,201,  8,112,246, 11,21,42,157,169, 80,174,232,230,172,211,241, 18,68,216, 44,121,  9,200, 75,103,221,252, 96,176, 88,167,114, 76,199, 26, 1}
@@ -105,14 +105,14 @@ public class SectorErrorCorrection {
         {231,229,171,210,240,17, 67,215, 43,120,  8,199, 74,102,220,251, 95,175, 87,166,113, 75,198,25},
         {230,172,211,241, 18,68,216, 44,121,  9,200, 75,103,221,252, 96,176, 88,167,114, 76,199, 26, 1}
     };
-    
+
     private static final int RS_L12_BITS = 8;
     private static final int L2_P = 43 * 2 * 2;
     private static final int L2_Q = 26 * 2 * 2;
-    
+
 
     /** Generate sector EDC. It is a 32-but value, unsigned in a long. */
-    public static long generateErrorDetectionAndCorrection(byte[] data, 
+    public static long generateErrorDetectionAndCorrection(byte[] data,
                                                            int iStart, int iEnd)
     {
         long edc_i = 0;
@@ -122,11 +122,11 @@ public class SectorErrorCorrection {
 
         return edc_i;
     }
-    
+
     /** Generate sector ECC P.
      * @param data_p Start pointer to {@code data}.
      * @param output_p Start pointer to {@code output}. */
-    public static void generateErrorCorrectionCode_P(byte[] data, int data_p, 
+    public static void generateErrorCorrectionCode_P(byte[] data, int data_p,
                                                      byte[] output, int output_p)
     {
         assert data.length - data_p >= 43 * 24 * 2;
@@ -157,7 +157,7 @@ public class SectorErrorCorrection {
     /** Generate sector ECC Q.
      * @param data_p Start pointer to {@code data}.
      * @param output_p Start pointer to {@code output}. */
-    public static void generateErrorCorrectionCode_Q(byte[] data, int data_p, 
+    public static void generateErrorCorrectionCode_Q(byte[] data, int data_p,
                                                      byte[] output, int output_p)
     {
         assert data.length - data_p >= 4 + 0x800 + 4 + 8 + L2_P;

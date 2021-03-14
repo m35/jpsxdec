@@ -128,19 +128,7 @@ public class DreddDemuxer {
         return false;
     }
 
-    /** Holds the completed frame and the sectors that made it. */
-    public static class FrameSectors {
-        @Nonnull
-        public final DemuxedDreddFrame frame;
-        @Nonnull
-        public final List<SectorDreddVideo> sectors;
-        public FrameSectors(DemuxedDreddFrame frame, List<SectorDreddVideo> sectors) {
-            this.frame = frame;
-            this.sectors = sectors;
-        }
-    }
-
-    public @CheckForNull FrameSectors tryToFinishFrame() {
+    public @CheckForNull List<SectorDreddVideo> tryToFinishFrame() {
         if (_sectors.size() < MIN_CHUNKS_PER_FRAME-1) {
             // not enough sectors
             return null; // sequence fail
@@ -177,13 +165,10 @@ public class DreddDemuxer {
         }
 
         DemuxedDreddFrame frame = new DemuxedDreddFrame(new DemuxedData<SectorDreddVideo>(_sectors), iHeight);
-
-        for (SectorDreddVideo sector : _sectors) {
-            sector.setDreddFrame(frame);
-        }
+        _sectors.get(_sectors.size() - 1)._dreddFrame = frame;
 
         // sector sequence success
-        return new FrameSectors(frame, _sectors);
+        return _sectors;
     }
 
 
@@ -217,7 +202,7 @@ public class DreddDemuxer {
 
         return null;
     }
-    
+
     /** All Dredd frames are 320 pixels wide. */
     public static final int FRAME_WIDTH = 320;
     public static final int FRAME_HEIGHT_A = 352;

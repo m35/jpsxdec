@@ -37,7 +37,6 @@
 package laintools;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.AbstractListModel;
@@ -56,10 +55,6 @@ public class AudioImageViewer extends javax.swing.JFrame {
 
         _nodeTable.print(System.out);
         
-        PrintStream fos = new PrintStream("Master.txt");
-        _nodeTable.toExcel(fos);
-        fos.close();
-
         _guiNodeList.setModel(new AbstractListModel() {
             public int getSize() {
                 return _nodeTable.size();
@@ -70,9 +65,9 @@ public class AudioImageViewer extends javax.swing.JFrame {
             }
         });
 
-        _guiSiteATable.setSiteModel(_nodeTable._siteTableA);
+        _guiSiteATable.setSiteModel(_nodeTable._siteImageTableA);
         _guiSiteATable.setImagePanels(_guiSiteAImg1, _guiSiteAImg2);
-        _guiSiteBTable.setSiteModel(_nodeTable._siteTableB);
+        _guiSiteBTable.setSiteModel(_nodeTable._siteImageTableB);
         _guiSiteBTable.setImagePanels(_guiSiteBImg1, _guiSiteBImg2);
 
     }

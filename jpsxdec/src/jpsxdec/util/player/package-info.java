@@ -107,7 +107,7 @@ I didn't need it ;)
 <p>
 A separate thread is necessary for event notification to listeners because we
 don't want the listeners to block the playback. Plus this is how the Java
-audio system does it, so it must be a good idea. 
+audio system does it, so it must be a good idea.
 Listeners are registered with
 {@link jpsxdec.util.player.PlayController#addEventListener(jpsxdec.util.player.PlayController.PlayerListener)}.
 When there is audio, instead of creating its own event thread,

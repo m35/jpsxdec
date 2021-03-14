@@ -72,28 +72,35 @@ public class CdSector2336 extends CdSector {
         }
     }
 
+    @Override
     public int getRawCdSectorSize() {
         return SECTOR_SIZE_2336_BIN_NOSYNC;
     }
 
+    @Override
     public int getCdUserDataSize() {
         return _iUserDataSize;
     }
 
+    @Override
     protected int getHeaderDataSize() {
         return CdSectorXaSubHeader.SIZEOF;
     }
 
+    @Override
     public @Nonnull Type getType() {
         return _type;
     }
+    @Override
     public boolean isCdAudioSector() {
         return false;
     }
 
+    @Override
     public @CheckForNull CdSectorHeader getHeader() {
         return null;
     }
+    @Override
     public @Nonnull CdSectorXaSubHeader getSubHeader() {
         return _subHeader;
     }
@@ -107,7 +114,7 @@ public class CdSector2336 extends CdSector {
     public int getErrorCount() {
         return _subHeader.getErrorCount();
     }
-    
+
     @Override
     public @Nonnull byte[] rebuildRawSector(@Nonnull byte[] abNewUserData) {
         byte[] abRawData = getRawSectorDataCopy();
@@ -116,8 +123,8 @@ public class CdSector2336 extends CdSector {
 
         return abRawData;
     }
-    
-    
+
+
     @Override
     public String toString() {
         return String.format("[Sector:%d M2 %s]", getSectorIndexFromStart(), getSubHeader());

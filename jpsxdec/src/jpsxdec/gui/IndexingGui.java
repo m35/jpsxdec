@@ -122,6 +122,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
 
 
+    @Override
     public void propertyChange(@Nonnull PropertyChangeEvent evt) {
         // update the progress bar
         if (ProgresGuiTask.PROGRESS_VALUE.equals(evt.getPropertyName())) {
@@ -131,7 +132,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
             // we know getNewValue() != null since we created the event
             _exception = (Throwable)evt.getNewValue();
             _exception.printStackTrace(System.err); // debug
-            JOptionPane.showMessageDialog(this, _exception.toString(), 
+            JOptionPane.showMessageDialog(this, _exception.toString(),
                     I.GUI_INDEX_EXCEPTION_DIALOG_TITLE().getLocalizedMessage(),
                     JOptionPane.ERROR_MESSAGE);
             taskComplete();
@@ -347,7 +348,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
     // run in separate thread
 
-    private class ProgresGuiTask extends SwingWorker<Void, ILocalizedMessage> 
+    private class ProgresGuiTask extends SwingWorker<Void, ILocalizedMessage>
         implements UserFriendlyLogger.OnWarnErr
     {
 
@@ -356,26 +357,31 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         public static final String DONE = "done";
 
         private final ProgressLogger __progressLog = new ProgressLogger("index") {
+            @Override
             protected void handleProgressStart() throws TaskCanceledException {
                 if (isCancelled())
                     throw new TaskCanceledException();
                 setProgress(0);
             }
 
+            @Override
             protected void handleProgressEnd() throws TaskCanceledException {
                 setProgress(100);
             }
 
+            @Override
             protected void handleProgressUpdate(double dblPercentComplete) throws TaskCanceledException {
                 if (isCancelled())
                     throw new TaskCanceledException();
                 setProgress((int)Math.round(dblPercentComplete * 100));
             }
 
+            @Override
             public void event(@Nonnull ILocalizedMessage msg) {
                 publish(msg);
             }
 
+            @Override
             public boolean isSeekingEvent() {
                 // TODO: only seek event after so many seconds
                 return true;
@@ -387,9 +393,11 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
             __progressLog.log(Level.INFO, I.CMD_GUI_INDEXING(_cd.toString()));
         }
 
+        @Override
         public void onWarn(@Nonnull ILocalizedMessage msg) {
             EventQueue.invokeLater(new ExceptionLater(true));
         }
+        @Override
         public void onErr(@Nonnull ILocalizedMessage msg) {
             EventQueue.invokeLater(new ExceptionLater(false));
         }
@@ -424,6 +432,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
             public ExceptionLater(boolean blnWarn) {
                 __blnWarn = blnWarn;
             }
+            @Override
             public void run() {
                 if (__blnWarn) {
                     _iWarningCount++;

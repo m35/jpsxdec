@@ -47,9 +47,9 @@ import jpsxdec.adpcm.XaAdpcmDecoder;
  * XA audio is part of the "Green Book" standard, so should be part of the
  * CD package.  */
 public class XaAnalysis {
-    
+
     private static final Logger LOG = Logger.getLogger(XaAnalysis.class.getName());
-    
+
     public final int iSamplesPerSecond;
     public final int iBitsPerSample;
     public final boolean blnStereo;
@@ -70,16 +70,18 @@ public class XaAnalysis {
     /** Analyzes a CD sector to determine if it is a XA audio sector.
      * @param iMaxValidChannel Max subheader channel that will be accepted as XA. 254 is a good value.
      * @return null if definitely not a XA audio sector. */
-    public static @CheckForNull XaAnalysis analyze(@Nonnull CdSector cdSector, int iMaxValidChannel) {
+    public static @CheckForNull XaAnalysis analyze(@Nonnull CdSector cdSector) {
         if (cdSector.getType() != CdSector.Type.MODE2FORM2)
             return null;
 
         CdSectorXaSubHeader sh = cdSector.getSubHeader();
-        if (sh == null) return null;
+        if (sh == null)
+            return null;
         if (sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_FORM | CdSectorXaSubHeader.SubMode.MASK_AUDIO | CdSectorXaSubHeader.SubMode.MASK_REAL_TIME) !=
                                 (CdSectorXaSubHeader.SubMode.MASK_FORM | CdSectorXaSubHeader.SubMode.MASK_AUDIO | CdSectorXaSubHeader.SubMode.MASK_REAL_TIME))
             return null;
-        if (sh.getChannel() < 0 || sh.getChannel() > iMaxValidChannel) return null;
+        if (sh.getChannel() < 0 || sh.getChannel() > 255)
+            return null; // this really should never happen
 
         boolean blnStereo = sh.getCodingInfo().isStereo();
         int iSamplesPerSecond = sh.getCodingInfo().getSamplesPerSecond();

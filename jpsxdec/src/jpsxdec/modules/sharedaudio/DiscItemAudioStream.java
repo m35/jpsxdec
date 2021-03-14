@@ -37,14 +37,21 @@
 
 package jpsxdec.modules.sharedaudio;
 
+import java.io.File;
+import java.io.IOException;
 import javax.annotation.Nonnull;
+import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.exception.LocalizedIncompatibleException;
+import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.player.MediaPlayer;
+import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
 
 /** Interface for all DiscItems that represent an audio stream.
@@ -131,4 +138,11 @@ public abstract class DiscItemAudioStream extends DiscItem {
         return getSampleFramesPerSecond() == other.getSampleFramesPerSecond() && isStereo() == other.isStereo();
     }
 
+    abstract public void replace(@Nonnull ProgressLogger pl, @Nonnull File audioFile)
+            throws IOException,
+                   UnsupportedAudioFileException,
+                   LocalizedIncompatibleException,
+                   CdFileSectorReader.CdReadException,
+                   DiscPatcher.WritePatchException,
+                   TaskCanceledException;
 }

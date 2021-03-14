@@ -42,10 +42,10 @@ import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 
-/** Represents the C BITMAPINFOHEADER structure. 
+/** Represents the C BITMAPINFOHEADER structure.
  * http://msdn2.microsoft.com/en-us/library/ms532290(VS.85).aspx */
 class BITMAPINFOHEADER extends AVIstruct {
-    
+
     public final static int BI_RGB = 0;
 
     public final /*DWORD*/ int   biSize           = sizeof();
@@ -79,5 +79,5 @@ class BITMAPINFOHEADER extends AVIstruct {
     public int sizeof() {
         return 40;
     }
-    
+
 }

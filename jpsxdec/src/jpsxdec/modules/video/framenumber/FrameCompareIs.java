@@ -56,7 +56,7 @@ public enum FrameCompareIs {
     GREATERTHAN { public boolean is(FrameCompareIs x) {
         return x == GREATERTHAN;
     }},
-    
+
     GREATERTHANEQUAL { public boolean is(FrameCompareIs x) {
         return x == GREATERTHANEQUAL;
     }},

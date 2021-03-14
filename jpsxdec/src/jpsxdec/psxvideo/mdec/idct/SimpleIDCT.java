@@ -39,10 +39,12 @@ package jpsxdec.psxvideo.mdec.idct;
 
 /** Adapter for {@link simple_idct} to match jPSXdec interface. */
 public class SimpleIDCT extends simple_idct implements IDCT_int {
+    @Override
     public void IDCT(int[] aiIdctMatrix, int iOutputOffset, int[] aiOutput) {
         invers_dct(aiIdctMatrix, iOutputOffset, aiOutput);
     }
 
+    @Override
     public void IDCT_1NonZero(int[] aiIdctMatrix, int iNonZeroPos, int iOutputOffset, int[] aiOutput) {
         invers_dct_special(aiIdctMatrix, iNonZeroPos, iOutputOffset, aiOutput);
     }

@@ -46,7 +46,7 @@ import javax.annotation.Nonnull;
  * Write raw video frame data to {@link PlayController#getFrameWriter()}
  * that will later be sent to {@link IFrameProcessor} in another thread.
  * Write PCM data to {@link PlayController#getAudioOutputStream()}.
- * 
+ *
  * The player will start this reader in its own thread, and the reader should
  * loop until data is exhausted. Then the reader should just simply return,
  * which will end the thread and media playback once all audio/video has been

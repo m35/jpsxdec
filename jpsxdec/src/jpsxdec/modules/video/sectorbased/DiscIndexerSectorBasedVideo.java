@@ -124,7 +124,7 @@ public class DiscIndexerSectorBasedVideo extends DiscIndexer {
 
     @Override
     public boolean filterChild(@CheckForNull DiscItem parent, @Nonnull DiscItem child) {
-        
+
         boolean blnIsSilentXa = (child instanceof DiscItemXaAudioStream) &&
                                 (!(parent instanceof DiscItemSectorBasedVideoStream)) &&
                                 ((DiscItemXaAudioStream) child).isConfirmedToBeSilent();

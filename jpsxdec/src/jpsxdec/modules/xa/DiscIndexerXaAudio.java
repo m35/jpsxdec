@@ -54,13 +54,15 @@ import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.indexing.DiscIndexer;
+import jpsxdec.modules.IIdentifiedSector;
+import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.Misc;
 
 /** Watches for XA audio streams.
  * Tracks the channel numbers and maintains all the XA streams.
  * Adds them to the media list as they end. */
-public class DiscIndexerXaAudio extends DiscIndexer implements SectorClaimToSectorXaAudio.Listener {
+public class DiscIndexerXaAudio extends DiscIndexer implements IdentifiedSectorListener<IIdentifiedSector> {
 
     @Nonnull
     private final ILocalizedLogger _errLog;
@@ -185,7 +187,7 @@ public class DiscIndexerXaAudio extends DiscIndexer implements SectorClaimToSect
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) 
+            if (this == obj)
                 return true;
             if (obj == null || getClass() != obj.getClass())
                 return false;
@@ -211,26 +213,28 @@ public class DiscIndexerXaAudio extends DiscIndexer implements SectorClaimToSect
             = new TreeMap<FileChannel, AudioStreamIndex>();
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem serial) 
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem serial)
             throws LocalizedDeserializationFail
     {
-        if (DiscItemXaAudioStream.TYPE_ID.equals(serial.getType())) 
+        if (DiscItemXaAudioStream.TYPE_ID.equals(serial.getType()))
             return new DiscItemXaAudioStream(getCd(), serial);
         return null;
     }
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToSectorXaAudio s2sxa = scs.getClaimer(SectorClaimToSectorXaAudio.class);
-        s2sxa.addListener(this);
+        scs.addIdListener(this);
     }
 
+    @Override
+    public @Nonnull Class<IIdentifiedSector> getListeningFor() {
+        return IIdentifiedSector.class;
+    }
 
-    public void feedXaSector(@Nonnull CdSector cdSector,
-                             @CheckForNull SectorXaAudio xaSector,
-                             @Nonnull ILocalizedLogger log)
-    {
-        if (xaSector != null) {
+    @Override
+    public void feedSector(@Nonnull IIdentifiedSector idSector, @Nonnull ILocalizedLogger log) {
+        if (idSector instanceof SectorXaAudio) {
+            SectorXaAudio xaSector = (SectorXaAudio) idSector;
             FileChannel fc = new FileChannel(xaSector);
             AudioStreamIndex audStream = _channels.get(fc);
             if (audStream == null) {
@@ -246,7 +250,7 @@ public class DiscIndexerXaAudio extends DiscIndexer implements SectorClaimToSect
         while (it.hasNext()) {
             Map.Entry<FileChannel, AudioStreamIndex> channelStream = it.next();
             AudioStreamIndex s = channelStream.getValue();
-            if (s != null && s.ended(cdSector.getSectorIndexFromStart())) {
+            if (s != null && s.ended(idSector.getSectorNumber())) {
                 s.createMediaItem(this);
                 it.remove();
             }
@@ -254,10 +258,8 @@ public class DiscIndexerXaAudio extends DiscIndexer implements SectorClaimToSect
 
         // if the sector's EOF bit was set, that channel's stream is closed
         // this is important for many games
-        CdSectorXaSubHeader sh = cdSector.getSubHeader();
-        if (sh != null && sh.getSubMode().getEndOfFile() &&
-            sh.getChannel() <= CdSector.MAX_VALID_CHANNEL)
-        {
+        CdSectorXaSubHeader sh = idSector.getCdSector().getSubHeader();
+        if (sh != null && sh.getSubMode().getEndOfFile()) {
             FileChannel fc = new FileChannel(sh.getFileNumber(), sh.getChannel());
             AudioStreamIndex audStream = _channels.get(fc);
             if (audStream != null) {
@@ -267,7 +269,8 @@ public class DiscIndexerXaAudio extends DiscIndexer implements SectorClaimToSect
         }
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) {
+    @Override
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) {
         for (AudioStreamIndex audStream : _channels.values()) {
             audStream.createMediaItem(this);
         }

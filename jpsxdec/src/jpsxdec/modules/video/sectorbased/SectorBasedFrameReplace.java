@@ -46,6 +46,7 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.DemuxedData;
 
 /** Replace frames that are based on sectors
@@ -65,20 +66,20 @@ public class SectorBasedFrameReplace {
          *                                 TODO: probably should let the sector itself extract the header and have it run it
          * @throws LocalizedIncompatibleException if the new demux data is incompatible with this sector type
          */
-        void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                      int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+        void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                      @Nonnull BitStreamAnalysis newFrame,
+                                      @Nonnull byte[] abCurrentVidSectorHeader)
                 throws LocalizedIncompatibleException;
 
         /** Returns the source CD sector behind this piece. */
         @Nonnull CdSector getCdSector();
     }
 
-    public static void writeToSectors(
-                               @Nonnull byte[] abNewDemux,
-                               int iNewUsedSize, int iNewMdecCodeCount,
-                               @Nonnull CdFileSectorReader cd,
-                               @Nonnull ILocalizedLogger log,
-                               Iterable<? extends IReplaceableVideoSector> chunks)
+    public static void writeToSectors(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                      @Nonnull BitStreamAnalysis newFrame,
+                                      @Nonnull CdFileSectorReader cd,
+                                      @Nonnull ILocalizedLogger log,
+                                      @Nonnull Iterable<? extends IReplaceableVideoSector> chunks)
             throws LoggedFailure
     {
         int iDemuxOfs = 0;
@@ -89,18 +90,17 @@ public class SectorBasedFrameReplace {
             }
             byte[] abSectUserData = vidSector.getCdSector().getCdUserDataCopy();
             try {
-                vidSector.replaceVideoSectorHeader(
-                        abNewDemux, iNewUsedSize, iNewMdecCodeCount, abSectUserData);
+                vidSector.replaceVideoSectorHeader(existingFrame, newFrame, abSectUserData);
             } catch (LocalizedIncompatibleException ex) {
                 throw new LoggedFailure(log, Level.SEVERE, ex.getSourceMessage(), ex);
             }
             int iBytesToCopy = vidSector.getDemuxPieceSize();
-            if (iDemuxOfs + iBytesToCopy > abNewDemux.length)
-                iBytesToCopy = abNewDemux.length - iDemuxOfs;
+            if (iDemuxOfs + iBytesToCopy > newFrame.getBitStreamArrayLength())
+                iBytesToCopy = newFrame.getBitStreamArrayLength() - iDemuxOfs;
             // bytes to copy might be 0, which is ok because we
             // still need to write the updated headers
             int iSectorHeaderSize = vidSector.getVideoSectorHeaderSize();
-            System.arraycopy(abNewDemux, iDemuxOfs, abSectUserData, iSectorHeaderSize, iBytesToCopy);
+            newFrame.arrayCopy(iDemuxOfs, abSectUserData, iSectorHeaderSize, iBytesToCopy);
             try {
                 cd.addPatch(vidSector.getCdSector().getSectorIndexFromStart(), 0, abSectUserData);
             } catch (DiscPatcher.WritePatchException ex) {

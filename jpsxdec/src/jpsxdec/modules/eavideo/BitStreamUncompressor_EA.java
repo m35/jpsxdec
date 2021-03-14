@@ -54,9 +54,9 @@ public class BitStreamUncompressor_EA extends BitStreamUncompressor {
                                          int iQuantizationScale)
     {
         super(
-            new ArrayBitReader(abMdecPacketPayload, abMdecPacketPayload.length, true),
+            new ArrayBitReader(abMdecPacketPayload, BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER, 0, abMdecPacketPayload.length),
             lookupTable,
-            new BitStreamUncompressor_STRv2.QuantizationDc_STRv12(iQuantizationScale),
+            new BitStreamUncompressor_STRv2.QuantizationDcReader_STRv12(iQuantizationScale),
             BitStreamUncompressor_STRv2.AC_ESCAPE_CODE_STR,
             BitStreamUncompressor.FRAME_END_PADDING_BITS_NONE
         );

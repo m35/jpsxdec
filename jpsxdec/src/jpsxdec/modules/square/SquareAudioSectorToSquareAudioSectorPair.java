@@ -41,32 +41,37 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.modules.IdentifiedSectorListener;
+import jpsxdec.modules.SectorRange;
 
 
-public class SquareAudioSectorToSquareAudioSectorPair implements SectorClaimToSquareAudioSector.Listener {
+public class SquareAudioSectorToSquareAudioSectorPair implements IdentifiedSectorListener<ISquareAudioSector> {
     public interface Listener {
         void pairDone(@Nonnull SquareAudioSectorPair pair, @Nonnull ILocalizedLogger log)
                 throws LoggedFailure;
         void endOfSectors(@Nonnull ILocalizedLogger log);
     }
 
-    @CheckForNull
-    private Listener _listener;
+    @Nonnull
+    private final SectorRange _sectorRange;
+    @Nonnull
+    private final Listener _listener;
+
     @CheckForNull
     private ISquareAudioSector _leftAudioSector;
 
-    public SquareAudioSectorToSquareAudioSectorPair() {
-    }
-    public SquareAudioSectorToSquareAudioSectorPair(@Nonnull Listener listener) {
-        _listener = listener;
-    }
-    public void setListener(@CheckForNull Listener listener) {
+    public SquareAudioSectorToSquareAudioSectorPair(@Nonnull SectorRange sectorRange, @Nonnull Listener listener) {
+        _sectorRange = sectorRange;
         _listener = listener;
     }
 
-    public void sectorRead(@Nonnull ISquareAudioSector audSector, @Nonnull ILocalizedLogger log) 
-            throws LoggedFailure
-    {
+    @Override
+    public Class<ISquareAudioSector> getListeningFor() {
+        return ISquareAudioSector.class;
+    }
+
+    @Override
+    public void feedSector(ISquareAudioSector audSector, ILocalizedLogger log) throws LoggedFailure {
 
         if (_leftAudioSector != null) {
             if (isPair(_leftAudioSector, audSector)) {
@@ -123,7 +128,8 @@ public class SquareAudioSectorToSquareAudioSectorPair implements SectorClaimToSq
                 left.getSectorNumber() + 1 == right.getSectorNumber();
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+    @Override
+    public void endOfFeedSectors(ILocalizedLogger log) throws LoggedFailure {
         if (_listener != null) {
             if (_leftAudioSector != null)
                 leftOnlyDone(log);

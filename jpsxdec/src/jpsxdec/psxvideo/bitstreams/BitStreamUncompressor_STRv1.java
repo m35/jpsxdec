@@ -57,13 +57,14 @@ import jpsxdec.util.BinaryDataNotRecognized;
  * frames further to fit camera data. This led to AC values being reduced,
  * some falling to 0, but they didn't merge those codes to save space.
  */
-public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor {
+public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor implements IBitStreamWith1QuantizationScale {
 
     public static class StrV1Header extends StrHeader {
         public StrV1Header(byte[] abFrameData, int iDataSize) {
             super(abFrameData, iDataSize, 1);
         }
 
+        @Override
         public @Nonnull BitStreamUncompressor_STRv1 makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
                 throws BinaryDataNotRecognized
         {
@@ -102,12 +103,16 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor {
                                        @Nonnull ArrayBitReader bitReader)
     {
         super(bitReader, ZeroRunLengthAcLookup_STR.AC_VARIABLE_LENGTH_CODES_MPEG1,
-              new BitStreamUncompressor_STRv2.QuantizationDc_STRv12(header.getQuantizationScale()),
+              new BitStreamUncompressor_STRv2.QuantizationDcReader_STRv12(header.getQuantizationScale()),
               BitStreamUncompressor_STRv2.AC_ESCAPE_CODE_STR,
               BitStreamUncompressor_STRv2.FRAME_END_PADDING_BITS_STRV2);
         _header = header;
     }
-    
+
+    public int getQuantizationScale() {
+        return _header.getQuantizationScale();
+    }
+
     @Override
     public @Nonnull BitStreamCompressor_STRv1 makeCompressor() {
         return new BitStreamCompressor_STRv1(_context.getTotalMacroBlocksRead());
@@ -116,7 +121,7 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor {
     public static class BitStreamCompressor_STRv1 extends BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 {
 
         private BitStreamCompressor_STRv1(int iMacroBlockCount) {
-            super(iMacroBlockCount);
+            super(iMacroBlockCount, BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER);
         }
 
         @Override

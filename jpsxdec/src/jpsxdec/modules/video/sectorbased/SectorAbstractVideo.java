@@ -45,7 +45,7 @@ import jpsxdec.util.DemuxedData;
 
 
 /** Shared super class of several video sector types. */
-public abstract class SectorAbstractVideo extends IdentifiedSector 
+public abstract class SectorAbstractVideo extends IdentifiedSector
         implements IVideoSectorWithFrameNumber, DemuxedData.Piece
 {
 
@@ -66,22 +66,27 @@ public abstract class SectorAbstractVideo extends IdentifiedSector
 
     /** Returns the size of any headers in the identified data that should not
      * be copied when demuxing the video data. */
+    @Override
     abstract public int getVideoSectorHeaderSize();
 
     // .. Public methods ...................................................
 
+    @Override
     final public @Nonnull VideoSectorWithFrameNumberDemuxer createDemuxer(@Nonnull ILocalizedLogger log) {
         return new VideoSectorWithFrameNumberDemuxer(this, log);
     }
 
+    @Override
     final public int getDemuxPieceSize() {
         return getCdSector().getCdUserDataSize() - getVideoSectorHeaderSize();
     }
 
+    @Override
     final public byte getDemuxPieceByte(int i) {
         return getCdSector().readUserDataByte(getVideoSectorHeaderSize() + i);
     }
 
+    @Override
     final public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
         getCdSector().getCdUserDataCopy(getVideoSectorHeaderSize(), abOut,
                 iOutPos, getDemuxPieceSize());

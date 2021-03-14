@@ -44,7 +44,9 @@ import jpsxdec.cdreaders.CdSectorXaSubHeader.SubMode;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.video.sectorbased.IVideoSectorWithFrameNumber;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.VideoSectorWithFrameNumberDemuxer;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.ByteArrayFPIS;
 
 
@@ -57,17 +59,17 @@ public abstract class SectorFF8 extends IdentifiedSector {
     protected int        _iSectorNumber;           // [1 byte]
     protected int        _iSectorsInAVFrame;       // [1 byte]
     protected int        _iHeaderFrameNumber;      // [2 bytes]
-    
+
     public SectorFF8(@Nonnull CdSector cdSector) {
         super(cdSector);
         if (isSuperInvalidElseReset()) return;
 
         if (cdSector.isCdAudioSector()) return;
-        
+
         // both audio and video sectors are flagged as DATA
         if (subModeExistsAndMaskDoesNotEqual(SubMode.MASK_DATA, SubMode.MASK_DATA))
             return;
-        
+
         char c;
         c = (char)cdSector.readUserDataByte(0);
         if ((_achHead[0] = c) != 'S') return;
@@ -110,13 +112,14 @@ public abstract class SectorFF8 extends IdentifiedSector {
                     _iSectorNumber,
                     _iSectorsInAVFrame);
     }
-    
+
     ////////////////////////////////////////////////////////////////////////////
 
     /** Final Fantasy 8 video chunk sector. */
     public static class SectorFF8Video extends SectorFF8
             implements IVideoSectorWithFrameNumber
     {
+        @Override
         public int getVideoSectorHeaderSize() { return SectorFF8.SHARED_HEADER_SIZE; }
 
         public SectorFF8Video(@Nonnull CdSector cdSector) {
@@ -127,37 +130,41 @@ public abstract class SectorFF8 extends IdentifiedSector {
             setProbability(100);
         }
 
-        /** [implements IVideoSector] */
+        @Override
         public int getWidth() {
             return 320;
         }
 
-        /** [implements IVideoSector] */
+        @Override
         public int getHeight() {
             return 224;
         }
 
-        /** [implements IVideoSector] */
+        @Override
         public int getChunkNumber() {
             return _iSectorNumber - 2;
         }
-        /** [implements IVideoSector] */
+        @Override
         public int getChunksInFrame() {
             return _iSectorsInAVFrame - 1; // i.e. return 8
         }
 
+        @Override
         public @Nonnull VideoSectorWithFrameNumberDemuxer createDemuxer(@Nonnull ILocalizedLogger log) {
             return new VideoSectorWithFrameNumberDemuxer(this, log);
         }
 
+        @Override
         public int getDemuxPieceSize() {
             return getCdSector().getCdUserDataSize() - getVideoSectorHeaderSize();
         }
 
+        @Override
         public byte getDemuxPieceByte(int i) {
             return getCdSector().readUserDataByte(getVideoSectorHeaderSize() + i);
         }
 
+        @Override
         public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
             getCdSector().getCdUserDataCopy(getVideoSectorHeaderSize(), abOut,
                     iOutPos, getDemuxPieceSize());
@@ -168,12 +175,15 @@ public abstract class SectorFF8 extends IdentifiedSector {
             return String.format("%s %s 320x224", getTypeName(), super.toString());
         }
 
+        @Override
         public @Nonnull String getTypeName() {
             return "FF8Video";
         }
 
-        public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                             int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+        @Override
+        public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                             @Nonnull BitStreamAnalysis newFrame,
+                                             @Nonnull byte[] abCurrentVidSectorHeader)
         {
             // none of the FF8 video sector headers need to be modified
         }
@@ -186,14 +196,14 @@ public abstract class SectorFF8 extends IdentifiedSector {
     {
 
         private static final int FF8_AUDIO_SECTOR_BYTE_DATA_SIZE = 1680;
-        
+
         /* // shared header
         protected final char _achHead[] = new char[4]; // [4 bytes] "SM_\1"
         protected int        _iSectorNumber;           // [1 byte]
         protected int        _iSectorsInAVFrame;       // [1 byte]
         protected long       _iHeaderFrameNumber;      // [2 bytes]
         */
-        
+
         public final static int AUDIO_ADDITIONAL_HEADER_SIZE = 360;
 
         // 232 bytes; unknown
@@ -201,11 +211,11 @@ public abstract class SectorFF8 extends IdentifiedSector {
         // 10 bytes; unknown
         private SquareAKAOstruct _AKAOstruct;
         // 76 bytes; unknown
-        
+
         public SectorFF8Audio(@Nonnull CdSector cdSector) {
             super(cdSector);
             if (isSuperInvalidElseReset()) return;
-            
+
             if (super._achHead[2] != 'N' && super._achHead[2] != 'R')
                 return;
 
@@ -224,7 +234,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
             _sSHUN_MORIYA = sb.toString();
             if (!(
                   blnOnly0xff || // demo disc has all 0xff for MORIYA field
-                  _sSHUN_MORIYA.startsWith("MORIYA") || 
+                  _sSHUN_MORIYA.startsWith("MORIYA") ||
                   _sSHUN_MORIYA.startsWith("SHUN.MORIYA")
                 ))
             {
@@ -246,26 +256,32 @@ public abstract class SectorFF8 extends IdentifiedSector {
             setProbability(100);
         }
 
+        @Override
         public @Nonnull String getTypeName() {
             return "FF8Audio";
         }
 
+        @Override
         public int getSampleFramesPerSecond() {
             return 44100;
         }
 
+        @Override
         public int getAudioDataStartOffset() {
             return SectorFF8.SHARED_HEADER_SIZE + AUDIO_ADDITIONAL_HEADER_SIZE;
         }
 
+        @Override
         public int getAudioDataSize() {
             return FF8_AUDIO_SECTOR_BYTE_DATA_SIZE;
         }
 
+        @Override
         public int getSoundUnitCount() {
             return FF8_AUDIO_SECTOR_BYTE_DATA_SIZE / SpuAdpcmSoundUnit.SIZEOF_SOUND_UNIT;
         }
 
+        @Override
         public boolean isLeftChannel() {
             switch (getFF8ChunkNumber()) {
                 case 0: return true;
@@ -274,6 +290,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
             }
         }
 
+        @Override
         public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
             return new ByteArrayFPIS(super.getCdSector().getCdUserDataStream(),
                     getAudioDataStartOffset(), FF8_AUDIO_SECTOR_BYTE_DATA_SIZE);

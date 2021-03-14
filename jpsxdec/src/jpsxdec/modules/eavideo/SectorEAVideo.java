@@ -61,6 +61,7 @@ public class SectorEAVideo extends IdentifiedSector implements Iterable<EAVideoP
         setProbability(100);
     }
 
+    @Override
     public String getTypeName() {
         return "EA video";
     }

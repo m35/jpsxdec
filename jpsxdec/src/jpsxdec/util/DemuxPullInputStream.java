@@ -86,7 +86,7 @@ public class DemuxPullInputStream<T extends DemuxedData.Piece> extends InputStre
     }
 
     // -------------------------------------------------------------------------
-    
+
     @Override
     public int read() throws IOException {
         if (_iMarkReadLimit < 0) {

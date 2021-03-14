@@ -37,7 +37,6 @@
 
 package jpsxdec.modules.square;
 
-import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
@@ -62,6 +61,7 @@ import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
@@ -86,7 +86,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
 
     private static final String SECTORS_PAST_END_KEY = "Sectors past end";
     private final int _iSectorsPastEnd;
-    
+
     public DiscItemSquareAudioStream(@Nonnull CdFileSectorReader cd,
                                      int iStartSector, int iEndSector,
                                      int iSoundUnitCount,
@@ -99,17 +99,17 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         _iSampleFramesPerSecond = iSampleFramesPerSecond;
         _iSectorsPastEnd = iSectorsPastEnd;
     }
-    
+
     public DiscItemSquareAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
-        
+
         _iSampleFramesPerSecond = fields.getInt(SAMPLES_PER_SEC_KEY);
         _iSoundUnitCount = fields.getInt(SOUND_UNIT_COUNT_KEY);
         _iSectorsPastEnd = fields.getInt(SECTORS_PAST_END_KEY);
     }
-    
+
     @Override
     public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
@@ -119,18 +119,22 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return fields;
     }
 
+    @Override
     public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
 
+    @Override
     public boolean isStereo() {
         return true;
     }
 
+    @Override
     public int getSectorsPastEnd() {
         return _iSectorsPastEnd;
     }
 
+    @Override
     public int getDiscSpeed() {
         return 2;
     }
@@ -140,6 +144,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return getStartSector() + 1; // TODO: this isn't quite right
     }
 
+    @Override
     public long getSampleFrameCount() {
         return _iSoundUnitCount * (long)SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT;
     }
@@ -149,6 +154,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return getSampleFrameCount() / (double)_iSampleFramesPerSecond;
     }
 
+    @Override
     public int getSampleFramesPerSecond() {
         return _iSampleFramesPerSecond;
     }
@@ -160,6 +166,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         return I.GUI_AUDIO_DESCRIPTION(secs, _iSampleFramesPerSecond, 2);
     }
 
+    @Override
     public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume) {
         return new SquareConverter(dblVolume);
     }
@@ -168,48 +175,57 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
 
     private class SquareConverter implements ISectorAudioDecoder {
 
+        @Nonnull
         private final SquareAudioSectorPairToAudioPacket _p2p;
+        @Nonnull
         private final SquareAudioSectorToSquareAudioSectorPair _sa2p;
 
         public SquareConverter(double dblVolume) {
              _p2p = new SquareAudioSectorPairToAudioPacket(dblVolume);
-             _sa2p = new SquareAudioSectorToSquareAudioSectorPair(_p2p);
+             _sa2p = new SquareAudioSectorToSquareAudioSectorPair(makeSectorRange(), _p2p);
         }
 
+        @Override
         public void setAudioListener(@Nonnull DecodedAudioPacket.Listener listener) {
             _p2p.setListener(listener);
         }
 
+        @Override
         public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-            SectorClaimToSquareAudioSector s2sqs = scs.getClaimer(SectorClaimToSquareAudioSector.class);
-            s2sqs.setListener(_sa2p);
-            s2sqs.setRangeLimit(getStartSector(), getEndSector());
+            scs.addIdListener(_sa2p);
         }
 
+        @Override
         public double getVolume() {
             return _p2p.getVolume();
         }
 
+        @Override
         public @Nonnull AudioFormat getOutputFormat() {
             return _p2p.getFormat(_iSampleFramesPerSecond);
         }
 
+        @Override
         public int getSampleFramesPerSecond() {
             return _iSampleFramesPerSecond;
         }
 
+        @Override
         public int getDiscSpeed() {
             return 2;
         }
 
+        @Override
         public int getEndSector() {
             return DiscItemSquareAudioStream.this.getEndSector();
         }
 
+        @Override
         public int getStartSector() {
             return DiscItemSquareAudioStream.this.getStartSector();
         }
 
+        @Override
         public int getAbsolutePresentationStartSector() {
             return DiscItemSquareAudioStream.this.getPresentationStartSector();
         }
@@ -218,12 +234,9 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     // =========================================================================
     // replace
 
-
-    /**
-     * @throws IOException opening or reading from audio file
-     */
+    @Override
     public void replace(@Nonnull ProgressLogger pl, @Nonnull File audioFile)
-            throws EOFException, IOException,
+            throws IOException,
                    UnsupportedAudioFileException,
                    LocalizedIncompatibleException,
                    CdFileSectorReader.CdReadException,
@@ -255,12 +268,10 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             }
 
             // connect the pipeline
-            SquareAudioSectorToSquareAudioSectorPair sas2sasp = new SquareAudioSectorToSquareAudioSectorPair();
-            SectorClaimSystem it = createClaimSystem();
-            SectorClaimToSquareAudioSector s2sas = it.getClaimer(SectorClaimToSquareAudioSector.class);
-            s2sas.setListener(sas2sasp);
             PairCollector pairCollector = new PairCollector();
-            sas2sasp.setListener(pairCollector);
+            SquareAudioSectorToSquareAudioSectorPair sas2sasp = new SquareAudioSectorToSquareAudioSectorPair(SectorRange.ALL, pairCollector);
+            SectorClaimSystem it = createClaimSystem();
+            it.addIdListener(sas2sasp);
 
             int iSoundUnitsReplaced = 0;
             int iSomewhatAccurateSectorProgress = getStartSector();
@@ -290,16 +301,21 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     {
         private final LinkedList<SquareAudioSectorPair> _pairs = new LinkedList<SquareAudioSectorPair>();
 
+        @Override
         public boolean hasNext() { return !_pairs.isEmpty(); }
+        @Override
         public @Nonnull SquareAudioSectorPair next() throws NoSuchElementException {
             return _pairs.remove();
         }
+        @Override
         public void remove() { throw new UnsupportedOperationException(); }
 
+        @Override
         public void pairDone(@Nonnull SquareAudioSectorPair pair, @Nonnull ILocalizedLogger log) {
             _pairs.add(pair);
         }
 
+        @Override
         public void endOfSectors(@Nonnull ILocalizedLogger log) {
             // should not happen
             LOG.warning("Why are we hitting end of sectors while replacing?");

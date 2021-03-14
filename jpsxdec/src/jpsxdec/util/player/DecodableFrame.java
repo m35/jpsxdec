@@ -41,7 +41,7 @@ import javax.annotation.Nonnull;
 
 class DecodableFrame<T> {
 
-    @Nonnull 
+    @Nonnull
     public final T frame;
     /** Returns the time the frame should be displayed, in nano-seconds
      *  from the beginning of the movie. */

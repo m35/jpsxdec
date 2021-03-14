@@ -47,7 +47,7 @@ import javax.annotation.Nonnull;
 
 /**
  * A stream built by pushing pieces of data into it.
- * 
+ *
  * The end of once piece = the start of the next.
  * It is important that once hitting the end of a sector, to stay there
  * and not pull the extra sector in case there are no more (leading to EOF).
@@ -96,7 +96,7 @@ public class DemuxPushInputStream<T extends DemuxedData.Piece> extends InputStre
 
     // -------------------------------------------------------------------------
     // InputStream functions
-    
+
     @Override
     public int read() throws NeedsMoreData {
         if (_iMarkReadLimit < 0) {
@@ -113,7 +113,7 @@ public class DemuxPushInputStream<T extends DemuxedData.Piece> extends InputStre
 
         if (_markedStream != null)
             _iMarkReadLimit--;
-        
+
         return i;
     }
 
@@ -375,7 +375,7 @@ public class DemuxPushInputStream<T extends DemuxedData.Piece> extends InputStre
         public @Nonnull CopyablePieceSequenceStream<T> copy() {
             return new CopyablePieceSequenceStream<T>(_pieceIterator, _currentPieceStream, _iAvailable);
         }
-        
+
         public boolean isEof() {
             return _currentPieceStream.isEof() && !_pieceIterator.hasNext();
         }

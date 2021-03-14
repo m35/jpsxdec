@@ -169,7 +169,7 @@ public class AutowireVDP {
         assertNull(_sectorClaimToDemuxedFrame);
         _sectorClaimToDemuxedFrame = sectorClaimToDemuxedFrame;
     }
-    
+
     @CheckForNull
     private IDemuxedFrame.Listener _frameListener;
     public void setFrameListener(@Nonnull IDemuxedFrame.Listener frameListener) {
@@ -235,7 +235,7 @@ public class AutowireVDP {
     }
 
     // =========================================================================
-    // MDEC 
+    // MDEC
 
     @CheckForNull
     private VDP.Mdec2Decoded _mdec2Decoded;
@@ -259,7 +259,7 @@ public class AutowireVDP {
     }
 
     // =========================================================================
-    // AVI 
+    // AVI
 
     @CheckForNull
     private VDP.IDecodedListener _decodedListener;

@@ -39,25 +39,20 @@ package jpsxdec.modules.crusader;
 
 import java.io.PrintStream;
 import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.cdreaders.DiscPatcher;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.DemuxedData;
 import jpsxdec.util.Fraction;
 
 public class DemuxedCrusaderFrame implements IDemuxedFrame {
 
-    private static final Logger LOG = Logger.getLogger(DemuxedCrusaderFrame.class.getName());
-    
     private final int _iWidth, _iHeight;
     private final int _iHeaderFrameNumber;
     @Nonnull
@@ -79,27 +74,33 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         _demux = demux;
         _iPresentationSector = iPresentationSector;
     }
-    
+
+    @Override
     public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
         return null;
     }
 
+    @Override
     public @Nonnull byte[] copyDemuxData() {
         return _demux.copyDemuxData();
     }
 
+    @Override
     public int getDemuxSize() {
         return _demux.getDemuxSize();
     }
 
+    @Override
     public int getStartSector() {
         return _demux.getStartSector();
     }
 
+    @Override
     public int getEndSector() {
         return _demux.getEndSector();
     }
 
+    @Override
     public @Nonnull FrameNumber getFrame() {
         if (_frameNumber == null)
             throw new IllegalStateException();
@@ -112,19 +113,23 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
     public int getHeaderFrameNumber() {
         return _iHeaderFrameNumber;
     }
-    
+
+    @Override
     public int getWidth() {
         return _iWidth;
     }
 
+    @Override
     public int getHeight() {
         return _iHeight;
     }
 
+    @Override
     public @Nonnull Fraction getPresentationSector() {
         return new Fraction(_iPresentationSector);
     }
 
+    @Override
     public void printSectors(@Nonnull PrintStream ps) {
         boolean blnFirstPiece = true;
         for (Iterator<CrusaderDemuxPiece> iterator = _demux.iterator();
@@ -142,57 +147,9 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
         }
     }
 
-    /**
-     * @throws IllegalArgumentException
-     *                  if {@code abNewDemux.length > } {@link #getDemuxSize()}
-     */
     @Override
-    public void writeToSectors(@Nonnull byte[] abNewDemux,
-                               int iUsedSize_ignore, int iMdecCodeCount_ignore,
-                               @Nonnull CdFileSectorReader cd,
-                               @Nonnull ILocalizedLogger log)
-             throws LoggedFailure, IllegalArgumentException
-    {
-        if (abNewDemux.length > getDemuxSize())
-            throw new IllegalArgumentException(String.format(
-                    "Frame %s: New frame size %d is larger than existing size %d",
-                    _frameNumber, abNewDemux.length, getDemuxSize()));
-
-        // not going to check that the bitstream is of any version
-
-
-        int iDemuxOfs = 0;
-        boolean blnFirstPiece = true;
-        for (Iterator<CrusaderDemuxPiece> iterator = _demux.iterator();
-             iterator.hasNext();
-             blnFirstPiece = false)
-        {
-            SectorCrusader vidSector = iterator.next().getSector();
-
-            if (vidSector == null) {
-                log.log(Level.WARNING, I.CMD_FRAME_TO_REPLACE_MISSING_CHUNKS());
-                continue;
-            }
-            int iBytesToCopy = SectorCrusader.CRUSADER_IDENTIFIED_USER_DATA_SIZE;
-            int iCopyTo = SectorCrusader.HEADER_SIZE;
-            if (blnFirstPiece) {
-                iCopyTo += _demux.getStartDataOffset();
-                iBytesToCopy -= _demux.getStartDataOffset();
-            }
-            if (iDemuxOfs + iBytesToCopy > abNewDemux.length)
-                iBytesToCopy = abNewDemux.length - iDemuxOfs;
-
-            if (iBytesToCopy == 0)
-                break;
-
-            try {
-                cd.addPatch(vidSector.getSectorNumber(), iCopyTo, abNewDemux, iDemuxOfs, iBytesToCopy);
-            } catch (DiscPatcher.WritePatchException ex) {
-                throw new LoggedFailure(log, Level.SEVERE, I.IO_WRITING_TO_FILE_ERROR_NAME(cd.getTemporaryPatchFile().toString()), ex);
-            }
-
-            iDemuxOfs += iBytesToCopy;
-        }
+    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, CdFileSectorReader cd, ILocalizedLogger log) {
+        throw new UnsupportedOperationException("Replacing Crusader frames is not supported");
     }
 
     @Override

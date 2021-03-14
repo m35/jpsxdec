@@ -41,7 +41,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 
-    
+
 /** A CD "XA" sector. Here we use XA for what it officially stands for:
  * eXtended Architecture. It is defined in the "Green Book" CD standard.
  * This header contains a file number, a channel, a sub-more, and coding info.
@@ -128,7 +128,7 @@ public class CdSectorXaSubHeader {
     private final int _iChannel1;                // [1 byte] 0-31 for ADPCM audio
     private final int _iChannel2;
     @Nonnull private final IssueType _eChannelIssue;
-    public int getChannel() { 
+    public int getChannel() {
         switch (_eChannelIssue) {
             case DIFF_1BAD2GOOD:
                 return _iChannel2;
@@ -267,7 +267,7 @@ public class CdSectorXaSubHeader {
         return String.format("File.Channel:%d.%d Submode:%s",
                     getFileNumber(), getChannel(), getSubMode());
     }
-    
+
     //**************************************************************************
 
     public static class SubMode {
@@ -433,4 +433,4 @@ public class CdSectorXaSubHeader {
     }
 
 }
-    
+

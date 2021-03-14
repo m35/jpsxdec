@@ -1,0 +1,107 @@
+/*
+ * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
+ * Copyright (C) 2017-2020  Michael Sabin
+ * All rights reserved.
+ *
+ * Redistribution and use of the jPSXdec code or any derivative works are
+ * permitted provided that the following conditions are met:
+ *
+ *  * Redistributions may not be sold, nor may they be used in commercial
+ *    or revenue-generating business activities.
+ *
+ *  * Redistributions that are modified from the original source must
+ *    include the complete source code, including the source code for all
+ *    components used by a binary built from the modified sources. However, as
+ *    a special exception, the source code distributed need not include
+ *    anything that is normally distributed (in either source or binary form)
+ *    with the major components (compiler, kernel, and so on) of the operating
+ *    system on which the executable runs, unless that component itself
+ *    accompanies the executable.
+ *
+ *  * Redistributions must reproduce the above copyright notice, this list
+ *    of conditions and the following disclaimer in the documentation and/or
+ *    other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package jpsxdec.modules;
+
+import java.util.ArrayList;
+import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.i18n.exception.LoggedFailure;
+import jpsxdec.i18n.log.ILocalizedLogger;
+
+
+public class UnidentifiedSectorStreamListener implements IdentifiedSectorListener<IIdentifiedSector> {
+
+    public interface Listener {
+        void feedSector(@Nonnull CdSector sector);
+        void endOfUnidentified();
+    }
+
+    public static void attachToSectorClaimer(@Nonnull SectorClaimSystem scs, @Nonnull Listener listener) {
+        UnidentifiedSectorStreamListener thisListener = scs.getIdListener(UnidentifiedSectorStreamListener.class);
+        if (thisListener == null) {
+            thisListener = new UnidentifiedSectorStreamListener();
+            thisListener.addListener(listener);
+            scs.addIdListener(thisListener);
+        } else {
+            thisListener.addListener(listener);
+        }
+    }
+
+    private final ArrayList<Listener> _listeners = new ArrayList<Listener>();
+
+    private boolean _blnInUnidentified = false;
+
+    private void addListener(@Nonnull Listener newListener) {
+        for (Listener listener : _listeners) {
+            if (listener == newListener)
+                return; // already listening
+        }
+        _listeners.add(newListener);
+    }
+
+    @Override
+    public @Nonnull Class<IIdentifiedSector> getListeningFor() {
+        return IIdentifiedSector.class;
+    }
+
+    @Override
+    public void feedSector(@Nonnull IIdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
+        if (!(idSector instanceof UnidentifiedSector)) {
+            if (_blnInUnidentified) {
+                for (Listener listener : _listeners) {
+                    listener.endOfUnidentified();
+                }
+                _blnInUnidentified = false;
+            }
+        } else {
+            for (Listener listener : _listeners) {
+                listener.feedSector(idSector.getCdSector());
+            }
+            _blnInUnidentified = true;
+        }
+    }
+
+    @Override
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log)
+            throws LoggedFailure
+    {
+        for (Listener listener : _listeners) {
+            listener.endOfUnidentified();
+        }
+    }
+}

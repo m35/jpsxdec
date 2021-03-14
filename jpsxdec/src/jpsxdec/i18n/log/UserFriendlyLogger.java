@@ -75,9 +75,11 @@ public class UserFriendlyLogger implements ILocalizedLogger, Closeable {
     public static class WarnErrCounter implements OnWarnErr {
         private int _iWarnCount = 0;
         private int _iErrCount = 0;
+        @Override
         public void onWarn(@Nonnull ILocalizedMessage msg) {
             _iWarnCount++;
         }
+        @Override
         public void onErr(@Nonnull ILocalizedMessage msg) {
             _iErrCount++;
         }
@@ -136,9 +138,11 @@ public class UserFriendlyLogger implements ILocalizedLogger, Closeable {
         }
     }
 
+    @Override
     public void log(Level level, @Nonnull ILocalizedMessage msg) {
         log(level, msg, null);
     }
+    @Override
     public void log(Level level, @Nonnull ILocalizedMessage msg, @CheckForNull Throwable debugException) {
         msg.logEnglish(_javaLogger, level, debugException); // also log to normal logging
         if (_logStream == null)
@@ -195,6 +199,7 @@ public class UserFriendlyLogger implements ILocalizedLogger, Closeable {
         ps.println(_dateFormat.format(Calendar.getInstance().getTime()));
     }
 
+    @Override
     public void close() {
         if (_file != null)
             _logStream.close();

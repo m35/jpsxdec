@@ -51,7 +51,7 @@ public class SectorBasedVideoInfoBuilder {
 
     private final int _iStartSector;
     private int _iEndSector;
-    
+
     @Nonnull
     private final StrFrameRateCalc _fpsCalc;
     private final int _iFrame1PresentationSector;

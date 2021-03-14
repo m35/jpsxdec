@@ -198,48 +198,35 @@ public class STRv2 {
 /*110 */new AcVariableLengthCode("0000000000011111"  , 27, 1  )
     };
 
-    public STRv2() {
-    }
-
-    @BeforeClass
-    public static void setUpClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownClass() throws Exception {
-    }
-
-    @Before
-    public void setUp() {
-    }
-
-    @After
-    public void tearDown() {
-    }
-
-    static BitStreamWriter writeHeader(int iVersion)
+    static byte[] writeHeader(int iVersion, byte[] abBits)
             throws IOException
     {
-        BitStreamWriter bw = new BitStreamWriter();
-        IO.writeInt16LE(bw.exposeBuffer(), 1); // vlc count (ignored)
-        IO.writeInt16LE(bw.exposeBuffer(), 0x3800);
-        IO.writeInt16LE(bw.exposeBuffer(), 1); // qscale
-        IO.writeInt16LE(bw.exposeBuffer(), iVersion); // version
-        bw.setLittleEndian(true);
-        return bw;
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        IO.writeInt16LE(os, 1); // mdec count (ignored)
+        IO.writeInt16LE(os, 0x3800);
+        IO.writeInt16LE(os, 1); // qscale
+        IO.writeInt16LE(os, iVersion); // version
+        os.write(abBits);
+        return os.toByteArray();
     }
 
     @Test
     public void v2Dc() throws Exception {
         MdecCode code = new MdecCode();
         for (int i = -512; i < 512; i++) {
-            BitStreamWriter bw = writeHeader( 2);
+            BitStreamWriter bw = new BitStreamWriter();
             bw.write(i, 10);
+            bw.write("0111111111"); // padding bits
+            bw.write("0111111111"); // padding bits again
+            bw.write("1111111111"); // not padding bits again
 
-            byte[] ab = bw.toByteArray();
+            byte[] ab = writeHeader(2, bw.toByteArray(BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER));
             BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
             v2.readMdecCode(code); // DC
             assertEquals(new MdecCode(1, i), code);
+            assertTrue(v2.skipPaddingBits());
+            assertTrue(v2.skipPaddingBits());
+            assertFalse(v2.skipPaddingBits());
         }
 
     }
@@ -248,18 +235,24 @@ public class STRv2 {
     public void v2Ac() throws Exception {
         MdecCode code = new MdecCode();
         for (AcVariableLengthCode vlc : AC_VARIABLE_LENGTH_CODES_MPEG1) {
-            for (int i = 0; i < 1; i++) {
-                BitStreamWriter bw = writeHeader(2);
+            for (int i = 0; i < 2; i++) {
+                BitStreamWriter bw = new BitStreamWriter();
                 bw.write(1, 10);
                 bw.write(vlc.VariableLengthCode);
                 bw.write(i != 0);
+                bw.write("0111111111"); // padding bits
+                bw.write("1111111111"); // not padding bits
+                bw.write("0111111111"); // padding bits again
 
-                byte[] ab = bw.toByteArray();
+                byte[] ab = writeHeader(2, bw.toByteArray(BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER));
                 BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
                 v2.readMdecCode(code); // DC
                 assertEquals(new MdecCode(1, 1), code);
                 v2.readMdecCode(code); // AC
                 assertEquals(new MdecCode(vlc.RunOfZeros, i == 0 ? vlc.AbsoluteLevel : -vlc.AbsoluteLevel), code);
+                assertTrue(v2.skipPaddingBits());
+                assertFalse(v2.skipPaddingBits());
+                assertTrue(v2.skipPaddingBits());
             }
         }
 
@@ -270,31 +263,38 @@ public class STRv2 {
         MdecCode code = new MdecCode();
         for (int iRun = 0; iRun < 63; iRun++) {
             for (int iAc = -512; iAc < 512; iAc++) {
-                BitStreamWriter bw = writeHeader(2);
+                BitStreamWriter bw = new BitStreamWriter();
                 bw.write(1, 10);
                 bw.write(AC_ESCAPE_CODE);
                 bw.write(iRun, 6);
                 bw.write(iAc, 10);
+                bw.write("1111111111"); // not padding bits
+                bw.write("0111111111"); // padding bits
+                bw.write("0111111111"); // padding bits again
 
-                byte[] ab = bw.toByteArray();
+                byte[] ab = writeHeader(2, bw.toByteArray(BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER));
                 BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
                 v2.readMdecCode(code); // DC
                 assertEquals(new MdecCode(1, 1), code);
                 v2.readMdecCode(code); // AC
                 assertEquals(new MdecCode(iRun, iAc), code);
+                assertFalse(v2.skipPaddingBits());
+                assertTrue(v2.skipPaddingBits());
+                assertTrue(v2.skipPaddingBits());
             }
         }
     }
 
+    /** Added because initially the v2 logic didn't read these bits properly. */
     @Test
-    public void badCode14() throws Exception {
-        BitStreamWriter bw = writeHeader(2);
-        bw.write(1,  10); // DC
-        bw.write(14, 17); // Bad AC
+    public void badCode14bits() throws Exception {
+        BitStreamWriter bw = new BitStreamWriter();
+        bw.write("0000000001"); // DC
+        bw.write("00000000000001110"); // Bad 14-bit AC
+        byte[] ab = writeHeader(2, bw.toByteArray(BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER));
+        BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
 
         MdecCode code = new MdecCode();
-        byte[] ab = bw.toByteArray();
-        BitStreamUncompressor_STRv2 v2 = BitStreamUncompressor_STRv2.makeV2(ab);
         v2.readMdecCode(code); // DC
         assertEquals(new MdecCode(1, 1), code);
         try {
@@ -304,9 +304,5 @@ public class STRv2 {
             // expected fail
         }
     }
-
-
-
-
 
 }

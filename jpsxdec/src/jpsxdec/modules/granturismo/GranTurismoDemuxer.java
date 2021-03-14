@@ -67,6 +67,7 @@ public class GranTurismoDemuxer implements ISelfDemuxingVideoSector.IDemuxer {
                             log);
     }
 
+    @Override
     public boolean addSectorIfPartOfFrame(@Nonnull ISelfDemuxingVideoSector sector) {
         if (!(sector instanceof SectorGTVideo))
             return false;
@@ -75,24 +76,26 @@ public class GranTurismoDemuxer implements ISelfDemuxingVideoSector.IDemuxer {
 
     public boolean addGTSectorIfPartOfFrame(@Nonnull SectorGTVideo chunk) {
         return _bldr.addSectorIfPartOfFrame(chunk,
-                chunk.getChunkNumber(), chunk.getChunksInFrame(), 
+                chunk.getChunkNumber(), chunk.getChunksInFrame(),
                 chunk.getSectorNumber(), chunk.getHeaderFrameNumber());
     }
 
+    @Override
     public boolean isFrameComplete() {
         return _bldr.isFrameComplete();
     }
 
     /** Returns null if the sector data somehow didn't contain a recognizable frame.
      * Discard this object after this function is called. */
+    @Override
     public @CheckForNull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log) {
         List<SectorGTVideo> sectors = _bldr.getNonNullChunks(log);
         DemuxedData<SectorGTVideo> demux = new DemuxedData<SectorGTVideo>(sectors);
         byte[] abBitstream = demux.copyDemuxData();
         // extract the frame dimensions from the iki bitstream header
-        BitStreamUncompressor_Iki.IkiHeader header = 
-                new BitStreamUncompressor_Iki.IkiHeader(abBitstream, abBitstream.length);
-        if (!header.isValid()) {
+        BitStreamUncompressor_Iki.IkiHeader header =
+                BitStreamUncompressor_Iki.makeIkiHeader(abBitstream, abBitstream.length);
+        if (header == null) {
             LOG.log(Level.WARNING, "Invalid GT header frame {0}", _bldr.getHeaderFrameNumber());
             return null;
         } else {

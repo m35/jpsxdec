@@ -117,9 +117,9 @@ public abstract class MdecException  {
     }
 
     // =========================================================
-    
+
     /** Exception thrown during encoding when the source mdec stream contains
-     * too much energy to compress with that particular encoder. 
+     * too much energy to compress with that particular encoder.
      * "Too much energy" may seem like a weird way to describe it, but
      * is accurate given the nature of the DCT and working in the frequency domain.
      */

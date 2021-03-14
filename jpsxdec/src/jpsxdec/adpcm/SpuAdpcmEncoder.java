@@ -71,6 +71,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
 
         private LogContext() {}
 
+        @Override
         public @Nonnull LogContext copy() {
             LogContext cpy = new LogContext();
             cpy.lngSampleFramesReadEncoded = lngSampleFramesReadEncoded;
@@ -105,6 +106,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
         return _audioShortReader.isEof();
     }
 
+    @Override
     public void close() throws IOException {
         _audioShortReader.close();
     }
@@ -112,7 +114,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
     public long getSampleFramesReadAndEncoded() {
         return _logContext.lngSampleFramesReadEncoded;
     }
-    
+
     /** Manually provide the filter and range parameters for every Sound Unit
      *  via a stream of bytes. Primarily for development/testing purposes. */
     public void setPresetParameters(@CheckForNull InputStream presetParameters) {
@@ -128,6 +130,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
                 throw new IncompatibleException();
         }
 
+        @Override
         public boolean isStereo() {
             return false;
         }
@@ -141,7 +144,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
             short[][] aasiPcmSoundUnitChannelSamples =
                     _audioShortReader.readSoundUnitSamples(SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
 
-            encode1SoundUnitChannel(_leftOrMonoEncoder, aasiPcmSoundUnitChannelSamples[0], 
+            encode1SoundUnitChannel(_leftOrMonoEncoder, aasiPcmSoundUnitChannelSamples[0],
                                     bFlagBits, spuOutputStream);
             return true;
         }
@@ -163,6 +166,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
             _rightChannel = new SoundUnitEncoder(4, K0K1Filter.SPU);
         }
 
+        @Override
         public boolean isStereo() {
             return true;
         }

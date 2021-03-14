@@ -1455,8 +1455,8 @@ Status
 [ ]  SLUS-00884  Star Wars - Episode I - The Phantom Menace
 [ ]  SLUS-80884  Star Wars - Episode I - The Phantom Menance [Demo - Trade]
 [ ]  SLUS-00562  Star Wars - Masters of Teras Kasi
-[!]  SLUS-00381  Star Wars - Rebel Assault II [Disc1of2]
-[!]  SLUS-00386  Star Wars - Rebel Assault II [Disc2of2]
+[+]  SLUS-00381  Star Wars - Rebel Assault II [Disc1of2]
+[+]  SLUS-00386  Star Wars - Rebel Assault II [Disc2of2]
 [+]  SLUS-00057  Starblade Alpha
 [ ]  SLUS-01302  Starfighter Sanvein
 [ ]  SLUS-00094  Starwinder - The Ultimate Space Race
@@ -7590,7 +7590,7 @@ Status
 [ ]  SLPM-87018  Palm Town [MajorWave 1500 Series]
 [ ]  SLPM-80030  Pandora Project
 [ ]  SLPS-00347  Pandora Project - The Logic Master
-[ ]  SCPS-10096  Panekit - Infinitive Crafting Case
+[+]  SCPS-10096  Panekit - Infinitive Crafting Toy Case
 [ ]  SLPS-01162  Panel Quiz Attack 25
 [ ]  SLPM-86276  Pangaea [SuperLite 1500 Series]
 [ ]  SLPS-00899  Panzer Bandit

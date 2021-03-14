@@ -75,7 +75,7 @@ public class RgbIntImage {
     public int getWidth() { return _iWidth; }
     public int getHeight() { return _iHeight; }
     public @Nonnull int[] getData() { return _aiData; }
-    
+
     public int get(int x, int y) {
         return _aiData[x + y * _iWidth];
     }
@@ -103,7 +103,7 @@ public class RgbIntImage {
         for (int i = 0; i < aiData.length; i++) {
             aiData[i] = rand.nextInt();
         }
-        
+
         BufferedImage bi = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
         long lngStart, lngEnd;
         lngStart = System.currentTimeMillis();
@@ -114,7 +114,7 @@ public class RgbIntImage {
         System.out.println("BufferedImage.setRGB(): " + (lngEnd - lngStart));
         if (!ImageIO.write(bi, "png", new File("test-bi-setrgb."+FMT)))
             System.out.println("Failed to write test-bi-setrgb."+FMT);
-        
+
         lngStart = System.currentTimeMillis();
         for (int i = 0; i < ITERATIONS; i++) {
             bi.getRaster().setDataElements(0, 0, WIDTH, HEIGHT, aiData);
@@ -123,7 +123,7 @@ public class RgbIntImage {
         System.out.println("Raster.setDataElements(): " + (lngEnd - lngStart));
         if (!ImageIO.write(bi, "png", new File("test-ras-setelm."+FMT)))
             System.out.println("Failed to write test-ras-setelm."+FMT);
-        
+
         lngStart = System.currentTimeMillis();
         for (int i = 0; i < ITERATIONS; i++) {
             int[] aiBi = ((DataBufferInt)bi.getRaster().getDataBuffer()).getData();

@@ -49,9 +49,10 @@ import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
-import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IO;
 
@@ -64,7 +65,7 @@ import jpsxdec.util.IO;
 public abstract class SectorFF9 extends IdentifiedSector {
 
     private static final Logger LOG = Logger.getLogger(SectorFF9.class.getName());
-        
+
     protected long _lngMagic;              //  0    [4 bytes]
     protected int  _iChunkNumber;          //  4    [2 bytes]
     protected int  _iChunksInThisFrame;    //  6    [2 bytes]
@@ -83,7 +84,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         _lngMagic = cdSector.readUInt32LE(0);
         // make sure the magic nubmer is correct
         if (_lngMagic != iMagicNumber) return;
-        
+
         _iChunkNumber = cdSector.readSInt16LE(4);
         if (_iChunkNumber < 0) return;
         _iChunksInThisFrame = cdSector.readSInt16LE(6);
@@ -139,6 +140,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
         private long _lngFourBytes;          //  28   [4 bytes] usually zero
         //   32 TOTAL
 
+        @Override
         public int getVideoSectorHeaderSize() { return 32; }
 
         public SectorFF9Video(@Nonnull CdSector cdSector) {
@@ -213,49 +215,53 @@ public abstract class SectorFF9 extends IdentifiedSector {
             return _iHeight;
         }
 
+        @Override
         public @Nonnull FF9Demuxer createDemuxer(@Nonnull ILocalizedLogger log) {
             return new FF9Demuxer(this, log);
         }
 
+        @Override
         public int getDemuxPieceSize() {
             return getCdSector().getCdUserDataSize() - getVideoSectorHeaderSize();
         }
 
+        @Override
         public byte getDemuxPieceByte(int i) {
             return getCdSector().readUserDataByte(getVideoSectorHeaderSize() + i);
         }
 
+        @Override
         public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
             getCdSector().getCdUserDataCopy(getVideoSectorHeaderSize(), abOut,
                     iOutPos, getDemuxPieceSize());
         }
-        
+
+        @Override
         public @Nonnull String getTypeName() {
             return "FF9Video";
         }
 
-        public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                             int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+        @Override
+        public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                             @Nonnull BitStreamAnalysis newFrame,
+                                             @Nonnull byte[] abCurrentVidSectorHeader)
                 throws LocalizedIncompatibleException
         {
-            BitStreamUncompressor_STRv2.StrV2Header header =
-                    new BitStreamUncompressor_STRv2.StrV2Header(abNewDemuxData, iNewUsedSize);
-            if (!header.isValid())
+            if (!newFrame.isBitStreamClass(BitStreamUncompressor_STRv2.class))
                 throw new LocalizedIncompatibleException(I.REPLACE_FRAME_TYPE_NOT_V2());
 
-            int iDemuxSizeForHeader = (iNewUsedSize + 3) & ~3;
+            int iQscale = newFrame.getFrameQuantizationScale();
 
-            IO.writeInt32LE(abCurrentVidSectorHeader, 12, iDemuxSizeForHeader / 4);
-            IO.writeInt16LE(abCurrentVidSectorHeader, 20,
-                    Calc.calculateHalfCeiling32(iNewMdecCodeCount));
-            IO.writeInt16LE(abCurrentVidSectorHeader, 24, (short)(header.getQuantizationScale()));
+            IO.writeInt32LE(abCurrentVidSectorHeader, 12, newFrame.calculateUsedBytesRoundUp4() / 4);
+            IO.writeInt16LE(abCurrentVidSectorHeader, 20, newFrame.calculateMdecHalfCeiling32());
+            IO.writeInt16LE(abCurrentVidSectorHeader, 24, (short)iQscale);
         }
 
     }
 
     /**************************************************************************/
     /**************************************************************************/
-    
+
     /** Final Fantasy 9 audio sector. */
     public static class SectorFF9Audio
             extends SectorFF9
@@ -285,10 +291,10 @@ public abstract class SectorFF9 extends IdentifiedSector {
         public SectorFF9Audio(@Nonnull CdSector cdSector) {
             super(cdSector, FF9_AUDIO_CHUNK_MAGIC);
             if (isSuperInvalidElseReset()) return;
-            
+
             _akaoStruct = new SquareAKAOstruct(cdSector, 128);
 
-            if (_akaoStruct.AKAO != SquareAKAOstruct.AKAO_ID || 
+            if (_akaoStruct.AKAO != SquareAKAOstruct.AKAO_ID ||
                 _akaoStruct.BytesOfData == 0)
             {
                 // this means there's no audio data in this sector
@@ -299,7 +305,7 @@ public abstract class SectorFF9 extends IdentifiedSector {
                 setProbability(100);
                 return;
             }
-            
+
             if (_akaoStruct.BytesOfData > CdSector.SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1 - FRAME_AUDIO_CHUNK_HEADER_SIZE)
                 return;
             _iAudioDataSize = (int) _akaoStruct.BytesOfData;
@@ -320,31 +326,38 @@ public abstract class SectorFF9 extends IdentifiedSector {
             setProbability(100);
         }
 
+        @Override
         public @Nonnull String getTypeName() {
             return "FF9Audio";
         }
 
+        @Override
         public int getAudioDataStartOffset() {
             return FRAME_AUDIO_CHUNK_HEADER_SIZE;
         }
 
+        @Override
         public int getAudioDataSize() {
             return _iAudioDataSize;
         }
 
+        @Override
         public int getSoundUnitCount() {
             return getAudioDataSize() / SpuAdpcmSoundUnit.SIZEOF_SOUND_UNIT;
         }
 
+        @Override
         public int getSampleFramesPerSecond() {
             return _iSampleFramesPerSecond;
         }
 
+        @Override
         public @Nonnull ByteArrayFPIS getIdentifiedUserDataStream() {
             return new ByteArrayFPIS(getCdSector().getCdUserDataStream(),
                     getAudioDataStartOffset(), getAudioDataSize());
         }
 
+        @Override
         public boolean isLeftChannel() {
             switch (_iChunkNumber) {
                 case 0: return true;

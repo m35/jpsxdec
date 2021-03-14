@@ -150,7 +150,7 @@ class FrameNumberNumber {
         if (iMinorDigits == 0 && iMinorValue == 0) {
             return sMajor;
         } else {
-            return sMajor + Misc.intToPadded0String(iMinorValue, iMinorDigits);
+            return sMajor + "." + Misc.intToPadded0String(iMinorValue, iMinorDigits);
         }
     }
 
@@ -208,7 +208,7 @@ class FrameNumberNumber {
             }
         }
 
-        
+
         private final int _iStartFrameValue;
         private final int _iEndFrameValue;
         private final int _iEndDuplicate;
@@ -291,7 +291,7 @@ class FrameNumberNumber {
         public @Nonnull FrameNumberNumber next(int iFrameValue) {
             if (iFrameValue < 0)
                 throw new IllegalArgumentException();
-            
+
             if (iFrameValue == _iPrevFrameValue) {
                 _iDuplicateValue++;
             } else {

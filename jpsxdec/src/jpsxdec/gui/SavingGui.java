@@ -54,7 +54,7 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
     @Nonnull
     private SavingGuiTask _saveAll;
 
-    public SavingGui(@Nonnull java.awt.Dialog parent, 
+    public SavingGui(@Nonnull java.awt.Dialog parent,
                      @Nonnull List<DiscItemSaverBuilder> builders,
                      @Nonnull String sCd, @CheckForNull File outputDir)
     {
@@ -98,6 +98,7 @@ public class SavingGui extends javax.swing.JDialog implements PropertyChangeList
         Ended;
     }
 
+    @Override
     public void propertyChange(@Nonnull PropertyChangeEvent evt) {
         if (SavingGuiTask.ALL_DONE.equals(evt.getPropertyName())) {
             _eState = STATES.Ended;

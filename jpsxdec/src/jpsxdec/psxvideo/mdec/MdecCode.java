@@ -187,6 +187,7 @@ public class MdecCode implements Comparable<MdecCode> {
             return s;
     }
 
+    @Override
     public int compareTo(MdecCode o) {
         int i = Misc.intCompare(_iTop6Bits, o._iTop6Bits);
         if (i != 0)

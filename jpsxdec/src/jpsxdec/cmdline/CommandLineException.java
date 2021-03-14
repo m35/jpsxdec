@@ -44,7 +44,7 @@ import jpsxdec.i18n.exception.LocalizedException;
 
 
 public class CommandLineException extends LocalizedException {
-    
+
     public CommandLineException(@Nonnull ILocalizedMessage msg) {
         super(msg);
     }

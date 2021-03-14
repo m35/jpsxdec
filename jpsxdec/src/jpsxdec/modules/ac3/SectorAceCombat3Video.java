@@ -41,11 +41,13 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSectorXaSubHeader;
 import jpsxdec.modules.IdentifiedSector;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.DemuxedData;
 
 /** Represents a video sector from the game Ace Combat 3 Electrosphere. */
-public class SectorAceCombat3Video extends IdentifiedSector 
+public class SectorAceCombat3Video extends IdentifiedSector
         implements DemuxedData.Piece, SectorBasedFrameReplace.IReplaceableVideoSector
 {
 
@@ -61,6 +63,7 @@ public class SectorAceCombat3Video extends IdentifiedSector
     private long _lngUnknown2;         // 16 [8 bytes]
     private long _lngUnknown3;         // 24 [8 bytes]
 
+    @Override
     public int getVideoSectorHeaderSize() { return 32; }
 
 
@@ -84,20 +87,21 @@ public class SectorAceCombat3Video extends IdentifiedSector
 
         _iWidth = cdSector.readSInt16LE(8);
         _iHeight = cdSector.readSInt16LE(10);
-        if (!((_iWidth == 304 && _iHeight == 224) || 
+        if (!((_iWidth == 304 && _iHeight == 224) ||
               (_iWidth == 320 && _iHeight == 176) ||
               (_iWidth == 128 && _iHeight == 96 )))
             return;
 
         if (cdSector.readSInt32BE(12) != 0)
             return;
-        
+
         _lngUnknown2 = cdSector.readSInt64BE(16);
         _lngUnknown3 = cdSector.readSInt64BE(24);
 
         setProbability(100);
     }
 
+    @Override
     public @Nonnull String getTypeName() {
         return "AC3";
     }
@@ -128,14 +132,17 @@ public class SectorAceCombat3Video extends IdentifiedSector
         return sh.getChannel();
     }
 
+    @Override
     public int getDemuxPieceSize() {
         return getCdSector().getCdUserDataSize() - getVideoSectorHeaderSize();
     }
 
+    @Override
     public byte getDemuxPieceByte(int i) {
         return getCdSector().readUserDataByte(getVideoSectorHeaderSize() + i);
     }
 
+    @Override
     public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
         getCdSector().getCdUserDataCopy(getVideoSectorHeaderSize(), abOut,
                 iOutPos, getDemuxPieceSize());
@@ -157,8 +164,10 @@ public class SectorAceCombat3Video extends IdentifiedSector
             );
     }
 
-    public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                         int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+    @Override
+    public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                         @Nonnull BitStreamAnalysis newFrame,
+                                         @Nonnull byte[] abCurrentVidSectorHeader)
     {
         // I was unable to identify any correlation between the AC3 sector
         // headers and the frame data they contain (except dimensions),

@@ -74,6 +74,7 @@ public abstract class ParagraphPanel extends JPanel {
             add(__chk);
             __chk.setModel(null);
         }
+        @Override
         public void stateChanged(ChangeEvent e) {
             if (__chk.getModel() == null)
                 __chk.setModel(this);
@@ -112,6 +113,7 @@ public abstract class ParagraphPanel extends JPanel {
             else
                 add(__combo);
         }
+        @Override
         public void stateChanged(@Nonnull ChangeEvent e) {
             Object o;
             if (!__cur.equals(o = getSelectedItem())) {
@@ -127,9 +129,13 @@ public abstract class ParagraphPanel extends JPanel {
             if (bln != __combo.isEnabled())
                 __combo.setEnabled(bln);
         }
+        @Override
         abstract public int getSize();
+        @Override
         abstract public Object getElementAt(int index);
+        @Override
         abstract public void setSelectedItem(Object anItem);
+        @Override
         abstract public Object getSelectedItem();
         abstract protected boolean getEnabled();
     }
@@ -148,6 +154,7 @@ public abstract class ParagraphPanel extends JPanel {
             add(__name);
             add(__combo);
         }
+        @Override
         public void stateChanged(ChangeEvent e) {
             if (__cur != getSelectedItem()) {
                 __cur = getSelectedItem();
@@ -155,9 +162,13 @@ public abstract class ParagraphPanel extends JPanel {
             }
             __name.setText(getBaseName());
         }
+        @Override
         abstract public int getSize();
+        @Override
         abstract public Object getElementAt(int index);
+        @Override
         abstract public void setSelectedItem(Object anItem);
+        @Override
         abstract public Object getSelectedItem();
         abstract public String getBaseName();
     }

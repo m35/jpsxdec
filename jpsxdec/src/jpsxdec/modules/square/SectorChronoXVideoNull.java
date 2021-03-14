@@ -41,11 +41,12 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSectorXaSubHeader.SubMode;
 import jpsxdec.modules.IdentifiedSector;
+import jpsxdec.modules.strvideo.GenericStrVideoSector;
 
 
 /** This is the header for Chrono Cross 'null' video sectors. */
 public class SectorChronoXVideoNull extends IdentifiedSector {
-    
+
     private long _lngMagic;
     private int _iChunkNumber;
     private int _iChunksInThisFrame;
@@ -60,10 +61,10 @@ public class SectorChronoXVideoNull extends IdentifiedSector {
         // only if it has a sector header should we check if it reports DATA or VIDEO
         if (subModeExistsAndMaskEquals(SubMode.MASK_DATA | SubMode.MASK_VIDEO, 0))
             return;
-        
+
         _lngMagic = cdSector.readUInt32LE(0);
-        if (_lngMagic != SectorChronoXVideo.CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
-            _lngMagic != SectorChronoXVideo.CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
+        if (_lngMagic != GenericStrVideoSector.ChronoXHeader.CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 &&
+            _lngMagic != GenericStrVideoSector.ChronoXHeader.CHRONO_CROSS_VIDEO_CHUNK_MAGIC2)
             return;
 
         _iChunkNumber = cdSector.readSInt16LE(4);
@@ -82,6 +83,7 @@ public class SectorChronoXVideoNull extends IdentifiedSector {
 
     // .. Public functions .................................................
 
+    @Override
     public @Nonnull String getTypeName() {
         return "CX Video Null";
     }

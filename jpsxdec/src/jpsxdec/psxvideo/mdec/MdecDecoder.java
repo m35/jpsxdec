@@ -44,7 +44,7 @@ import javax.annotation.Nonnull;
 public abstract class MdecDecoder {
 
     public static boolean DEBUG = false;
-    
+
     protected static boolean debugPrintln(String s) {
         System.out.println(s);
         return true;
@@ -65,7 +65,7 @@ public abstract class MdecDecoder {
     protected final int[] _aiChromaMacBlkOfsLookup;
 
     protected final int[] _aiQuantizationTable;
-    
+
     protected final int[] _aiDebugPreqantBlock;
 
     protected MdecDecoder(int iWidth, int iHeight) {
@@ -100,26 +100,26 @@ public abstract class MdecDecoder {
                 iMbIdx++;
             }
         }
-        
+
         boolean blnAssertsEnabled = false;
         assert blnAssertsEnabled = true;
-        
+
         if (blnAssertsEnabled && DEBUG)
             _aiDebugPreqantBlock = new int[64];
         else
             _aiDebugPreqantBlock = null;
     }
-    
+
     protected boolean clearPrequantTable() {
         Arrays.fill(_aiDebugPreqantBlock, 0);
         return true;
     }
-    
+
     protected boolean setPrequantValue(int iPos, int iVal) {
         _aiDebugPreqantBlock[iPos] = iVal;
         return true;
     }
-    
+
     protected boolean debugPrintPrequantBlock() {
         System.out.println("Pre-dequantization block");
         for (int i = 0; i < 8; i++) {
@@ -137,7 +137,7 @@ public abstract class MdecDecoder {
      *  PSX YCbCr buffer. */
     abstract public void decode(@Nonnull MdecInputStream mdecStream)
             throws MdecException.EndOfStream, MdecException.ReadCorruption;
-    
+
     /** Retrieve the contents of the internal PSX YCbCr buffer converted to RGB. */
     abstract public void readDecodedRgb(int iDestWidth, int iDestHeight, @Nonnull int[] aiDest,
                                         int iOutStart, int iOutStride);

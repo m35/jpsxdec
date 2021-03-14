@@ -45,7 +45,7 @@ import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.util.Fraction;
 
-/** 
+/**
  * Primary public interface to controlling a player.
  *
  * Start by creating an instance, specifying the video dimensions or
@@ -79,7 +79,7 @@ public class PlayController {
     private final VideoProcessor _videoProcessorThread;
     @Nonnull
     private final ReaderThread _readerThread;
-    
+
 
     public PlayController(@Nonnull AudioFormat audioFormat) {
         _audPlayer = new AudioPlayer(audioFormat);
@@ -174,7 +174,7 @@ public class PlayController {
         return (_vidPlayer != null);
     }
 
-    /** 
+    /**
      * Only available if playing video.
      */
     public @CheckForNull Canvas getVideoScreen() {
@@ -200,7 +200,7 @@ public class PlayController {
             return null;
     }
 
-    /** 
+    /**
      * Should only be called by the {@link IMediaDataReader}.
      * Write completed frames to this writer.
      */
@@ -208,7 +208,7 @@ public class PlayController {
         return _videoProcessorThread;
     }
 
-    /** 
+    /**
      * Adjust the rendered frame with this aspect ratio.
      */
     public void setAspectRatio(@Nonnull Fraction aspectRatio) {
@@ -216,7 +216,7 @@ public class PlayController {
             _vidPlayer.getScreen().setAspectRatio(aspectRatio);
     }
 
-    /** 
+    /**
      * This is jPSXdec specific, can ignore.
      * @see VideoScreen#setSquashWidth(boolean)
      */

@@ -44,18 +44,13 @@ import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.aconcagua.SectorAconcaguaVideo;
 import jpsxdec.modules.granturismo.SectorGTVideo;
-import jpsxdec.modules.square.SectorChronoXVideo;
 import jpsxdec.modules.square.SectorChronoXVideoNull;
 import jpsxdec.modules.square.SectorFF8;
 import jpsxdec.modules.square.SectorFF9;
+import jpsxdec.modules.strvideo.GenericStrVideoSector;
 import jpsxdec.modules.strvideo.SectorAliceNullVideo;
 import jpsxdec.modules.strvideo.SectorAliceVideo;
-import jpsxdec.modules.strvideo.SectorFF7Video;
-import jpsxdec.modules.strvideo.SectorIkiVideo;
-import jpsxdec.modules.strvideo.SectorLainVideo;
-import jpsxdec.modules.strvideo.SectorReBoot;
 import jpsxdec.modules.strvideo.SectorStarbladeAlphaGalaxian3;
-import jpsxdec.modules.strvideo.SectorStrVideo;
 
 /** Shared place for all modules to register order sensitive
  *  video sector identification, and related sector types. */
@@ -71,16 +66,14 @@ public class VideoSectorIdentifier {
         CdSector cdSector = cs.getSector();
         ISelfDemuxingVideoSector vid;
 
-        if ((vid = isVideo(new SectorStrVideo(cdSector), cs)) != null) return vid;
         if ((vid = isVideo(new SectorFF8.SectorFF8Video(cdSector), cs)) != null) return vid;
         if ((vid = isVideo(new SectorFF9.SectorFF9Video(cdSector), cs)) != null) return vid;
-        if ((vid = isVideo(new SectorIkiVideo(cdSector), cs)) != null) return vid;
         if ((vid = isVideo(new SectorGTVideo(cdSector), cs)) != null) return vid;
-        if ((vid = isVideo(new SectorChronoXVideo(cdSector), cs)) != null) return vid;
         if ((vid = isVideo(new SectorAconcaguaVideo(cdSector), cs)) != null) return vid;
         if ((vid = isVideo(new SectorStarbladeAlphaGalaxian3(cdSector), cs)) != null) return vid;
         if (isMatch(new SectorChronoXVideoNull(cdSector), cs)) return null;
-        if ((vid = isVideo(new SectorLainVideo(cdSector), cs)) != null) return vid;
+
+        if ((vid = isVideo(new GenericStrVideoSector(cdSector), cs)) != null) return vid;
 
         // special handling for Alice
         SectorAliceNullVideo an;
@@ -89,12 +82,6 @@ public class VideoSectorIdentifier {
             cs.claim(an);
             return null;
         }
-
-        if ((vid = isVideo(new SectorReBoot(cdSector), cs)) != null) return vid;
-
-        // FF7 has such a vague header, it can easily be falsely identified
-        // when it should be one of the headers above
-        if ((vid = isVideo(new SectorFF7Video(cdSector), cs)) != null) return vid;
 
         return null;
     }

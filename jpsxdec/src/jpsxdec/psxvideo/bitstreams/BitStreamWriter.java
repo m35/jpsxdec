@@ -45,11 +45,10 @@ import javax.annotation.Nonnull;
 public class BitStreamWriter {
 
     private final ByteArrayOutputStream _buffer = new ByteArrayOutputStream();
-    private int _iNextWordWrite = 0;
+    private int _iNextByteWrite = 0;
     private int _iBitIndex = 0;
-    private boolean _blnIsBigEndian = true;
 
-    /** Write a string of bits. 
+    /** Write a string of bits.
      * @param s  String consisting of '1' or '0'.
      * @throws IllegalArgumentException if string contains anything besides '1' or '0'.
      */
@@ -68,13 +67,15 @@ public class BitStreamWriter {
 
     /** Write one bit */
     public void write(boolean blnBit) {
-        _iNextWordWrite <<= 1;
+        _iNextByteWrite <<= 1;
         if (blnBit) {
-            _iNextWordWrite |= 1;
+            _iNextByteWrite |= 1;
         }
         _iBitIndex++;
-        if (_iBitIndex == 16) {
-            write();
+        if (_iBitIndex == 8) {
+            _buffer.write(_iNextByteWrite);
+            _iNextByteWrite = 0;
+            _iBitIndex = 0;
         }
     }
 
@@ -86,60 +87,37 @@ public class BitStreamWriter {
         }
     }
 
-    /** Write the buffered 16 bits as big-endian or little-endian. */
-    private void write() {
-        if (_blnIsBigEndian) {
-            _buffer.write((_iNextWordWrite >>> 8) & 255);
-            _buffer.write(_iNextWordWrite & 255);
-        } else {
-            _buffer.write(_iNextWordWrite & 255);
-            _buffer.write((_iNextWordWrite >>> 8) & 255);
-        }
-        _iBitIndex = 0;
-        _iNextWordWrite = 0;
-    }
-
-    public void setBigEndian(boolean bln) {
-        _blnIsBigEndian = bln;
-    }
-
-    public void setLittleEndian(boolean bln) {
-        _blnIsBigEndian = !bln;
-    }
-
     /** Returns the bytes generated from the written bits.
      * The stream position moves to the end of any partially complete word,
      * setting remaining bits to 0. */
-    public @Nonnull byte[] toByteArray() {
+    public @Nonnull byte[] toByteArray(@Nonnull IByteOrder byteOrder) {
         // flush
         if (_iBitIndex != 0) {
-            _iNextWordWrite <<= 16 - _iBitIndex;
-            write();
+            _iNextByteWrite <<= 8 - _iBitIndex;
+            _buffer.write(_iNextByteWrite);
         }
-        return _buffer.toByteArray();
+
+        byte[] abBytes = _buffer.toByteArray();
+        int iSize = abBytes.length;
+        if (iSize % 2 != 0) {
+            iSize++;
+        }
+        byte[] abMappedBytes = new byte[iSize];
+        for (int i = 0; i < abBytes.length; i++) {
+            abMappedBytes[byteOrder.getByteOffset(i)] = abBytes[i];
+        }
+        return abMappedBytes;
     }
 
     /** Resets the writer to as if it was just created. */
     public void reset() {
         _buffer.reset();
-        _iNextWordWrite = 0;
+        _iNextByteWrite = 0;
         _iBitIndex = 0;
     }
 
-    /** Returns the start position of the current word being written.
-     * This is pretty size to the size of the written bits, in bytes.
-     * To get the actual size in bytes, complete the stream by calling
-     * {@link #toByteArray()}  */
-    public int getCurrentWordPosition() {
-        return _buffer.size();
+    public int getBitsWritten() {
+        return _buffer.size() + _iBitIndex;
     }
 
-    /** Exposes underlying buffer in case bytes need to be written.
-     * @throws IllegalStateException if current write position is not 
-     *                               on a word boundary. */
-    public @Nonnull ByteArrayOutputStream exposeBuffer() {
-        if (_iBitIndex != 0)
-            throw new IllegalStateException();
-        return _buffer;
-    }
 }

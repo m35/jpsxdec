@@ -52,7 +52,7 @@ import jpsxdec.indexing.DiscIndex;
 import jpsxdec.indexing.DiscIndexer;
 import jpsxdec.modules.CdSectorDemuxPiece;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.SectorClaimToUnidentifiedSector;
+import jpsxdec.modules.UnidentifiedSectorStreamListener;
 import jpsxdec.tim.Tim;
 import jpsxdec.tim.TimInfo;
 import jpsxdec.util.DemuxPushInputStream;
@@ -60,7 +60,7 @@ import jpsxdec.util.DemuxedData;
 import jpsxdec.util.IO;
 
 /** Searches for TIM images. */
-public class DiscIndexerTim extends DiscIndexer implements SectorClaimToUnidentifiedSector.Listener {
+public class DiscIndexerTim extends DiscIndexer implements UnidentifiedSectorStreamListener.Listener {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerTim.class.getName());
 
@@ -75,13 +75,13 @@ public class DiscIndexerTim extends DiscIndexer implements SectorClaimToUnidenti
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToUnidentifiedSector s2us = scs.getClaimer(SectorClaimToUnidentifiedSector.class);
-        s2us.addListener(this);
+        UnidentifiedSectorStreamListener.attachToSectorClaimer(scs, this);
     }
 
     @CheckForNull
     private DemuxPushInputStream<CdSectorDemuxPiece> _stream;
 
+    @Override
     public void feedSector(@Nonnull CdSector sector) {
         CdSectorDemuxPiece piece = new CdSectorDemuxPiece(sector);
         if (_stream == null)
@@ -91,6 +91,7 @@ public class DiscIndexerTim extends DiscIndexer implements SectorClaimToUnidenti
         findTims();
     }
 
+    @Override
     public void endOfUnidentified() {
         exhaustStream();
     }

@@ -54,6 +54,7 @@ public class SectorCdAudio extends IdentifiedSector {
         setProbability(100);
     }
 
+    @Override
     public @Nonnull String getTypeName() {
         return "CD Audio";
     }

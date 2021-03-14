@@ -61,20 +61,20 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  * Creates AVI files with audio and video without the need for JMF.
  * Subclasses should take care of codec handling. Note that this cannot
  * create AVI files larger than 4GB.
- * <p> 
- * This code is originally based on (but now hardly resembles) the 
+ * <p>
+ * This code is originally based on (but now hardly resembles) the
  * <a href="http://rsb.info.nih.gov/ij">ImageJ</a> program.
  * <blockquote>
- *      ImageJ is being developed at the National Institutes of Health by an 
- *      employee of the Federal Government in the course of his official duties. 
- *      Pursuant to Title 17, Section 105 of the United States Code, this software 
- *      is not subject to copyright protection and is in the public domain. 
- *      ImageJ is an experimental system. NIH assumes no responsibility whatsoever 
- *      for its use by other parties, and makes no guarantees, expressed or implied, 
- *      about its quality, reliability, or any other characteristic. 
+ *      ImageJ is being developed at the National Institutes of Health by an
+ *      employee of the Federal Government in the course of his official duties.
+ *      Pursuant to Title 17, Section 105 of the United States Code, this software
+ *      is not subject to copyright protection and is in the public domain.
+ *      ImageJ is an experimental system. NIH assumes no responsibility whatsoever
+ *      for its use by other parties, and makes no guarantees, expressed or implied,
+ *      about its quality, reliability, or any other characteristic.
  * </blockquote>
  * The ImageJ AviWriter class was based on the FileAvi class written by
- * William Gandler. That FileAvi class is part of Matthew J. McAuliffe's 
+ * William Gandler. That FileAvi class is part of Matthew J. McAuliffe's
  * <a href="http://mipav.cit.nih.gov/">MIPAV</a> program, which also
  * appears to be in the public domain.
  * <p>
@@ -98,12 +98,12 @@ public abstract class AviWriter implements Closeable {
 
     @Nonnull
     private final File _outputFile;
-    
+
     /** Width of the frame in pixels. */
     private final int _iWidth;
     /** Height of the frame in pixels. */
     private final int _iHeight;
-    
+
     /** Numerator of the frames/second fraction. */
     private final long _lngFpsNumerator;
     /** Denominator of the frames/second fraction. */
@@ -131,7 +131,7 @@ public abstract class AviWriter implements Closeable {
     // -------------------------------------------------------------------------
     // -- Properties -----------------------------------------------------------
     // -------------------------------------------------------------------------
-    
+
     public @Nonnull File getFile() {
         return _outputFile;
     }
@@ -181,7 +181,7 @@ public abstract class AviWriter implements Closeable {
 
     @CheckForNull
     private RandomAccessFile _aviFile;
-    
+
     private Chunk _RIFF_chunk;
     private     Chunk _LIST_hdr1;
     private         AVIMAINHEADER _avih;
@@ -205,16 +205,16 @@ public abstract class AviWriter implements Closeable {
                 //LIST_movi
     private     AVIOLDINDEX avioldidx;
             //RIFF_chunk
-    
+
     /** Holds the 'idx' section index data. */
     @Nonnull
     private ArrayList<AVIOLDINDEXENTRY> _indexList;
-    
-    
+
+
     // -------------------------------------------------------------------------
     // -- Constructors ---------------------------------------------------------
     // -------------------------------------------------------------------------
-    
+
     /** Audio data must be signed 16-bit PCM in little-endian order. */
     protected AviWriter(final @Nonnull File outputfile,
                         final int iWidth, final int iHeight,
@@ -267,16 +267,16 @@ public abstract class AviWriter implements Closeable {
         _aviFile.setLength(0); // trim the file to 0
 
         //----------------------------------------------------------------------
-        // Setup the header structure. 
+        // Setup the header structure.
         // Actual values will be filled in when avi is closed.
-        
+
         _RIFF_chunk = new Chunk(_aviFile, "RIFF", "AVI ");
 
             _LIST_hdr1 = new Chunk(_aviFile, "LIST", "hdrl");
-        
+
                 _avih = new AVIMAINHEADER();
                 _avih.makePlaceholder(_aviFile);
-            
+
                 _LIST_strl_vid = new Chunk(_aviFile, "LIST", "strl");
 
                     _strh_vid = new AVISTREAMHEADER();
@@ -288,13 +288,13 @@ public abstract class AviWriter implements Closeable {
                         _bif.makePlaceholder(_aviFile);
 
                     _strf_vid.endChunk(_aviFile);
-                    
+
                     _strn_vid = new Chunk(_aviFile, "strn");
                     _aviFile.writeBytes("jPSXdec AVI    \0");
                     _strn_vid.endChunk(_aviFile);
-                    
+
                 _LIST_strl_vid.endChunk(_aviFile);
-                
+
                 if (_audioFormat != null) { // if there is audio
                 _LIST_strl_aud = new Chunk(_aviFile, "LIST", "strl");
 
@@ -312,7 +312,7 @@ public abstract class AviWriter implements Closeable {
                 }
 
             _LIST_hdr1.endChunk(_aviFile);
-            
+
             // some programs will use this to identify the program that wrote the avi
             Chunk JUNK_writerId = new Chunk(_aviFile, "JUNK");
                 String sVersion = String.format("jPSXdec: PSX media decoder (non-commercial) v%s", Version.Version);
@@ -327,7 +327,7 @@ public abstract class AviWriter implements Closeable {
             throw ex;
         }
             // now we're ready to start accepting video/audio data
-            
+
             // generate an index as we write 'movi' section
             _indexList = new ArrayList<AVIOLDINDEXENTRY>();
     }
@@ -381,12 +381,12 @@ public abstract class AviWriter implements Closeable {
         AudioFormat fmt = audStream.getFormat();
         if (!fmt.matches(_audioFormat))
             throw new IllegalArgumentException("Audio stream format does not match.");
-        
+
         Chunk data_size;
 
         AVIOLDINDEXENTRY idxentry = new AVIOLDINDEXENTRY();
         idxentry.dwOffset = (int)(_aviFile.getFilePointer() - (LIST_movi.getStart() + 4));
-        
+
         idxentry.dwChunkId = AVIstruct.string2int("01wb");
         idxentry.dwFlags = 0;
 
@@ -466,7 +466,7 @@ public abstract class AviWriter implements Closeable {
     public void writeSilentSamples(long lngSampleCount) throws AviIsClosedException, IOException {
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
-        
+
         writeAudio(new AudioInputStream(new IO.ZeroInputStream(), _audioFormat, lngSampleCount));
     }
 
@@ -496,7 +496,7 @@ public abstract class AviWriter implements Closeable {
 
         // end the chunk
         data_size.endChunk(_aviFile);
-        
+
         _lngFrameCount++;
 
         // add the index to the list
@@ -514,22 +514,23 @@ public abstract class AviWriter implements Closeable {
     /** Finishes writing the AVI header and index and closes the file.
      * This must be called and complete successfully for the AVI to be playable.
      */
+    @Override
     public void close() throws AviIsClosedException, IOException {
         if (_aviFile == null) throw new AviIsClosedException();
-        
+
             LIST_movi.endChunk(_aviFile);
-            
+
             // write idx
             avioldidx = new AVIOLDINDEX(_indexList.toArray(new AVIOLDINDEXENTRY[_indexList.size()]));
             avioldidx.write(_aviFile);
             // /write idx
-            
+
         _RIFF_chunk.endChunk(_aviFile);
-        
+
         //######################################################################
         //## Fill the headers fields ###########################################
         //######################################################################
-        
+
         //_avih.fcc                 = 'avih';  // the avih sub-CHUNK
         //_avih.cb                  = 0x38;    // the length of the avih sub-CHUNK (38H) not including the
                                                // the first 8 bytes for avihSignature and the length
@@ -537,10 +538,10 @@ public abstract class AviWriter implements Closeable {
         _avih.dwMaxBytesPerSec      = 0;       // (maximum data rate of the file in bytes per second)
         _avih.dwPaddingGranularity  = 0;
         _avih.dwFlags               = AVIMAINHEADER.AVIF_HASINDEX |
-                                     AVIMAINHEADER.AVIF_ISINTERLEAVED;    
+                                     AVIMAINHEADER.AVIF_ISINTERLEAVED;
                                               // 10H AVIF_HASINDEX: The AVI file has an idx1 chunk containing
                                               // an index at the end of the file.  For good performance, all
-                                              // AVI files should contain an index.                         
+                                              // AVI files should contain an index.
         _avih.dwTotalFrames         = _lngFrameCount;  // total frame number
         _avih.dwInitialFrames       = 0;      // Initial frame for interleaved files.
                                               // Noninterleaved files should specify 0.
@@ -558,11 +559,11 @@ public abstract class AviWriter implements Closeable {
         //_avih.dwReserved2         = 0;        //
         //_avih.dwReserved3         = 0;        //
         //_avih.dwReserved4         = 0;        //
-        
-        
+
+
         //######################################################################
         // AVISTREAMHEADER for video
-        
+
         //_strh_vid.fcc                  = 'strh';              // strh sub-CHUNK
         //_strh_vid.cb                   = 56;                  // the length of the strh sub-CHUNK
         _strh_vid.fccType                = AVIstruct.string2int("vids"); // the type of data stream - here vids for video stream
@@ -591,7 +592,7 @@ public abstract class AviWriter implements Closeable {
 
         //######################################################################
         // BITMAPINFOHEADER
-        
+
         //_bif.biSize        = 40;       // Write header size of BITMAPINFO header structure
                                          // Applications should use this size to determine which BITMAPINFO header structure is
                                          // being used.  This size includes this biSize field.
@@ -618,7 +619,7 @@ public abstract class AviWriter implements Closeable {
                                          // the image still retains its meaning in an acceptable manner.  When this
                                          // field is set to zero, all the colors are important, or, rather, their
                                          // relative importance has not been computed.
-        
+
         //######################################################################
         // AVISTREAMHEADER for audio
 
@@ -642,7 +643,7 @@ public abstract class AviWriter implements Closeable {
                                                    // Typically, this contains a value corresponding to the largest chunk
                                                    // in a stream.
             _strh_aud.dwQuality              = -1;  // encoding quality given by an integer between
-                                                   // 0 and 10,000.  If set to -1, drivers use the default 
+                                                   // 0 and 10,000.  If set to -1, drivers use the default
                                                    // quality value.
             _strh_aud.dwSampleSize           = _audioFormat.getFrameSize();
             _strh_aud.left                   = 0;
@@ -659,28 +660,28 @@ public abstract class AviWriter implements Closeable {
             _wavfmt.nAvgBytesPerSec  = _audioFormat.getFrameSize() * _wavfmt.nSamplesPerSec;
             _wavfmt.nBlockAlign      = (short)_audioFormat.getFrameSize();
             _wavfmt.wBitsPerSample   = (short) _audioFormat.getSampleSizeInBits();
-            //wavfmt.cbSize           = 0; // not written                
+            //wavfmt.cbSize           = 0; // not written
 
         }
-        
+
         //######################################################################
         //######################################################################
         //######################################################################
-        
+
         // go back and write the headers
         _avih.goBackAndWrite(_aviFile);
         _strh_vid.goBackAndWrite(_aviFile);
         _bif.goBackAndWrite(_aviFile);
-        
+
         if (_audioFormat != null) {
             _strh_aud.goBackAndWrite(_aviFile);
             _wavfmt.goBackAndWrite(_aviFile);
         }
-        
+
         // and we're done
         _aviFile.close();
         _aviFile = null;
-        
+
         _RIFF_chunk = null;
             _LIST_hdr1 = null;
                 _avih = null;
@@ -708,10 +709,10 @@ public abstract class AviWriter implements Closeable {
     // -------------------------------------------------------------------------
     // -- Private functions ----------------------------------------------------
     // -------------------------------------------------------------------------
-    
+
     /** Represents an AVI RIFF 'chunk'. When created, it saves the current
      *  position in the AVI RandomAccessFile. When endChunk() is called,
-     *  it temporarily jumps back to the start of the chunk and records how 
+     *  it temporarily jumps back to the start of the chunk and records how
      *  many bytes have been written. */
     private static class Chunk {
 
@@ -719,18 +720,18 @@ public abstract class AviWriter implements Closeable {
 
         private final long _lngPos;
         private int _iSize = -1;
-        
+
         Chunk(@Nonnull RandomAccessFile raf, @Nonnull String sChunkName) throws IOException {
             IO.writeInt32LE(raf, AVIstruct.string2int(sChunkName));
             _lngPos = raf.getFilePointer();
             raf.writeInt(0);
         }
-        
+
          Chunk(@Nonnull RandomAccessFile raf, @Nonnull String sChunkName, @Nonnull String sSubChunkName) throws IOException {
             this(raf, sChunkName);
             IO.writeInt32LE(raf, AVIstruct.string2int(sSubChunkName));
         }
-        
+
         /** Jumps back to saved position in the RandomAccessFile and writes
          *  how many bytes have passed since the position was saved, then
          *  returns to the current position again. Pads to a 4 byte boundary. */
@@ -757,7 +758,7 @@ public abstract class AviWriter implements Closeable {
         private int getSize() {
             return _iSize;
         }
-        
+
         /** Returns the position where the size will be written when
          *  endChunk() is called. */
         private long getStart() {

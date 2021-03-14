@@ -40,7 +40,7 @@ package jpsxdec.util;
 /** Helpful math stuff. No I don't speak The Queen's English, I just wanted
  * to differentiate from the normal {@link java.lang.Math} class. */
 public class Maths {
-    
+
     /** A faster but LESS ACCURATE implementation of the Math.round() function.
      * This introduces a bit more floating-point error by the +/- 0.5. */
     public static long round(double dbl) {

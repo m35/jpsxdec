@@ -38,12 +38,11 @@
 package jpsxdec;
 
 import java.io.IOException;
-import jpsxdec.Main;
 import jpsxdec.i18n.log.DebugFormatter;
-import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
+import testutil.Util;
 
 
 public class TestLog {
@@ -51,6 +50,6 @@ public class TestLog {
     @Test
     public void makeSureTheDebugFormatterIsBeingUsed() throws IOException {
         // because I keep messing it up
-        assertTrue(Misc.asciiToString(IO.readEntireStream(Main.class.getResourceAsStream("LogToFile.properties"))).contains(DebugFormatter.class.getCanonicalName()));
+        assertTrue(Misc.asciiToString(Util.readResource(Main.class, "LogToFile.properties")).contains(DebugFormatter.class.getCanonicalName()));
     }
 }

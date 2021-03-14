@@ -87,6 +87,7 @@ class VideoClock extends VideoTimer implements Runnable {
         _eventQueue.addWithCapacityCheck(PlayController.Event.Play);
     }
 
+    @Override
     public synchronized long getNanoTime() {
         if (_lngStartTime < 0)
             return 0;
@@ -116,6 +117,7 @@ class VideoClock extends VideoTimer implements Runnable {
         super.terminate();
     }
 
+    @Override
     public void run() {
         try {
             while (true) {

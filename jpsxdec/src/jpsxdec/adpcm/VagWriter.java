@@ -119,7 +119,7 @@ public class VagWriter implements Closeable {
         // verify valid ID
         if (!isValidId(sId))
             throw new IllegalArgumentException(sId);
-        
+
         _sId = sId;
         _iSampleRate = iSampleRate;
 
@@ -155,6 +155,7 @@ public class VagWriter implements Closeable {
 
     /** {@inheritDoc }
      * Updates the VAG header with the audio length and closes the file. */
+    @Override
     public void close() throws IOException {
         boolean blnExceptionThrown = true;
         try {

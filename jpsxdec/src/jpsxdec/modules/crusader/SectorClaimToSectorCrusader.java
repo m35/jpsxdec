@@ -38,7 +38,6 @@
 package jpsxdec.modules.crusader;
 
 import java.io.IOException;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
@@ -46,31 +45,13 @@ import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
 
 /** Converts sectors to Crusader sectors. */
-public class SectorClaimToSectorCrusader extends SectorClaimSystem.SectorClaimer {
+public class SectorClaimToSectorCrusader implements SectorClaimSystem.SectorClaimer {
 
-    public interface Listener {
-        void sectorRead(@Nonnull SectorCrusader sector, @Nonnull ILocalizedLogger log)
-                throws LoggedFailure;
-        void endOfSectors(@Nonnull ILocalizedLogger log)
-                throws LoggedFailure;
-    }
-
-    @CheckForNull
-    private Listener _listener;
-
-    public SectorClaimToSectorCrusader() {
-    }
-    public SectorClaimToSectorCrusader(@Nonnull Listener listener) {
-        _listener = listener;
-    }
-    public void setListener(@CheckForNull Listener listener) {
-        _listener = listener;
-    }
-
+    @Override
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException, SectorClaimSystem.ClaimerFailure
+            throws IOException, LoggedFailure
     {
         if (cs.isClaimed())
             return;
@@ -79,26 +60,9 @@ public class SectorClaimToSectorCrusader extends SectorClaimSystem.SectorClaimer
             return;
 
         cs.claim(sector);
-
-        if (_listener != null && sectorIsInRange(cs.getSector().getSectorIndexFromStart())) {
-            try {
-                _listener.sectorRead(sector, log);
-            } catch (LoggedFailure ex) {
-                throw new SectorClaimSystem.ClaimerFailure(ex);
-            }
-        }
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) 
-            throws SectorClaimSystem.ClaimerFailure
-    {
-        if (_listener != null) {
-            try {
-                _listener.endOfSectors(log);
-            } catch (LoggedFailure ex) {
-                throw new SectorClaimSystem.ClaimerFailure(ex);
-            }
-        }
+    @Override
+    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
     }
-
 }

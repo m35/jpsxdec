@@ -38,6 +38,8 @@
 package jpsxdec.psxvideo.bitstreams;
 
 import javax.annotation.Nonnull;
+import jpsxdec.modules.panekit.BitStreamUncompressor_Panekit;
+import jpsxdec.modules.starwars.BitStreamUncompressor_StarWars;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecContext;
@@ -76,6 +78,12 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
         bsu = BitStreamUncompressor_Lain.makeLainNoThrow(abBitstream, iBitstreamSize);
         if (bsu != null)
             return bsu;
+        bsu = BitStreamUncompressor_Panekit.makePanekitNoThrow(abBitstream, iBitstreamSize);
+        if (bsu != null)
+            return bsu;
+        bsu = BitStreamUncompressor_StarWars.makeStarWarsNoThrow(abBitstream, iBitstreamSize);
+        if (bsu != null)
+            return bsu;
         throw new BinaryDataNotRecognized();
     }
 
@@ -87,7 +95,7 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
                 throws MdecException.EndOfStream;
     }
 
-    public interface IQuantizationDc {
+    public interface IQuantizationDcReader {
         /** Read the quantization scale and DC coefficient from the bitstream. */
         void readQuantizationScaleAndDc(@Nonnull ArrayBitReader bitReader,
                                         @Nonnull MdecContext context,
@@ -96,11 +104,14 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
     }
 
     public interface IFrameEndPaddingBits {
-        void skipPaddingBits(@Nonnull ArrayBitReader bitReader) throws MdecException.EndOfStream;
+        /** @see #skipPaddingBits() */
+        boolean skipPaddingBits(@Nonnull ArrayBitReader bitReader) throws MdecException.EndOfStream;
     }
 
     private static class FrameEndPaddingBits_None implements IFrameEndPaddingBits {
-        public void skipPaddingBits(@Nonnull ArrayBitReader bitReader) {
+        @Override
+        public boolean skipPaddingBits(@Nonnull ArrayBitReader bitReader) {
+            return true;
         }
     }
 
@@ -117,7 +128,7 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
     private final ZeroRunLengthAcLookup _lookupTable;
 
     @Nonnull
-    private final IQuantizationDc _qscaleDcReader;
+    private final IQuantizationDcReader _qscaleDcReader;
 
     @Nonnull
     private final IAcEscapeCode _escapeCodeReader;
@@ -135,7 +146,7 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
 
     public BitStreamUncompressor(@Nonnull ArrayBitReader bitReader,
                                  @Nonnull ZeroRunLengthAcLookup lookupTable,
-                                 @Nonnull IQuantizationDc qscaleDcReader,
+                                 @Nonnull IQuantizationDcReader qscaleDcReader,
                                  @Nonnull IAcEscapeCode escapeCodeReader,
                                  @Nonnull IFrameEndPaddingBits endPaddingBits)
     {
@@ -150,9 +161,14 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
         return _bitReader.getBitsRead();
     }
 
+    final public int getByteOffset() {
+        return _bitReader.getCurrentShortPosition();
+    }
+
+    @Override
     final public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream, MdecException.ReadCorruption {
 
-        assert !BitStreamDebugging.DEBUG || BitStreamDebugging.setPosition(_bitReader.getWordPosition());
+        assert !BitStreamDebugging.DEBUG || BitStreamDebugging.setPosition(_bitReader.getCurrentShortPosition());
 
         if (_context.atStartOfBlock()) {
             assert !BitStreamDebugging.DEBUG || BitStreamDebugging.printStartOfBlock(_context);
@@ -163,7 +179,7 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
             int i17bits = _bitReader.peekUnsignedBits(BitStreamCode.LONGEST_BITSTREAM_CODE_17BITS);
             ZeroRunLengthAc bitCode = _lookupTable.lookup(i17bits);
             if (bitCode == null) {
-                String s = "Unmatched AC variable length code: " + 
+                String s = "Unmatched AC variable length code: " +
                            Misc.bitsToString(i17bits, BitStreamCode.LONGEST_BITSTREAM_CODE_17BITS) +
                            " " + this;
                 throw new MdecException.ReadCorruption(s);
@@ -210,16 +226,20 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
         }
     }
 
-    final public void skipPaddingBits() throws MdecException.EndOfStream {
-        _endPaddingBits.skipPaddingBits(_bitReader);
+    /** STRv2 and STRv3 bitstreams have 10 extra padding bits that are necessary
+     * when played by the game. This skips those bits and checks if they are as expected
+     * (and for other bitstreams does nothing).
+     * @return if the skipped bits match the expected padding bits. */
+    final public boolean skipPaddingBits() throws MdecException.EndOfStream {
+        return _endPaddingBits.skipPaddingBits(_bitReader);
     }
 
-    /** Create an equivalent bitstream compressor. 
+    /** Create an equivalent bitstream compressor.
      * @throws UnsupportedOperationException if the bitstream cannot be created for this format. */
     abstract public @Nonnull BitStreamCompressor makeCompressor() throws UnsupportedOperationException;
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + " " + _context.toString() + " offset=" + _bitReader.getWordPosition();
+        return getClass().getSimpleName() + " " + _context.toString() + " offset=" + _bitReader.getCurrentShortPosition();
     }
 }

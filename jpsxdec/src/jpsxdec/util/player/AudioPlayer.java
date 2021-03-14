@@ -125,6 +125,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
     }
 
 
+    @Override
     public synchronized void initPaused() throws PlayerException {
         if (_dataLine != null)
             throw new IllegalStateException();
@@ -190,6 +191,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
         return dataLine;
     }
 
+    @Override
     public void run() {
         try {
             byte[] abCopyBuffer = new byte[_iCopyBufferSize];
@@ -321,6 +323,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
         super.terminate();
     }
 
+    @Override
     public synchronized long getNanoTime() {
         if (!_blnUseAudioAndSystemClockTogether || isPaused() || isTerminated()) {
             return (long)(_dataLine.getLongFramePosition() * _dblSamplesPerNano);
@@ -340,6 +343,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
     }
 
     /** Translate an audio event to this player's event. */
+    @Override
     public void update(LineEvent event) {
         LineEvent.Type type = event.getType();
         PlayController.Event playerEvent;

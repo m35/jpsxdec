@@ -55,7 +55,7 @@ public interface ISectorAudioDecoder {
     void attachToSectorClaimer(@Nonnull SectorClaimSystem scs);
 
     double getVolume();
-    
+
     /** Sector where the audio begins to play. */
     int getAbsolutePresentationStartSector();
 

@@ -47,7 +47,8 @@ public abstract class StrHeader {
 
     /** Frame's quantization scale. */
     private int _iQuantizationScale = -1;
-    private int _iHalfVlcCountCeil32 = -1;
+    private int _iHalfMdecCodeCountCeil32 = -1;
+    private int _iVersion = -1;
 
     private final boolean _blnIsValid;
     protected StrHeader(@Nonnull byte[] abFrameData, int iDataSize,
@@ -56,18 +57,19 @@ public abstract class StrHeader {
         if (iDataSize < 8) {
             _blnIsValid = false;
         } else {
-            int iHalfVlcCountCeil32 = IO.readSInt16LE(abFrameData, 0);
-            int iMagic3800          = IO.readUInt16LE(abFrameData, 2);
-            int iQscale             = IO.readSInt16LE(abFrameData, 4);
-            int iVersion            = IO.readSInt16LE(abFrameData, 6);
+            int iHalfMdecCodeCountCeil32 = IO.readSInt16LE(abFrameData, 0);
+            int iMagic3800               = IO.readUInt16LE(abFrameData, 2);
+            int iQscale                  = IO.readSInt16LE(abFrameData, 4);
+            int iVersion                 = IO.readSInt16LE(abFrameData, 6);
 
             _blnIsValid = iMagic3800 == 0x3800 &&
                           iQscale >= 1 &&
                           iVersion == iExpectedVersion &&
-                          iHalfVlcCountCeil32 >= 0;
+                          iHalfMdecCodeCountCeil32 >= 0;
             if (_blnIsValid) {
                 _iQuantizationScale = iQscale;
-                _iHalfVlcCountCeil32 = iHalfVlcCountCeil32;
+                _iHalfMdecCodeCountCeil32 = iHalfMdecCodeCountCeil32;
+                _iVersion = iVersion;
             }
         }
     }
@@ -77,9 +79,9 @@ public abstract class StrHeader {
         return _iQuantizationScale;
     }
 
-    public int getHalfVlcCountCeil32() {
+    public int getHalfMdecCodeCountCeil32() {
         if (!_blnIsValid) throw new IllegalStateException();
-        return _iHalfVlcCountCeil32;
+        return _iHalfMdecCodeCountCeil32;
     }
 
     public boolean isValid() {
@@ -96,7 +98,7 @@ public abstract class StrHeader {
     @Override
     public String toString() {
         if (_blnIsValid)
-            return "Qscale " + _iQuantizationScale + " count " + _iHalfVlcCountCeil32;
+            return "Qscale " + _iQuantizationScale + " count " + _iHalfMdecCodeCountCeil32;
         else
             return "Invalid STR header";
     }

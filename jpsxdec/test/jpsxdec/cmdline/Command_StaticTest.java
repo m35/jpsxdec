@@ -161,7 +161,8 @@ public class Command_StaticTest {
         fos.close();
 
         mis = new ArrayListMdecInputStream(codes);
-        BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 x = new BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2(1);
+        BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 x =
+                new BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2(1, BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER);
         byte[] abData = x.compress(mis);
         IO.writeFile(TEST_BS_FILE, abData);
     }

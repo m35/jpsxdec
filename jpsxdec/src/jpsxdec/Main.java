@@ -117,10 +117,11 @@ public class Main {
             blnShowGui = true;
         } else if (asArgs.length == 1) {
             blnShowGui = !ap.hasHelp();
-        } 
-        
+        }
+
         if (blnShowGui) {
             java.awt.EventQueue.invokeLater(new Runnable() {
+                @Override
                 public void run() {
                     Gui gui = new Gui();
                     if (asArgs.length > 0)

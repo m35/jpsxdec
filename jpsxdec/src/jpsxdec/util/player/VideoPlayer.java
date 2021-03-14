@@ -73,6 +73,7 @@ class VideoPlayer implements Runnable {
         _thread.start();
     }
 
+    @Override
     public void run() {
         try {
             DecodedVideoFrame frame;

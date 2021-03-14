@@ -63,13 +63,15 @@ public class CrusaderDemuxPiece implements DemuxedData.Piece {
         _sector = null;
         _iCdSectorNumber = iCdSectorNumber;
     }
-    
+
+    @Override
     public int getDemuxPieceSize() {
         if (_sector == null)
             return CRUSADER_USERDATA_SIZE;
         else
             return _sector.getIdentifiedUserDataSize();
     }
+    @Override
     public byte getDemuxPieceByte(int i) {
         if (_sector == null)
             return 0;
@@ -77,6 +79,7 @@ public class CrusaderDemuxPiece implements DemuxedData.Piece {
             return _sector.readIdentifiedUserDataByte(i);
     }
 
+    @Override
     public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
         if (_sector != null)
             _sector.copyIdentifiedUserData(0, abOut, iOutPos, _sector.getIdentifiedUserDataSize());
@@ -88,6 +91,7 @@ public class CrusaderDemuxPiece implements DemuxedData.Piece {
         return _sector;
     }
 
+    @Override
     public int getSectorNumber() {
         return _iCdSectorNumber;
     }

@@ -45,7 +45,7 @@ import jpsxdec.util.BinaryDataNotRecognized;
 
 /** ECMA119: 9.1 */
 public class DirectoryRecord extends ISO9660Struct {
-    
+
     /** ECMA119: 9.1.6 */
     public static final class FileFlags {
         public static final int Existence      = 1 << 0;
@@ -67,12 +67,12 @@ public class DirectoryRecord extends ISO9660Struct {
     final public RecordingDateAndTime date;
     final public int                  flags;
     /*                                file_unit_size         */
-    /*                                interleave             */ 
+    /*                                interleave             */
     /*                                volume_sequence_number */
     /*                                name_len               */
     final public String               name;
     /*                                name_extra             */
-    
+
     public DirectoryRecord(@Nonnull InputStream is)
             throws EOFException, IOException, BinaryDataNotRecognized
     {
@@ -93,15 +93,15 @@ public class DirectoryRecord extends ISO9660Struct {
         // just for debugging
         byte[] name_extra              = readX(is, length - 33 - name_len);
     }
-    
+
     @Override
     public String toString() {
         return "'" + name + "' " + size + " bytes " + date;
     }
-    
+
     public static final String CURRENT_DIRECTORY = ".";
     public static final String PARENT_DIRECTORY = "..";
-    
+
     private static String sanitizeFileOrDirName(String s) {
         if ("\0".equals(s)) return CURRENT_DIRECTORY;
         if ("\1".equals(s)) return PARENT_DIRECTORY;
@@ -109,5 +109,5 @@ public class DirectoryRecord extends ISO9660Struct {
         if (s.endsWith(SEPARATOR1)) s = s.substring(0, s.length() - 1);
         return s;
     }
-    
+
 }

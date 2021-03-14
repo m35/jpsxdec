@@ -79,17 +79,18 @@ public class CrusaderPacketHeaderReader {
         public short getWidth() { return _iWidth; }
         public short getHeight() { return _iHeight; }
         public int getFrameNumber() { return _iFrameNumber; }
+        @Override
         public int getByteSize() { return _iByteSize; }
     }
 
     // in big-endian
     private static final long AUDIO_ID = 0x08000200L;
-    
+
     public static class AudioHeader implements Header {
         private final int _iPresentationSampleFrame;
         private final int _iByteSize;
 
-        public AudioHeader(@Nonnull byte[] abHeader, int iRemainingPayloadSize) 
+        public AudioHeader(@Nonnull byte[] abHeader, int iRemainingPayloadSize)
                 throws BinaryDataNotRecognized
         {
             // 2 for left and right audio channels
@@ -108,10 +109,11 @@ public class CrusaderPacketHeaderReader {
 
         public int getPresentationSampleFrame() { return _iPresentationSampleFrame; }
         /** Guaranteed to be a multiple of 16*2 (i.e. stereo SPU sound units). */
+        @Override
         public int getByteSize() { return _iByteSize; }
     }
 
-    
+
     // in big-endian
     private static final int MDEC = 0x4d444543;
     private static final int ad20 = 0x61643230;

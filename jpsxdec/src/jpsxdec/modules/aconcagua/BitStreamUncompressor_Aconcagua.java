@@ -255,6 +255,7 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
     private static final int BIT9  = 0x0100;
     private static final int BIT10 = 0x0200;
 
+    @Override
     public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream, MdecException.ReadCorruption {
         if (_context.atStartOfBlock()) {
             assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(_context.toString());
@@ -270,7 +271,7 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
             return false;
         } else {
             if (_context.getMdecCodesReadInCurrentBlock() == 1) {
-                
+
                 int iInstructionCode = _bitstream.getBits() & BOTTOM_10_BITS;
                 InstructionTable.InstructionCode instruction = InstructionTable.lookup(iInstructionCode);
                 _bitstream.skipBits(instruction.getBitCodeLen());
@@ -337,41 +338,41 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
 
         switch (block) {
             case Cr:
-                if (blnIsDcEscapeCode) 
+                if (blnIsDcEscapeCode)
                     iFinalDc = iDcFromEscapeCode;
                 else
                     iFinalDc = iRelativeDcFromTable + _iPreviousDcCr;
                 _iPreviousDcCr = iFinalDc;
                 break;
             case Cb:
-                if (blnIsDcEscapeCode) 
+                if (blnIsDcEscapeCode)
                     iFinalDc = iDcFromEscapeCode;
-                else 
+                else
                     iFinalDc = iRelativeDcFromTable + _iPreviousDcCb;
                 _iPreviousDcCb = iFinalDc;
                 break;
             case Y1:
-                if (blnIsDcEscapeCode) 
+                if (blnIsDcEscapeCode)
                     iFinalDc = iDcFromEscapeCode;
                  else
                     iFinalDc = iRelativeDcFromTable + _iPreviousDcSetInY3UsedInY1Y4;
                 _iPreviousDcSetInY1UsedInY2Y3 = iFinalDc;
                 break;
             case Y2:
-                if (blnIsDcEscapeCode) 
+                if (blnIsDcEscapeCode)
                     iFinalDc = iDcFromEscapeCode;
                 else
                     iFinalDc = iRelativeDcFromTable + _iPreviousDcSetInY1UsedInY2Y3;
                 break;
             case Y3:
-                if (blnIsDcEscapeCode) 
+                if (blnIsDcEscapeCode)
                     iFinalDc = iDcFromEscapeCode;
                 else
                     iFinalDc = iRelativeDcFromTable + _iPreviousDcSetInY1UsedInY2Y3;
                 _iPreviousDcSetInY3UsedInY1Y4 = iFinalDc;
                 break;
             case Y4: default:
-                if (blnIsDcEscapeCode) 
+                if (blnIsDcEscapeCode)
                     iFinalDc = iDcFromEscapeCode;
                 else
                     iFinalDc = iRelativeDcFromTable + _iPreviousDcSetInY3UsedInY1Y4;
@@ -381,6 +382,11 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
         code.set((_iQuantizationScale << 10) | (iFinalDc & BOTTOM_10_BITS));
 
         return iBitsToSkip;
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + " " + _context.toString() + " current 4 byte start=" + _bitstream._iPositionMultOf4;
     }
 
     private static int readTable1(@Nonnull MdecCode code, int iNext32Bits) throws MdecException.ReadCorruption {
@@ -479,7 +485,7 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
         private int _iBitsRemaining;
         @Nonnull
         private final byte[] _abBitstream;
-        private int _iPos = -4; // meh workaround so I can call resetColumn() in the constructor
+        private int _iPositionMultOf4 = -4; // meh hack so I can call resetColumn() in the constructor
 
         public AconcaguaBitReader(@Nonnull byte[] abBitstream, int iStartPos) {
             _abBitstream = abBitstream;
@@ -488,10 +494,10 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
 
         final public void resetColumn() {
             _iBitsRemaining = 32;
-            _iPos = _iPos + 4;
-            _iFrontBits = IO.readSInt32LE(_abBitstream, _iPos);
-            _iMidBits = IO.readSInt32LE(_abBitstream, _iPos + 4);
-            _iBackBits = IO.readSInt32LE(_abBitstream, _iPos + 8);
+            _iPositionMultOf4 = _iPositionMultOf4 + 4;
+            _iFrontBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4);
+            _iMidBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4 + 4);
+            _iBackBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4 + 8);
         }
 
         public int getBits() {
@@ -512,8 +518,8 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
 
         public void loadMoreBits() {
             _iMidBits = _iBackBits;
-            if (_iPos + 12 < _abBitstream.length)
-                _iBackBits = IO.readSInt32LE(_abBitstream, _iPos + 12);
+            if (_iPositionMultOf4 + 12 < _abBitstream.length)
+                _iBackBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4 + 12);
             else
                 _iBackBits = 0;
             _iBitsRemaining = _iBitsRemaining + 32;
@@ -522,7 +528,7 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
             rTemp = 32 - _iBitsRemaining;
             _iMidBits = _iMidBits >>> rTemp;
 
-            _iPos+=4;
+            _iPositionMultOf4+=4;
         }
 
     }

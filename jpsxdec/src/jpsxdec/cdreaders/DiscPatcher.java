@@ -56,7 +56,7 @@ import jpsxdec.util.TaskCanceledException;
  * and then apples all the changes at one time.
  * This is better than applying each individual change immediately
  * because it leaves the CD unchanged if an error occurs, and it can be used
- * to do a 'dry run' of the changes. 
+ * to do a 'dry run' of the changes.
  * Note that due to its intentionally simplistic design, this patch feature
  * could never be used as a general method to build and distribute patches. */
 public class DiscPatcher {
@@ -140,11 +140,12 @@ public class DiscPatcher {
             this.lngOffsetInPatchFile = lngOffsetInPatchFile;
         }
 
+        @Override
         public int compareTo(PatchEntry o) {
             int i = Misc.intCompare(iSector, o.iSector);
             if (i != 0)
                 return i;
-            boolean blnNoOverlap = 
+            boolean blnNoOverlap =
                     ((iOffsetInSector + iNumberOfBytesToReplace) < o.iOffsetInSector) ||
                     ((o.iOffsetInSector + o.iNumberOfBytesToReplace) < iOffsetInSector);
             if (blnNoOverlap) {
@@ -197,7 +198,7 @@ public class DiscPatcher {
         return _patchFileName;
     }
 
-    public void addPatch(int iSector, 
+    public void addPatch(int iSector,
                          int iOffsetInSector, @Nonnull byte[] abBytesToReplace,
                          int iStartByteToUse, int iNumberOfBytesToReplace)
             throws WritePatchException
@@ -265,7 +266,7 @@ public class DiscPatcher {
                     abUserData = null;
                 }
             }
-            
+
             if (sector == null) {
                 sector = cd.getSector(patch.iSector);
                 abUserData = sector.getCdUserDataCopy();

@@ -77,7 +77,7 @@ public class YCbCrImage {
     private int _iLumaHeight;
     private int _iChromaWidth;
     private int _iChromaHeight;
-    
+
     /** Holds luminance values. */
     @Nonnull
     private final byte[] _abY;
@@ -87,7 +87,7 @@ public class YCbCrImage {
     /** Holds chorma red values with 4:2:0 subsampling. */
     @Nonnull
     private final byte[] _abCr;
-    
+
     /** Creates a new instance of Rec601YCbCrImage
      * @param iWidth   Width of image (in luma pixels)
      * @param iHeight  Height of image (in luma pixels) */
@@ -109,7 +109,7 @@ public class YCbCrImage {
     /** Very slow and wasteful conversion. */
     public YCbCrImage(@Nonnull BufferedImage rgb) {
         this(rgb.getWidth(), rgb.getHeight());
-        
+
         for (int x = 0; x < _iLumaWidth; x+=2) {
             for (int y = 0; y < _iLumaHeight; y+=2) {
                 Rec601YCbCr ycc = new Rec601YCbCr(new RGB(rgb.getRGB(x  , y  )),
@@ -206,7 +206,7 @@ public class YCbCrImage {
     }
 
     public void setCr(int iDestX, int iDestY,
-                     int iSrcOfs, int iSrcWidth, 
+                     int iSrcOfs, int iSrcWidth,
                      int iCopyWidth, int iCopyHeight,
                      @Nonnull byte[] abCr)
     {
@@ -226,5 +226,5 @@ public class YCbCrImage {
             System.arraycopy(abSrc, iSrcOfs, abDest, iDestOfs, iCopyWidth);
         }
     }
-    
+
 }

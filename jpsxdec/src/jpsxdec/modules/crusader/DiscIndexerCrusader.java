@@ -56,6 +56,7 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.indexing.DiscIndexer;
+import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
@@ -65,7 +66,7 @@ import jpsxdec.util.Misc;
 
 
 /** Identify Crusader: No Remorse audio/video streams. */
-public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSectorCrusader.Listener {
+public class DiscIndexerCrusader extends DiscIndexer implements IdentifiedSectorListener<SectorCrusader> {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerCrusader.class.getName());
 
@@ -80,6 +81,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
 
         /** Really just for tree map.
          * No clear way to say which dimension is greater than another. */
+        @Override
         public int compare(Dimensions o1, Dimensions o2) {
             int i = Misc.intCompare(o1.getWidth(), o2.getWidth());
             if (i != 0)
@@ -99,6 +101,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
             this.iCount = iInitialCount;
         }
         /** Sort such that the most ideal dimension is the maximum. */
+        @Override
         public int compareTo(DimCounter o) {
             int iCompare = Misc.intCompare(iCount, o.iCount);
             if (iCompare != 0)
@@ -191,6 +194,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
             return true;
         }
 
+        @Override
         public void frame(@Nonnull CrusaderPacketHeaderReader.VideoHeader frame,
                           @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
                           @Nonnull ILocalizedLogger log)
@@ -220,6 +224,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
             }
         }
 
+        @Override
         public void audio(@Nonnull CrusaderPacketHeaderReader.AudioHeader audio,
                           @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
                           @Nonnull ILocalizedLogger log)
@@ -241,7 +246,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
             _iSoundUnitCount += audio.getByteSize() / 2 / 16;
         }
 
-        public @CheckForNull DiscItemCrusader endOfMovie(@Nonnull CdFileSectorReader cd) 
+        public @CheckForNull DiscItemCrusader endOfMovie(@Nonnull CdFileSectorReader cd)
                 throws LoggedFailure
         {
             _cs2cp.endVideo(_errLog);
@@ -254,6 +259,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
             Set<Map.Entry<Dimensions, DimCounter>> y = _dimCounter.entrySet();
             ArrayList<Map.Entry<Dimensions, DimCounter>> x = new ArrayList<Map.Entry<Dimensions, DimCounter>>(y);
             Collections.sort(x, new Comparator<Map.Entry<Dimensions, DimCounter>>() {
+                @Override
                 public int compare(Map.Entry<Dimensions, DimCounter> o1,
                                    Map.Entry<Dimensions, DimCounter> o2)
                 {
@@ -274,7 +280,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
         }
 
     }
-    
+
 
     @Nonnull
     private final ILocalizedLogger _errLog;
@@ -287,15 +293,18 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToSectorCrusader s2cs = scs.getClaimer(SectorClaimToSectorCrusader.class);
-        s2cs.setListener(this);
+        scs.addIdListener(this);
     }
-    
-    public void sectorRead(@Nonnull SectorCrusader vidSect, @Nonnull ILocalizedLogger log) 
-            throws LoggedFailure
-    {
+
+    @Override
+    public @Nonnull Class<SectorCrusader> getListeningFor() {
+        return SectorCrusader.class;
+    }
+
+    @Override
+    public void feedSector(@Nonnull SectorCrusader idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentStream != null) {
-            boolean blnAccepted = _currentStream.feedSector(vidSect);
+            boolean blnAccepted = _currentStream.feedSector(idSector);
             if (!blnAccepted) {
                 DiscItemCrusader vid = _currentStream.endOfMovie(getCd());
                 if (vid != null)
@@ -304,11 +313,12 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
             }
         }
         if (_currentStream == null) {
-            _currentStream = new VidBuilder(_errLog, vidSect);
+            _currentStream = new VidBuilder(_errLog, idSector);
         }
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+    @Override
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentStream != null) {
             DiscItemCrusader vid = _currentStream.endOfMovie(getCd());
             if (vid != null)
@@ -318,7 +328,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements SectorClaimToSec
     }
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         if (DiscItemCrusader.TYPE_ID.equals(fields.getType()))

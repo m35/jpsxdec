@@ -37,6 +37,9 @@
 
 package jpsxdec.modules.policenauts;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import javax.annotation.CheckForNull;
@@ -47,22 +50,116 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IOIterator;
+import jpsxdec.util.PushAvailableInputStream;
 
 
-public class SectorClaimToPolicenauts extends SectorClaimSystem.SectorClaimer  {
+public class SectorClaimToPolicenauts implements SectorClaimSystem.SectorClaimer  {
 
-    public interface Listener {
-        void videoStart(int iWidth, int iHeight, @Nonnull ILocalizedLogger log);
-        void feedPacket(@Nonnull SPacketData packet, @Nonnull ILocalizedLogger log)
-                throws LoggedFailure;
-        public void endOfSectors(@Nonnull ILocalizedLogger log);
+    private static class KlbsStreamReader {
+
+        private static final int READ_HEADER = 1;
+        private static final int READ_PACKET = 2;
+        private static final int DONE = 3;
+
+        private final int _iEntryCount;
+        private final int _iKlbsStartSector;
+        private final int _iKlbsEndSectorInclusive;
+
+        @Nonnull
+        private final PushAvailableInputStream<SectorPolicenauts> _sectorStream = new PushAvailableInputStream<SectorPolicenauts>();
+
+        private List<SPacketPos> _sPackets;
+        private int _iNextRequiredBytes = 0;
+        private int _iState = READ_HEADER;
+        private int _iPacketDataRead = 0;
+
+        public KlbsStreamReader(@Nonnull SectorPN_KLBS klbsSector) {
+            _iEntryCount = klbsSector.getEntryCount();
+            _iKlbsStartSector = klbsSector.getSectorNumber();
+            _iKlbsEndSectorInclusive = klbsSector.getEndSectorInclusive();
+
+            _iNextRequiredBytes = _iEntryCount * SPacket.SIZEOF;
+        }
+
+        public boolean allRead() {
+            return _iState == DONE;
+        }
+
+        public List<SPacketData> readSectorPackets(@Nonnull SectorPolicenauts sector, int iSkip)
+                throws BinaryDataNotRecognized
+        {
+            try {
+                ByteArrayFPIS is = sector.getCdSector().getCdUserDataStream();
+                if (iSkip > 0)
+                    is.skip(iSkip);
+
+                _sectorStream.addStream(is, sector);
+                return doReadAllAvailablePackets(sector);
+            } catch (IOException ex) {
+                throw new RuntimeException("Should not happen", ex);
+            }
+        }
+
+        private @Nonnull List<SPacketData> doReadAllAvailablePackets(@Nonnull SectorPolicenauts sector)
+                throws BinaryDataNotRecognized, IOException
+        {
+
+            List<SPacketData> finishedPackets = null;
+
+            while (_sectorStream.available() >= _iNextRequiredBytes && _iState != DONE) {
+                switch (_iState) {
+                    case READ_HEADER:
+                        _sPackets = SPacketPos.readPackets(_sectorStream, _iEntryCount, _iKlbsStartSector, _iKlbsEndSectorInclusive);
+                        _iNextRequiredBytes = _sPackets.get(0).getSize();
+                        _iState = READ_PACKET;
+                        break;
+
+                    case READ_PACKET:
+                        SPacketPos packetPos = _sPackets.get(_iPacketDataRead);
+                        skipZeroes(packetPos.getPaddingBeforeThisPacket());
+
+                        SPacketData packetData = packetPos.read(_sectorStream);
+                        assert _sectorStream.getCurrentMeta() == sector;
+                        if (finishedPackets == null)
+                            finishedPackets = new ArrayList<SPacketData>(3);
+                        finishedPackets.add(packetData);
+
+                        _iPacketDataRead++;
+                        if (_iPacketDataRead >= _sPackets.size()) {
+                            _iState = DONE;
+                        } else {
+                            SPacketPos nextPacket = _sPackets.get(_iPacketDataRead);
+                            _iNextRequiredBytes = nextPacket.getPaddingBeforeThisPacket() + nextPacket.getSize();
+                        }
+                        break;
+                }
+            }
+
+            if (finishedPackets == null)
+                return Collections.emptyList();
+
+            return finishedPackets;
+        }
+
+        private void skipZeroes(int iCount) throws IOException, BinaryDataNotRecognized {
+            while (iCount > 0) {
+                int iByte = _sectorStream.read();
+                if (iByte != 0) {
+                    throw new BinaryDataNotRecognized("Expected 0 in sector %s but got %d",
+                                                      _sectorStream.getCurrentMeta(),  iByte);
+                }
+                iCount--;
+            }
+        }
+
     }
 
 
     private static final class KlbsSectorRange {
         /** Stream to read the packet data in this KLBS set of sectors.
-         * Once all are read, the stream ends, but we want to stick around to 
+         * Once all are read, the stream ends, but we want to stick around to
          * collect any more sectors in this KLBS. */
         @CheckForNull
         private KlbsStreamReader _stream;
@@ -105,20 +202,14 @@ public class SectorClaimToPolicenauts extends SectorClaimSystem.SectorClaimer  {
 
 
     @CheckForNull
-    private Listener _listener;
-    @CheckForNull
     private KlbsSectorRange _currentKlbs;
-    
 
-    public void setListener(@CheckForNull Listener listener) {
-        _listener = listener;
-    }
 
     @Override
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws SectorClaimSystem.ClaimerFailure
+            throws LoggedFailure
     {
         if (cs.isClaimed()) {
             checkCorruptionIfExistingKlbs(log);
@@ -129,8 +220,6 @@ public class SectorClaimToPolicenauts extends SectorClaimSystem.SectorClaimer  {
         if (vmnkSector.getProbability() == 100) {
             checkCorruptionIfExistingKlbs(log);
             cs.claim(vmnkSector);
-            if (_listener != null)
-                _listener.videoStart(vmnkSector.getWidth(), vmnkSector.getHeight(), log);
         } else {
             SectorPolicenauts pnSector = null;
 
@@ -150,24 +239,6 @@ public class SectorClaimToPolicenauts extends SectorClaimSystem.SectorClaimer  {
 
             if (pnSector != null)
                 cs.claim(pnSector);
-
-            // notify listeners
-            if (_listener != null && pnSector != null) {
-                for (SPacketData sPacketData : pnSector) {
-
-                    // Only send packets that are fully in the active sector range
-                    // (in practice there should never be a packet crossing the border)
-                    if (sectorIsInRange(sPacketData.getStartSector()) &&
-                        sectorIsInRange(sPacketData.getEndSectorInclusive()))
-                    {
-                        try {
-                            _listener.feedPacket(sPacketData, log);
-                        } catch (LoggedFailure ex) {
-                            throw new SectorClaimSystem.ClaimerFailure(ex);
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -181,8 +252,6 @@ public class SectorClaimToPolicenauts extends SectorClaimSystem.SectorClaimer  {
 
     @Override
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
-        if (_listener != null)
-            _listener.endOfSectors(log);
     }
 
 }

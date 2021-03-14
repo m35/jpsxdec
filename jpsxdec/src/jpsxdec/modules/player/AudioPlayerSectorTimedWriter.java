@@ -66,6 +66,7 @@ public class AudioPlayerSectorTimedWriter implements DecodedAudioPacket.Listener
         _audioSync = new AudioSync(iMovieStartSector, iSectorsPerSecond, iSamplesPerSecond);
     }
 
+    @Override
     public void audioPacketComplete(@Nonnull DecodedAudioPacket packet, @Nonnull ILocalizedLogger log) {
         try {
             long lngSampleFrameDiff = _audioSync.calculateAudioToCatchUp(packet.getPresentationSector(), _lngSampleFramesWritten);

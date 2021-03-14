@@ -179,15 +179,15 @@ New features
 ============
 
 Games to investigate
-* Star Wars - Rebel Assault II
 * Discworld 2
 * BrainDead 13
-* Love Games - Wai Wai Tennis [Service Price] [SLPS-01647] INTRO.STR
 * Fear Effect
 * Magic the Gathering
 * Aconcagua ending video
 * Sentient
-* Panekit - Infinitive Crafting Toy Case
+// Star Wars - Rebel Assault II
+// Panekit - Infinitive Crafting Toy Case
+// Love Games - Wai Wai Tennis [Service Price] [SLPS-01647] INTRO.STR - broken video (2336 sector as a file)
 
 Replace
     with a prompt before applying changes

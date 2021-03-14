@@ -79,7 +79,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
     private final int _iBitsPerPixel;
     private static final String DIMENSIONS_KEY = "Dimensions";
     private final int _iWidth, _iHeight;
-    
+
     public DiscItemTim(@Nonnull CdFileSectorReader cd,
                        int iStartSector, int iEndSector,
                        int iStartOffset, int iPaletteCount, int iBitsPerPixel,
@@ -92,7 +92,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         _iWidth = iWidth;
         _iHeight = iHeight;
     }
-    
+
     public DiscItemTim(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
@@ -104,7 +104,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         _iWidth = aiDims[0];
         _iHeight = aiDims[1];
     }
-    
+
     @Override
     public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
@@ -114,7 +114,8 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         fields.addNumber(BITSPERPIXEL_KEY, _iBitsPerPixel);
         return fields;
     }
-    
+
+    @Override
     public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
@@ -124,6 +125,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         return I.GUI_TIM_IMAGE_DETAILS(_iWidth, _iHeight, _iPaletteCount);
     }
 
+    @Override
     public @Nonnull TimSaverBuilder makeSaverBuilder() {
         return new TimSaverBuilder(this);
     }
@@ -133,11 +135,12 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         return GeneralType.Image;
     }
 
+    @Override
     public int getStartOffset() {
         return _iStartOffset;
     }
 
-    /** Returns the number of palettes if the TIM file is paletted 
+    /** Returns the number of palettes if the TIM file is paletted
      * (with a CLUT). 1 could mean a paletted image with 1 palette, or a
      * true color image. It is possible for paletted images to not have a CLUT,
      * in that case a paletted image with a gray scale palette is created. */
@@ -164,14 +167,14 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
     public int getWidth() {
         return _iWidth;
     }
-    
+
     public int getHeight() {
         return _iHeight;
     }
 
     public void replace(@Nonnull FeedbackStream fbs, @Nonnull File timFile)
-            throws FileNotFoundException, EOFException, IOException, 
-                   BinaryDataNotRecognized, 
+            throws FileNotFoundException, EOFException, IOException,
+                   BinaryDataNotRecognized,
                    LocalizedIncompatibleException,
                    CdFileSectorReader.CdReadException,
                    DiscPatcher.WritePatchException
@@ -229,7 +232,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         writeNewTimData(abNewTim, fbs);
     }
 
-    private void writeNewTimData(@Nonnull byte[] abNewTim, @Nonnull FeedbackStream fbs) 
+    private void writeNewTimData(@Nonnull byte[] abNewTim, @Nonnull FeedbackStream fbs)
             throws CdFileSectorReader.CdReadException, DiscPatcher.WritePatchException
     {
         // write to the first sector
@@ -241,14 +244,14 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
             iBytesToWrite = cdSector.getCdUserDataSize() - _iStartOffset;
         fbs.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
         cd.addPatch(iSector, _iStartOffset, abNewTim, 0, iBytesToWrite);
-        
+
         //write to the remaining sectors
         int iBytesWritten = iBytesToWrite;
         while (iBytesWritten < abNewTim.length) {
-            iSector++; 
+            iSector++;
             if (iSector > getEndSector())
                 throw new RuntimeException("Replacing TIM is somehow writing to too many sectors.");
-            
+
             cdSector = cd.getSector(iSector);
             iBytesToWrite = abNewTim.length - iBytesWritten;
             if (iBytesToWrite > cdSector.getCdUserDataSize())
@@ -258,5 +261,5 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
             iBytesWritten += iBytesToWrite;
         }
     }
-    
+
 }

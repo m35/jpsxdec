@@ -67,7 +67,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
     @Nonnull
     private final CdSector _sourceCdSector;
     private int _iProbability = 1;
-    
+
     public IdentifiedSector(@Nonnull CdSector cdSector) {
         _sourceCdSector = cdSector;
     }
@@ -86,6 +86,7 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
         _iProbability = iProbability;
     }
 
+    @Override
     final public int getProbability() {
         return _iProbability;
     }
@@ -95,12 +96,14 @@ public abstract class IdentifiedSector implements IIdentifiedSector {
     public String toString() {
         return _sourceCdSector.toString();
     }
-    
+
     /** @return The sector number from the start of the source file. */
+    @Override
     public int getSectorNumber() {
         return _sourceCdSector.getSectorIndexFromStart();
     }
-    
+
+    @Override
     final public @Nonnull CdSector getCdSector() {
         return _sourceCdSector;
     }

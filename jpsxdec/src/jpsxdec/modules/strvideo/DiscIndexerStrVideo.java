@@ -45,6 +45,7 @@ import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
@@ -114,12 +115,12 @@ public class DiscIndexerStrVideo extends DiscIndexerSectorBasedVideo.SubIndexer
 
     }
 
-    private final StrVideoSectorToDemuxedStrFrame _videoDemuxer = new StrVideoSectorToDemuxedStrFrame(this);
+    private final StrVideoSectorToDemuxedStrFrame _videoDemuxer = new StrVideoSectorToDemuxedStrFrame(SectorRange.ALL, this);
     @CheckForNull
     private VidBuilder _videoBuilder;
 
     @Override
-    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields) 
+    public @CheckForNull DiscItem deserializeLineRead(@Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         if (DiscItemStrVideoStream.TYPE_ID.equals(fields.getType()))
@@ -129,10 +130,10 @@ public class DiscIndexerStrVideo extends DiscIndexerSectorBasedVideo.SubIndexer
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToStrVideoSector s2sv = scs.getClaimer(SectorClaimToStrVideoSector.class);
-        s2sv.setListener(_videoDemuxer);
+        scs.addIdListener(_videoDemuxer);
     }
 
+    @Override
     public void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log) {
         if (_videoBuilder != null && !_videoBuilder.addFrame(frame))
             endOfVideo(log);
@@ -147,6 +148,7 @@ public class DiscIndexerStrVideo extends DiscIndexerSectorBasedVideo.SubIndexer
         addVideo(video);
         _videoBuilder = null;
     }
+    @Override
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
         endOfVideo(log);
     }

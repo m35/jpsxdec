@@ -83,7 +83,7 @@ public class SectorBasedFrameBuilder<T> {
 
     /** Adds another sector to this frame if possible.
      * @return if sector was accepted as part of this frame. */
-    public boolean addSectorIfPartOfFrame(@Nonnull T chunk, 
+    public boolean addSectorIfPartOfFrame(@Nonnull T chunk,
                                           int iChunkNumber, int iExpectedCount,
                                           int iSectorNumber, int iHeaderFrameNumber)
     {

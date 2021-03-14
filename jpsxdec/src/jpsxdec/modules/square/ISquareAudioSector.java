@@ -48,9 +48,9 @@ public interface ISquareAudioSector extends IIdentifiedSector {
     int getSampleFramesPerSecond();
     /** Number of SPU sound units in the sector. */
     int getSoundUnitCount();
-    
+
     boolean isLeftChannel();
-        
+
     /** Start offset in the CD sector where the audio data begins. */
     int getAudioDataStartOffset();
     /** Frame number that this sector belongs to. */

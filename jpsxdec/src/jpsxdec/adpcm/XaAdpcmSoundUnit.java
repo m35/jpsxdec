@@ -86,14 +86,17 @@ public class XaAdpcmSoundUnit implements IAdpcmSoundUnit {
         _asiShiftedAdpcmSamples = asiShiftedAdpcmSamples;
     }
 
+    @Override
     public int getRange() {
         return _iBestSoundUnitParameter & 0xf;
     }
 
+    @Override
     public int getUncorruptedFilterIndex() {
         return (_iBestSoundUnitParameter >> 4) & 0xf;
     }
 
+    @Override
     public short getShiftedAdpcmSample(int i) {
         return _asiShiftedAdpcmSamples[i];
     }
@@ -221,7 +224,7 @@ public class XaAdpcmSoundUnit implements IAdpcmSoundUnit {
          * This should put the best SoundParameter as the first item.
          * @return -1 or 1. Never 0.
          */
-        // [implements Comparable]
+        @Override
         public int compareTo(@Nonnull SoundParameter other) {
             if (_iValue == other._iValue)
                 throw new IllegalStateException("I did something wrong");

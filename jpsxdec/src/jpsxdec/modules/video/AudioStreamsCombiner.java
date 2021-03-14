@@ -45,8 +45,8 @@ import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 
-/** Combines multiple the {@link ISectorAudioDecoder}s from multiple 
- * {@link DiscItemAudioStream} into a single continuous stream. 
+/** Combines multiple the {@link ISectorAudioDecoder}s from multiple
+ * {@link DiscItemAudioStream} into a single continuous stream.
  * This is necessary when a video stream has multiple audio contiguous
  * audio clips, usually due to corrupted audio sectors due to ripping error. */
 public class AudioStreamsCombiner implements ISectorAudioDecoder {
@@ -70,7 +70,7 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
             throw new IllegalArgumentException("Streams are not mutually exclusive.");
 
         _aoSrcItems = audStreams.toArray(new DiscItemAudioStream[audStreams.size()]);
-        
+
         _aoDecoders = new ISectorAudioDecoder[_aoSrcItems.length];
 
         final boolean blnIsStereo;
@@ -82,13 +82,13 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
         _iPresStartSector = audStreams.get(0).getPresentationStartSector();
         int iDiscSpeed = audStreams.get(0).getDiscSpeed(); // first stream may not know the speed
         _aoDecoders[0] = audStreams.get(0).makeDecoder(dblVolume);
-        
+
         for (int i = 1; i < _aoDecoders.length; i++) {
             DiscItemAudioStream aud = audStreams.get(i);
 
             if (!aud.hasSameFormat(audStreams.get(0)))
                 throw new IllegalArgumentException("Different format audio.");
-            
+
             if (iDiscSpeed > 0) {
                 // make sure to accept unknown disc speeds
                 if (aud.getDiscSpeed() > 0 && iDiscSpeed != aud.getDiscSpeed())
@@ -119,43 +119,52 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
         return false;
     }
 
+    @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
         for (ISectorAudioDecoder decoder : _aoDecoders) {
             decoder.attachToSectorClaimer(scs);
         }
     }
 
+    @Override
     public void setAudioListener(@Nonnull DecodedAudioPacket.Listener listener) {
          for (ISectorAudioDecoder decoder : _aoDecoders) {
             decoder.setAudioListener(listener);
          }
     }
 
+    @Override
     public double getVolume() {
         // assume the volume is the same for all decoders
         return _aoDecoders[0].getVolume();
     }
 
+    @Override
     public @Nonnull AudioFormat getOutputFormat() {
         return _outFormat;
     }
 
+    @Override
     public int getSampleFramesPerSecond() {
         return _iSampleRate;
     }
 
+    @Override
     public int getDiscSpeed() {
         return _iDiscSpeed;
     }
 
+    @Override
     public int getStartSector() {
         return _iStartSector;
     }
 
+    @Override
     public int getEndSector() {
         return _iEndSector;
     }
 
+    @Override
     public int getAbsolutePresentationStartSector() {
         return _iPresStartSector;
     }

@@ -39,12 +39,13 @@ package jpsxdec.modules.aconcagua;
 
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
 import jpsxdec.modules.video.sectorbased.IVideoSectorWithFrameNumber;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.DemuxedData;
 
 /** Video sector of the Aconcagua opening FMV. The ending FMV is different. */
@@ -103,26 +104,32 @@ public class SectorAconcaguaVideo extends IdentifiedSector
         setProbability(100);
     }
 
+    @Override
     public String getTypeName() {
         return "Aconcagua Video";
     }
 
+    @Override
     public int getWidth() {
         return _iWidth;
     }
 
+    @Override
     public int getHeight() {
         return _iHeight;
     }
 
+    @Override
     public int getHeaderFrameNumber() {
         return _iFrameNumber;
     }
 
+    @Override
     public int getChunksInFrame() {
         return _iChunksInFrame;
     }
 
+    @Override
     public int getChunkNumber() {
         return _iChunkNumber;
     }
@@ -131,23 +138,28 @@ public class SectorAconcaguaVideo extends IdentifiedSector
         return _iQuantizationScale;
     }
 
+    @Override
     public int getVideoSectorHeaderSize() {
         return 32;
     }
-    
+
+    @Override
     public int getDemuxPieceSize() {
         return getCdSector().getCdUserDataSize() - getVideoSectorHeaderSize();
     }
 
+    @Override
     public byte getDemuxPieceByte(int i) {
         return getCdSector().readUserDataByte(i);
     }
 
+    @Override
     public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
         getCdSector().getCdUserDataCopy(getVideoSectorHeaderSize(),
                                         abOut, iOutPos, getDemuxPieceSize());
     }
 
+    @Override
     public @Nonnull AconcaguaDemuxer createDemuxer(@Nonnull ILocalizedLogger log) {
         return new AconcaguaDemuxer(this, log);
     }
@@ -166,7 +178,8 @@ public class SectorAconcaguaVideo extends IdentifiedSector
             _iQuantizationScale);
     }
 
-    public void replaceVideoSectorHeader(byte[] abNewDemuxData, int iNewUsedSize, int iNewMdecCodeCount, byte[] abCurrentVidSectorHeader) throws LocalizedIncompatibleException {
-        throw new UnsupportedOperationException("Not gonna support replacing Aconcagua video");
+    @Override
+    public void replaceVideoSectorHeader(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, byte[] abCurrentVidSectorHeader) {
+        throw new UnsupportedOperationException("Never going to support replacing Aconcagua video");
     }
 }

@@ -79,7 +79,7 @@ public class BitReader {
         System.out.println(BIT_STRING);
         sb.setLength(0);
 
-        ArrayBitReader abr = new ArrayBitReader(abTest, abTest.length, false);
+        ArrayBitReader abr = new ArrayBitReader(abTest, BitStreamUncompressor_Lain.BIG_ENDIAN_ORDER, 0, abTest.length);
 
         System.out.println("Reading " + 16);
         sb.append(abr.peekBitsToString(16));
@@ -94,7 +94,7 @@ public class BitReader {
 
         int iPeek, iRead;
 
-        abr = new ArrayBitReader(abTest, abTest.length, true, 0);
+        abr = new ArrayBitReader(abTest, BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER, 0, abTest.length);
 
         assertEquals("Bits remaining", abr.getBitsRemaining(), 48);
         String sPeek = abr.peekBitsToString(31);
@@ -115,7 +115,7 @@ public class BitReader {
         assertEquals(iPeek+" == "+iRead, iPeek, iRead);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 0);
 
-        abr = new ArrayBitReader(abTest, abTest.length, true, 0);
+        abr = new ArrayBitReader(abTest, BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER, 0, abTest.length);
         abr.skipBits(5);
         assertEquals("Bits remaining", abr.getBitsRemaining(), 43);
         abr.skipBits(30);
@@ -152,7 +152,7 @@ public class BitReader {
         sb.setLength(0);
 
         sb.setLength(0);
-        ArrayBitReader abr = new ArrayBitReader(abTest, abTest.length, false);
+        ArrayBitReader abr = new ArrayBitReader(abTest, BitStreamUncompressor_Lain.BIG_ENDIAN_ORDER, 0, abTest.length);
 
         int iRead = 0;
         int i;
@@ -192,7 +192,7 @@ public class BitReader {
             long lngStart, lngEnd;
             lngStart = System.currentTimeMillis();
             for (int iTimes = 0; iTimes < 5000; iTimes++) {
-                ArrayBitReader reader = MAKERS[i].make(abData, abData.length, true, 0);
+                ArrayBitReader reader = MAKERS[i].make(abData, BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER, 0, abData.length);
                 try {
                     int iSkipBits = 0;
                     for (;; iSkipBits = (iSkipBits + 1) & 0x1F) {
@@ -218,31 +218,31 @@ public class BitReader {
     }
 
     private interface ReaderMaker {
-        ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart);
+        ArrayBitReader make(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset);
     }
-    private static ReaderMaker[] MAKERS = {
+    private static final ReaderMaker[] MAKERS = {
         new ReaderMaker() {
-            public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-                return new PreCheckBitSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+            public ArrayBitReader make(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset) {
+                return new PreCheckBitSkip(abData, byteOrder, iStartOffset, iEndOffset);
             }
             public String toString() { return PreCheckBitSkip.class.getSimpleName(); }
         },
         new ReaderMaker() {
             // This is the one implemented in ArrayBitReader
-            public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-                return new PostCheckBitSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+            public ArrayBitReader make(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset) {
+                return new PostCheckBitSkip(abData, byteOrder, iStartOffset, iEndOffset);
             }
             public String toString() { return PostCheckBitSkip.class.getSimpleName(); }
         },
         new ReaderMaker() {
-            public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-                return new PreCheckModSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+            public ArrayBitReader make(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset) {
+                return new PreCheckModSkip(abData, byteOrder, iStartOffset, iEndOffset);
             }
             public String toString() { return PreCheckModSkip.class.getSimpleName(); }
         },
         new ReaderMaker() {
-            public ArrayBitReader make(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-                return new PostCheckModSkip(abData, iDataSize, blnLittleEndian, iReadStart);
+            public ArrayBitReader make(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset) {
+                return new PostCheckModSkip(abData, byteOrder, iStartOffset, iEndOffset);
             }
             public String toString() { return PostCheckModSkip.class.getSimpleName(); }
         },
@@ -250,26 +250,26 @@ public class BitReader {
 
     private static class PreCheckBitSkip extends ArrayBitReader {
 
-        public PreCheckBitSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-            super(abData, iDataSize, blnLittleEndian, iReadStart);
+        public PreCheckBitSkip(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset) {
+            super(abData, byteOrder, iStartOffset, iEndOffset);
         }
 
         @Override
         public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
-                _iByteOffset += ((-_iBitsLeft) >> 4) << 1;
+                _iCurrentOffset += ((-_iBitsLeft) >> 4) << 1;
                 _iBitsLeft = -((-_iBitsLeft) & 0xf);
                 if (_iBitsLeft < 0) {
                     _iBitsLeft += 16;
-                    _iByteOffset += 2;
+                    _iCurrentOffset += 2;
                 }
-                if (_iByteOffset > _iDataSize) {
+                if (_iCurrentOffset > _iEndOffset) {
                     _iBitsLeft = 0;
-                    _iByteOffset = _iDataSize;
+                    _iCurrentOffset = _iEndOffset;
                     throw new MdecException.EndOfStream();
                 } else if (_iBitsLeft > 0) {
-                    _siCurrentWord = readWord(_iByteOffset-2);
+                    _siCurrentShort = readShort(_iCurrentOffset-2);
                 }
             }
         }
@@ -278,82 +278,84 @@ public class BitReader {
     // This is the one implemented in ArrayBitReader
     private static class PostCheckBitSkip extends ArrayBitReader {
 
-        public PostCheckBitSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-            super(abData, iDataSize, blnLittleEndian, iReadStart);
+        public PostCheckBitSkip(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset) {
+            super(abData, byteOrder, iStartOffset, iEndOffset);
         }
 
         @Override
         public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
-                _iByteOffset += ((-_iBitsLeft) >> 4) << 1;
+                _iCurrentOffset += ((-_iBitsLeft) >> 4) << 1;
                 _iBitsLeft = -((-_iBitsLeft) & 0xf);
-                if (_iByteOffset > _iDataSize) {
+                if (_iCurrentOffset > _iEndOffset) {
                     _iBitsLeft = 0;
-                    _iByteOffset = _iDataSize;
+                    _iCurrentOffset = _iEndOffset;
                     throw new MdecException.EndOfStream();
                 } else if (_iBitsLeft < 0) {
-                    if (_iByteOffset == _iDataSize) {
+                    if (_iCurrentOffset == _iEndOffset) {
                         _iBitsLeft = 0;
                         throw new MdecException.EndOfStream();
                     }
                     _iBitsLeft += 16;
-                    _siCurrentWord = readWord(_iByteOffset);
-                    _iByteOffset += 2;
+                    _siCurrentShort = readShort(_iCurrentOffset);
+                    _iCurrentOffset += 2;
                 }
             }
         }
     }
 
     private static class PreCheckModSkip extends ArrayBitReader {
-        public PreCheckModSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-            super(abData, iDataSize, blnLittleEndian, iReadStart);
+
+        public PreCheckModSkip(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset) {
+            super(abData, byteOrder, iStartOffset, iEndOffset);
         }
 
         @Override
         public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
-                _iByteOffset += -(_iBitsLeft / 16)*2;
+                _iCurrentOffset += -(_iBitsLeft / 16)*2;
                 _iBitsLeft = _iBitsLeft % 16;
                 if (_iBitsLeft < 0) {
                     _iBitsLeft += 16;
-                    _iByteOffset += 2;
+                    _iCurrentOffset += 2;
                 }
-                if (_iByteOffset > _iDataSize) {
+                if (_iCurrentOffset > _iEndOffset) {
                     _iBitsLeft = 0;
-                    _iByteOffset = _iDataSize;
-                    throw new MdecException.EndOfStream(_iByteOffset + " > " + _iDataSize);
+                    _iCurrentOffset = _iEndOffset;
+                    throw new MdecException.EndOfStream(_iCurrentOffset + " > " + _iEndOffset);
                 } else if (_iBitsLeft > 0) {
-                    _siCurrentWord = readWord(_iByteOffset-2);
+                    _siCurrentShort = readShort(_iCurrentOffset-2);
                 }
             }
         }
     }
 
     private static class PostCheckModSkip extends ArrayBitReader {
-        public PostCheckModSkip(byte[] abData, int iDataSize, boolean blnLittleEndian, int iReadStart) {
-            super(abData, iDataSize, blnLittleEndian, iReadStart);
+
+        public PostCheckModSkip(byte[] abData, IByteOrder byteOrder, int iStartOffset, int iEndOffset) {
+            super(abData, byteOrder, iStartOffset, iEndOffset);
         }
 
         @Override
         public void skipBits(int iCount) throws MdecException.EndOfStream {
             _iBitsLeft -= iCount;
             if (_iBitsLeft < 0) {
-                _iByteOffset += -(_iBitsLeft / 16)*2;
+                _iCurrentOffset += -(_iBitsLeft / 16)*2;
                 _iBitsLeft = _iBitsLeft % 16;
-                if (_iByteOffset > _iDataSize) {
+                if (_iCurrentOffset > _iEndOffset) {
                     _iBitsLeft = 0;
-                    _iByteOffset = _iDataSize;
+                    _iCurrentOffset = _iEndOffset;
                     throw new MdecException.EndOfStream();
                 } else if (_iBitsLeft < 0) {
-                    if (_iByteOffset == _iDataSize) {
+                    if (_iCurrentOffset == _iEndOffset) {
                         _iBitsLeft = 0;
                         throw new MdecException.EndOfStream();
                     }
                     _iBitsLeft += 16;
-                    _siCurrentWord = readWord(_iByteOffset);
-                    _iByteOffset += 2;
+                    _siCurrentShort = readShort(_iCurrentOffset);
+                    _iCurrentOffset += 2;
                 }
             }
         }

@@ -52,6 +52,7 @@ import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
@@ -144,7 +145,7 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
         int iFrameIndex = 0;
         int iLastChunk = -1;
         for (int iSector = 0; it.hasNext(); iSector++) {
-            IIdentifiedSector isect = it.next(DebugLogger.Log).getClaimer();
+            IIdentifiedSector isect = it.next(DebugLogger.Log);
             if (isect instanceof SectorDreddVideo) {
                 SectorDreddVideo vidSect = (SectorDreddVideo) isect;
                 ps.println(String.format("%-5d %-4d %d/%d",
@@ -167,36 +168,38 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
     @Override
     public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer() {
         return new Demuxer(_indexSectorFrameNumberFormat.makeFormatter(),
-                           getStartSector(), getEndSector());
+                           makeSectorRange());
     }
 
 
-    public static class Demuxer implements ISectorClaimToDemuxedFrame, SectorClaimToDreddFrame.Listener {
+    public static class Demuxer implements ISectorClaimToDemuxedFrame, DreddSectorToDreddFrame.Listener {
 
         @Nonnull
         private final IFrameNumberFormatter _indexSectorFrameNumberFormatter;
         @CheckForNull
         private IDemuxedFrame.Listener _listener;
-        private final int _iStartSector, _iInclusiveEndSector;
+        @Nonnull
+        private final SectorRange _sectorRange;
 
         private Demuxer(@Nonnull IFrameNumberFormatter indexSectorFrameNumberFormatter,
-                        int iStartSector, int iInclusiveEndSector)
+                        @Nonnull SectorRange sectorRange)
         {
             _indexSectorFrameNumberFormatter = indexSectorFrameNumberFormatter;
-            _iStartSector = iStartSector;
-            _iInclusiveEndSector = iInclusiveEndSector;
+            _sectorRange = sectorRange;
         }
 
+        @Override
         public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-            SectorClaimToDreddFrame s2df = scs.getClaimer(SectorClaimToDreddFrame.class);
-            s2df.setListener(this);
-            s2df.setRangeLimit(_iStartSector, _iInclusiveEndSector);
+            DreddSectorToDreddFrame s2f = new DreddSectorToDreddFrame(_sectorRange, this);
+            scs.addIdListener(s2f);
         }
 
+        @Override
         public void setFrameListener(@Nonnull IDemuxedFrame.Listener listener) {
             _listener = listener;
         }
 
+        @Override
         public void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             FrameNumber fn = _indexSectorFrameNumberFormatter.next(frame.getStartSector(), log);
             frame.setFrame(fn);
@@ -204,13 +207,15 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
                 _listener.frameComplete(frame);
         }
 
+        @Override
         public void videoBreak(@Nonnull ILocalizedLogger log) {
             LOG.info("Dredd video break while saving");
         }
 
+        @Override
         public void endOfSectors(@Nonnull ILocalizedLogger log) {
-            
+
         }
     }
-    
+
 }

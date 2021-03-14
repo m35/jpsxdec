@@ -35,19 +35,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.strvideo;
+package jpsxdec.modules.square;
 
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSectorXaSubHeader.SubMode;
+import jpsxdec.modules.strvideo.GenericStrVideoSector;
 import jpsxdec.modules.video.sectorbased.SectorAbstractVideo;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.VideoSectorCommon16byteHeader;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.IO;
 
 
-/** Represents an FF7 video sector. */
+/** Represents an FF7 video sector.
+ * FF7 frames start with 40 bytes of unknown data.
+ * These 40 bytes could be managed by the sector, or by the bitstream.
+ * The game seems to let the bitstream manage the 40 bytes, but
+ * I've opted to let the sector manage them. Those 40 bytes wouldn't mean
+ * anything when frames are extracted by bitstreams, and would introduce
+ * a whole new type of bitstream that has 40 unknown bytes.
+ * Also those bytes shouldn't be touched when replacing frames. */
 public class SectorFF7Video extends SectorAbstractVideo {
-    
+
     public static final int FRAME_SECTOR_HEADER_SIZE = 32;
 
     // Magic is normal STR = 0x80010160
@@ -56,14 +66,15 @@ public class SectorFF7Video extends SectorAbstractVideo {
     private int  _iWidth;               //  16   [2 bytes]
     private int  _iHeight;              //  18   [2 bytes]
     private long _lngUnknown8bytes;     //  20   [8 bytes]
-    // FourZeros                        //  28   [4 bytes]
+    // 4 zeroes                         //  28   [4 bytes]
     //   32 TOTAL
-    // First chunk may have 40 bytes of camera data
+    // First chunk has 40 bytes of unknown data (camera data?)
 
+    @Override
     public int getVideoSectorHeaderSize() { return _iUserDataStart; }
 
     private int _iUserDataStart;
-    
+
     // .. Constructor .....................................................
 
     public SectorFF7Video(@Nonnull CdSector cdSector) {
@@ -76,52 +87,43 @@ public class SectorFF7Video extends SectorAbstractVideo {
         if (subModeExistsAndMaskDoesNotEqual(SubMode.MASK_FORM | SubMode.MASK_TRIGGER | SubMode.MASK_AUDIO, 0))
             return;
 
-        if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
+        if (_header.lngMagic != GenericStrVideoSector.STANDARD_STR_VIDEO_SECTOR_MAGIC) return;
         if (!_header.hasStandardChunkNumber()) return;
         if (_header.iChunksInThisFrame < 6 || _header.iChunksInThisFrame > 10) return;
         if (!_header.hasStandardFrameNumber()) return;
-        // this block is unfortunately necessary to prevent false-positives with Lain sectors
-        if (_header.iUsedDemuxedSize < 2500 || _header.iUsedDemuxedSize > 21000) return;
-        _iWidth = cdSector.readSInt16LE(16);
-        if (_iWidth != 320 && _iWidth != 640) return;
-        _iHeight = cdSector.readSInt16LE(18);
-        if (_iHeight != 224 && _iHeight != 192 && _iHeight != 240) return;
-        _lngUnknown8bytes = cdSector.readSInt64BE(20);
-        
-        if (_iHeight == 240) { // FF7 sampler has videos with 240 height
-            // this block is unfortunately necessary to prevent false-positives with Lain sectors
-            
-            // if movie height is 240, then the unknown data must all be 0
-            if (_lngUnknown8bytes != 0) return;
+        if (_header.iUsedDemuxedSize < 1) return; // used demux size includes the 40 bytes of unknown data
 
-            // and no 10 chunk frames before frame 100
-            if (_header.iChunksInThisFrame == 10 && _header.iFrameNumber < 100) return;
-        }
-        
-        long iFourZeros = cdSector.readSInt32LE(28);
+        _iWidth = cdSector.readSInt16LE(16);
+        if (_iWidth < 1) return;
+        _iHeight = cdSector.readSInt16LE(18);
+        if (_iHeight < 1) return;
+
+        _lngUnknown8bytes = cdSector.readSInt64BE(20);
+
+        int iFourZeros = cdSector.readSInt32LE(28);
         if (iFourZeros != 0) return;
 
-        // check for camera data which should always exist in chunk 0
+        // check for 40 bytes of unknown data in chunk 0
         if (_header.iChunkNumber == 0) {
-            if (cdSector.readUInt16LE(32+2) != 0x3800) {
-                if (cdSector.readUInt16LE(32+40+2) != 0x3800)
-                    return; // failure
-                _iUserDataStart = FRAME_SECTOR_HEADER_SIZE + 40;
-            } else {
-                _iUserDataStart = FRAME_SECTOR_HEADER_SIZE;
-            }
+            if (cdSector.readUInt16LE(FRAME_SECTOR_HEADER_SIZE+2) == 0x3800)
+                return;
+
+            if (cdSector.readUInt16LE(FRAME_SECTOR_HEADER_SIZE+40+2) != 0x3800)
+                return;
+
+            _iUserDataStart = FRAME_SECTOR_HEADER_SIZE + 40;
         } else {
             _iUserDataStart = FRAME_SECTOR_HEADER_SIZE;
         }
 
-        // that 8 bytes of unknown data makes the confidence suspect
-        setProbability(90);
+        // the header is so vague it's easy to have false-positives
+        // so you can't rely entirely on this sector identification
+        setProbability(50);
     }
-
     // .. Public functions .................................................
 
+    @Override
     public String toString() {
-
         String sRet = String.format("%s %s frame:%d chunk:%d/%d %dx%d {used demux=%d unknown=%016x}",
             getTypeName(),
             super.cdToString(),
@@ -134,41 +136,49 @@ public class SectorFF7Video extends SectorAbstractVideo {
             _lngUnknown8bytes
             );
 
-        if (_iUserDataStart == FRAME_SECTOR_HEADER_SIZE) {
-            return sRet;
+        if (_header.iChunkNumber == 0) {
+            return sRet + " + Unknown 40 bytes";
         } else {
-            return sRet + " + Camera data";
+            return sRet;
         }
     }
 
+    @Override
     public @Nonnull String getTypeName() {
         return "FF7 Video";
     }
 
-    public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                         int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+    @Override
+    public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                         @Nonnull BitStreamAnalysis newFrame,
+                                         @Nonnull byte[] abCurrentVidSectorHeader)
     {
-        // all frames need the additional camera data in the demux size
-        int iDemuxSizeForHeader = ((iNewUsedSize + 3) & ~3) + 40;
-        IO.writeInt32LE(abCurrentVidSectorHeader, 12, iDemuxSizeForHeader);
+        // there isn't much to change in FF7 sector headers
+        // all sectors need the additional 40 unknown bytes in the demux size
+        IO.writeInt32LE(abCurrentVidSectorHeader, 12, newFrame.calculateUsedBytesRoundUp4() + 40);
     }
-    
+
+    @Override
     public int getChunkNumber() {
         return _header.iChunkNumber;
     }
 
+    @Override
     public int getChunksInFrame() {
         return _header.iChunksInThisFrame;
     }
 
+    @Override
     public int getHeaderFrameNumber() {
         return _header.iFrameNumber;
     }
 
+    @Override
     public int getHeight() {
         return _iHeight;
     }
 
+    @Override
     public int getWidth() {
         return _iWidth;
     }

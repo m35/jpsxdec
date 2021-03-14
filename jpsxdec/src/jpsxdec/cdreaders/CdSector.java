@@ -46,7 +46,7 @@ import jpsxdec.util.IO;
 
 /** Represents a single sector on a CD. */
 public abstract class CdSector {
-    
+
     /** Normal iso sector data size: 2048. */
     public final static int SECTOR_SIZE_2048_ISO            = 2048;
     /** Raw sector without sync header: 2336. */
@@ -57,22 +57,12 @@ public abstract class CdSector {
     public final static int SECTOR_SIZE_2448_BIN_SUBCHANNEL = 2448;
 
 
-    /** Data sector payload size for and Mode 2 Form 1: 2048. */
+    /** Data sector payload size for Mode 1 and Mode 2 Form 1: 2048. */
     public final static int SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1 = 2048;
     /** Payload size for and Mode 2 Form 2 (usually XA audio): 2324. */
     public final static int SECTOR_USER_DATA_SIZE_MODE2FORM2       = 2324;
     /** CD audio sector payload size: 2352. */
     public final static int SECTOR_USER_DATA_SIZE_CD_AUDIO         = 2352;
-
-    /** Maximum channel number (inclusive) that will be considered for
-     * XA sector.
-     * My understanding is channel is technically supposed to be
-     * between 0 and 31. Some games seem to use values outside of that range
-     * for both valid and null XA audio sectors.
-     * Ace Combat 3 has several AUDIO sectors with channel 255
-     * that seem to be "null" sectors, so all other values will be valid. */
-    public static final int MAX_VALID_CHANNEL = 254;
-
 
     public enum Type {
         CD_AUDIO(SECTOR_USER_DATA_SIZE_CD_AUDIO),
@@ -121,7 +111,7 @@ public abstract class CdSector {
 
     abstract public @CheckForNull CdSectorHeader getHeader();
     abstract public @CheckForNull CdSectorXaSubHeader getSubHeader();
-    
+
     abstract public boolean hasHeaderErrors();
     abstract public int getErrorCount();
 
@@ -178,7 +168,7 @@ public abstract class CdSector {
 
     // .........................................................................
     // readers
-    
+
     final public byte readUserDataByte(int i) {
         checkIndex(i);
         return _abSectorBytes[_iByteStartOffset + getHeaderDataSize() + i];
@@ -218,14 +208,14 @@ public abstract class CdSector {
         checkIndex(i);
         return IO.readSInt32BE(_abSectorBytes, _iByteStartOffset + getHeaderDataSize() + i);
     }
-    
+
     final public long readSInt64BE(int i) {
         checkIndex(i);
         return IO.readSInt64BE(_abSectorBytes, _iByteStartOffset + getHeaderDataSize() + i);
     }
 
-    /** Helper function to ensure index is within the size of the sector data. 
-     * @throws IndexOutOfBoundsException If index is out of bounds of 
+    /** Helper function to ensure index is within the size of the sector data.
+     * @throws IndexOutOfBoundsException If index is out of bounds of
      *                                   the sector data. */
     private void checkIndex(int i) {
         if (i < 0 || i >= getCdUserDataSize())

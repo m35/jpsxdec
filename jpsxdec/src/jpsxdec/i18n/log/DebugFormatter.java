@@ -102,17 +102,18 @@ public class DebugFormatter extends Formatter {
      * @param record the log record to be formatted.
      * @return a formatted log record
      */
+    @Override
     public synchronized @Nonnull String format(@Nonnull LogRecord record) {
-	StringBuilder sb = new StringBuilder();
-	// Minimize memory allocations here.
-	_date.setTime(record.getMillis());
-	sb.append(_timeFormatter.format(_date));
-	sb.append(' ');
+        StringBuilder sb = new StringBuilder();
+        // Minimize memory allocations here.
+        _date.setTime(record.getMillis());
+        sb.append(_timeFormatter.format(_date));
+        sb.append(' ');
         sb.append(record.getLoggerName());
-	sb.append(' ');
-	sb.append(record.getLevel().getName());
-	sb.append(": ");
-        
+        sb.append(' ');
+        sb.append(record.getLevel().getName());
+        sb.append(": ");
+
         // localize to English
         String sMsg = record.getMessage();
         if (sMsg != null) {
@@ -134,11 +135,11 @@ public class DebugFormatter extends Formatter {
             }
             sb.append(sMsg);
         }
-        
-	sb.append(LINE_SEPARATOR);
-	if (record.getThrown() != null) {
+
+        sb.append(LINE_SEPARATOR);
+        if (record.getThrown() != null) {
             sb.append(Misc.stack2string(record.getThrown()));
-	}
-	return sb.toString();
+        }
+        return sb.toString();
     }
 }

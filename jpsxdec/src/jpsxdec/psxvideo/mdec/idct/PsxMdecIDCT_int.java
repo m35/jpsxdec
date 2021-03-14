@@ -63,6 +63,7 @@ public class PsxMdecIDCT_int implements IDCT_int {
 
     private final long[] _aTemp = new long[64];
 
+    @Override
     public void IDCT(int[] idctMatrix, int iOutputOffset, int[] output) {
         long tempSum;
         int x;
@@ -76,7 +77,7 @@ public class PsxMdecIDCT_int implements IDCT_int {
                 for (i=0; i<8; i++) {
                     tempSum += (PSX_DEFAULT_COSINE_MATRIX[i*8 + y] * idctMatrix[x + i*8]);
                 }
-                
+
                 _aTemp[x + y*8] = tempSum;
             }
         }
@@ -126,11 +127,12 @@ public class PsxMdecIDCT_int implements IDCT_int {
         }
     }
 
+    @Override
     public void IDCT_1NonZero(int[] idctMatrix, int iNonZeroPos, int iOutputOffset, int[] output) {
         IDCT(idctMatrix, iOutputOffset, output);
     }
 
-    
+
     public static void main(String[] args) {
 
         int[] matrix = new int[] {

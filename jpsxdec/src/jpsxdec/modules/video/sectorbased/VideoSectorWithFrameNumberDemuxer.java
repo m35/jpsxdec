@@ -43,6 +43,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.DemuxedData;
 
 
@@ -76,6 +77,7 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
         return _bldr.getHeaderFrameNumber();
     }
 
+    @Override
     public boolean addSectorIfPartOfFrame(@Nonnull ISelfDemuxingVideoSector sector) {
         if (!(sector instanceof IVideoSectorWithFrameNumber))
             return false;
@@ -89,6 +91,7 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
                chunk.getSectorNumber(), chunk.getHeaderFrameNumber());
     }
 
+    @Override
     public boolean isFrameComplete() {
         return _bldr.isFrameComplete();
     }
@@ -97,6 +100,7 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
         return _bldr.getNonNullChunks(log);
     }
 
+    @Override
     public @Nonnull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log) {
         List<IVideoSectorWithFrameNumber> sectors = getNonNullChunks(log);
 
@@ -116,7 +120,7 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
      * of similar nature. But we need them to implement both {@link DemuxedData.Piece}
      * and {@link SectorBasedFrameReplace.IReplaceableVideoSector}, so we wrap
      * them here to bridge the gap. */
-    private static class VideoSectorReplaceableDemuxPiece 
+    private static class VideoSectorReplaceableDemuxPiece
             implements DemuxedData.Piece, SectorBasedFrameReplace.IReplaceableVideoSector
     {
         @Nonnull
@@ -126,37 +130,41 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
             _vidSector = vidSector;
         }
 
+        @Override
         public int getDemuxPieceSize() {
             return _vidSector.getDemuxPieceSize();
         }
 
+        @Override
         public byte getDemuxPieceByte(int i) {
             return _vidSector.getDemuxPieceByte(i);
         }
 
+        @Override
         public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
             _vidSector.copyDemuxPieceData(abOut, iOutPos);
         }
 
+        @Override
         public int getSectorNumber() {
             return _vidSector.getSectorNumber();
         }
 
+        @Override
         public int getVideoSectorHeaderSize() {
             return _vidSector.getVideoSectorHeaderSize();
         }
 
-        public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData,
-                                             int iNewUsedSize,
-                                             int iNewMdecCodeCount,
+        @Override
+        public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                             @Nonnull BitStreamAnalysis newFrame,
                                              @Nonnull byte[] abCurrentVidSectorHeader)
                 throws LocalizedIncompatibleException
         {
-            _vidSector.replaceVideoSectorHeader(abNewDemuxData, iNewUsedSize,
-                                                iNewMdecCodeCount,
-                                                abCurrentVidSectorHeader);
+            _vidSector.replaceVideoSectorHeader(existingFrame, newFrame, abCurrentVidSectorHeader);
         }
 
+        @Override
         public @Nonnull CdSector getCdSector() {
             return _vidSector.getCdSector();
         }

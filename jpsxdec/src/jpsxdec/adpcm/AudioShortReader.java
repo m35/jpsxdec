@@ -48,7 +48,7 @@ import jpsxdec.util.IncompatibleException;
 /** Wraps {@link AudioInputStream} to read mono or stereo 16-bit
  * {@link AudioFormat.Encoding.PCM_SIGNED} samples as arrays of shorts. */
 public class AudioShortReader implements Closeable {
-    
+
     @Nonnull
     private final AudioInputStream _sourceAudio;
 
@@ -78,6 +78,7 @@ public class AudioShortReader implements Closeable {
     }
 
     /** Closes the underlying audio stream. */
+    @Override
     public void close() throws IOException {
         _sourceAudio.close();
     }

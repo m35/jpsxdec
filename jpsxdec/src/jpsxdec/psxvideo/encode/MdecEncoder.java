@@ -46,6 +46,7 @@ import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
+import jpsxdec.psxvideo.mdec.ParsedMdecImage;
 
 /** Encodes a {@link PsxYCbCrImage} into an {@link MdecInputStream}.
  * After encoding, the MdecInputStream will most likely be then
@@ -118,6 +119,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     }
 
     /** Iterator for only the macro blocks that will be replaced. */
+    @Override
     public @Nonnull Iterator<MacroBlockEncoder> iterator() {
         return _replaceMbs.iterator();
     }
@@ -129,11 +131,11 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     public int getMacroBlockCount() {
         return _iMacBlockWidth * _iMacBlockHeight;
     }
-    
+
     public int getMacroBlockWidth() {
         return _iMacBlockWidth;
     }
-    
+
     public int getMacroBlockHeight() {
         return _iMacBlockHeight;
     }
@@ -155,6 +157,7 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
             __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
         }
 
+        @Override
         public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream {
             if (!__curMb.hasNext()) {
                 // end of current macroblock, move to next

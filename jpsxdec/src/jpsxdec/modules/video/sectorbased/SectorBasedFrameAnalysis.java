@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2021  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,55 +35,49 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules.xa;
+package jpsxdec.modules.video.sectorbased;
 
+import java.io.PrintStream;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdSectorXaSubHeader;
-import jpsxdec.cdreaders.CdSectorXaSubHeader.SubMode;
-import jpsxdec.modules.IdentifiedSector;
-    
-/** 'Null' XA sectors.
- * XA files have lots of audio channels. When a channel is no longer used
- * because the audio is finished, it is sometimes filled with what I call
- * 'null' sectors. These sectors have absolutely no SubMode flags set,
- * and are often full of zeros. */
-public class SectorXaNull extends IdentifiedSector {
+import jpsxdec.modules.video.IDemuxedFrame;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
+import jpsxdec.psxvideo.mdec.MdecException;
+import jpsxdec.psxvideo.mdec.MdecInputStream;
+import jpsxdec.util.BinaryDataNotRecognized;
 
-    public SectorXaNull(@Nonnull CdSector cdSector) {
-        super(cdSector);
-        if (isSuperInvalidElseReset()) return;
-        
-        if (cdSector.isCdAudioSector()) return;
+/** Analyzes a sector-based frame and calculates frequently used values. */
+public class SectorBasedFrameAnalysis extends BitStreamAnalysis {
 
-        CdSectorXaSubHeader sh = cdSector.getSubHeader();
-        // if it doesn't have a sector header, then it can't be a null sector
-        if (sh == null) return;
-        // if it's not a Form 2 sector, then it can't be a null sector
-        if (sh.getSubMode().getForm() != 2) return;
+    /** @throws IllegalArgumentException if the frame has a custom mdec stream.
+     *          see {@link IDemuxedFrame#getCustomFrameMdecStream()} */
+    public static @Nonnull SectorBasedFrameAnalysis create(@Nonnull IDemuxedFrame frame)
+            throws BinaryDataNotRecognized, MdecException.ReadCorruption, MdecException.EndOfStream,
+                   IllegalArgumentException
+    {
+        MdecInputStream mis = frame.getCustomFrameMdecStream();
+        if (mis != null)
+            throw new IllegalArgumentException();
 
-        // if it's not flagged as a null sector...
-        SubMode sm = sh.getSubMode();
-        if (sm.getAudio() || sm.getVideo() || sm.getData()) {
-            // if it's flagged as an audio sector, then it's not a null sector
-            if (!sm.getAudio())
-                return;
+        byte[] abBitStream = frame.copyDemuxData();
+        assert abBitStream.length == frame.getDemuxSize();
+        return new SectorBasedFrameAnalysis(abBitStream, frame);
+    }
 
-            // if it has a valid channel number, then it's not a null sector
-            if (sh.getChannel() >= 0 || sh.getChannel() < CdSector.MAX_VALID_CHANNEL)
-                return;
-        }
+    @Nonnull
+    private final IDemuxedFrame _frame;
 
-        setProbability(100);
+    protected SectorBasedFrameAnalysis(@Nonnull byte[] abBitstream, @Nonnull IDemuxedFrame frame)
+            throws BinaryDataNotRecognized, MdecException.ReadCorruption, MdecException.EndOfStream
+    {
+        super(abBitstream, frame.getWidth(), frame.getHeight());
+        _frame = frame;
     }
 
     @Override
-    public String toString() {
-        return getTypeName() + " " + super.toString();
+    public void printInfo(@Nonnull PrintStream ps) {
+        ps.println(_frame);
+        ps.println("Available demux size: " + _frame.getDemuxSize());
+        _frame.printSectors(ps);
+        super.printInfo(ps);
     }
-
-    public @Nonnull String getTypeName() {
-        return "XA Null";
-    }
-
 }

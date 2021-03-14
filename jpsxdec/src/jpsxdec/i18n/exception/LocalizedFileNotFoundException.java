@@ -57,6 +57,7 @@ public class LocalizedFileNotFoundException extends FileNotFoundException implem
         initCause(cause);
     }
 
+    @Override
     public @Nonnull ILocalizedMessage getSourceMessage() {
         return _msg;
     }

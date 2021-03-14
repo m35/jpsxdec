@@ -42,14 +42,14 @@ import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 
-/** Represents the C WAVEFORMATEX structure. 
+/** Represents the C WAVEFORMATEX structure.
  *  http://msdn2.microsoft.com/en-us/library/ms713497(VS.85).aspx */
 class WAVEFORMATEX extends AVIstruct {
 
     static short WAVE_FORMAT_PCM = 1;
-    
+
     // ** VirtualDub writes 16 bytes struct (leaves off cbSize)
-    
+
     public /*WORD */ short wFormatTag      = 0;
     public /*WORD */ short nChannels       = 0;
     public /*DWORD*/ int   nSamplesPerSec  = 0;
@@ -57,8 +57,9 @@ class WAVEFORMATEX extends AVIstruct {
     public /*WORD */ short nBlockAlign     = 0;
     public /*WORD */ short wBitsPerSample  = 0;
     //public /*WORD */ short cbSize          = 0; **
-    
-    
+
+
+    @Override
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
         /*WORD */ IO.writeInt16LE(raf, wFormatTag     );
         /*WORD */ IO.writeInt16LE(raf, nChannels      );
@@ -69,8 +70,9 @@ class WAVEFORMATEX extends AVIstruct {
         ///*WORD */ IO.writeInt16LE(raf, cbSize         ); **
     }
 
+    @Override
     public int sizeof() {
         return 18-2; // **
     }
-    
+
 }

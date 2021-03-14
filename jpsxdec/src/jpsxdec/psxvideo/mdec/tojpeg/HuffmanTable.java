@@ -180,7 +180,7 @@ class HuffmanTable {
     private HuffmanTable(int iType, int iIndex, int[][] aaiValuesForBitLen) {
         if (aaiValuesForBitLen.length != 16)
             throw new IllegalArgumentException();
-        
+
         _iTableType = iType;
         _iTableIndex = iIndex;
         _aaiValuesForBitLen = aaiValuesForBitLen;
@@ -225,7 +225,7 @@ class HuffmanTable {
     }
 
     /** Only used for DC tables. */
-    public void encodeDcCoefficient(int iDc, Component comp, JpegBitOutputStream out) 
+    public void encodeDcCoefficient(int iDc, Component comp, JpegBitOutputStream out)
             throws IOException
     {
         int iDcDiff = iDc - comp.PreviousDC;
@@ -248,7 +248,7 @@ class HuffmanTable {
     }
 
     /** Only used for AC tables. */
-    public void encodeAcCoefficients(int[] aiDctCoffs, int iBlockStart, JpegBitOutputStream out) 
+    public void encodeAcCoefficients(int[] aiDctCoffs, int iBlockStart, JpegBitOutputStream out)
             throws IOException
     {
         int iZeroRun = 0;

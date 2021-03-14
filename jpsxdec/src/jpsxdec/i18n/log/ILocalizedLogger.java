@@ -52,9 +52,9 @@ import jpsxdec.i18n.ILocalizedMessage;
 public interface ILocalizedLogger {
     /** Log a user message at the specified importance level. */
     public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg);
-    
-    /** Log a user message at the specified importance with an optional exception. 
-     * @param debugException Exception intended for debugging. 
+
+    /** Log a user message at the specified importance with an optional exception.
+     * @param debugException Exception intended for debugging.
      *                       May or may not be shown to the user.
      */
     public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg,

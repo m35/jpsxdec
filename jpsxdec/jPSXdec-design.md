@@ -43,7 +43,7 @@ so it's probably the best. I personally rarely refer to the program by name,
 and often informally shorten it to just "jPSX"* or "PlayStation converter"
 when talking to others about it.
 
-* Note: The name "jpsx" is already taken by the Java only PS1 emulator.
+* Note: The name "jpsx" is already taken by the PS1 emulator written entirely in Java.
 
 ## Java 6
 
@@ -55,9 +55,14 @@ I've found only a few compelling features that jPSXdec would really benefit from
 So there's really no point in upgrading.
 And maybe someone still running Windows XP will want to use jPSXdec...
 
-The project has also been developed entirely in Netbeans
-because it was the best thing since IntelliJ, still sometimes better.
+## Development environment
 
+The Ant build script is necessary for easy building, regardless of IDE used.
+But for developing, it's easier to ignore the Ant script and simply import all the code into a basic
+Java project in the IDE of your choice.
+
+However several of the UI forms were designed using Netbeans forms designer.
+Netbeans would be required to modify those forms.
 
 ## Code styleguide
 
@@ -66,7 +71,7 @@ because it was the best thing since IntelliJ, still sometimes better.
 * Use `final` on all fields if at all possible.
     * If it's not possible, consider making a new inner class that CAN use final fields.
 * Code and comments are written to mostly minimize vertical size,
-so more lines of content can be visible on screen.
+  so more lines of content can be visible on screen.
 * Once lines are a little more than 80 characters long, consider looking for a place to split it (if you feel like it).
 * Put the opening brace on the line that starts a block, unless you need to
   wrap the line, then put the brace on its own line.
@@ -74,10 +79,13 @@ so more lines of content can be visible on screen.
 * Wrapped lines should usually be indented at least 8 characters.
 * Interface classes usually begin with `I`.
 * Use `@NonNull` and `@CheckForNull` for every argument, return type, and field that is an object.
-  A few places where that isn't is necessary:
+  A few places where that may not be necessary:
   * When it is a `final` field that is initialized at declaration.
-  * When the possibility of a variable being null is too complicated, so the flag would just be a useless warning.
-
+  * When the possibility of a variable being null is too complicated, so the flag would just be a useless warning (should be very rare).
+  * `toString()` method return type
+  * Parameters for an empty method implementing an interface
+* Keep the length of files less than 1000 lines-of-code (including header), but also more than 50 (excluding header) (i.e. put tiny classes in related files if it makes sense)
+* Try to design the code such that there is only one reasonable way to do something
 
 ### Naming conventions
 

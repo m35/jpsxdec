@@ -38,8 +38,9 @@
 package jpsxdec.modules.eavideo;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
@@ -48,37 +49,133 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.ByteArrayFPIS;
 import jpsxdec.util.IOIterator;
+import jpsxdec.util.PushAvailableInputStream;
 
-public class SectorClaimToEAVideo extends SectorClaimSystem.SectorClaimer {
+public class SectorClaimToEAVideo implements SectorClaimSystem.SectorClaimer {
 
-    private static final Logger LOG = Logger.getLogger(SectorClaimToEAVideo.class.getName());
+    private static class EAVideoStreamReader {
 
-    public interface Listener {
-        void feedPacket(@Nonnull EAVideoPacketSectors packet, @Nonnull ILocalizedLogger log)
-                throws LoggedFailure;
-        void endVideo(@Nonnull ILocalizedLogger log);
+        @Nonnull
+        private final PushAvailableInputStream<CdSector> _sectorStream = new PushAvailableInputStream<CdSector>();
+
+        @CheckForNull
+        private EAVideoPacket.Type _headerType;
+
+        @CheckForNull
+        private EAVideoPacket.Header _header;
+
+        private int _iCurrentPacketStartSector;
+        private boolean _blnEnd = false;
+
+        public boolean isEnd() {
+            return _blnEnd;
+        }
+
+        public @Nonnull SectorEAVideo readSectorPackets(@Nonnull CdSector sector, @CheckForNull EAVideoPacket.VLC0 vlc)
+                throws BinaryDataNotRecognized
+        {
+            if (_blnEnd)
+                throw new IllegalStateException();
+
+            try {
+                ByteArrayFPIS is = sector.getCdUserDataStream();
+                if (vlc != null) {
+                    is.skip(EAVideoPacket.VLC0.SIZEOF);
+                }
+
+                _sectorStream.addStream(is, sector);
+
+                return readSectorPacketsThrowsIOEx(sector, vlc);
+            } catch (IOException ex) {
+                throw new RuntimeException("Should not happen", ex);
+            }
+        }
+
+        private @Nonnull SectorEAVideo readSectorPacketsThrowsIOEx(@Nonnull CdSector sector, @CheckForNull EAVideoPacket.VLC0 vlc)
+                throws BinaryDataNotRecognized, IOException
+        {
+
+            List<EAVideoPacketSectors> finishedPackets = null;
+            if (vlc != null) {
+                finishedPackets = new ArrayList<EAVideoPacketSectors>(5);
+                finishedPackets.add(new EAVideoPacketSectors(vlc, sector.getSectorIndexFromStart(), sector.getSectorIndexFromStart()));
+            }
+
+            while (true) {
+
+                if (_header == null) {
+
+                    if (_headerType == null) {
+                        // enough data to read the header type?
+                        if (_sectorStream.available() < EAVideoPacket.Type.SIZEOF)
+                            break;
+                        _iCurrentPacketStartSector = _sectorStream.getCurrentMeta().getSectorIndexFromStart();
+                        _headerType = EAVideoPacket.readHeaderType(_sectorStream);
+
+                        // end of stream encountered?
+                        if (_headerType == EAVideoPacket.Type.ZEROES) {
+                            _blnEnd = true;
+                            break;
+                        }
+                    } else {
+                        // enough data to read the header size?
+                        if (_sectorStream.available() < _headerType.bytesNeededToFinishHeader())
+                            break;
+                        _header = _headerType.readHeader(_sectorStream);
+                        _headerType = null;
+                    }
+                } else {
+                    // enough data to read the header payload?
+                    if (_sectorStream.available() < _header.getPayloadSize())
+                        break;
+
+                    int iBefore = _sectorStream.available();
+
+                    EAVideoPacket packet = _header.readPacket(_sectorStream);
+
+                    int iAfter = _sectorStream.available();
+
+                    if (_header.getPayloadSize() != iBefore - iAfter)
+                        throw new RuntimeException();
+
+                    assert _sectorStream.getCurrentMeta() == sector;
+
+                    if (finishedPackets == null)
+                        finishedPackets = new ArrayList<EAVideoPacketSectors>(5);
+
+                    int iPacketEndSector = _sectorStream.getCurrentMeta().getSectorIndexFromStart();
+                    finishedPackets.add(new EAVideoPacketSectors(packet, _iCurrentPacketStartSector, iPacketEndSector));
+
+                    _header = null;
+                }
+            }
+
+            int iStartEnd = 0;
+            if (vlc != null)
+                iStartEnd = SectorEAVideo.START;
+            if (_blnEnd)
+                iStartEnd += SectorEAVideo.END;
+
+            SectorEAVideo rrSector = new SectorEAVideo(sector, iStartEnd);
+            if (finishedPackets != null)
+                rrSector.setPacketsEndingInThisSector(finishedPackets);
+
+            return rrSector;
+        }
+
     }
 
-    @CheckForNull
-    private Listener _listener;
-
-    public SectorClaimToEAVideo() {
-    }
-    public SectorClaimToEAVideo(@Nonnull Listener listener) {
-        _listener = listener;
-    }
-    public void setListener(@CheckForNull Listener listener) {
-        _listener = listener;
-    }
 
     @CheckForNull
     private EAVideoStreamReader _sectorStream;
 
+    @Override
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws SectorClaimSystem.ClaimerFailure
+            throws LoggedFailure
     {
         CdSector cdSector = cs.getSector();
         if (cs.getClaimer() != null || cdSector.isCdAudioSector()) {
@@ -89,7 +186,7 @@ public class SectorClaimToEAVideo extends SectorClaimSystem.SectorClaimer {
 
         try {
 
-            SectorEAVideo rrSector = null;
+            SectorEAVideo eaSector = null;
 
             if (_sectorStream == null) {
                 // No current movie
@@ -101,46 +198,22 @@ public class SectorClaimToEAVideo extends SectorClaimSystem.SectorClaimer {
                     try {
                         vlcPacket = EAVideoPacket.readVlc0(cdSector.getCdUserDataStream());
                     } catch (IOException ex) {
-                        throw new RuntimeException("Should not happen");
+                        throw new RuntimeException("Should not happen", ex);
                     }
                     if (vlcPacket != null) {
                         // new video
-                        // tell listener to end any existing videos
-                        if (_listener != null)
-                            _listener.endVideo(log);
-
                         _sectorStream = new EAVideoStreamReader();
-                        rrSector = _sectorStream.readSectorPackets(cdSector, vlcPacket);
+                        eaSector = _sectorStream.readSectorPackets(cdSector, vlcPacket);
                     }
                 }
 
             } else {
                 // add to existing stream
-                rrSector = _sectorStream.readSectorPackets(cdSector, null);
+                eaSector = _sectorStream.readSectorPackets(cdSector, null);
             }
 
-            if (rrSector != null) {
-
-                cs.claim(rrSector);
-
-                for (EAVideoPacketSectors finishedPacket : rrSector) {
-                    
-
-                    if (_listener != null) {
-                        // Only send packets that are fully in the active sector range
-                        // (in practice there should never be a packet crossing the border)
-                        if (sectorIsInRange(finishedPacket.iStartSector) &&
-                            sectorIsInRange(finishedPacket.iEndSector))
-                        {
-                            try {
-                                _listener.feedPacket(finishedPacket, log);
-                            } catch (LoggedFailure ex) {
-                                throw new SectorClaimSystem.ClaimerFailure(ex);
-                            }
-                        }
-                    }
-
-                }
+            if (eaSector != null) {
+                cs.claim(eaSector);
             }
 
             if (_sectorStream != null && _sectorStream.isEnd()) {
@@ -155,12 +228,12 @@ public class SectorClaimToEAVideo extends SectorClaimSystem.SectorClaimer {
     private void endVideo(@Nonnull ILocalizedLogger log) {
         if (_sectorStream != null) {
             _sectorStream = null;
-            if (_listener != null)
-                _listener.endVideo(log);
         }
     }
 
+    @Override
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
         endVideo(log);
     }
+
 }

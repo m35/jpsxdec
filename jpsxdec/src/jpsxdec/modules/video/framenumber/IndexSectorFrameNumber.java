@@ -113,7 +113,7 @@ public class IndexSectorFrameNumber extends FrameNumber {
         public @Nonnull IndexSectorFrameNumber getEndFrame() {
             return new IndexSectorFrameNumber(_iFrameCount - 1, _iFrameCount, _sectorNumberFormat.getEnd());
         }
-        
+
 
         public @Nonnull IFrameNumberFormatter makeFormatter() {
             return makePrivateTypeFormatter();
@@ -135,7 +135,7 @@ public class IndexSectorFrameNumber extends FrameNumber {
 
         @Nonnull
         private final FrameNumberNumber.Formatter _sectorFormatter;
-        
+
         Formatter(int iExpectedMaxFrameCount,
                   @Nonnull FrameNumberNumber.Formatter sectorFormatter)
         {
@@ -146,7 +146,7 @@ public class IndexSectorFrameNumber extends FrameNumber {
         private void warnIndexDigitsOutOfBounds(@Nonnull ILocalizedLogger log) {
             if (_iCurrentFrameIndex >= _iExpectedMaxFrameCount) {
                 log.log(Level.WARNING, I.FRAMES_UNEXPECTED_NUMBER());
-                LOG.log(Level.WARNING, "Expected no more than {0} frames but got {1}", 
+                LOG.log(Level.WARNING, "Expected no more than {0} frames but got {1}",
                                        new Object[]{_iExpectedMaxFrameCount - 1, _iCurrentFrameIndex});
             }
         }
@@ -172,7 +172,8 @@ public class IndexSectorFrameNumber extends FrameNumber {
             }
         }
 
-        
+
+        @Override
         public @Nonnull IndexSectorFrameNumber next(int iSector, @Nonnull ILocalizedLogger log) {
             warnIndexDigitsOutOfBounds(log);
             FrameNumberNumber sectorNumber = _sectorFormatter.next(iSector);

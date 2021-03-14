@@ -41,7 +41,9 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.sectorbased.IVideoSectorWithFrameNumber;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.VideoSectorWithFrameNumberDemuxer;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.IO;
 
 // sector 233609 is flagged as an audio sector in the header
@@ -67,30 +69,37 @@ public class SectorAliceVideo extends SectorAliceNullVideo
 
     // .. Public functions .................................................
 
+    @Override
     public int getVideoSectorHeaderSize() {
         return ALICE_VIDEO_SECTOR_HEADER_SIZE;
     }
 
+    @Override
     public int getWidth() {
         return 320;
     }
 
+    @Override
     public int getHeight() {
         return 224;
     }
 
+    @Override
     public @Nonnull VideoSectorWithFrameNumberDemuxer createDemuxer(@Nonnull ILocalizedLogger log) {
         return new VideoSectorWithFrameNumberDemuxer(this, log);
     }
 
+    @Override
     public int getDemuxPieceSize() {
         return getCdSector().getCdUserDataSize() - getVideoSectorHeaderSize();
     }
 
+    @Override
     public byte getDemuxPieceByte(int i) {
         return getCdSector().readUserDataByte(getVideoSectorHeaderSize() + i);
     }
 
+    @Override
     public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
         getCdSector().getCdUserDataCopy(getVideoSectorHeaderSize(), abOut,
                                         iOutPos, getDemuxPieceSize());
@@ -101,12 +110,12 @@ public class SectorAliceVideo extends SectorAliceNullVideo
         return "Alice";
     }
 
-    public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                         int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+    @Override
+    public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                         @Nonnull BitStreamAnalysis newFrame,
+                                         @Nonnull byte[] abCurrentVidSectorHeader)
     {
-        int iDemuxSizeForHeader = (iNewUsedSize + 3) & ~3;
-
-        IO.writeInt32LE(abCurrentVidSectorHeader, 12, iDemuxSizeForHeader);
+        IO.writeInt32LE(abCurrentVidSectorHeader, 12, newFrame.calculateUsedBytesRoundUp4());
     }
 
 }

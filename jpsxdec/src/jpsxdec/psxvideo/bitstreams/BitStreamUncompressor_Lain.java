@@ -63,6 +63,8 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
     public static class LainHeader {
 
+        private static final int SIZEOF = 8;
+
         int _iQscaleLuma = -1;
         int _iQscaleChroma = -1;
         int _iMagic3800orFrame = -1;
@@ -98,7 +100,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
             _iQscaleChroma = iQscaleChroma;
             _iMagic3800orFrame = iMagic3800orFrame;
             _iVlcCount = iVlcCount;
-            
+
             _blnIsValid = true;
         }
 
@@ -141,13 +143,20 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         return bsu;
     }
 
+    public static final IByteOrder BIG_ENDIAN_ORDER = new IByteOrder() {
+        @Override
+        public int getByteOffset(int iByteIndex) {
+            return iByteIndex;
+        }
+    };
+
     public static @CheckForNull BitStreamUncompressor_Lain makeLainNoThrow(@Nonnull byte[] abFrameData, int iDataSize)
     {
         LainHeader header = new LainHeader(abFrameData, iDataSize);
         if (!header.isValid())
             return null;
 
-        ArrayBitReader bitReader = new ArrayBitReader(abFrameData, iDataSize, false, 8);
+        ArrayBitReader bitReader = new ArrayBitReader(abFrameData, BIG_ENDIAN_ORDER, LainHeader.SIZEOF, iDataSize);
 
         return new BitStreamUncompressor_Lain(header, bitReader);
     }
@@ -283,24 +292,33 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     private final LainHeader _header;
 
     public BitStreamUncompressor_Lain(@Nonnull LainHeader header, @Nonnull ArrayBitReader bitReader) {
-        super(bitReader, AC_VARIABLE_LENGTH_CODES_LAIN, 
+        super(bitReader, AC_VARIABLE_LENGTH_CODES_LAIN,
               new QuantizationDcReader_Lain(header.getLumaQscale(), header.getChromaQscale()),
               AC_ESCAPE_CODE_LAIN, FRAME_END_PADDING_BITS_NONE);
         _header = header;
     }
 
-    private static class QuantizationDcReader_Lain implements IQuantizationDc {
+    public int getLumaQscale() {
+        return _header.getLumaQscale();
+    }
+
+    public int getChromaQscale() {
+        return _header.getChromaQscale();
+    }
+
+    private static class QuantizationDcReader_Lain implements IQuantizationDcReader {
 
         private final int _iFrameLumaQuantizationScale;
         private final int _iFrameChromaQuantizationScale;
 
-        public QuantizationDcReader_Lain(int iFrameLumaQuantizationScale, 
+        public QuantizationDcReader_Lain(int iFrameLumaQuantizationScale,
                                          int iFrameChromaQuantizationScale)
         {
             _iFrameLumaQuantizationScale = iFrameLumaQuantizationScale;
             _iFrameChromaQuantizationScale = iFrameChromaQuantizationScale;
         }
 
+        @Override
         public void readQuantizationScaleAndDc(@Nonnull ArrayBitReader bitReader,
                                                @Nonnull MdecContext context,
                                                @Nonnull MdecCode code)
@@ -317,6 +335,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
     private static class AcEscapeCode_Lain implements IAcEscapeCode {
 
+        @Override
         public void readAcEscapeCode(@Nonnull ArrayBitReader bitReader, @Nonnull MdecCode code) throws MdecException.EndOfStream
         {
 
@@ -404,7 +423,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
     }
 
     // =========================================================================
-    
+
     /** Lain videos luma:chroma ratio varies between 0.06 and 5.0.
      * Most are around the 1.0-2.0 range. */
     private static final double LUMA_TO_CHROMA_RATIO = 2.0;
@@ -414,12 +433,12 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         private final int _iMagic3800orFrame;
 
         public BitStreamCompressor_Lain(int iMacroBlockCount, int iMagic3800orFrame) {
-            super(iMacroBlockCount);
+            super(iMacroBlockCount, BitStreamUncompressor_Lain.BIG_ENDIAN_ORDER);
             _iMagic3800orFrame = iMagic3800orFrame;
         }
 
         @Override
-        public @CheckForNull byte[] compressFull(@Nonnull byte[] abOriginal,
+        public @CheckForNull byte[] compressFull(int iMaxSize,
                                                  @Nonnull String sFrameDescription,
                                                  @Nonnull MdecEncoder encoder,
                                                  @Nonnull ILocalizedLogger log)
@@ -445,11 +464,11 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
                     }
 
                     int iNewDemuxSize = abNewDemux.length;
-                    if (iNewDemuxSize <= abOriginal.length) {
-                        log.log(Level.INFO, I.NEW_FRAME_FITS(sFrameDescription, iNewDemuxSize, abOriginal.length));
+                    if (iNewDemuxSize <= iMaxSize) {
+                        log.log(Level.INFO, I.NEW_FRAME_FITS(sFrameDescription, iNewDemuxSize, iMaxSize));
                         return abNewDemux;
                     } else {
-                        log.log(Level.INFO, I.NEW_FRAME_DOES_NOT_FIT(sFrameDescription, iNewDemuxSize, abOriginal.length));
+                        log.log(Level.INFO, I.NEW_FRAME_DOES_NOT_FIT(sFrameDescription, iNewDemuxSize, iMaxSize));
                     }
                 } catch (MdecException.TooMuchEnergy ex) {
                     log.log(Level.INFO, I.COMPRESS_TOO_MUCH_ENERGY(sFrameDescription), ex);
@@ -474,7 +493,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
             LainHeader header = new LainHeader(abOriginal, abOriginal.length);
             if (!header.isValid())
                 throw new LocalizedIncompatibleException(I.FRAME_IS_NOT_BITSTREAM_FORMAT("Lain"));
-            
+
             final int iFrameLQscale = header.getLumaQscale();
             final int iFrameCQscale = header.getChromaQscale();
             final int[] aiOriginalQscale = { iFrameCQscale, iFrameCQscale, iFrameLQscale,
@@ -552,7 +571,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
         @Override
         protected @Nonnull byte[] createHeader(int iMdecCodeCount) {
-            byte[] ab = new byte[8];
+            byte[] ab = new byte[LainHeader.SIZEOF];
 
             ab[0] = (byte)_iLumaQscale;
             ab[1] = (byte)_iChromaQscale;
@@ -562,11 +581,6 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
             IO.writeInt16LE(ab, 6, (short)getHeaderVersion());
 
             return ab;
-        }
-
-        @Override
-        protected boolean isBitstreamLittleEndian() {
-            return false;
         }
 
         @Override
@@ -593,7 +607,7 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
             if (code.getBottom10Bits() < -256 || code.getBottom10Bits() > 255)
                 throw new MdecException.TooMuchEnergy(String.format(
                         "Unable to escape %s, AC code too large for Lain", code));
-            
+
             if (code.getBottom10Bits() >= -127 && code.getBottom10Bits() <= 127) {
                 return ESCAPE_CODE.getBitString() + sTopBits + Misc.bitsToString(code.getBottom10Bits(), 8);
             } else {
@@ -611,5 +625,5 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         }
 
     }
-    
+
 }

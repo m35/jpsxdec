@@ -54,7 +54,7 @@ import jpsxdec.util.ByteArrayFPIS;
 public class DemuxedSectorInputStream extends SequenceInputStream {
 
     private static final Logger LOG = Logger.getLogger(DemuxedSectorInputStream.class.getName());
-    
+
     private static class SectorEnumerator implements Enumeration<InputStream> {
         @Nonnull
         public final CdFileSectorReader _cd;
@@ -69,11 +69,13 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
             _iStartSector = _iSector = iSector;
             _iOffset = iOffset;
         }
-        
+
+        @Override
         public boolean hasMoreElements() {
             return _iSector < _cd.getSectorCount();
         }
 
+        @Override
         public @Nonnull InputStream nextElement() {
             if (!hasMoreElements())
                 throw new NoSuchElementException();
@@ -93,21 +95,22 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
                 LOG.log(Level.SEVERE, null, ex);
                 _currentStream = null;
                 return new InputStream() {
+                    @Override
                     public int read() throws IOException { throw ex; }
                 };
             }
         }
-        
+
     }
 
     public DemuxedSectorInputStream(@Nonnull CdFileSectorReader cd, int iStartSector, int iOffset) {
         super(new SectorEnumerator(cd, iStartSector, iOffset));
     }
-    
+
     @Override
     public void close() {
         // no need to do anything
         // and definitely don't want to do what SequenceInputStream does
     }
-    
+
 }

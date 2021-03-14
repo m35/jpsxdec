@@ -60,15 +60,16 @@ import jpsxdec.util.Misc;
 
 /** Bitstream parser/decoder for the very common "version 2" demuxed video
  * frames, used by most games. */
-public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
+public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor implements IBitStreamWith1QuantizationScale {
 
     private static final Logger LOG = Logger.getLogger(BitStreamUncompressor_STRv2.class.getName());
 
     public static class StrV2Header extends StrHeader {
-        public StrV2Header(byte[] abFrameData, int iDataSize) {
+        public StrV2Header(@Nonnull byte[] abFrameData, int iDataSize) {
             super(abFrameData, iDataSize, 2);
         }
 
+        @Override
         public @Nonnull BitStreamUncompressor_STRv2 makeNew(@Nonnull byte[] abBitstream, int iBitstreamSize)
                 throws BinaryDataNotRecognized
         {
@@ -89,7 +90,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             throw new BinaryDataNotRecognized();
         return bsu;
     }
-    
+
     static @CheckForNull BitStreamUncompressor_STRv2 makeV2NoThrow(@Nonnull byte[] abBitstream, int iDataSize)
     {
         StrV2Header header = new StrV2Header(abBitstream, iDataSize);
@@ -100,17 +101,24 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         return new BitStreamUncompressor_STRv2(header, bitReader);
     }
 
-    /** 11 bits found at the end of STR v2 movies.
-     * <pre>011 111 111 10</pre> */
-    private final static String END_OF_FRAME_EXTRA_BITS = "01111111110";
+    /** 10 bits found at the end of STR v2 movies.
+     * <pre>0111111111</pre> */
+    private final static String END_OF_FRAME_EXTRA_BITS = "0111111111";
+    private static final int PADDING_BITS_LENGTH = END_OF_FRAME_EXTRA_BITS.length();
+    /** 10 bits found at the end of STR v2 movies.
+     * <pre>0111111111</pre> */
+    private static final int b0111111111 = 0x1ff;
 
-    /** 11 bits found at the end of STR v2 movies.
-     * <pre>011 111 111 10</pre> */
-    private static final int b01111111110 = 0x3FE;
-
+    public static final IByteOrder LITTLE_ENDIAN_SHORT_ORDER = new IByteOrder() {
+        @Override
+        public int getByteOffset(int iByteIndex) {
+            // flip the last bit so bytes are read in 16-bit little-endian
+            return iByteIndex ^ 1;
+        }
+    };
 
     public static @Nonnull ArrayBitReader makeStrBitReader(@Nonnull byte[] abBitstream, int iDataSize) {
-        return new ArrayBitReader(abBitstream, iDataSize, true, 8);
+        return new ArrayBitReader(abBitstream, LITTLE_ENDIAN_SHORT_ORDER, StrHeader.SIZEOF, iDataSize);
     }
 
     @Nonnull
@@ -119,20 +127,25 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     private BitStreamUncompressor_STRv2(@Nonnull StrV2Header header,
                                         @Nonnull ArrayBitReader bitReader)
     {
-        super(bitReader, ZeroRunLengthAcLookup_STR.AC_VARIABLE_LENGTH_CODES_MPEG1, 
-              new QuantizationDc_STRv12(header.getQuantizationScale()), new AcEscapeCode_STR(),
-              new FrameEndPaddingBits_STRv2());
+        super(bitReader, ZeroRunLengthAcLookup_STR.AC_VARIABLE_LENGTH_CODES_MPEG1,
+              new QuantizationDcReader_STRv12(header.getQuantizationScale()),
+              AC_ESCAPE_CODE_STR, FRAME_END_PADDING_BITS_STRV2);
         _header = header;
     }
 
-    public static class QuantizationDc_STRv12 implements IQuantizationDc {
+    public int getQuantizationScale() {
+        return _header.getQuantizationScale();
+    }
+
+    public static class QuantizationDcReader_STRv12 implements IQuantizationDcReader {
 
         private final int _iFrameQuantizationScale;
 
-        public QuantizationDc_STRv12(int iFrameQuantizationScale) {
+        public QuantizationDcReader_STRv12(int iFrameQuantizationScale) {
             _iFrameQuantizationScale = iFrameQuantizationScale;
         }
 
+        @Override
         public void readQuantizationScaleAndDc(@Nonnull ArrayBitReader bitReader, @Nonnull MdecContext context, @Nonnull MdecCode code)
                 throws MdecException.ReadCorruption, MdecException.EndOfStream
         {
@@ -144,6 +157,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
     }
 
     private static class AcEscapeCode_STR implements IAcEscapeCode {
+        @Override
         public void readAcEscapeCode(@Nonnull ArrayBitReader bitReader, @Nonnull MdecCode code)
                 throws MdecException.EndOfStream
         {
@@ -158,10 +172,15 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
     private static class FrameEndPaddingBits_STRv2 implements IFrameEndPaddingBits {
         @Override
-        public void skipPaddingBits(@Nonnull ArrayBitReader bitReader) throws MdecException.EndOfStream {
-            int iPaddingBits = bitReader.readUnsignedBits(11);
-            if (iPaddingBits != b01111111110)
-                LOG.log(Level.WARNING, "Incorrect padding bits {0}", Misc.bitsToString(iPaddingBits, 11));
+        public boolean skipPaddingBits(@Nonnull ArrayBitReader bitReader) throws MdecException.EndOfStream {
+            int iPaddingBits = bitReader.readUnsignedBits(PADDING_BITS_LENGTH);
+            if (iPaddingBits != b0111111111) {
+                LOG.log(Level.WARNING, "Incorrect padding bits {0} should be {1}",
+                        new Object[]{Misc.bitsToString(iPaddingBits, PADDING_BITS_LENGTH),
+                                     Misc.bitsToString(b0111111111, PADDING_BITS_LENGTH)});
+                return false;
+            }
+            return true;
         }
     }
     public static final IFrameEndPaddingBits FRAME_END_PADDING_BITS_STRV2 = new FrameEndPaddingBits_STRv2();
@@ -173,7 +192,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
 
     @Override
     public @Nonnull BitStreamCompressor_STRv2 makeCompressor() {
-        return new BitStreamCompressor_STRv2(_context.getTotalMacroBlocksRead());
+        return new BitStreamCompressor_STRv2(_context.getTotalMacroBlocksRead(), LITTLE_ENDIAN_SHORT_ORDER);
     }
 
     /*########################################################################*/
@@ -187,14 +206,18 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         private final int _iMacroBlockCount;
         private int _iQscale;
         private int _iMdecCodeCount;
+        @Nonnull
+        private final IByteOrder _byteOrder;
 
-        public BitStreamCompressor_STRv2(int iMacroBlockCount) {
+        public BitStreamCompressor_STRv2(int iMacroBlockCount, @Nonnull IByteOrder byteOrder) {
             _iMacroBlockCount = iMacroBlockCount;
+            _byteOrder = byteOrder;
         }
 
-        public @CheckForNull byte[] compressFull(@Nonnull byte[] abOriginal,
+        @Override
+        public @CheckForNull byte[] compressFull(int iMaxSize,
                                                  @Nonnull String sFrameDescription,
-                                                 @Nonnull MdecEncoder encoder, 
+                                                 @Nonnull MdecEncoder encoder,
                                                  @Nonnull ILocalizedLogger log)
                 throws MdecException.EndOfStream, MdecException.ReadCorruption
         {
@@ -216,16 +239,17 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                 } catch (MdecException.TooMuchEnergy ex) {
                     throw new RuntimeException("This should not happen with STRv2", ex);
                 }
-                if (abNewDemux.length <= abOriginal.length) {
-                    log.log(Level.INFO, I.NEW_FRAME_FITS(sFrameDescription, abNewDemux.length, abOriginal.length));
+                if (abNewDemux.length <= iMaxSize) {
+                    log.log(Level.INFO, I.NEW_FRAME_FITS(sFrameDescription, abNewDemux.length, iMaxSize));
                     return abNewDemux;
                 } else {
-                    log.log(Level.INFO, I.NEW_FRAME_DOES_NOT_FIT(sFrameDescription, abNewDemux.length, abOriginal.length));
+                    log.log(Level.INFO, I.NEW_FRAME_DOES_NOT_FIT(sFrameDescription, abNewDemux.length, iMaxSize));
                 }
             }
             return null;
         }
 
+        @Override
         public @CheckForNull byte[] compressPartial(@Nonnull byte[] abOriginal,
                                                     @Nonnull String sFrameDescription,
                                                     @Nonnull MdecEncoder encoder,
@@ -235,7 +259,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             final int iFrameQscale = getFrameQscale(abOriginal);
             int[] aiOriginalQscale = { iFrameQscale, iFrameQscale, iFrameQscale,
                                        iFrameQscale, iFrameQscale, iFrameQscale };
-            
+
             for (int iNewQscale = iFrameQscale; iNewQscale < 64; iNewQscale++) {
                 log.log(Level.INFO, I.TRYING_QSCALE(iNewQscale));
 
@@ -264,6 +288,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return null;
         }
 
+        @Override
         public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream)
                 throws IncompatibleException, MdecException.EndOfStream,
                        MdecException.ReadCorruption, MdecException.TooMuchEnergy
@@ -272,7 +297,6 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             _iQscale = -1; // qscale will be set on first block read
 
             BitStreamWriter bitStream = new BitStreamWriter();
-            bitStream.setLittleEndian(isBitstreamLittleEndian());
 
             final MdecCode code = new MdecCode();
             MdecContext context = new MdecContext();
@@ -295,7 +319,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                     context.nextCode();
                 }
                 if (BitStreamDebugging.DEBUG)
-                    System.out.println("Converting " + code.toString() + " to " + sBitsToWrite + " at " + bitStream.getCurrentWordPosition());
+                    System.out.println("Converting " + code.toString() + " to " + sBitsToWrite + " at bit " + bitStream.getBitsWritten());
                 bitStream.write(sBitsToWrite);
             }
 
@@ -303,7 +327,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
                 throw new IllegalStateException("Ended compressing in the middle of a macroblock.");
 
             addTrailingBits(bitStream);
-            byte[] abBitstream = bitStream.toByteArray();
+            byte[] abBitstream = bitStream.toByteArray(_byteOrder);
             byte[] abHeader = createHeader(context.getTotalMdecCodesRead());
             byte[] abReturn = new byte[abHeader.length + abBitstream.length];
             System.arraycopy(abHeader, 0, abReturn, 0, abHeader.length);
@@ -313,12 +337,9 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return abReturn;
         }
 
+        @Override
         public int getMdecCodesFromLastCompress() {
             return _iMdecCodeCount;
-        }
-
-        protected boolean isBitstreamLittleEndian() {
-            return true;
         }
 
         protected void addTrailingBits(@Nonnull BitStreamWriter bitStream) {
@@ -345,7 +366,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
             return Misc.bitsToString(iDC, 10);
         }
 
-        private String encodeAC(@Nonnull MdecCode code) 
+        private String encodeAC(@Nonnull MdecCode code)
                 throws MdecException.TooMuchEnergy
         {
             if (!code.isValid())
@@ -375,7 +396,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         }
 
         protected @Nonnull byte[] createHeader(int iMdecCodeCount) {
-            byte[] ab = new byte[8];
+            byte[] ab = new byte[StrHeader.SIZEOF];
 
             IO.writeInt16LE(ab, 0, Calc.calculateHalfCeiling32(iMdecCodeCount));
             IO.writeInt16LE(ab, 2, (short)0x3800);
@@ -386,7 +407,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor {
         }
 
         protected int getHeaderVersion() { return 2; }
-        
+
         protected int getFrameQscale(@Nonnull byte[] abFrameData) throws LocalizedIncompatibleException {
             StrV2Header header = new StrV2Header(abFrameData, abFrameData.length);
             if (!header.isValid())

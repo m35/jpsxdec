@@ -60,11 +60,11 @@ public class CdSectorHeader {
         (byte)0x00, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF,
         (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0x00
     };
-    
+
     static enum Type {
         CD_AUDIO, MODE1, MODE2
     }
-    
+
     //..........................................................................
     private static final Logger LOG = Logger.getLogger(CdSectorHeader.class.getName());
 
@@ -78,7 +78,7 @@ public class CdSectorHeader {
     private final boolean _blnSectorsBCD_ok;
     private final int _iMode;       // [1 byte] PSX discs should always be Mode 2
     private final boolean _blnMode_ok;
-    
+
     private final int _iByteErrorCount;
 
     @Nonnull
@@ -91,7 +91,7 @@ public class CdSectorHeader {
                 iByteErrorCount++;
         }
         _iSyncHeaderErrorCount = iByteErrorCount;
-        
+
         _iMinutesBCD = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 0] & 0xff;
         _iSecondsBCD = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 1] & 0xff;
         _iSectorsBCD = abSectorData[iStartOffset + SECTOR_SYNC_HEADER.length + 2] & 0xff;
@@ -105,7 +105,7 @@ public class CdSectorHeader {
             iByteErrorCount++;
         if (!(_blnMode_ok = (_iMode >= 1 && _iMode <= 2)))
             iByteErrorCount++;
-        
+
         _iByteErrorCount = iByteErrorCount;
 
         // TODO: Figure out if this is usable fuzzy logic
@@ -145,7 +145,7 @@ public class CdSectorHeader {
         if (_eType == Type.CD_AUDIO)
             throw new UnsupportedOperationException(
                     "Unable to calculate header sector number from CD audio sector.");
-        
+
         if (_blnMinutesBCD_ok && _blnSecondsBCD_ok && _blnSectorsBCD_ok) {
             return   binaryCodedDecimalToInt(_iMinutesBCD) * 60 * 75
                    + binaryCodedDecimalToInt(_iSecondsBCD) * 75
@@ -157,10 +157,10 @@ public class CdSectorHeader {
     }
 
     private static boolean isValidBinaryCodedDecimal(int i) {
-        return (i & 0xf)        <= 9 && 
+        return (i & 0xf)        <= 9 &&
                ((i >> 4) & 0xf) <= 9;
     }
-    
+
     /** Converts Binary Coded Decimal (BCD) to integer. */
     private static int binaryCodedDecimalToInt(int i) {
         return ((i >> 4) & 0xf)*10 + (i & 0xf);

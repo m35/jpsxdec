@@ -37,7 +37,7 @@
 
 package jpsxdec.psxvideo.mdec.idct;
 
-/** This is the simplest implementation of the Inverse Discrete Cosine 
+/** This is the simplest implementation of the Inverse Discrete Cosine
  *  Transform. If I understand correctly, it's inverse 2D DCT-II, specifically.
  *<p>
  * It's as simple as I could make it, and as such, it's about as
@@ -56,6 +56,7 @@ public class NaiveIDCT implements IDCT_double {
     public NaiveIDCT() {}
 
 
+    @Override
     public void IDCT(double[] aiDCTMat, int iOutputOffset, double[] adblOutput) {
 
         int Pixelx, Pixely, DCTx, DCTy;
@@ -96,9 +97,10 @@ public class NaiveIDCT implements IDCT_double {
 
         for (int i=63; i>0; i--)
             aiDCTMat[iOutputOffset + i] = _Temp_[i];
-        
+
     }
 
+    @Override
     public void IDCT_1NonZero(double[] adblIdctMatrix, int iNonZeroPos, int iOutputOffset, double[] adblOutput) {
         IDCT(adblOutput, iOutputOffset, adblOutput);
     }

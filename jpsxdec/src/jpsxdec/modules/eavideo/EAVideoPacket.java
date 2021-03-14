@@ -68,7 +68,7 @@ import static jpsxdec.modules.eavideo.BitStreamUncompressor_EA.EA_VIDEO_BIT_CODE
  * It takes a unique approach to bitstreams: every movie has its own unique VLC table.
  */
 public abstract class EAVideoPacket {
-    
+
     public static final int FRAMES_PER_SECOND = 15;
     public static final int SECTORS150_PER_FRAME = 10;
     public static final int SAMPLE_FRAMES_PER_SECOND = 22050;
@@ -99,7 +99,7 @@ public abstract class EAVideoPacket {
     private static final long MAGIC_au00 = 0x61753030;
     private static final long MAGIC_au01 = 0x61753031;
 
-    public static @Nonnull Type readHeaderType(@Nonnull InputStream is) 
+    public static @Nonnull Type readHeaderType(@Nonnull InputStream is)
             throws EOFException, IOException, BinaryDataNotRecognized
     {
         long lngPacketType = IO.readUInt32BE(is);
@@ -195,7 +195,7 @@ public abstract class EAVideoPacket {
             if (_packetType == Type.VLC0) {
                 return VLC0.read(this, is, true);
             }
-            
+
             throw new RuntimeException("?");
         }
 
@@ -232,11 +232,11 @@ public abstract class EAVideoPacket {
             Type type = readHeaderType(is);
             if (type != Type.VLC0)
                 return null;
-            
+
             Header header = type.doReadHeader(is, false);
             if (header == null)
                 return null;
-            
+
             VLC0 vlc = VLC0.read(header, is, false);
             return vlc;
         } catch (BinaryDataNotRecognized ex) {
@@ -345,7 +345,7 @@ public abstract class EAVideoPacket {
         @Nonnull
         private final byte[] _abCompressedSpu;
 
-        public AU(@Nonnull Header header, @Nonnull InputStream is) 
+        public AU(@Nonnull Header header, @Nonnull InputStream is)
                 throws EOFException, IOException, BinaryDataNotRecognized
         {
             super(header);

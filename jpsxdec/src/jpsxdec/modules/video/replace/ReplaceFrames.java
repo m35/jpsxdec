@@ -63,11 +63,11 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.video.DiscItemVideoStream;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameCompareIs;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.TaskCanceledException;
 import org.w3c.dom.Document;
@@ -78,7 +78,7 @@ import org.xml.sax.SAXException;
 
 /*
 <?xml version="1.0"?>
-<str-replace version="0.2">
+<str-replace version="0.3">
 
     <replace frame="14" format="bmp">newframe14.bmp</replace>
 
@@ -106,18 +106,18 @@ public class ReplaceFrames {
 
     }
 
-    private static final String VERSION = "0.2";
+    private static final String VERSION = "0.3";
 
     private final ArrayList<ReplaceFrameFull> _replacers = new ArrayList<ReplaceFrameFull>();
 
     public ReplaceFrames() {}
 
-    public ReplaceFrames(@Nonnull String sXmlConfig) 
+    public ReplaceFrames(@Nonnull String sXmlConfig)
             throws XmlFileNotFoundException, XmlReadException, LocalizedDeserializationFail
     {
         this(new File(sXmlConfig));
     }
-    public ReplaceFrames(@Nonnull File xmlConfig) 
+    public ReplaceFrames(@Nonnull File xmlConfig)
             throws XmlFileNotFoundException, XmlReadException, LocalizedDeserializationFail
     {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -176,7 +176,7 @@ public class ReplaceFrames {
                 _replacers.add(replace);
             }
         }
-            
+
     }
 
     public void save(@Nonnull String sFile) throws IOException {
@@ -214,7 +214,7 @@ public class ReplaceFrames {
         _replacers.add(replace);
     }
 
-    public void replaceFrames(@Nonnull DiscItemVideoStream vidItem, 
+    public void replaceFrames(@Nonnull DiscItemSectorBasedVideoStream vidItem,
                               final @Nonnull CdFileSectorReader cd,
                               final @Nonnull ProgressLogger pl)
             throws LoggedFailure, TaskCanceledException
@@ -228,7 +228,7 @@ public class ReplaceFrames {
         demuxer.attachToSectorClaimer(it);
         for (int iSector = 0; it.hasNext(); iSector++) {
             try {
-                IIdentifiedSector sector = it.next(pl).getClaimer();
+                IIdentifiedSector sector = it.next(pl);
             } catch (CdFileSectorReader.CdReadException ex) {
                 throw new LoggedFailure(pl, Level.SEVERE,
                         I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
@@ -253,7 +253,7 @@ public class ReplaceFrames {
 
         @CheckForNull
         public FrameNumber currentFrameNum;
-        
+
         @CheckForNull
         public LoggedFailure exception;
 
@@ -262,6 +262,7 @@ public class ReplaceFrames {
             _cd = cd;
         }
 
+        @Override
         public void frameComplete(@Nonnull IDemuxedFrame frame) {
             currentFrameNum = frame.getFrame();
 

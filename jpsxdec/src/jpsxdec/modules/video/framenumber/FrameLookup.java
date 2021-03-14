@@ -113,7 +113,7 @@ public class FrameLookup {
     public @Nonnull FrameNumber.Type getType() {
         return _type;
     }
-    
+
     public @Nonnull FrameCompareIs compareTo(FrameNumber frameNumber) {
         FormattedFrameNumber ffn;
         switch (_type) {
@@ -141,7 +141,7 @@ public class FrameLookup {
         else
             return FrameCompareIs.EQUAL;
     }
-    
+
     @Override
     public String toString() {
         return serialize();

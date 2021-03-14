@@ -54,12 +54,11 @@ import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 
 
-public class DiscIndexerPolicenauts extends DiscIndexer implements SectorClaimToPolicenauts.Listener {
+public class DiscIndexerPolicenauts extends DiscIndexer implements PolicenautsSectorToPacket.Listener {
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToPolicenauts sc = scs.getClaimer(SectorClaimToPolicenauts.class);
-        sc.setListener(this);
+        PolicenautsSectorToPacket.attachToSectorClaimer(scs, this);
     }
 
     @Override
@@ -110,7 +109,7 @@ public class DiscIndexerPolicenauts extends DiscIndexer implements SectorClaimTo
                 log.log(Level.WARNING, I.POLICENAUTS_DATA_CORRUPTION());
                 return;
             }
-            DiscItemPolicenauts di = new DiscItemPolicenauts(getCd(), 
+            DiscItemPolicenauts di = new DiscItemPolicenauts(getCd(),
                     __iStartKlbsStartSector, __iLastKlbsEndSector, __dims,
                     __indexSectorFrameNumberBuilder.makeFormat(),
                     __headerFrameNumberBuilder.makeFormat(),

@@ -61,6 +61,7 @@ public class FF9Demuxer implements ISelfDemuxingVideoSector.IDemuxer {
         _iHeight = firstChunk.getHeight();
     }
 
+    @Override
     public boolean addSectorIfPartOfFrame(@Nonnull ISelfDemuxingVideoSector sector) {
         if (!(sector instanceof SectorFF9.SectorFF9Video))
             return false;
@@ -75,10 +76,12 @@ public class FF9Demuxer implements ISelfDemuxingVideoSector.IDemuxer {
                                             chunk.getHeaderFrameNumber());
     }
 
+    @Override
     public boolean isFrameComplete() {
         return _bldr.isFrameComplete();
     }
 
+    @Override
     public @Nonnull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log) {
         ArrayList<SectorFF9.SectorFF9Video> sectors = _bldr.getNonNullChunks(log);
         // FF9 frames chunks are in reverse order

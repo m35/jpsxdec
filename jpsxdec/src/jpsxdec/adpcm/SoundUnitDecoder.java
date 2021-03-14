@@ -92,7 +92,7 @@ public class SoundUnitDecoder {
                 telemetry.adblPrev2Samples[i] = context.getPreviousPCMSample2();
                 telemetry.adblDecodedPcmSamples[i] = dblDecodedPcm;
             }
-            
+
             // let the context scale, round, and clamp
             short siPcmSample = context.saveScaleRoundClampPCMSample(dblDecodedPcm);
             // finally return the polished sample

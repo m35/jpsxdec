@@ -218,7 +218,7 @@ public class PsxYCbCr {
 
     public void toRec_JFIF_YCbCr(@Nonnull Rec601YCbCr ycc) {
         double dblYChroma = cb * -3415973./13224846875. + cr * 1242172./13224846875.;
-        
+
         ycc.y1 = y1+128 + dblYChroma;
         ycc.y2 = y2+128 + dblYChroma;
         ycc.y3 = y3+128 + dblYChroma;

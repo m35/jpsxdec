@@ -71,12 +71,15 @@ public class PacketBasedVideoSaverBuilderGui extends DiscItemSaverBuilderGui {
 
         private class SaveAudio extends AbstractCheck {
             public SaveAudio() { super(I.GUI_SAVE_AUDIO_LABEL()); }
+            @Override
             public boolean isSelected() {
                 return _bl.getBuilder().getSavingAudio();
             }
+            @Override
             public void setSelected(boolean b) {
                 _bl.getBuilder().setSavingAudio(b);
             }
+            @Override
             public boolean isEnabled() {
                 return _bl.getBuilder().getSavingAudio_enabled();
             }

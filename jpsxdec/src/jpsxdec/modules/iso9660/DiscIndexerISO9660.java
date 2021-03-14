@@ -51,16 +51,19 @@ import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.indexing.DiscIndexer;
 import jpsxdec.iso9660.DirectoryRecord;
+import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.IdentifiedSector;
+import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.Misc;
 
 /** Constructs the ISO9660 file system of a disc. */
-public class DiscIndexerISO9660 extends DiscIndexer implements SectorClaimToSectorISO9660.Listener {
+public class DiscIndexerISO9660 extends DiscIndexer implements IdentifiedSectorListener<IIdentifiedSector> {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerISO9660.class.getName());
 
@@ -100,11 +103,30 @@ public class DiscIndexerISO9660 extends DiscIndexer implements SectorClaimToSect
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToSectorISO9660 s2siso = scs.getClaimer(SectorClaimToSectorISO9660.class);
-        s2siso.setListener(this);
+        scs.addIdListener(this);
     }
 
-    public void isoSectorRead(CdSector cdSector, IdentifiedSector idSector) {
+    @Override
+    public @Nonnull Class<IIdentifiedSector> getListeningFor() {
+        return IIdentifiedSector.class;
+    }
+
+    @Override
+    public void feedSector(@Nonnull IIdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
+        IdentifiedSector isoSector;
+        if (idSector instanceof SectorISO9660VolumePrimaryDescriptor ||
+            idSector instanceof SectorISO9660DirectoryRecords)
+        {
+            isoSector = (IdentifiedSector) idSector;
+        } else {
+            isoSector = null;
+        }
+        isoSectorRead(idSector.getCdSector(), isoSector);
+
+    }
+
+
+    public void isoSectorRead(@Nonnull CdSector cdSector, @Nonnull IdentifiedSector idSector) {
         int iSectorType;
         switch (cdSector.getType()) {
             case CD_AUDIO:
@@ -160,7 +182,8 @@ public class DiscIndexerISO9660 extends DiscIndexer implements SectorClaimToSect
      * image is not handled. */
     private int _iSectorNumberDiff = 0;
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) {
+    @Override
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
 
         if (_primaryDescriptors.isEmpty()) {
             LOG.warning("Disc has no primary descriptor");
@@ -270,7 +293,7 @@ public class DiscIndexerISO9660 extends DiscIndexer implements SectorClaimToSect
             _errLog.log(Level.SEVERE, I.ISO_FILE_CORRUPTED_IGNORING( fileDirRec.name));
             return;
         }
-        
+
         int iStartSector = (int)lngStartSector;
         int iEndSector;
         if (lngFileSize == 0) {
@@ -322,7 +345,7 @@ public class DiscIndexerISO9660 extends DiscIndexer implements SectorClaimToSect
     }
 
     // -------------------------------------------------------------------------
-    
+
     @Override
     public void listPostProcessing(Collection<DiscItem> allItems) {
     }

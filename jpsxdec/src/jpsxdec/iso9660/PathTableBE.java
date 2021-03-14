@@ -57,7 +57,7 @@ public class PathTableBE extends ArrayList<PathTableRecordBE> {
         if (isEmpty())
             throw new BinaryDataNotRecognized();
         trimToSize();
-        
+
     }
-    
+
 }

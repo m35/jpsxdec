@@ -54,5 +54,5 @@ public class PlayerException extends Exception {
     public PlayerException(Throwable cause) {
         super(cause);
     }
-    
+
 }

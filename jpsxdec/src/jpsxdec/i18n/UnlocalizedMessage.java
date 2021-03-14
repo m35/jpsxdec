@@ -54,6 +54,7 @@ public class UnlocalizedMessage implements ILocalizedMessage {
         _sMessage = sMessage;
     }
 
+    @Override
     public boolean equalsIgnoreCase(@Nonnull String s) {
         return _sMessage.equalsIgnoreCase(s);
     }
@@ -78,18 +79,22 @@ public class UnlocalizedMessage implements ILocalizedMessage {
         return _sMessage;
     }
 
+    @Override
     public @Nonnull String getLocalizedMessage() {
         return _sMessage;
     }
 
+    @Override
     public @Nonnull String getEnglishMessage() {
         return _sMessage;
     }
 
+    @Override
     public void logEnglish(@Nonnull Logger log, @Nonnull Level level) {
         log.log(level, _sMessage);
     }
 
+    @Override
     public void logEnglish(@Nonnull Logger log, @Nonnull Level level, @Nonnull Throwable ex) {
         log.log(level, _sMessage, ex);
     }

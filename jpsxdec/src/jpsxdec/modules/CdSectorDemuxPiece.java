@@ -47,7 +47,7 @@ public class CdSectorDemuxPiece implements DemuxedData.Piece {
     private final CdSector _sector;
     private final int _iStartOffset;
     private final int _iEndOffset;
-    
+
     public CdSectorDemuxPiece(@Nonnull CdSector sector) {
         this(sector, 0, sector.getCdUserDataSize());
     }
@@ -62,19 +62,23 @@ public class CdSectorDemuxPiece implements DemuxedData.Piece {
         _iEndOffset = iEndOffset;
     }
 
+    @Override
     public int getDemuxPieceSize() {
         return _iEndOffset - _iStartOffset;
     }
 
+    @Override
     public byte getDemuxPieceByte(int i) {
         if (i < 0 || _iStartOffset + i >= _iEndOffset)
             throw new IndexOutOfBoundsException();
         return _sector.readUserDataByte(_iStartOffset+i);
     }
+    @Override
     public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
         _sector.getCdUserDataCopy(_iStartOffset, abOut, iOutPos, getDemuxPieceSize());
     }
 
+    @Override
     public int getSectorNumber() {
         return _sector.getSectorIndexFromStart();
     }

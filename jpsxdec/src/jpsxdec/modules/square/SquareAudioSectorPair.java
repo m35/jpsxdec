@@ -63,7 +63,7 @@ public class SquareAudioSectorPair {
 
     private static final Logger LOG = Logger.getLogger(SquareAudioSectorPair.class.getName());
 
-    @CheckForNull 
+    @CheckForNull
     private final ISquareAudioSector _leftSector;
     @CheckForNull
     private final ISquareAudioSector _rightSector;
@@ -127,7 +127,7 @@ public class SquareAudioSectorPair {
     }
 
     /** @return Number of PCM sample frames decoded. */
-    public int decode(@Nonnull SpuAdpcmDecoder.Stereo decoder, @Nonnull OutputStream out) 
+    public int decode(@Nonnull SpuAdpcmDecoder.Stereo decoder, @Nonnull OutputStream out)
             throws EOFException, IOException
     {
         final InputStream left;
@@ -146,7 +146,7 @@ public class SquareAudioSectorPair {
         return decoder.decode(left, right, getSoundUnitCount(), out);
     }
 
-    
+
     public int replace(@Nonnull SpuAdpcmEncoder.Stereo encoder,
                        int iMaxSoundUnitsToReplace,
                        @Nonnull CdFileSectorReader cd,

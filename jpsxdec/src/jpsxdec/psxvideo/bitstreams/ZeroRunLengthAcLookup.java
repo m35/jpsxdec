@@ -267,7 +267,7 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
         final int iTableEntriesToAssociate = (1 << iBitsRemain);
         for (int i = 0; i < iTableEntriesToAssociate; i++) {
             if (aoTable[iTableStart + i] != null)
-                throw new RuntimeException("Trying to replace " + aoTable[iTableStart + i] + 
+                throw new RuntimeException("Trying to replace " + aoTable[iTableStart + i] +
                                            " with " + zrlac);
             aoTable[iTableStart + i] = zrlac;
         }
@@ -275,17 +275,21 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
 
     // #########################################################################
 
+    @Override
     public @Nonnull Iterator<ZeroRunLengthAc> iterator() {
         return new Iterator<ZeroRunLengthAc>() {
             private int _i = 0;
+            @Override
             public boolean hasNext() {
                 return _i < _aoList.length;
             }
 
+            @Override
             public @Nonnull ZeroRunLengthAc next() {
                 return _aoList[_i++];
             }
 
+            @Override
             public void remove() {
                 throw new UnsupportedOperationException("List is immutable");
             }

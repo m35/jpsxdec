@@ -66,7 +66,7 @@ import jpsxdec.util.ExposedBAOS;
  * use in all contexts."
  * </blockquote>
  * <p>
- * I owe much of my MJPG understanding to the 
+ * I owe much of my MJPG understanding to the
  * <a href="http://sourceforge.net/projects/jpegtoavi/">jpegtoavi program</a>.
  * According to Microsoft's original MJPEG spec, every JPEG frame should use
  * the default JPEG huffman tables, although most decoders are more lienent than
@@ -88,11 +88,11 @@ public class AviWriterMJPG extends AviWriter {
         }
         CAN_ENCODE_JPEG = bln;
     }
-    
+
     // -------------------------------------------------------------------------
     // -- Fields ---------------------------------------------------------------
     // -------------------------------------------------------------------------
-    
+
 
     /** The image writer used to convert the BufferedImages to JPEG. */
     @Nonnull
@@ -101,11 +101,11 @@ public class AviWriterMJPG extends AviWriter {
     @CheckForNull
     private final ImageWriteParam _writeParams;
 
-    
+
     // -------------------------------------------------------------------------
     // -- Constructors ---------------------------------------------------------
     // -------------------------------------------------------------------------
-    
+
     /** Audio data must be signed 16-bit PCM in little-endian order. */
     public AviWriterMJPG(final @Nonnull File outputfile,
                          final int iWidth, final int iHeight,
@@ -170,7 +170,7 @@ public class AviWriterMJPG extends AviWriter {
         if (getWidth() != bi.getWidth())
             throw new IllegalArgumentException("AviWriter: Frame width doesn't match" +
                     " (was " + getWidth() + ", now " + bi.getWidth() + ").");
-        
+
         if (getHeight() != bi.getHeight())
             throw new IllegalArgumentException("AviWriter: Frame height doesn't match" +
                     " (was " + getHeight() + ", now " + bi.getHeight() + ").");
@@ -194,7 +194,7 @@ public class AviWriterMJPG extends AviWriter {
     // -------------------------------------------------------------------------
     // -- Private functions ----------------------------------------------------
     // -------------------------------------------------------------------------
-    
+
     /** Converts a BufferedImage into a frame to be written into a MJPG avi. */
     private @Nonnull ExposedBAOS image2MJPEG(@Nonnull BufferedImage img) throws IOException {
         ExposedBAOS jpgStream = writeImageToBytes(img, new ExposedBAOS());

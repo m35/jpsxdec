@@ -55,8 +55,8 @@ public interface BitStreamCompressor {
                    MdecException.ReadCorruption, MdecException.TooMuchEnergy;
 
     /** Returns null if unable to encode the frame small enough, otherwise the
-     * returned {@code array.length} will be {@code <= abOriginonal.length}. */
-    @CheckForNull byte[] compressFull(@Nonnull byte[] abOriginal,
+     * returned {@code array.length} will be {@code <= iMaxSize}. */
+    @CheckForNull byte[] compressFull(@Nonnull int iMaxSize,
                                       @Nonnull String sFrameDescription,
                                       @Nonnull MdecEncoder encoder,
                                       @Nonnull ILocalizedLogger log)

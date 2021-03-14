@@ -41,34 +41,42 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.modules.IdentifiedSectorListener;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
 
 /** Converts video sectors to video frames. */
-public class StrVideoSectorToDemuxedStrFrame implements SectorClaimToStrVideoSector.Listener
-{
+public class StrVideoSectorToDemuxedStrFrame implements IdentifiedSectorListener<ISelfDemuxingVideoSector> {
+
+    @Nonnull
+    private final SectorRange _sectorRange;
+    @Nonnull
+    private final DemuxedFrameWithNumberAndDims.Listener _listener;
 
     @CheckForNull
     private ISelfDemuxingVideoSector.IDemuxer _currentFrame;
-    @CheckForNull
-    private DemuxedFrameWithNumberAndDims.Listener _listener;
 
-    public StrVideoSectorToDemuxedStrFrame() {
-    }
-    public StrVideoSectorToDemuxedStrFrame(
-            @Nonnull DemuxedFrameWithNumberAndDims.Listener listener)
+    public StrVideoSectorToDemuxedStrFrame(@Nonnull SectorRange sectorRange,
+                                           @Nonnull DemuxedFrameWithNumberAndDims.Listener listener)
     {
-        _listener = listener;
-    }
-    public void setListener(@CheckForNull DemuxedFrameWithNumberAndDims.Listener listener) {
+        _sectorRange = sectorRange;
         _listener = listener;
     }
 
+    @Override
+    public @Nonnull Class<ISelfDemuxingVideoSector> getListeningFor() {
+        return ISelfDemuxingVideoSector.class;
+    }
 
+    @Override
     public void feedSector(@Nonnull ISelfDemuxingVideoSector vidSector,
                            @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
+        if (!_sectorRange.sectorIsInRange(vidSector.getSectorNumber()))
+            return;
+
         if (_currentFrame != null && !_currentFrame.addSectorIfPartOfFrame(vidSector))
             endFrame(log);
         if (_currentFrame == null)
@@ -98,7 +106,8 @@ public class StrVideoSectorToDemuxedStrFrame implements SectorClaimToStrVideoSec
         _currentFrame = null;
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+    @Override
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         endFrame(log);
         if (_listener != null)
             _listener.endOfSectors(log);

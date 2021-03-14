@@ -61,15 +61,17 @@ public final class Misc {
      * Every implementation of the Java platform is required to support US-ASCII.
      * @see Charset
      */
+    public static final Charset US_ASCII = Charset.forName("US-ASCII");
+
     public static @Nonnull byte[] stringToAscii(@Nonnull String string) {
-        return string.getBytes(Charset.forName("US-ASCII"));
+        return string.getBytes(US_ASCII);
     }
 
     public static @Nonnull String asciiToString(@Nonnull byte[] ascii) {
         return asciiToString(ascii, 0, ascii.length);
     }
     public static @Nonnull String asciiToString(@Nonnull byte[] ascii, int iOffset, int iLength) {
-        return new String(ascii, iOffset, iLength, Charset.forName("US-ASCII"));
+        return new String(ascii, iOffset, iLength, US_ASCII);
     }
 
     /** Makes a date X number of seconds past the year 0. */
@@ -140,7 +142,7 @@ public final class Misc {
     public static boolean objectEquals(@CheckForNull Object o1, @CheckForNull Object o2) {
         return o1 == o2 || (o1 != null && o2 != null && o1.equals(o2));
     }
-    
+
     /** Duplicates a string {@code count} times. */
     public static @Nonnull String dup(@Nonnull String s, int count) {
         if (count == 0)
@@ -160,7 +162,7 @@ public final class Misc {
         Arrays.fill(ac, c);
         return new String(ac);
     }
-    
+
     /** Removes the extension from the given file name/path. */
     public static @Nonnull String removeExt(@Nonnull String sFileName) {
         int i = sFileName.lastIndexOf('.');
@@ -169,7 +171,7 @@ public final class Misc {
         else
             return sFileName;
     }
-    
+
     /** Gets the extension from the given file name/path, without the '.'.
      * @return empty string if no extension.  */
     public static @Nonnull String getExt(@Nonnull String sFileName) {
@@ -195,7 +197,7 @@ public final class Misc {
         return sb.toString();
     }
 
-    
+
     public static @Nonnull String join(@Nonnull Object[] ao, @Nonnull String sBetween) {
         StringBuilder sb = new StringBuilder();
         boolean blnFirst = true;
@@ -206,17 +208,17 @@ public final class Misc {
         return sb.toString();
     }
 
-    /** Splits a string into an array of ints. 
+    /** Splits a string into an array of ints.
      *  Returns null if non-int values encountered. */
     public static @CheckForNull int[] splitInt(@Nonnull String s, @Nonnull String regex) {
         String[] asSplit = s.split(regex);
         return stringArrayToIntArray(asSplit);
     }
-    
+
     public static @CheckForNull long[] splitLong(@Nonnull String s, @Nonnull String regex) {
         String[] split = s.split(regex);
         long[] ai = new long[split.length];
-        
+
         try {
             for (int i = 0; i < split.length; i++) {
                 ai[i] = Long.parseLong(split[i]);
@@ -227,7 +229,7 @@ public final class Misc {
             return null;
         }
     }
-    
+
     /** Parses an array of strings into an array of ints. If there is any
      *  error, or if any of the values are negative, null is returned. */
     public static @CheckForNull int[] stringArrayToIntArray(@Nonnull String[] as) {
@@ -237,13 +239,13 @@ public final class Misc {
                 aiVals[i] = Integer.parseInt(as[i]);
                 if (aiVals[i] < 0) return null;
             }
-            
+
             return aiVals;
         } catch (NumberFormatException ex) {
             return null;
         }
     }
-    
+
     private final static String[] ZERO_PAD = new String[] {
         "", "0", "00", "000", "0000", "00000", "000000", "0000000", "00000000",
         "000000000", "0000000000", "00000000000", "000000000000",

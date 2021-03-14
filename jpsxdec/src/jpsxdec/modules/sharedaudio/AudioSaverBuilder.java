@@ -94,6 +94,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         return false;
     }
 
+    @Override
     public @Nonnull DiscItemAudioStream getDiscItem() {
         return _audItem;
     }
@@ -144,6 +145,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         return new File(_audItem.getSuggestedBaseName().getPath() + "." + getExtension());
     }
 
+    @Override
     public void printHelp(@Nonnull FeedbackStream fbs) {
         TabularFeedback tfb = new TabularFeedback();
 
@@ -161,6 +163,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
         tfb.write(fbs.getUnderlyingStream());
     }
+    @Override
     public void commandLineOptions(@Nonnull ArgParser ap, @Nonnull FeedbackStream fbs) {
         if (!ap.hasRemaining())
             return;
@@ -189,15 +192,18 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
             }
         }
     }
+    @Override
     public void printSelectedOptions(@Nonnull ILocalizedLogger log) {
         log.log(Level.INFO, I.CMD_AUDIO_FORMAT(_containerFormat.getCmdId()));
         log.log(Level.INFO, I.CMD_VOLUME_PERCENT(getVolume()));
         log.log(Level.INFO, I.CMD_FILENAME(getFileRelativePath()));
     }
 
+    @Override
     public @Nonnull ILocalizedMessage getOutputSummary() {
         return new UnlocalizedMessage(getFileRelativePath().getPath());
     }
+    @Override
     public @Nonnull DiscItemSaverBuilderGui getOptionPane() {
         return new AudioSaverBuilderGui(this);
     }
@@ -232,6 +238,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         }
 
         decoder.setAudioListener(new DecodedAudioPacket.Listener() {
+            @Override
             public void audioPacketComplete(@Nonnull DecodedAudioPacket packet,
                                             @Nonnull ILocalizedLogger log)
             {
@@ -254,7 +261,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
             pl.progressStart(_audItem.getSectorLength());
             for (int iSector = 0; it.hasNext(); iSector++) {
                 try {
-                    IIdentifiedSector identifiedSect = it.next(pl).getClaimer();
+                    IIdentifiedSector identifiedSect = it.next(pl);
                 } catch (CdFileSectorReader.CdReadException ex) {
                     throw new LoggedFailure(pl, Level.SEVERE,
                             I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);

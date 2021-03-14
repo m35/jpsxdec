@@ -51,6 +51,7 @@ import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
 import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
@@ -113,7 +114,7 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
             serial.addYesNo(INDEPENDENT_BITSTREAM, _blnHasIndependentBitstream);
         return serial;
     }
-    
+
     @Override
     public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
@@ -170,7 +171,7 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
 
         SectorClaimSystem it = createClaimSystem();
         for (int iSector = 0; it.hasNext(); iSector++) {
-            IIdentifiedSector isect = it.next(DebugLogger.Log).getClaimer();
+            IIdentifiedSector isect = it.next(DebugLogger.Log);
             if (isect instanceof IVideoSectorWithFrameNumber) {
                 IVideoSectorWithFrameNumber vidSect = (IVideoSectorWithFrameNumber) isect;
                 ps.println(String.format("%-5d %-4d %d/%d",
@@ -189,38 +190,40 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
 
     @Override
     public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer() {
-        return new Demuxer(getStartSector(), getEndSector(),
+        return new Demuxer(makeSectorRange(),
                            _headerFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat));
     }
 
     public static class Demuxer implements ISectorClaimToDemuxedFrame, DemuxedFrameWithNumberAndDims.Listener {
 
-        private int _iStartSector = 0;
-        private int _iEndSectorInclusive = Integer.MAX_VALUE;
+        @Nonnull
+        private final SectorRange _sectorRange;
         @Nonnull
         private final IFrameNumberFormatterWithHeader _frameNumberFormatter;
+
         @CheckForNull
         private IDemuxedFrame.Listener _listener;
 
-        public Demuxer(int iStartSector, int iEndSectorInclusive,
+        public Demuxer(@Nonnull SectorRange sectorRange,
                        @Nonnull IFrameNumberFormatterWithHeader frameNumberFormatter)
         {
-            _iStartSector = iStartSector;
-            _iEndSectorInclusive = iEndSectorInclusive;
+            _sectorRange = sectorRange;
             _frameNumberFormatter = frameNumberFormatter;
         }
 
+        @Override
         public void setFrameListener(@Nonnull IDemuxedFrame.Listener listener) {
             _listener = listener;
         }
 
+        @Override
         public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-            SectorClaimToStrVideoSector s2sv = scs.getClaimer(SectorClaimToStrVideoSector.class);
-            s2sv.setRangeLimit(_iStartSector, _iEndSectorInclusive);
-            s2sv.setListener(new StrVideoSectorToDemuxedStrFrame(this));
+            StrVideoSectorToDemuxedStrFrame s2f = new StrVideoSectorToDemuxedStrFrame(_sectorRange, this);
+            scs.addIdListener(s2f);
         }
-        
-        public void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log) 
+
+        @Override
+        public void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log)
                 throws LoggedFailure
         {
             FrameNumber fn = _frameNumberFormatter.next(frame.getStartSector(),
@@ -229,9 +232,10 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
             if (_listener != null)
                 _listener.frameComplete(frame);
         }
+        @Override
         public void endOfSectors(@Nonnull ILocalizedLogger log) {
         }
 
     }
-    
+
 }

@@ -39,28 +39,22 @@ package jpsxdec.modules.video;
 
 import java.io.PrintStream;
 import java.util.List;
-import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
-import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.DebugLogger;
-import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
-import jpsxdec.modules.video.replace.ReplaceFrames;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
-import jpsxdec.psxvideo.encode.ParsedMdecImage;
-import jpsxdec.psxvideo.mdec.Calc;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
+import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
+import jpsxdec.psxvideo.mdec.ParsedMdecImage;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.Fraction;
-import jpsxdec.util.TaskCanceledException;
 import jpsxdec.util.player.PlayController;
 
 /** Represents all variations of PlayStation video streams. */
@@ -81,7 +75,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
         _dims = dim;
         _indexSectorFrameNumberFormat = frameNumberFormat;
     }
-    
+
     public DiscItemVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
@@ -89,7 +83,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
         _dims = new Dimensions(fields);
         _indexSectorFrameNumberFormat = new IndexSectorFrameNumber.Format(fields);
     }
-    
+
     @Override
     public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem serial = super.serialize();
@@ -106,7 +100,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
     final public int getWidth() {
         return _dims.getWidth();
     }
-    
+
     final public int getHeight() {
         return _dims.getHeight();
     }
@@ -128,7 +122,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
      *  2 for 2x (150 sectors/second)
      *  {@code <= 0} if unknown. */
     abstract public int getDiscSpeed();
-    
+
     abstract public @Nonnull Fraction getSectorsPerFrame();
 
     /** Returns the sector on the disc where the video should start playing. */
@@ -140,7 +134,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
      * all on their own (except for the frame dimensions usually).
      * A few games however use very different bitstream formats that, on their
      * own, would be impossible to decode. They need some additional
-     * contextual information to do so. 
+     * contextual information to do so.
      * The video saver uses this information to determine if the bitstream
      * format (.bs) can be used as an output format. */
     abstract public boolean hasIndependentBitstream();
@@ -153,46 +147,41 @@ public abstract class DiscItemVideoStream extends DiscItem {
 
     /** Creates a demuxer that can handle frames in this video. */
     abstract public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer();
-    
 
-    public void frameInfoDump(@Nonnull final PrintStream ps, final boolean blnMore) {
+
+    final public void frameInfoDump(@Nonnull final PrintStream ps, final boolean blnMore) {
         ISectorClaimToDemuxedFrame demuxer = makeDemuxer();
         demuxer.setFrameListener(new IDemuxedFrame.Listener() {
+            @Override
             public void frameComplete(IDemuxedFrame frame) {
-                ps.println(frame);
-                ps.println("Available demux size: " + frame.getDemuxSize());
-                frame.printSectors(ps);
-                
+                MdecInputStream mis = frame.getCustomFrameMdecStream();
                 try {
-                    MdecInputStream mis = frame.getCustomFrameMdecStream();
-                    ParsedMdecImage parsed;
+
                     if (mis != null) {
-                        parsed = new ParsedMdecImage(mis, getWidth(), getHeight());
+                        ps.println(frame);
+
                         ps.println("Frame data info: " + mis);
+                        if (blnMore) {
+                            ParsedMdecImage parsed = new ParsedMdecImage(mis, getWidth(), getHeight());
+                            parsed.drawMacroBlocks(ps);
+                        }
                     } else {
-                        byte[] abBitStream = frame.copyDemuxData();
-                        BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(abBitStream, frame.getDemuxSize());
-                        parsed = new ParsedMdecImage(uncompressor, getWidth(), getHeight());
-                        uncompressor.skipPaddingBits();
-                        ps.println("Frame data info: " + uncompressor);
-                    }
-                    if (blnMore) {
-                        int iMbWidth  = Calc.macroblockDim(getWidth()),
-                            iMbHeight = Calc.macroblockDim(getHeight());
-                        for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {
-                            for (int iMbX = 0; iMbX < iMbWidth; iMbX++) {
-                                ps.println("    " +iMbX + ", " + iMbY);
-                                for (int iBlk = 0; iBlk < 6; iBlk++) {
-                                    ps.println("      "+parsed.getBlockInfo(iMbX, iMbY, iBlk));
-                                }
-                            }
+                        try {
+                            SectorBasedFrameAnalysis frameAnalysis = SectorBasedFrameAnalysis.create(frame);
+                            frameAnalysis.printInfo(ps);
+                            if (blnMore)
+                                frameAnalysis.drawMacroBlocks(ps);
+                        } catch (BinaryDataNotRecognized ex) {
+                            ps.println("Frame not recognized");
+                            ex.printStackTrace(ps);
                         }
                     }
-                } catch (BinaryDataNotRecognized ex) {
-                    ps.println("Frame not recognized");
-                } catch (Exception ex) {
+                } catch (MdecException.EndOfStream ex) {
+                    ex.printStackTrace(ps);
+                } catch (MdecException.ReadCorruption ex) {
                     ex.printStackTrace(ps);
                 }
+
                 System.out.println("_____________________________________________________________________");
             }
         });
@@ -202,7 +191,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
         demuxer.attachToSectorClaimer(it);
         while (it.hasNext()) {
             try {
-                IIdentifiedSector sector = it.next(DebugLogger.Log).getClaimer();
+                IIdentifiedSector sector = it.next(DebugLogger.Log);
             } catch (CdFileSectorReader.CdReadException ex) {
                 throw new RuntimeException("IO error with dev tool", ex);
             }
@@ -210,22 +199,4 @@ public abstract class DiscItemVideoStream extends DiscItem {
         it.close(DebugLogger.Log);
     }
 
-    public void replaceFrames(@Nonnull ProgressLogger pl, @Nonnull String sXmlFile)
-            throws LoggedFailure, TaskCanceledException
-    {
-        ReplaceFrames replacers;
-        try {
-            replacers = new ReplaceFrames(sXmlFile);
-        } catch (ReplaceFrames.XmlFileNotFoundException ex) {
-            throw new LoggedFailure(pl, Level.SEVERE,
-                                    I.IO_OPENING_FILE_NOT_FOUND_NAME(sXmlFile), ex);
-        } catch (ReplaceFrames.XmlReadException ex) {
-            throw new LoggedFailure(pl, Level.SEVERE,
-                                    I.IO_READING_FILE_ERROR_NAME(sXmlFile), ex);
-        } catch (LocalizedDeserializationFail ex) {
-            throw new LoggedFailure(pl, Level.SEVERE,
-                                    ex.getSourceMessage(), ex);
-        }
-        replacers.replaceFrames(this, getSourceCd(), pl);
-    }
 }

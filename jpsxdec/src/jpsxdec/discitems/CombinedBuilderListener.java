@@ -96,6 +96,7 @@ public class CombinedBuilderListener<T extends DiscItemSaverBuilder> {
 
     @Nonnull
     private final ChangeListener _thisChangeListener = new ChangeListener() {
+        @Override
         public void stateChanged(@Nonnull ChangeEvent e) {
             for (ChangeListener control : _controlsListening) {
                 control.stateChanged(e);

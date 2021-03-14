@@ -103,6 +103,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         }
     }
 
+    @Override
     public @Nonnull DiscItemSaverBuilderGui getOptionPane() {
         return new SectorBasedVideoSaverBuilderGui(this);
     }
@@ -110,6 +111,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
     // .........................................................................
 
 
+    @Override
     public boolean getAudioVolume_enabled() {
         return getSavingAudio();
     }
@@ -175,14 +177,16 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         return getVideoFormat().isAvi() && getSaveStartFrame() == null;
     }
 
+    @Override
     public boolean hasAudio() {
         return _sourceVidItem.hasAudio();
     }
 
+    @Override
     public boolean getSavingAudio() {
         if (!getParallelAudio_enabled())
             return false;
-        
+
         for (boolean b : _ablnParallelAudio) {
             if (b)
                 return true;
@@ -193,6 +197,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
     // .........................................................................
 
     private boolean _blnEmulatePsxAVSync = false;
+    @Override
     public boolean getEmulatePsxAvSync() {
         if (getEmulatePsxAVSync_enabled())
             return _blnEmulatePsxAVSync;
@@ -215,7 +220,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         super.commandLineOptions(ap, fbs);
         if (!ap.hasRemaining())
             return;
-        
+
         BooleanHolder noaud = ap.addBoolOption(false, "-noaud"); // Only with AVI & audio
         BooleanHolder emulateav = ap.addBoolOption(false, "-psxav"); // Only with AVI & audio
         ap.match();
@@ -259,6 +264,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         return parallelAudio;
     }
 
+    @Override
     public void startSave(@Nonnull ProgressLogger pl, @CheckForNull File directory)
             throws LoggedFailure, TaskCanceledException
     {

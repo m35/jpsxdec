@@ -48,7 +48,7 @@ import jpsxdec.util.IO;
 /** The TIM Color Lookup Table (CLUT). */
 class CLUT {
 
-    /** 
+    /**
      * Size of the CLUT header in bytes.
      */
     public final static int HEADER_SIZE = 12;
@@ -59,13 +59,13 @@ class CLUT {
      */
     private final int _iClutPixelWidth, _iClutPixelHeight;
 
-    /** 
+    /**
      * X,Y position of the CLUT in pixels.
      * This can be used to indicate where to copy the CLUT into the VRAM.
      */
     private final int _iClutX, _iClutY;
 
-    /** 
+    /**
      * Tim 16 bit pixels ABGR1555.
      */
     @Nonnull
@@ -91,7 +91,7 @@ class CLUT {
             IO.writeInt16LE(os, i);
     }
 
-    /** 
+    /**
      * Returns the length of the CLUT structure in bytes.
      */
     private int calculateClutSizeInBytes() {

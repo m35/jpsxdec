@@ -66,7 +66,7 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
   public @Nonnull Fraction clone() { return new Fraction(this); }
 
   /** Return the value of the Fraction as a double **/
-  public double asDouble() { 
+  public double asDouble() {
     return ((double)(getNumerator())) / ((double)(getDenominator()));
   }
 
@@ -79,12 +79,12 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
         return (int) (getNumerator() / getDenominator());
     }
 
-  /** 
+  /**
    * Compute the nonnegative greatest common divisor of a and b.
    * (This is needed for normalizing Fractions, but can be
    * useful on its own.)
    **/
-  public static long gcd(long a, long b) { 
+  public static long gcd(long a, long b) {
     long x;
     long y;
 
@@ -207,7 +207,7 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
   }
 
   /** return a number less, equal, or greater than zero
-   * reflecting whether this Fraction is less, equal or greater than 
+   * reflecting whether this Fraction is less, equal or greater than
    * the value of Fraction other.
    **/
   public int compareTo(Fraction other) {

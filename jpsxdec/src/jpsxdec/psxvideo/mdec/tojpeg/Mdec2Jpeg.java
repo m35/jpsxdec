@@ -161,7 +161,7 @@ public class Mdec2Jpeg {
      * </pre>
      * Note that the DC coefficient in the top left is not divided by 8 so
      * remains the same.
-     * 
+     *
      * The math below does all these checks and calculates this table.
      *
      * During the quantization conversion, we can check if the value is 1,
@@ -177,7 +177,7 @@ public class Mdec2Jpeg {
     But that is a ton of work with likely only a tiny reduction in size.
     */
     private static final int[] JPEG_QUANTIZATION_TABLE_ZIGZAG = new int[64];
-    
+
     /** PSX standard quantization table in zig-zag order. */
     private static final int[] PSX_QUANTIZATION_TABLE_ZIGZAG = new int[64];
     static {
@@ -283,11 +283,11 @@ public class Mdec2Jpeg {
     }
 
 
-    /** Reads and buffers the MDEC data. 
+    /** Reads and buffers the MDEC data.
      * @throws MdecException.TooMuchEnergy if the source stream has too much energy
      *                                     to save with this current implementation.
      */
-    public void readMdec(MdecInputStream mdecInStream) 
+    public void readMdec(MdecInputStream mdecInStream)
             throws MdecException.TooMuchEnergy, MdecException.ReadCorruption,
             MdecException.EndOfStream
     {

@@ -52,8 +52,8 @@ import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ShouldNotLog;
 import jpsxdec.indexing.DiscIndex;
+import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.UnidentifiedSector;
 import jpsxdec.util.ArgParser;
 import jpsxdec.util.IO;
 
@@ -66,11 +66,13 @@ class Command_Visualize extends Command {
         super("-visualize");
     }
 
+    @Override
     protected @CheckForNull ILocalizedMessage validate(@Nonnull String s) {
         _sOutfile = s;
         return null;
     }
 
+    @Override
     public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         DiscIndex index = getIndex();
         CdFileSectorReader cd = index.getSourceCd();
@@ -113,14 +115,10 @@ class Command_Visualize extends Command {
             ILocalizedLogger log = new ShouldNotLog();
             for (int iSector = 0; it.hasNext(); iSector++) {
                 try {
-                    SectorClaimSystem.ClaimedSector sector = it.next(log);
-                    Color c;
-                    if (sector.getClaimer() == null)
-                        c = classToColor(UnidentifiedSector.class);
-                    else
-                        c = classToColor(sector.getClaimer().getClass());
+                    IIdentifiedSector idSector = it.next(log);
+                    Color c = classToColor(idSector.getClass());
                     int[] aiRgb = {c.getRed(), c.getGreen(), c.getBlue()};
-                    
+
                     com.pdfjet.Box pdfBox = new com.pdfjet.Box(0 * SCALE, iSector * SCALE, SECTOR_SECTION_SIZE * SCALE, 1 * SCALE);
                     pdfBox.setFillShape(true);
                     pdfBox.setLineWidth(0);

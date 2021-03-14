@@ -49,8 +49,8 @@ import jpsxdec.modules.video.framenumber.FormattedFrameNumber;
 
 /** Generates a file name for a given frame number.
  * Combines the path, base name, frame number, and extension of a file
- * into a string of a file name that can be used to save a video frame. 
- * 
+ * into a string of a file name that can be used to save a video frame.
+ *
  * mdec and bs formats will also include the frame dimensions in the filename.
  */
 public class VideoFileNameFormatter {
@@ -149,10 +149,10 @@ public class VideoFileNameFormatter {
 
         if (_sDims != null)
             sb.append(_sDims);
-        
+
         if (!_blnIgnoreFrameNumbers && frameNumber != null)
             sb.append('[').append(frameNumber.toString()).append(']');
-        
+
         sb.append(_sExtension);
 
         if (log != null && frameNumber != null) {

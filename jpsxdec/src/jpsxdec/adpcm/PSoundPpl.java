@@ -118,7 +118,7 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
         /** Standard Windows MAX_PATH length. */
         private static final int FILE_NAME_BUFFER_SIZE = 260;
 
-        private Entry(@Nonnull InputStream is, int iIndex) 
+        private Entry(@Nonnull InputStream is, int iIndex)
                 throws EOFException, IOException, BinaryDataNotRecognized
         {
             // buffer to store the item name and file name
@@ -130,7 +130,7 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
                 throw new BinaryDataNotRecognized();
             IO.readByteArray(is, abItemNameAndFileName, 0, iItemNameLength);
             // add null terminator (not really necessary since Java arrays are 0)
-            abItemNameAndFileName[iItemNameLength] = 0; 
+            abItemNameAndFileName[iItemNameLength] = 0;
 
             int iFileNameLength = IO.readUInt8(is);
             if (iFileNameLength == 0)
@@ -138,13 +138,13 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
             IO.readByteArray(is, abItemNameAndFileName, ITEM_NAME_BUFFER_SIZE, iFileNameLength);
             // add null terminator (not really necessary since Java arrays are 0)
             abItemNameAndFileName[ITEM_NAME_BUFFER_SIZE+iFileNameLength] = 0;
-            
+
             // extract the strings
             _sItemName = Misc.asciiToString(abItemNameAndFileName, 0, iItemNameLength);
             _sSourceFilePath = Misc.asciiToString(abItemNameAndFileName, ITEM_NAME_BUFFER_SIZE, iFileNameLength);
-            
+
             _lngEncryptedOffset = IO.readUInt32LE(is);
-            
+
             // the 5 unknown zero bytes appear to be used for something
             // but need to see an example file with non-zero values
             // to get a lead as to what
@@ -180,7 +180,7 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
             sub     eax, [ebp-0Ch]          ; substract the index of the entry
             mov     [ebp-10h], eax          ; store the unencrypted value
             */
-            
+
             // stack
             int bitsToRotate = iItemNameLength + iFileNameLength;
             int temp;
@@ -189,7 +189,7 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
             int eax;
             int cl;
             int ecx;
-            
+
             eax = iFileNameLength;
             eax = IO.readSInt32LE(abItemNameAndFileName, ITEM_NAME_BUFFER_SIZE + eax - 5);
             temp = eax;

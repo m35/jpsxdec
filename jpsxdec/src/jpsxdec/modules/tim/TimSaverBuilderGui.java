@@ -92,6 +92,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui implements ChangeListen
         return blnOk;
     }
 
+    @Override
     public void stateChanged(@CheckForNull ChangeEvent e) {
         for (Component c : _panelImages.getComponents()) {
             if (c instanceof TimPaletteSelector)
@@ -122,6 +123,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui implements ChangeListen
                 add(new JLabel(I.GUI_SAVE_AS_LABEL().getLocalizedMessage()), ParagraphLayout.NEW_PARAGRAPH);
                 add(p, ParagraphLayout.STRETCH_H);
             }
+            @Override
             public void stateChanged(ChangeEvent e) {
                 updateText();
             }
@@ -134,18 +136,23 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui implements ChangeListen
             public Format() {
                 super(I.GUI_TIM_SAVE_FORMAT_LABEL(), true);
             }
+            @Override
             public int getSize() {
                 return _bl.getBuilder().getImageFormat_listSize();
             }
+            @Override
             public Object getElementAt(int index) {
                 return _bl.getBuilder().getImageFormat_listItem(index);
             }
+            @Override
             public void setSelectedItem(Object anItem) {
                 _bl.getBuilder().setImageFormat((TimSaverBuilder.TimSaveFormat) anItem);
             }
+            @Override
             public Object getSelectedItem() {
                 return _bl.getBuilder().getImageFormat();
             }
+            @Override
             protected boolean getEnabled() {return true; }
         }
     }

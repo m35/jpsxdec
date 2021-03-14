@@ -52,7 +52,7 @@ public class PathTableRecordBE extends ISO9660Struct {
     private static final String VALID_CHARACTERS = "[A-Z\\d-_\\.]+";
 
     final public int index;
-    
+
     //final public int xa_len; = 0?
     final public long extent;
     final public int parent;
@@ -60,7 +60,7 @@ public class PathTableRecordBE extends ISO9660Struct {
 
     public PathTableRecordBE(@Nonnull InputStream is, int index) throws IOException, BinaryDataNotRecognized {
         this.index = index;
-        
+
         int name_len = read1(is);
         if (name_len == 0) throw new BinaryDataNotRecognized();
         magic1(is, 0);

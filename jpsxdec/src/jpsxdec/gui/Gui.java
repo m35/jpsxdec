@@ -110,7 +110,7 @@ public class Gui extends javax.swing.JFrame {
         setTitle(I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getLocalizedMessage());
 
         initComponents();
-        
+
         _guiTab.setEnabledAt(1, false);
 
         // center the gui
@@ -187,7 +187,7 @@ public class Gui extends javax.swing.JFrame {
                 return;
             openDisc(f);
         }
-        
+
         public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {}
         public void popupMenuCanceled(PopupMenuEvent e) {}
     }
@@ -195,7 +195,7 @@ public class Gui extends javax.swing.JFrame {
     private class IndexMenu extends JPopupMenu implements PopupMenuListener, ActionListener {
 
         private final JMenuItem EMPTY_MENU_ITEM = new JMenuItem("Empty");
-        
+
         public IndexMenu() {
             add(EMPTY_MENU_ITEM);
             addPopupMenuListener(this);
@@ -236,7 +236,7 @@ public class Gui extends javax.swing.JFrame {
             UserFriendlyLogger.WarnErrCounter warnErrCount = new UserFriendlyLogger.WarnErrCounter();
             log.setListener(warnErrCount);
             log.log(Level.INFO, I.IO_OPENING_FILE(indexFile.toString()));
-            
+
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
             setIndex(new DiscIndex(indexFile.getPath(), log), indexFile.getName());
             _settings.addPreviousIndex(indexFile.getAbsolutePath());
@@ -252,7 +252,7 @@ public class Gui extends javax.swing.JFrame {
                     sb.append(I.GUI_INDEX_LOAD_ISSUES_ERRORS(warnErrCount.getErrCount()))
                       .append('\n');
                 sb.append(I.GUI_INDEX_LOAD_ISSUES_SEE_FILE(log.getFileName()));
-                
+
                 JOptionPane.showMessageDialog(this, sb.toString(), I.GUI_INDEX_LOAD_ISSUES_DIALOG_TITLE().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
             }
         } catch (LocalizedDeserializationFail ex) {
@@ -289,7 +289,7 @@ public class Gui extends javax.swing.JFrame {
             oldCd = null;
         else
             oldCd = _index.getSourceCd();
-        
+
         _index = index;
         setDisc(_index.getSourceCd());
         _saverGuis.clear();
@@ -681,7 +681,7 @@ public class Gui extends javax.swing.JFrame {
         if (iResult != BetterFileChooser.APPROVE_OPTION)
             return;
         openIndex(fc.getSelectedFile());
-        
+
     }//GEN-LAST:event__guiOpenIndexActionPerformed
 
 
@@ -796,7 +796,7 @@ public class Gui extends javax.swing.JFrame {
             LOG.log(Level.WARNING, "Error saving ini file", ex);
         }
         System.exit(0);
-        
+
     }//GEN-LAST:event_formWindowClosing
 
     private boolean promptSaveIndex() {
@@ -832,7 +832,7 @@ public class Gui extends javax.swing.JFrame {
 
             String sDir = _guiDirectory.getText();
             File dir = sDir.length() == 0 ? null : new File(sDir);
-            
+
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
             ArrayList<DiscItemSaverBuilder> builders;
             try {
@@ -840,12 +840,12 @@ public class Gui extends javax.swing.JFrame {
             } finally {
                 setCursor(Cursor.getDefaultCursor());
             }
-            
+
             if (builders.isEmpty()) {
                 JOptionPane.showMessageDialog(this, I.GUI_NOTHING_IS_MARKED_FOR_SAVING());
                 return;
             }
-            
+
             SavingGui gui = new SavingGui(this, builders, _index.getSourceCd().toString(), dir);
             gui.setVisible(true);
 
@@ -869,7 +869,7 @@ public class Gui extends javax.swing.JFrame {
 
     }//GEN-LAST:event__guiChooseDirActionPerformed
 
-    
+
     private transient final PlayController.PlayerListener _playerListener = new PlayController.PlayerListener() {
         public void event(@Nonnull final Event eEvent) {
             java.awt.EventQueue.invokeLater(new Runnable() {
@@ -889,9 +889,9 @@ public class Gui extends javax.swing.JFrame {
             });
         }
     };
-    
+
     private void _guiTabStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event__guiTabStateChanged
-        
+
         if (_guiTab.getSelectedIndex() == 1) {
             TreeItem selection = _guiDiscTree.getTreeTblSelection();
             if (selection == null)
@@ -921,21 +921,21 @@ public class Gui extends javax.swing.JFrame {
                 _guiPreviewPanel.removeAll();
                 _guiPreviewPanel.validate();
                 _guiPreviewPanel.repaint();
-            }        
+            }
         }
-        
-        
+
+
     }//GEN-LAST:event__guiTabStateChanged
 
     private void formWindowOpened(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowOpened
         if (_sCommandLineFile == null)
             return;
         File f = new File(_sCommandLineFile);
-        
+
         FileInputStream fis = null;
         try {
             fis = new FileInputStream(f);
-            
+
             try {
                 // read the first several bytes
                 byte[] abBuffer = readAsMuchAsPossible(fis, Version.IndexHeader.length()*2);
@@ -958,7 +958,7 @@ public class Gui extends javax.swing.JFrame {
             }
         } catch (FileNotFoundException ex) {
             LOG.log(Level.WARNING, _sCommandLineFile, ex);
-            JOptionPane.showMessageDialog(this, 
+            JOptionPane.showMessageDialog(this,
                     I.IO_OPENING_FILE_NOT_FOUND_NAME(_sCommandLineFile).getLocalizedMessage(),
                     I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
                     JOptionPane.ERROR_MESSAGE);

@@ -55,14 +55,13 @@ import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.util.BinaryDataNotRecognized;
 
-public class DiscIndexerEAVideo extends DiscIndexer implements SectorClaimToEAVideo.Listener {
+public class DiscIndexerEAVideo extends DiscIndexer implements EASectorToEAPacket.Listener {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexerEAVideo.class.getName());
 
     @Override
     public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-        SectorClaimToEAVideo ui = scs.getClaimer(SectorClaimToEAVideo.class);
-        ui.setListener(this);
+        EASectorToEAPacket.attachToSectorClaimer(scs, this);
     }
 
     @Override
@@ -164,6 +163,7 @@ public class DiscIndexerEAVideo extends DiscIndexer implements SectorClaimToEAVi
     @CheckForNull
     private MovieBuilder _movieBuilder;
 
+    @Override
     public void feedPacket(@Nonnull EAVideoPacketSectors packet, @Nonnull ILocalizedLogger log) {
 
         try {
@@ -186,6 +186,7 @@ public class DiscIndexerEAVideo extends DiscIndexer implements SectorClaimToEAVi
         }
     }
 
+    @Override
     public void endVideo(@Nonnull ILocalizedLogger log) {
         if (_movieBuilder != null) {
             try {

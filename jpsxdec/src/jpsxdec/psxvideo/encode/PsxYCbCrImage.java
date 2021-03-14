@@ -43,7 +43,7 @@ import jpsxdec.formats.RGB;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.psxvideo.PsxYCbCr;
 
-/** 
+/**
  * Handles YCbCr image data of the PSX MDEC chip, which
  * is slightly different from JFIF Rec.601 YCbCr.
  * Note that like JFIF YCbCr, the "color space" has a full range of 256 values.
@@ -54,20 +54,20 @@ import jpsxdec.psxvideo.PsxYCbCr;
  *</pre>
  */
 public class PsxYCbCrImage {
-    
+
     private int _iWidth;
     private int _iHeight;
-    
+
     private double[] _adblY;
     private double[] _adblCb;
     private double[] _adblCr;
-    
+
     /** Creates a new instance of PsxYuvImage.
-     * @param iWidth - Width of image (in Luminance values) 
+     * @param iWidth - Width of image (in Luminance values)
      * @param iHeight - Height of image (in Luminance values) */
     public PsxYCbCrImage(int iWidth, int iHeight) {
-        assert(iWidth > 0 && iHeight > 0 && 
-               (iWidth  % 2) == 0 && 
+        assert(iWidth > 0 && iHeight > 0 &&
+               (iWidth  % 2) == 0 &&
                (iHeight % 2) == 0);
         _iWidth = iWidth;
         _iHeight = iHeight;
@@ -114,14 +114,14 @@ public class PsxYCbCrImage {
         }
     }
 
-    /** Converts yuv image to a BufferedImage, converting, rounding, and 
+    /** Converts yuv image to a BufferedImage, converting, rounding, and
      * clamping RGB values. */
     public RgbIntImage toRgb() {
         int[] aiARGB = new int[_iWidth * _iHeight];
 
         PsxYCbCr ycc = new PsxYCbCr();
         RGB rgb1 = new RGB(), rgb2 = new RGB(), rgb3 = new RGB(), rgb4 = new RGB();
-        
+
         for (int iY = 0; iY < _iHeight; iY+=2) {
             int iLinePos = iY * _iWidth;
             int iChromLinePos = (iY / 2) * (_iWidth / 2);

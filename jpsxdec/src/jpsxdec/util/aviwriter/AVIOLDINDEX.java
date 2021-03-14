@@ -42,20 +42,20 @@ import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 
-/** Represents the 
+/** Represents the
  * <a href="http://msdn2.microsoft.com/en-us/library/ms779634(VS.85).aspx">AVIOLDINDEX</a>
  * C structure. */
 class AVIOLDINDEX extends AVIstruct {
 
     public static int AVIIF_KEYFRAME = 0x10;
-    
+
     /** Struture used for the {@link AVIOLDINDEX#aIndex} array. */
     public static class AVIOLDINDEXENTRY extends AVIstruct {
         public /*DWORD*/ int dwChunkId = 0;
         public /*DWORD*/ int dwFlags   = 0;
         public /*DWORD*/ int dwOffset  = 0;
         public /*DWORD*/ int dwSize    = 0;
-        
+
         @Override
         public void write(@Nonnull RandomAccessFile raf) throws IOException {
             IO.writeInt32LE(raf, dwChunkId);
@@ -68,7 +68,7 @@ class AVIOLDINDEX extends AVIstruct {
         public int sizeof() {
             return 16;
         }
-        
+
         public static @Nonnull AVIOLDINDEXENTRY[] newarray(int i) {
             AVIOLDINDEXENTRY[] a = new AVIOLDINDEXENTRY[i];
             for (int j = 0; j < a.length; j++) {
@@ -76,20 +76,20 @@ class AVIOLDINDEX extends AVIstruct {
             }
             return a;
         }
-        
+
     }
-    
-    
+
+
     public /*FOURCC*/ final int fcc    = string2int("idx1");
     public /*DWORD */ final int cb     ;
     @Nonnull
     public final AVIOLDINDEXENTRY aIndex[];
-    
+
     public AVIOLDINDEX(@Nonnull AVIOLDINDEXENTRY[] a) {
         aIndex = a;
         cb = sizeof() - 8;
     }
-    
+
     @Override
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
         IO.writeInt32LE(raf, fcc);
@@ -106,5 +106,5 @@ class AVIOLDINDEX extends AVIstruct {
         else
             return 8;
     }
-    
+
 }

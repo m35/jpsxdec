@@ -47,14 +47,7 @@ import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
 
 
-public class SectorClaimToSectorISO9660 extends SectorClaimSystem.SectorClaimer {
-
-    public interface Listener {
-        /** @param idSector Either {@link SectorISO9660VolumePrimaryDescriptor} or
-         *                         {@link SectorISO9660DirectoryRecords} only. */
-        void isoSectorRead(@Nonnull CdSector cdSector, @CheckForNull IdentifiedSector idSector);
-        void endOfSectors(@Nonnull ILocalizedLogger log);
-    }
+public class SectorClaimToSectorISO9660 implements SectorClaimSystem.SectorClaimer {
 
     private static @CheckForNull IdentifiedSector id(@Nonnull CdSector sector) {
         IdentifiedSector id;
@@ -62,19 +55,8 @@ public class SectorClaimToSectorISO9660 extends SectorClaimSystem.SectorClaimer 
         if ((id = new SectorISO9660DirectoryRecords(sector)).getProbability() > 0) return id;
         return null;
     }
-    
-    @CheckForNull
-    private Listener _listener;
 
-    public SectorClaimToSectorISO9660() {
-    }
-    public SectorClaimToSectorISO9660(@Nonnull Listener listener) {
-        _listener = listener;
-    }
-    public void setListener(@Nonnull Listener listener) {
-        _listener = listener;
-    }
-
+    @Override
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> csit,
                            @Nonnull ILocalizedLogger log)
@@ -88,13 +70,10 @@ public class SectorClaimToSectorISO9660 extends SectorClaimSystem.SectorClaimer 
             if (idSector != null)
                 cs.claim(idSector);
         }
-
-        if (_listener != null && sectorIsInRange(cs.getSector().getSectorIndexFromStart()))
-            _listener.isoSectorRead(cs.getSector(), idSector);
     }
 
+    @Override
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
-        if (_listener != null)
-            _listener.endOfSectors(log);
     }
+
 }

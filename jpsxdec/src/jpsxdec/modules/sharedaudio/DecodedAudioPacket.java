@@ -45,7 +45,7 @@ import jpsxdec.util.Fraction;
 
 /** A packet of decoded audio that can be passed around. */
 public class DecodedAudioPacket {
-    
+
     public interface Listener {
         void audioPacketComplete(@Nonnull DecodedAudioPacket packet,
                                  @Nonnull ILocalizedLogger log)

@@ -60,12 +60,13 @@ public class MdecDecoder_int extends MdecDecoder {
     public MdecDecoder_int(@Nonnull IDCT_int idct, int iWidth, int iHeight) {
         super(iWidth, iHeight);
         _idct = idct;
-        
+
         _aiCrBuffer = new int[CW*CH];
         _aiCbBuffer = new int[_aiCrBuffer.length];
         _aiLumaBuffer = new int[W*H];
     }
 
+    @Override
     public void decode(@Nonnull MdecInputStream sourceMdecInStream)
             throws MdecException.EndOfStream, MdecException.ReadCorruption
     {
@@ -222,6 +223,7 @@ public class MdecDecoder_int extends MdecDecoder {
 
     }
 
+    @Override
     public void readDecodedRgb(int iDestWidth, int iDestHeight, @Nonnull int[] aiDest,
                                int iOutStart, int iOutStride)
     {
@@ -229,7 +231,7 @@ public class MdecDecoder_int extends MdecDecoder {
         final RGB rgb1 = new RGB(), rgb2 = new RGB(), rgb3 = new RGB(), rgb4 = new RGB();
 
         final int W_x2 = W*2, iOutStride_x2 = iOutStride*2;
-        
+
         final int iDestWidthSub1 = iDestWidth - 1;
         final int iDestHeightSub1 = iDestHeight - 1;
 

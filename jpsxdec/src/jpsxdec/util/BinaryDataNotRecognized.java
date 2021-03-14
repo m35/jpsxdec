@@ -41,7 +41,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /** Exception returned by constructors when a supplied stream or data
- *  does not provide the correct information to generate a class. 
+ *  does not provide the correct information to generate a class.
  *  SHOULD NOT BE EXPOSED TO THE END USER.
  *  End users are not expected to know about or fix binary data issues. */
 public class BinaryDataNotRecognized extends Exception {

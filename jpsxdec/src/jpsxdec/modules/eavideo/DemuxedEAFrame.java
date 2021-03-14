@@ -41,10 +41,11 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.Fraction;
 
@@ -76,48 +77,59 @@ public class DemuxedEAFrame implements IDemuxedFrame {
     }
 
 
+    @Override
     public int getWidth() {
         return _mdecPacket.getWidth();
     }
 
+    @Override
     public int getHeight() {
         return _mdecPacket.getHeight();
     }
 
+    @Override
     public @Nonnull MdecInputStream getCustomFrameMdecStream() {
         return _vlc.makeFrameBitStreamUncompressor(_mdecPacket);
     }
 
+    @Override
     public @Nonnull FrameNumber getFrame() {
         return _frameNumber;
     }
 
+    @Override
     public int getStartSector() {
         return _sectors.iStartSector;
     }
 
+    @Override
     public int getEndSector() {
         return _sectors.iEndSector;
     }
 
+    @Override
     public @Nonnull Fraction getPresentationSector() {
         return _presentationSector;
     }
 
+    @Override
     public int getDemuxSize() {
         return _mdecPacket.getBitstream().length;
     }
 
     /** Not really useful, but why not. */
+    @Override
     public @Nonnull byte[] copyDemuxData() {
         return Arrays.copyOfRange(_mdecPacket.getBitstream(), 0, getDemuxSize());
     }
 
+    @Override
     public void printSectors(PrintStream ps) {
         // TODO?
     }
 
-    public void writeToSectors(byte[] abNewDemux, int iNewUsedSize, int iNewMdecCodeCount, CdFileSectorReader cd, ILocalizedLogger log) throws LoggedFailure {
+    @Override
+    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, CdFileSectorReader cd, ILocalizedLogger log) {
         throw new UnsupportedOperationException("No support for replacing EA video frames");
     }
 

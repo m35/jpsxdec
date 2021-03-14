@@ -44,10 +44,12 @@ import jpsxdec.i18n.ILocalizedMessage;
  * Used to ensure I don't actually log when I shouldn't. */
 public class ShouldNotLog implements ILocalizedLogger {
 
+    @Override
     public void log(Level level, ILocalizedMessage msg) {
         throw new RuntimeException(msg.getEnglishMessage());
     }
 
+    @Override
     public void log(Level level, ILocalizedMessage msg, Throwable debugException) {
         throw new RuntimeException(msg.getEnglishMessage(), debugException);
     }

@@ -56,6 +56,7 @@ public class LocalizedException extends Exception implements ILocalizedException
         _msg = msg;
     }
 
+    @Override
     public @Nonnull ILocalizedMessage getSourceMessage() {
         return _msg;
     }
@@ -69,5 +70,5 @@ public class LocalizedException extends Exception implements ILocalizedException
     public @Nonnull String getMessage() {
         return _msg.getEnglishMessage();
     }
-    
+
 }

@@ -39,7 +39,7 @@ package jpsxdec.psxvideo.mdec.idct;
 
 /** Interface for all int-precision Inverse Discrete Cosine Transform classes. */
 public interface IDCT_int {
-    
+
     /** Standard Inverse Discrete Cosine Transform that processes all coefficients. */
     void IDCT(int[] aiIdctMatrix,
               int iOutputOffset, int[] aiOutput);

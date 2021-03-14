@@ -59,12 +59,12 @@ public class TimPaletteSelector extends javax.swing.JPanel {
     private final TimSaverBuilder _writerBuilder;
     @Nonnull
     private final Mod _btnModel;
-    
+
     /** Creates new form TIMPaletteCheck */
     public TimPaletteSelector(@Nonnull Tim tim, int iPalette, @Nonnull TimSaverBuilder builder)
     {
         initComponents();
-        
+
         _tim = tim;
         _iPalette = iPalette;
         _guiPalChk.setText(Integer.toString(iPalette));
@@ -78,36 +78,36 @@ public class TimPaletteSelector extends javax.swing.JPanel {
     protected void paintChildren(Graphics g) {
         int iWidth = this.getWidth() - 4;
         int iHeight = this.getHeight() - 4;
-        
+
         double dblHScale = iWidth / (double)_tim.getPixelWidth();
         double dblVScale = iHeight / (double)_tim.getPixelHeight();
-        
+
         double dblScale;
         if (dblHScale < dblVScale)
             dblScale = dblHScale;
         else
             dblScale = dblVScale;
-        
+
         if (dblScale > 2) dblScale = 2;
-        
+
         iWidth = (int)(_tim.getPixelWidth() * dblScale);
         iHeight = (int)(_tim.getPixelHeight() * dblScale);
 
         BufferedImage bi = _tim.toBufferedImage(_iPalette);
 
         g.drawImage(bi, 1, 1, iWidth, iHeight, null);
-        
+
         super.paintChildren(g);
     }
 
     void setChecked(boolean b) {
         _guiPalChk.getModel().setSelected(b);
     }
-    
+
     public boolean getChecked() {
         return _guiPalChk.getModel().isSelected();
     }
-    
+
     private class Mod extends ToggleButtonModel {
 
         @Override
@@ -125,7 +125,7 @@ public class TimPaletteSelector extends javax.swing.JPanel {
         public boolean isEnabled() {
             return _writerBuilder.getPaletteSelection_enabled();
         }
-        
+
         public void stateChanged() {
             super.setSelected(_writerBuilder.getSavePalette(_iPalette));
         }
@@ -134,7 +134,7 @@ public class TimPaletteSelector extends javax.swing.JPanel {
     public void stateChanged() {
         _btnModel.stateChanged();
     }
-    
+
     /** This method is called from within the constructor to
      * initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is
@@ -183,13 +183,13 @@ public class TimPaletteSelector extends javax.swing.JPanel {
     private void _guiCopyBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event__guiCopyBtnActionPerformed
         copyToClipboard(_tim.toBufferedImage(_iPalette));
     }//GEN-LAST:event__guiCopyBtnActionPerformed
-    
-    
+
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton _guiCopyBtn;
     private javax.swing.JCheckBox _guiPalChk;
     // End of variables declaration//GEN-END:variables
-    
+
 
     private static void copyToClipboard(@Nonnull Image image) {
         ImageTransferable transferable = new ImageTransferable(image);
@@ -204,6 +204,7 @@ public class TimPaletteSelector extends javax.swing.JPanel {
             _image = image;
         }
 
+        @Override
         public Object getTransferData(DataFlavor flavor)
             throws UnsupportedFlavorException
         {
@@ -214,13 +215,15 @@ public class TimPaletteSelector extends javax.swing.JPanel {
             }
         }
 
+        @Override
         public boolean isDataFlavorSupported (DataFlavor flavor) {
             return flavor == DataFlavor.imageFlavor;
         }
 
+        @Override
         public DataFlavor[] getTransferDataFlavors () {
             return new DataFlavor[] { DataFlavor.imageFlavor };
         }
     }
-    
+
 }

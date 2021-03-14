@@ -106,7 +106,7 @@ public class MediaPlayer implements IMediaDataReader {
             // if disc speed is unknown, assume 2x
             _iSectorsPerSecond = 150;
         }
-        
+
         ISectorAudioDecoder audioDecoder = aud.makeDecoder(1.0);
         _demuxAutowire.setAudioDecoder(audioDecoder);
 
@@ -156,7 +156,7 @@ public class MediaPlayer implements IMediaDataReader {
         _decodeAutowire.setMap(new VDP.Mdec2Decoded(new MdecDecoder_int(new SimpleIDCT(), vid.getWidth(), vid.getHeight()), DebugLogger.Log));
         _decodeAutowire.setMap(new VDP.Bitstream2Mdec());
         _decodeAutowire.autowire();
-        
+
         vid.getAbsolutePresentationStartSector(); // <-- TODO check if it would be better to align on initial presentation sector
 
         _demuxAutowire.setFrameListener(new DemuxFrameToPlayerProcessor(_controller.getFrameWriter(), _iMovieStartSector, _iSectorsPerSecond));
@@ -164,6 +164,7 @@ public class MediaPlayer implements IMediaDataReader {
         _controller.setReader(this);
     }
 
+    @Override
     public void demuxThread(@Nonnull PlayController controller) throws StopPlayingException {
         try {
 
@@ -174,9 +175,8 @@ public class MediaPlayer implements IMediaDataReader {
             _demuxAutowire.autowire();
 
             IIdentifiedSector identifiedSector;
-            for (int iSector = 0; it.hasNext() && !controller.isClosed(); iSector++)
-            {
-                identifiedSector = it.next(DebugLogger.Log).getClaimer();
+            for (int iSector = 0; it.hasNext() && !controller.isClosed(); iSector++) {
+                identifiedSector = it.next(DebugLogger.Log);
             }
             it.close(DebugLogger.Log);
         } catch (WrapIOException ex) {

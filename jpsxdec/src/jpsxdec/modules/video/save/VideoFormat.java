@@ -39,7 +39,6 @@ package jpsxdec.modules.video.save;
 
 import java.util.ArrayList;
 import java.util.List;
-import jpsxdec.i18n._PlaceholderMessage;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.formats.JavaImageFormat;
@@ -87,7 +86,7 @@ public enum VideoFormat {
     {
         public String getExtension() { return "." + JavaImageFormat.BMP.getExtension(); }
     },
-    IMGSEQ_TIFF(new _PlaceholderMessage("Image sequence: tiff"), new _PlaceholderMessage("tif"),
+    IMGSEQ_TIFF(I.VID_IMG_SEQ_TIFF_DESCRIPTION(), I.VID_IMG_SEQ_TIFF_COMMAND(),
             JavaImageFormat.TIFF)
     {
         public String getExtension() { return "." + JavaImageFormat.TIFF.getExtension(); }

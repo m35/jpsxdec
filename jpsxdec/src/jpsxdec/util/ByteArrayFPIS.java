@@ -40,13 +40,13 @@ package jpsxdec.util;
 import java.io.ByteArrayInputStream;
 import javax.annotation.Nonnull;
 
-/** Custom ByteArrayInputStream with file pointer 
+/** Custom ByteArrayInputStream with file pointer
  *  tracking and quick sub-stream generation. */
 public class ByteArrayFPIS extends ByteArrayInputStream {
 
     private long _lngFP = 0;
     private final int _iBufStart;
-    
+
     public ByteArrayFPIS(@Nonnull byte[] buf, int offset, int length) {
         super(buf, offset, length);
         _iBufStart = super.pos;
@@ -56,7 +56,7 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
         super(buf);
         _iBufStart = super.pos;
     }
-    
+
     public ByteArrayFPIS(@Nonnull byte[] buf, int offset, int length, long filePos) {
         super(buf, offset, length);
         _lngFP = filePos;
@@ -74,7 +74,7 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
         _lngFP = filePos;
         _iBufStart = super.pos;
     }
-    
+
     public ByteArrayFPIS(@Nonnull ByteArrayFPIS bafp, int offset, int length) {
         super(bafp.buf, bafp.pos + offset, length);
         _lngFP = bafp._lngFP;
@@ -86,7 +86,7 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
         _lngFP = bafp._lngFP;
         _iBufStart = bafp._iBufStart;
     }
-    
+
     /** Returns the position in the original file that the stream is pointing to. */
     public long getFilePointer() {
         return _lngFP + super.pos - _iBufStart;
@@ -101,11 +101,11 @@ public class ByteArrayFPIS extends ByteArrayInputStream {
     public int getStreamByteSize() {
         return super.count - _iBufStart;
     }
-    
+
     public @Nonnull ByteArrayFPIS copy() {
         return new ByteArrayFPIS(this);
     }
-    
+
     @Override
     public String toString() {
         return String.format("FP:%d Stream:%d/%d Buf:%d/%d",

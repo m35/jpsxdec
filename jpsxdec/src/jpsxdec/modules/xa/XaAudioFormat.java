@@ -38,7 +38,6 @@
 package jpsxdec.modules.xa;
 
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -74,7 +73,7 @@ public class XaAudioFormat {
 
     public XaAudioFormat(int iFileNumber, int iChannel, int iSampleFramesPerSecond, int iBitsPerSample, boolean blnIsStereo) {
         if (!validChannel(iChannel))
-            throw new IllegalArgumentException("Channel " + iChannel + " is not between 0 and " + CdSector.MAX_VALID_CHANNEL);
+            throw new IllegalArgumentException("Channel " + iChannel + " is not between 0 and 255");
         if (!validFileNumber(iFileNumber))
             throw new IllegalArgumentException("Invalid file number " + iFileNumber);
         if (!validBitsPerSample(iBitsPerSample))
@@ -111,7 +110,7 @@ public class XaAudioFormat {
     }
 
     public static boolean validChannel(int iChannel) {
-        return iChannel >= 0 && iChannel <= CdSector.MAX_VALID_CHANNEL;
+        return iChannel >= 0 && iChannel <= 255; // if the channel i
     }
 
     public static boolean validFileNumber(int iFileNumber) {

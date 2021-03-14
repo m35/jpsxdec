@@ -61,7 +61,7 @@ import jpsxdec.modules.tim.DiscIndexerTim;
 import jpsxdec.modules.video.sectorbased.DiscIndexerSectorBasedVideo;
 import jpsxdec.modules.xa.DiscIndexerXaAudio;
 
-/** Superclass of all disc indexers. 
+/** Superclass of all disc indexers.
  * Be sure to also implement {@link Identified} and/or {@link Static}
  * to receive the data of interest. */
 public abstract class DiscIndexer {
@@ -130,7 +130,7 @@ public abstract class DiscIndexer {
 
     /** Called after the entire indexing process is complete. The DiscIndex
      * will not be changing any further, but indexers can tweak individual items
-     * as necessary. 
+     * as necessary.
      * This was initially added so the ISO9660 indexer can set the name of the index
      * to the name of the disc found in the filesystem. */
     abstract public void indexGenerated(@Nonnull DiscIndex index); // TODO consider not having a dependency on DiscIndex

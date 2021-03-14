@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2021  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -35,64 +35,78 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package jpsxdec.modules;
+package jpsxdec.modules.eavideo;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdSector;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.util.IOIterator;
+import jpsxdec.modules.IIdentifiedSector;
+import jpsxdec.modules.IdentifiedSectorListener;
+import jpsxdec.modules.SectorClaimSystem;
 
-/** Watches for sequences of sectors that are not identified, and are not CD audio. */
-public class SectorClaimToUnidentifiedSector extends SectorClaimSystem.SectorClaimer {
+public class EASectorToEAPacket implements IdentifiedSectorListener<IIdentifiedSector> {
+
+    public static void attachToSectorClaimer(@Nonnull SectorClaimSystem scs, @Nonnull Listener listener) {
+        EASectorToEAPacket s2p = scs.getIdListener(EASectorToEAPacket.class);
+        if (s2p == null) {
+            s2p = new EASectorToEAPacket(listener);
+            scs.addIdListener(s2p);
+        } else {
+            s2p.addListener(listener);
+        }
+    }
 
     public interface Listener {
-        void feedSector(@Nonnull CdSector sector);
-        void endOfUnidentified();
+        void feedPacket(@Nonnull EAVideoPacketSectors packet, @Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
+        void endVideo(@Nonnull ILocalizedLogger log);
     }
 
     private final ArrayList<Listener> _listeners = new ArrayList<Listener>();
 
-    private boolean _blnInUnidentified = false;
-
-    public SectorClaimToUnidentifiedSector() {
-    }
-    public SectorClaimToUnidentifiedSector(@Nonnull Listener listener) {
+    private EASectorToEAPacket(@Nonnull Listener listener) {
         _listeners.add(listener);
     }
-    public void addListener(@Nonnull Listener listener) {
-        _listeners.add(listener);
-    }
-    public void removeListener(@Nonnull Listener listener) {
-        _listeners.remove(listener);
+
+    private void addListener(@Nonnull Listener newListener) {
+        for (Listener listener : _listeners) {
+            if (listener == newListener)
+                return; // already listening
+        }
+        _listeners.add(newListener);
     }
 
-    public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
-                           @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
-                           @Nonnull ILocalizedLogger log)
-            throws IOException
+    @Override
+    public @Nonnull Class<IIdentifiedSector> getListeningFor() {
+        return IIdentifiedSector.class;
+    }
+
+    @Override
+    public void feedSector(@Nonnull IIdentifiedSector idSector, @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
     {
-        CdSector cdSector = cs.getSector();
-        IIdentifiedSector idSector = cs.getClaimer();
-
-        if (idSector != null || cdSector.isCdAudioSector() || !sectorIsInRange(cdSector.getSectorIndexFromStart())) {
-            if (_blnInUnidentified) {
+        if (idSector instanceof SectorEAVideo) {
+            SectorEAVideo eaSector = (SectorEAVideo) idSector;
+            for (EAVideoPacketSectors finishedPacket : eaSector) {
                 for (Listener listener : _listeners) {
-                    listener.endOfUnidentified();
+                    listener.feedPacket(finishedPacket, log);
                 }
             }
         } else {
-            for (Listener listener : _listeners) {
-                listener.feedSector(cdSector);
-            }
-            _blnInUnidentified = true;
+            endVideo(log);
         }
     }
 
-    public void endOfSectors(@Nonnull ILocalizedLogger log) {
+    public void endVideo(@Nonnull ILocalizedLogger log) {
         for (Listener listener : _listeners) {
-            listener.endOfUnidentified();
+            listener.endVideo(log);
         }
     }
+
+    @Override
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+        endVideo(log);
+    }
+
 }

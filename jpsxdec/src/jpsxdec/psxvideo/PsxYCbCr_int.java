@@ -72,13 +72,13 @@ public class PsxYCbCr_int {
         rgb.setG(Yshift + (int)Maths.shrRound(c_g, FIXED_BITS));
         rgb.setB(Yshift + (int)Maths.shrRound(c_b, FIXED_BITS));
     }
-    
+
     final public void toRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
         int iChromRed   = (int)Maths.shrRound(                      _1_402  * cr , FIXED_BITS);
         int iChromGreen = (int)Maths.shrRound( -(_0_3437 * cb)  -  (_0_7143 * cr), FIXED_BITS);
         int iChromBlue  = (int)Maths.shrRound(   _1_772  * cb                    , FIXED_BITS);
         int iYshift;
-        
+
         iYshift = y1 + 128;
         rgb1.setR(iYshift + iChromRed);
         rgb1.setG(iYshift + iChromGreen);

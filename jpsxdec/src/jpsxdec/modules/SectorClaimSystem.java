@@ -40,10 +40,12 @@ package jpsxdec.modules;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.ac3.SectorClaimToSectorAc3Video;
 import jpsxdec.modules.cdaudio.SectorClaimToSectorCdAudio;
@@ -52,6 +54,7 @@ import jpsxdec.modules.dredd.SectorClaimToDreddFrame;
 import jpsxdec.modules.eavideo.SectorClaimToEAVideo;
 import jpsxdec.modules.iso9660.SectorClaimToSectorISO9660;
 import jpsxdec.modules.policenauts.SectorClaimToPolicenauts;
+import jpsxdec.modules.square.SectorClaimToFF7Sector;
 import jpsxdec.modules.square.SectorClaimToSquareAudioSector;
 import jpsxdec.modules.strvideo.SectorClaimToStrVideoSector;
 import jpsxdec.modules.xa.SectorClaimToSectorXaAudio;
@@ -93,6 +96,7 @@ public class SectorClaimSystem {
         scs.addClaimer(new SectorClaimToSectorCdAudio());
         scs.addClaimer(new SectorClaimToSectorISO9660());
 
+        scs.addClaimer(new SectorClaimToFF7Sector()); // FF7 needs to be before other video sector types
         scs.addClaimer(new SectorClaimToStrVideoSector());
         scs.addClaimer(new SectorClaimToSquareAudioSector());
         scs.addClaimer(new SectorClaimToSectorAc3Video());
@@ -100,35 +104,25 @@ public class SectorClaimSystem {
         scs.addClaimer(new SectorClaimToDreddFrame());
         scs.addClaimer(new SectorClaimToPolicenauts());
         scs.addClaimer(new SectorClaimToEAVideo());
-        scs.addClaimer(new SectorClaimToUnidentifiedSector());
         return scs;
     }
 
     /** On each {@link #next(jpsxdec.util.ILocalizedLogger)}, a sector claimer
-     * will be fed the 'current' sector. 
+     * will be fed the 'current' sector.
      * The claimer can peek ahead as much as it likes and claim those. */
-    public static abstract class SectorClaimer {
-        private int _iStartSector = 0;
-        private int _iEndSectorInclusive = Integer.MAX_VALUE;
-        
+    public interface SectorClaimer {
+
         /** Called once for every sector, regardless of whether future sectors were peeked. */
-        abstract public void sectorRead(@Nonnull ClaimableSector cs,
-                                        @Nonnull IOIterator<ClaimableSector> peekIt,
-                                        @Nonnull ILocalizedLogger log)
-                throws IOException, ClaimerFailure;
+        void sectorRead(@Nonnull ClaimableSector cs,
+                        @Nonnull IOIterator<ClaimableSector> peekIt,
+                        @Nonnull ILocalizedLogger log)
+                throws IOException, LoggedFailure;
 
-        abstract public void endOfSectors(@Nonnull ILocalizedLogger log)
-                throws ClaimerFailure;
-
-        final public void setRangeLimit(int iStartSector, int iEndSectorInclusive) {
-            _iStartSector = iStartSector;
-            _iEndSectorInclusive = iEndSectorInclusive;
-        }
-
-        final protected boolean sectorIsInRange(int iSectorNumber) {
-            return iSectorNumber >= _iStartSector && iSectorNumber <= _iEndSectorInclusive;
-        }
+        void endOfSectors(@Nonnull ILocalizedLogger log)
+                throws LoggedFailure;
     }
+
+
 
     private static class InternalSector {
         @Nonnull
@@ -171,43 +165,16 @@ public class SectorClaimSystem {
         }
     }
 
-    public static class ClaimerFailure extends RuntimeException {
-        public ClaimerFailure(Throwable cause) {
-            super(cause);
-        }
-    }
-
-    /** The final sector after being processed by all claimers. */
-    public static class ClaimedSector {
-        @Nonnull
-        private final InternalSector _inner;
-        private ClaimedSector(@Nonnull InternalSector inner) {
-            _inner = inner;
-        }
-        public @Nonnull CdSector getSector() {
-            return _inner.sector;
-        }
-        public @CheckForNull IIdentifiedSector getClaimer() {
-            return _inner.claimer;
-        }
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append(_inner.sector);
-            if (_inner.claimer == null)
-                sb.append(" unclaimed");
-            else
-                sb.append(_inner.claimer);
-            return sb.toString();
-        }
-    }
-
     // =========================================================================
-    
+
     @Nonnull
     private final CdFileSectorReader _cd;
     @Nonnull
     private final ArrayList<SectorClaimInception> _iterators = new ArrayList<SectorClaimInception>();
+    @Nonnull
+    private final List<IdentifiedSectorListener> _idSectorListeners = new ArrayList<IdentifiedSectorListener>();
+
+
     @Nonnull
     private BufferedIOIterator<ClaimableSector> _outerMostIterator;
     @Nonnull // only non-null when being used
@@ -231,17 +198,24 @@ public class SectorClaimSystem {
         _iterators.add(wrapping);
     }
 
+    public void addIdListener(@Nonnull IdentifiedSectorListener newListener) {
+        for (IdentifiedSectorListener listener : _idSectorListeners) {
+            if (listener == newListener)
+                return; // already listening
+        }
+        _idSectorListeners.add(newListener);
+    }
+
     @SuppressWarnings("unchecked")
-    public @Nonnull <T extends SectorClaimer> T getClaimer(@Nonnull Class<T> clazz) {
-        for (SectorClaimInception iterator : _iterators) {
-            if (iterator._claimer.getClass() == clazz) {
-                return (T) iterator._claimer;
+    public @CheckForNull <T extends IdentifiedSectorListener> T getIdListener(@Nonnull Class<T> clazz) {
+        for (IdentifiedSectorListener listener : _idSectorListeners) {
+            if (listener.getClass() == clazz) {
+                return (T) listener;
             }
         }
-        // TODO: any way to register claimers such that this is never the case
-        throw new RuntimeException("All possible claimers should have been registered");
+        return null;
     }
-    
+
     public @Nonnull File getSourceCdFile() {
         return _cd.getSourceFile();
     }
@@ -250,21 +224,47 @@ public class SectorClaimSystem {
     public boolean hasNext() {
         return _outerMostIterator.hasNext();
     }
-    
-    public @Nonnull ClaimedSector next(@Nonnull ILocalizedLogger log) 
-            throws CdFileSectorReader.CdReadException, ClaimerFailure
+
+    private static class LoggedFailureWrapper extends RuntimeException {
+        private final LoggedFailure _inner;
+        public LoggedFailureWrapper(LoggedFailure inner) {
+            super(inner);
+            _inner = inner;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public @Nonnull IIdentifiedSector next(@Nonnull ILocalizedLogger log)
+            throws CdFileSectorReader.CdReadException
     {
         try {
             _log = log;
             ClaimableSector next;
             try {
                 next = _outerMostIterator.next();
+            } catch (LoggedFailureWrapper ex) {
+                throw ex;
             } catch (IOException ex) {
                 if (ex instanceof CdFileSectorReader.CdReadException)
                     throw (CdFileSectorReader.CdReadException)ex;
                 throw new CdFileSectorReader.CdReadException(getSourceCdFile(), ex);
             }
-            return new ClaimedSector(next._inner);
+
+            IIdentifiedSector idSector = next.getClaimer();
+            if (idSector == null)
+                idSector = new UnidentifiedSector(next.getSector());
+
+            for (IdentifiedSectorListener listener : _idSectorListeners) {
+                try {
+                    Class listeningFor = listener.getListeningFor();
+                    if (listeningFor == null || listeningFor.isInstance(idSector))
+                        listener.feedSector(idSector, log);
+                } catch (LoggedFailure ex) {
+                    throw new LoggedFailureWrapper(ex);
+                }
+            }
+
+            return idSector;
         } finally {
             _log = null;
         }
@@ -272,7 +272,19 @@ public class SectorClaimSystem {
 
     public void close(@Nonnull ILocalizedLogger log) {
         for (SectorClaimInception claimer : _iterators) {
-            claimer._claimer.endOfSectors(log);
+            try {
+                claimer._claimer.endOfSectors(log);
+            } catch (LoggedFailure ex) {
+                throw new LoggedFailureWrapper(ex);
+            }
+        }
+
+        for (IdentifiedSectorListener listener : _idSectorListeners) {
+            try {
+                listener.endOfFeedSectors(log);
+            } catch (LoggedFailure ex) {
+                throw new LoggedFailureWrapper(ex);
+            }
         }
     }
 
@@ -290,9 +302,11 @@ public class SectorClaimSystem {
             _iSector = iStartSector;
             _iEndSector = iEndSector;
         }
+        @Override
         public boolean hasNext() {
             return _iSector < _iEndSector;
         }
+        @Override
         public @Nonnull ClaimableSector next() throws IOException {
             return new ClaimableSector(new InternalSector(_cd.getSector(_iSector++)));
         }
@@ -313,13 +327,19 @@ public class SectorClaimSystem {
             _claimer = claimer;
         }
 
+        @Override
         public boolean hasNext() {
             return _nestedIter.hasNext();
         }
+        @Override
         public @Nonnull ClaimableSector next() throws IOException {
             BufferedIOIterator<ClaimableSector> copy = _nestedIter.copy();
             ClaimableSector cs = copy.next();
-            _claimer.sectorRead(cs, copy, _log);
+            try {
+                _claimer.sectorRead(cs, copy, _log);
+            } catch (LoggedFailure ex) {
+                throw new LoggedFailureWrapper(ex);
+            }
             return _nestedIter.next();
         }
     }

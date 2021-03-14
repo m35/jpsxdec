@@ -214,22 +214,27 @@ public class SavingGuiTable extends AbstractTableModel {
         fireTableCellUpdated(_rows.indexOf(row), col.ordinal());
     }
 
+    @Override
     public int getRowCount() {
         return _rows.size();
     }
 
+    @Override
     public int getColumnCount() {
         return COLUMNS.values().length;
     }
 
+    @Override
     public @CheckForNull Object getValueAt(int rowIndex, int columnIndex) {
         return COLUMNS.values()[columnIndex].val(_rows.get(rowIndex));
     }
 
+    @Override
     public @Nonnull Class<?> getColumnClass(int columnIndex) {
         return COLUMNS.values()[columnIndex]._type;
     }
 
+    @Override
     public @Nonnull String getColumnName(int column) {
         return COLUMNS.values()[column]._name.getLocalizedMessage();
     }

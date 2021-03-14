@@ -48,7 +48,7 @@ class ThreadSafeEventListeners {
 
     @CheckForNull
     protected WeakHashMap<PlayController.PlayerListener, Boolean> _listeners;
-    
+
     public synchronized void addEventListener(@Nonnull PlayController.PlayerListener listener) {
         // need to syncronize this null check to avoid creating multiple listeners
         if (_listeners == null)

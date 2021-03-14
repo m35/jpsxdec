@@ -51,7 +51,7 @@ public class ArgParser {
     private String[] _asArgs;
     @CheckForNull
     private argparser.ArgParser _currentParser;
-    
+
     public ArgParser(@CheckForNull String[] asArgs) {
         _asArgs = asArgs;
     }

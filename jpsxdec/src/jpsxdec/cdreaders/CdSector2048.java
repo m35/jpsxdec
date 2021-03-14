@@ -57,10 +57,11 @@ public class CdSector2048 extends CdSector {
         return SECTOR_SIZE_2048_ISO;
     }
 
+    @Override
     public int getCdUserDataSize() {
         return SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1;
     }
-    
+
     @Override
     protected int getHeaderDataSize() {
         return 0;
@@ -70,6 +71,7 @@ public class CdSector2048 extends CdSector {
     public @Nonnull Type getType() {
         return Type.UNKNOWN2048;
     }
+    @Override
     public boolean isCdAudioSector() {
         return false;
     }
@@ -93,7 +95,7 @@ public class CdSector2048 extends CdSector {
     public int getErrorCount() {
         return 0;
     }
-    
+
     @Override
     public @Nonnull byte[] rebuildRawSector(@Nonnull byte[] abUserData) {
         return abUserData.clone();

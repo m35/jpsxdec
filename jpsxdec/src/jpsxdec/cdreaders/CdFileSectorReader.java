@@ -55,7 +55,7 @@ import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.TaskCanceledException;
 
-/** Encapsulates the reading of a CD image (BIN/CUE, ISO), 
+/** Encapsulates the reading of a CD image (BIN/CUE, ISO),
  * or a file containing some (possibly raw) sectors of a CD.
  * The resulting data is mostly the same.
  * This class tries to guess what type of file it is.
@@ -480,6 +480,7 @@ public class CdFileSectorReader implements Closeable {
 
     }
 
+    @Override
     public void close() throws IOException {
         _inputFile.close();
     }
@@ -557,10 +558,10 @@ public class CdFileSectorReader implements Closeable {
 
         if (cdSector.getCdUserDataSize() != abSrcUserData.length)
             throw new IllegalArgumentException("Data to write is not the right size.");
-        
+
         byte[] abRawData = cdSector.rebuildRawSector(abSrcUserData);
 
-        long lngOffset = (long)_sectorFactory.get1stSectorOffset() + 
+        long lngOffset = (long)_sectorFactory.get1stSectorOffset() +
                          (long)_sectorFactory.getRawSectorSize() * iSector;
 
         try {
@@ -587,7 +588,7 @@ public class CdFileSectorReader implements Closeable {
         return _patcher.getTempFile();
     }
 
-    public void addPatch(int iSector, int iOffsetInSector, 
+    public void addPatch(int iSector, int iOffsetInSector,
                          @Nonnull byte[] abBytesToReplace)
             throws DiscPatcher.WritePatchException
     {
@@ -595,7 +596,7 @@ public class CdFileSectorReader implements Closeable {
                  0, abBytesToReplace.length);
     }
 
-    public void addPatch(int iSector, int iOffsetInSector, 
+    public void addPatch(int iSector, int iOffsetInSector,
                          @Nonnull byte[] abBytesToReplace,
                          int iStartByteToUse, int iNumberOfBytesToReplace)
             throws DiscPatcher.WritePatchException
@@ -639,7 +640,7 @@ public class CdFileSectorReader implements Closeable {
     /* ---------------------------------------------------------------------- */
     /* Sector Creator types ------------------------------------------------- */
     /* ---------------------------------------------------------------------- */
-    
+
     private interface SectorFactory {
         @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer);
         @Nonnull ILocalizedMessage getTypeDescription();
@@ -660,28 +661,33 @@ public class CdFileSectorReader implements Closeable {
             _lng1stSectorOffset = lngStartOffset;
         }
 
+        @Override
         public @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer) {
             return new CdSector2048(iSector, abSectorBuff, iOffset, lngFilePointer);
         }
 
 
+        @Override
         public @Nonnull ILocalizedMessage getTypeDescription() {
             return I.CD_FORMAT_2048();
         }
 
+        @Override
         public boolean hasSectorHeader() {
             return false;
         }
 
+        @Override
         public long get1stSectorOffset() {
             return _lng1stSectorOffset;
         }
 
+        @Override
         public int getRawSectorSize() {
             return CdSector.SECTOR_SIZE_2048_ISO;
         }
     }
-    
+
     private static class Cd2336Factory implements SectorFactory {
 
         private long _lng1stSectorOffset;
@@ -690,7 +696,7 @@ public class CdFileSectorReader implements Closeable {
          *<p>
          *  Note: This assumes the input file has the data aligned at every 4 bytes!
          */
-        public Cd2336Factory(@Nonnull RandomAccessFile cdFile) 
+        public Cd2336Factory(@Nonnull RandomAccessFile cdFile)
                 throws FileTooSmallToIdentifyException, IOException
         {
             long lngFileLength = cdFile.length();
@@ -746,7 +752,7 @@ public class CdFileSectorReader implements Closeable {
             cdFile.seek(lngSectorStart);
             IO.readByteArray(cdFile, abReusableBuffer);
             CdSector cdSector = new CdSector2336(0, abReusableBuffer, 0, lngSectorStart);
-            XaAnalysis xa = XaAnalysis.analyze(cdSector, CdSector.MAX_VALID_CHANNEL);
+            XaAnalysis xa = XaAnalysis.analyze(cdSector);
             return (xa != null && xa.iProbability == 100);
         }
 
@@ -754,21 +760,26 @@ public class CdFileSectorReader implements Closeable {
             _lng1stSectorOffset = lngStartOffset;
         }
 
+        @Override
         public @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer) {
             return new CdSector2336(iSector, abSectorBuff, iOffset, lngFilePointer);
         }
 
+        @Override
         public @Nonnull ILocalizedMessage getTypeDescription() {
             return I.CD_FORMAT_2336();
         }
+        @Override
         public boolean hasSectorHeader() {
             return true;
         }
 
+        @Override
         public long get1stSectorOffset() {
             return _lng1stSectorOffset;
         }
 
+        @Override
         public int getRawSectorSize() {
             return CdSector.SECTOR_SIZE_2336_BIN_NOSYNC;
         }
@@ -843,23 +854,28 @@ public class CdFileSectorReader implements Closeable {
             _lng1stSectorOffset = lngStartOffset;
         }
 
+        @Override
         public @Nonnull CdSector createSector(int iSector, @Nonnull byte[] abSectorBuff, int iOffset, long lngFilePointer) {
             return new CdSector2352(iSector, abSectorBuff, iOffset, lngFilePointer);
         }
 
+        @Override
         public @Nonnull ILocalizedMessage getTypeDescription() {
             return _bln2352 ?
                     I.CD_FORMAT_2352() :
                     I.CD_FORMAT_2448();
         }
+        @Override
         public boolean hasSectorHeader() {
             return true;
         }
 
+        @Override
         public long get1stSectorOffset() {
             return _lng1stSectorOffset;
         }
 
+        @Override
         public int getRawSectorSize() {
             return _bln2352 ?
                     CdSector.SECTOR_SIZE_2352_BIN :

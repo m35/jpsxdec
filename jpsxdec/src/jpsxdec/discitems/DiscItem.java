@@ -47,6 +47,7 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.util.Misc;
 
 
@@ -82,7 +83,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         @Nonnull
         private final ILocalizedMessage _localizedApplyToName;
 
-        private GeneralType(@Nonnull ILocalizedMessage name, 
+        private GeneralType(@Nonnull ILocalizedMessage name,
                             @Nonnull ILocalizedMessage applyToName)
         {
             _localizedName = name;
@@ -128,7 +129,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     }
 
     /** Deserializes the basic information about this {@link DiscItem}. */
-    protected DiscItem(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields) 
+    protected DiscItem(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         _cdReader = cd;
@@ -180,8 +181,8 @@ public abstract class DiscItem implements Comparable<DiscItem> {
             throw new IllegalStateException("IndexId should have been set before use.");
         return _indexId;
     }
-    
-    /** Returns how likely the supplied {@link DiscItem} 
+
+    /** Returns how likely the supplied {@link DiscItem}
      * is a child of this item. */
     public int getParentRating(@Nonnull DiscItem child) {
         return 0;
@@ -244,6 +245,10 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         return _iEndSector;
     }
 
+    public @Nonnull SectorRange makeSectorRange() {
+        return new SectorRange(_iStartSector, _iEndSector);
+    }
+
     /** Returns the number of sectors that may hold data related to this disc item. */
     public int getSectorLength() {
         return _iEndSector - _iStartSector + 1;
@@ -279,7 +284,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
         return suggestedBaseName;
     }
 
-    // [implements Comparable]
+    @Override
     public int compareTo(@Nonnull DiscItem other) {
         if (this == other) {
             // TreeMap implementation uses a wierd way to verify
@@ -298,7 +303,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
                 return iOffsetDiff;
         }
         // at this point both items start on the same sector, and the same offset if applicable
-        
+
         // have more encompassing disc items come first (result is much cleaner)
         int iEndSectorDiff = Misc.intCompare(other.getEndSector(), getEndSector());
         if (iEndSectorDiff != 0) {

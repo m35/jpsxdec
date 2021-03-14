@@ -52,24 +52,28 @@ public class Util {
         return f;
     }
 
-    public static void resourceAsFile(Class cls, String sResource, File f) throws IOException {
+    public static File resourceAsFile(Class cls, String sResource, File fileToCreate) throws IOException {
         InputStream is = cls.getResourceAsStream(sResource);
         try {
-            IO.writeIStoFile(is, f);
+            IO.writeIStoFile(is, fileToCreate);
         } finally {
             is.close();
         }
+        return fileToCreate;
     }
 
     public static File resourceAsFile(Class cls, String sResource) throws IOException {
-        InputStream is = cls.getResourceAsStream(sResource);
         File f = new File(new File(sResource).getName());
+        return resourceAsFile(cls, sResource, f);
+    }
+
+    public static byte[] readResource(Class cls, String sResource) throws IOException {
+        InputStream is = cls.getResourceAsStream(sResource);
         try {
-            IO.writeIStoFile(is, f);
+            return IO.readEntireStream(is);
         } finally {
             is.close();
         }
-        return f;
     }
 
      public static Object getField(Object instance, String sField)

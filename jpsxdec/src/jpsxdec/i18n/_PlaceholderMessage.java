@@ -45,8 +45,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /** Development localized message. Replace with actual message before release. */
-public class _PlaceholderMessage implements ILocalizedMessage {
-    
+class _PlaceholderMessage implements ILocalizedMessage {
+
     @Nonnull
     private final String _sMessage;
     @CheckForNull
@@ -61,11 +61,13 @@ public class _PlaceholderMessage implements ILocalizedMessage {
         _sMessage = sMessage;
         _aoArguments = null;
     }
-    
+
+    @Override
     public void logEnglish(@Nonnull Logger log, @Nonnull Level level) {
         logEnglish(log, level, null);
     }
 
+    @Override
     public void logEnglish(@Nonnull Logger log, @Nonnull Level level, @CheckForNull Throwable ex) {
         LogRecord lr = new LogRecord(level, _sMessage);
         lr.setLoggerName(log.getName());
@@ -76,6 +78,7 @@ public class _PlaceholderMessage implements ILocalizedMessage {
         log.log(lr);
     }
 
+    @Override
     public @Nonnull String getEnglishMessage() {
         if (_aoArguments == null)
             return _sMessage;
@@ -92,7 +95,8 @@ public class _PlaceholderMessage implements ILocalizedMessage {
             return MessageFormat.format(_sMessage, aoArgCopy);
         }
     }
-    
+
+    @Override
     public @Nonnull String getLocalizedMessage() {
         return getEnglishMessage();
     }
@@ -102,6 +106,7 @@ public class _PlaceholderMessage implements ILocalizedMessage {
         return getLocalizedMessage();
     }
 
+    @Override
     public boolean equalsIgnoreCase(@Nonnull String s) {
         return _sMessage.equalsIgnoreCase(s);
     }

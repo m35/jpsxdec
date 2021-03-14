@@ -45,15 +45,7 @@ import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
 
 /** Watches for sequences of CD audio sectors. */
-public class SectorClaimToSectorCdAudio extends SectorClaimSystem.SectorClaimer {
-
-    public interface Listener {
-        void feedSector(@Nonnull SectorCdAudio sector);
-        void endOfCdAudio();
-    }
-
-    @CheckForNull
-    private Listener _listener;
+public class SectorClaimToSectorCdAudio implements SectorClaimSystem.SectorClaimer {
 
     private static @CheckForNull SectorCdAudio id(@Nonnull CdSector sector) {
         SectorCdAudio id;
@@ -61,39 +53,22 @@ public class SectorClaimToSectorCdAudio extends SectorClaimSystem.SectorClaimer 
         return null;
     }
 
-    private boolean _blnInCdAudio = false;
-
-    public SectorClaimToSectorCdAudio() {
-    }
-    public SectorClaimToSectorCdAudio(@Nonnull Listener listener) {
-        _listener = listener;
-    }
-    public void setListener(@Nonnull Listener listener) {
-        _listener = listener;
-    }
-
+    @Override
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
     {
         if (cs.getClaimer() != null) {
-            if (_blnInCdAudio && _listener != null)
-                _listener.endOfCdAudio();
-            _blnInCdAudio = false;
+            return;
         }
 
         SectorCdAudio cdAudio = id(cs.getSector());
         if (cdAudio != null) {
             cs.claim(cdAudio);
-            _blnInCdAudio = true;
-            if (_listener != null && sectorIsInRange(cs.getSector().getSectorIndexFromStart()))
-                _listener.feedSector(cdAudio);
         }
     }
 
+    @Override
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
-        if (_blnInCdAudio && _listener != null)
-            _listener.endOfCdAudio();
     }
-
 }

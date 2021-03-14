@@ -95,7 +95,7 @@ class VideoScreen extends Canvas {
     }
 
     //--------------------------------------------------------------------------
-    /** 
+    /**
      * This is jPSXdec specific, can ignore.
      * Some PlayStation videos had an excessively long width, over 600 pixels,
      * but the PlayStation's display only allowed 320 pixel width.

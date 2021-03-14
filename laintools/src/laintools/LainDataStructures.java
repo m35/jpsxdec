@@ -39,46 +39,90 @@ package laintools;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
+import javax.imageio.ImageIO;
 import jpsxdec.tim.Tim;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.BinaryDataNotRecognized;
 
+/** Data structures found in the game executable SLPS_016.03 or SLPS_016.04. */
 public class LainDataStructures {
 
-    
+    public static void main(String[] args) throws Exception {
+        if (args.length < 3) {
+            System.out.println("Expecting 3 or 4 parameters: <path to SLPS_016.03 or SLPS_016.04> <path to SITEA.BIN> <path to SITEB.BIN> [images]");
+            return;
+        }
+        boolean blnDumpImages = false;
+        if (args.length == 4) {
+            if (!args[3].equals("images")) {
+                System.out.println("Optional 4th parameter must be 'images'");
+                return;
+            }
+            blnDumpImages = true;
+        }
+
+        dumpTsvNodeTableAndStringsAndImages(args[0], args[1], args[2], blnDumpImages);
+    }
+
+    /**
+     * Dumps all the Lain data structures in the form of 2 files:
+     * NODE_TABLE.tsv and STRING_TABLE.tsv (tsv = tab separated values).
+     * Optionally also dump all the images displayed when listening to
+     * audio clips. The file names will be {@code <site>\<node id>-#.png} for
+     * example "A\Tou001-1.png"
+     *
+     * @param SLPS_016_0x_path Path to SLPS_016.03 or SLPS_016.04 file
+     * @param SITEA_BIN_path Path to SITEA.BIN
+     * @param SITEB_BIN_path Path to SITEB.BIN
+     * @param blnDumpImages Also dump all the images displayed when listening to
+     *                      audio clips
+     */
+    public static void dumpTsvNodeTableAndStringsAndImages(String SLPS_016_0x_path, String SITEA_BIN_path, String SITEB_BIN_path, boolean blnDumpImages) throws Exception {
+
+        NodeTable nodeTable = new NodeTable(SLPS_016_0x_path, SITEA_BIN_path, SITEB_BIN_path);
+
+        nodeTable.toTsv("NODE_TABLE.tsv");
+        nodeTable._stringTable.toTsv("STRING_TABLE.tsv");
+        if (blnDumpImages) {
+            nodeTable._siteImageTableA.dumpImages(new File("A"));
+            nodeTable._siteImageTableB.dumpImages(new File("B"));
+        }
+    }
+
+    /** Core data structure of the game. */
     public static class NodeTable extends AbstractList<NodeTableItem> {
 
-        public final static int SLPS0160x_NODE_TABLE_START = 411544;
+        public final static int SLPS_016_0x_NODE_TABLE_START = 411544;
 
         private final NodeTableItem[] _nodeList = new NodeTableItem[716];
-        public final SiteImageTable _siteTableA;
-        public final SiteImageTable _siteTableB;
+        public final SiteImageTable _siteImageTableA;
+        public final SiteImageTable _siteImageTableB;
         
-        private final EnvTables _envTables;
+        private final EnvEquivalenceTables _envEquivalenceTables;
         private final FileTable _fileTable;
 
         private final MediaFileTable _mediaTable;
         
-        private final WordTable _wordTable;
+        private final StringTable _stringTable;
 
         public NodeTable(String sSlps, String sSiteA, String sSiteB) throws IOException {
 
             RandomAccessFile slps0160xRaf = new RandomAccessFile(sSlps, "r");
-            _siteTableA = new SiteImageTable(slps0160xRaf, true, new RandomAccessFile(sSiteA, "r"));
-            _siteTableB = new SiteImageTable(slps0160xRaf, false, new RandomAccessFile(sSiteB, "r"));
+            _siteImageTableA = new SiteImageTable(slps0160xRaf, true, new RandomAccessFile(sSiteA, "r"));
+            _siteImageTableB = new SiteImageTable(slps0160xRaf, false, new RandomAccessFile(sSiteB, "r"));
 
-            _envTables = new EnvTables(slps0160xRaf);
+            _envEquivalenceTables = new EnvEquivalenceTables(slps0160xRaf);
 
             _fileTable = new FileTable(slps0160xRaf);
 
             _mediaTable = new MediaFileTable(slps0160xRaf, _fileTable);
 
-            _wordTable = new WordTable(slps0160xRaf);
+            _stringTable = new StringTable(slps0160xRaf);
 
-            slps0160xRaf.seek(SLPS0160x_NODE_TABLE_START);
+            slps0160xRaf.seek(SLPS_016_0x_NODE_TABLE_START);
             for (int i = 0; i < _nodeList.length; i++) {
-                NodeTableItem nodeItem = new NodeTableItem(i, slps0160xRaf, _siteTableA, _siteTableB, _envTables, _mediaTable, _wordTable);
+                NodeTableItem nodeItem = new NodeTableItem(i, slps0160xRaf, _siteImageTableA, _siteImageTableB, _envEquivalenceTables, _mediaTable, _stringTable);
                 _nodeList[i] = nodeItem;
             }
             
@@ -96,30 +140,32 @@ public class LainDataStructures {
         }
 
         public void print(PrintStream out) {
-            _siteTableA.print(out);
+            _siteImageTableA.print(out);
             out.println();
-            _siteTableB.print(out);
+            _siteImageTableB.print(out);
             out.println();
-            _wordTable.print(out);
+            _stringTable.print(out);
             out.println();
             _fileTable.print(out);
             out.println();
             _mediaTable.print(out);
             out.println();
             out.println("Env image equivalents (SiteA=SiteB)");
-            _envTables.print(out);
+            _envEquivalenceTables.print(out);
             out.println();
             for (NodeTableItem nodeTableItem : _nodeList) {
                 out.println(nodeTableItem);
             }
         }
         
-        public void toExcel(PrintStream out) {
+        public void toTsv(String sFile) throws FileNotFoundException {
+            PrintStream out = new PrintStream(sFile);
+            NodeTableItem.toTsvHeader(out);
             for (NodeTableItem nodeTableItem : _nodeList) {
-                out.println(nodeTableItem.toExcel(this));
+                nodeTableItem.toTsv(this, out);
             }
+            out.close();
         }
-
     }
 
 
@@ -130,48 +176,55 @@ public class LainDataStructures {
         private final long _lngAt;
 
         // Size
-        /* 8 */ private final String _sNodeName;
-        /* 2 */ private final int _iProtocolLine1;
-        /* 2 */ private final int _iProtocolLine2;
-        /* 2 */ private final int _iProtocolLine3;
-        /* 2 */ private final int _iProtocolLine4;
-        /* 2 */ private final int _iWordTableIndex1;
-        /* 2 */ private final int _iWordTableIndex2;
-        /* 2 */ private final int _iWordTableIndex3;
-        /* 6 */ private final int[] _aiSiteImageTableIndexes = new int[3];
-        /* 2 */ private final int _iMediaFileTableIndex;
-        /* 2 */ private final int _iSite_Level_Position;
-        /* 2 */ private final int _iZero1;
-        /* 1 */ private final short _siType_UpgradeReq;
-        /* 1 */ private final short _siHidden;
-        /* 2 */ private final int _iUnlockedByNodeTableIndex;
-        /* 2 */ private final int _iZero2;
+        /* 8     */ private final String _sNodeName;
+        /* 2     */ private final int _iProtocolLine1StringTableIndex417;
+        /* 2     */ private final int _iProtocolLine2StringTableIndex417;
+        /* 2     */ private final int _iProtocolLine3StringTableIndex417;
+        /* 2     */ private final int _iProtocolLine4StringTableIndex417;
+        /* 2     */ private final int _iWord1StringTableIndex;
+        /* 2     */ private final int _iWord2StringTableIndex;
+        /* 2     */ private final int _iWord3StringTableIndex;
+        /* 2,2,2 */ private final int[] _aiSiteImageTableIndexes = new int[3];
+        /* 2     */ private final int _iMediaFileTableIndex;
+        /* 2     */ private final int _iSite_Level_Position;
+        /* 2     */ private final int _iZero1;
+        /* 1     */ private final short _siType_UpgradeReq;
+        /* 1     */ private final short _siGameStateBitFlags;
+        /* Bits
+           0: Is currently visible
+           1: Is visible in new game
+           2: Has been viewed
+           3: Triggers final video after
+           4-7: Number of times the final video must be viewed before this node can be opened
+        */
+        /* 2     */ private final int _iUnlockedByNodeTableIndex;
+        /* 2     */ private final int _iZero2;
         
-        private final String _sWord1, _sWord2, _sWord3;
-
         private final MediaFileTableItem _mediaFile;
 
         private int[] _aiEnvSiteBTableIndexes;
 
-        private final SiteImageTable _siteTable;
+        private final SiteImageTable _siteImageTable;
+
+        private final StringTable _stringTable;
 
         public NodeTableItem(int iIndex, RandomAccessFile slps0160xRaf,
                              SiteImageTable siteTableA, SiteImageTable siteTableB,
-                             EnvTables envTables, MediaFileTable mediaTable,
-                             WordTable wordTable)
+                             EnvEquivalenceTables envEquivalenceTables, 
+                             MediaFileTable mediaTable, StringTable stringTable)
                  throws IOException
         {
             _iIndex = iIndex;
             _lngAt = slps0160xRaf.getFilePointer();
 
             _sNodeName = readName(slps0160xRaf);
-            _iProtocolLine1 = IO.readSInt16LE(slps0160xRaf);
-            _iProtocolLine2 = IO.readSInt16LE(slps0160xRaf);
-            _iProtocolLine3 = IO.readSInt16LE(slps0160xRaf);
-            _iProtocolLine4 = IO.readSInt16LE(slps0160xRaf);
-            _iWordTableIndex1 = IO.readSInt16LE(slps0160xRaf);
-            _iWordTableIndex2 = IO.readSInt16LE(slps0160xRaf);
-            _iWordTableIndex3 = IO.readSInt16LE(slps0160xRaf);
+            _iProtocolLine1StringTableIndex417 = IO.readSInt16LE(slps0160xRaf);
+            _iProtocolLine2StringTableIndex417 = IO.readSInt16LE(slps0160xRaf);
+            _iProtocolLine3StringTableIndex417 = IO.readSInt16LE(slps0160xRaf);
+            _iProtocolLine4StringTableIndex417 = IO.readSInt16LE(slps0160xRaf);
+            _iWord1StringTableIndex = IO.readSInt16LE(slps0160xRaf);
+            _iWord2StringTableIndex = IO.readSInt16LE(slps0160xRaf);
+            _iWord3StringTableIndex = IO.readSInt16LE(slps0160xRaf);
             _aiSiteImageTableIndexes[0] = IO.readSInt16LE(slps0160xRaf);
             _aiSiteImageTableIndexes[1] = IO.readSInt16LE(slps0160xRaf);
             _aiSiteImageTableIndexes[2] = IO.readSInt16LE(slps0160xRaf);
@@ -179,14 +232,10 @@ public class LainDataStructures {
             _iSite_Level_Position = IO.readSInt16LE(slps0160xRaf);
             _iZero1 = IO.readSInt16LE(slps0160xRaf);
             _siType_UpgradeReq = (short) slps0160xRaf.readUnsignedByte();
-            _siHidden = (short) slps0160xRaf.readUnsignedByte();
+            _siGameStateBitFlags = (short) slps0160xRaf.readUnsignedByte();
             _iUnlockedByNodeTableIndex = IO.readSInt16LE(slps0160xRaf);
             _iZero2 = IO.readSInt16LE(slps0160xRaf);
             
-            _sWord1 = _iWordTableIndex1 >= 0 ? wordTable.getWord(_iWordTableIndex1) : null;
-            _sWord2 = _iWordTableIndex2 >= 0 ? wordTable.getWord(_iWordTableIndex2) : null;
-            _sWord3 = _iWordTableIndex3 >= 0 ? wordTable.getWord(_iWordTableIndex3) : null;
-
             _mediaFile = mediaTable.get(_iMediaFileTableIndex);
 
             if (_iZero1 != 0)
@@ -194,21 +243,25 @@ public class LainDataStructures {
             if (_iZero2 != 0)
                 throw new RuntimeException("Zero2=" + _iZero2);
 
+            // sanity check
+            if ((_siGameStateBitFlags & 1) != ((_siGameStateBitFlags >> 1) & 1))
+                throw new RuntimeException(Misc.bitsToString(_siGameStateBitFlags, 8) + " last 2 bits should be equal");
+
             if (isSiteA()) {
-                _siteTable = siteTableA;
+                _siteImageTable = siteTableA;
                 if (_sNodeName.startsWith("Env")) {
                     _aiEnvSiteBTableIndexes = new int[3];
-                    _aiEnvSiteBTableIndexes[0] = envTables.aToB(_aiSiteImageTableIndexes[0]);
-                    _aiEnvSiteBTableIndexes[1] = envTables.aToB(_aiSiteImageTableIndexes[1]);
-                    _aiEnvSiteBTableIndexes[2] = envTables.aToB(_aiSiteImageTableIndexes[2]);
+                    _aiEnvSiteBTableIndexes[0] = envEquivalenceTables.aToB(_aiSiteImageTableIndexes[0]);
+                    _aiEnvSiteBTableIndexes[1] = envEquivalenceTables.aToB(_aiSiteImageTableIndexes[1]);
+                    _aiEnvSiteBTableIndexes[2] = envEquivalenceTables.aToB(_aiSiteImageTableIndexes[2]);
                 }
             } else {
-                _siteTable = siteTableB;
+                _siteImageTable = siteTableB;
             }
 
             for (int i : _aiSiteImageTableIndexes) {
                 if (i >= 0) {
-                    _siteTable.get(i).addOwnedBy(this);
+                    _siteImageTable.get(i).addOwnedBy(this);
                 }
             }
             if (_aiEnvSiteBTableIndexes != null) {
@@ -219,6 +272,7 @@ public class LainDataStructures {
                 }
             }
 
+            _stringTable = stringTable;
         }
 
         private static String readName(RandomAccessFile slps0160xRaf) throws IOException {
@@ -228,10 +282,10 @@ public class LainDataStructures {
                 if (abNTS[iLen] == 0)
                     break;
             }
-            return new String(abNTS, 0, iLen);
+            return Misc.asciiToString(abNTS, 0, iLen);
         }
 
-        public boolean isSiteA() {
+        final public boolean isSiteA() {
             // additional santiy check
             boolean blnMustBeSiteA = (_aiSiteImageTableIndexes[0] >= SiteImageTable.SITEB_TABLE_COUNT) ||
                                      (_aiSiteImageTableIndexes[1] >= SiteImageTable.SITEB_TABLE_COUNT) ||
@@ -262,93 +316,87 @@ public class LainDataStructures {
             return _aiSiteImageTableIndexes[i];
         }
 
+        public int getProtocolLine1StringTableIndex() {
+            return _iProtocolLine1StringTableIndex417 + 417;
+        }
+        public String getProtocolLine1String() {
+            return _stringTable.getString(getProtocolLine1StringTableIndex());
+        }
+
+        public int getProtocolLine2StringTableIndex() {
+            return _iProtocolLine2StringTableIndex417 + 417;
+        }
+        public String getProtocolLine2String() {
+            return _stringTable.getString(getProtocolLine2StringTableIndex());
+        }
+
+        public int getProtocolLine3StringTableIndex() {
+            return _iProtocolLine3StringTableIndex417 + 417;
+        }
+        public String getProtocolLine3String() {
+            return _stringTable.getString(getProtocolLine3StringTableIndex());
+        }
+
+        public int getProtocolLine4StringTableIndex() {
+            return _iProtocolLine4StringTableIndex417 + 417;
+        }
+        public String getProtocolLine4String() {
+            return _stringTable.getString(getProtocolLine4StringTableIndex());
+        }
+
+        public String getWord1() {
+            return _iWord1StringTableIndex >= 0 ? _stringTable.getString(_iWord1StringTableIndex) : null;
+        }
+
+        public String getWord2() {
+            return _iWord2StringTableIndex >= 0 ? _stringTable.getString(_iWord2StringTableIndex) : null;
+        }
+
+        public String getWord3() {
+            return _iWord3StringTableIndex >= 0 ? _stringTable.getString(_iWord3StringTableIndex) : null;
+        }
+
         public String getName() {
             return _sNodeName;
         }
 
         public BufferedImage getImage(int i) throws IOException {
-            return _aiSiteImageTableIndexes[i] >= 0 ? _siteTable.getImage(_aiSiteImageTableIndexes[i]) : null;
-        }
-        
-        public String toExcel(NodeTable nodeTable) {
-            Object ao[] = {
-                _iIndex,
-                _lngAt,
-                _sNodeName,
-                getLevel(),
-                getPositionX(),
-                getPositionY(),
-                _siHidden == 3,
-                isSiteA() ? "A" : "B",
-                _mediaFile.getFile(),
-                _aiSiteImageTableIndexes[0]< 0 ? "" : String.format("Site%s\\%s-0.png", isSiteA() ? "A" : "B", _sNodeName),
-                _aiSiteImageTableIndexes[1]< 0 ? "" : String.format("Site%s\\%s-1.png", isSiteA() ? "A" : "B", _sNodeName),
-                _aiSiteImageTableIndexes[2]< 0 ? "" : String.format("Site%s\\%s-2.png", isSiteA() ? "A" : "B", _sNodeName),
-                _sWord1 == null ? "": _sWord1.trim(),
-                _sWord2 == null ? "": _sWord2.trim(),
-                _sWord3 == null ? "": _sWord3.trim(),
-                _iUnlockedByNodeTableIndex < 0 ? "" : nodeTable.get(_iUnlockedByNodeTableIndex)._sNodeName,
-                getType(),
-                getUpgradeReq(),
-                nodeTable._wordTable.getWord(_iProtocolLine1+417),
-                nodeTable._wordTable.getWord(_iProtocolLine2+417),
-                nodeTable._wordTable.getWord(_iProtocolLine3+417),
-                nodeTable._wordTable.getWord(_iProtocolLine4+417),
-            };
-            return Misc.join(ao, "\t");
+            return _aiSiteImageTableIndexes[i] >= 0 ? _siteImageTable.getImage(_aiSiteImageTableIndexes[i]) : null;
         }
         
         public int getType() {
             return _siType_UpgradeReq >> 4;
         }
-        
+
         public int getUpgradeReq() {
             return _siType_UpgradeReq & 0xf;
-        }
-
-        @Override
-        public String toString() {
-            String s = String.format("%d: @%d %s Hidden? %02x %s MediaTblIdx %d (%s) Level %d.%d Imgs(%d, %d, %d) Words(%d=%s, %d=%s, %d=%s) UnlockedBy %d Type %d Upgrade %d Protocol(%d %d %d %d)",
-                    _iIndex,
-                    _lngAt,
-                    _sNodeName,
-                    _siHidden,
-                    isSiteA() ? "SiteA" : "SiteB",
-                    _iMediaFileTableIndex,
-                    _mediaFile,
-                    getLevel(),
-                    getPosition(),
-                    _aiSiteImageTableIndexes[0],
-                    _aiSiteImageTableIndexes[1],
-                    _aiSiteImageTableIndexes[2],
-                    _iWordTableIndex1, _sWord1,
-                    _iWordTableIndex2, _sWord2,
-                    _iWordTableIndex3, _sWord3,
-                    _iUnlockedByNodeTableIndex,
-                    getType(),
-                    getUpgradeReq(),
-                    _iProtocolLine1,
-                    _iProtocolLine2,
-                    _iProtocolLine3,
-                    _iProtocolLine4
-                    );
-            if (_aiEnvSiteBTableIndexes == null)
-                return s;
-            else
-                return s + String.format(" SiteB Imgs(%d, %d, %d)",
-                        _aiEnvSiteBTableIndexes[0],
-                        _aiEnvSiteBTableIndexes[1],
-                        _aiEnvSiteBTableIndexes[2]);
         }
 
         public int getIndex() {
             return _iMediaFileTableIndex;
         }
 
-        public int compareTo(NodeTableItem o) {
-            Integer i = Integer.valueOf(_iIndex);
-            return i.compareTo(o._iIndex);
+        public boolean isCurrentlyVisible() {
+            return (_siGameStateBitFlags & 1) != 0;
         }
+
+        public boolean isVisibleInNewGame() {
+            return (_siGameStateBitFlags & 2) != 0;
+        }
+
+        public boolean hasBeenViewed() {
+            return (_siGameStateBitFlags & 4) != 0;
+        }
+
+        public boolean triggersFinalVideo() {
+            return (_siGameStateBitFlags & 8) != 0;
+        }
+
+        public int getRequiredFinalVideoViewings() {
+            return (_siGameStateBitFlags >> 4) & 0xf;
+        }
+
+        // ---------------------------------------------------------------------
 
         public int getEnvTableIndex(int i) {
             if (_aiEnvSiteBTableIndexes == null)
@@ -357,7 +405,122 @@ public class LainDataStructures {
                 return _aiEnvSiteBTableIndexes[i];
         }
 
+        // ---------------------------------------------------------------------
+        @Override
+        public int compareTo(NodeTableItem o) {
+            Integer i = Integer.valueOf(_iIndex);
+            return i.compareTo(o._iIndex);
+        }
+        @Override
+        public boolean equals(Object obj) {
+            return (obj instanceof NodeTableItem) && compareTo((NodeTableItem) obj) == 0;
+        }
+        @Override
+        public int hashCode() {
+            throw new UnsupportedOperationException();
+        }
+        // ---------------------------------------------------------------------
 
+        private static final String[] TABLE_HEADER = {
+            "Index",
+            "SLPS_016_0x offset",
+
+            "Node Name",
+            "Protocol Line 1 (string table index)",
+            "Protocol Line 2 (string table index)",
+            "Protocol Line 3 (string table index)",
+            "Protocol Line 4 (string table index)",
+            "Word 1 (string table index)",
+            "Word 2 (string table index)",
+            "Word 3 (string table index)",
+            "Image Table Index 1",
+            "Image Table Index 2",
+            "Image Table Index 3",
+            "Media File",
+            "Site",
+            "Level",
+            "Position X",
+            "Position Y",
+            "Type",
+            "SSkn Upgrade Requirement",
+            "Is Visible",
+            "Triggers Final Video",
+            "Required Final Video Viewings",
+            "Unlocked By Index",
+        };
+
+        public static void toTsvHeader(PrintStream out) {
+            out.println(Misc.join(TABLE_HEADER, "\t"));
+        }
+
+        public void toTsv(NodeTable nodeTable, PrintStream out) {
+            Object ao[] = {
+                _iIndex,
+                _lngAt,
+
+                _sNodeName,
+                getProtocolLine1StringTableIndex(),
+                getProtocolLine2StringTableIndex(),
+                getProtocolLine3StringTableIndex(),
+                getProtocolLine4StringTableIndex(),
+                _iWord1StringTableIndex,
+                _iWord2StringTableIndex,
+                _iWord3StringTableIndex,
+                _aiSiteImageTableIndexes[0],
+                _aiSiteImageTableIndexes[1],
+                _aiSiteImageTableIndexes[2],
+                _mediaFile.getFile(),
+                isSiteA() ? "A" : "B",
+                getLevel(),
+                getPositionX(),
+                getPositionY(),
+                getType(),
+                getUpgradeReq(),
+                isVisibleInNewGame(),
+                triggersFinalVideo(),
+                getRequiredFinalVideoViewings(),
+                _iUnlockedByNodeTableIndex,
+            };
+            if (ao.length != TABLE_HEADER.length)
+                throw new RuntimeException();
+            out.println(Misc.join(ao, "\t"));
+        }
+
+        @Override
+        public String toString() {
+            String s = String.format(
+                "%d: @%d %s Flags %s %s MediaTblIdx %d (%s) Level %d.%d Imgs(%d, %d, %d) Words(%d=%s, %d=%s, %d=%s) UnlockedBy %d Type %d Upgrade %d Protocol(%d=%s %d=%s %d=%s %d=%s)",
+                _iIndex,
+                _lngAt,
+                _sNodeName,
+                Misc.bitsToString(_siGameStateBitFlags, 8) ,
+                isSiteA() ? "SiteA" : "SiteB",
+                _iMediaFileTableIndex,
+                _mediaFile,
+                getLevel(),
+                getPosition(),
+                _aiSiteImageTableIndexes[0],
+                _aiSiteImageTableIndexes[1],
+                _aiSiteImageTableIndexes[2],
+                _iWord1StringTableIndex, getWord1(),
+                _iWord2StringTableIndex, getWord2(),
+                _iWord3StringTableIndex, getWord3(),
+                _iUnlockedByNodeTableIndex,
+                getType(),
+                getUpgradeReq(),
+                getProtocolLine1StringTableIndex(), getProtocolLine1String(),
+                getProtocolLine2StringTableIndex(), getProtocolLine2String(),
+                getProtocolLine3StringTableIndex(), getProtocolLine3String(),
+                getProtocolLine4StringTableIndex(), getProtocolLine4String()
+            );
+            if (_aiEnvSiteBTableIndexes == null)
+                return s;
+            else
+                return s + String.format(" SiteB Imgs(%d, %d, %d)",
+                        _aiEnvSiteBTableIndexes[0],
+                        _aiEnvSiteBTableIndexes[1],
+                        _aiEnvSiteBTableIndexes[2]);
+        }
 
     }
 
@@ -415,13 +578,23 @@ public class LainDataStructures {
             }
         }
 
+        public void dumpImages(File directory) throws IOException {
+            for (SiteImageTableItem item : _siteList) {
+                String sFile = String.format("Site%c-%03d.png", _cSite, item._iIndex);
+                BufferedImage bi = item.readImg();
+                File file = new File(directory, sFile);
+                if (!ImageIO.write(bi, "png", file))
+                    throw new RuntimeException();
+            }
+        }
     }
 
    public static class SiteImageTableItem implements Comparable<SiteImageTableItem> {
-        public static int SIZEOF = 8;
+        public static final int SIZEOF = 8;
 
-        private final long _lngSectorOffset;
-        private final int _iDataSize;
+        // Size
+        /* 4 */ private final long _lngSectorOffset;
+        /* 4 */ private final int _iDataSize;
 
         private final int _iIndex;
         private final boolean _blnUncompressed;
@@ -440,10 +613,10 @@ public class LainDataStructures {
 
             // check if image is compressed
             _siteRaf.seek(_lngSectorOffset * 2048);
-            byte[] b = IO.readByteArray(_siteRaf, 4);
-            if (new String(b).equals(BINextrator.NAPK)) {
+            byte[] ab = IO.readByteArray(_siteRaf, 4);
+            if (Misc.asciiToString(ab).equals(BINextrator.NAPK)) {
                 _blnUncompressed = false;
-            } else if (Arrays.equals(b, BINextrator.TIM_MAGIC)) {
+            } else if (Arrays.equals(ab, BINextrator.TIM_MAGIC)) {
                 _blnUncompressed = true;
             } else {
                 throw new RuntimeException("Bad type");
@@ -512,8 +685,6 @@ public class LainDataStructures {
             return i.compareTo(o._iIndex);
         }
 
-
-
         @Override
         public boolean equals(Object obj) {
             if (obj == null) {
@@ -536,70 +707,82 @@ public class LainDataStructures {
             return hash;
         }
 
-        
     }
 
     // ========================================================================
 
-    public static class WordTable {
+    public static class StringTable {
 
         public static final int COUNT = 234;//209;
-        public static final int SIZEOF = WordTableItem.SIZEOF * COUNT;
-        private static final int WORD_INDEX_TABLE_START = 409672;
-        private final WordTableItem[] _aoWords = new WordTableItem[COUNT];
+        public static final int SIZEOF = StringTableItem.SIZEOF * COUNT;
+        private static final int STRING_INDEX_TABLE_START = 409672;
 
-        public WordTable(RandomAccessFile slps0160xRaf) throws IOException {
+        private final StringTableItem[] _aoStrings = new StringTableItem[COUNT];
+
+        public StringTable(RandomAccessFile slps0160xRaf) throws IOException {
             for (int i = 0; i < COUNT; i++) {
-                slps0160xRaf.seek(WORD_INDEX_TABLE_START +  i * WordTableItem.SIZEOF);
-                _aoWords[i] = new WordTableItem(slps0160xRaf, i);
+                slps0160xRaf.seek(STRING_INDEX_TABLE_START +  i * StringTableItem.SIZEOF);
+                _aoStrings[i] = new StringTableItem(slps0160xRaf, i);
             }
-            for (WordTableItem item : _aoWords) {
-                item.loadWords(slps0160xRaf);
+            for (StringTableItem item : _aoStrings) {
+                item.loadStrings(slps0160xRaf);
             }
         }
 
         public void print(PrintStream out) {
-            for (WordTableItem item : _aoWords) {
+            for (StringTableItem item : _aoStrings) {
                 item.print(out);
             }
         }
         
-        public String getWord(int i) {
-            WordTableItem item = _aoWords[i/2];
+        public String getString(int i) {
+            StringTableItem item = _aoStrings[i/2];
             if ((i % 2) == 0)
-                return item._sWord1;
+                return item._sString1;
             else
-                return item._sWord2;
+                return item._sString2;
         }
+
+        public void toTsv(String sFile) throws FileNotFoundException {
+            PrintStream out = new PrintStream(sFile);
+            StringTableItem.toTsvHeader(out);
+            for (StringTableItem str : _aoStrings) {
+                str.toTsv(out);
+            }
+            out.close();
+        }
+
     }
 
-    public static class WordTableItem {
+    public static class StringTableItem {
 
         public static final int SIZEOF = 8;
         
-        private final static int PSX_RAM_SLUS_FILE_DIFF = 63488;
+        private final static int PSX_RAM_SLPS0160x_FILE_DIFF = 63488;
         
         private final int _iIndex;
-        /** Address to the word in PSX ram. */
-        private final long _lngWord1Offset;
-        /** Address to the word in PSX ram. */
-        private final long _lngWord2Offset;
-        
-        private String _sWord1;
-        private String _sWord2;
 
-        public WordTableItem(RandomAccessFile slps0160xRaf, int iIndex) throws IOException {
+        // Size
+                /** Address to the string in PSX ram. */
+        /* 4 */ private final long _lngString1Offset;
+                /** Address to the string in PSX ram. */
+        /* 4 */ private final long _lngString2Offset;
+        
+        private String _sString1;
+        private String _sString2;
+
+        public StringTableItem(RandomAccessFile slps0160xRaf, int iIndex) throws IOException {
             _iIndex = iIndex;
-            _lngWord1Offset = IO.readUInt32LE(slps0160xRaf);
-            _lngWord2Offset = IO.readUInt32LE(slps0160xRaf);
+            _lngString1Offset = IO.readUInt32LE(slps0160xRaf);
+            _lngString2Offset = IO.readUInt32LE(slps0160xRaf);
         }
         
-        public void loadWords(RandomAccessFile slps0160xRaf) throws IOException {
-            _sWord1 = loadWord(slps0160xRaf, _lngWord1Offset);
-            _sWord2 = loadWord(slps0160xRaf, _lngWord2Offset);
+        public void loadStrings(RandomAccessFile slps0160xRaf) throws IOException {
+            _sString1 = loadString(slps0160xRaf, _lngString1Offset);
+            _sString2 = loadString(slps0160xRaf, _lngString2Offset);
         }
         
-        private String loadWord(RandomAccessFile slps0160xRaf, long lngPsxRamPos) throws IOException {
+        private String loadString(RandomAccessFile slps0160xRaf, long lngPsxRamPos) throws IOException {
             slps0160xRaf.seek(psx2file(lngPsxRamPos));
             StringBuilder sb = new StringBuilder();
             int b;
@@ -611,44 +794,53 @@ public class LainDataStructures {
             return sb.toString();
         }
 
-        /**  Convert PSX ram address to location in SLUS  file. */
+        /**  Convert PSX ram address to location in SLPS_016.0x file. */
         private static int psx2file(long lngPsxRamPos) {
-            return (int)((lngPsxRamPos & ~0x80000000) - PSX_RAM_SLUS_FILE_DIFF);
+            return (int)((lngPsxRamPos & ~0x80000000) - PSX_RAM_SLPS0160x_FILE_DIFF);
         }
         
         public String toString() {
-            return String.format("@%d:%s @%d:%s", psx2file(_lngWord1Offset), _sWord1, psx2file(_lngWord2Offset), _sWord2);
+            return String.format("@%d:%s @%d:%s", psx2file(_lngString1Offset), _sString1, psx2file(_lngString2Offset), _sString2);
         }
         
         public void print(PrintStream out) {
-            out.println((_iIndex*2)+": "+_sWord1+" @"+psx2file(_lngWord1Offset));
-            out.println((_iIndex*2+1)+": "+_sWord2+" @"+psx2file(_lngWord2Offset));
+            out.println((_iIndex*2)+": "+_sString1+" @"+psx2file(_lngString1Offset));
+            out.println((_iIndex*2+1)+": "+_sString2+" @"+psx2file(_lngString2Offset));
+        }
+
+        public static void toTsvHeader(PrintStream out) {
+            out.println("Index\tString");
+        }
+
+        public void toTsv(PrintStream out) {
+            out.println((_iIndex*2)+"\t"+_sString1);
+            out.println((_iIndex*2+1)+"\t"+_sString2);
         }
     }
 
    
     // ========================================================================
 
-    public static class EnvTables {
+    public static class EnvEquivalenceTables {
         public static final int COUNT = 10;
-        public static final int SIZEOF = EnvTableItem.SIZEOF * COUNT;
+        public static final int SIZEOF = EnvEquivalenceTableItem.SIZEOF * COUNT;
 
         private static final int SITE_A_TABLE_START = 408056;
         private static final int SITE_B_TABLE_START = 408116;
 
-        private final EnvTableItem[] _aoSiteA = new EnvTableItem[COUNT];
-        private final EnvTableItem[] _aoSiteB = new EnvTableItem[COUNT];
+        private final EnvEquivalenceTableItem[] _aoSiteA = new EnvEquivalenceTableItem[COUNT];
+        private final EnvEquivalenceTableItem[] _aoSiteB = new EnvEquivalenceTableItem[COUNT];
 
-        public EnvTables(RandomAccessFile slps0160xRaf) throws IOException {
+        public EnvEquivalenceTables(RandomAccessFile slps0160xRaf) throws IOException {
             
             slps0160xRaf.seek(SITE_A_TABLE_START);
             for (int i = 0; i < _aoSiteA.length; i++) {
-                _aoSiteA[i] = new EnvTableItem(slps0160xRaf);
+                _aoSiteA[i] = new EnvEquivalenceTableItem(slps0160xRaf);
             }
 
             slps0160xRaf.seek(SITE_B_TABLE_START);
             for (int i = 0; i < _aoSiteB.length; i++) {
-                _aoSiteB[i] = new EnvTableItem(slps0160xRaf);
+                _aoSiteB[i] = new EnvEquivalenceTableItem(slps0160xRaf);
             }
         }
 
@@ -673,12 +865,12 @@ public class LainDataStructures {
         }
     }
 
-    public static class EnvTableItem {
+    public static class EnvEquivalenceTableItem {
         public static final int SIZEOF = 6;
 
         private final int[] _aiSiteIndex = new int[3];
 
-        public EnvTableItem(RandomAccessFile slps0160xRaf) throws IOException {
+        public EnvEquivalenceTableItem(RandomAccessFile slps0160xRaf) throws IOException {
             _aiSiteIndex[0] = IO.readSInt16LE(slps0160xRaf);
             _aiSiteIndex[1] = IO.readSInt16LE(slps0160xRaf);
             _aiSiteIndex[2] = IO.readSInt16LE(slps0160xRaf);
@@ -719,8 +911,9 @@ public class LainDataStructures {
     public static class FileTableItem {
         public static final int SIZEOF = 8;
 
-        private final long _lngStartSector;
-        private final long _lngSize;
+        // Size
+        /* 4 */ private final long _lngStartSector;
+        /* 4 */ private final long _lngSize;
 
         private final int _iIndex;
 
@@ -793,9 +986,10 @@ public class LainDataStructures {
 
     public static class MediaTableItemStr extends MediaFileTableItem {
 
-        private final int _iZero;
-        private final int _iFileTableIndex;
-        private final long _lngFrameCount;
+        // Size
+        /* 2 */ private final int _iZero;
+        /* 2 */ private final int _iFileTableIndex;
+        /* 4 */ private final long _lngFrameCount;
 
         private final FileTableItem _fileItem;
 
@@ -826,24 +1020,25 @@ public class LainDataStructures {
 
     public static class MediaTableItemXa extends MediaFileTableItem {
 
-        private final int _iXaFile;
-        private final int _iChannel;
+        // Size
+        /* 2 */ private final int _iXaFile;
+        /* 2 */ private final int _iChannel;
         /** The data size of all the Mode 2 Form 2 sectors that make up this stream.
          * In other words: (the number of sectors) * 2336 */
-        private final long _lngSectorsDataSize;
+        /* 4 */ private final long _lngByteSizeMultOf2336;
 
         public MediaTableItemXa(int iIndex, RandomAccessFile slps) throws IOException {
             super(iIndex, slps.getFilePointer());
             _iXaFile = IO.readUInt16LE(slps);
             _iChannel = IO.readUInt16LE(slps);
-            _lngSectorsDataSize = IO.readUInt32LE(slps);
+            _lngByteSizeMultOf2336 = IO.readUInt32LE(slps);
         }
 
         @Override
         public String toString() {
             return super.toString() + 
                     String.format(" %s Sectors data size %d (%s sectors)",
-                    getFile(), _lngSectorsDataSize, Double.toString(_lngSectorsDataSize / 2336.f));
+                    getFile(), _lngByteSizeMultOf2336, Double.toString(_lngByteSizeMultOf2336 / 2336.f));
         }
 
         @Override
@@ -880,75 +1075,75 @@ public class LainDataStructures {
     
     // <editor-fold defaultstate="collapsed" desc="SITE*_FILES init">
     static {
-		SITEA_FILES.put(23    , new LainFile("SLPS_016.03"    , 618496  , 23    , 324));
-		SITEA_FILES.put(325   , new LainFile("SYSTEM.CNF"     , 69      , 325   , 325));
-		SITEA_FILES.put(326   , new LainFile("LAIN_1.INF"     , 18      , 326   , 326));
-		SITEA_FILES.put(327   , new LainFile("BIN.BIN"        , 256000  , 327   , 451));
-		SITEA_FILES.put(452   , new LainFile("LAPKS.BIN"      , 13936640, 452   , 7256));
-		SITEA_FILES.put(7257  , new LainFile("SND.BIN"        , 438272  , 7257  , 7470));
-		SITEA_FILES.put(7471  , new LainFile("SITEA.BIN"      , 7057408 , 7471  , 10916));
-		SITEA_FILES.put(10917 , new LainFile("VOICE.BIN"      , 14690304, 10917 , 18089));
-		SITEA_FILES.put(18092 , new LainFile("MOVIE/INS16.STR", 1376256 , 18092 , 18763));
-		SITEA_FILES.put(18764 , new LainFile("MOVIE/INS17.STR", 1376256 , 18764 , 19435));
-		SITEA_FILES.put(19436 , new LainFile("MOVIE/INS18.STR", 1507328 , 19436 , 20171));
-		SITEA_FILES.put(20172 , new LainFile("MOVIE/INS19.STR", 1376256 , 20172 , 20843));
-		SITEA_FILES.put(20844 , new LainFile("MOVIE/INS20.STR", 2293760 , 20844 , 21963));
-		SITEA_FILES.put(21964 , new LainFile("MOVIE/INS21.STR", 1179648 , 21964 , 22539));
-		SITEA_FILES.put(22540 , new LainFile("MOVIE/INS22.STR", 1376256 , 22540 , 23211));
-		SITEA_FILES.put(23212 , new LainFile("MOVIE/INS01.STR", 1048576 , 23212 , 23723));
-		SITEA_FILES.put(23724 , new LainFile("MOVIE/INS02.STR", 1048576 , 23724 , 24235));
-		SITEA_FILES.put(24236 , new LainFile("MOVIE/INS03.STR", 589824  , 24236 , 24523));
-		SITEA_FILES.put(24524 , new LainFile("MOVIE/INS04.STR", 1048576 , 24524 , 25035));
-		SITEA_FILES.put(25036 , new LainFile("MOVIE/INS05.STR", 720896  , 25036 , 25387));
-		SITEA_FILES.put(25388 , new LainFile("MOVIE/INS06.STR", 1376256 , 25388 , 26059));
-		SITEA_FILES.put(26060 , new LainFile("MOVIE/INS07.STR", 1638400 , 26060 , 26859));
-		SITEA_FILES.put(26860 , new LainFile("MOVIE/INS08.STR", 1638400 , 26860 , 27659));
-		SITEA_FILES.put(27660 , new LainFile("MOVIE/INS09.STR", 1638400 , 27660 , 28459));
-		SITEA_FILES.put(28460 , new LainFile("MOVIE/INS10.STR", 1507328 , 28460 , 29195));
-		SITEA_FILES.put(29196 , new LainFile("MOVIE/INS11.STR", 1376256 , 29196 , 29867));
-		SITEA_FILES.put(29868 , new LainFile("MOVIE/INS12.STR", 1638400 , 29868 , 30667));
-		SITEA_FILES.put(30668 , new LainFile("MOVIE/INS13.STR", 1507328 , 30668 , 31403));
-		SITEA_FILES.put(31404 , new LainFile("MOVIE/INS14.STR", 1376256 , 31404 , 32075));
-		SITEA_FILES.put(32076 , new LainFile("MOVIE/INS15.STR", 1966080 , 32076 , 33035));
-		SITEA_FILES.put(33036 , new LainFile("MOVIE/F001.STR" , 1245184 , 33036 , 33643));
-		SITEA_FILES.put(33644 , new LainFile("MOVIE/F002.STR" , 5242880 , 33644 , 36203));
-		SITEA_FILES.put(36204 , new LainFile("MOVIE/F003.STR" , 2031616 , 36204 , 37195));
-		SITEA_FILES.put(37196 , new LainFile("MOVIE/F004.STR" , 2031616 , 37196 , 38187));
-		SITEA_FILES.put(38188 , new LainFile("MOVIE/F006.STR" , 3801088 , 38188 , 40043));
-		SITEA_FILES.put(40044 , new LainFile("MOVIE/F008.STR" , 2949120 , 40044 , 41483));
-		SITEA_FILES.put(41484 , new LainFile("MOVIE/F010.STR" , 2949120 , 41484 , 42923));
-		SITEA_FILES.put(42924 , new LainFile("MOVIE/F012.STR" , 7733248 , 42924 , 46699));
-		SITEA_FILES.put(46700 , new LainFile("MOVIE/F013.STR" , 3735552 , 46700 , 48523));
-		SITEA_FILES.put(48524 , new LainFile("MOVIE/F014.STR" , 2818048 , 48524 , 49899));
-		SITEA_FILES.put(49900 , new LainFile("MOVIE/F015.STR" , 3440640 , 49900 , 51579));
-		SITEA_FILES.put(51580 , new LainFile("MOVIE/F020.STR" , 10354688, 51580 , 56635));
-		SITEA_FILES.put(56636 , new LainFile("MOVIE/F022.STR" , 8650752 , 56636 , 60859));
-		SITEA_FILES.put(60860 , new LainFile("MOVIE/F024.STR" , 9437184 , 60860 , 65467));
-		SITEA_FILES.put(65468 , new LainFile("MOVIE/F025.STR" , 5439488 , 65468 , 68123));
-		SITEA_FILES.put(68124 , new LainFile("MOVIE/F026.STR" , 2359296 , 68124 , 69275));
-		SITEA_FILES.put(69276 , new LainFile("MOVIE/F027.STR" , 5111808 , 69276 , 71771));
-		SITEA_FILES.put(71772 , new LainFile("MOVIE/F029.STR" , 11862016, 71772 , 77563));
-		SITEA_FILES.put(77564 , new LainFile("MOVIE/F033.STR" , 3706880 , 77564 , 79373));
-		SITEA_FILES.put(79374 , new LainFile("MOVIE/F034.STR" , 6488064 , 79374 , 82541));
-		SITEA_FILES.put(82542 , new LainFile("MOVIE/F035.STR" , 7995392 , 82542 , 86445));
-		SITEA_FILES.put(86446 , new LainFile("MOVIE/F036.STR" , 4653056 , 86446 , 88717));
-		SITEA_FILES.put(88718 , new LainFile("MOVIE/F037.STR" , 5046272 , 88718 , 91181));
-		SITEA_FILES.put(91182 , new LainFile("MOVIE/F038.STR" , 4915200 , 91182 , 93581));
-		SITEA_FILES.put(93582 , new LainFile("MOVIE/F042.STR" , 3735552 , 93582 , 95405));
-		SITEA_FILES.put(95406 , new LainFile("MOVIE/F043.STR" , 12910592, 95406 , 101709));
-		SITEA_FILES.put(101711, new LainFile("XA/LAIN02.XA"   , 62390272, 101711, 132174));
-		SITEA_FILES.put(132175, new LainFile("XA/LAIN03.XA"   , 14942208, 132175, 139470));
-		SITEA_FILES.put(139471, new LainFile("XA/LAIN04.XA"   , 15335424, 139471, 146958));
-		SITEA_FILES.put(146959, new LainFile("XA/LAIN05.XA"   , 19988480, 146959, 156718));
-		SITEA_FILES.put(156719, new LainFile("XA/LAIN06.XA"   , 17235968, 156719, 165134));
-		SITEA_FILES.put(165135, new LainFile("XA/LAIN07.XA"   , 20971520, 165135, 175374));
-		SITEA_FILES.put(175375, new LainFile("XA/LAIN08.XA"   , 35323904, 175375, 192622));
-		SITEA_FILES.put(192623, new LainFile("XA/LAIN09.XA"   , 25559040, 192623, 205102));
-		SITEA_FILES.put(205103, new LainFile("XA/LAIN10.XA"   , 2490368 , 205103, 206318));
-		SITEA_FILES.put(206319, new LainFile("XA/LAIN11.XA"   , 1835008 , 206319, 207214));
-		SITEA_FILES.put(207215, new LainFile("XA/LAIN12.XA"   , 2818048 , 207215, 208590));
-		SITEA_FILES.put(208591, new LainFile("XA/LAIN13.XA"   , 14286848, 208591, 215566));
-		SITEA_FILES.put(215567, new LainFile("XA/LAIN01.XA"   , 66060288, 215567, 247822));
+        SITEA_FILES.put(23    , new LainFile("SLPS_016.03"    , 618496  , 23    , 324));
+        SITEA_FILES.put(325   , new LainFile("SYSTEM.CNF"     , 69      , 325   , 325));
+        SITEA_FILES.put(326   , new LainFile("LAIN_1.INF"     , 18      , 326   , 326));
+        SITEA_FILES.put(327   , new LainFile("BIN.BIN"        , 256000  , 327   , 451));
+        SITEA_FILES.put(452   , new LainFile("LAPKS.BIN"      , 13936640, 452   , 7256));
+        SITEA_FILES.put(7257  , new LainFile("SND.BIN"        , 438272  , 7257  , 7470));
+        SITEA_FILES.put(7471  , new LainFile("SITEA.BIN"      , 7057408 , 7471  , 10916));
+        SITEA_FILES.put(10917 , new LainFile("VOICE.BIN"      , 14690304, 10917 , 18089));
+        SITEA_FILES.put(18092 , new LainFile("MOVIE/INS16.STR", 1376256 , 18092 , 18763));
+        SITEA_FILES.put(18764 , new LainFile("MOVIE/INS17.STR", 1376256 , 18764 , 19435));
+        SITEA_FILES.put(19436 , new LainFile("MOVIE/INS18.STR", 1507328 , 19436 , 20171));
+        SITEA_FILES.put(20172 , new LainFile("MOVIE/INS19.STR", 1376256 , 20172 , 20843));
+        SITEA_FILES.put(20844 , new LainFile("MOVIE/INS20.STR", 2293760 , 20844 , 21963));
+        SITEA_FILES.put(21964 , new LainFile("MOVIE/INS21.STR", 1179648 , 21964 , 22539));
+        SITEA_FILES.put(22540 , new LainFile("MOVIE/INS22.STR", 1376256 , 22540 , 23211));
+        SITEA_FILES.put(23212 , new LainFile("MOVIE/INS01.STR", 1048576 , 23212 , 23723));
+        SITEA_FILES.put(23724 , new LainFile("MOVIE/INS02.STR", 1048576 , 23724 , 24235));
+        SITEA_FILES.put(24236 , new LainFile("MOVIE/INS03.STR", 589824  , 24236 , 24523));
+        SITEA_FILES.put(24524 , new LainFile("MOVIE/INS04.STR", 1048576 , 24524 , 25035));
+        SITEA_FILES.put(25036 , new LainFile("MOVIE/INS05.STR", 720896  , 25036 , 25387));
+        SITEA_FILES.put(25388 , new LainFile("MOVIE/INS06.STR", 1376256 , 25388 , 26059));
+        SITEA_FILES.put(26060 , new LainFile("MOVIE/INS07.STR", 1638400 , 26060 , 26859));
+        SITEA_FILES.put(26860 , new LainFile("MOVIE/INS08.STR", 1638400 , 26860 , 27659));
+        SITEA_FILES.put(27660 , new LainFile("MOVIE/INS09.STR", 1638400 , 27660 , 28459));
+        SITEA_FILES.put(28460 , new LainFile("MOVIE/INS10.STR", 1507328 , 28460 , 29195));
+        SITEA_FILES.put(29196 , new LainFile("MOVIE/INS11.STR", 1376256 , 29196 , 29867));
+        SITEA_FILES.put(29868 , new LainFile("MOVIE/INS12.STR", 1638400 , 29868 , 30667));
+        SITEA_FILES.put(30668 , new LainFile("MOVIE/INS13.STR", 1507328 , 30668 , 31403));
+        SITEA_FILES.put(31404 , new LainFile("MOVIE/INS14.STR", 1376256 , 31404 , 32075));
+        SITEA_FILES.put(32076 , new LainFile("MOVIE/INS15.STR", 1966080 , 32076 , 33035));
+        SITEA_FILES.put(33036 , new LainFile("MOVIE/F001.STR" , 1245184 , 33036 , 33643));
+        SITEA_FILES.put(33644 , new LainFile("MOVIE/F002.STR" , 5242880 , 33644 , 36203));
+        SITEA_FILES.put(36204 , new LainFile("MOVIE/F003.STR" , 2031616 , 36204 , 37195));
+        SITEA_FILES.put(37196 , new LainFile("MOVIE/F004.STR" , 2031616 , 37196 , 38187));
+        SITEA_FILES.put(38188 , new LainFile("MOVIE/F006.STR" , 3801088 , 38188 , 40043));
+        SITEA_FILES.put(40044 , new LainFile("MOVIE/F008.STR" , 2949120 , 40044 , 41483));
+        SITEA_FILES.put(41484 , new LainFile("MOVIE/F010.STR" , 2949120 , 41484 , 42923));
+        SITEA_FILES.put(42924 , new LainFile("MOVIE/F012.STR" , 7733248 , 42924 , 46699));
+        SITEA_FILES.put(46700 , new LainFile("MOVIE/F013.STR" , 3735552 , 46700 , 48523));
+        SITEA_FILES.put(48524 , new LainFile("MOVIE/F014.STR" , 2818048 , 48524 , 49899));
+        SITEA_FILES.put(49900 , new LainFile("MOVIE/F015.STR" , 3440640 , 49900 , 51579));
+        SITEA_FILES.put(51580 , new LainFile("MOVIE/F020.STR" , 10354688, 51580 , 56635));
+        SITEA_FILES.put(56636 , new LainFile("MOVIE/F022.STR" , 8650752 , 56636 , 60859));
+        SITEA_FILES.put(60860 , new LainFile("MOVIE/F024.STR" , 9437184 , 60860 , 65467));
+        SITEA_FILES.put(65468 , new LainFile("MOVIE/F025.STR" , 5439488 , 65468 , 68123));
+        SITEA_FILES.put(68124 , new LainFile("MOVIE/F026.STR" , 2359296 , 68124 , 69275));
+        SITEA_FILES.put(69276 , new LainFile("MOVIE/F027.STR" , 5111808 , 69276 , 71771));
+        SITEA_FILES.put(71772 , new LainFile("MOVIE/F029.STR" , 11862016, 71772 , 77563));
+        SITEA_FILES.put(77564 , new LainFile("MOVIE/F033.STR" , 3706880 , 77564 , 79373));
+        SITEA_FILES.put(79374 , new LainFile("MOVIE/F034.STR" , 6488064 , 79374 , 82541));
+        SITEA_FILES.put(82542 , new LainFile("MOVIE/F035.STR" , 7995392 , 82542 , 86445));
+        SITEA_FILES.put(86446 , new LainFile("MOVIE/F036.STR" , 4653056 , 86446 , 88717));
+        SITEA_FILES.put(88718 , new LainFile("MOVIE/F037.STR" , 5046272 , 88718 , 91181));
+        SITEA_FILES.put(91182 , new LainFile("MOVIE/F038.STR" , 4915200 , 91182 , 93581));
+        SITEA_FILES.put(93582 , new LainFile("MOVIE/F042.STR" , 3735552 , 93582 , 95405));
+        SITEA_FILES.put(95406 , new LainFile("MOVIE/F043.STR" , 12910592, 95406 , 101709));
+        SITEA_FILES.put(101711, new LainFile("XA/LAIN02.XA"   , 62390272, 101711, 132174));
+        SITEA_FILES.put(132175, new LainFile("XA/LAIN03.XA"   , 14942208, 132175, 139470));
+        SITEA_FILES.put(139471, new LainFile("XA/LAIN04.XA"   , 15335424, 139471, 146958));
+        SITEA_FILES.put(146959, new LainFile("XA/LAIN05.XA"   , 19988480, 146959, 156718));
+        SITEA_FILES.put(156719, new LainFile("XA/LAIN06.XA"   , 17235968, 156719, 165134));
+        SITEA_FILES.put(165135, new LainFile("XA/LAIN07.XA"   , 20971520, 165135, 175374));
+        SITEA_FILES.put(175375, new LainFile("XA/LAIN08.XA"   , 35323904, 175375, 192622));
+        SITEA_FILES.put(192623, new LainFile("XA/LAIN09.XA"   , 25559040, 192623, 205102));
+        SITEA_FILES.put(205103, new LainFile("XA/LAIN10.XA"   , 2490368 , 205103, 206318));
+        SITEA_FILES.put(206319, new LainFile("XA/LAIN11.XA"   , 1835008 , 206319, 207214));
+        SITEA_FILES.put(207215, new LainFile("XA/LAIN12.XA"   , 2818048 , 207215, 208590));
+        SITEA_FILES.put(208591, new LainFile("XA/LAIN13.XA"   , 14286848, 208591, 215566));
+        SITEA_FILES.put(215567, new LainFile("XA/LAIN01.XA"   , 66060288, 215567, 247822));
 
         SITEB_FILES.put(23    , new LainFile("SLPS_016.04"        , 618496  , 23    , 324));
         SITEB_FILES.put(325   , new LainFile("SYSTEM.CNF"         , 69      , 325   , 325));

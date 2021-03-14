@@ -56,7 +56,7 @@ import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.util.ExposedBAOS;
 import jpsxdec.util.Misc;
 
-/** Represents a PlayStation Sound Processing Unit (SPU) audio clip. 
+/** Represents a PlayStation Sound Processing Unit (SPU) audio clip.
  * There's no way to know the sample rate of SPU clips, so the user
  * needs to listen to the clip and choose the right sample rate.
  * It would be ideal to save that new sample rate in the index.
@@ -111,6 +111,7 @@ public class DiscItemSpu extends DiscItem implements DiscItem.IHasStartOffset {
         return ser;
     }
 
+    @Override
     public int getStartOffset() {
         return _iStartOffset;
     }
@@ -123,7 +124,7 @@ public class DiscItemSpu extends DiscItem implements DiscItem.IHasStartOffset {
     public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
-    
+
     @Override
     public @Nonnull GeneralType getType() {
         return GeneralType.Sound;
@@ -145,6 +146,7 @@ public class DiscItemSpu extends DiscItem implements DiscItem.IHasStartOffset {
     }
 
 
+    @Override
     public @Nonnull ILocalizedMessage getInterestingDescription() {
         int iPcmSampleCount = _iSoundUnitCount * SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT;
         double dblApproxDuration = iPcmSampleCount / (double)_iSampleRate;
@@ -166,7 +168,7 @@ public class DiscItemSpu extends DiscItem implements DiscItem.IHasStartOffset {
         InputStream stream = getSpuStream();
         SpuInputStream spuStream = new SpuInputStream(stream, dblVolume);
         AudioInputStream ais = new AudioInputStream(spuStream, getFormat(),
-                _iSoundUnitCount*SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
+                (long)_iSoundUnitCount*SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
         return ais;
     }
 

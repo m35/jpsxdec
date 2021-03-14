@@ -79,7 +79,7 @@ import jpsxdec.util.aviwriter.AviWriterDIB;
 import jpsxdec.util.aviwriter.AviWriterMJPG;
 import jpsxdec.util.aviwriter.AviWriterYV12;
 
-/** Video Decoding Pipeline. 
+/** Video Decoding Pipeline.
  * The pipeline is a little complicated since each path is specific about
  * its inputs and outputs. Here are all the possible branches:
  *<pre>
@@ -99,7 +99,7 @@ import jpsxdec.util.aviwriter.AviWriterYV12;
 public class VDP {
 
     private static final Logger LOG = Logger.getLogger(VDP.class.getName());
-    
+
     public interface GeneratedFileListener {
         void fileGenerated(@Nonnull File f);
     }
@@ -136,7 +136,7 @@ public class VDP {
                 _log.log(Level.SEVERE, ex.getSourceMessage(), ex);
                 return;
             }
-            
+
             FileOutputStream fos = null;
             try {
                 fos = new FileOutputStream(f);
@@ -174,7 +174,7 @@ public class VDP {
             _listener = listener;
         }
 
-        public void bitstream(@Nonnull byte[] abBitstream, int iBitstreamSize, 
+        public void bitstream(@Nonnull byte[] abBitstream, int iBitstreamSize,
                               @CheckForNull FormattedFrameNumber frameNumber,
                               @Nonnull Fraction presentationSector)
                 throws LoggedFailure
@@ -185,14 +185,16 @@ public class VDP {
                 if (_uncompressorType != null) {
                     Class<? extends BitStreamUncompressor> newType = uncompressor.getClass();
                     if (!_uncompressorType.equals(newType)) {
-                        LOG.log(Level.WARNING, "Bitstream format changed from {0} to {1}",
-                                               new Object[]{_uncompressorType.getSimpleName(), newType.getSimpleName()});
+                        String sLog = "Bitstream format changed from " + _uncompressorType.getSimpleName() + " to " + newType.getSimpleName();
+                        System.out.println(sLog);
+                        LOG.warning(sLog);
                         _uncompressorType = newType;
                     }
                 } else {
                     _uncompressorType = uncompressor.getClass();
-                    LOG.log(Level.INFO, "Bitstream format identified {0}",
-                                        _uncompressorType.getSimpleName());
+                    String sLog = "Bitstream format: " + _uncompressorType.getSimpleName();
+                    //System.out.println(sLog); // TODO: only want to print this when showing GUI
+                    LOG.info(sLog);
                 }
                 if (_listener != null)
                     _listener.mdec(uncompressor, frameNumber, presentationSector);
@@ -208,16 +210,16 @@ public class VDP {
     }
 
     /** Either
-     * {@link #mdec(jpsxdec.psxvideo.mdec.MdecInputStream, jpsxdec.discitems.FormattedFrameNumber, jpsxdec.util.Fraction)
+     * {@link #mdec(MdecInputStream, FormattedFrameNumber, Fraction)}
      * or
-     * {@link #error(jpsxdec.i18n.ILocalizedMessage, jpsxdec.discitems.FormattedFrameNumber, jpsxdec.util.Fraction) 
+     * {@link #error(ILocalizedMessage, FormattedFrameNumber, Fraction)}
      * will be called for each frame. */
     public interface IMdecListener {
         void mdec(@Nonnull MdecInputStream mdecIn, @CheckForNull FormattedFrameNumber frameNumber, @Nonnull Fraction presentationSector) throws LoggedFailure;
         void error(@Nonnull ILocalizedMessage errMsg, @CheckForNull FormattedFrameNumber frameNumber, @Nonnull Fraction presentationSector) throws LoggedFailure;
         @Nonnull ILocalizedLogger getLog();
     }
-    
+
     public static class Mdec2File implements IMdecListener {
 
         @Nonnull
@@ -233,7 +235,7 @@ public class VDP {
             _iTotalBlocks = Calc.blocks(iHeight, iWidth);
             _log = log;
         }
-        
+
         public void mdec(@Nonnull MdecInputStream mdecIn, @CheckForNull FormattedFrameNumber frameNumber,
                          @Nonnull Fraction presentationSector_ignored)
                 throws LoggedFailure
@@ -245,7 +247,7 @@ public class VDP {
                 _log.log(Level.SEVERE, ex.getSourceMessage(), ex);
                 return; // just skip the file without failing
             }
-            
+
             BufferedOutputStream bos = null;
             try {
                 bos = new BufferedOutputStream(new FileOutputStream(f));
@@ -282,7 +284,7 @@ public class VDP {
         }
     }
 
-    
+
     public static class Mdec2Jpeg implements IMdecListener {
 
         @Nonnull
@@ -380,7 +382,7 @@ public class VDP {
         }
 
         public void mdec(@Nonnull MdecInputStream mdecIn, @CheckForNull FormattedFrameNumber frameNumber,
-                         @Nonnull Fraction presentationSector) 
+                         @Nonnull Fraction presentationSector)
                 throws LoggedFailure
         {
             try {
@@ -442,14 +444,14 @@ public class VDP {
             _rgbImg = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
             _log = log;
         }
-        
+
         public void decoded(@Nonnull MdecDecoder decoder, @CheckForNull FormattedFrameNumber frameNumber,
                             @Nonnull Fraction presentationSector)
                 throws LoggedFailure
         {
             decoder.readDecodedRgb(_rgbImg.getWidth(), _rgbImg.getHeight(),
                     ((DataBufferInt)_rgbImg.getRaster().getDataBuffer()).getData());
-            
+
             File f = _formatter.format(frameNumber, _log);
             try {
                 IO.makeDirsForFile(f);
@@ -535,7 +537,7 @@ public class VDP {
             return _writer;
         }
 
-        abstract public void open() 
+        abstract public void open()
                 throws LocalizedFileNotFoundException, FileNotFoundException, IOException;
 
         // subclasses will implement IDecodedListener or IMdecListener to match this
@@ -709,7 +711,7 @@ public class VDP {
         }
 
         /** @throws IllegalArgumentException if dimensions are not even */
-        public Decoded2YuvAvi(@Nonnull File outputFile, int iWidth, int iHeight, 
+        public Decoded2YuvAvi(@Nonnull File outputFile, int iWidth, int iHeight,
                               @Nonnull AudioVideoSync avSync, @Nonnull AudioFormat af, @Nonnull ILocalizedLogger log)
         {
             super(outputFile, iWidth, iHeight, avSync, af, log);
@@ -721,7 +723,7 @@ public class VDP {
             if (!(decoder instanceof MdecDecoder_double))
                 throw new IllegalArgumentException(getClass().getName() + " can't handle " + decoder.getClass().getName());
         }
-        
+
         public void open()
                 throws LocalizedFileNotFoundException, FileNotFoundException, IOException
         {
@@ -750,7 +752,7 @@ public class VDP {
                 prepForFrame(frameNumber, presentationSector);
                 _writerYuv.write(_yuvImgBuff.getY(), _yuvImgBuff.getCb(), _yuvImgBuff.getCr());
             } catch (IOException ex) {
-                throw new LoggedFailure(_log, Level.SEVERE, 
+                throw new LoggedFailure(_log, Level.SEVERE,
                         I.IO_WRITING_TO_FILE_ERROR_NAME(_writer.getFile().toString()), ex);
             }
         }
@@ -778,7 +780,7 @@ public class VDP {
 
     public static class Decoded2JYuvAvi extends Decoded2YuvAvi {
 
-        public Decoded2JYuvAvi(@Nonnull File outputFile, int iWidth, int iHeight, 
+        public Decoded2JYuvAvi(@Nonnull File outputFile, int iWidth, int iHeight,
                                @Nonnull AudioVideoSync avSync, @Nonnull AudioFormat af, @Nonnull ILocalizedLogger log)
         {
             super(outputFile, iWidth, iHeight, avSync, af, log);
@@ -805,7 +807,7 @@ public class VDP {
                         I.IO_WRITING_TO_FILE_ERROR_NAME(_writer.getFile().toString()), ex);
             }
         }
-        
+
     }
 
     /** This Avi output is unique in that it takes Mdec as input instead of Decoded. */
@@ -897,7 +899,7 @@ public class VDP {
 
     }
 
-    
+
     /** Draw the error onto a blank image. */
     private static @Nonnull BufferedImage makeErrorImage(@Nonnull ILocalizedMessage sErr, int iWidth, int iHeight) {
         BufferedImage bi = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
@@ -974,6 +976,6 @@ public class VDP {
             else
                 return I.UNABLE_TO_DETERMINE_FRAME_TYPE_FRM(frameNumber.getUnpaddedValue());
         }
-        
+
     }
 }

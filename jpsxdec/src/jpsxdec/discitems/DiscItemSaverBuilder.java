@@ -113,12 +113,12 @@ public abstract class DiscItemSaverBuilder {
     final public @Nonnull String getInput() {
         return getDiscItem().getIndexId().serialize();
     }
-    
+
     /** Attempts to copy the settings of this disc item to another disc item.
      * Returns true if the other disc item is similar enough to copy setting to.
      * (usually because it is the exact same type) */
     abstract public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder other);
-    
+
     /** Prints the item's specific possible command-line options. */
     abstract public void printHelp(@Nonnull FeedbackStream fbs);
     /** Configure the saver builder from command-line arguments. */

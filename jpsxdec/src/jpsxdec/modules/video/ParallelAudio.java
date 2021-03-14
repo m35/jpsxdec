@@ -66,7 +66,7 @@ public class ParallelAudio {
      *   1 = x1
      *   2 = 2x. */
     private int _iAudioDiscSpeed = 0;
-    
+
     /** 1 for 1x (75 sectors/second)
      *  2 for 2x (150 sectors/second)
      *  {@code <= 0} if unknown. */
@@ -167,6 +167,7 @@ public class ParallelAudio {
         }
 
         /** Sort by earliest finishing time. */
+        @Override
         public int compare(DiscItemAudioStream o1, DiscItemAudioStream o2) {
             return Misc.intCompare(o1.getEndSector(), o2.getEndSector());
         }

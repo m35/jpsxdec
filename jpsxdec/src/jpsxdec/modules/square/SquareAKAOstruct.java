@@ -45,17 +45,17 @@ import jpsxdec.cdreaders.CdSector;
  *  structure used for sound-effects (from what I read in the Qhimm forums).
  *  As you can see, there are not many fields identified for this structure. */
 public class SquareAKAOstruct {
-    
+
     public static final long AKAO_ID = 0x4F414B41L; // "AKAO" in little-endian
     public static final int SIZE = 80;
-    
+
     public final long AKAO;                 // 0 [4 bytes]
     public final long FrameNumSub1;         // 4 [4 bytes] often the frame number - 1
     // [20 bytes] unknown
     public final long Unknown;              // 28 [4 bytes]
     public final long BytesOfData;          // 32 [4 bytes] number of bytes of audio data
     // [44 bytes] unknown
-    
+
     public SquareAKAOstruct(@Nonnull CdSector cdSector, int iReadPos) {
         AKAO = cdSector.readUInt32LE(iReadPos);
         FrameNumSub1 = cdSector.readUInt32LE(iReadPos+4);
@@ -63,7 +63,7 @@ public class SquareAKAOstruct {
         Unknown = cdSector.readUInt32LE(iReadPos+28);
         BytesOfData = cdSector.readUInt32LE(iReadPos+32);
     }
-    
+
     @Override
     public String toString() {
         return String.format(

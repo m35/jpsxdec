@@ -85,7 +85,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
     /** Serialization key for audio sector stride. */
     private final static String STRIDE_KEY = "Sector stride";
-    /** Number of non-audio sectors between each audio sector. 
+    /** Number of non-audio sectors between each audio sector.
      *  Should be 1, 4, 8, 16, or 32, or -1 if unknown (only one sector of audio).*/
     private final int _iSectorStride;
 
@@ -113,7 +113,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
                                  @CheckForNull BitSet sectorsWithAudio)
     {
         super(cd, iStartSector, iEndSector);
-        
+
         if (iStride != -1 && iStride != 1 && iStride != 2 &&
             iStride != 4 && iStride != 8 && iStride != 16 && iStride != 32)
             throw new IllegalArgumentException("Illegal audio sector stride " + iStride);
@@ -160,7 +160,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
         _sectorsWithAudio = null;
     }
-    
+
     @Override
     public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
@@ -176,6 +176,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         return fields;
     }
 
+    @Override
     public @Nonnull String getSerializationTypeId() {
         return TYPE_ID;
     }
@@ -197,11 +198,13 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
     public int getSectorStride() {
         return _iSectorStride;
     }
-    
+
+    @Override
     public int getSectorsPastEnd() {
         return _iSectorStride - 1;
     }
 
+    @Override
     public int getDiscSpeed() {
         return _iDiscSpeed;
     }
@@ -211,12 +214,13 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         Date secs = Misc.dateFromSeconds(Math.max((int)getApproxDuration(), 1));
         return I.GUI_AUDIO_DESCRIPTION(secs, _format.iSampleFramesPerSecond, _format.blnIsStereo ? 2 : 1);
     }
-    
+
     @Override
     public int getSampleFramesPerSecond() {
         return _format.iSampleFramesPerSecond;
     }
 
+    @Override
     public int getPresentationStartSector() {
         return getStartSector();
     }
@@ -226,6 +230,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         return getSampleFrameCount() / (double)_format.iSampleFramesPerSecond;
     }
 
+    @Override
     public long getSampleFrameCount() {
         int iAudioSectorCount = getAudioSectorCount();
         return (long)iAudioSectorCount *
@@ -261,6 +266,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
             return super.toString();
     }
 
+    @Override
     public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume) {
         return new XAConverter(dblVolume);
     }
@@ -299,11 +305,11 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         return new DiscItemXaAudioStream[] { first, second };
     }
 
-    /**
-     * @throws IOException opening or reading from audio file
-     */
-    public void replaceXa(@Nonnull ProgressLogger pl, @Nonnull File audioFile)
-            throws IOException, UnsupportedAudioFileException,
+
+    @Override
+    public void replace(@Nonnull ProgressLogger pl, @Nonnull File audioFile)
+            throws IOException,
+                   UnsupportedAudioFileException,
                    LocalizedIncompatibleException,
                    CdFileSectorReader.CdReadException,
                    DiscPatcher.WritePatchException,
@@ -337,7 +343,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
                 SectorClaimSystem it = createClaimSystem();
                 pl.progressStart(getSectorLength());
                 for (int iSector = 0; it.hasNext(); iSector++) {
-                    IIdentifiedSector origIdSect = it.next(pl).getClaimer();
+                    IIdentifiedSector origIdSect = it.next(pl);
                     if (origIdSect instanceof SectorXaAudio && isPartOfStream((SectorXaAudio)origIdSect)) {
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         long lngSampleFramesReadBefore = encoder.getSampleFramesRead();
@@ -393,7 +399,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         SectorClaimSystem patchIt = other.createClaimSystem();
         pl.progressStart(getSectorLength());
         for (int iSector = 0; origIt.hasNext(); iSector++) {
-            IIdentifiedSector origIdSect = origIt.next(pl).getClaimer();
+            IIdentifiedSector origIdSect = origIt.next(pl);
             if (origIdSect instanceof SectorXaAudio && isPartOfStream((SectorXaAudio)origIdSect)) {
                 SectorXaAudio origXaSect = (SectorXaAudio) origIdSect;
                 // seek to the next other XA sector
@@ -404,7 +410,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
                         // or both of the items is out of sync. just fail
                         throw new LocalizedIncompatibleException(I.XA_COPY_REPLACE_SRC_XA_EXHAUSTED());
                     }
-                    patchIdSect = patchIt.next(pl).getClaimer();
+                    patchIdSect = patchIt.next(pl);
                 } while (!(patchIdSect instanceof SectorXaAudio && other.isPartOfStream((SectorXaAudio)patchIdSect)));
                 SectorXaAudio patchXaSect = (SectorXaAudio) patchIdSect;
                 pl.log(Level.INFO, I.CMD_PATCHING_SECTOR_DESCRIPTION(origXaSect.toString()));
@@ -434,39 +440,47 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
                     DiscItemXaAudioStream.this.getEndSector());
         }
 
+        @Override
         public void setAudioListener(@Nonnull DecodedAudioPacket.Listener listener) {
             __xa2ap.setListener(listener);
         }
 
+        @Override
         public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-            SectorClaimToSectorXaAudio s2sxa = scs.getClaimer(SectorClaimToSectorXaAudio.class);
-            s2sxa.addListener(__xa2ap);
+            scs.addIdListener(__xa2ap);
         }
 
+        @Override
         public double getVolume() {
             return __xa2ap.getVolume();
         }
 
+        @Override
         public int getSampleFramesPerSecond() {
             return _format.iSampleFramesPerSecond;
         }
 
+        @Override
         public @Nonnull AudioFormat getOutputFormat() {
             return __xa2ap.getOutputFormat();
         }
 
+        @Override
         public int getEndSector() {
             return DiscItemXaAudioStream.this.getEndSector();
         }
 
+        @Override
         public int getStartSector() {
             return DiscItemXaAudioStream.this.getStartSector();
         }
 
+        @Override
         public int getAbsolutePresentationStartSector() {
             return DiscItemXaAudioStream.this.getPresentationStartSector();
         }
 
+        @Override
         public int getDiscSpeed() {
             return DiscItemXaAudioStream.this.getDiscSpeed();
         }

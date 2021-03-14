@@ -1,4 +1,9 @@
       Modding the Lain PSX Game for Fun, and At Your Own Personal Expense
+	  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+NOTE: Some of this information is inaccurate. 
+The code is more accurate. Please refer to the code to verify.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 For the Serial Experiments Lain Playstation Game Translation Project
 (MtLPGfFaTA-SELPGTP?) 

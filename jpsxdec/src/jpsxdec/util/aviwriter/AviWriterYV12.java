@@ -45,7 +45,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 
-/** AVI Writer for Rec.601 YCbCr with 4:2:0 chroma subsampling, i.e. 
+/** AVI Writer for Rec.601 YCbCr with 4:2:0 chroma subsampling, i.e.
  * FOURCC 'YV12'. */
 public class AviWriterYV12 extends AviWriter {
 
@@ -98,14 +98,14 @@ public class AviWriterYV12 extends AviWriter {
 
         if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameByteSize)
             _abWriteBuffer = new byte[_iFrameByteSize];
-        
+
         System.arraycopy(abY, 0, _abWriteBuffer, 0, _iFrameYByteSize);
         System.arraycopy(abCr, 0, _abWriteBuffer, _iFrameYByteSize, _iFrameCByteSize);
         System.arraycopy(abCb, 0, _abWriteBuffer, _iFrameYByteSize+_iFrameCByteSize, _iFrameCByteSize);
 
         writeFrameChunk(_abWriteBuffer, 0, _iFrameByteSize);
     }
-    
+
     @Override
     public void writeBlankFrame() throws IOException {
         if (_abWriteBuffer == null || _abWriteBuffer.length < _iFrameByteSize)

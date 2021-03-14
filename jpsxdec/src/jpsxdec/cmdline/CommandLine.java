@@ -59,7 +59,7 @@ import jpsxdec.util.TaskCanceledException;
 
 
 public class CommandLine {
-    
+
     private static final Logger LOG = Logger.getLogger(CommandLine.class.getName());
 
     public static int main(@Nonnull ArgParser ap) {
@@ -138,7 +138,7 @@ public class CommandLine {
     }
 
     // -------------------------------------------------------------
-    
+
     private static void checkVerbosity(@Nonnull ArgParser ap,
                                        @Nonnull FeedbackStream fbs)
     {
@@ -157,7 +157,7 @@ public class CommandLine {
             }
         }
     }
-    
+
     private static void printMainHelp(@Nonnull FeedbackStream fbs) {
         Iterator<ILocalizedMessage> helpLines = MiscResources.main_cmdline_help();
         while (helpLines.hasNext()) {

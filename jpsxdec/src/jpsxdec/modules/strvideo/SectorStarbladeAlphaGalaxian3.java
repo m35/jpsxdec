@@ -43,12 +43,14 @@ import jpsxdec.cdreaders.CdSectorXaSubHeader;
 import jpsxdec.cdreaders.CdSectorXaSubHeader.SubMode;
 import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.modules.video.sectorbased.SectorAbstractVideo;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.VideoSectorCommon16byteHeader;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 
 
 /** Video sector type used in Starblade Alpha and Galaxian 3. */
 public class SectorStarbladeAlphaGalaxian3 extends SectorAbstractVideo {
-    
+
     @Nonnull
     private final VideoSectorCommon16byteHeader _header;
     private int _iWidth;                //  16   [2 bytes]
@@ -69,18 +71,18 @@ public class SectorStarbladeAlphaGalaxian3 extends SectorAbstractVideo {
     //   36 TOTAL
 
     @Override
-    public int getVideoSectorHeaderSize() { 
+    public int getVideoSectorHeaderSize() {
         if (_header.iChunkNumber == 0)
             return 36;
         else
             return 32;
     }
-    
+
     public SectorStarbladeAlphaGalaxian3(@Nonnull CdSector cdSector) {
         super(cdSector);
         _header = new VideoSectorCommon16byteHeader(cdSector);
         if (isSuperInvalidElseReset()) return;
-        
+
         // only if it has a sector header should we check if it reports VIDEO
         CdSectorXaSubHeader sh = cdSector.getSubHeader();
         if (sh != null) {
@@ -89,8 +91,8 @@ public class SectorStarbladeAlphaGalaxian3 extends SectorAbstractVideo {
             if (sh.getSubMode().mask(SubMode.MASK_FORM) != 0)
                 return;
         }
-        
-        if (_header.lngMagic != SectorStrVideo.VIDEO_SECTOR_MAGIC) return;
+
+        if (_header.lngMagic != GenericStrVideoSector.STANDARD_STR_VIDEO_SECTOR_MAGIC) return;
         if (!_header.hasStandardChunkNumber()) return;
         if (!_header.hasStandardChunksInFrame()) return;
         if (_header.iFrameNumber < 1) return;
@@ -118,10 +120,12 @@ public class SectorStarbladeAlphaGalaxian3 extends SectorAbstractVideo {
 
     // .. Public methods ...................................................
 
+    @Override
     public @Nonnull String getTypeName() {
         return "Starblade Alpha/Galaxian 3";
     }
 
+    @Override
     public String toString() {
         String s = String.format("%s %s frame:%d chunk:%d/%d %dx%d demux{used:%d exact:%d diff:%d} ??:%d",
             getTypeName(),
@@ -140,28 +144,35 @@ public class SectorStarbladeAlphaGalaxian3 extends SectorAbstractVideo {
             return s;
     }
 
+    @Override
     public int getChunkNumber() {
         return _header.iChunkNumber;
     }
 
+    @Override
     public int getChunksInFrame() {
         return _header.iChunksInThisFrame;
     }
 
+    @Override
     public int getHeaderFrameNumber() {
         return _header.iFrameNumber;
     }
 
+    @Override
     public int getHeight() {
         return _iHeight;
     }
 
+    @Override
     public int getWidth() {
         return _iWidth;
     }
 
-    public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                         int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+    @Override
+    public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                         @Nonnull BitStreamAnalysis newFrame,
+                                         @Nonnull byte[] abCurrentVidSectorHeader)
             throws LocalizedIncompatibleException
     {
         throw new UnsupportedOperationException("Replacing Starblade Alpha video is not implemented");

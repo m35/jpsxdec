@@ -37,40 +37,21 @@
 
 package jpsxdec.psxvideo.bitstreams;
 
-import java.util.Arrays;
+import java.util.Random;
 import org.junit.*;
 import static org.junit.Assert.*;
 
 
 public class Iki {
 
-    public Iki() {
-    }
-
-    @BeforeClass
-    public static void setUpClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownClass() throws Exception {
-    }
-
-    @Before
-    public void setUp() {
-    }
-
-    @After
-    public void tearDown() {
-    }
-
     @Test
     public void zipUnzip() {
         byte[] abUncompressed = new byte[256];
-        Arrays.fill(abUncompressed, (byte)1);
-        abUncompressed[100] = 5;
-        byte[] abCompressed = BitStreamUncompressor_Iki.ikiLzssCompress(abUncompressed);
+        Random rand = new Random();
+        rand.nextBytes(abUncompressed);
+        byte[] abCompressed = BitStreamUncompressor_Iki.testIkiLzssCompress(abUncompressed);
         System.err.println("------------------");
-        byte[] abReUncompressed = BitStreamUncompressor_Iki.ikiLzssUncompress(abCompressed, abUncompressed.length);
+        byte[] abReUncompressed = BitStreamUncompressor_Iki.testIkiLzssUncompress(abCompressed, abUncompressed.length);
         assertArrayEquals(abUncompressed, abReUncompressed);
     }
 

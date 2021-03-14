@@ -78,7 +78,7 @@ public class Tim {
 
     /** Quickly reads a stream to determine if the data is a Tim image.
      * @return info about the Tim image, otherwise null. */
-    public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream) 
+    public static @CheckForNull TimInfo isTim(@Nonnull InputStream inStream)
             throws EOFException, IOException
     {
         return CreateTim.isTim(inStream);
@@ -152,7 +152,7 @@ public class Tim {
      * The pixel width is calculated with {@link #_iBitsPerPixel}.
      */
     private final int _iWordWidth;
-    /** 
+    /**
      * Height of the image in pixels.
      */
     private final int _iPixelHeight;
@@ -174,8 +174,8 @@ public class Tim {
     private final boolean _blnTimHasIssues;
 
     //..........................................................................
-    
-    
+
+
     Tim(@Nonnull byte[] abTimImageData, int iTimX, int iTimY,
         int iWordWidth, int iPixelHeight, int iBitsPerPixel,
         @CheckForNull CLUT clut)
@@ -198,18 +198,18 @@ public class Tim {
         _blnTimHasIssues = blnTimHasIssues;
     }
 
-    
+
     //--------------------------------------------------------------------------
     //-- Public functions ------------------------------------------------------
     //--------------------------------------------------------------------------
 
-    /** 
+    /**
      * Bits-per-pixel: 4, 8, 16, or 24.
      */
     public int getBitsPerPixel() {
         return _iBitsPerPixel;
     }
-    
+
     /**
      * If the TIM is paletted and has a CLUT, returns the number of CLUT
      * palettes. Otherwise if the TIM is paletted and has not CLUT, or if the
@@ -253,7 +253,7 @@ public class Tim {
         return _iPixelHeight;
     }
 
-    /** 
+    /**
      * Note!: The Java API to save a {@link BufferedImage} to the disk
      * may change the palette order and indexes in the saved image.
      *
@@ -342,16 +342,16 @@ public class Tim {
         IO.writeInt16LE(os, 0); // Unknown 1
         IO.writeInt16LE(os, calculateBpp_HasCLUT());
         IO.writeInt16LE(os, 0); // Unknown 2
-        
+
         if (_clut != null)
             _clut.write(os);
-        
+
         IO.writeInt32LE(os, calculateByteSize());
         IO.writeInt16LE(os, _iTimX);
         IO.writeInt16LE(os, _iTimY);
         IO.writeInt16LE(os, _iWordWidth);
         IO.writeInt16LE(os, _iPixelHeight);
-        
+
         os.write(_abImageData);
     }
 
@@ -434,17 +434,17 @@ public class Tim {
         } else {
             sb.append(String.format("%d=%d+%d", iActualByteSize, iRequiredByteSize, iActualByteSize - iRequiredByteSize));
         }
-        
+
         if (_clut != null) {
             sb.append(" CLUT[").append(_clut).append("]");
         }
 
         return sb.toString();
     }
-    
+
     //--------------------------------------------------------------------------
 
-    /** 
+    /**
      * Convert this 4 bpp Tim to a BufferedImage with 16 color palette.
      */
     private @Nonnull BufferedImage toBi4(int iPalette) {
@@ -534,5 +534,5 @@ public class Tim {
         }
         return bi;
     }
-    
+
 }

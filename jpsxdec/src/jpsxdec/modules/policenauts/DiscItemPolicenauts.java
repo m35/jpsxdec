@@ -50,6 +50,7 @@ import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
 import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
@@ -145,7 +146,7 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
     }
 
     public class Demuxer extends SectorClaimToAudioAndFrame
-                         implements SectorClaimToPolicenauts.Listener
+                         implements PolicenautsSectorToPacket.Listener
     {
         private final int _iWidth, _iHeight;
         @Nonnull
@@ -163,6 +164,8 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
         private boolean _blnPrevTimestampWas0 = false;
         private int _iPrevDuration = 0;
 
+        private final SectorRange _sectorRange = makeSectorRange();
+
         private final ByteArrayOutputStream _pcmOut = new ByteArrayOutputStream();
 
         public Demuxer(int iWidth, int iHeight, int iStartSector, double dblVolume,
@@ -175,18 +178,26 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
             _fnf = fnf;
         }
 
+        @Override
         public void attachToSectorClaimer(@Nonnull SectorClaimSystem scs) {
-            SectorClaimToPolicenauts s2cs = scs.getClaimer(SectorClaimToPolicenauts.class);
-            s2cs.setListener(this);
-            s2cs.setRangeLimit(getStartSector(), getEndSector());
+            PolicenautsSectorToPacket.attachToSectorClaimer(scs, this);
         }
 
-        public void videoStart(int iWidth, int iHeight, ILocalizedLogger log) {
-            // not important here
+        @Override
+        public void videoStart(int iWidth, int iHeight, @Nonnull ILocalizedLogger log) {
+            if (iWidth != getWidth() || iHeight != getHeight())
+                throw new RuntimeException("Somehow the dimensions do not match. Maybe the index was edited?");
         }
 
         @Override
         public void feedPacket(@Nonnull SPacketData packet, @Nonnull ILocalizedLogger log) throws LoggedFailure {
+            // Only process packets that are fully in the active sector range
+            // (in practice there should never be a packet crossing the border)
+            if (!_sectorRange.sectorIsInRange(packet.getStartSector()) ||
+                !_sectorRange.sectorIsInRange(packet.getEndSectorInclusive()))
+            {
+                return;
+            }
 
             if (packet.isAudio()) {
                 if (_audioListener != null) {
@@ -214,42 +225,52 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
             }
         }
 
+        @Override
         public void endOfSectors(ILocalizedLogger log) {
             // not important here
         }
 
+        @Override
         public void setFrameListener(@CheckForNull IDemuxedFrame.Listener listener) {
             _frameListener = listener;
         }
 
+        @Override
         public void setAudioListener(@Nonnull DecodedAudioPacket.Listener listener) {
             _audioListener = listener;
         }
 
+        @Override
         public @Nonnull AudioFormat getOutputFormat() {
             return SPacket.AUDIO_FORMAT;
         }
 
+        @Override
         public double getVolume() {
             return _audioDecoder.getVolume();
         }
 
+        @Override
         public int getAbsolutePresentationStartSector() {
             return DiscItemPolicenauts.this.getStartSector();
         }
 
+        @Override
         public int getStartSector() {
             return DiscItemPolicenauts.this.getStartSector();
         }
 
+        @Override
         public int getEndSector() {
             return DiscItemPolicenauts.this.getEndSector();
         }
 
+        @Override
         public int getSampleFramesPerSecond() {
             return SPacket.AUDIO_SAMPLE_FRAMES_PER_SECOND;
         }
 
+        @Override
         public int getDiscSpeed() {
             return 2;
         }

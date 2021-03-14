@@ -48,7 +48,7 @@ public class Dimensions {
 
     private final int _iWidth;
     private final int _iHeight;
-    
+
     public Dimensions(int iWidth, int iHeight) {
         _iWidth = iWidth;
         _iHeight = iHeight;

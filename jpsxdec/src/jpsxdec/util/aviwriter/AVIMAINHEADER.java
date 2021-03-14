@@ -42,7 +42,7 @@ import java.io.RandomAccessFile;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
 
-/** Represents the 
+/** Represents the
  * <a href="http://msdn2.microsoft.com/en-us/library/ms779632(VS.85).aspx">AVIMAINHEADER</a>
  * C structure. */
 class AVIMAINHEADER extends AVIstruct {
@@ -65,7 +65,7 @@ class AVIMAINHEADER extends AVIstruct {
     public final /*DWORD */ int  dwReserved2            = 0;
     public final /*DWORD */ int  dwReserved3            = 0;
     public final /*DWORD */ int  dwReserved4            = 0;
-    
+
     @Override
     public void write(@Nonnull RandomAccessFile raf) throws IOException {
         IO.writeInt32LE(raf, fcc                       );
@@ -85,10 +85,10 @@ class AVIMAINHEADER extends AVIstruct {
         IO.writeInt32LE(raf, dwReserved3               );
         IO.writeInt32LE(raf, dwReserved4               );
     }
-    
+
     @Override
     public int sizeof() {
         return 64;
     }
-    
+
 }

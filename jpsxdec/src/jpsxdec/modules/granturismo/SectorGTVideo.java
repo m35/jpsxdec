@@ -44,8 +44,10 @@ import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
+import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
 import jpsxdec.modules.video.sectorbased.VideoSectorCommon16byteHeader;
+import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.util.DemuxedData;
 import jpsxdec.util.IO;
 
@@ -56,7 +58,7 @@ public class SectorGTVideo extends IdentifiedSector
                    ISelfDemuxingVideoSector,
                    SectorBasedFrameReplace.IReplaceableVideoSector
 {
-    
+
     // .. Static stuff .....................................................
 
     public static final int HEADER_SIZE = 32;
@@ -73,11 +75,10 @@ public class SectorGTVideo extends IdentifiedSector
     // 12 zeroes                        //  20   [12 bytes]
     //   32 TOTAL
 
+    @Override
     final public int getVideoSectorHeaderSize() { return HEADER_SIZE; }
 
-    /** Gets dimensions from sector data if chunk = 0,
-     * otherwise needs prevChunk0 for dimensions. 
-     * @param prevChunk0 Previous chunk = 0. */
+
     public SectorGTVideo(@Nonnull CdSector cdSector) {
         super(cdSector);
         _header = new VideoSectorCommon16byteHeader(cdSector);
@@ -116,6 +117,7 @@ public class SectorGTVideo extends IdentifiedSector
 
     // .. Public methods ...................................................
 
+    @Override
     public @Nonnull String getTypeName() {
         return "GT Video";
     }
@@ -146,30 +148,34 @@ public class SectorGTVideo extends IdentifiedSector
         return _header.iFrameNumber;
     }
 
+    @Override
     public @Nonnull GranTurismoDemuxer createDemuxer(@Nonnull ILocalizedLogger log) {
         return new GranTurismoDemuxer(this, log);
     }
 
+    @Override
     public int getDemuxPieceSize() {
         return getCdSector().getCdUserDataSize() - getVideoSectorHeaderSize();
     }
 
+    @Override
     public byte getDemuxPieceByte(int i) {
         return getCdSector().readUserDataByte(i);
     }
 
+    @Override
     public void copyDemuxPieceData(@Nonnull byte[] abOut, int iOutPos) {
         getCdSector().getCdUserDataCopy(getVideoSectorHeaderSize(),
                                         abOut, iOutPos, getDemuxPieceSize());
     }
 
-    public void replaceVideoSectorHeader(@Nonnull byte[] abNewDemuxData, int iNewUsedSize,
-                                         int iNewMdecCodeCount, @Nonnull byte[] abCurrentVidSectorHeader)
+    @Override
+    public void replaceVideoSectorHeader(@Nonnull SectorBasedFrameAnalysis existingFrame,
+                                         @Nonnull BitStreamAnalysis newFrame,
+                                         @Nonnull byte[] abCurrentVidSectorHeader)
             throws LocalizedIncompatibleException
     {
-        int iDemuxSizeForHeader = (iNewUsedSize + 3) & ~3;
-
-        IO.writeInt32LE(abCurrentVidSectorHeader, 12, iDemuxSizeForHeader);
+        IO.writeInt32LE(abCurrentVidSectorHeader, 12, newFrame.calculateUsedBytesRoundUp4());
     }
 
 }

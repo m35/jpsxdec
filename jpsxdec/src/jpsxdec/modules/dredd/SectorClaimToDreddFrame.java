@@ -38,44 +38,30 @@
 package jpsxdec.modules.dredd;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
+import java.util.TreeMap;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdSector;
-import jpsxdec.cdreaders.CdSectorXaSubHeader;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
 
 
-public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
-
-    private static final Logger LOG = Logger.getLogger(SectorClaimToDreddFrame.class.getName());
-
-    public interface Listener {
-        void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log)
-                throws LoggedFailure;
-        void videoBreak(@Nonnull ILocalizedLogger log);
-        void endOfSectors(@Nonnull ILocalizedLogger log);
-    }
+public class SectorClaimToDreddFrame implements SectorClaimSystem.SectorClaimer {
 
     private static class ClaimedSectorCollector {
-        @Nonnull
-        private final DemuxedDreddFrame _frame;
-        /** Barf hash map memory waste. */
-        private final Map<CdSector, SectorDreddVideo> _frameSectors = new HashMap<CdSector, SectorDreddVideo>(10);
+        private final Map<Integer, SectorDreddVideo> _frameSectors = new TreeMap<Integer, SectorDreddVideo>();
         private final int _iMaxFrameSectorIndex;
 
-        public ClaimedSectorCollector(@Nonnull DreddDemuxer.FrameSectors frameSectors) {
-            _frame = frameSectors.frame;
-            int iMaxFrameSectorIndex = frameSectors.sectors.get(0).getCdSector().getSectorIndexFromStart();
+        public ClaimedSectorCollector(@Nonnull List<SectorDreddVideo> frameSectors) {
+            int iMaxFrameSectorIndex = frameSectors.get(0).getCdSector().getSectorIndexFromStart();
             // i = 1 cuz first sector already claimed
-            for (int i = 1; i < frameSectors.sectors.size(); i++) {
-                SectorDreddVideo sector = frameSectors.sectors.get(i);
-                _frameSectors.put(sector.getCdSector(), sector);
+            for (int i = 1; i < frameSectors.size(); i++) {
+                SectorDreddVideo sector = frameSectors.get(i);
+                _frameSectors.put(sector.getCdSector().getSectorIndexFromStart(), sector);
                 if (sector.getCdSector().getSectorIndexFromStart() > iMaxFrameSectorIndex)
                     iMaxFrameSectorIndex = sector.getCdSector().getSectorIndexFromStart();
             }
@@ -86,16 +72,18 @@ public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
             return _frameSectors.isEmpty();
         }
 
-        public @CheckForNull SectorDreddVideo claimSector(CdSector cdSector) {
-            if (cdSector.getSectorIndexFromStart() > _iMaxFrameSectorIndex)
+        public @CheckForNull SectorDreddVideo claimSectorIfDredd(@Nonnull SectorClaimSystem.ClaimableSector cs) {
+            if (allClaimed()) // should not happen
+                throw new RuntimeException("_claimedSectors != null but all sectors are claimed");
+
+            if (cs.getSector().getSectorIndexFromStart() > _iMaxFrameSectorIndex)
                 throw new RuntimeException("My Dredd logic bad, sector beyond claimed sectors");
 
-            SectorDreddVideo dreddSector = _frameSectors.remove(cdSector);
+            SectorDreddVideo dreddSector = _frameSectors.remove(cs.getSector().getSectorIndexFromStart());
+            if (dreddSector != null) {
+                cs.claim(dreddSector);
+            }
             return dreddSector;
-        }
-
-        public @Nonnull DemuxedDreddFrame getFrame() {
-            return _frame;
         }
     }
 
@@ -103,70 +91,32 @@ public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
     private ClaimedSectorCollector _claimedSectors;
 
     @CheckForNull
-    private Listener _listener;
-
-    @CheckForNull
     private DreddDemuxer _nextDemuxer;
 
-    public SectorClaimToDreddFrame() {
-    }
-    public SectorClaimToDreddFrame(@Nonnull Listener listener) {
-        _listener = listener;
-    }
-    public void setListener(@CheckForNull Listener listener) {
-        _listener = listener;
-    }
-
+    @Override
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException, SectorClaimSystem.ClaimerFailure
+            throws IOException, LoggedFailure
     {
-        try {
-            beforeEofCheck(cs, peekIt, log);
-        } catch (LoggedFailure ex) {
-            throw new SectorClaimSystem.ClaimerFailure(ex);
-        }
-        // after processing the current sector, always check the EOF flag
-        // the only way to know a video ends is by the EOF marker
-        CdSectorXaSubHeader sh = cs.getSector().getSubHeader();
-        if (sh != null &&
-            sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_END_OF_FILE) != 0)
-        {
-            if (_listener != null)
-                _listener.videoBreak(log);
-        }
+        SectorDreddVideo dreddSector = dreddSectorLookAheadCheck(cs, peekIt);
     }
 
-    /** Guts moved to this method so the caller can always check the EOF flag
-     * at the end of handling the current sector. */
-    private void beforeEofCheck(@Nonnull SectorClaimSystem.ClaimableSector cs,
-                                @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
-                                @Nonnull ILocalizedLogger log)
+    private @CheckForNull SectorDreddVideo dreddSectorLookAheadCheck(
+                @Nonnull SectorClaimSystem.ClaimableSector cs,
+                @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt)
             throws IOException, LoggedFailure
     {
         // claimed? ignore
         if (cs.isClaimed())
-            return;
+            return null;
 
         // a frame was previously found that used this sector? claim the sector
         if (_claimedSectors != null) {
-            if (_claimedSectors.allClaimed()) // should not happen
-                throw new RuntimeException("_claimedSectors != null but all sectors are claimed");
-
-            SectorDreddVideo dreddSector = _claimedSectors.claimSector(cs.getSector());
-            if (dreddSector != null) {
-                cs.claim(dreddSector);
-            }
-
-            // all sectors claimed? finally send the frame
-            if (_claimedSectors.allClaimed()) {
-                if (_listener != null && sectorIsInRange(cs.getSector().getSectorIndexFromStart())) {
-                    _listener.frameComplete(_claimedSectors.getFrame(), log);
-                }
+            SectorDreddVideo dreddSector = _claimedSectors.claimSectorIfDredd(cs);
+            if (_claimedSectors.allClaimed())
                 _claimedSectors = null;
-            }
-            return;
+            return dreddSector;
         }
 
         // looking for a new frame
@@ -184,7 +134,7 @@ public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
             demuxer = DreddDemuxer.first(cs.getSector());
             // not claimed & not first dredd sector? ignore
             if (demuxer == null) {
-                return;
+                return null;
             }
         }
 
@@ -208,21 +158,30 @@ public class SectorClaimToDreddFrame extends SectorClaimSystem.SectorClaimer {
                 break;
         }
 
-        DreddDemuxer.FrameSectors frameSectors = demuxer.tryToFinishFrame();
+        List<SectorDreddVideo> frameSectors = demuxer.tryToFinishFrame();
+        SectorDreddVideo dreddSector = null;
         if (frameSectors != null) {
-            cs.claim(frameSectors.sectors.get(0)); // claim the first sector
+            dreddSector = frameSectors.get(0);
+            cs.claim(dreddSector); // claim the first sector
             _claimedSectors = new ClaimedSectorCollector(frameSectors);
         }
-        // wait until all the frame sectors have been read to send frame to listener
+        return dreddSector;
     }
 
+    @Override
     public void endOfSectors(@Nonnull ILocalizedLogger log) {
         // the end of sectors should not have moved since the frame was built
         // so there should never be a need to flush an existing frame
         if (_claimedSectors != null)
-            throw new RuntimeException("Created Dredd frame still exists at end of sectors");
-        if (_listener != null)
-            _listener.endOfSectors(log);
-        
+            throw new RuntimeException("Created Dredd frame still remains at end of sectors");
+    }
+
+    public void feedSector(@Nonnull IIdentifiedSector idSector, @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
+    {
+    }
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log)
+            throws LoggedFailure
+    {
     }
 }

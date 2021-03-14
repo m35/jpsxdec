@@ -51,9 +51,9 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
 
     private static final boolean DEBUG = false;
 
-    private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX = 
+    private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
             Arrays.copyOf(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX, MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
-    
+
     // TODO: Change to use a Forward DCT more closely resembling the PSX
     private final StephensIDCT _DCT = new StephensIDCT();
 
@@ -71,7 +71,7 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
     /** Energy of the macroblock.
      * It is calculated using my best guess as an approach. */
     private double _dblEnergy = 0;
-    
+
     MacroBlockEncoder(@Nonnull PsxYCbCrImage ycbcr, int iMacroBlockX, int iMacroBlockY) {
 
         X = iMacroBlockX;
@@ -87,7 +87,7 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
                 iBlock++;
             }
         }
-        
+
         // encode chroma
         if (DEBUG)
             System.out.println("Encoding macroblock Cb");
@@ -97,7 +97,7 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
             System.out.println("Encoding macroblock Cr");
         adblBlock = ycbcr.get8x8blockCr(iMacroBlockX*8, iMacroBlockY*8);
         _adblCrBlockVector = preEncodeBlock(adblBlock, 1);
-        
+
 
     }
 
@@ -169,7 +169,7 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
     public double getEnergy() {
         return _dblEnergy;
     }
-    
+
     public void setToFullEncode(@Nonnull int[] aiQscales) {
         if (aiQscales.length != 6)
             throw new IllegalArgumentException();
@@ -182,6 +182,7 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
         _aiSquashQscales = aiSquashQscales.clone();
     }
 
+    @Override
     public @Nonnull Iterator<MdecCode> iterator() {
         if (_aiQscales == null || _aiSquashQscales == null)
             throw new IllegalStateException();
@@ -228,7 +229,7 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
 
             if (iVectorPos >= adblVector.length)
                 break;
-            
+
             code.setTop6Bits(iZeroCount);
             code.setBottom10Bits(iQuantVal);
             out.add(code.copy());
@@ -243,5 +244,5 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
             System.out.println(code);
     }
 
-    
+
 }

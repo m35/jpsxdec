@@ -83,6 +83,7 @@ public class PushAvailableInputStream<META> extends InputStream {
         _pieces.add(new Pair<META>(is, meta));
     }
 
+    @Override
     public int available() throws IOException {
         return _iPendingAvailable +
                (_pieces.isEmpty() ? 0 : _pieces.peek().is.available());
@@ -90,6 +91,7 @@ public class PushAvailableInputStream<META> extends InputStream {
 
     private final byte[] _abRead1 = new byte[1];
 
+    @Override
     public int read() throws IOException {
         read(_abRead1, 0, 1);
         return _abRead1[0] & 0xff;

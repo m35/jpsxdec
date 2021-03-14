@@ -39,9 +39,8 @@ package jpsxdec.modules.policenauts;
 
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.modules.IdentifiedSector;
 
-public class SectorPN_VMNK extends IdentifiedSector {
+public class SectorPN_VMNK extends SectorPolicenauts {
 
     public static final int WIDTH = 288;
     public static final int HEIGHT = 144;
@@ -61,7 +60,7 @@ public class SectorPN_VMNK extends IdentifiedSector {
     private int _iHeight;
 
     public SectorPN_VMNK(@Nonnull CdSector cdSector) {
-        super(cdSector);
+        super(cdSector, false);
         if (isSuperInvalidElseReset()) return;
 
         for (int i = 0; i < VMNK_HEADER.length; i++) {
@@ -84,6 +83,7 @@ public class SectorPN_VMNK extends IdentifiedSector {
         setProbability(100);
     }
 
+    @Override
     public @Nonnull String getTypeName() {
         return "Policenauts VMNK";
     }

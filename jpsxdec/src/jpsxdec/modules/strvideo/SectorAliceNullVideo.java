@@ -96,7 +96,7 @@ public class SectorAliceNullVideo extends IdentifiedSector {
 
     @Override
     public String toString() {
-        StringBuilder sb = 
+        StringBuilder sb =
                 new StringBuilder(getTypeName()).append(' ').append(super.toString());
         sb.append(" frame:");
         if (_header.iFrameNumber == 0xFFFF)
@@ -129,6 +129,7 @@ public class SectorAliceNullVideo extends IdentifiedSector {
         return (_header.iFrameNumber & 0x8000) != 0;
     }
 
+    @Override
     public @Nonnull String getTypeName() {
         return "AliceNull";
     }

@@ -54,7 +54,7 @@ class ReaderThread implements Runnable {
 
     private IMediaDataReader _reader;
 
-    public ReaderThread(@CheckForNull AudioPlayer audioPlayer, 
+    public ReaderThread(@CheckForNull AudioPlayer audioPlayer,
                         @CheckForNull VideoProcessor videoProcessor,
                         @Nonnull PlayController controller)
     {
@@ -74,6 +74,7 @@ class ReaderThread implements Runnable {
         _thread.start();
     }
 
+    @Override
     public void run() {
         try {
             _reader.demuxThread(_controller);
@@ -88,7 +89,7 @@ class ReaderThread implements Runnable {
             // immediately terminate
             _controller.terminate();
             return;
-        } 
+        }
         if (_audioPlayer != null)
             _audioPlayer.finish();
         if (_videoProcessor != null)

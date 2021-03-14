@@ -188,6 +188,10 @@ public class I {
         return msg("CMD_DISC_ITEM_NOT_VIDEO", "Disc item isn't a video.");
     }
 
+    public static @Nonnull ILocalizedMessage CMD_DISC_ITEM_VIDEO_FRAME_REPLACE_UNSUPPORTED(@Nonnull String discItemTypeName) {
+        return new _PlaceholderMessage("Replacing frames of video type '{0}' is not supported", discItemTypeName);
+    }
+
     /**
     <table border="1"><tr><td>
     <pre>Disc item isn't a XA stream.</pre>
@@ -198,6 +202,10 @@ public class I {
     */
     public static @Nonnull ILocalizedMessage CMD_DISC_ITEM_NOT_XA() {
         return msg("CMD_DISC_ITEM_NOT_XA", "Disc item isn't a XA stream.");
+    }
+
+    public static @Nonnull ILocalizedMessage CMD_DISC_ITEM_NOT_AUDIO() {
+        return new _PlaceholderMessage("Disc item isn't an audio stream.");
     }
 
     /**
@@ -979,7 +987,7 @@ public class I {
     </ul>
     */
     public static @Nonnull ILocalizedMessage GUI_DISC_NO_RAW_HEADERS_WARNING() {
-        return new _PlaceholderMessage("File does not have raw sector headers -- audio may not be detected.");
+        return new _PlaceholderMessage("File does not contain raw sector headers -- audio may not be detected. See manual for details.");
     }
 
     /**
@@ -4263,6 +4271,14 @@ Do you want to replace it?</pre>
         return msg("VID_IMG_SEQ_MDEC_COMMAND", "mdec");
     }
 
+    public static @Nonnull ILocalizedMessage VID_IMG_SEQ_TIFF_COMMAND() {
+        return new _PlaceholderMessage("tiff");
+    }
+
+    public static @Nonnull ILocalizedMessage VID_IMG_SEQ_TIFF_DESCRIPTION() {
+        return new _PlaceholderMessage("Image sequence: tiff");
+    }
+
     /**
     <table border="1"><tr><td>
     <pre>AVI: YUV with [0-255] range</pre>
@@ -5517,6 +5533,19 @@ to: {1}</pre>
     */
     public static @Nonnull ILocalizedMessage DIR_DOES_NOT_EXIST(@Nonnull String directoryName) {
         return msg("DIR_DOES_NOT_EXIST", "Directory {0} does not exist.", directoryName);
+    }
+
+
+    public static @Nonnull ILocalizedMessage REPLACE_XML_INVALID_SIZE_LIMIT(@Nonnull String invalidSize, @Nonnull String expectedSize) {
+        return new _PlaceholderMessage("Invalid size \"{0}\", expected \"{1}\"", invalidSize, expectedSize);
+    }
+
+    public static @Nonnull ILocalizedMessage TIM_HAS_ISSUES_CAN_BE_EXTRACTED(@Nonnull String timDescription) {
+        return new _PlaceholderMessage("This Tim image contains inconsistant data, but can still be extracted: {0}", timDescription);
+    }
+
+    public static @Nonnull ILocalizedMessage CMD_REPLACEXA_MISSING_XA_OPTION() {
+        return new _PlaceholderMessage("-replacexa option missing -xa option");
     }
 
 }

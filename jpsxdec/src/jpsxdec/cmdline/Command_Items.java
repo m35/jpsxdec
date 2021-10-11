@@ -46,6 +46,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItem;
+import jpsxdec.discitems.DiscItem.GeneralType;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.I;
@@ -55,6 +56,7 @@ import jpsxdec.i18n.exception.ILocalizedException;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ConsoleProgressLogger;
 import jpsxdec.indexing.DiscIndex;
+import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
 import jpsxdec.modules.tim.DiscItemTim;
 import jpsxdec.modules.video.DiscItemVideoStream;
 import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
@@ -141,6 +143,8 @@ class Command_Items {
             try {
                 for (DiscItem item : discIndex) {
                     if (item.getType().getName().equalsIgnoreCase(_sType)) {
+                        if(item instanceof DiscItemAudioStream
+                                && !((DiscItemAudioStream)item).isPartOfVideo()) { continue;}
                         blnFound = true;
                         handleItem(item, ap.copy(), _fbs, saveLog, replaceLog);
                         _fbs.println(I.CMD_ITEM_COMPLETE());

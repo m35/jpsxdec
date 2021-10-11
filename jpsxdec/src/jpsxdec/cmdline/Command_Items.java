@@ -144,7 +144,7 @@ class Command_Items {
                 for (DiscItem item : discIndex) {
                     if (item.getType().getName().equalsIgnoreCase(_sType)) {
                         if(item instanceof DiscItemAudioStream
-                                && !((DiscItemAudioStream)item).isPartOfVideo()) { continue;}
+                                && ((DiscItemAudioStream)item).isPartOfVideo()) { continue;}
                         blnFound = true;
                         handleItem(item, ap.copy(), _fbs, saveLog, replaceLog);
                         _fbs.println(I.CMD_ITEM_COMPLETE());

@@ -106,7 +106,7 @@ public class YCbCrImage {
         _abCr = new byte[_abCb.length];
     }
 
-    /** Very slow and wasteful conversion. */
+    /** Converts RGB to YCbCr as Rec.601. */
     public YCbCrImage(@Nonnull BufferedImage rgb) {
         this(rgb.getWidth(), rgb.getHeight());
 

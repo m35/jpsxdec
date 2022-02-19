@@ -77,11 +77,11 @@ public class DirectoryRecord extends ISO9660Struct {
             throws EOFException, IOException, BinaryDataNotRecognized
     {
         int    length                  = read1(is);
-        if (length < 1) throw new BinaryDataNotRecognized();
+        if (length < 34) throw new BinaryDataNotRecognized();
         /*     ext_attr_length        */ magic1(is, 0);
                extent                  = read8_bothendian(is);
                size                    = read8_bothendian(is);
-               date                    = new RecordingDateAndTime(is);
+               date                    = new RecordingDateAndTime(is); // 7 bytes
                flags                   = read1(is);
         if (((flags & FileFlags.Directory) != 0) && ((size % 2048) != 0))
             throw new BinaryDataNotRecognized();
@@ -89,9 +89,12 @@ public class DirectoryRecord extends ISO9660Struct {
         /*     interleave             */ magic1(is, 0);
         /*     volume_sequence_number */ magic4_bothendian(is, 1);
         int    name_len                = read1(is);
+        // 33 bytes have been read thus far
+        int name_extra_len = length - (33 + name_len);
+        if (name_extra_len < 0)
+            throw new BinaryDataNotRecognized();
                name                    = sanitizeFileOrDirName(readS(is, name_len));
-        // just for debugging
-        byte[] name_extra              = readX(is, length - 33 - name_len);
+        byte[] name_extra              = readX(is, name_extra_len);
     }
 
     @Override

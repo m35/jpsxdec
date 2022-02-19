@@ -323,7 +323,7 @@
                     <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.support.JTabbedPaneSupportLayout" value="org.netbeans.modules.form.compat2.layouts.support.JTabbedPaneSupportLayout$JTabbedPaneConstraintsDescription">
                       <JTabbedPaneConstraints tabName="    Save    ">
                         <Property name="tabTitle" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                          <ResourceString bundle="jpsxdec/i18n/Translations.properties" key="GUI_SAVE_TAB" replaceFormat="I.{key}().getLocalizedMessage()"/>
+                          <ResourceString bundle="jpsxdec/i18n/Translations.properties" key="GUI_SAVE_TAB" replaceFormat="&quot;    &quot;+I.{key}().getLocalizedMessage()+&quot;    &quot;"/>
                         </Property>
                       </JTabbedPaneConstraints>
                     </Constraint>
@@ -446,7 +446,7 @@
                     <Constraint layoutClass="org.netbeans.modules.form.compat2.layouts.support.JTabbedPaneSupportLayout" value="org.netbeans.modules.form.compat2.layouts.support.JTabbedPaneSupportLayout$JTabbedPaneConstraintsDescription">
                       <JTabbedPaneConstraints tabName="    Play    ">
                         <Property name="tabTitle" type="java.lang.String" editor="org.netbeans.modules.i18n.form.FormI18nStringEditor">
-                          <ResourceString bundle="jpsxdec/i18n/Translations.properties" key="GUI_PLAY_TAB" replaceFormat="I.{key}().getLocalizedMessage()"/>
+                          <ResourceString bundle="jpsxdec/i18n/Translations.properties" key="GUI_PLAY_TAB" replaceFormat="&quot;    &quot;+I.{key}().getLocalizedMessage()+&quot;    &quot;"/>
                         </Property>
                       </JTabbedPaneConstraints>
                     </Constraint>

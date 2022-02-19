@@ -38,10 +38,12 @@
 package jpsxdec.modules.video.sectorbased;
 
 import argparser.BooleanHolder;
+import argparser.StringHolder;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.discitems.DiscItemSaverBuilder;
@@ -52,18 +54,21 @@ import jpsxdec.i18n.TabularFeedback;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
-import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
+import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 import jpsxdec.modules.video.AudioStreamsCombiner;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.save.VideoSaver;
 import jpsxdec.modules.video.save.VideoSaverBuilder;
 import jpsxdec.util.ArgParser;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.TaskCanceledException;
 
 
 /** Extends {@link VideoSaverBuilder} with sector-based video specific settings. */
 public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
+
+    private static final Logger LOG = Logger.getLogger(SectorBasedVideoSaverBuilder.class.getName());
 
     @Nonnull
     private final DiscItemSectorBasedVideoStream _sourceVidItem;
@@ -75,11 +80,11 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
             _parallelAudio = vidItem.getParallelAudioStreams();
             _ablnParallelAudio = new boolean[vidItem.getChildCount()];
         } else {
-            _parallelAudio = new ArrayList<DiscItemAudioStream>(0);
+            _parallelAudio = new ArrayList<DiscItemSectorBasedAudioStream>(0);
             _ablnParallelAudio = new boolean[0];
         }
         if (_sourceVidItem.hasAudio()) {
-            List<DiscItemAudioStream> defaultAud = _sourceVidItem.getLongestNonIntersectingAudioStreams();
+            List<DiscItemSectorBasedAudioStream> defaultAud = _sourceVidItem.getLongestNonIntersectingAudioStreams();
             for (int i = 0; i < _ablnParallelAudio.length; i++) {
                 _ablnParallelAudio[i] = defaultAud.contains(_parallelAudio.get(i));
             }
@@ -92,6 +97,8 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
             if (otherBuilder instanceof SectorBasedVideoSaverBuilder) {
                 SectorBasedVideoSaverBuilder other = (SectorBasedVideoSaverBuilder) otherBuilder;
                 //other.setParallelAudio(getParallelAudio());
+                if (getSingleSpeed_enabled())
+                    other.setSingleSpeed(getSingleSpeed());
                 if (getEmulatePsxAVSync_enabled())
                     other.setEmulatePsxAVSync(getEmulatePsxAvSync());
                 if (hasAudio() && !getSavingAudio())
@@ -108,8 +115,38 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         return new SectorBasedVideoSaverBuilderGui(this);
     }
 
+
     // .........................................................................
 
+    private boolean _blnSingleSpeed = false;
+    public boolean getSingleSpeed() {
+        switch (findDiscSpeed()) {
+            case 1:
+                return true;
+            case 2:
+                return false;
+            default:
+                return _blnSingleSpeed;
+        }
+    }
+    private int findDiscSpeed() {
+        return _sourceVidItem.getDiscSpeed();
+    }
+    public void setSingleSpeed(boolean val) {
+        _blnSingleSpeed = val;
+        firePossibleChange();
+    }
+    public boolean getSingleSpeed_enabled() {
+        return getVideoFormat().isVideo() &&
+               (findDiscSpeed() < 1);
+    }
+    public @Nonnull Fraction getFps() {
+        return Fraction.divide(
+                getSingleSpeed() ? 75 : 150,
+                _sourceVidItem.getSectorsPerFrame());
+    }
+
+    // .........................................................................
 
     @Override
     public boolean getAudioVolume_enabled() {
@@ -119,14 +156,14 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
     // .........................................................................
 
     @Nonnull
-    private final List<DiscItemAudioStream> _parallelAudio;
+    private final List<DiscItemSectorBasedAudioStream> _parallelAudio;
     @Nonnull
     private final boolean[] _ablnParallelAudio;
 
     public int getParallelAudioCount() {
         return _sourceVidItem.getChildCount();
     }
-    public @Nonnull DiscItemAudioStream getParallelAudio(int i) {
+    public @Nonnull DiscItemSectorBasedAudioStream getParallelAudio(int i) {
         return _parallelAudio.get(i);
     }
 
@@ -137,7 +174,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
             return false;
     }
 
-    public void setParallelAudio(@Nonnull DiscItemAudioStream parallelAudio, boolean blnSelected) {
+    public void setParallelAudio(@Nonnull DiscItemSectorBasedAudioStream parallelAudio, boolean blnSelected) {
         if (!_sourceVidItem.hasAudio())
             return;
 
@@ -151,10 +188,10 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         if (iIndex < 0 || iIndex >= _sourceVidItem.getChildCount())
             return;
 
-        DiscItemAudioStream aud = _parallelAudio.get(iIndex);
+        DiscItemSectorBasedAudioStream aud = _parallelAudio.get(iIndex);
         for (int i = 0; i < _ablnParallelAudio.length; i++) {
             if (_ablnParallelAudio[i]) {
-                DiscItemAudioStream other = _parallelAudio.get(i);
+                DiscItemSectorBasedAudioStream other = _parallelAudio.get(i);
                 // if it overlaps or has a different format
                 if (aud.overlaps(other) || !aud.hasSameFormat(other)) {
                     // disable it
@@ -174,7 +211,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
     }
 
     public boolean getParallelAudio_enabled() {
-        return getVideoFormat().isAvi() && getSaveStartFrame() == null;
+        return getVideoFormat().isVideo() && getSaveStartFrame() == null;
     }
 
     @Override
@@ -221,9 +258,20 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         if (!ap.hasRemaining())
             return;
 
-        BooleanHolder noaud = ap.addBoolOption(false, "-noaud"); // Only with AVI & audio
-        BooleanHolder emulateav = ap.addBoolOption(false, "-psxav"); // Only with AVI & audio
+        StringHolder discSpeed = ap.addStringOption("-ds");
+        BooleanHolder noaud = ap.addBoolOption(false, "-noaud"); // Only with video & audio
+        BooleanHolder emulateav = ap.addBoolOption(false, "-psxav"); // Only with video & audio
         ap.match();
+
+        if (discSpeed.value != null) {
+            if ("1".equals(discSpeed.value)) {
+                setSingleSpeed(true);
+            } else if ("2".equals(discSpeed.value)) {
+                setSingleSpeed(false);
+            } else {
+                fbs.printWarn(I.CMD_IGNORING_INVALID_VALUE_FOR_CMD(discSpeed.value, "-ds"));
+            }
+        }
 
         setEmulatePsxAVSync(emulateav.value);
 
@@ -235,26 +283,45 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
     protected void makeHelpTable(@Nonnull TabularFeedback tfb) {
         super.makeHelpTable(tfb);
 
+        if (getSingleSpeed_enabled()) {
+            tfb.newRow();
+            tfb.addCell(I.CMD_VIDEO_DS()).addCell(I.CMD_VIDEO_DS_HELP());
+        }
+
+        //tfb.newRow();
+        //tfb.print("-psxfps").tab().print("Emulate PSX FPS timing"); // I18N
+
         if (_sourceVidItem.hasAudio()) {
             tfb.newRow();
             tfb.addCell(I.CMD_VIDEO_NOAUD()).addCell(I.CMD_VIDEO_NOAUD_HELP());
-        }
 
-        if (_sourceVidItem.hasAudio()) {
             tfb.newRow();
             tfb.addCell(I.CMD_VIDEO_PSXAV()).addCell(I.CMD_VIDEO_PSXAV_HELP());
         }
     }
 
     @Override
-    protected void printSelectedAudioOptions(@Nonnull ILocalizedLogger log) {
-        for (DiscItemAudioStream discItemAudioStream : collectSelectedAudio()) {
-            log.log(Level.INFO, discItemAudioStream.getDetails());
-        }
+    public void printSelectedOptions(@Nonnull ILocalizedLogger log) {
+        super.printSelectedOptions(log);
+
+        log.log(Level.INFO, I.CMD_DISC_SPEED(getSingleSpeed() ? 1 : 2, getFps().asDouble()));
     }
 
-    private @Nonnull ArrayList<DiscItemAudioStream> collectSelectedAudio() {
-        ArrayList<DiscItemAudioStream> parallelAudio = new ArrayList<DiscItemAudioStream>();
+    @Override
+    protected void printSelectedAudioOptions(@Nonnull ILocalizedLogger log) {
+        log.log(Level.INFO, I.CMD_SAVING_WITH_AUDIO_ITEMS());
+
+        ArrayList<DiscItemSectorBasedAudioStream> chosenAudio = collectSelectedAudio();
+        LOG.log(Level.INFO, "Using {0} of {1} audio streams", new Object[]{chosenAudio.size(), _parallelAudio.size()});
+        for (DiscItemSectorBasedAudioStream discItemAudioStream : chosenAudio) {
+            log.log(Level.INFO, discItemAudioStream.getDetails());
+        }
+
+        log.log(Level.INFO, I.CMD_EMULATE_PSX_AV_SYNC_NY(getEmulatePsxAvSync() ? 1 : 0));
+    }
+
+    private @Nonnull ArrayList<DiscItemSectorBasedAudioStream> collectSelectedAudio() {
+        ArrayList<DiscItemSectorBasedAudioStream> parallelAudio = new ArrayList<DiscItemSectorBasedAudioStream>();
         if (getSavingAudio()) {
             for (int i = 0; i < _ablnParallelAudio.length; i++) {
                 if (_ablnParallelAudio[i])
@@ -273,7 +340,7 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
 
         final ISectorAudioDecoder audDecoder;
         final ISectorClaimToDemuxedFrame demuxer = _sourceVidItem.makeDemuxer();
-        ArrayList<DiscItemAudioStream> parallelAudio = collectSelectedAudio();
+        ArrayList<DiscItemSectorBasedAudioStream> parallelAudio = collectSelectedAudio();
         if (parallelAudio.isEmpty())
             audDecoder = null;
         else if (parallelAudio.size() == 1)
@@ -281,7 +348,8 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         else
             audDecoder = new AudioStreamsCombiner(parallelAudio, getAudioVolume());
 
-        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, demuxer, audDecoder);
+        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, demuxer, audDecoder,
+                getSingleSpeed() ? 75 : 150, _sourceVidItem.getSectorsPerFrame(), _sourceVidItem.getAbsolutePresentationStartSector());
         vs.save(pl);
     }
 

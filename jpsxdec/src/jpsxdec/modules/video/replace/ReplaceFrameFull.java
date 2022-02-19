@@ -46,7 +46,7 @@ import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
@@ -173,7 +173,7 @@ public class ReplaceFrameFull {
         _sizeLimit = sizeLimit;
     }
 
-    public void replace(@Nonnull IDemuxedFrame frame, @Nonnull CdFileSectorReader cd,
+    public void replace(@Nonnull IDemuxedFrame frame, @Nonnull DiscPatcher patcher,
                         @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
@@ -229,7 +229,7 @@ public class ReplaceFrameFull {
             throw new RuntimeException("Can't decode a frame we just encoded?", ex);
         }
 
-        frame.writeToSectors(existingFrame, newFrame, cd, log);
+        frame.writeToSectors(existingFrame, newFrame, patcher, log);
     }
 
     private static byte[] readBitstreamFile(@Nonnull File imageFile, @Nonnull ILocalizedLogger log)

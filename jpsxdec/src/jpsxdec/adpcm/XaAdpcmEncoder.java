@@ -37,14 +37,14 @@
 
 package jpsxdec.adpcm;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
+import jpsxdec.formats.Signed16bitLittleEndianLinearPcmAudioInputStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
 
@@ -54,18 +54,15 @@ import jpsxdec.util.IncompatibleException;
  * The input is an audio stream at a matching quality
  * (16 bits/sample at 37800 Hz or 18900 Hz in mono or stereo).
  * The output is the "user data" for a Mode 2 Form 2 real-time XA audio sector.
- * <p>
- * Will encode audio as long as source data is available. If there is no
- * more source data, silence is encoded. Check for EOF condition with
- * {@link #isEof()}. */
+ * more source data, silence is encoded. Check for EOF condition with. */
 public class XaAdpcmEncoder implements Closeable {
 
     /** Source audio stream. */
     @Nonnull
-    private final AudioShortReader _audioShortReader;
+    private final Signed16bitLittleEndianLinearPcmAudioInputStream _audioShortReader;
 
     /** Sample rate of source/output stream. Must be 18900 or 37800 Hz */
-    private final int _iSampleRate;
+    private final int _iSampleFramesPerSecond;
     /** true=encode to 4 bits/sample, false=encode to 8 bits/sample. */
     private final boolean _blnEncode4BitsElse8Bits;
 
@@ -88,10 +85,9 @@ public class XaAdpcmEncoder implements Closeable {
         public int iSoundGroup = -1;
         /** The sound unit being encoded. */
         public int iSoundUnit = -1;
-        /** Audio channel being encoded (0 or 1). */
+        /** Left/right audio channel being encoded (0 or 1). */
         public int iChannel = -1;
         /** The number of PCM sample frames that have been read
-         * (i.e. a stereo sample frame is only 1 sample frame).
          * Used to help find where in the input stream data was being encoded. */
         public long lngSamplesFramesRead = 0;
 
@@ -120,7 +116,7 @@ public class XaAdpcmEncoder implements Closeable {
      *  via a stream of bytes. Set by {@link #setPresetParameters(java.io.InputStream)}.
      *  Primarily for development/testing purposes. */
     @CheckForNull
-    private InputStream _presetPrameters = null;
+    private InputStream _presetParameters = null;
 
     /** Create a new encoder for the given audio stream, to be encoded with the
      * given bits.
@@ -128,7 +124,7 @@ public class XaAdpcmEncoder implements Closeable {
      * @param iEncodeToAdpcmBitsPerSample Must be 4 or 8
      * @throws UnsupportedOperationException if source audio format is incorrect.
      */
-    public XaAdpcmEncoder(@Nonnull AudioInputStream ais, int iEncodeToAdpcmBitsPerSample)
+    public XaAdpcmEncoder(@Nonnull Signed16bitLittleEndianLinearPcmAudioInputStream ais, int iEncodeToAdpcmBitsPerSample)
             throws IncompatibleException
     {
         if (iEncodeToAdpcmBitsPerSample == 4)
@@ -138,18 +134,16 @@ public class XaAdpcmEncoder implements Closeable {
         else // programmer error
             throw new IllegalArgumentException("Invalid encoding bits/sample "+iEncodeToAdpcmBitsPerSample+", must be 4 or 8");
 
-        AudioFormat fmt = ais.getFormat();
-        if (Math.abs(fmt.getSampleRate() - 37800) > 0.1f)
-            _iSampleRate = 37800;
-        else if (Math.abs(fmt.getSampleRate() - 18900) > 0.1f)
-            _iSampleRate = 18900;
+        if (ais.getSampleFramesPerSecond() == 37800)
+            _iSampleFramesPerSecond = 37800;
+        else if (ais.getSampleFramesPerSecond() == 18900)
+            _iSampleFramesPerSecond = 18900;
         else
-            throw new IncompatibleException("Unsupported sample rate "+fmt.getSampleRate()+", must be 18900 or 37800");
+            throw new IncompatibleException("Unsupported sample rate "+ais.getSampleFramesPerSecond()+", must be 18900 or 37800");
 
-        // will verify all other format details are valid
-        _audioShortReader = new AudioShortReader(ais);
+        _audioShortReader = ais;
 
-        int iChannels = fmt.getChannels();
+        int iChannels = ais.isStereo() ? 2 : 1;
         _aoEncoders = new SoundUnitEncoder[iChannels];
         for (int i = 0; i < iChannels; i++) {
             _aoEncoders[i] = new SoundUnitEncoder(iEncodeToAdpcmBitsPerSample,
@@ -161,12 +155,8 @@ public class XaAdpcmEncoder implements Closeable {
         return _aoEncoders.length == 2;
     }
 
-    public int getSampleRate() {
-        return _iSampleRate;
-    }
-
-    public boolean isEof() {
-        return _audioShortReader.isEof();
+    public int getSampleFramesPerSecond() {
+        return _iSampleFramesPerSecond;
     }
 
     @Override
@@ -177,27 +167,31 @@ public class XaAdpcmEncoder implements Closeable {
     /** Manually provide the filter and range parameters for every Sound Unit
      *  via a stream of bytes. Primarily for development/testing purposes. */
     public void setPresetParameters(@CheckForNull InputStream presetParameters) {
-        _presetPrameters = presetParameters;
+        _presetParameters = presetParameters;
     }
 
     /** From the source audio stream, reads either 4032 sample frames
      * (for 4 bits/sample), or 2016 sample frames (for 8 bits/sample).
-     * And writes 2304 bytes to the provided output stream. Note that the
+     * And returns 2304 bytes. Note that the
      * last 20 bytes of the sector are not included in the output.
-     * If the end of the audio stream is reached, silence will be written
-     * for the remainder to the output. */
-    public void encode1Sector(@Nonnull OutputStream os) throws IOException {
+     * @throws EOFException if the underlying audio input stream stream is exhausted
+     * @throws IOException if there is an error reading from the underlying audio input stream
+     */
+    public @Nonnull byte[] encode1Sector() throws EOFException, IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(2304);
         for (_logContext.iSoundGroup = 0;
              _logContext.iSoundGroup < XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR;
              _logContext.iSoundGroup++)
         {
-            encodeSoundGroup(os);
+            encodeSoundGroup(baos);
         }
         _logContext.iSoundGroup = -1;
         _logContext.iEncodedSectorCount++;
+
+        return baos.toByteArray();
     }
 
-    private void encodeSoundGroup(@Nonnull OutputStream os) throws IOException {
+    private void encodeSoundGroup(@Nonnull ByteArrayOutputStream os) throws EOFException, IOException {
         SoundUnitEncoder.EncodedUnit[] aoEncoded;
         if (_blnEncode4BitsElse8Bits)
             aoEncoded = new SoundUnitEncoder.EncodedUnit[XaAdpcmDecoder.SOUND_UNITS_IN_4_BIT_SOUND_GROUP];
@@ -206,19 +200,25 @@ public class XaAdpcmEncoder implements Closeable {
 
         for (_logContext.iSoundUnit = 0; _logContext.iSoundUnit < aoEncoded.length;) {
             short[][] aasiPcmSoundUnitChannelSamples =
-                    _audioShortReader.readSoundUnitSamples(SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
+                    _audioShortReader.readSampleFrames(SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
 
             for (_logContext.iChannel = 0;
                  _logContext.iChannel < _aoEncoders.length;
                  _logContext.iChannel++, _logContext.iSoundUnit++)
             {
-                if (_presetPrameters == null) {
+                if (_presetParameters == null) {
                     aoEncoded[_logContext.iSoundUnit] = _aoEncoders[_logContext.iChannel].encodeSoundUnit(
                                 aasiPcmSoundUnitChannelSamples[_logContext.iChannel], _logContext);
                 } else {
+                    int iParameter;
+                    try {
+                        iParameter = IO.readUInt8(_presetParameters);
+                    } catch (IOException ex) {
+                        throw new RuntimeException("Error reading encoding parameter", ex);
+                    }
                     aoEncoded[_logContext.iSoundUnit] = _aoEncoders[_logContext.iChannel].encodeSoundUnit(
                                 aasiPcmSoundUnitChannelSamples[_logContext.iChannel],
-                                _presetPrameters.read(), _logContext);
+                                iParameter, _logContext);
                 }
             }
             _logContext.iChannel = -1;
@@ -246,10 +246,10 @@ public class XaAdpcmEncoder implements Closeable {
 
             // 1/0,3/2,5/4,7/6, 1/0,3/2,5/4,7/6, ...
             for (int i = 0; i < SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT; i++) {
-                IO.writeInt4x2(os, aoEncoded[1].abEncodedAdpcm[i], aoEncoded[0].abEncodedAdpcm[i]);
-                IO.writeInt4x2(os, aoEncoded[3].abEncodedAdpcm[i], aoEncoded[2].abEncodedAdpcm[i]);
-                IO.writeInt4x2(os, aoEncoded[5].abEncodedAdpcm[i], aoEncoded[4].abEncodedAdpcm[i]);
-                IO.writeInt4x2(os, aoEncoded[7].abEncodedAdpcm[i], aoEncoded[6].abEncodedAdpcm[i]);
+                writeInt4x2(os, aoEncoded[1].getByteOrNibble(i), aoEncoded[0].getByteOrNibble(i));
+                writeInt4x2(os, aoEncoded[3].getByteOrNibble(i), aoEncoded[2].getByteOrNibble(i));
+                writeInt4x2(os, aoEncoded[5].getByteOrNibble(i), aoEncoded[4].getByteOrNibble(i));
+                writeInt4x2(os, aoEncoded[7].getByteOrNibble(i), aoEncoded[6].getByteOrNibble(i));
             }
         } else {
             // aoEncoded.length == AdpcmSoundGroup.SOUND_UNITS_IN_8_BIT_SOUND_GROUP == 4
@@ -263,13 +263,17 @@ public class XaAdpcmEncoder implements Closeable {
 
             // 0,1,2,3, 0,1,2,3, 0,1,2,3 ...
             for (int i = 0; i < SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT; i++) {
-                os.write(aoEncoded[0].abEncodedAdpcm[i]);
-                os.write(aoEncoded[1].abEncodedAdpcm[i]);
-                os.write(aoEncoded[2].abEncodedAdpcm[i]);
-                os.write(aoEncoded[3].abEncodedAdpcm[i]);
+                os.write(aoEncoded[0].getByteOrNibble(i));
+                os.write(aoEncoded[1].getByteOrNibble(i));
+                os.write(aoEncoded[2].getByteOrNibble(i));
+                os.write(aoEncoded[3].getByteOrNibble(i));
             }
 
         }
+    }
+
+    private static void writeInt4x2(@Nonnull ByteArrayOutputStream stream, byte bTop4bits, byte bBottom4bits) {
+        stream.write(((bTop4bits&0xf)<<4) | (bBottom4bits&0xf));
     }
 
 }

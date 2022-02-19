@@ -38,12 +38,12 @@
 package jpsxdec.adpcm;
 
 import java.io.Closeable;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.sound.sampled.AudioInputStream;
+import jpsxdec.formats.Signed16bitLittleEndianLinearPcmAudioInputStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
 
@@ -52,7 +52,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
 
     /** Source audio stream. */
     @Nonnull
-    protected final AudioShortReader _audioShortReader;
+    protected final Signed16bitLittleEndianLinearPcmAudioInputStream _audioShortReader;
 
     /** Running ADPCM encoders(s). */
     @Nonnull
@@ -92,19 +92,14 @@ public abstract class SpuAdpcmEncoder implements Closeable {
     @CheckForNull
     protected InputStream _presetPrameters = null;
 
-    protected SpuAdpcmEncoder(@Nonnull AudioInputStream input) throws IncompatibleException {
-        // will verify all format details but stereo are valid
-        _audioShortReader = new AudioShortReader(input);
+    protected SpuAdpcmEncoder(@Nonnull Signed16bitLittleEndianLinearPcmAudioInputStream input) throws IncompatibleException {
+        _audioShortReader = input;
 
         // SPU ADPCM is always 4 bits per sample
         _leftOrMonoEncoder = new SoundUnitEncoder(4, K0K1Filter.SPU);
     }
 
     abstract public boolean isStereo();
-
-    public boolean isEof() {
-        return _audioShortReader.isEof();
-    }
 
     @Override
     public void close() throws IOException {
@@ -123,10 +118,10 @@ public abstract class SpuAdpcmEncoder implements Closeable {
 
     public static class Mono extends SpuAdpcmEncoder {
 
-        public Mono(@Nonnull AudioInputStream input) throws IncompatibleException {
+        public Mono(@Nonnull Signed16bitLittleEndianLinearPcmAudioInputStream input) throws IncompatibleException {
             super(input);
 
-            if (input.getFormat().getChannels() != 1)
+            if (input.isStereo())
                 throw new IncompatibleException();
         }
 
@@ -135,18 +130,19 @@ public abstract class SpuAdpcmEncoder implements Closeable {
             return false;
         }
 
-        /** @see Stereo#encode1SoundUnit(byte, java.io.OutputStream, byte, java.io.OutputStream)  */
-        public boolean encode1SoundUnit(byte bFlagBits, @Nonnull OutputStream spuOutputStream)
-                throws IOException
+        /** @see Stereo#encode1SoundUnit(byte, byte) */
+        public @Nonnull byte[] encode1SoundUnit(byte bFlagBits)
+                throws EOFException, IOException
         {
-            if (_audioShortReader.isEof())
-                return false;
             short[][] aasiPcmSoundUnitChannelSamples =
-                    _audioShortReader.readSoundUnitSamples(SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
+                    _audioShortReader.readSampleFrames(SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
 
-            encode1SoundUnitChannel(_leftOrMonoEncoder, aasiPcmSoundUnitChannelSamples[0],
-                                    bFlagBits, spuOutputStream);
-            return true;
+            _logContext.iChannel = 0;
+            byte[] abEncodedAdpcm = encode1SoundUnitChannel(_leftOrMonoEncoder, bFlagBits, aasiPcmSoundUnitChannelSamples[0]);
+            _logContext.iChannel = -1;
+            _logContext.lngSampleFramesReadEncoded += SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT;
+
+            return abEncodedAdpcm;
         }
 
     }
@@ -157,10 +153,10 @@ public abstract class SpuAdpcmEncoder implements Closeable {
         @Nonnull
         private final SoundUnitEncoder _rightChannel;
 
-        public Stereo(@Nonnull AudioInputStream input) throws IncompatibleException {
+        public Stereo(@Nonnull Signed16bitLittleEndianLinearPcmAudioInputStream input) throws IncompatibleException {
             super(input);
 
-            if (input.getFormat().getChannels() != 2)
+            if (!input.isStereo())
                 throw new IncompatibleException();
 
             _rightChannel = new SoundUnitEncoder(4, K0K1Filter.SPU);
@@ -176,55 +172,56 @@ public abstract class SpuAdpcmEncoder implements Closeable {
          * ({@link SoundUnitDecoder#SAMPLES_PER_SOUND_UNIT}
          * to the supplied output streams.
          * <p>
-         * 28 sample frames will be read from the source audio stream
-         * and 16 bytes will be written to each output stream, setting
-         * the flag bits to the given value.
-         * <p>
-         * Stops encoding anything if the source audio is empty.
-         * @return if the source audio stream is empty.  */
-        public boolean encode1SoundUnit(byte bLeftFlagBits, @Nonnull OutputStream leftSpuStream,
-                                        byte bRightFlagBits, @Nonnull OutputStream rightSpuStream)
-                throws IOException
+         * 28 sample frames will be read from the underlying source audio stream
+         * and return two arrays of 16 bytes, setting the flag bits to the given values. */
+        public byte[][] encode1SoundUnit(byte bLeftFlagBits, byte bRightFlagBits)
+                throws EOFException, IOException
         {
-            if (_audioShortReader.isEof())
-                return false;
-
             short[][] aasiPcmSoundUnitChannelSamples =
-                    _audioShortReader.readSoundUnitSamples(SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
+                    _audioShortReader.readSampleFrames(SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT);
+
+            byte[][] aabEncodedAdpcm = new byte[2][];
 
             _logContext.iChannel = 0;
-            encode1SoundUnitChannel(_leftOrMonoEncoder, aasiPcmSoundUnitChannelSamples[_logContext.iChannel],
-                                    bLeftFlagBits, leftSpuStream);
+            aabEncodedAdpcm[_logContext.iChannel] = encode1SoundUnitChannel(_leftOrMonoEncoder, bLeftFlagBits, aasiPcmSoundUnitChannelSamples[_logContext.iChannel]);
             _logContext.iChannel = 1;
-            encode1SoundUnitChannel(_rightChannel, aasiPcmSoundUnitChannelSamples[_logContext.iChannel],
-                                    bRightFlagBits, rightSpuStream);
+            aabEncodedAdpcm[_logContext.iChannel] = encode1SoundUnitChannel(_rightChannel, bRightFlagBits, aasiPcmSoundUnitChannelSamples[_logContext.iChannel]);
 
             _logContext.iChannel = -1;
             _logContext.lngSampleFramesReadEncoded += SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT;
-            return true;
+
+            return aabEncodedAdpcm;
         }
     }
 
-    protected void encode1SoundUnitChannel(@Nonnull SoundUnitEncoder encoder,
-                                           @Nonnull short[] asiPcmSoundUnitChannelSamples,
-                                           byte bFlagBits, @Nonnull OutputStream spuStream)
-            throws IOException
+    protected byte[] encode1SoundUnitChannel(@Nonnull SoundUnitEncoder encoder,
+                                             byte bFlagBits,
+                                             @Nonnull short[] asi28PcmChannelSamples)
     {
         SoundUnitEncoder.EncodedUnit encoded;
         if (_presetPrameters == null) {
-            encoded = encoder.encodeSoundUnit(
-                        asiPcmSoundUnitChannelSamples, _logContext);
+            encoded = encoder.encodeSoundUnit(asi28PcmChannelSamples, _logContext);
         } else {
-            encoded = encoder.encodeSoundUnit(
-                    asiPcmSoundUnitChannelSamples,
-                    _presetPrameters.read(), _logContext);
+            int iParameter;
+            try {
+                iParameter = IO.readSInt8(_presetPrameters);
+            } catch (IOException ex) {
+                throw new RuntimeException("Error reading input parameter", ex);
+            }
+            encoded = encoder.encodeSoundUnit(asi28PcmChannelSamples, iParameter, _logContext);
         }
 
-        spuStream.write(encoded.getSoundParameter() & 0xff);
-        spuStream.write(bFlagBits & 0xff);
-        for (int i = 0; i < SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT; i+=2) {
-            IO.writeInt4x2(spuStream, encoded.abEncodedAdpcm[i+1], encoded.abEncodedAdpcm[i]);
+        byte[] abEncoded = new byte[SpuAdpcmSoundUnit.SIZEOF_SOUND_UNIT];
+        abEncoded[0] = encoded.getSoundParameter();
+        abEncoded[1] = bFlagBits;
+        for (int iIn = 0, iOut = 2; iIn < SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT; iIn+=2, iOut++) {
+            int iTop4Bits    = encoded.getByteOrNibble(iIn + 1) & 0xf;
+            int iBottom4Bits = encoded.getByteOrNibble(iIn    ) & 0xf;
+            int iByte = (iTop4Bits << 4) | iBottom4Bits;
+
+            abEncoded[iOut] = (byte) iByte;
         }
+        return abEncoded;
     }
 
 }

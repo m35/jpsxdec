@@ -37,13 +37,13 @@
 
 package jpsxdec.modules.crusader;
 
+import java.io.InputStream;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IdentifiedSector;
-import jpsxdec.util.Misc;
 
 
-/** Audio/video sectors for Crusader: No Remorse. */
+/** Audio/video sectors for Crusader: No Remorse and a few other Electronic Arts games. */
 public class SectorCrusader extends IdentifiedSector {
 
     private static final long MAGIC = 0xAABBCCDDL;
@@ -69,7 +69,19 @@ public class SectorCrusader extends IdentifiedSector {
             _iCrusaderSectorNumber > MAX_CRUSADER_SECTOR)
             return;
 
-        if (super.getCdSector().getCdUserDataSize() != CdSector.SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1)
+        if (_iCrusaderSectorNumber == 0) {
+            int iFirstPacketMagic = cdSector.readSInt32BE(HEADER_SIZE);
+            switch (iFirstPacketMagic) {
+                case CrusaderPacket.MDEC_MAGIC:
+                case CrusaderPacket.ad20_MAGIC:
+                case CrusaderPacket.ad21_MAGIC:
+                    break;
+                default:
+                    return;
+            }
+        }
+
+        if (cdSector.getCdUserDataSize() != CdSector.SECTOR_USER_DATA_SIZE_MODE1_MODE2FORM1)
             throw new RuntimeException("Crusader sector size isn't right");
 
         setProbability(100);
@@ -95,39 +107,13 @@ public class SectorCrusader extends IdentifiedSector {
         return super.getCdSector().readUserDataByte(HEADER_SIZE + i);
     }
 
-    /** Copies the identified user data portion of the sector data to the
-     *  output buffer. */
-    public void copyIdentifiedUserData(int iSrcPos, @Nonnull byte[] abOut, int iOutPos, int iSize) {
-        if (iSize < 0 || iSize > getIdentifiedUserDataSize())
-            throw new IndexOutOfBoundsException();
-        super.getCdSector().getCdUserDataCopy(HEADER_SIZE + iSrcPos, abOut,
-                iOutPos, iSize);
-    }
-
     @Override
     public String toString() {
         return getTypeName() + " " + getCdSector().toString() + " Sect:" + _iCrusaderSectorNumber;
     }
 
-    /** Used by {@link CrusaderDemuxer} to read demuxed chunk identifier (4 chars). */
-    public @Nonnull String readMagic(int iIdentifiedUserDataOffset) {
-        if (iIdentifiedUserDataOffset < 0 || iIdentifiedUserDataOffset > getIdentifiedUserDataSize()-4)
-            throw new IndexOutOfBoundsException();
-        byte[] abMagic = new byte[4];
-        getCdSector().getCdUserDataCopy(HEADER_SIZE+iIdentifiedUserDataOffset, abMagic, 0, 4);
-        return Misc.asciiToString(abMagic);
-    }
-
-    public int readSInt32BE(int iIdentifiedUserDataOffset) {
-        if (iIdentifiedUserDataOffset < 0 || iIdentifiedUserDataOffset > getIdentifiedUserDataSize()-4)
-            throw new IndexOutOfBoundsException();
-        return getCdSector().readSInt32BE(HEADER_SIZE + iIdentifiedUserDataOffset);
-    }
-
-    public int readSInt16BE(int iIdentifiedUserDataOffset) {
-        if (iIdentifiedUserDataOffset < 0 || iIdentifiedUserDataOffset > getIdentifiedUserDataSize()-2)
-            throw new IndexOutOfBoundsException();
-        return getCdSector().readSInt16BE(HEADER_SIZE + iIdentifiedUserDataOffset);
+    public @Nonnull InputStream getCrusaderDataStream() {
+        return getCdSector().getCdUserDataStream(HEADER_SIZE);
     }
 
 }

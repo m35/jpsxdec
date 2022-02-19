@@ -42,7 +42,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
-/** Tracks MDEC codes, blocks, macro-blocks, and coordinates during
+/** Tracks MDEC codes, blocks, macro-blocks, and pixel coordinates during
  * the decoding process. One-time use. */
 public class MdecContext {
 
@@ -73,7 +73,7 @@ public class MdecContext {
         return _iCurrentMacroBlock;
     }
 
-    /** Total number of sub-blocks that have been read thus far. */
+    /** Total number of (sub) blocks that have been read thus far. */
     public int getTotalBlocksRead() {
         return _iCurrentTotalBlocks;
     }
@@ -104,7 +104,7 @@ public class MdecContext {
             LOG.log(Level.WARNING, "Impossible number of codes in a block {0}", _iCurrentMdecCodeInCurrentBlock);
     }
 
-    /** Increments the number of MDEC codes that have been read and end the block. */
+    /** Increments the number of MDEC codes that have been read and ends the block. */
     public void nextCodeEndBlock() {
         _iCurrentTotalMdecCode++;
         _iCurrentMdecCodeInCurrentBlock = 0;
@@ -112,16 +112,6 @@ public class MdecContext {
         _currentBlock = _currentBlock.next();
         if (_currentBlock == MdecBlock.first())
             _iCurrentMacroBlock++;
-    }
-
-    public @Nonnull MdecContext copy() {
-        MdecContext c = new MdecContext();
-        c._iCurrentMacroBlock = _iCurrentMacroBlock;
-        c._currentBlock = _currentBlock;
-        c._iCurrentMdecCodeInCurrentBlock = _iCurrentMdecCodeInCurrentBlock;
-        c._iCurrentTotalBlocks = _iCurrentTotalBlocks;
-        c._iCurrentTotalMdecCode = _iCurrentTotalMdecCode;
-        return c;
     }
 
     /** The pixel of the top-left corner of a macro-block. */
@@ -151,10 +141,10 @@ public class MdecContext {
     @Override
     public String toString() {
         String s = String.format("Macro.block.code %d.%s(%d).%d total blocks %d codes %d",
-                             _iCurrentMacroBlock, _currentBlock, _currentBlock.ordinal(),
-                             _iCurrentMdecCodeInCurrentBlock,
-                             _iCurrentTotalBlocks,
-                             _iCurrentTotalMdecCode);
+                                 _iCurrentMacroBlock, _currentBlock, _currentBlock.ordinal(),
+                                 _iCurrentMdecCodeInCurrentBlock,
+                                 _iCurrentTotalBlocks,
+                                 _iCurrentTotalMdecCode);
         MacroBlockPixel pixel = getMacroBlockPixel();
         if (pixel == null)
             return s;

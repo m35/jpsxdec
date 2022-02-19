@@ -65,11 +65,11 @@ public class Ac3Demuxer {
         if (chunk.getChannel() != _iChannel)
             return Ac3AddResult.WrongChannel;
 
-        boolean blnIsPartOfFrame =
-        chunk.getWidth() == _iWidth && chunk.getHeight() == _iHeight &&
-        _bldr.addSectorIfPartOfFrame(chunk,
-                                     chunk.getChunkNumber(), chunk.getChunksInFrame(),
-                                     chunk.getSectorNumber(), chunk.getInvertedFrameNumber());
+        boolean blnIsPartOfFrame = chunk.getWidth() == _iWidth &&
+                                   chunk.getHeight() == _iHeight &&
+                                   _bldr.addSectorIfPartOfFrame(chunk,
+                                         chunk.getChunkNumber(), chunk.getChunksInFrame(),
+                                         chunk.getSectorNumber(), chunk.getInvertedFrameNumber());
         if (!blnIsPartOfFrame)
             return Ac3AddResult.WrongFormat;
 

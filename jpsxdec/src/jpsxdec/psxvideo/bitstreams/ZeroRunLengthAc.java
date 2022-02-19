@@ -55,7 +55,7 @@ public class ZeroRunLengthAc {
     private final boolean _blnIsEscapeCode;
     private final boolean _blnIsEndOfBlock;
 
-    /* If this is a normal AC code with MDEC code equivalent. */
+    /** If this is a normal AC code with MDEC code equivalent. */
     public ZeroRunLengthAc(@Nonnull BitStreamCode bitStreamCode, int iZeroRunLength, int iAcCoefficient) {
         _bitStreamCode = bitStreamCode;
         _mdecCode = new MdecCode(iZeroRunLength, iAcCoefficient);
@@ -63,12 +63,12 @@ public class ZeroRunLengthAc {
         _blnIsEndOfBlock = false;
     }
 
-    /* If this is a special AC code without an MDEC equialent. */
+    /** If this is a special AC code without an MDEC equialent. */
     public ZeroRunLengthAc(@Nonnull BitStreamCode bitStreamCode, boolean blnIsEscapeCode, boolean blnIsEndOfBlock) {
         this(bitStreamCode, null, blnIsEscapeCode, blnIsEndOfBlock);
     }
 
-    /* If this is a special AC code with an MDEC equialent. */
+    /** If this is a special AC code with an MDEC equialent. */
     public ZeroRunLengthAc(@Nonnull BitStreamCode bitStreamCode,
                            int iZeroRunLength, int iAcCoefficient,
                            boolean blnIsEscapeCode, boolean blnIsEndOfBlock)
@@ -76,7 +76,7 @@ public class ZeroRunLengthAc {
         this(bitStreamCode, new MdecCode(iZeroRunLength, iAcCoefficient), blnIsEscapeCode, blnIsEndOfBlock);
     }
 
-    /* If this is a special AC code with an MDEC equialent. */
+    /** If this is a special AC code with an MDEC equialent. */
     private ZeroRunLengthAc(@Nonnull BitStreamCode bitStreamCode,
                             @CheckForNull MdecCode mdecCode,
                             boolean blnIsEscapeCode, boolean blnIsEndOfBlock)

@@ -40,6 +40,7 @@ package jpsxdec.modules.policenauts;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 
+/** @see SPacket */
 public class SectorPN_VMNK extends SectorPolicenauts {
 
     public static final int WIDTH = 288;

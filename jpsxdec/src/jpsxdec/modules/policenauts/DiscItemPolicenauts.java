@@ -44,7 +44,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
@@ -52,7 +53,6 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
@@ -62,6 +62,7 @@ import jpsxdec.modules.video.packetbased.DiscItemPacketBasedVideoStream;
 import jpsxdec.modules.video.packetbased.SectorClaimToAudioAndFrame;
 import jpsxdec.util.Fraction;
 
+/** @see SPacket */
 public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
 
     public static final String TYPE_ID = "Policenauts";
@@ -69,7 +70,7 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
     @Nonnull
     private final HeaderFrameNumber.Format _timestampFrameNumberFormat;
 
-    public DiscItemPolicenauts(@Nonnull CdFileSectorReader cd,
+    public DiscItemPolicenauts(@Nonnull ICdSectorReader cd,
                                int iStartSector, int iEndSector,
                                @Nonnull Dimensions dim,
                                @Nonnull IndexSectorFrameNumber.Format sectorIndexFrameNumberFormat,
@@ -80,7 +81,7 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
         _timestampFrameNumberFormat = timestampFrameNumberFormat;
     }
 
-    public DiscItemPolicenauts(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemPolicenauts(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -125,13 +126,8 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
     }
 
     @Override
-    public @Nonnull Fraction getSectorsPerFrame() {
-        return SPacket.SECTORS150_PER_FRAME;
-    }
-
-    @Override
-    public double getApproxDuration() {
-        return getFrameCount() / SPacket.FRAMES_PER_SECOND.asDouble();
+    public @Nonnull Fraction getFramesPerSecond() {
+        return SPacket.FRAMES_PER_SECOND;
     }
 
     @Override

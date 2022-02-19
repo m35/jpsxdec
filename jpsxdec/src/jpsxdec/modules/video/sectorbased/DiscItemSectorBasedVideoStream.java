@@ -37,14 +37,14 @@
 
 package jpsxdec.modules.video.sectorbased;
 
-import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.IndexId;
 import jpsxdec.discitems.SerializedDiscItem;
@@ -52,19 +52,12 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
-import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ProgressLogger;
-import jpsxdec.modules.IIdentifiedSector;
-import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.player.MediaPlayer;
-import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
+import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 import jpsxdec.modules.video.AudioStreamsCombiner;
-import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.DiscItemVideoStream;
-import jpsxdec.modules.video.IDemuxedFrame;
-import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
-import jpsxdec.modules.video.ParallelAudio;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.replace.ReplaceFrames;
 import jpsxdec.modules.xa.DiscItemXaAudioStream;
@@ -85,7 +78,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
 
     private final ParallelAudio _parallelAudio = new ParallelAudio();
 
-    public DiscItemSectorBasedVideoStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemSectorBasedVideoStream(@Nonnull ICdSectorReader cd,
                                           int iStartSector, int iEndSector,
                                           @Nonnull Dimensions dim,
                                           @Nonnull IndexSectorFrameNumber.Format indexSectorFrameNumberFormat,
@@ -95,7 +88,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
         _vidInfo = vidInfo;
     }
 
-    public DiscItemSectorBasedVideoStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemSectorBasedVideoStream(@Nonnull ICdSectorReader cd,
                                           @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
@@ -116,7 +109,6 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
         return serial;
     }
 
-    @Override
     public int getDiscSpeed() {
         if (_iDiscSpeed > 0)
             return _iDiscSpeed;
@@ -126,12 +118,10 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
         return -1;
     }
 
-    @Override
     final public int getAbsolutePresentationStartSector() {
         return getStartSector() + _vidInfo.getFirstFrameLastSector();
     }
 
-    @Override
     final public @Nonnull Fraction getSectorsPerFrame() {
         return _vidInfo.getSectorsPerFrame();
     }
@@ -154,7 +144,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
     }
 
     @Override
-    final public @Nonnull Iterable<DiscItemAudioStream> getChildren() {
+    final public @Nonnull Iterable<DiscItemSectorBasedAudioStream> getChildren() {
         return _parallelAudio.getChildren();
     }
 
@@ -162,16 +152,8 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
         return _parallelAudio.hasAudio();
     }
 
-    final public @CheckForNull List<DiscItemAudioStream> getParallelAudioStreams() {
+    final public @CheckForNull List<DiscItemSectorBasedAudioStream> getParallelAudioStreams() {
         return _parallelAudio.getParallelAudioStreams();
-    }
-
-    @Override
-    final public double getApproxDuration() {
-        int iDiscSpeed = getDiscSpeed();
-        if (iDiscSpeed < 1)
-            iDiscSpeed = 2;
-        return getSectorLength() / (double)(iDiscSpeed * 75);
     }
 
     @Override
@@ -205,7 +187,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
         return new SectorBasedVideoSaverBuilder(this);
     }
 
-    public @CheckForNull List<DiscItemAudioStream> getLongestNonIntersectingAudioStreams() {
+    public @CheckForNull List<DiscItemSectorBasedAudioStream> getLongestNonIntersectingAudioStreams() {
         return _parallelAudio.getLongestNonIntersectingAudioStreams();
     }
 
@@ -213,33 +195,18 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
      * @return -1 if audio should not be split. */
     abstract public int findAudioSplitPoint(@Nonnull DiscItemXaAudioStream audio);
 
-    abstract public void fpsDump(@Nonnull PrintStream ps) throws IOException;
-
-    public void fpsDump2(@Nonnull final PrintStream ps) throws CdFileSectorReader.CdReadException {
-        ISectorClaimToDemuxedFrame demuxer = makeDemuxer();
-        demuxer.setFrameListener(new IDemuxedFrame.Listener() {
-            @Override
-            public void frameComplete(IDemuxedFrame frame) {
-                ps.println((frame.getStartSector()-getStartSector())+"-"+
-                           (frame.getEndSector()-getStartSector()));
-            }
-        });
-        SectorClaimSystem it = createClaimSystem();
-        demuxer.attachToSectorClaimer(it);
-        while (it.hasNext()) {
-            IIdentifiedSector isect = it.next(DebugLogger.Log);
-        }
-        it.close(DebugLogger.Log);
-    }
-
 
     @Override
     public @Nonnull PlayController makePlayController() {
 
+        int iSectorsPerSecond = 150;
+        if (getDiscSpeed() == 1)
+            iSectorsPerSecond = 75;
+
         MediaPlayer mp;
         if (hasAudio()) {
 
-            List<DiscItemAudioStream> audios = _parallelAudio.getLongestNonIntersectingAudioStreams();
+            List<DiscItemSectorBasedAudioStream> audios = _parallelAudio.getLongestNonIntersectingAudioStreams();
             assert audios != null;
 
             ISectorAudioDecoder decoder;
@@ -251,14 +218,14 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
             int iStartSector = Math.min(decoder.getStartSector(), getStartSector());
             int iEndSector = Math.max(decoder.getEndSector(), getEndSector());
 
-            mp = new MediaPlayer(this, makeDemuxer(), decoder, iStartSector, iEndSector);
+            mp = new MediaPlayer(this, makeDemuxer(), decoder, iStartSector, iEndSector, iSectorsPerSecond);
         } else {
-            mp = new MediaPlayer(this, makeDemuxer());
+            mp = new MediaPlayer(this, makeDemuxer(), iSectorsPerSecond);
         }
         return mp.getPlayController();
     }
 
-    public void replaceFrames(@Nonnull ProgressLogger pl, @Nonnull String sXmlFile)
+    public void replaceFrames(@Nonnull DiscPatcher patcher, @Nonnull String sXmlFile, @Nonnull ProgressLogger pl)
             throws LoggedFailure, TaskCanceledException
     {
         ReplaceFrames replacers;
@@ -274,7 +241,7 @@ public abstract class DiscItemSectorBasedVideoStream extends DiscItemVideoStream
             throw new LoggedFailure(pl, Level.SEVERE,
                                     ex.getSourceMessage(), ex);
         }
-        replacers.replaceFrames(this, getSourceCd(), pl);
+        replacers.replaceFrames(this, patcher, pl);
     }
 
 }

@@ -53,7 +53,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.formats.JavaImageFormat;
@@ -271,7 +271,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
     // .................................................................
 
-    @Nonnull Tim readTim() throws CdFileSectorReader.CdReadException, BinaryDataNotRecognized {
+    @Nonnull Tim readTim() throws CdReadException, BinaryDataNotRecognized {
         return _timItem.readTim();
     }
 
@@ -406,7 +406,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         Tim tim;
         try {
             tim = _timItem.readTim();
-        } catch (CdFileSectorReader.CdReadException ex) {
+        } catch (CdReadException ex) {
             throw new LoggedFailure(pl, Level.SEVERE,
                    I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
         } catch (BinaryDataNotRecognized ex) {
@@ -447,7 +447,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         Tim tim;
         try {
             tim = _timItem.readTim();
-        } catch (CdFileSectorReader.CdReadException ex) {
+        } catch (CdReadException ex) {
             throw new LoggedFailure(pl, Level.SEVERE,
                    I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
         } catch (BinaryDataNotRecognized ex) {

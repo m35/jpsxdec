@@ -41,7 +41,7 @@ import java.io.PrintStream;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
@@ -126,11 +126,11 @@ public class DemuxedAc3Frame implements IDemuxedFrame {
     @Override
     public void writeToSectors(@Nonnull SectorBasedFrameAnalysis existingFrame,
                                @Nonnull BitStreamAnalysis newFrame,
-                               @Nonnull CdFileSectorReader cd,
+                               @Nonnull DiscPatcher patcher,
                                @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
-        SectorBasedFrameReplace.writeToSectors(existingFrame, newFrame, cd, log, _demux);
+        SectorBasedFrameReplace.writeToSectors(existingFrame, newFrame, patcher, log, _demux);
     }
 
     @Override

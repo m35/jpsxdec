@@ -37,6 +37,7 @@
 
 package jpsxdec.cdreaders;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -45,6 +46,7 @@ import java.util.Iterator;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.i18n.log.ProgressLogger;
@@ -52,14 +54,14 @@ import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.TaskCanceledException;
 
-/** Collects a set of changes to be made to a {@link CdFileSectorReader},
+/** Collects a set of changes to be made to a {@link ICdSectorReader},
  * and then apples all the changes at one time.
  * This is better than applying each individual change immediately
  * because it leaves the CD unchanged if an error occurs, and it can be used
  * to do a 'dry run' of the changes.
  * Note that due to its intentionally simplistic design, this patch feature
  * could never be used as a general method to build and distribute patches. */
-public class DiscPatcher {
+public class DiscPatcher implements Closeable {
 
     private static final Logger LOG = Logger.getLogger(DiscPatcher.class.getName());
 
@@ -173,12 +175,12 @@ public class DiscPatcher {
 
     @Nonnull
     private final File _patchFileName;
-    @Nonnull
-    private final RandomAccessFile _patchFile;
+    @CheckForNull
+    private RandomAccessFile _patchFile;
     private final int _iSectorCount;
     private final TreeSet<PatchEntry> _patches = new TreeSet<DiscPatcher.PatchEntry>();
 
-    public DiscPatcher(@Nonnull CdFileSectorReader cd) throws CreatePatchFileException {
+    public DiscPatcher(@Nonnull ICdSectorReader cd) throws CreatePatchFileException {
         try {
             _patchFileName = File.createTempFile(cd.getSourceFile().getName(), ".temp");
         } catch (IOException ex) {
@@ -196,6 +198,14 @@ public class DiscPatcher {
 
     public @Nonnull File getTempFile() {
         return _patchFileName;
+    }
+
+    public void addPatch(int iSector, int iOffsetInSector,
+                         @Nonnull byte[] abBytesToReplace)
+            throws DiscPatcher.WritePatchException
+    {
+        addPatch(iSector, iOffsetInSector, abBytesToReplace,
+                 0, abBytesToReplace.length);
     }
 
     public void addPatch(int iSector,
@@ -223,7 +233,8 @@ public class DiscPatcher {
         }
     }
 
-    /**
+    /** Applies the patches then silently discards the temp patch file.
+     *
      * @throws jpsxdec.cdreaders.CdFileSectorReader.CdReopenException
      *         error reopening cd for writing
      * @throws jpsxdec.cdreaders.CdFileSectorReader.CdReadException
@@ -236,7 +247,7 @@ public class DiscPatcher {
      */
     public void applyPatches(@Nonnull CdFileSectorReader cd, @Nonnull ProgressLogger pl)
             throws CdFileSectorReader.CdReopenException,
-                   CdFileSectorReader.CdReadException,
+                   CdReadException,
                    CdFileSectorReader.CdWriteException,
                    PatchReadException,
                    TaskCanceledException
@@ -252,50 +263,73 @@ public class DiscPatcher {
 
         CdSector sector = null;
         byte[] abUserData = null;
-        for (int i = 0; it.hasNext(); i++) {
-            PatchEntry patch = it.next();
 
-            if (sector != null) {
-                // don't apply the changes until a sector is fully patched
-                if (patch.iSector != sector.getSectorIndexFromStart()) {
-                    // write
-                    pl.log(Level.INFO, new UnlocalizedMessage("Writing patched sector " + sector.getSectorIndexFromStart()));
-                    assert abUserData != null; // is not null if sector is not null
-                    cd.writeSector(sector.getSectorIndexFromStart(), abUserData);
-                    sector = null;
-                    abUserData = null;
+        try {
+            for (int i = 0; it.hasNext(); i++) {
+                PatchEntry patch = it.next();
+
+                if (sector != null) {
+                    // don't apply the changes until a sector is fully patched
+                    if (patch.iSector != sector.getSectorIndexFromStart()) {
+                        // write
+                        pl.log(Level.INFO, new UnlocalizedMessage("Writing patched sector " + sector.getSectorIndexFromStart()));
+                        assert abUserData != null; // is not null if sector is not null
+                        cd.writeSector(sector.getSectorIndexFromStart(), abUserData);
+                        sector = null;
+                        abUserData = null;
+                    }
                 }
-            }
 
-            if (sector == null) {
-                sector = cd.getSector(patch.iSector);
-                abUserData = sector.getCdUserDataCopy();
-            }
+                if (sector == null) {
+                    sector = cd.getSector(patch.iSector);
+                    abUserData = sector.getCdUserDataCopy();
+                }
 
-            try {
-                _patchFile.seek(patch.lngOffsetInPatchFile);
+                try {
+                    _patchFile.seek(patch.lngOffsetInPatchFile);
+                    assert abUserData != null; // is not null if sector is not null
+                    IO.readByteArray(_patchFile, abUserData, patch.iOffsetInSector, patch.iNumberOfBytesToReplace);
+                } catch (IOException ex) {
+                    throw new PatchReadException(_patchFileName, ex);
+                }
+
+                if (pl.isSeekingEvent())
+                    pl.event(new UnlocalizedMessage("Applying patch " + i + " of " + _patches.size()));
+                pl.progressUpdate(i);
+            }
+            if (sector != null) {
+                // final write
                 assert abUserData != null; // is not null if sector is not null
-                IO.readByteArray(_patchFile, abUserData, patch.iOffsetInSector, patch.iNumberOfBytesToReplace);
-            } catch (IOException ex) {
-                throw new PatchReadException(_patchFileName, ex);
+                cd.writeSector(sector.getSectorIndexFromStart(), abUserData);
             }
 
-            if (pl.isSeekingEvent())
-                pl.event(new UnlocalizedMessage("Applying patch " + i + " of " + _patches.size()));
-            pl.progressUpdate(i);
+            pl.progressEnd();
+        } finally {
+            // if the patches were applied, discard the temp file.
+            // if there were errors, discard it as well because the disc
+            // image is now in a broken state and this shouldn't be used again
+            discard();
         }
-        if (sector != null) {
-            // final write
-            assert abUserData != null; // is not null if sector is not null
-            cd.writeSector(sector.getSectorIndexFromStart(), abUserData);
-        }
-
-        pl.progressEnd();
-        IO.closeSilently(_patchFile, LOG); // the patches were applied, don't care thes close fails
     }
 
-    public void cancel() {
-        IO.closeSilently(_patchFile, LOG); // throw away the patch file
+    /** Silently throws away the temp patch file. */
+    public void discard() {
+        if (_patchFile == null)
+            return;
+        IO.closeSilently(_patchFile, LOG);
+        _patchFile = null;
+    }
+
+    /** Same as {@link #discard()}. */
+    @Override
+    public void close() {
+        discard();
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        discard();
     }
 
 }

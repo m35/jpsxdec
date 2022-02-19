@@ -44,6 +44,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import jpsxdec.util.Fraction;
+import jpsxdec.util.Misc;
 
 /** Functions and classes to calculate the frame rate of standard STR movies.
  *
@@ -152,13 +153,16 @@ public class StrFrameRateCalc {
     private WholeNumberSectorsPerFrame _wholeFrameRate;
     @CheckForNull
     private LinkedList<InconsistentFrameSequence> _inconsistentFrameRate;
+    private final FpsSequence.Builder _fpsBuidler = new FpsSequence.Builder();
 
     public StrFrameRateCalc(int iFirstFrameStartSector, int iFirstFrameEndSector) {
+        _fpsBuidler.addFrame(iFirstFrameStartSector, iFirstFrameEndSector);
         _wholeFrameRate = new WholeNumberSectorsPerFrame(iFirstFrameEndSector);
         _inconsistentFrameRate = InconsistentFrameSequence.generate(iFirstFrameStartSector, iFirstFrameEndSector);
     }
 
     public void addFrame(int iNextFrameStartSector, int iNextFrameEndSector) {
+        _fpsBuidler.addFrame(iNextFrameStartSector, iNextFrameEndSector);
         if (_wholeFrameRate != null)
             if (!_wholeFrameRate.matchesNextVideo(iNextFrameStartSector, iNextFrameEndSector))
                 _wholeFrameRate = null; // failed to match any whole number frame rates
@@ -168,7 +172,7 @@ public class StrFrameRateCalc {
                 if (!it.next().matchesNextVideo(iNextFrameStartSector, iNextFrameEndSector))
                     it.remove();
             }
-            if (_inconsistentFrameRate.size() == 0)
+            if (_inconsistentFrameRate.isEmpty())
                 _inconsistentFrameRate = null; // failed to match any inconsistent frame rates
         }
     }
@@ -191,36 +195,133 @@ public class StrFrameRateCalc {
 
     //--------------------------------------------------------------------------
 
-    public @CheckForNull Fraction getSectorsPerFrame() {
+    public @CheckForNull Fraction getSectorsPerFrame(int iStartSector, int iEndSector, int iFrameCount) {
+
+        char cCaseFpsSeqMatch;
+        char cCaseOriginalLogicMatch;
+        char cCase1SectPerFrm;
+        char cCaseOldAndNewSame;
+        char cCaseHasNewFps;
+        char cCaseIsVfr;
+        char cCase1Frame;
+
+        int iSectorSize = iEndSector - iStartSector + 1;
+        float fltAverage = (float)iSectorSize / iFrameCount;
+
         StringBuilder sbLog = null;
         if (LOG.isLoggable(Level.INFO)) {
             sbLog = new StringBuilder(toString());
         }
 
-        Fraction sectorsPerFrame = null;
+        Fraction oldSectorPerFrame = null;
         if (_wholeFrameRate != null) {
+            cCaseOriginalLogicMatch = '1';
             int[] aiPossibleSectorsPerFrame = _wholeFrameRate.getPossibleSectorsPerFrame();
             if (aiPossibleSectorsPerFrame != null) {
-                sectorsPerFrame = new Fraction(aiPossibleSectorsPerFrame[aiPossibleSectorsPerFrame.length-1]);
+                oldSectorPerFrame = new Fraction(aiPossibleSectorsPerFrame[aiPossibleSectorsPerFrame.length-1]);
             }
         } else if (_inconsistentFrameRate != null) {
+            cCaseOriginalLogicMatch = '1';
             for (InconsistentFrameSequence frameSeq : _inconsistentFrameRate) {
+                LOG.log(Level.INFO, "Frame rate match for video in sectors {0,number,#}-{1,number,#} ({2,number,#} frames / {3,number,#} sectors): {4}",
+                        new Object[]{iStartSector, iEndSector, iFrameCount, iSectorSize, frameSeq});
                 Fraction frmSeqSpf = frameSeq.getSectorsPerFrame();
-                if (sectorsPerFrame == null)
-                    sectorsPerFrame = frmSeqSpf;
+                if (oldSectorPerFrame == null)
+                    oldSectorPerFrame = frmSeqSpf;
                 else {
-                    if (frmSeqSpf.getNumerator() < sectorsPerFrame.getNumerator())
-                        sectorsPerFrame = frmSeqSpf;
+                    if (frmSeqSpf.getNumerator() < oldSectorPerFrame.getNumerator())
+                        oldSectorPerFrame = frmSeqSpf;
                 }
             }
+        } else {
+            cCaseOriginalLogicMatch = '0';
+        }
+
+
+        Fraction newFps;
+        FpsSequence.Match newMatch = null;
+        cCase1Frame = iFrameCount == 1 ? '1' : '0';
+
+        if (iFrameCount == iSectorSize) {
+            newFps = new Fraction(1);
+            cCase1SectPerFrm = '1';
+            cCaseFpsSeqMatch = 'x';
+            cCaseHasNewFps = '1';
+            cCaseIsVfr = '0';
+        } else if (iFrameCount == 1) {
+            newFps = new Fraction(iSectorSize);
+            cCase1SectPerFrm = '0';
+            cCaseFpsSeqMatch = 'x';
+            cCaseHasNewFps = '1';
+            cCaseIsVfr = '0';
+        } else {
+            cCase1SectPerFrm = '0';
+
+            newMatch = _fpsBuidler.findMatch();
+            if (newMatch != null) {
+                LOG.log(Level.INFO, "Matching fps sequence: {0}", newMatch);
+                if (false && newMatch.iMatchesAtSector != 0) {
+                    System.out.println(newMatch);
+                    System.out.println(newMatch.sBuiltSequence);
+                }
+                cCaseFpsSeqMatch = '1';
+                cCaseHasNewFps = '1';
+
+                newFps = newMatch.sectorPerFrame;
+
+                if (newMatch.blnOneToOne) {
+                    cCaseIsVfr = '0';
+                } else {
+                    cCaseIsVfr = '1';
+                }
+            } else {
+                cCaseFpsSeqMatch = '0';
+                cCaseHasNewFps = '0';
+                cCaseIsVfr = 'x';
+
+                newFps = null;
+            }
+
+        }
+
+        if (Misc.objectEquals(newFps, oldSectorPerFrame)) {
+            cCaseOldAndNewSame = '1';
+        } else {
+            cCaseOldAndNewSame = '0';
         }
 
         if (sbLog != null) {
-            if (sectorsPerFrame != null)
-                sbLog.append(" Chose ").append(sectorsPerFrame);
+            if (oldSectorPerFrame != null)
+                sbLog.append(" Chose ").append(oldSectorPerFrame);
             LOG.info(sbLog.toString());
         }
-        return sectorsPerFrame;
+
+        if (LOG.isLoggable(Level.INFO)) {
+            String s = String.format("Sectors %d-%d (%d) frames %d average %s "
+                    + "CASE%c%c%c%c%c%c%c "
+                    + "old %s new %s",
+                iStartSector, iEndSector, iSectorSize, iFrameCount, new Fraction(iSectorSize, iFrameCount),
+
+                cCaseOriginalLogicMatch,
+                cCase1Frame,
+                cCase1SectPerFrm,
+                cCaseFpsSeqMatch,
+                cCaseIsVfr,
+                cCaseHasNewFps,
+                cCaseOldAndNewSame,
+
+                oldSectorPerFrame, newFps
+            );
+
+            if (newMatch != null) {
+                String s2 = String.format(" @%06d vfr %s %s", newMatch.iMatchesAtSector, !newMatch.blnOneToOne, newMatch.sDescription);
+                s += s2;
+            }
+
+            LOG.info(s);
+        }
+
+        return newFps;
     }
 
 }

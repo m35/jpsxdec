@@ -41,7 +41,7 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
@@ -50,7 +50,7 @@ import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.Fraction;
 
-
+/** @see SPacket */
 public class DemuxedPolicenautsFrame implements IDemuxedFrame {
     private final int _iWidth, _iHeight;
     private final SPacketData _data;
@@ -122,7 +122,7 @@ public class DemuxedPolicenautsFrame implements IDemuxedFrame {
     }
 
     @Override
-    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, CdFileSectorReader cd, ILocalizedLogger log) {
+    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, DiscPatcher patcher, ILocalizedLogger log) {
         throw new UnsupportedOperationException("Replacing Policenauts frames is not supported");
     }
 }

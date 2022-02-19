@@ -44,7 +44,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
 import jpsxdec.adpcm.SpuAdpcmSoundUnit;
 
-
+/** Wraps a {@link SPacketPos} with the actual packet data. */
 public class SPacketData {
 
     @Nonnull

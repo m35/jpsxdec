@@ -140,7 +140,8 @@ public class CdSectorHeader {
     }
 
     /** @return The sector number from the sector header, or -1 if header is corrupted.
-     *  @throws UnsupportedOperationException if CD sector.  */
+     * i.e. Logical Block Addressing (LBA).
+     *  @throws UnsupportedOperationException if CD sector. */
     public int calculateSectorNumber() {
         if (_eType == Type.CD_AUDIO)
             throw new UnsupportedOperationException(
@@ -170,8 +171,10 @@ public class CdSectorHeader {
     public String toString() {
         if (_eType == Type.CD_AUDIO)
             return "CD audio sector";
-        return String.format("Mode:%d Number:%02x'%02x\"%02xs=%d",
-                _iMode, _iMinutesBCD, _iSecondsBCD, _iSectorsBCD, calculateSectorNumber());
+        int iSectorNumCalc = calculateSectorNumber();
+        return String.format("Mode:%d Number:%02x'%02x\"%02xs=%s",
+                _iMode, _iMinutesBCD, _iSecondsBCD, _iSectorsBCD,
+                iSectorNumCalc < 0 ? "error" : String.valueOf(iSectorNumCalc));
     }
 
     public boolean hasErrors() {

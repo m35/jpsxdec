@@ -38,13 +38,14 @@
 package jpsxdec.modules.player;
 
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
+import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 import jpsxdec.modules.video.DiscItemVideoStream;
 import jpsxdec.modules.video.IDemuxedFrame;
@@ -71,7 +72,7 @@ public class MediaPlayer implements IMediaDataReader {
     private final int _iMovieStartSector;
     private final int _iMovieEndSector;
     @Nonnull
-    private final CdFileSectorReader _cdReader;
+    private final ICdSectorReader _cdReader;
 
     @Nonnull
     private final PlayController _controller;
@@ -83,29 +84,24 @@ public class MediaPlayer implements IMediaDataReader {
 
     private final int _iSectorsPerSecond;
 
-    public MediaPlayer(@Nonnull DiscItemVideoStream vid, @Nonnull ISectorClaimToDemuxedFrame demuxer) {
-        this(vid, demuxer, vid.getStartSector(), vid.getEndSector());
+    public MediaPlayer(@Nonnull DiscItemVideoStream vid, @Nonnull ISectorClaimToDemuxedFrame demuxer, int iSectorPerSecond) {
+        this(vid, demuxer, vid.getStartSector(), vid.getEndSector(), iSectorPerSecond);
     }
 
 
     public MediaPlayer(@Nonnull DiscItemVideoStream vid, @Nonnull ISectorClaimToDemuxedFrame demuxer,
-                       int iSectorStart, int iSectorEnd)
+                       int iSectorStart, int iSectorEnd, int iSectorPerSecond)
     {
-        this(vid, demuxer, null, iSectorStart, iSectorEnd);
+        this(vid, demuxer, null, iSectorStart, iSectorEnd, iSectorPerSecond);
     }
 
     //-----------------------------------------------------------------------
 
-    public MediaPlayer(@Nonnull DiscItemAudioStream aud) {
+    public MediaPlayer(@Nonnull DiscItemSectorBasedAudioStream aud, int iSectorPerSecond) {
         _cdReader = aud.getSourceCd();
         _iMovieStartSector = aud.getStartSector();
         _iMovieEndSector = aud.getEndSector();
-        if (aud.getDiscSpeed() == 1) {
-            _iSectorsPerSecond = 75;
-        } else {
-            // if disc speed is unknown, assume 2x
-            _iSectorsPerSecond = 150;
-        }
+        _iSectorsPerSecond = iSectorPerSecond;
 
         ISectorAudioDecoder audioDecoder = aud.makeDecoder(1.0);
         _demuxAutowire.setAudioDecoder(audioDecoder);
@@ -124,20 +120,15 @@ public class MediaPlayer implements IMediaDataReader {
     public MediaPlayer(@Nonnull DiscItemVideoStream vid,
                        @Nonnull ISectorClaimToDemuxedFrame demuxer,
                        @Nonnull ISectorAudioDecoder audioDecoder, // tell everyone this can't be null, but secretly allow it
-                       int iSectorStart, int iSectorEnd)
+                       int iSectorStart, int iSectorEnd, int iSectorPerSecond)
     {
         // do the video init
         _cdReader = vid.getSourceCd();
         _iMovieStartSector = iSectorStart;
         _iMovieEndSector = iSectorEnd;
-        if (vid.getDiscSpeed() == 1) {
-            _iSectorsPerSecond = 75;
-        } else {
-            // if disc speed is unknown, assume 2x
-            _iSectorsPerSecond = 150;
-        }
+        _iSectorsPerSecond = iSectorPerSecond;
 
-        _demuxAutowire.setMap(demuxer);
+        _demuxAutowire.setSectorClaim2Frame(demuxer);
 
         if (audioDecoder == null) {
             _controller = new PlayController(vid.getWidth(), vid.getHeight());
@@ -151,13 +142,11 @@ public class MediaPlayer implements IMediaDataReader {
 
         ProcessingThread pt = new ProcessingThread(vid.getWidth(), vid.getHeight());
         _controller.setVidProcressor(pt);
-        _decodeAutowire.setMap(pt);
+        _decodeAutowire.setFrame2Bitstream(pt);
+        _decodeAutowire.setBitstream2Mdec(new VDP.Bitstream2Mdec());
+        _decodeAutowire.setMdec2Decoded(new VDP.Mdec2Decoded(new MdecDecoder_int(new SimpleIDCT(), vid.getWidth(), vid.getHeight()), DebugLogger.Log));
         _decodeAutowire.setDecodedListener(pt);
-        _decodeAutowire.setMap(new VDP.Mdec2Decoded(new MdecDecoder_int(new SimpleIDCT(), vid.getWidth(), vid.getHeight()), DebugLogger.Log));
-        _decodeAutowire.setMap(new VDP.Bitstream2Mdec());
         _decodeAutowire.autowire();
-
-        vid.getAbsolutePresentationStartSector(); // <-- TODO check if it would be better to align on initial presentation sector
 
         _demuxAutowire.setFrameListener(new DemuxFrameToPlayerProcessor(_controller.getFrameWriter(), _iMovieStartSector, _iSectorsPerSecond));
 
@@ -171,20 +160,22 @@ public class MediaPlayer implements IMediaDataReader {
             final int iSectorLength = _iMovieEndSector - _iMovieStartSector + 1;
 
             SectorClaimSystem it = SectorClaimSystem.create(_cdReader, _iMovieStartSector, _iMovieEndSector);
-            _demuxAutowire.attachToSectorClaimer(it);
+            _demuxAutowire.attachToSectorClaimSystem(it);
             _demuxAutowire.autowire();
 
             IIdentifiedSector identifiedSector;
             for (int iSector = 0; it.hasNext() && !controller.isClosed(); iSector++) {
                 identifiedSector = it.next(DebugLogger.Log);
             }
-            it.close(DebugLogger.Log);
-        } catch (WrapIOException ex) {
+            it.flush(DebugLogger.Log);
+        } catch (WrapException ex) {
             if (ex.getCause() instanceof StopPlayingException)
                 throw (StopPlayingException)ex.getCause();
             else
                 throw new StopPlayingException(ex.getCause());
-        } catch (CdFileSectorReader.CdReadException ex) {
+        } catch (CdReadException ex) {
+            throw new StopPlayingException(ex);
+        } catch (LoggedFailure ex) {
             throw new StopPlayingException(ex);
         }
     }
@@ -215,7 +206,7 @@ public class MediaPlayer implements IMediaDataReader {
             try {
                 _processor.writeFrame(frame, lngPresentationNanos);
             } catch (StopPlayingException ex) {
-                throw new WrapIOException(ex);
+                throw new WrapException(ex);
             }
         }
     }
@@ -228,7 +219,7 @@ public class MediaPlayer implements IMediaDataReader {
         private int[] _aiDrawHere;
 
         public ProcessingThread(int iWidth, int iHeight) {
-            super(FrameNumber.Type.Index);
+            super(FrameNumber.Type.Index, DebugLogger.Log);
             _iWidth = iWidth;
             _iHeight = iHeight;
         }

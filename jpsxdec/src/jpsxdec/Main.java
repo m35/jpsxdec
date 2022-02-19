@@ -37,11 +37,10 @@
 
 package jpsxdec;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jpsxdec.cmdline.CommandLine;
@@ -54,36 +53,16 @@ public class Main {
     private static final Logger LOG = Logger.getLogger(Main.class.getName());
 
 
-    private static boolean loadLoggerConfigFromSystemProperty() {
+    /** @see LogManager */
+    private static boolean isLoggerConfiguredFromProperty() {
         String sLogConfigFile = System.getProperty("java.util.logging.config.file");
-        if (sLogConfigFile == null)
-            return false;
+        if (sLogConfigFile != null)
+            return true;
+        String sLogConfigClass = System.getProperty("java.util.logging.config.class");
+        if (sLogConfigClass != null)
+            return true;
 
-        FileInputStream fis;
-        try {
-            fis = new FileInputStream(sLogConfigFile);
-        } catch (FileNotFoundException ex) {
-            ex.printStackTrace();
-            return false;
-        }
-
-        boolean blnSuccess = false;
-
-        try {
-            java.util.logging.LogManager.getLogManager().readConfiguration(fis);
-            blnSuccess = true;
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            blnSuccess = false;
-        } finally {
-            try {
-                fis.close();
-            } catch (IOException ex1) {
-                ex1.printStackTrace();
-                blnSuccess = false;
-            }
-        }
-        return blnSuccess;
+        return false;
     }
 
     public static void loadDefaultLogger() {
@@ -107,7 +86,7 @@ public class Main {
 
     /** Main entry point to the jPSXdec program. */
     public static void main(final String[] asArgs) {
-        if (!loadLoggerConfigFromSystemProperty())
+        if (!isLoggerConfiguredFromProperty())
             loadDefaultLogger();
 
         ArgParser ap = new ArgParser(asArgs);

@@ -48,7 +48,7 @@ import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.UnlocalizedMessage;
@@ -68,7 +68,7 @@ import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.ParsedMdecImage;
-import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
+import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.util.BinaryDataNotRecognized;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -168,7 +168,7 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
     }
 
     @Override
-    public void replace(@Nonnull IDemuxedFrame frame, @Nonnull CdFileSectorReader cd,
+    public void replace(@Nonnull IDemuxedFrame frame, @Nonnull DiscPatcher patcher,
                         @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
@@ -193,7 +193,7 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
             throw new LoggedFailure(log, Level.SEVERE, I.FRAME_NUM_INCOMPLETE(getFrameLookup().toString()), ex);
         }
 
-        MdecDecoder_double decoder = new MdecDecoder_double(new StephensIDCT(), WIDTH, HEIGHT);
+        MdecDecoder_double decoder = new MdecDecoder_double(new PsxMdecIDCT_double(), WIDTH, HEIGHT);
         ParsedMdecImage optimizedOrig;
         try {
             // remove any redundant AC=0 codes to save more space for the replaced parts
@@ -255,7 +255,7 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
         }
 
         // 5. replace the frame
-        frame.writeToSectors(existingFrame, newFrame, cd, log);
+        frame.writeToSectors(existingFrame, newFrame, patcher, log);
     }
 
     private void printDiffMacroBlocks(@Nonnull ArrayList<Point> diffMacblks,

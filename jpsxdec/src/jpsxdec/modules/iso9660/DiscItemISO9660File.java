@@ -59,7 +59,8 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.discitems.CombinedBuilderListener;
 import jpsxdec.discitems.DiscItem;
@@ -102,7 +103,7 @@ public class DiscItemISO9660File extends DiscItem {
 
     private final SortedSet<DiscItem> _children = new TreeSet<DiscItem>();
 
-    public DiscItemISO9660File(@Nonnull CdFileSectorReader cd,
+    public DiscItemISO9660File(@Nonnull ICdSectorReader cd,
                                int iStartSector, int iEndSector,
                                @Nonnull File path, long lngSize,
                                boolean hasMode2Form2, boolean blnHasCdAudio)
@@ -116,7 +117,7 @@ public class DiscItemISO9660File extends DiscItem {
         super.setIndexId(new IndexId(path));
     }
 
-    public DiscItemISO9660File(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemISO9660File(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -351,7 +352,7 @@ public class DiscItemISO9660File extends DiscItem {
                     CdSector cdSector;
                     try {
                         cdSector = getSourceCd().getSector(iSector);
-                    } catch (CdFileSectorReader.CdReadException ex) {
+                    } catch (CdReadException ex) {
                         throw new LoggedFailure(pl, Level.SEVERE, I.IO_READING_FROM_FILE_ERROR_NAME(
                                                 ex.getFile().toString()), ex);
                     }

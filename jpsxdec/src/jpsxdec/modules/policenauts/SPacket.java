@@ -40,6 +40,7 @@ package jpsxdec.modules.policenauts;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
@@ -50,22 +51,53 @@ import jpsxdec.util.Fraction;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
-/** Policenauts FMVs consist of several packets of data.
- * All the packets have a type identifier, and all the identifiers start with
- * the letter 'S'. */
+/**
+ * Policenauts is a game released only in Japan, not originally for PlayStation,
+ * but was later ported to the PlayStation. I suspect this is why the FMVs used
+ * in the game are in a unique packet-based format.
+ *
+ * There are several packet types, all with a type identifier. All the
+ * identifiers start with the letter 'S'. The packet types consist of more than
+ * just the audio and video frames. The subtitles are perhaps the most
+ * interesting of the extra metadata packets. But this implementation only
+ * supports the audio and video packets.
+ *
+ * Videos begin with a {@link SectorPN_VMNK} sector, followed by a
+ * {@link SectorPN_KLBS} sector followed by 128 sectors of packets, then another
+ * {@link SectorPN_KLBS} sector followed by 128 sectors of packets, repeat until
+ * there isn't a {@link SectorPN_KLBS} sector.
+ */
 public class SPacket {
 
+    private static final Logger LOG = Logger.getLogger(SPacket.class.getName());
+
+    // Frome these values, all other values can be derived
     public static final int AUDIO_SAMPLE_FRAMES_PER_SECOND = 44100; // confirmed
+    /** The duration value of (almost?) every video frame packet.
+     * @see #_iDuration */
+    private static final int COMMON_FRAME_PACKET_DURATION = 20;
+    /** Size of (almost?) every audio packet.
+     * @see #_iSize */
+    private static final int COMMON_AUDIO_PACKET_BYTE_SIZE = 16384;
+    /** The duration value of (almost?) every audio packet.
+     * @see #_iDuration */
+    private static final int COMMON_AUDIO_PACKET_DURATION = 156;
+
+    // Derived values
     public static final AudioFormat AUDIO_FORMAT = new AudioFormat(AUDIO_SAMPLE_FRAMES_PER_SECOND, 16, 1, true, false);
-    public static final Fraction AUDIO_SAMPLE_FRAMES_PER_TIMESTAMP =
-            new Fraction(16384 / SpuAdpcmSoundUnit.SIZEOF_SOUND_UNIT * SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT, 156);
-    public static final Fraction TIMESTAMP_UNITS_PER_SECOND = Fraction.divide(AUDIO_SAMPLE_FRAMES_PER_SECOND, AUDIO_SAMPLE_FRAMES_PER_TIMESTAMP);
-    public static final Fraction SECONDS_PER_TIMESTAMP = Fraction.divide(1, TIMESTAMP_UNITS_PER_SECOND);
+    private static final Fraction AUDIO_SAMPLE_FRAMES_PER_TIMESTAMP =
+            new Fraction((COMMON_AUDIO_PACKET_BYTE_SIZE / SpuAdpcmSoundUnit.SIZEOF_SOUND_UNIT) * SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT,
+                         COMMON_AUDIO_PACKET_DURATION);
+    private static final Fraction TIMESTAMP_UNITS_PER_SECOND = Fraction.divide(AUDIO_SAMPLE_FRAMES_PER_SECOND, AUDIO_SAMPLE_FRAMES_PER_TIMESTAMP);
+    private static final Fraction SECONDS_PER_TIMESTAMP = Fraction.divide(1, TIMESTAMP_UNITS_PER_SECOND);
 
-    public static final int TIMESTAMP_UNITS_PER_FRAME = 20;
-    public static final Fraction FRAMES_PER_SECOND = TIMESTAMP_UNITS_PER_SECOND.divide(TIMESTAMP_UNITS_PER_FRAME);
+    /** This ultimately comes to 12285/1024 = 11.9970703125.
+     * Note this is not 15fps as reported by director Hideo Kojima ;) */
+    public static final Fraction FRAMES_PER_SECOND = TIMESTAMP_UNITS_PER_SECOND.divide(COMMON_FRAME_PACKET_DURATION);
 
+    /** Sectors/frame if the disc is spinning at 2x (150 sectors/second). */
     public static final Fraction SECTORS150_PER_FRAME = Fraction.divide(150, FRAMES_PER_SECOND);
+    /** Sectors/timestamp if the disc is spinning at 2x (150 sectors/second). */
     public static final Fraction SECTORS150_PER_TIMESTAMP = SECONDS_PER_TIMESTAMP.multiply(150);
 
     public enum Type {
@@ -115,18 +147,23 @@ public class SPacket {
         } catch (IllegalArgumentException ex) {
             throw new BinaryDataNotRecognized(ex);
         }
+        // Check all values to make sure they're all generally within expexted ranges
         _iTimestamp = IO.readSInt32LE(is);
         if (_iTimestamp < 0 || _iTimestamp > 63780)
             throw new BinaryDataNotRecognized();
         _iDuration = IO.readSInt32LE(is);
         if (_iDuration < 0 || _iDuration > 156)
-            throw new BinaryDataNotRecognized();
+            throw new BinaryDataNotRecognized("Duration " + _iDuration);
+        // TODO track frame duration for a video and calculate the FPS based on that, instead of the hard-coded one above
+        if (_type == Type.SCIPPDTS && _iDuration != COMMON_FRAME_PACKET_DURATION)
+            throw new BinaryDataNotRecognized("Video frame packet does not have common duration: "+
+                                              _iDuration + " != " + COMMON_FRAME_PACKET_DURATION);
         _iOffset = IO.readSInt32LE(is);
         if (_iOffset < 1)
             throw new BinaryDataNotRecognized();
         _iSize = IO.readSInt32LE(is);
         if (_iSize < 5 || _iSize > 17000)
-            throw new BinaryDataNotRecognized();
+            throw new BinaryDataNotRecognized("Size " + _iSize);
         lng8Zeroes = IO.readSInt64BE(is);
         if (lng8Zeroes != 0)
             throw new BinaryDataNotRecognized();

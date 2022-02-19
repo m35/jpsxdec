@@ -161,9 +161,9 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
         public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream {
             if (!__curMb.hasNext()) {
                 // end of current macroblock, move to next
+                __iCurMacBlk++;
                 if (__iCurMacBlk >= _aoMacroBlocks.length)
                     throw new MdecException.EndOfStream("Read beyond EncodedMdecInputStream");
-                __iCurMacBlk++;
                 __curMb = _aoMacroBlocks[__iCurMacBlk].iterator();
             }
             code.setFrom(__curMb.next());

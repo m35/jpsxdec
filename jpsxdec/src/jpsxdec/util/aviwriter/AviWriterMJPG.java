@@ -41,18 +41,11 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.imageio.IIOImage;
-import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
-import javax.imageio.stream.MemoryCacheImageOutputStream;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.util.ExposedBAOS;
+import jpsxdec.util.FastImageIOwriteToBytes;
 
 /**
  * MJPG implementation of AVI writer. It's really just a JPEG file stuffed
@@ -75,32 +68,12 @@ import jpsxdec.util.ExposedBAOS;
  */
 public class AviWriterMJPG extends AviWriter {
 
-    /** Hold's true if system can write "jpeg" images. */
-    private final static boolean CAN_ENCODE_JPEG;
-    static {
-        // check if the system can write "jpeg" images
-        boolean bln = false;
-        for (String s : ImageIO.getReaderFormatNames()) {
-            if (s.equals("jpeg")) {
-                bln = true;
-                break;
-            }
-        }
-        CAN_ENCODE_JPEG = bln;
-    }
-
     // -------------------------------------------------------------------------
     // -- Fields ---------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-
-    /** The image writer used to convert the BufferedImages to JPEG. */
     @Nonnull
-    private final ImageWriter _imgWriter;
-    /** Only used not using default quality level. */
-    @CheckForNull
-    private final ImageWriteParam _writeParams;
-
+    private final FastImageIOwriteToBytes _img2bytes;
 
     // -------------------------------------------------------------------------
     // -- Constructors ---------------------------------------------------------
@@ -140,25 +113,16 @@ public class AviWriterMJPG extends AviWriter {
     {
         super(outputfile, iWidth, iHeight, lngFrames, lngPerSecond, audioFormat, true, "MJPG", AVIstruct.string2int("MJPG"));
 
-        if (!CAN_ENCODE_JPEG) {
-            closeSilentlyDueToError();
-            throw new UnsupportedOperationException("Unable to create 'jpeg' images on this platform.");
-        }
+        _img2bytes = new FastImageIOwriteToBytes("jpeg");
 
-        Iterator<ImageWriter> iter = ImageIO.getImageWritersByFormatName("jpeg");
-        _imgWriter = iter.next();
-
-        if (fltLossyQuality < 0 || fltLossyQuality > 1) {
-            _writeParams = null;
-        } else {
+        if (fltLossyQuality >= 0 && fltLossyQuality <= 1) {
             // TODO: Make sure thumbnails are not being created in the jpegs
-            _writeParams = _imgWriter.getDefaultWriteParam();
+            ImageWriteParam writeParams = _img2bytes.getDefaultWriteParam();
 
-            _writeParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            writeParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
             // 0 for lowest qulaity, 1 for highest
-            _writeParams.setCompressionQuality(fltLossyQuality);
+            writeParams.setCompressionQuality(fltLossyQuality);
         }
-
     }
 
     // -------------------------------------------------------------------------
@@ -175,9 +139,10 @@ public class AviWriterMJPG extends AviWriter {
             throw new IllegalArgumentException("AviWriter: Frame height doesn't match" +
                     " (was " + getHeight() + ", now " + bi.getHeight() + ").");
 
-        ExposedBAOS out = image2MJPEG(bi);
+        bi = FastImageIOwriteToBytes.ensureOpaque(bi);
+        _img2bytes.convert(bi);
 
-        writeFrameChunk(out.getBuffer(), 0, out.size());
+        writeFrameChunk(_img2bytes.getWrittenBytes(), 0, _img2bytes.getWrittenByteSize());
     }
 
     /** @param abJpeg Must be a jpeg image */
@@ -189,54 +154,6 @@ public class AviWriterMJPG extends AviWriter {
     public void writeBlankFrame() throws IOException {
         BufferedImage bi = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
         writeFrame(bi);
-    }
-
-    // -------------------------------------------------------------------------
-    // -- Private functions ----------------------------------------------------
-    // -------------------------------------------------------------------------
-
-    /** Converts a BufferedImage into a frame to be written into a MJPG avi. */
-    private @Nonnull ExposedBAOS image2MJPEG(@Nonnull BufferedImage img) throws IOException {
-        ExposedBAOS jpgStream = writeImageToBytes(img, new ExposedBAOS());
-        return jpgStream;
-    }
-
-    private @Nonnull ExposedBAOS writeImageToBytes(@Nonnull BufferedImage img,
-                                                   @Nonnull ExposedBAOS out)
-            throws IOException
-    {
-        // have to wrap the ByteArrayOutputStream with a MemoryCacheImageOutputStream
-        MemoryCacheImageOutputStream imgOut = new MemoryCacheImageOutputStream(out);
-        // set our image writer's output stream
-        _imgWriter.setOutput(imgOut);
-
-        // wrap the BufferedImage with a IIOImage
-        IIOImage imgIO = new IIOImage(img, null, null);
-        boolean blnException = true;
-        try {
-            // finally write the buffered image to the output stream
-            // using our parameters (if any)
-            _imgWriter.write(null, imgIO, _writeParams);
-            // don't forget to flush
-            imgOut.flush();
-            blnException = false;
-        } finally {
-            // clear image writer's output stream
-            _imgWriter.setOutput(null);
-            if (blnException) {
-                try {
-                    imgOut.close();
-                } catch (IOException ex) {
-                    Logger.getLogger(AviWriterMJPG.class.getName())
-                            .log(Level.SEVERE, "Exception closing " + imgOut.getClass().getName(), ex);
-                }
-            } else {
-                imgOut.close(); // expose close exception
-            }
-        }
-
-        // return the result
-        return out;
     }
 
 }

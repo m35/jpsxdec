@@ -54,7 +54,7 @@ public class PsxYCbCr_int {
     public static final int FIXED_BITS = 16;
     public static final double FIXED_MULT = 1L << FIXED_BITS;
 
-    // these values produce perfect hardware YCbCr conversion.
+    // these values will simulate accurate hardware YCbCr conversion.
     // they weren't very difficult to find because the YCbCr->RGB conversion
     // equation is quite forgiving. There are many values which would
     // generate perfect hardware emulation.

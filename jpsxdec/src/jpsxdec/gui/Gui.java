@@ -61,6 +61,7 @@ import javax.swing.filechooser.FileFilter;
 import jpsxdec.Main;
 import jpsxdec.Version;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
@@ -284,7 +285,7 @@ public class Gui extends javax.swing.JFrame {
     }
 
     private void setIndex(@Nonnull DiscIndex index, @CheckForNull String sIndexFile) {
-        final CdFileSectorReader oldCd;
+        final ICdSectorReader oldCd;
         if (_index == null)
             oldCd = null;
         else
@@ -362,7 +363,7 @@ public class Gui extends javax.swing.JFrame {
     // -- Basic disc load/save operations --------------------------------------
     // -------------------------------------------------------------------------
 
-    private void setDisc(@Nonnull CdFileSectorReader cd) {
+    private void setDisc(@Nonnull ICdSectorReader cd) {
         _guiDiscInfoLine1.setText(cd.getSourceFile().getAbsoluteFile().getPath());
         _guiDiscInfoLine2.setText(cd.getTypeDescription().getLocalizedMessage());
 
@@ -375,7 +376,7 @@ public class Gui extends javax.swing.JFrame {
             _settings.setImageDir(dir.getAbsolutePath());
         try {
 
-            CdFileSectorReader cd = CdFileSectorReader.open(file);
+            ICdSectorReader cd = CdFileSectorReader.open(file);
 
             if (!cd.hasSectorHeader())
                 JOptionPane.showMessageDialog(this, I.GUI_DISC_NO_RAW_HEADERS_WARNING());
@@ -642,7 +643,7 @@ public class Gui extends javax.swing.JFrame {
 
         _guiSaveContainer.add(_guiSaveBtnContainer, java.awt.BorderLayout.SOUTH);
 
-        _guiTab.addTab(I.GUI_SAVE_TAB().getLocalizedMessage(), _guiSaveContainer); // NOI18N
+        _guiTab.addTab("    "+I.GUI_SAVE_TAB().getLocalizedMessage()+"    ", _guiSaveContainer); // NOI18N
 
         _guiPreviewContainer.setLayout(new java.awt.BorderLayout());
 
@@ -657,7 +658,7 @@ public class Gui extends javax.swing.JFrame {
         _guiPreviewPanel.setLayout(new java.awt.BorderLayout());
         _guiPreviewContainer.add(_guiPreviewPanel, java.awt.BorderLayout.CENTER);
 
-        _guiTab.addTab(I.GUI_PLAY_TAB().getLocalizedMessage(), _guiPreviewContainer); // NOI18N
+        _guiTab.addTab("    "+I.GUI_PLAY_TAB().getLocalizedMessage()+"    ", _guiPreviewContainer); // NOI18N
 
         _guiTabContainer.add(_guiTab, java.awt.BorderLayout.CENTER);
         _guiTab.getAccessibleContext().setAccessibleName("DoStuffTabs");

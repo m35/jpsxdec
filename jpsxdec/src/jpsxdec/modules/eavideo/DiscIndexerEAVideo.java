@@ -42,7 +42,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -50,7 +51,6 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.indexing.DiscIndexer;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.util.BinaryDataNotRecognized;
@@ -147,7 +147,7 @@ public class DiscIndexerEAVideo extends DiscIndexer implements EASectorToEAPacke
             }
         }
 
-        public @Nonnull DiscItemEAVideo makeItem(@Nonnull CdFileSectorReader cd) throws BinaryDataNotRecognized {
+        public @Nonnull DiscItemEAVideo makeItem(@Nonnull ICdSectorReader cd) throws BinaryDataNotRecognized {
             if (_vidBuilder == null)
                 throw new BinaryDataNotRecognized();
 

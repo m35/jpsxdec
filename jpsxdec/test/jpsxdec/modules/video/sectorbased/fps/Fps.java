@@ -39,7 +39,6 @@ package jpsxdec.modules.video.sectorbased.fps;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import jpsxdec.util.Fraction;
 import org.junit.*;
@@ -47,26 +46,6 @@ import static org.junit.Assert.*;
 
 
 public class Fps {
-
-    public Fps() {
-    }
-
-    @BeforeClass
-    public static void setUpClass() {
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-    }
-
-    @Before
-    public void setUp() {
-    }
-
-    @After
-    public void tearDown() {
-    }
-
 
     @Test
     public void _20_A8() throws IOException {
@@ -104,31 +83,35 @@ public class Fps {
     public void _LUNAR2_24FPS_A16_S56() throws IOException {
         test("LUNAR2_24FPS_A16(S56).dat", new Fraction(25,4), 0);
     }
-    
+
     private static void test(String sFile, Fraction expected, int iFrameStart) throws IOException {
         System.out.println(sFile);
         System.out.println(expected);
-        InputStream is = Fps.class.getResourceAsStream(sFile);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(Fps.class.getResourceAsStream(sFile)));
+
         reader.readLine(); // skip header
+
         int iStartSector = 0;
         for (int i = 0; i < iFrameStart; i++) {
             String sLine = reader.readLine();
-            InconsistentFrameSequence.LineParse lp =
-                new InconsistentFrameSequence.LineParse(sLine);
+            InconsistentFrameSequence.LineParse lp = new InconsistentFrameSequence.LineParse(sLine);
             iStartSector = lp.iFrameStartSector;
         }
-        String sLine = reader.readLine();
-        InconsistentFrameSequence.LineParse lp =
-            new InconsistentFrameSequence.LineParse(sLine);
 
-        StrFrameRateCalc f = new StrFrameRateCalc(lp.iFrameStartSector, lp.iFrameEndSector);
+        String sLine;
+        StrFrameRateCalc f = null;
         while ((sLine = reader.readLine()) != null) {
-            lp = new InconsistentFrameSequence.LineParse(sLine);
-            f.addFrame(lp.iFrameStartSector - iStartSector, lp.iFrameEndSector - iStartSector);
+            InconsistentFrameSequence.LineParse lp = new InconsistentFrameSequence.LineParse(sLine);
+            if (f == null)
+                f = new StrFrameRateCalc(lp.iFrameStartSector, lp.iFrameEndSector);
+            else
+                f.addFrame(lp.iFrameStartSector - iStartSector, lp.iFrameEndSector - iStartSector);
         }
 
-        Fraction actual = f.getSectorsPerFrame();
+        reader.close();
+
+        Fraction actual = f.getSectorsPerFrame(-1, -1, -1);
         System.out.println(expected);
         System.out.println(actual);
         assertEquals(expected, actual);

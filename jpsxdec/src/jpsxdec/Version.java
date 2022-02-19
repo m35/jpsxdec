@@ -39,7 +39,7 @@ package jpsxdec;
 
 public class Version {
 
-    public final static String Version = "1.05 (beta)";
+    public final static String Version = "1.06 (beta)";
     public final static String IndexHeader = "[jPSXdec v"+Version+"]";
 
 }

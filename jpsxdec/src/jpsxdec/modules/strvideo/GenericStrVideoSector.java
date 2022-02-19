@@ -108,10 +108,10 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     private static final Logger LOG = Logger.getLogger(GenericStrVideoSector.class.getName());
 
 
-    private abstract class VideoSecorHeader {
+    private abstract static class VideoSectorHeader {
         protected boolean __blnIsMatch = false;
         private final @Nonnull String __sType;
-        public VideoSecorHeader(@Nonnull String type) {
+        public VideoSectorHeader(@Nonnull String type) {
             __sType = type;
         }
         final public boolean isMatch() {
@@ -127,7 +127,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
         }
     }
 
-    private class IkiHeader extends VideoSecorHeader {
+    private class IkiHeader extends VideoSectorHeader {
         public IkiHeader() {
             super("Iki");
             __blnIsMatch =
@@ -150,12 +150,12 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     /** Chrono Cross.
      * @TODO: This bleeds the 'square' package into this package
      * creating a bit of a circular dependency. Fix this somehow. */
-    public class ChronoXHeader extends VideoSecorHeader {
+    public class ChronoXHeader extends VideoSectorHeader {
         public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 = 0x81010160L;
         public static final long CHRONO_CROSS_VIDEO_CHUNK_MAGIC2 = 0x01030160L;
 
         public ChronoXHeader() {
-            super("Crono Cross");
+            super("Chrono Cross");
             __blnIsMatch =
                 (_lngMagic == CHRONO_CROSS_VIDEO_CHUNK_MAGIC1 || _lngMagic == CHRONO_CROSS_VIDEO_CHUNK_MAGIC2) &&
                 _iFrameNumber >= 1 &&
@@ -177,7 +177,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     }
 
     /** Serial Experiments Lain */
-    private class LainHeader extends VideoSecorHeader {
+    private class LainHeader extends VideoSectorHeader {
         public LainHeader() {
             super("Lain");
             __blnIsMatch =
@@ -219,7 +219,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     }
 
     /** Standard STR */
-    private class StrHeader extends VideoSecorHeader {
+    private class StrHeader extends VideoSectorHeader {
         public StrHeader() {
             super("Str");
             __blnIsMatch =
@@ -243,7 +243,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     }
 
     /** Standard STR but with bitstream version 1 */
-    private class StrV1Header extends VideoSecorHeader {
+    private class StrV1Header extends VideoSectorHeader {
         public StrV1Header() {
             super("StrV1");
             __blnIsMatch =
@@ -267,7 +267,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     }
 
     /** Jackie Chan Stuntmaster */
-    private class JackieChanHeader extends VideoSecorHeader {
+    private class JackieChanHeader extends VideoSectorHeader {
         public JackieChanHeader() {
             super("Jackie Chan");
             __blnIsMatch =
@@ -294,7 +294,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
 
     /** Found in Super Puzzle Fighter and Resident Evil.
      * Assuming a general thing that could be found in other Capcom games. */
-    private class CapcomHeader extends VideoSecorHeader {
+    private class CapcomHeader extends VideoSectorHeader {
 
         public CapcomHeader() {
             super("Capcom");
@@ -324,7 +324,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     }
 
     /** Star Wars - Rebel Assault II */
-    private class StarWars extends VideoSecorHeader {
+    private class StarWars extends VideoSectorHeader {
         public StarWars() {
             super("Star Wars");
             __blnIsMatch =
@@ -353,7 +353,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     }
 
     /** Reboot */
-    private class RebootHeader extends VideoSecorHeader {
+    private class RebootHeader extends VideoSectorHeader {
         public RebootHeader() {
             super("Reboot");
             // note there are some non-video sectors that look a little like video sectors but with 1x1 dimensions
@@ -379,7 +379,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     }
 
     /** Ridge Racer Type 4 PAL [SCES-01706] */
-    private class RidgeRacer4PalHeader extends VideoSecorHeader {
+    private class RidgeRacer4PalHeader extends VideoSectorHeader {
         public static final long RIDGE_RACER_TYPE_4_PAL_MAGIC = 0x00010160;
 
         public RidgeRacer4PalHeader() {
@@ -405,7 +405,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
         }
     }
 
-    private class UnknownHeader extends VideoSecorHeader {
+    private class UnknownHeader extends VideoSectorHeader {
         public UnknownHeader() {
             super("?");
             __blnIsMatch = true;
@@ -442,7 +442,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     //   32 TOTAL
 
     @CheckForNull
-    private VideoSecorHeader[] _aoPossibleSectorTypes;
+    private VideoSectorHeader[] _aoPossibleSectorTypes;
     @CheckForNull
     private String _sMatchingHeadersToString;
     @CheckForNull
@@ -532,9 +532,9 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     @Override
     public @Nonnull String getTypeName() {
         if (_sSectorType == null) {
-            VideoSecorHeader[] aoPossibleHeaders = checkTypes();
+            VideoSectorHeader[] aoPossibleHeaders = checkTypes();
             StringBuilder sb = new StringBuilder();
-            for (VideoSecorHeader possibleHeader : aoPossibleHeaders) {
+            for (VideoSectorHeader possibleHeader : aoPossibleHeaders) {
                 if (possibleHeader == null)
                     break;
                 if (sb.length() > 0)
@@ -549,9 +549,9 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
         return "STR " + _sSectorType;
     }
 
-    private @Nonnull VideoSecorHeader[] checkTypes() {
+    private @Nonnull VideoSectorHeader[] checkTypes() {
         if (_aoPossibleSectorTypes == null) {
-            _aoPossibleSectorTypes = new VideoSecorHeader[10];
+            _aoPossibleSectorTypes = new VideoSectorHeader[10];
             int i = 0;
             if ((_aoPossibleSectorTypes[i] = new ChronoXHeader()).isMatch()) i++;
             if ((_aoPossibleSectorTypes[i] = new IkiHeader()).isMatch()) i++;
@@ -575,9 +575,9 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
     @Override
     public String toString() {
         if (_sMatchingHeadersToString == null) {
-            VideoSecorHeader[] aoPossibleHeaders = checkTypes();
+            VideoSectorHeader[] aoPossibleHeaders = checkTypes();
             StringBuilder sb = new StringBuilder();
-            for (VideoSecorHeader possibleHeader : aoPossibleHeaders) {
+            for (VideoSectorHeader possibleHeader : aoPossibleHeaders) {
                 if (possibleHeader == null)
                     break;
                 sb.append(' ').append(possibleHeader.toString());

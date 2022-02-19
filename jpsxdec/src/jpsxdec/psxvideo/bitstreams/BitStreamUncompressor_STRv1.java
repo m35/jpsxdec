@@ -109,6 +109,7 @@ public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor implement
         _header = header;
     }
 
+    @Override
     public int getQuantizationScale() {
         return _header.getQuantizationScale();
     }

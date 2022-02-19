@@ -292,6 +292,9 @@ public abstract class SectorFF9 extends IdentifiedSector {
             super(cdSector, FF9_AUDIO_CHUNK_MAGIC);
             if (isSuperInvalidElseReset()) return;
 
+            if (_iChunkNumber >= 2)
+                return;
+
             _akaoStruct = new SquareAKAOstruct(cdSector, 128);
 
             if (_akaoStruct.AKAO != SquareAKAOstruct.AKAO_ID ||

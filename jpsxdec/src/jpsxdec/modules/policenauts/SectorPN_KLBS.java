@@ -41,6 +41,7 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.Misc;
 
+/** @see SPacket */
 public class SectorPN_KLBS extends SectorPolicenauts {
 
     public static final int SIZEOF_KLBS_HEADER = 32;
@@ -52,6 +53,7 @@ public class SectorPN_KLBS extends SectorPolicenauts {
     private int _iEntryCount;  // 4 bytes  @16
     // Entry count again       // 4 bytes  @20
     // Zeroes                  // 8 bytes  @24
+    // ... after this are _iEntryCount SPackets
 
     public SectorPN_KLBS(@Nonnull CdSector cdSector) {
         super(cdSector, false);
@@ -67,9 +69,11 @@ public class SectorPN_KLBS extends SectorPolicenauts {
         if (!"KLBS".equals(sKlbs)) return;
 
         _iSize = cdSector.readSInt32LE(12);
-        if (_iSize != KLBS_SECTOR_COUNT * CdSector.SECTOR_SIZE_2048_ISO /*262144*/) return;
+        if (_iSize != KLBS_SECTOR_COUNT * CdSector.SECTOR_SIZE_2048_ISO /*262144*/)
+            return;
         _iEntryCount = cdSector.readSInt32LE(16);
-        if (_iEntryCount < 1 || _iEntryCount > 83) return;
+        if (_iEntryCount < 1 || _iEntryCount > 83)
+            return;
         int iEntryCount2 = cdSector.readSInt32LE(20);
         if (iEntryCount2 != _iEntryCount) return;
         for (int i = 24; i < SIZEOF_KLBS_HEADER; i++) {

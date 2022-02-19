@@ -40,7 +40,8 @@ package jpsxdec.modules.video;
 import java.io.PrintStream;
 import java.util.List;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -49,12 +50,12 @@ import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
+import jpsxdec.modules.video.save.VideoSaverBuilder;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.ParsedMdecImage;
 import jpsxdec.util.BinaryDataNotRecognized;
-import jpsxdec.util.Fraction;
 import jpsxdec.util.player.PlayController;
 
 /** Represents all variations of PlayStation video streams. */
@@ -66,7 +67,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
     @Nonnull
     protected final IndexSectorFrameNumber.Format _indexSectorFrameNumberFormat;
 
-    public DiscItemVideoStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemVideoStream(@Nonnull ICdSectorReader cd,
                                int iStartSector, int iEndSector,
                                @Nonnull Dimensions dim,
                                @Nonnull IndexSectorFrameNumber.Format frameNumberFormat)
@@ -76,7 +77,7 @@ public abstract class DiscItemVideoStream extends DiscItem {
         _indexSectorFrameNumberFormat = frameNumberFormat;
     }
 
-    public DiscItemVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemVideoStream(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -106,7 +107,8 @@ public abstract class DiscItemVideoStream extends DiscItem {
     }
 
     final public boolean shouldBeCropped() {
-        return _dims.shouldBeCropped();
+        return (getWidth()  % 16) != 0 ||
+               (getHeight() % 16) != 0;
     }
 
     abstract public @Nonnull FrameNumber getStartFrame();
@@ -118,16 +120,6 @@ public abstract class DiscItemVideoStream extends DiscItem {
     }
 
 
-    /** 1 for 1x (75 sectors/second)
-     *  2 for 2x (150 sectors/second)
-     *  {@code <= 0} if unknown. */
-    abstract public int getDiscSpeed();
-
-    abstract public @Nonnull Fraction getSectorsPerFrame();
-
-    /** Returns the sector on the disc where the video should start playing. */
-    abstract public int getAbsolutePresentationStartSector();
-
     /** Returns if the raw video frame data (the bitstream) can be identified
      * and decoded independent of any extra information.
      * Nearly all videos do have bitstreams that can be identified and decoded
@@ -136,18 +128,18 @@ public abstract class DiscItemVideoStream extends DiscItem {
      * own, would be impossible to decode. They need some additional
      * contextual information to do so.
      * The video saver uses this information to determine if the bitstream
-     * format (.bs) can be used as an output format. */
+     * format (.bs) can be used as an output format.
+     * @see IDemuxedFrame#getCustomFrameMdecStream()
+     */
     abstract public boolean hasIndependentBitstream();
-
-    /** Returns the approximate duration of the video in seconds.
-     *  Intended for use with video playback progress bar. */
-    abstract public double getApproxDuration();
 
     abstract public @Nonnull PlayController makePlayController();
 
     /** Creates a demuxer that can handle frames in this video. */
     abstract public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer();
 
+    @Override
+    abstract public @Nonnull VideoSaverBuilder makeSaverBuilder();
 
     final public void frameInfoDump(@Nonnull final PrintStream ps, final boolean blnMore) {
         ISectorClaimToDemuxedFrame demuxer = makeDemuxer();
@@ -189,14 +181,14 @@ public abstract class DiscItemVideoStream extends DiscItem {
         System.out.println(this);
         SectorClaimSystem it = createClaimSystem();
         demuxer.attachToSectorClaimer(it);
-        while (it.hasNext()) {
-            try {
+        try {
+            while (it.hasNext()) {
                 IIdentifiedSector sector = it.next(DebugLogger.Log);
-            } catch (CdFileSectorReader.CdReadException ex) {
-                throw new RuntimeException("IO error with dev tool", ex);
             }
+            it.flush(DebugLogger.Log);
+        } catch (Exception ex) {
+            throw new RuntimeException("Error with dev tool", ex);
         }
-        it.close(DebugLogger.Log);
     }
 
 }

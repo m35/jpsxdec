@@ -39,7 +39,6 @@ package jpsxdec.modules.crusader;
 
 import java.io.IOException;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
@@ -47,22 +46,34 @@ import jpsxdec.util.IOIterator;
 /** Converts sectors to Crusader sectors. */
 public class SectorClaimToSectorCrusader implements SectorClaimSystem.SectorClaimer {
 
+    private int _iCurrentCrusaderSectorNumber = -1;
+
     @Override
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException, LoggedFailure
+            throws IOException
     {
-        if (cs.isClaimed())
+        if (cs.isClaimed()) {
+            _iCurrentCrusaderSectorNumber = -1;
             return;
-        SectorCrusader sector = new SectorCrusader(cs.getSector());
-        if (sector.getProbability() == 0)
+        }
+        SectorCrusader crusaderSector = new SectorCrusader(cs.getSector());
+        if (crusaderSector.getProbability() == 0)
             return;
 
-        cs.claim(sector);
+        if (crusaderSector.getCrusaderSectorNumber() == 0) {
+            _iCurrentCrusaderSectorNumber = 0;
+            cs.claim(crusaderSector);
+        } if (crusaderSector.getCrusaderSectorNumber() == _iCurrentCrusaderSectorNumber) {
+            cs.claim(crusaderSector);
+            _iCurrentCrusaderSectorNumber++;
+        } else {
+            _iCurrentCrusaderSectorNumber = -1;
+        }
     }
 
     @Override
-    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+    public void endOfSectors(@Nonnull ILocalizedLogger log) {
     }
 }

@@ -42,34 +42,34 @@ import static org.junit.Assert.*;
 
 
 public class PsxYCbCr_intTest {
-    
+
     public PsxYCbCr_intTest() {
     }
-    
+
     @BeforeClass
     public static void setUpClass() {
     }
-    
+
     @AfterClass
     public static void tearDownClass() {
     }
-    
+
     @Before
     public void setUp() {
     }
-    
+
     @After
     public void tearDown() {
     }
 
     @Test
     public void testConstants() {
-        
+
         long _1_402   = 91893;
         long _0_3437  = 22525;
         long _0_7143  = 46812;
         long _1_772   = 116224;
-        
+
         assertEquals(_1_402 , PsxYCbCr_int._1_402);
         assertEquals(_0_3437, PsxYCbCr_int._0_3437);
         assertEquals(_0_7143, PsxYCbCr_int._0_7143);

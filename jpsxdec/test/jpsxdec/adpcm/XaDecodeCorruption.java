@@ -123,7 +123,7 @@ public class XaDecodeCorruption {
         assertEquals(1008, instance.getSampleFramesWritten());
         assertEquals(1008, XaAdpcmDecoder.pcmSampleFramesGeneratedFromXaAdpcmSector(iBitsPerSample, true));
     }
-    
+
     private static abstract class LogTest extends Handler {
         @Override
         abstract public void publish(LogRecord record);

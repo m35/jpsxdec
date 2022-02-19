@@ -40,7 +40,7 @@ package jpsxdec.modules.video;
 import java.io.PrintStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.framenumber.FrameNumber;
@@ -86,7 +86,7 @@ public interface IDemuxedFrame {
 
     void writeToSectors(@Nonnull SectorBasedFrameAnalysis existingFrame,
                         @Nonnull BitStreamAnalysis newFrame,
-                        @Nonnull CdFileSectorReader cd,
+                        @Nonnull DiscPatcher patcher,
                         @Nonnull ILocalizedLogger log)
             throws LoggedFailure;
 }

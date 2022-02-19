@@ -37,7 +37,8 @@
 
 package jpsxdec.modules.xa;
 
-import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.util.BitSet;
@@ -47,25 +48,25 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.adpcm.XaAdpcmDecoder;
 import jpsxdec.adpcm.XaAdpcmEncoder;
-import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.discitems.DiscItem.GeneralType;
 import jpsxdec.discitems.SerializedDiscItem;
+import jpsxdec.formats.Signed16bitLittleEndianLinearPcmAudioInputStream;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LocalizedIncompatibleException;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
+import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
@@ -73,7 +74,7 @@ import jpsxdec.util.Misc;
 import jpsxdec.util.TaskCanceledException;
 
 /** Represents a series of XA ADPCM sectors that combine to make an audio stream. */
-public class DiscItemXaAudioStream extends DiscItemAudioStream {
+public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
 
     private static final Logger LOG = Logger.getLogger(DiscItemXaAudioStream.class.getName());
 
@@ -106,7 +107,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
     @CheckForNull
     private final BitSet _sectorsWithAudio;
 
-    public DiscItemXaAudioStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemXaAudioStream(@Nonnull ICdSectorReader cd,
                                  int iStartSector, int iEndSector,
                                  @Nonnull XaAudioFormat format,
                                  int iStride,
@@ -137,7 +138,7 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
         _sectorsWithAudio = sectorsWithAudio;
     }
 
-    public DiscItemXaAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemXaAudioStream(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -307,74 +308,65 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
 
 
     @Override
-    public void replace(@Nonnull ProgressLogger pl, @Nonnull File audioFile)
+    public void replace(@Nonnull DiscPatcher patcher, @Nonnull File audioFile, @Nonnull ProgressLogger pl)
             throws IOException,
                    UnsupportedAudioFileException,
                    LocalizedIncompatibleException,
-                   CdFileSectorReader.CdReadException,
+                   CdReadException,
                    DiscPatcher.WritePatchException,
-                   TaskCanceledException
+                   TaskCanceledException, LoggedFailure
     {
-        AudioInputStream ais = AudioSystem.getAudioInputStream(audioFile);
+        Signed16bitLittleEndianLinearPcmAudioInputStream ais = openForReplace(audioFile, getSampleFramesPerSecond(), isStereo(), pl);
+        Closeable streamToClose = ais;
         try {
-            AudioFormat fmt = ais.getFormat();
-            boolean blnFormatEquals = Math.abs(fmt.getSampleRate() - _format.iSampleFramesPerSecond) < 1f;
-            blnFormatEquals &= ( isStereo()  && (fmt.getChannels() == 2) )
-                                ||
-                               ( !isStereo() && (fmt.getChannels() == 1) );
-            blnFormatEquals &= ais.getFrameLength() == getSampleFrameCount();
-
-            if (!blnFormatEquals) {
-                throw new LocalizedIncompatibleException(
-                I.AUDIO_REPLACE_FORMAT_MISMATCH(
-                    ais.getFrameLength(), fmt.getChannels(), fmt.getSampleRate(),
-                    getSampleFrameCount(), isStereo() ? 2 : 1, getSampleFramesPerSecond()
-                ));
-            }
-
             XaAdpcmEncoder encoder;
             try {
-                encoder = new XaAdpcmEncoder(ais, _format.iBitsPerSample);
+                streamToClose = encoder = new XaAdpcmEncoder(ais, _format.iBitsPerSample);
             } catch (IncompatibleException ex) {
-                throw new RuntimeException("This should have been checked above", ex);
+                throw new RuntimeException("This should have been checked already", ex);
             }
 
-            try {
-                SectorClaimSystem it = createClaimSystem();
-                pl.progressStart(getSectorLength());
-                for (int iSector = 0; it.hasNext(); iSector++) {
-                    IIdentifiedSector origIdSect = it.next(pl);
-                    if (origIdSect instanceof SectorXaAudio && isPartOfStream((SectorXaAudio)origIdSect)) {
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        long lngSampleFramesReadBefore = encoder.getSampleFramesRead();
-                        pl.log(Level.INFO, I.WRITING_SAMPLES_TO_SECTOR(lngSampleFramesReadBefore, origIdSect.toString()));
-                        encoder.encode1Sector(baos);
-                        assert !encoder.isEof();
-                        pl.log(Level.INFO, I.CMD_PATCHING_SECTOR_DESCRIPTION(origIdSect.toString()));
-                        if (pl.isSeekingEvent())
-                            pl.event(I.CMD_PATCHING_SECTOR_NUMBER(origIdSect.getSectorNumber()));
-                        CdSector origSect = origIdSect.getCdSector();
-                        getSourceCd().addPatch(origSect.getSectorIndexFromStart(), 0, baos.toByteArray());
+            SectorClaimSystem it = createClaimSystem();
+            pl.progressStart(getStartSector(), getEndSector());
+            while (it.hasNext()) {
+                IIdentifiedSector origIdSect = it.next(pl);
+                if (origIdSect instanceof SectorXaAudio && isPartOfStream((SectorXaAudio)origIdSect)) {
+                    long lngSampleFramesReadBefore = encoder.getSampleFramesRead();
+                    pl.log(Level.INFO, I.WRITING_SAMPLES_TO_SECTOR(lngSampleFramesReadBefore, origIdSect.toString()));
 
-                        pl.progressUpdate(iSector);
+                    byte[] abEncoded;
+                    try {
+                        abEncoded = encoder.encode1Sector();
+                    } catch (EOFException ex) {
+                        throw new LocalizedIncompatibleException(I.CMD_REPLACE_AUDIO_TOO_SHORT(ais.getSampleFramesRead(), getSampleFrameCount()), ex);
                     }
+
+                    pl.log(Level.INFO, I.CMD_PATCHING_SECTOR_DESCRIPTION(origIdSect.toString())); // TODO kinda redundant logging here
+                    if (pl.isSeekingEvent())
+                        pl.event(I.CMD_PATCHING_SECTOR_NUMBER(origIdSect.getSectorNumber()));
+
+                    patcher.addPatch(origIdSect.getSectorNumber(), 0, abEncoded);
                 }
-                it.close(pl);
-                pl.progressEnd();
-            } finally {
-                IO.closeSilently(encoder, LOG);
+                pl.progressUpdate(origIdSect.getSectorNumber());
             }
+            it.flush(pl);
+
+            if (!ais.nextReadReturnsEndOfStream()) {
+                throw new LocalizedIncompatibleException(I.CMD_REPLACE_AUDIO_TOO_LONG(getSampleFrameCount()));
+            }
+            pl.progressEnd();
         } finally {
-            IO.closeSilently(ais, LOG);
+            IO.closeSilently(streamToClose, LOG);
         }
 
     }
 
-    public void replaceXa(@Nonnull ProgressLogger pl, @Nonnull DiscItemXaAudioStream other)
+    public void replaceXa(@Nonnull DiscPatcher patcher, @Nonnull DiscItemXaAudioStream other, @Nonnull ProgressLogger pl)
             throws LocalizedIncompatibleException,
-                   CdFileSectorReader.CdReadException,
+                   CdReadException,
                    DiscPatcher.WritePatchException,
-                   TaskCanceledException
+                   TaskCanceledException,
+                   LoggedFailure
     {
         pl.log(Level.INFO, I.CMD_PATCHING_DISC_ITEM(this.toString()));
         pl.log(Level.INFO, I.CMD_PATCHING_WITH_DISC_ITEM(other.toString()));
@@ -418,11 +410,13 @@ public class DiscItemXaAudioStream extends DiscItemAudioStream {
                 if (pl.isSeekingEvent())
                     pl.event(I.CMD_PATCHING_SECTOR_NUMBER(origIdSect.getSectorNumber()));
                 byte[] abPatchData = patchXaSect.getCdSector().getCdUserDataCopy();
-                getSourceCd().addPatch(origXaSect.getSectorNumber(), 0, abPatchData);
+                patcher.addPatch(origXaSect.getSectorNumber(), 0, abPatchData);
 
                 pl.progressUpdate(iSector);
             }
         }
+        origIt.flush(pl);
+        origIt.flush(pl);
         // hopefully all the sectors were coped at this point and no remain in this XA stream
         pl.progressEnd();
     }

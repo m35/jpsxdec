@@ -54,7 +54,7 @@ public abstract class StrHeader {
     protected StrHeader(@Nonnull byte[] abFrameData, int iDataSize,
                         int iExpectedVersion)
     {
-        if (iDataSize < 8) {
+        if (iDataSize < SIZEOF) {
             _blnIsValid = false;
         } else {
             int iHalfMdecCodeCountCeil32 = IO.readSInt16LE(abFrameData, 0);
@@ -63,7 +63,7 @@ public abstract class StrHeader {
             int iVersion                 = IO.readSInt16LE(abFrameData, 6);
 
             _blnIsValid = iMagic3800 == 0x3800 &&
-                          iQscale >= 1 &&
+                          iQscale >= 1 && iQscale <= 63 &&
                           iVersion == iExpectedVersion &&
                           iHalfMdecCodeCountCeil32 >= 0;
             if (_blnIsValid) {

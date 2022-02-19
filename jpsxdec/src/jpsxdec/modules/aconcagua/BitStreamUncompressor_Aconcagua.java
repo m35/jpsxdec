@@ -212,6 +212,8 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
 
     private static final int MACROBLOCK_HEIGHT = 13; // 208 / 16
 
+    public static final int MINIMUM_BITSTREAM_SIZE = AconcaguaBitReader.MINIMUM_BITSTREAM_SIZE;
+
     private final int _iQuantizationScale;
     @Nonnull
     private final MdecContext _context;
@@ -236,7 +238,7 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
     private int _iTable2Reads = -1;
     private int _iTable3Reads = -1;
 
-    private void resetColumn() {
+    private void resetColumn() throws MdecException.EndOfStream {
         _iPreviousDcCr = 0;
         _iPreviousDcCb = 0;
         _iPreviousDcSetInY1UsedInY2Y3 = 0;
@@ -479,6 +481,10 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
      */
     private static class AconcaguaBitReader {
 
+        /** 12 bytes are buffered immediately, so make sure the bitstream
+         * buffer is at least that big for the initialization. */
+        public static final int MINIMUM_BITSTREAM_SIZE = 4 + 4 + 4;
+
         private int _iFrontBits;
         private int _iMidBits;
         private int _iBackBits;
@@ -488,16 +494,26 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
         private int _iPositionMultOf4 = -4; // meh hack so I can call resetColumn() in the constructor
 
         public AconcaguaBitReader(@Nonnull byte[] abBitstream, int iStartPos) {
+            if (abBitstream.length < MINIMUM_BITSTREAM_SIZE)
+                throw new IllegalArgumentException();
             _abBitstream = abBitstream;
-            resetColumn();
+            try {
+                resetColumn();
+            } catch (MdecException.EndOfStream ex) {
+                throw new RuntimeException("Shouldn't happen", ex);
+            }
         }
 
-        final public void resetColumn() {
+        final public void resetColumn() throws MdecException.EndOfStream {
             _iBitsRemaining = 32;
             _iPositionMultOf4 = _iPositionMultOf4 + 4;
-            _iFrontBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4);
-            _iMidBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4 + 4);
-            _iBackBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4 + 8);
+            try {
+                _iFrontBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4);
+                _iMidBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4 + 4);
+                _iBackBits = IO.readSInt32LE(_abBitstream, _iPositionMultOf4 + 8);
+            } catch (ArrayIndexOutOfBoundsException ex) {
+                throw new MdecException.EndOfStream(ex);
+            }
         }
 
         public int getBits() {

@@ -175,8 +175,8 @@ class FrameNumberNumber {
 
             public void addNumber(int iFrameValue) {
                 if (iFrameValue < 0 || iFrameValue < _iEndFrameValue)
-                    // videos should end if the frame number gets smaller
-                    throw new IllegalArgumentException("Negitive frame value, or in reverse? " + iFrameValue + " < " + _iEndFrameValue);
+                    // videos should have ended if the frame number got smaller
+                    throw new IllegalArgumentException("Negative frame value, or in reverse? " + iFrameValue + " < " + _iEndFrameValue);
 
                 if (iFrameValue == _iEndFrameValue) {
                     _iDuplicate++;

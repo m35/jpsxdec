@@ -37,6 +37,7 @@
 
 package jpsxdec.modules.eavideo;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +46,6 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.BinaryDataNotRecognized;
@@ -55,7 +55,7 @@ import jpsxdec.util.PushAvailableInputStream;
 
 public class SectorClaimToEAVideo implements SectorClaimSystem.SectorClaimer {
 
-    private static class EAVideoStreamReader {
+    private static class EAVideoStreamReader implements Closeable {
 
         @Nonnull
         private final PushAvailableInputStream<CdSector> _sectorStream = new PushAvailableInputStream<CdSector>();
@@ -139,6 +139,7 @@ public class SectorClaimToEAVideo implements SectorClaimSystem.SectorClaimer {
 
                     if (_header.getPayloadSize() != iBefore - iAfter)
                         throw new RuntimeException();
+                    _header = null;
 
                     assert _sectorStream.getCurrentMeta() == sector;
 
@@ -148,7 +149,6 @@ public class SectorClaimToEAVideo implements SectorClaimSystem.SectorClaimer {
                     int iPacketEndSector = _sectorStream.getCurrentMeta().getSectorIndexFromStart();
                     finishedPackets.add(new EAVideoPacketSectors(packet, _iCurrentPacketStartSector, iPacketEndSector));
 
-                    _header = null;
                 }
             }
 
@@ -165,6 +165,11 @@ public class SectorClaimToEAVideo implements SectorClaimSystem.SectorClaimer {
             return rrSector;
         }
 
+        @Override
+        public void close() throws IOException {
+            _sectorStream.close();
+        }
+
     }
 
 
@@ -175,7 +180,6 @@ public class SectorClaimToEAVideo implements SectorClaimSystem.SectorClaimer {
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws LoggedFailure
     {
         CdSector cdSector = cs.getSector();
         if (cs.getClaimer() != null || cdSector.isCdAudioSector()) {
@@ -227,6 +231,11 @@ public class SectorClaimToEAVideo implements SectorClaimSystem.SectorClaimer {
 
     private void endVideo(@Nonnull ILocalizedLogger log) {
         if (_sectorStream != null) {
+            try {
+                _sectorStream.close();
+            } catch (IOException ex) {
+                throw new RuntimeException("Shouldn't happen", ex);
+            }
             _sectorStream = null;
         }
     }

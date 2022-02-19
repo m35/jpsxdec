@@ -40,11 +40,13 @@ package jpsxdec.psxvideo.encode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.psxvideo.mdec.MdecBlock;
 import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import static jpsxdec.psxvideo.mdec.MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST;
-import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
+import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 
 /** Encodes a single macroblock into MDEC codes. */
 public class MacroBlockEncoder implements Iterable<MdecCode> {
@@ -52,57 +54,46 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
     private static final boolean DEBUG = false;
 
     private static final int[] PSX_DEFAULT_QUANTIZATION_MATRIX =
-            Arrays.copyOf(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX, MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
+            Arrays.copyOf(MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX,
+                          MdecInputStream.PSX_DEFAULT_QUANTIZATION_MATRIX.length);
 
-    // TODO: Change to use a Forward DCT more closely resembling the PSX
-    private final StephensIDCT _DCT = new StephensIDCT();
+    private final PsxMdecIDCT_double _DCT = new PsxMdecIDCT_double();
 
-    private final double[][] _aadblYBlockVectors = new double[4][];
-    @Nonnull
-    private final double[] _adblCbBlockVector;
-    @Nonnull
-    private final double[] _adblCrBlockVector;
+    private final double[][] _aadblEncodedBlocks = new double[MdecBlock.count()][];
 
-    @Nonnull
+    @CheckForNull
     private int[] _aiQscales, _aiSquashQscales;
 
-    public final int X, Y;
+    private final int _iMacroBlockX, _iMacroBlockY;
 
     /** Energy of the macroblock.
      * It is calculated using my best guess as an approach. */
     private double _dblEnergy = 0;
 
     MacroBlockEncoder(@Nonnull PsxYCbCrImage ycbcr, int iMacroBlockX, int iMacroBlockY) {
+        _iMacroBlockX = iMacroBlockX;
+        _iMacroBlockY = iMacroBlockY;
 
-        X = iMacroBlockX;
-        Y = iMacroBlockY;
-
-        // encode luma
-        int iBlock = 0;
-        for (int iBlockY = 0; iBlockY < 16; iBlockY+=8) {
-            for (int iBlockX = 0; iBlockX < 16; iBlockX+=8) {
-                double[] adblBlock = ycbcr.get8x8blockY(iMacroBlockX*16+iBlockX,
-                                                        iMacroBlockY*16+iBlockY);
-                _aadblYBlockVectors[iBlock] = preEncodeBlock(adblBlock, iBlock+2);
-                iBlock++;
-            }
-        }
-
-        // encode chroma
-        if (DEBUG)
-            System.out.println("Encoding macroblock Cb");
-        double[] adblBlock = ycbcr.get8x8blockCb(iMacroBlockX*8, iMacroBlockY*8);
-        _adblCbBlockVector = preEncodeBlock(adblBlock, 0);
-        if (DEBUG)
-            System.out.println("Encoding macroblock Cr");
-        adblBlock = ycbcr.get8x8blockCr(iMacroBlockX*8, iMacroBlockY*8);
-        _adblCrBlockVector = preEncodeBlock(adblBlock, 1);
-
-
+        _aadblEncodedBlocks[MdecBlock.Cr.ordinal()] = encodeBlock(ycbcr.get8x8blockCr(iMacroBlockX*8, iMacroBlockY*8), MdecBlock.Cr);
+        _aadblEncodedBlocks[MdecBlock.Cb.ordinal()] = encodeBlock(ycbcr.get8x8blockCb(iMacroBlockX*8, iMacroBlockY*8), MdecBlock.Cb);
+        _aadblEncodedBlocks[MdecBlock.Y1.ordinal()] = encodeBlock(ycbcr.get8x8blockY(iMacroBlockX*16+0, iMacroBlockY*16+0), MdecBlock.Y1);
+        _aadblEncodedBlocks[MdecBlock.Y2.ordinal()] = encodeBlock(ycbcr.get8x8blockY(iMacroBlockX*16+8, iMacroBlockY*16+0), MdecBlock.Y2);
+        _aadblEncodedBlocks[MdecBlock.Y3.ordinal()] = encodeBlock(ycbcr.get8x8blockY(iMacroBlockX*16+0, iMacroBlockY*16+8), MdecBlock.Y3);
+        _aadblEncodedBlocks[MdecBlock.Y4.ordinal()] = encodeBlock(ycbcr.get8x8blockY(iMacroBlockX*16+8, iMacroBlockY*16+8), MdecBlock.Y4);
     }
 
-    private @Nonnull double[] preEncodeBlock(@Nonnull double[] adblBlock, int iBlock) {
+    public int getMacroBlockX() {
+        return _iMacroBlockX;
+    }
+
+    public int getMacroBlockY() {
+        return _iMacroBlockY;
+    }
+
+    private @Nonnull double[] encodeBlock(@Nonnull double[] adblBlock, @Nonnull MdecBlock block) {
+
         if (DEBUG) {
+            System.out.println("Encoding " + block);
             System.out.println("Pre DCT");
             for (int y = 0; y < 8; y++) {
                 System.out.print("[ ");
@@ -114,54 +105,30 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
         }
 
         // perform the discrete cosine transform
-        _DCT.forwardDCT(adblBlock);
+        double[] adblEncodedBlock = new double[adblBlock.length];
+        _DCT.DCT(adblBlock, 0, adblEncodedBlock);
 
         if (DEBUG) {
-            System.out.println("Post DCT (Pre zig-zag & quant)");
+            System.out.println("Post DCT");
             for (int y = 0; y < 8; y++) {
                 System.out.print("[ ");
                 for (int x = 0; x < 8; x++) {
-                    System.out.format("%1.3f ", adblBlock[x + y * 8]);
+                    System.out.format("%1.3f ", adblEncodedBlock[x + y * 8]);
                 }
                 System.out.println("]");
             }
         }
 
-        double[] aiBlock = preQuantizeZigZagBlock(adblBlock, iBlock);
-
-        if (DEBUG) {
-            System.out.println("Final block");
-            for (int y = 0; y < 8; y++) {
-                System.out.print("[ ");
-                for (int x = 0; x < 8; x++) {
-                    System.out.print(aiBlock[x + y * 8] + " ");
-                }
-                System.out.println("]");
+        // only use Luma blocks to calculate the energy
+        if (block.isLuma()) {
+            for (int i = 1; i < REVERSE_ZIG_ZAG_LOOKUP_LIST.length; i++) {
+                int iZigZagPos = REVERSE_ZIG_ZAG_LOOKUP_LIST[i];
+                // give more weight to the AC codes closer to the bottom-right of the DCT block
+                _dblEnergy += adblEncodedBlock[iZigZagPos] * i * i;
             }
         }
 
-        return aiBlock;
-    }
-
-
-    private @Nonnull double[] preQuantizeZigZagBlock(@Nonnull double[] adblBlock, int iBlock) {
-        double[] adblVector = new double[8*8];
-        // partially quantize it
-        adblVector[0] = (int)Math.round(adblBlock[0]
-                     / (double)PSX_DEFAULT_QUANTIZATION_MATRIX[0]);
-        if (DEBUG)
-            System.out.println(adblVector[0]);
-        for (int i = 1; i < REVERSE_ZIG_ZAG_LOOKUP_LIST.length; i++) {
-            int iZigZagPos = REVERSE_ZIG_ZAG_LOOKUP_LIST[i];
-            // only use Luma blocks to calculate the energy
-            if (iBlock >= 2)
-                // put more weight on AC codes closer to the bottom-right of the DCT block
-                _dblEnergy += adblBlock[iZigZagPos] * i * i;
-            adblVector[i] = adblBlock[iZigZagPos] * 8.0 / PSX_DEFAULT_QUANTIZATION_MATRIX[iZigZagPos];
-            if (DEBUG)
-                System.out.println(adblVector[i]);
-        }
-        return adblVector;
+        return adblEncodedBlock;
     }
 
     // -------------------------------------------------------------------------
@@ -186,57 +153,59 @@ public class MacroBlockEncoder implements Iterable<MdecCode> {
     public @Nonnull Iterator<MdecCode> iterator() {
         if (_aiQscales == null || _aiSquashQscales == null)
             throw new IllegalStateException();
+
         ArrayList<MdecCode> codes = new ArrayList<MdecCode>();
-        encodeBlock(_adblCrBlockVector, codes, _aiQscales[0], _aiSquashQscales[0]);
-        encodeBlock(_adblCbBlockVector, codes, _aiQscales[1], _aiSquashQscales[1]);
-        encodeBlock(_aadblYBlockVectors[0], codes, _aiQscales[2], _aiSquashQscales[2]);
-        encodeBlock(_aadblYBlockVectors[1], codes, _aiQscales[3], _aiSquashQscales[3]);
-        encodeBlock(_aadblYBlockVectors[2], codes, _aiQscales[4], _aiSquashQscales[4]);
-        encodeBlock(_aadblYBlockVectors[3], codes, _aiQscales[5], _aiSquashQscales[5]);
+        for (MdecBlock block : MdecBlock.list()) {
+            quantizeBlock(_aadblEncodedBlocks[block.ordinal()], codes,
+                          _aiQscales[block.ordinal()], _aiSquashQscales[block.ordinal()]);
+        }
         return codes.iterator();
     }
 
     // -------------------------------------------------------------------------
 
-    private void encodeBlock(@Nonnull double[] adblVector,
-                             @Nonnull ArrayList<MdecCode> out,
-                             int iQscale, int iSquashQscale)
+    private static void quantizeBlock(@Nonnull double[] adblDctBlock,
+                                      @Nonnull ArrayList<MdecCode> out,
+                                      int iQscale, int iSquashQscale)
     {
         final MdecCode code = new MdecCode();
         code.setTop6Bits(iQscale);
-        code.setBottom10Bits((int)Math.round(adblVector[0]));
+        code.setBottom10Bits((int)Math.round(adblDctBlock[0] / PSX_DEFAULT_QUANTIZATION_MATRIX[0]));
         out.add(code.copy());
         if (DEBUG)
             System.out.println(code);
 
-        for (int iVectorPos = 1; iVectorPos < adblVector.length;) {
+        Outer:
+        for (int iBlockPos = 1;;) {
             // find next non-zero AC coefficient
-            int iZeroCount = 0;
-            int iQuantVal = -1;
-            while (iVectorPos < adblVector.length) {
+            int iZeroCount = 0, iAcCoff;
+            while (true) {
+                if (iBlockPos >= adblDctBlock.length)
+                    break Outer;
+
+                int iZigZagPos = REVERSE_ZIG_ZAG_LOOKUP_LIST[iBlockPos];
+                iBlockPos++;
+
+                double dblQuant = adblDctBlock[iZigZagPos] * 8.0 / PSX_DEFAULT_QUANTIZATION_MATRIX[iZigZagPos];
                 if (iQscale == iSquashQscale)
-                    iQuantVal = (int)Math.round(adblVector[iVectorPos] / iQscale);
+                    iAcCoff = (int)Math.round(dblQuant / iQscale);
                 else
-                    iQuantVal = (int)Math.round(
-                                     Math.round(adblVector[iVectorPos] / iSquashQscale) *
+                    iAcCoff = (int)Math.round(
+                                     Math.round(dblQuant / iSquashQscale) *
                                                 iQscale / (double)iSquashQscale);
-                if (iQuantVal == 0)
+                if (iAcCoff == 0)
                     iZeroCount++;
                 else
                     break;
-                iVectorPos++;
             }
 
-            if (iVectorPos >= adblVector.length)
-                break;
-
             code.setTop6Bits(iZeroCount);
-            code.setBottom10Bits(iQuantVal);
+            code.setBottom10Bits(iAcCoff);
             out.add(code.copy());
-            iVectorPos++;
             if (DEBUG)
                 System.out.println(code);
         }
+
         // end of block
         code.setToEndOfData();
         out.add(code.copy());

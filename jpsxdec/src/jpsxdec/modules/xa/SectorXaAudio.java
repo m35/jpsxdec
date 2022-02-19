@@ -164,15 +164,17 @@ public class SectorXaAudio extends IdentifiedSector {
      *  sectors. In that case it really doesn't generate anything but silence.
      *  */
     public boolean isSilent() {
+        CdSector cdSector = getCdSector();
+
         for(int iSndGrp = 0, i = 0;
             iSndGrp < XaAdpcmDecoder.ADPCM_SOUND_GROUPS_PER_SECTOR;
             iSndGrp++, i += XaAdpcmDecoder.SIZEOF_SOUND_GROUP)
         {
             // just check if all ADPCM values are 0
             for (int j = 16; j < XaAdpcmDecoder.SIZEOF_SOUND_GROUP; j++) {
-                if (i+j >= getCdSector().getCdUserDataSize())
+                if (i+j >= cdSector.getCdUserDataSize())
                     return false; // catch toString when probablity == 0
-                if (getCdSector().readUserDataByte(i+j) != 0)
+                if (cdSector.readUserDataByte(i+j) != 0)
                     return false;
             }
         }

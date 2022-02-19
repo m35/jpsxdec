@@ -37,23 +37,20 @@
 
 package jpsxdec.modules.ac3;
 
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
-import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
@@ -77,7 +74,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemSectorBasedVideoStrea
     private static final String CHANNEL_KEY = "Channel";
     private final int _iChannel;
 
-    public DiscItemAceCombat3VideoStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemAceCombat3VideoStream(@Nonnull ICdSectorReader cd,
                                          int iStartSector, int iEndSector,
                                          @Nonnull Dimensions dim,
                                          @Nonnull IndexSectorFrameNumber.Format sectorIndexFrameNumberFormat,
@@ -91,7 +88,7 @@ public class DiscItemAceCombat3VideoStream extends DiscItemSectorBasedVideoStrea
         _iChannel = iChannel;
     }
 
-    public DiscItemAceCombat3VideoStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemAceCombat3VideoStream(@Nonnull ICdSectorReader cd,
                                          @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
@@ -164,27 +161,6 @@ public class DiscItemAceCombat3VideoStream extends DiscItemSectorBasedVideoStrea
     @Override
     public @Nonnull List<FrameNumber.Type> getFrameNumberTypes() {
         return Arrays.asList(FrameNumber.Type.Index, FrameNumber.Type.Header, FrameNumber.Type.Sector);
-    }
-
-    @Override
-    public void fpsDump(@Nonnull PrintStream ps) throws CdFileSectorReader.CdReadException {
-        SectorClaimSystem it = createClaimSystem();
-        for (int iSector = 0; it.hasNext(); iSector++) {
-            IIdentifiedSector isect = it.next(DebugLogger.Log);
-            if (isect instanceof SectorAceCombat3Video) {
-                SectorAceCombat3Video vidSect = (SectorAceCombat3Video) isect;
-                ps.println(String.format("%-5d %-4d %d/%d",
-                                         iSector,
-                                         _iMaxInvFrame - vidSect.getInvertedFrameNumber(),
-                                         vidSect.getChunkNumber(),
-                                         vidSect.getChunksInFrame() ));
-            } else {
-                ps.println(String.format(
-                        "%-5d X",
-                        iSector));
-            }
-
-        }
     }
 
     @Override

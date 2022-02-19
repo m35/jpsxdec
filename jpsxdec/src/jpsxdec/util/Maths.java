@@ -84,4 +84,7 @@ public class Maths {
         return (val >> shr) + i;
     }
 
+    public static boolean floatEquals(float f1, float f2, float epsilon) {
+        return Math.abs(f1 - f2) <= epsilon;
+    }
 }

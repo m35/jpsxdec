@@ -39,7 +39,6 @@ package jpsxdec.modules.strvideo;
 
 import java.io.IOException;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
@@ -53,7 +52,7 @@ public class SectorClaimToStrVideoSector implements SectorClaimSystem.SectorClai
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException, LoggedFailure
+            throws IOException
     {
         if (cs.isClaimed())
             return;
@@ -61,7 +60,7 @@ public class SectorClaimToStrVideoSector implements SectorClaimSystem.SectorClai
     }
 
     @Override
-    public void endOfSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+    public void endOfSectors(@Nonnull ILocalizedLogger log) {
     }
 
 }

@@ -38,7 +38,15 @@
 package jpsxdec.psxvideo.bitstreams;
 
 /** Get the byte offset for the given byte index.
- * Used for reading/writing bit streams. */
+ * Used for reading/writing bit streams.
+ * Bit streams are a series of bits, but how they're stored depends on the
+ * bit stream format. Some are 16-bit little endian, some are big endian,
+ * some are "what even..."
+ */
 public interface IByteOrder {
+    /** Given a byte index, convert it to the where the byte should be
+     * stored in memory. */
     int getByteOffset(int iByteIndex);
+    /** How many extra padding zero bytes should be rounded to at the end. */
+    int getPaddingByteAlign();
 }

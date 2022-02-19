@@ -44,6 +44,7 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorClaimSystem;
 
+/** @see SPacket */
 public class PolicenautsSectorToPacket implements IdentifiedSectorListener<SectorPolicenauts> {
 
     public interface Listener {

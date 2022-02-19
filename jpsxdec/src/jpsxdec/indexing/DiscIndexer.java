@@ -45,7 +45,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -70,13 +70,13 @@ public abstract class DiscIndexer {
 
     public static @Nonnull List<DiscIndexer> createIndexers(@Nonnull ILocalizedLogger log) {
         DiscIndexer[] coreIndexers = new DiscIndexer[] {
+            new DiscIndexerXaAudio(log),
             new DiscIndexerISO9660(log),
             new DiscIndexerSquareAudio(log),
             new DiscIndexerTim(),
             new DiscIndexerSectorBasedVideo(log),
-            new DiscIndexerXaAudio(log),
             new DiscIndexerPolicenauts(),
-            new DiscIndexerCrusader(log),
+            new DiscIndexerCrusader(),
             new DiscIndexerEAVideo(),
         };
         ArrayList<DiscIndexer> indexers = new ArrayList<DiscIndexer>(Arrays.asList(coreIndexers));
@@ -90,11 +90,11 @@ public abstract class DiscIndexer {
     @CheckForNull
     private Collection<DiscItem> _mediaList;
     @CheckForNull
-    private CdFileSectorReader _sourceCd;
+    private ICdSectorReader _sourceCd;
 
     /** Called by {@link DiscIndex} right away. */
     final void indexInit(@Nonnull Collection<DiscItem> items,
-                         @Nonnull CdFileSectorReader cd)
+                         @Nonnull ICdSectorReader cd)
     {
         _mediaList = items;
         _sourceCd = cd;
@@ -106,7 +106,7 @@ public abstract class DiscIndexer {
         _mediaList.add(discItem);
     }
 
-    final protected @Nonnull CdFileSectorReader getCd() {
+    final protected @Nonnull ICdSectorReader getCd() {
         if (_sourceCd == null)
             throw new IllegalStateException("CD should have been set before use");
         return _sourceCd;

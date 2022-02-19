@@ -42,7 +42,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -110,14 +110,14 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     private final int _iStartSector;
     private final int _iEndSector;
     @Nonnull
-    private final CdFileSectorReader _cdReader;
+    private final ICdSectorReader _cdReader;
 
     /** Often sequential and hopefully unique number identifying this {@link DiscItem}. */
     private int _iIndex = -1;
     @CheckForNull
     private IndexId _indexId;
 
-    protected DiscItem(@Nonnull CdFileSectorReader cd, int iStartSector, int iEndSector) {
+    protected DiscItem(@Nonnull ICdSectorReader cd, int iStartSector, int iEndSector) {
         if (iStartSector < 0 || iStartSector > iEndSector)
             throw new IllegalArgumentException("Bad start/end sectors " + iStartSector+" - "+iEndSector);
         if (iEndSector > cd.getSectorCount())
@@ -129,7 +129,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     }
 
     /** Deserializes the basic information about this {@link DiscItem}. */
-    protected DiscItem(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    protected DiscItem(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         _cdReader = cd;
@@ -156,7 +156,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     /** String of the 'Type:' value in the serialization string. */
     abstract public @Nonnull String getSerializationTypeId();
 
-    public @Nonnull CdFileSectorReader getSourceCd() {
+    public @Nonnull ICdSectorReader getSourceCd() {
         return _cdReader;
     }
 

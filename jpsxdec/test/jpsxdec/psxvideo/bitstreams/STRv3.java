@@ -58,7 +58,7 @@ import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
-import jpsxdec.psxvideo.mdec.idct.StephensIDCT;
+import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.Misc;
 import static org.junit.Assert.*;
@@ -219,7 +219,7 @@ public class STRv3 {
         } catch (MdecException.TooMuchEnergy ex) {
             // expected
         }
-        
+
     }
 
     public static class MdecInputStreamIterator implements MdecInputStream {
@@ -239,7 +239,7 @@ public class STRv3 {
 
     @Test
     public void encodeTestMax() throws Exception {
-        IDCT_double i = new StephensIDCT();
+        IDCT_double i = new PsxMdecIDCT_double();
         double[] blk = new double[64];
         Arrays.fill(blk, -128.0);
         double[] out = new double[64];

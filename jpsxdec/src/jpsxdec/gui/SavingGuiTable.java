@@ -116,7 +116,7 @@ public class SavingGuiTable extends AbstractTableModel {
     public final static int PROGRESS_FAILED = -3;
     public final static int PROGRESS_CANCELED = -2;
     public final static int PROGRESS_WAITING = -1;
-    public final static int PROGRESS_DONE = 100;
+    public final static int PROGRESS_DONE = 101; // work can still be happening at 100%, use 101 to really mean done
     public final static int PROGRESS_STARTED = 0;
 
     private static class ProgressRenderer extends DefaultTableCellRenderer {

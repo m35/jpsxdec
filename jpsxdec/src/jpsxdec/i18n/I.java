@@ -1,14 +1,14 @@
 /*
  * jPSXdec Translations
- * Copyright (c) 2015-2019 
+ * Copyright (c) 2015-2019
  * Michael Sabin, Víctor González, Sergi Medina, Gianluigi "Infrid" Cusimano
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -1297,7 +1297,7 @@ public class I {
     </ul>
     */
     public static @Nonnull ILocalizedMessage GUI_PLAY_TAB() {
-        return msg("GUI_PLAY_TAB", "    Play    ");
+        return new _PlaceholderMessage("Play");
     }
 
     /**
@@ -1310,7 +1310,7 @@ public class I {
     </ul>
     */
     public static @Nonnull ILocalizedMessage GUI_SAVE_TAB() {
-        return msg("GUI_SAVE_TAB", "    Save    ");
+        return new _PlaceholderMessage("Save");
     }
 
     /**
@@ -2751,7 +2751,7 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>Writing samples starting at {0,number,#} to sector sector {1}</pre>
+    <pre>Writing samples starting at {0,number,#} to sector {1}</pre>
     </td></tr></table>
     <ul>
        <li>DiscItemXaAudioStream.java</li>
@@ -2759,7 +2759,7 @@ Do you want to replace it?</pre>
     </ul>
     */
     public static @Nonnull ILocalizedMessage WRITING_SAMPLES_TO_SECTOR(long startOfSamples, @Nonnull String sectorDescription) {
-        return msg("WRITING_SAMPLES_TO_SECTOR", "Writing samples starting at {0,number,#} to sector sector {1}", startOfSamples, sectorDescription);
+        return new _PlaceholderMessage("Writing samples starting at {0,number,#} to sector {1}", startOfSamples, sectorDescription);
     }
 
     /**
@@ -2913,8 +2913,9 @@ Do you want to replace it?</pre>
        <li>DiscItemXaAudioStream.java</li>
     </ul>
     */
-    public static @Nonnull ILocalizedMessage AUDIO_REPLACE_FORMAT_MISMATCH(long newSampleCount, int newChannelCount, float newSampleRate, long existingSamleCount, int existingChannelCount, int existingSampleRate) {
-        return msg("AUDIO_REPLACE_FORMAT_MISMATCH", "Audio mismatch: new audio ({0,number,#} {1,choice,1#Mono|2#Stereo} samples at {2,number,#.#}Hz) does not match existing audio ({3,number,#} {4,choice,1#Mono|2#Stereo} samples at {5,number,#.#}Hz)", newSampleCount, newChannelCount, newSampleRate, existingSamleCount, existingChannelCount, existingSampleRate);
+    public static @Nonnull ILocalizedMessage AUDIO_REPLACE_FORMAT_MISMATCH(int newSampleRate, int newChannelCount, int existingSampleRate, int existingChannelCount) {
+        return new _PlaceholderMessage("Audio mismatch: new audio format ({0,number,#.#}Hz {1,choice,1#Mono|2#Stereo}) does not match existing audio ({2,number,#.#}Hz {3,choice,1#Mono|2#Stereo})",
+                                        newSampleRate, newChannelCount, existingSampleRate, existingChannelCount);
     }
 
     /**
@@ -4185,19 +4186,6 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>avi:mjpg</pre>
-    </td></tr></table>
-    <p>1 word (no spaces) user can type on command-line. Not case sensitive</p>
-    <ul>
-       <li>VideoFormat.java</li>
-    </ul>
-    */
-    public static @Nonnull ILocalizedMessage VID_AVI_MJPG_COMMAND() {
-        return msg("VID_AVI_MJPG_COMMAND", "avi:mjpg");
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>AVI: Uncompressed RGB</pre>
     </td></tr></table>
     <ul>
@@ -4206,19 +4194,6 @@ Do you want to replace it?</pre>
     */
     public static @Nonnull ILocalizedMessage VID_AVI_RGB_DESCRIPTION() {
         return msg("VID_AVI_RGB_DESCRIPTION", "AVI: Uncompressed RGB");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>avi:rgb</pre>
-    </td></tr></table>
-    <p>1 word (no spaces) user can type on command-line. Not case sensitive</p>
-    <ul>
-       <li>VideoFormat.java</li>
-    </ul>
-    */
-    public static @Nonnull ILocalizedMessage VID_AVI_RGB_COMMAND() {
-        return msg("VID_AVI_RGB_COMMAND", "avi:rgb");
     }
 
     /**
@@ -4235,19 +4210,6 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>bmp</pre>
-    </td></tr></table>
-    <p>1 word (no spaces) user can type on command-line. Not case sensitive</p>
-    <ul>
-       <li>VideoFormat.java</li>
-    </ul>
-    */
-    public static @Nonnull ILocalizedMessage VID_IMG_SEQ_BMP_COMMAND() {
-        return msg("VID_IMG_SEQ_BMP_COMMAND", "bmp");
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Image sequence: mdec</pre>
     </td></tr></table>
     <ul>
@@ -4256,23 +4218,6 @@ Do you want to replace it?</pre>
     */
     public static @Nonnull ILocalizedMessage VID_IMG_SEQ_MDEC_DESCRIPTION() {
         return msg("VID_IMG_SEQ_MDEC_DESCRIPTION", "Image sequence: mdec");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>mdec</pre>
-    </td></tr></table>
-    <p>1 word (no spaces) user can type on command-line. Not case sensitive</p>
-    <ul>
-       <li>VideoFormat.java</li>
-    </ul>
-    */
-    public static @Nonnull ILocalizedMessage VID_IMG_SEQ_MDEC_COMMAND() {
-        return msg("VID_IMG_SEQ_MDEC_COMMAND", "mdec");
-    }
-
-    public static @Nonnull ILocalizedMessage VID_IMG_SEQ_TIFF_COMMAND() {
-        return new _PlaceholderMessage("tiff");
     }
 
     public static @Nonnull ILocalizedMessage VID_IMG_SEQ_TIFF_DESCRIPTION() {
@@ -4293,19 +4238,6 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>avi:jyuv</pre>
-    </td></tr></table>
-    <p>1 word (no spaces) user can type on command-line. Not case sensitive</p>
-    <ul>
-       <li>VideoFormat.java</li>
-    </ul>
-    */
-    public static @Nonnull ILocalizedMessage VID_AVI_JYUV_COMMAND() {
-        return msg("VID_AVI_JYUV_COMMAND", "avi:jyuv");
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>Image sequence: jpg</pre>
     </td></tr></table>
     <ul>
@@ -4314,19 +4246,6 @@ Do you want to replace it?</pre>
     */
     public static @Nonnull ILocalizedMessage VID_IMG_SEQ_JPG_DESCRIPTION() {
         return msg("VID_IMG_SEQ_JPG_DESCRIPTION", "Image sequence: jpg");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>jpg</pre>
-    </td></tr></table>
-    <p>1 word (no spaces) user can type on command-line. Not case sensitive</p>
-    <ul>
-       <li>VideoFormat.java</li>
-    </ul>
-    */
-    public static @Nonnull ILocalizedMessage VID_IMG_SEQ_JPG_COMMAND() {
-        return msg("VID_IMG_SEQ_JPG_COMMAND", "jpg");
     }
 
     /**
@@ -4343,19 +4262,6 @@ Do you want to replace it?</pre>
 
     /**
     <table border="1"><tr><td>
-    <pre>bs</pre>
-    </td></tr></table>
-    <p>1 word (no spaces) user can type on command-line. Not case sensitive</p>
-    <ul>
-       <li>VideoFormat.java</li>
-    </ul>
-    */
-    public static @Nonnull ILocalizedMessage VID_IMG_SEQ_BS_COMMAND() {
-        return msg("VID_IMG_SEQ_BS_COMMAND", "bs");
-    }
-
-    /**
-    <table border="1"><tr><td>
     <pre>AVI: YUV</pre>
     </td></tr></table>
     <ul>
@@ -4364,19 +4270,6 @@ Do you want to replace it?</pre>
     */
     public static @Nonnull ILocalizedMessage VID_AVI_YUV_DESCRIPTION() {
         return msg("VID_AVI_YUV_DESCRIPTION", "AVI: YUV");
-    }
-
-    /**
-    <table border="1"><tr><td>
-    <pre>avi:yuv</pre>
-    </td></tr></table>
-    <p>1 word (no spaces) user can type on command-line. Not case sensitive</p>
-    <ul>
-       <li>VideoFormat.java</li>
-    </ul>
-    */
-    public static @Nonnull ILocalizedMessage VID_AVI_YUV_COMMAND() {
-        return msg("VID_AVI_YUV_COMMAND", "avi:yuv");
     }
 
     /**
@@ -4817,8 +4710,8 @@ Options:</pre>
        <li>VideoSaverBuilder.java</li>
     </ul>
     */
-    public static @Nonnull ILocalizedMessage CMD_VIDEO_VF_HELP(@Nonnull ILocalizedMessage defaultVideoFormat) {
-        return msg("CMD_VIDEO_VF_HELP", "Output video format (default {0}).\nOptions:", defaultVideoFormat);
+    public static @Nonnull ILocalizedMessage CMD_VIDEO_VF_HELP(@Nonnull String defaultVideoFormat) {
+        return new _PlaceholderMessage("Output video format (default {0}).\nOptions:", defaultVideoFormat);
     }
 
     /**
@@ -5541,11 +5434,19 @@ to: {1}</pre>
     }
 
     public static @Nonnull ILocalizedMessage TIM_HAS_ISSUES_CAN_BE_EXTRACTED(@Nonnull String timDescription) {
-        return new _PlaceholderMessage("This Tim image contains inconsistant data, but can still be extracted: {0}", timDescription);
+        return new _PlaceholderMessage("This Tim image contains inconsistent data, but can still be extracted: {0}", timDescription);
     }
 
     public static @Nonnull ILocalizedMessage CMD_REPLACEXA_MISSING_XA_OPTION() {
         return new _PlaceholderMessage("-replacexa option missing -xa option");
+    }
+
+    public static @Nonnull ILocalizedMessage CMD_REPLACE_AUDIO_TOO_SHORT(long audioSampleLength, long existingAudioSampleLength) {
+        return new _PlaceholderMessage("Replacement audio sample length {0} is too small to fill existing sample length {1}", audioSampleLength, existingAudioSampleLength);
+    }
+
+    public static @Nonnull ILocalizedMessage CMD_REPLACE_AUDIO_TOO_LONG(long existingAudioSampleLength) {
+        return new _PlaceholderMessage("Replacement audio sample length is larger than existing sample length {0}", existingAudioSampleLength);
     }
 
 }

@@ -56,7 +56,8 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
@@ -215,12 +216,12 @@ public class ReplaceFrames {
     }
 
     public void replaceFrames(@Nonnull DiscItemSectorBasedVideoStream vidItem,
-                              final @Nonnull CdFileSectorReader cd,
+                              final @Nonnull DiscPatcher patcher,
                               final @Nonnull ProgressLogger pl)
             throws LoggedFailure, TaskCanceledException
     {
         ISectorClaimToDemuxedFrame demuxer = vidItem.makeDemuxer();
-        ReplaceFrameListener replaceListener = new ReplaceFrameListener(pl, cd);
+        ReplaceFrameListener replaceListener = new ReplaceFrameListener(pl, patcher);
         demuxer.setFrameListener(replaceListener);
 
         pl.progressStart(vidItem.getSectorLength());
@@ -229,7 +230,7 @@ public class ReplaceFrames {
         for (int iSector = 0; it.hasNext(); iSector++) {
             try {
                 IIdentifiedSector sector = it.next(pl);
-            } catch (CdFileSectorReader.CdReadException ex) {
+            } catch (CdReadException ex) {
                 throw new LoggedFailure(pl, Level.SEVERE,
                         I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
             }
@@ -240,7 +241,7 @@ public class ReplaceFrames {
             if (replaceListener.exception != null)
                 throw replaceListener.exception;
         }
-        it.close(pl);
+        it.flush(pl);
         pl.progressEnd();
     }
 
@@ -249,7 +250,7 @@ public class ReplaceFrames {
         @Nonnull
         private final ProgressLogger _pl;
         @Nonnull
-        private final CdFileSectorReader _cd;
+        private final DiscPatcher _patcher;
 
         @CheckForNull
         public FrameNumber currentFrameNum;
@@ -257,9 +258,9 @@ public class ReplaceFrames {
         @CheckForNull
         public LoggedFailure exception;
 
-        public ReplaceFrameListener(ProgressLogger pl, CdFileSectorReader cd) {
+        public ReplaceFrameListener(@Nonnull ProgressLogger pl, @Nonnull DiscPatcher patcher) {
             _pl = pl;
-            _cd = cd;
+            _patcher = patcher;
         }
 
         @Override
@@ -271,7 +272,7 @@ public class ReplaceFrames {
                 try {
                     _pl.log(Level.INFO, I.CMD_REPLACING_FRAME_WITH_FILE(replacer.getFrameLookup().toString(),
                                                                         replacer.getImageFile()));
-                    replacer.replace(frame, _cd, _pl);
+                    replacer.replace(frame, _patcher, _pl);
                 } catch (LoggedFailure ex) {
                     exception = ex;
                 }

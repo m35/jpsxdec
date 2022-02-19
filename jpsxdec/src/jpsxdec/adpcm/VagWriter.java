@@ -49,7 +49,7 @@ import jpsxdec.util.Misc;
 
 /** Writes a VAG ("very audio good") file.
  * <p>
- * VAG files seem to be a common format involved in PSX development.
+ * VAG files seem to be a common format involved in PlayStation 1 development.
  * It contains a single sound clip of SPU audio.
  * <p>
  * The file contains the following data.
@@ -101,7 +101,7 @@ public class VagWriter implements Closeable {
     private int _iWrittenSoundUnitCount = 0;
 
     /** {@link #VagWriter(java.io.File, java.lang.String, int)} with the
-     * string filename converted to {@ File}. */
+     * string filename converted to {@link File}. */
     public VagWriter(@Nonnull String sOutputFile, @Nonnull String sId, int iSampleRate)
             throws FileNotFoundException, IOException
     {

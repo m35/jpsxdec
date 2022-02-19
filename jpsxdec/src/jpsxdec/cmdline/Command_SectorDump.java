@@ -42,15 +42,18 @@ import java.io.PrintStream;
 import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.DebugLogger;
+import jpsxdec.indexing.SectorTypeCounter;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.ArgParser;
 
-
+/** Handle {@code -sectordump} option. */
 class Command_SectorDump extends Command {
 
     @Nonnull
@@ -68,7 +71,7 @@ class Command_SectorDump extends Command {
 
     @Override
     public void execute(@Nonnull ArgParser ap) throws CommandLineException {
-        CdFileSectorReader cdReader = getCdReader();
+        ICdSectorReader cdReader = getCdReader();
         _fbs.println(I.CMD_GENERATING_SECTOR_LIST());
         PrintStream ps = null;
         try {
@@ -82,19 +85,26 @@ class Command_SectorDump extends Command {
                 }
             }
             ps.println(cdReader.getSourceFile());
-            SectorCounter counter = new SectorCounter();
+            SectorTypeCounter counter = new SectorTypeCounter();
             SectorClaimSystem it = SectorClaimSystem.create(cdReader);
-            while (it.hasNext()) {
-                IIdentifiedSector idSect = it.next(DebugLogger.Log);
-                ps.println(idSect);
-                counter.increment(idSect);
+            try {
+                while (it.hasNext()) {
+                    IIdentifiedSector idSect;
+                    try {
+                        idSect = it.next(DebugLogger.Log);
+                    } catch (CdReadException ex) {
+                        throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+                    }
+                    ps.println(idSect);
+                    counter.increment(idSect);
+                }
+                it.flush(DebugLogger.Log);
+            } catch (LoggedFailure ex) {
+                throw new CommandLineException(ex.getSourceMessage(), ex);
             }
-            it.close(DebugLogger.Log);
             for (Map.Entry<String, Integer> entry : counter) {
                 ps.println(entry.getKey() + " " + entry.getValue());
             }
-        } catch (CdFileSectorReader.CdReadException ex) {
-            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
         } finally {
             if (ps != null) {
                 ps.flush();

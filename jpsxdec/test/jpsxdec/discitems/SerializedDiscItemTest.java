@@ -64,7 +64,7 @@ public class SerializedDiscItemTest {
     }
 
     @Test
-    public void testSerialize_Index_Id() throws Exception {
+    public void testSerialize_IndexId() throws Exception {
         String sType = "Fish";
         int iSectorStart = 0;
         int iSectorEnd = 0;
@@ -72,7 +72,7 @@ public class SerializedDiscItemTest {
         int iIndex;
         String sIndexId;
         SerializedDiscItem sdi;
-        
+
         iIndex = -1;
         sIndexId = null;
         sdi = new SerializedDiscItem(sType, iIndex, sIndexId, iSectorStart, iSectorEnd);
@@ -150,18 +150,6 @@ public class SerializedDiscItemTest {
         }
 
         try {
-            sdi.addDimensions("a", -1, 0);
-            fail("Expepcted IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
-        }
-
-        try {
-            sdi.addDimensions("a", 0, -1);
-            fail("Expepcted IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
-        }
-
-        try {
             sdi.addRange("a", 0, -1);
             fail("Expepcted IllegalArgumentException");
         } catch (IllegalArgumentException e) {
@@ -203,10 +191,6 @@ public class SerializedDiscItemTest {
         sdi.addString(sKey, sValue);
         assertEquals(sValue, sdi.getString(sKey));
 
-        try {
-            sdi.getDimensions(sKey);
-            fail("Expepcted DeserializationFail");
-        } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getFraction(sKey);
             fail("Expepcted DeserializationFail");
@@ -252,10 +236,6 @@ public class SerializedDiscItemTest {
         sdi.getString(sKey);
 
         try {
-            sdi.getDimensions(sKey);
-            fail("Expepcted DeserializationFail");
-        } catch (LocalizedDeserializationFail e) {}
-        try {
             sdi.getFraction(sKey);
             fail("Expepcted DeserializationFail");
         } catch (LocalizedDeserializationFail e) {}
@@ -288,7 +268,6 @@ public class SerializedDiscItemTest {
     private void addGetRange(SerializedDiscItem sdi, String sKey, int iStart, int iEnd) throws Exception {
         sdi.addRange(sKey, iStart, iEnd);
         assertArrayEquals(new int[] {iStart, iEnd}, sdi.getIntRange(sKey));
-        assertArrayEquals(new int[] {iStart, iEnd}, sdi.getDimensions(sKey));
         assertArrayEquals(new long[] {iStart, iEnd}, sdi.getLongRange(sKey));
         assertArrayEquals(new long[] {iStart, iEnd}, sdi.getFraction(sKey));
         sdi.getString(sKey);
@@ -339,37 +318,45 @@ public class SerializedDiscItemTest {
     }
 
     @Test
-    public void testAddDimensions() throws Exception {
-        String sType = "Fish";
-        int iSectorStart = 0;
-        int iSectorEnd = 0;
-        int iIndex = 0;
-        String sIndexId = "taco";
-        SerializedDiscItem sdi = new SerializedDiscItem(sType, iIndex, sIndexId, iSectorStart, iSectorEnd);
-        addGetDimensions(sdi, "x", 0, 0);
-        serializeDeserialize(sdi);
-        addGetDimensions(sdi, "y", 0, 1);
-        serializeDeserialize(sdi);
-        addGetDimensions(sdi, "z", 1, 0);
-        serializeDeserialize(sdi);
+    public void test_Dimensions() throws Exception {
+        addGetDimensions(0, 0);
+        addGetDimensions(0, 1);
+        addGetDimensions(1, 0);
+
+        try {
+            new Dimensions(-1, 0);
+            fail("Expected " + IllegalArgumentException.class);
+        } catch (IllegalArgumentException ex) {}
+        try {
+            new Dimensions(0, -1);
+            fail("Expected " + IllegalArgumentException.class);
+        } catch (IllegalArgumentException ex) {}
     }
 
-    private void addGetDimensions(SerializedDiscItem sdi, String sKey, int iWidth, int iHeight) throws Exception {
-        sdi.addDimensions(sKey, iWidth, iHeight);
-        assertArrayEquals(new int[] {iWidth, iHeight}, sdi.getDimensions(sKey));
-        assertArrayEquals(new int[] {iWidth, iHeight}, sdi.getIntRange(sKey));
-        assertArrayEquals(new int[] {iWidth, iHeight}, sdi.getDimensions(sKey));
-        assertArrayEquals(new long[] {iWidth, iHeight}, sdi.getLongRange(sKey));
-        assertArrayEquals(new long[] {iWidth, iHeight}, sdi.getFraction(sKey));
-        sdi.getString(sKey);
+    private void addGetDimensions(int iWidth, int iHeight) throws Exception {
+        String sType = "Fish";
+        int iIndex = 0;
+        String sIndexId = "taco";
+        int iSectorStart = 0;
+        int iSectorEnd = 0;
+        SerializedDiscItem sdi = new SerializedDiscItem(sType, iIndex, sIndexId, iSectorStart, iSectorEnd);
+
+        new Dimensions(iWidth, iHeight).serialize(sdi);
+        Dimensions dGet = new Dimensions(sdi);
+        assertArrayEquals(new int[] {iWidth, iHeight}, new int[] {dGet.getWidth(), dGet.getHeight()});
+        assertArrayEquals(new int[] {iWidth, iHeight}, new int[] {dGet.getWidth(), dGet.getHeight()});
+
+        sdi.getString(Dimensions.DIMENSIONS_KEY);
         try {
-            sdi.getInt(sKey);
-            fail("Expepcted DeserializationFail");
+            sdi.getInt(Dimensions.DIMENSIONS_KEY);
+            fail("Expepcted " + LocalizedDeserializationFail.class);
         } catch (LocalizedDeserializationFail e) {}
         try {
-            sdi.getLong(sKey);
-            fail("Expepcted DeserializationFail");
+            sdi.getLong(Dimensions.DIMENSIONS_KEY);
+            fail("Expepcted " + LocalizedDeserializationFail.class);
         } catch (LocalizedDeserializationFail e) {}
+
+        serializeDeserialize(sdi);
     }
 
 }

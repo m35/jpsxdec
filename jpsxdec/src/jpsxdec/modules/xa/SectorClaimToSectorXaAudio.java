@@ -40,7 +40,6 @@ package jpsxdec.modules.xa;
 import java.io.IOException;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
@@ -52,7 +51,7 @@ public class SectorClaimToSectorXaAudio implements SectorClaimSystem.SectorClaim
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException, LoggedFailure
+            throws IOException
     {
         if (cs.isClaimed())
             return;

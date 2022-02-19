@@ -43,7 +43,8 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
@@ -53,6 +54,7 @@ import jpsxdec.modules.crusader.SectorClaimToSectorCrusader;
 import jpsxdec.modules.dredd.SectorClaimToDreddFrame;
 import jpsxdec.modules.eavideo.SectorClaimToEAVideo;
 import jpsxdec.modules.iso9660.SectorClaimToSectorISO9660;
+import jpsxdec.modules.ngauge.SectorClaimToNGaugeSector;
 import jpsxdec.modules.policenauts.SectorClaimToPolicenauts;
 import jpsxdec.modules.square.SectorClaimToFF7Sector;
 import jpsxdec.modules.square.SectorClaimToSquareAudioSector;
@@ -78,15 +80,15 @@ import jpsxdec.util.IOIterator;
  */
 public class SectorClaimSystem {
 
-    public static @Nonnull SectorClaimSystem create(@Nonnull CdFileSectorReader cd) {
+    public static @Nonnull SectorClaimSystem create(@Nonnull ICdSectorReader cd) {
         return create(cd, 0);
     }
-    public static @Nonnull SectorClaimSystem create(@Nonnull CdFileSectorReader cd,
+    public static @Nonnull SectorClaimSystem create(@Nonnull ICdSectorReader cd,
                                                     int iStartSector)
     {
         return create(cd, iStartSector, cd.getSectorCount()-1);
     }
-    public static @Nonnull SectorClaimSystem create(@Nonnull CdFileSectorReader cd,
+    public static @Nonnull SectorClaimSystem create(@Nonnull ICdSectorReader cd,
                                                     int iStartSector,
                                                     int iEndSectorInclusive)
     {
@@ -96,10 +98,12 @@ public class SectorClaimSystem {
         scs.addClaimer(new SectorClaimToSectorCdAudio());
         scs.addClaimer(new SectorClaimToSectorISO9660());
 
-        scs.addClaimer(new SectorClaimToFF7Sector()); // FF7 needs to be before other video sector types
+        scs.addClaimer(new SectorClaimToNGaugeSector());
+        scs.addClaimer(new SectorClaimToFF7Sector()); // FF7 needs to be before other video sector types (see javadoc)
         scs.addClaimer(new SectorClaimToStrVideoSector());
         scs.addClaimer(new SectorClaimToSquareAudioSector());
         scs.addClaimer(new SectorClaimToSectorAc3Video());
+
         scs.addClaimer(new SectorClaimToSectorCrusader());
         scs.addClaimer(new SectorClaimToDreddFrame());
         scs.addClaimer(new SectorClaimToPolicenauts());
@@ -116,10 +120,9 @@ public class SectorClaimSystem {
         void sectorRead(@Nonnull ClaimableSector cs,
                         @Nonnull IOIterator<ClaimableSector> peekIt,
                         @Nonnull ILocalizedLogger log)
-                throws IOException, LoggedFailure;
+                throws IOException;
 
-        void endOfSectors(@Nonnull ILocalizedLogger log)
-                throws LoggedFailure;
+        void endOfSectors(@Nonnull ILocalizedLogger log);
     }
 
 
@@ -168,7 +171,7 @@ public class SectorClaimSystem {
     // =========================================================================
 
     @Nonnull
-    private final CdFileSectorReader _cd;
+    private final ICdSectorReader _cd;
     @Nonnull
     private final ArrayList<SectorClaimInception> _iterators = new ArrayList<SectorClaimInception>();
     @Nonnull
@@ -180,11 +183,11 @@ public class SectorClaimSystem {
     @Nonnull // only non-null when being used
     private ILocalizedLogger _log;
 
-    SectorClaimSystem(@Nonnull CdFileSectorReader cd) {
+    SectorClaimSystem(@Nonnull ICdSectorReader cd) {
         this(cd, 0, cd.getSectorCount() - 1);
     }
 
-    private SectorClaimSystem(@Nonnull CdFileSectorReader cd, int iStartSector,
+    private SectorClaimSystem(@Nonnull ICdSectorReader cd, int iStartSector,
                               int iEndSectorInclusive)
     {
         _cd = cd;
@@ -225,29 +228,19 @@ public class SectorClaimSystem {
         return _outerMostIterator.hasNext();
     }
 
-    private static class LoggedFailureWrapper extends RuntimeException {
-        private final LoggedFailure _inner;
-        public LoggedFailureWrapper(LoggedFailure inner) {
-            super(inner);
-            _inner = inner;
-        }
-    }
-
     @SuppressWarnings("unchecked")
     public @Nonnull IIdentifiedSector next(@Nonnull ILocalizedLogger log)
-            throws CdFileSectorReader.CdReadException
+            throws CdReadException, LoggedFailure
     {
         try {
             _log = log;
             ClaimableSector next;
             try {
                 next = _outerMostIterator.next();
-            } catch (LoggedFailureWrapper ex) {
-                throw ex;
             } catch (IOException ex) {
-                if (ex instanceof CdFileSectorReader.CdReadException)
-                    throw (CdFileSectorReader.CdReadException)ex;
-                throw new CdFileSectorReader.CdReadException(getSourceCdFile(), ex);
+                if (ex instanceof CdReadException)
+                    throw (CdReadException)ex;
+                throw new CdReadException(getSourceCdFile(), ex);
             }
 
             IIdentifiedSector idSector = next.getClaimer();
@@ -255,13 +248,9 @@ public class SectorClaimSystem {
                 idSector = new UnidentifiedSector(next.getSector());
 
             for (IdentifiedSectorListener listener : _idSectorListeners) {
-                try {
-                    Class listeningFor = listener.getListeningFor();
-                    if (listeningFor == null || listeningFor.isInstance(idSector))
-                        listener.feedSector(idSector, log);
-                } catch (LoggedFailure ex) {
-                    throw new LoggedFailureWrapper(ex);
-                }
+                Class listeningFor = listener.getListeningFor();
+                if (listeningFor == null || listeningFor.isInstance(idSector))
+                    listener.feedSector(idSector, log);
             }
 
             return idSector;
@@ -270,21 +259,14 @@ public class SectorClaimSystem {
         }
     }
 
-    public void close(@Nonnull ILocalizedLogger log) {
+    /** Tell everything to finish processing the sectors that have been read. */
+    public void flush(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         for (SectorClaimInception claimer : _iterators) {
-            try {
-                claimer._claimer.endOfSectors(log);
-            } catch (LoggedFailure ex) {
-                throw new LoggedFailureWrapper(ex);
-            }
+            claimer._claimer.endOfSectors(log);
         }
 
         for (IdentifiedSectorListener listener : _idSectorListeners) {
-            try {
-                listener.endOfFeedSectors(log);
-            } catch (LoggedFailure ex) {
-                throw new LoggedFailureWrapper(ex);
-            }
+            listener.endOfFeedSectors(log);
         }
     }
 
@@ -293,11 +275,11 @@ public class SectorClaimSystem {
     /** Core iterator that reads directly from the CD. */
     private static class CoreSectorIterator implements IOIterator<ClaimableSector> {
         @Nonnull
-        private final CdFileSectorReader _cd;
+        private final ICdSectorReader _cd;
         private int _iSector;
         private final int _iEndSector;
 
-        public CoreSectorIterator(@Nonnull CdFileSectorReader cd, int iStartSector, int iEndSector) {
+        public CoreSectorIterator(@Nonnull ICdSectorReader cd, int iStartSector, int iEndSector) {
             _cd = cd;
             _iSector = iStartSector;
             _iEndSector = iEndSector;
@@ -335,11 +317,7 @@ public class SectorClaimSystem {
         public @Nonnull ClaimableSector next() throws IOException {
             BufferedIOIterator<ClaimableSector> copy = _nestedIter.copy();
             ClaimableSector cs = copy.next();
-            try {
-                _claimer.sectorRead(cs, copy, _log);
-            } catch (LoggedFailure ex) {
-                throw new LoggedFailureWrapper(ex);
-            }
+            _claimer.sectorRead(cs, copy, _log);
             return _nestedIter.next();
         }
     }

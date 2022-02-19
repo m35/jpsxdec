@@ -78,7 +78,7 @@ The countless people who created so many open source tools that I've used
 in this project, and in my every day life. It is a huge list.
 
 ................................................................................
-Thanks to those who wrote code that I've used or referenced at some point 
+Thanks to those who wrote code that I've used or referenced at some point
 during development:
 
 Alexander Strange for porting the ffmpeg simple_idct to Java.

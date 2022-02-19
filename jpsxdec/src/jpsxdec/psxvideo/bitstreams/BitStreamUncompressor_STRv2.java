@@ -115,6 +115,10 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor implement
             // flip the last bit so bytes are read in 16-bit little-endian
             return iByteIndex ^ 1;
         }
+        @Override
+        public int getPaddingByteAlign() {
+            return 4;
+        }
     };
 
     public static @Nonnull ArrayBitReader makeStrBitReader(@Nonnull byte[] abBitstream, int iDataSize) {
@@ -133,6 +137,7 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor implement
         _header = header;
     }
 
+    @Override
     public int getQuantizationScale() {
         return _header.getQuantizationScale();
     }
@@ -209,7 +214,11 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor implement
         @Nonnull
         private final IByteOrder _byteOrder;
 
-        public BitStreamCompressor_STRv2(int iMacroBlockCount, @Nonnull IByteOrder byteOrder) {
+        public BitStreamCompressor_STRv2(int iMacroBlockCount) {
+            this(iMacroBlockCount, LITTLE_ENDIAN_SHORT_ORDER);
+        }
+
+        protected BitStreamCompressor_STRv2(int iMacroBlockCount, @Nonnull IByteOrder byteOrder) {
             _iMacroBlockCount = iMacroBlockCount;
             _byteOrder = byteOrder;
         }
@@ -406,6 +415,8 @@ public class BitStreamUncompressor_STRv2 extends BitStreamUncompressor implement
             return ab;
         }
 
+        /** Only used to populate the header in {@link #createHeader(int)}.
+         * If {@link #createHeader(int)} is overridden, this function will be ignored. */
         protected int getHeaderVersion() { return 2; }
 
         protected int getFrameQscale(@Nonnull byte[] abFrameData) throws LocalizedIncompatibleException {

@@ -65,7 +65,7 @@ public class AconcaguaDemuxer extends VideoSectorWithFrameNumberDemuxer {
     }
 
     @Override
-    public DemuxedAconcaguaFrame finishFrame(@Nonnull ILocalizedLogger log) {
+    public @Nonnull DemuxedAconcaguaFrame finishFrame(@Nonnull ILocalizedLogger log) {
         @SuppressWarnings("unchecked")
         List<SectorAconcaguaVideo> s = (List)getNonNullChunks(log);
         return new DemuxedAconcaguaFrame(getWidth(), getHeight(), getHeaderFrameNumber(), s, _iQuantizationScale);

@@ -146,7 +146,7 @@ public class DemuxPushInputStreamTest {
         DDPiece p1 = new DDPiece(new byte[0]);
         DDPiece p2 = new DDPiece(7, 11);
         DemuxPushInputStream<DDPiece> x = new DemuxPushInputStream<DDPiece>(p1);
-        
+
         x.mark(5);
         try {
             x.read();

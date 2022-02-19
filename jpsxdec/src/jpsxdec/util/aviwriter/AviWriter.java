@@ -53,6 +53,7 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import jpsxdec.Version;
+import jpsxdec.i18n.I;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
@@ -215,6 +216,13 @@ public abstract class AviWriter implements Closeable {
     // -- Constructors ---------------------------------------------------------
     // -------------------------------------------------------------------------
 
+    private static @Nonnull String getMeta() {
+        String sMeta = System.getProperty("meta");
+        if (sMeta == null)
+            sMeta = I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getEnglishMessage();
+        return sMeta;
+    }
+
     /** Audio data must be signed 16-bit PCM in little-endian order. */
     protected AviWriter(final @Nonnull File outputfile,
                         final int iWidth, final int iHeight,
@@ -315,8 +323,7 @@ public abstract class AviWriter implements Closeable {
 
             // some programs will use this to identify the program that wrote the avi
             Chunk JUNK_writerId = new Chunk(_aviFile, "JUNK");
-                String sVersion = String.format("jPSXdec: PSX media decoder (non-commercial) v%s", Version.Version);
-                _aviFile.writeBytes(sVersion);
+                _aviFile.writeBytes(getMeta());
                 _aviFile.write(0);
             JUNK_writerId.endChunk(_aviFile);
 

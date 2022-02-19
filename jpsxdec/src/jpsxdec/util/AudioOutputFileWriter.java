@@ -146,7 +146,7 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
         }
     }
 
-    public void write(@Nonnull byte[] abData, int iOffset, int iLength)
+    public void write(@Nonnull byte[] abData, int iOffset, int iByteLength)
             throws IOException
     {
         // check if there has been an error in the writing thread
@@ -159,7 +159,7 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
             }
         }
 
-        _feedStream.write(abData, iOffset, iLength);
+        _feedStream.write(abData, iOffset, iByteLength);
 
         // again check if there has been an error in the writing thread
         synchronized (_threadInputStream) {

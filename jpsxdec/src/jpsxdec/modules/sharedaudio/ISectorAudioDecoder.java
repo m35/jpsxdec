@@ -64,6 +64,8 @@ public interface ISectorAudioDecoder {
     /** Physical end sector, not presentation end sector. */
     int getEndSector();
 
+    /** To get the exact integer value of the sample frames/second.
+     * {@link AudioFormat#getFrameRate()} is a float. */
     int getSampleFramesPerSecond();
 
     /** @return -1, 1 or 2 */

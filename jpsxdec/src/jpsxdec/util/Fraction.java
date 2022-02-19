@@ -1,5 +1,8 @@
 package jpsxdec.util;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.Locale;
 import javax.annotation.Nonnull;
 
 /*
@@ -58,9 +61,11 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
   @Override
   public String toString() {
     if (getDenominator() == 1)
-      return String.format("%d", getNumerator());
-    else
-      return String.format("%d/%d (%3f)", getNumerator(), getDenominator(), asDouble());
+      return String.valueOf(getNumerator());
+
+    DecimalFormat df = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+    df.setMaximumFractionDigits(4);
+    return getNumerator() + "/" + getDenominator() + " (" + df.format(asDouble()) + ")";
   }
 
   public @Nonnull Fraction clone() { return new Fraction(this); }
@@ -76,7 +81,11 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
   }
 
     public int asInt() {
-        return (int) (getNumerator() / getDenominator());
+        return (int)asLong();
+    }
+
+    public long asLong() {
+        return getNumerator() / getDenominator();
     }
 
   /**
@@ -210,6 +219,7 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
    * reflecting whether this Fraction is less, equal or greater than
    * the value of Fraction other.
    **/
+  @Override
   public int compareTo(Fraction other) {
     long an = getNumerator();
     long ad = getDenominator();
@@ -236,6 +246,8 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
 
   @Override
   public boolean equals(Object other) {
+    if (!(other instanceof Fraction))
+        return false;
     return compareTo((Fraction)other) == 0;
   }
 

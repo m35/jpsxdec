@@ -46,7 +46,7 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import jpsxdec.adpcm.SoundUnitDecoder;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DemuxedSectorInputStream;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
@@ -79,7 +79,7 @@ public class DiscItemSpu extends DiscItem implements DiscItem.IHasStartOffset {
     private final static String SAMPLE_RATE_KEY = "Sample Rate";
     private int _iSampleRate;
 
-    public DiscItemSpu(@Nonnull CdFileSectorReader cd,
+    public DiscItemSpu(@Nonnull ICdSectorReader cd,
                        int iStartSector, int iStartOffset,
                        int iEndSector, int iEndOffset,
                        int iSoundUnitCount)
@@ -91,7 +91,7 @@ public class DiscItemSpu extends DiscItem implements DiscItem.IHasStartOffset {
         _iSampleRate = DEFAULT_SAMPLE_RATE;
     }
 
-    public DiscItemSpu(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemSpu(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);

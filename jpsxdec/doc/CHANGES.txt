@@ -1,3 +1,18 @@
+v1.06 (beta) rev4156 (19 Feb 2022)
+    - Support for videos in game "N Gauge Unten Kibun Game: Gatan Goton"
+    - Support for videos in more Electronic Arts games
+      (Github issue #40 "Andretti Racing - Sector scanning fails with error message"
+       by BloodRaynare)
+    - More accurate FPS detection, but indexing is slower, sometimes SIGNIFICANTLY slower
+    - Slightly improved video encoder quality and accuracy
+    - Command-line option "-a audio" now defaults to skipping audio associated
+      with videos, and added additional option "-vidaud" to include all audio
+      (see manual for details)
+      (Github issue #42 "No Commandline Argument for skipping audio from video files"
+       by Meerkov)
+    - A lot of bug fixes and improved error handling
+    Known issues
+    - Translations not updated since v1.00
 v1.05 (beta) rev4052 (14 Mar 2021)
     - Support for Panekit - Infinitive Crafting Toy Case videos
     - Support for Star Wars - Rebel Assault II - The Hidden Empire videos

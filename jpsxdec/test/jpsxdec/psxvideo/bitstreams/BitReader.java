@@ -139,7 +139,7 @@ public class BitReader {
     @Test
     public void testReadRandom() throws MdecException.EndOfStream {
         final Random rand = new Random();
-        
+
         byte[] abTest = new byte[8];
         rand.nextBytes(abTest);
 

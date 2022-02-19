@@ -38,6 +38,8 @@ package laintools;
 
 import java.io.File;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.modules.iso9660.DiscItemISO9660File;
@@ -66,37 +68,36 @@ public class PatchLainImage {
         
         DiscIndex index = new DiscIndex(sIndex, true, DebugLogger.Log);
 
-        index.getSourceCd().beginPatching();
+        DiscPatcher patcher = new DiscPatcher(index.getSourceCd());
         DiscItem item = index.getById("SLPS_016.03");
         if (item == null)
             item = index.getById("SLPS_016.04");
-        replaceFile((DiscItemISO9660File)item, sSlps);
+        replaceFile((DiscItemISO9660File)item, patcher, sSlps);
         
         item = index.getById("SITEA.BIN");
         if (item == null)
             item = index.getById("SITEB.BIN");
-        replaceFile((DiscItemISO9660File)item, sSite);
+        replaceFile((DiscItemISO9660File)item, patcher, sSite);
 
         if (sBin != null)
-            replaceFile((DiscItemISO9660File)index.getById("BIN.BIN"), sBin);
+            replaceFile((DiscItemISO9660File)index.getById("BIN.BIN"), patcher, sBin);
 
-        index.getSourceCd().applyPatches(new ConsoleProgressLogger(PatchLainImage.class.getSimpleName(),
-                                                                   System.out));
+        patcher.applyPatches((CdFileSectorReader) index.getSourceCd(), new ConsoleProgressLogger(PatchLainImage.class.getSimpleName(),
+                                                                            System.out));
     }
 
-    private static void replaceFile(DiscItemISO9660File isoFile, String sReplaceFile) throws Exception {
+    private static void replaceFile(DiscItemISO9660File isoFile, DiscPatcher patcher, String sReplaceFile) throws Exception {
         System.out.println("Replacing " + sReplaceFile);
 
         File replaceFile = new File(sReplaceFile);
-        CdFileSectorReader replaceDisc = CdFileSectorReader.openWithSectorSize(replaceFile, 2048);
+        ICdSectorReader replaceDisc = CdFileSectorReader.openWithSectorSize(replaceFile, 2048);
         if (replaceDisc.getSectorCount() > isoFile.getSectorLength())
             throw new RuntimeException(sReplaceFile + " too big to fit " + isoFile);
-        CdFileSectorReader destDisc = isoFile.getSourceCd();
 
         for (int iOfsSect = 0; iOfsSect < replaceDisc.getSectorCount(); iOfsSect++) {
             byte[] abSrcUserData = replaceDisc.getSector(iOfsSect).getCdUserDataCopy();
             //System.out.println("Overwriting sector " + (isoFile.getStartSector() + iOfsSect));
-            destDisc.addPatch(isoFile.getStartSector() + iOfsSect, 0, abSrcUserData);
+            patcher.addPatch(isoFile.getStartSector() + iOfsSect, 0, abSrcUserData);
         }
 
         replaceDisc.close();

@@ -48,7 +48,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.swing.JOptionPane;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.log.ProgressLogger;
@@ -75,7 +75,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     @CheckForNull
     public DiscIndex _index;
     @Nonnull
-    public CdFileSectorReader _cd;
+    public ICdSectorReader _cd;
 
     @Nonnull
     private State _eState = State.NOT_STARTED;
@@ -90,18 +90,18 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
 
     /** Creates new form Progress */
-    public IndexingGui(@Nonnull java.awt.Dialog parent, @Nonnull CdFileSectorReader cd) {
+    public IndexingGui(@Nonnull java.awt.Dialog parent, @Nonnull ICdSectorReader cd) {
         super(parent, true);
         sharedConstructor(parent, cd);
     }
 
     /** Creates new form Progress */
-    public IndexingGui(@Nonnull java.awt.Frame parent, @Nonnull CdFileSectorReader cd) {
+    public IndexingGui(@Nonnull java.awt.Frame parent, @Nonnull ICdSectorReader cd) {
         super(parent, true);
         sharedConstructor(parent, cd);
     }
 
-    private void sharedConstructor(@Nonnull java.awt.Window parent, @Nonnull CdFileSectorReader cd)
+    private void sharedConstructor(@Nonnull java.awt.Window parent, @Nonnull ICdSectorReader cd)
     {
         initComponents();
 

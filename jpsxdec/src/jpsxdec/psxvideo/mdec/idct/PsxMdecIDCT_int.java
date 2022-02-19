@@ -75,7 +75,7 @@ public class PsxMdecIDCT_int implements IDCT_int {
                 tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    tempSum += (PSX_DEFAULT_COSINE_MATRIX[i*8 + y] * idctMatrix[x + i*8]);
+                    tempSum += idctMatrix[x + i*8] * PSX_DEFAULT_COSINE_MATRIX[y + i*8];
                 }
 
                 _aTemp[x + y*8] = tempSum;
@@ -87,42 +87,10 @@ public class PsxMdecIDCT_int implements IDCT_int {
                 tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    tempSum += _aTemp[i + y*8] * PSX_DEFAULT_COSINE_MATRIX[x + i*8];
+                    tempSum += PSX_DEFAULT_COSINE_MATRIX[x + i*8] * _aTemp[i + y*8];
                 }
 
                 output[iOutputOffset + x + y*8] = (int)Maths.shrRound(tempSum, 32);
-            }
-        }
-    }
-
-
-    public void DCT(int[] idctMatrix, int iOutputOffset, int[] output) {
-        long tempSum;
-        int x;
-        int y;
-        int i;
-
-        for (x=0; x<8; x++) {
-            for (y=0; y<8; y++) {
-                tempSum = 0;
-
-                for (i=0; i<8; i++) {
-                    tempSum += idctMatrix[x + i*8] * PSX_DEFAULT_COSINE_MATRIX[i + y*8];
-                }
-
-                _aTemp[x + y*8] = tempSum >> 16;
-            }
-        }
-
-        for (x=0; x<8; x++) {
-            for (y=0; y<8; y++) {
-                tempSum = 0;
-
-                for (i=0; i<8; i++) {
-                    tempSum += PSX_DEFAULT_COSINE_MATRIX[x + i*8] * _aTemp[i*8 + y];
-                }
-
-                output[iOutputOffset + x + y*8] = (int)(tempSum >> 16);
             }
         }
     }
@@ -132,41 +100,4 @@ public class PsxMdecIDCT_int implements IDCT_int {
         IDCT(idctMatrix, iOutputOffset, output);
     }
 
-
-    public static void main(String[] args) {
-
-        int[] matrix = new int[] {
-         -112, 60, 0, 0, 0, 0, 0, 0,
-          -54, 18, 8, 0, 0, 0, 0, 0,
-          -14,  0, 0, 0, 0, 0, 0, 0,
-            0,  0, 9, 0, 0, 0, 0, 0,
-            0,  0, 0, 0, 0, 0, 0, 0,
-            0,  0, 0, 0, 0, 0, 0, 0,
-            0,  0, 0, 0, 0, 0, 0, 0,
-            0,  0, 0, 0, 0, 0, 0, 0,
-        };
-
-        matrix = new int[] {
-          -72, -36,  0,  16,  0,   0,   0,   0,
-           12,   0,  0,   0,  0,   0,   0,   0,
-           14,   0,  0,   0,  0,   0,   0,   0,
-           16,   0,  0,   0,  0,   0,   0,   0,
-            0,   0,  0,   0,  0,   0,   0,   0,
-            0,   0,  0,   0,  0,   0,   0,   0,
-            0,   0,  0,   0,  0,   0,   0,   0,
-            0,   0,  0,   0,  0,   0,   0,   0
-        };
-
-        PsxMdecIDCT_int idct = new PsxMdecIDCT_int();
-
-        idct.IDCT(matrix, 0, matrix);
-
-        for (int y = 0; y < 8; y++) {
-            System.out.print("[ ");
-            for (int x = 0; x < 8; x++) {
-                System.out.format("%d ", matrix[x + y * 8]);
-            }
-            System.out.println(" ]");
-        }
-    }
 }

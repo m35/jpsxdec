@@ -37,23 +37,20 @@
 
 package jpsxdec.modules.dredd;
 
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
-import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
@@ -72,7 +69,7 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
 
     public static final String TYPE_ID = "Dredd";
 
-    public DiscItemDreddVideoStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemDreddVideoStream(@Nonnull ICdSectorReader cd,
                                     int iStartSector, int iEndSector,
                                     @Nonnull Dimensions dim,
                                     @Nonnull IndexSectorFrameNumber.Format indexSectorFrameNumberFormat,
@@ -81,7 +78,7 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
         super(cd, iStartSector, iEndSector, dim, indexSectorFrameNumberFormat, strVidInfo);
     }
 
-    public DiscItemDreddVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemDreddVideoStream(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -140,32 +137,6 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
     }
 
     @Override
-    public void fpsDump(@Nonnull PrintStream ps) throws CdFileSectorReader.CdReadException {
-        SectorClaimSystem it = createClaimSystem();
-        int iFrameIndex = 0;
-        int iLastChunk = -1;
-        for (int iSector = 0; it.hasNext(); iSector++) {
-            IIdentifiedSector isect = it.next(DebugLogger.Log);
-            if (isect instanceof SectorDreddVideo) {
-                SectorDreddVideo vidSect = (SectorDreddVideo) isect;
-                ps.println(String.format("%-5d %-4d %d/%d",
-                                        iSector,
-                                        iFrameIndex,
-                                        vidSect.getChunkNumber(),
-                                        vidSect.getChunksInFrame() ));
-                if (vidSect.getChunkNumber() < iLastChunk)
-                    iFrameIndex++;
-                iLastChunk = vidSect.getChunkNumber();
-            } else {
-                ps.println(String.format(
-                        "%-5d X",
-                        iSector));
-            }
-
-        }
-    }
-
-    @Override
     public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer() {
         return new Demuxer(_indexSectorFrameNumberFormat.makeFormatter(),
                            makeSectorRange());
@@ -176,10 +147,11 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
 
         @Nonnull
         private final IFrameNumberFormatter _indexSectorFrameNumberFormatter;
-        @CheckForNull
-        private IDemuxedFrame.Listener _listener;
         @Nonnull
         private final SectorRange _sectorRange;
+
+        @CheckForNull
+        private IDemuxedFrame.Listener _listener;
 
         private Demuxer(@Nonnull IFrameNumberFormatter indexSectorFrameNumberFormatter,
                         @Nonnull SectorRange sectorRange)
@@ -202,9 +174,10 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
         @Override
         public void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             FrameNumber fn = _indexSectorFrameNumberFormatter.next(frame.getStartSector(), log);
-            frame.setFrame(fn);
-            if (_listener != null)
+            if (_listener != null) {
+                frame.setFrame(fn);
                 _listener.frameComplete(frame);
+            }
         }
 
         @Override

@@ -37,23 +37,20 @@
 
 package jpsxdec.modules.strvideo;
 
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
-import jpsxdec.i18n.log.DebugLogger;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
-import jpsxdec.modules.video.Dimensions;
+import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
@@ -62,7 +59,6 @@ import jpsxdec.modules.video.framenumber.IFrameNumberFormatterWithHeader;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
-import jpsxdec.modules.video.sectorbased.IVideoSectorWithFrameNumber;
 import jpsxdec.modules.video.sectorbased.SectorBasedVideoInfo;
 import jpsxdec.modules.xa.DiscItemXaAudioStream;
 
@@ -83,7 +79,7 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
     private static final String INDEPENDENT_BITSTREAM = "Independent bitstream";
     private final boolean _blnHasIndependentBitstream;
 
-    public DiscItemStrVideoStream(@Nonnull CdFileSectorReader cd, int iStartSector,
+    public DiscItemStrVideoStream(@Nonnull ICdSectorReader cd, int iStartSector,
                                   int iEndSector, @Nonnull Dimensions dim,
                                   @Nonnull IndexSectorFrameNumber.Format indexSectorFrameNumberFormat,
                                   @Nonnull SectorBasedVideoInfo strVidInfo,
@@ -95,7 +91,7 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
         _blnHasIndependentBitstream = blnHasIndependentBitstream;
     }
 
-    public DiscItemStrVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemStrVideoStream(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -127,7 +123,7 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
 
     @Override
     public int getParentRating(@Nonnull DiscItem child) {
-        if (!(child instanceof DiscItemAudioStream))
+        if (!(child instanceof DiscItemSectorBasedAudioStream))
             return 0;
 
         int iOverlapPercent = child.getOverlap(this)*100 / child.getSectorLength();
@@ -164,28 +160,6 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
     @Override
     public @Nonnull List<FrameNumber.Type> getFrameNumberTypes() {
         return Arrays.asList(FrameNumber.Type.Index, FrameNumber.Type.Header, FrameNumber.Type.Sector);
-    }
-
-    @Override
-    public void fpsDump(@Nonnull PrintStream ps) throws CdFileSectorReader.CdReadException {
-
-        SectorClaimSystem it = createClaimSystem();
-        for (int iSector = 0; it.hasNext(); iSector++) {
-            IIdentifiedSector isect = it.next(DebugLogger.Log);
-            if (isect instanceof IVideoSectorWithFrameNumber) {
-                IVideoSectorWithFrameNumber vidSect = (IVideoSectorWithFrameNumber) isect;
-                ps.println(String.format("%-5d %-4d %d/%d",
-                                        iSector,
-                                        vidSect.getHeaderFrameNumber(),
-                                        vidSect.getChunkNumber(),
-                                        vidSect.getChunksInFrame()));
-            } else {
-                ps.println(String.format(
-                        "%-5d X",
-                        iSector));
-            }
-
-        }
     }
 
     @Override

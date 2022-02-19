@@ -39,7 +39,7 @@ package jpsxdec.modules.strvideo;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -103,7 +103,7 @@ public class DiscIndexerStrVideo extends DiscIndexerSectorBasedVideo.SubIndexer
             return true;
         }
 
-        public @Nonnull DiscItemSectorBasedVideoStream endOfMovie(@Nonnull CdFileSectorReader cd) {
+        public @Nonnull DiscItemSectorBasedVideoStream endOfMovie(@Nonnull ICdSectorReader cd) {
             return new DiscItemStrVideoStream(cd,
                     _vidInfoBuilder.getStartSector(), _vidInfoBuilder.getEndSector(),
                     _vidInfoBuilder.makeDims(),

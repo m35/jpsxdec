@@ -41,7 +41,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
@@ -62,7 +61,7 @@ public class DemuxPullInputStream<T extends DemuxedData.Piece> extends InputStre
 
     // -------------------------------------------------------------------------
 
-    private @CheckForNull T currentPiece() throws NoSuchElementException, IOException {
+    private @CheckForNull T currentPiece() throws IOException {
         T c;
         // get current (peekPrevious) if available
         if (_readIt.hasPrevious())
@@ -76,7 +75,7 @@ public class DemuxPullInputStream<T extends DemuxedData.Piece> extends InputStre
         return c;
     }
 
-    private boolean moveToNextPiece() throws NoSuchElementException, IOException {
+    private boolean moveToNextPiece() throws IOException {
         if (_readIt.hasNext()) {
             _readIt.next();
             return true;

@@ -63,6 +63,10 @@ public class DecodedAudioPacket {
     @Nonnull
     private final byte[] _abData;
 
+    /**
+     * @param iChannel Not left/right channel, but entirely separate stream.
+     *                                         Use -1 for default.
+     */
     public DecodedAudioPacket(int iChannel, @Nonnull AudioFormat audioFmt,
                               @Nonnull Fraction presentationSector,
                               @Nonnull byte[] abData)

@@ -45,7 +45,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /** Development localized message. Replace with actual message before release. */
-class _PlaceholderMessage implements ILocalizedMessage {
+public class _PlaceholderMessage implements ILocalizedMessage {
 
     @Nonnull
     private final String _sMessage;

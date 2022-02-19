@@ -51,28 +51,29 @@ import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IO;
 
 /** Wraps a {@link SPacket} with information about its position of the data
- * on the disk. */
+ * on the disc. */
 public class SPacketPos {
 
     private static final Logger LOG = Logger.getLogger(SPacketPos.class.getName());
 
+    private static int TIME_STAMP_OUT_OF_ORDER_LEEWAY = 15;
 
     public static @Nonnull List<SPacketPos> readPackets(@Nonnull InputStream is, int iEntryCount,
                                                         int iKlbsStartSector, int iKlbsEndSectorInclusive)
             throws IOException, BinaryDataNotRecognized
     {
-        ArrayList<SPacketPos> _sPackets = new ArrayList<SPacketPos>();
+        ArrayList<SPacketPos> sPackets = new ArrayList<SPacketPos>();
         for (int i = 0; i < iEntryCount; i++) {
             SPacket packet = new SPacket(is);
 
             SPacketPos packetPos = new SPacketPos(packet, iKlbsStartSector, iKlbsEndSectorInclusive, i);
             if (i > 0) {
-                SPacketPos prev = _sPackets.get(i - 1);
+                SPacketPos prev = sPackets.get(i - 1);
                 prev.checkAgainstNextPacket(packetPos);
             }
-            _sPackets.add(packetPos);
+            sPackets.add(packetPos);
         }
-        return _sPackets;
+        return sPackets;
     }
 
 
@@ -141,7 +142,7 @@ public class SPacketPos {
         // Some timestamps can be a little before the next one
         if (nextPacket.getPacket().getTimestamp() < _sPacket.getTimestamp()) {
             LOG.log(Level.INFO, "{0} < {1}", new Object[]{nextPacket, _sPacket});
-            if (nextPacket.getPacket().getTimestamp() + 15 < _sPacket.getTimestamp()) {
+            if (nextPacket.getPacket().getTimestamp() + TIME_STAMP_OUT_OF_ORDER_LEEWAY < _sPacket.getTimestamp()) {
                 throw new BinaryDataNotRecognized("Next packet timestamp %i < current packet timestamp %i",
                                                   nextPacket.getPacket().getTimestamp(), _sPacket.getTimestamp());
             }

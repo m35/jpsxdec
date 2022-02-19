@@ -49,6 +49,8 @@ import jpsxdec.i18n.exception.LocalizedFileNotFoundException;
 /** Additional functions for reading, writing, and whatnot. */
 public final class IO {
 
+    private static final Logger LOG = Logger.getLogger(IO.class.getName());
+
     /** Closes a {@link Closeable} resource, suppressing any {@link IOException}
      * thrown. If thrown, it is logged to the given logger and returns the thrown
      * exception. Returns null if no exception is thrown.
@@ -68,14 +70,6 @@ public final class IO {
         } else {
             return null;
         }
-    }
-
-    //== 4-bit =================================================================
-
-    public static void writeInt4x2(@Nonnull OutputStream stream, byte bTop, byte bBottom)
-            throws IOException
-    {
-        stream.write(((bTop&0xf)<<4) | (bBottom&0xf));
     }
 
     //== 8-bit =================================================================
@@ -152,7 +146,7 @@ public final class IO {
 
     //== 16-bit == big-endian == signed == read ================================
 
-    public static int readSInt16BE(@Nonnull InputStream stream) throws EOFException, IOException {
+    public static short readSInt16BE(@Nonnull InputStream stream) throws EOFException, IOException {
         int b1, b2;
         if ((b1 = stream.read()) < 0 ||
             (b2 = stream.read()) < 0)
@@ -400,7 +394,11 @@ public final class IO {
                                                 int iBytesToRead)
             throws EOFException, IOException
     {
-        assert iBytesToRead > 0;
+        assert iBytesToRead >= 0;
+        if (iBytesToRead == 0) {
+            LOG.warning("readByteArray: Reading 0 bytes");
+            return new byte[0];
+        }
         byte[] ab = new byte[iBytesToRead];
         readByteArray(stream, ab);
         return ab;
@@ -410,7 +408,11 @@ public final class IO {
                                                 int iBytesToRead)
             throws EOFException, IOException
     {
-        assert iBytesToRead > 0;
+        assert iBytesToRead >= 0;
+        if (iBytesToRead == 0) {
+            LOG.warning("readByteArray: Reading 0 bytes");
+            return new byte[0];
+        }
         byte[] ab = new byte[iBytesToRead];
         readByteArray(stream, ab);
         return ab;
@@ -463,6 +465,9 @@ public final class IO {
                                        int iStartOffset, int iBytesToRead)
             throws EOFException, IOException
     {
+        if (iBytesToRead < 1)
+            throw new IllegalArgumentException("readByteArrayMax: iBytesToRead " + iBytesToRead + " < 1");
+
         int iRemainingBytes = iBytesToRead;
         int iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
         if (iBytesRead < 0)
@@ -484,6 +489,9 @@ public final class IO {
                                        int iStartOffset, int iBytesToRead)
             throws EOFException, IOException
     {
+        if (iBytesToRead < 1)
+            throw new IllegalArgumentException("readByteArrayMax: iBytesToRead " + iBytesToRead + " < 1");
+
         int iRemainingBytes = iBytesToRead;
         int iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
         if (iBytesRead < 0)
@@ -501,83 +509,67 @@ public final class IO {
 
     //== skip ==================================================================
 
+    /** Because the {@link InputStream#skip(long) } method won't always skip
+     * everything in one call. */
     public static void skip(@Nonnull InputStream stream, long lngTotal)
             throws EOFException, IOException
     {
-        long lngBytesSkipped = skipEofCheck(stream.skip(lngTotal), -1);
-        lngTotal -= lngBytesSkipped;
-        while (lngTotal > 0) {
-            lngBytesSkipped = skipEofCheck(stream.skip(lngTotal), lngBytesSkipped);
-            lngTotal -= lngBytesSkipped;
-        }
+        long lngActuallySkipped = skipMax(stream, lngTotal);
+        if (lngActuallySkipped != lngTotal)
+            throw new EOFException();
     }
 
-    /**
-     * Check for end-of-stream condition when skipping.
-     * {@link InputStream#skip(long)} is never supposed to return -1,
-     * and may return 0 even if not at the end of the stream.
+    /** Skip as much as possible and return the number of bytes skipped.
      * <p>
-     * Two conditions will trigger a {@link EOFException}:
+     * Either of these two conditions will be considered the end of stream:
      * <ul>
-     * <li> The stream returned negative bytes read.
-     * <li> Twice in a row, the stream returned 0 bytes read.
+     * <li> The stream returned negative bytes skipped.
+     * <li> Twice in a row, the stream returned 0 bytes skipped.
      * </ul>
-     * @param lngBytesRead    Bytes read from the last read call
-     * @param iPrevBytesRead  Bytes read from the previous to last read call
-     * @return {@code lngBytesRead}
+     * @return The number of bytes skipped. 0 means end of the stream.
+     *         Never returns a negative number.
      */
-    private static long skipEofCheck(long lngBytesRead, long lngPrevBytesRead) throws EOFException {
-        if (lngBytesRead < 0)
-            throw new EOFException();
-        if (lngBytesRead == 0 && lngPrevBytesRead == 0)
-            throw new EOFException();
-        return lngBytesRead;
-    }
-
-    public static void skip(@Nonnull RandomAccessFile stream, int iTotal)
-            throws EOFException, IOException
-    {
-        int iBytesSkipped = skipEofCheck(stream.skipBytes(iTotal), -1);
-        iTotal -= iBytesSkipped;
-        while (iTotal > 0) {
-            iBytesSkipped = skipEofCheck(stream.skipBytes(iTotal), iBytesSkipped);
-            iTotal -= iBytesSkipped;
-        }
-    }
-
-    /**
-     * Check for end-of-stream condition when skipping.
-     * {@link RandomAccessFile#skipBytes(int)} will return -1 at EOF.
-     * Could it return return 0 even when not at the end of the stream?
-     * <p>
-     * Two conditions will trigger a {@link EOFException}:
-     * <ul>
-     * <li> The stream returned negative bytes read.
-     * <li> Twice in a row, the stream returned 0 bytes read.
-     * </ul>
-     * @param iBytesRead      Bytes read from the last read call
-     * @param iPrevBytesRead  Bytes read from the previous to last read call
-     * @return {@code iBytesRead}
-     */
-    private static int skipEofCheck(int iBytesRead, int iPrevBytesRead) throws EOFException {
-        if (iBytesRead < 0)
-            throw new EOFException();
-        if (iBytesRead == 0 && iPrevBytesRead == 0)
-            throw new EOFException();
-        return iBytesRead;
-    }
-
-    public static int skipMax(@Nonnull InputStream stream, int iTotal) throws IOException {
-        long lngPrevBytesSkipped = stream.skip(iTotal);
+    public static long skipMax(@Nonnull InputStream stream, long lngTotal) throws IOException {
+        long lngPrevBytesSkipped = stream.skip(lngTotal);
         if (lngPrevBytesSkipped < 0)
             return 0;
-        long lngBytesRemain = iTotal - lngPrevBytesSkipped;
+
+        long lngBytesRemain = lngTotal - lngPrevBytesSkipped;
         while (lngBytesRemain > 0) {
             long lngBytesSkipped = stream.skip(lngBytesRemain);
             if (lngBytesSkipped < 0 || (lngBytesSkipped == 0 && lngPrevBytesSkipped == 0))
-                return (int) (iTotal - lngBytesRemain);
-            lngBytesRemain -= lngBytesSkipped;
+                return lngTotal - lngBytesRemain;
             lngPrevBytesSkipped = lngBytesSkipped;
+            lngBytesRemain -= lngBytesSkipped;
+        }
+        return lngTotal;
+    }
+
+    public static void skipBytes(@Nonnull RandomAccessFile stream, int iTotal)
+            throws EOFException, IOException
+    {
+        int iActuallySkipped = skipBytesMax(stream, iTotal);
+        if (iActuallySkipped != iTotal)
+            throw new EOFException();
+    }
+
+    /** Like {@link #skipMax(java.io.InputStream, long)} but for
+     * {@link RandomAccessFile#skipBytes(int)}. */
+    public static int skipBytesMax(@Nonnull RandomAccessFile stream, int iTotal) throws IOException {
+        // RandomAccessFile.skipBytes() will return -1 at EOF. Could it
+        // return 0 even when not at the end of the stream?
+
+        int iPrevBytesSkipped = stream.skipBytes(iTotal);
+        if (iPrevBytesSkipped < 0)
+            return 0;
+
+        int iBytesRemain = iTotal - iPrevBytesSkipped;
+        while (iBytesRemain > 0) {
+            int iBytesSkipped = stream.skipBytes(iBytesRemain);
+            if (iBytesSkipped < 0 || (iBytesSkipped == 0 && iPrevBytesSkipped == 0))
+                return iTotal - iBytesRemain;
+            iPrevBytesSkipped = iBytesSkipped;
+            iBytesRemain -= iBytesSkipped;
         }
         return iTotal;
     }

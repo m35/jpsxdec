@@ -64,6 +64,7 @@ import jpsxdec.util.Misc;
  * This isn't usable for movies with only 1 or 2 frames,
  * but with that few of frames, the frame rate isn't a big deal.
  */
+//@Deprecated
 public class WholeNumberSectorsPerFrame {
 
     // TODO: how can we detect if the video has a variable frame rate?

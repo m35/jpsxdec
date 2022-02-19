@@ -39,7 +39,7 @@ package jpsxdec.modules.dredd;
 
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -82,7 +82,7 @@ public class DiscIndexerDredd extends DiscIndexerSectorBasedVideo.SubIndexer
             return true;
         }
 
-        public @Nonnull DiscItemDreddVideoStream endOfMovie(@Nonnull CdFileSectorReader cd) {
+        public @Nonnull DiscItemDreddVideoStream endOfMovie(@Nonnull ICdSectorReader cd) {
             return new DiscItemDreddVideoStream(cd,
                     _strInfoBuilder.getStartSector(), _strInfoBuilder.getEndSector(),
                     _strInfoBuilder.makeDims(),

@@ -61,11 +61,12 @@ import jpsxdec.util.IO;
 import static jpsxdec.modules.eavideo.BitStreamUncompressor_EA.EA_VIDEO_BIT_CODE_ORDER;
 
 /**
- * Support for videos found in several Electronic Arts games.
+ * Support for videos found in some Electronic Arts games.
  * Many of the videos are found in files with .WVE extention.
  * Many of the EA Sports titles use this video format.
- *
  * It takes a unique approach to bitstreams: every movie has its own unique VLC table.
+ *
+ * This is the core Audio/video frame packet used in those videos.
  */
 public abstract class EAVideoPacket {
 
@@ -109,7 +110,7 @@ public abstract class EAVideoPacket {
             return Type.au01;
         if (lngPacketType == MAGIC_MDEC)
             return Type.MDEC;
-        if (lngPacketType == 0)
+        if (lngPacketType == 0 || lngPacketType == 0x55555555) // some games pad with 0x55
             return Type.ZEROES;
         if (lngPacketType == MAGIC_VLC0)
             return Type.VLC0;
@@ -161,10 +162,13 @@ public abstract class EAVideoPacket {
 
     public static final AudioFormat EA_VIDEO_AUDIO_FORMAT = new AudioFormat(SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
 
+    // For debugging
     private static int _iMinPacketSize = Integer.MAX_VALUE;
     private static int _iMaxPacketSize = 0;
 
     public static class Header {
+
+        public static final int SIZEOF = 8;
 
         @Nonnull
         private final Type _packetType;       // @0 4 bytes BE
@@ -180,7 +184,7 @@ public abstract class EAVideoPacket {
         }
 
         public int getPayloadSize() {
-            return _iHeaderPacketSize - 8;
+            return _iHeaderPacketSize - SIZEOF;
         }
 
         public @Nonnull EAVideoPacket readPacket(@Nonnull InputStream is)
@@ -259,7 +263,7 @@ public abstract class EAVideoPacket {
                 throws BinaryDataNotRecognized, EOFException, IOException
         {
 
-            if (header._iHeaderPacketSize != (EA_VIDEO_BIT_CODE_ORDER.length * 2) + 8) {
+            if (header._iHeaderPacketSize != SIZEOF) {
                 if (blnThrowEx)
                     throw new BinaryDataNotRecognized();
                 else
@@ -302,8 +306,8 @@ public abstract class EAVideoPacket {
                      @Nonnull MdecCode[] aoVlcHeaderMdecCodesForReference)
         {
             super(header);
-            _aoVlcHeaderMdecCodesForReference = aoVlcHeaderMdecCodesForReference;
             _vlcLookup = vlcLookup;
+            _aoVlcHeaderMdecCodesForReference = aoVlcHeaderMdecCodesForReference;
         }
 
         public @Nonnull BitStreamUncompressor makeFrameBitStreamUncompressor(@Nonnull EAVideoPacket.MDEC mdecPacket) {
@@ -332,6 +336,7 @@ public abstract class EAVideoPacket {
     // #########################################################################
     // #########################################################################
 
+    // For debugging
     private static int _iMaxPresentationSampleFrame = 0;
     private static int _iMinAuPacketSize = Integer.MAX_VALUE;
     private static int _iMaxAuPacketSize = 0;
@@ -372,7 +377,7 @@ public abstract class EAVideoPacket {
 
             // -8 for header magic + header size
             // -8 for 2048 and 512
-            _abCompressedSpu = IO.readByteArray(is, header._iHeaderPacketSize - 8 - 8);
+            _abCompressedSpu = IO.readByteArray(is, header.getPayloadSize() - 8);
         }
 
         public boolean isLastAudioPacket() {
@@ -514,7 +519,7 @@ public abstract class EAVideoPacket {
             if (!_strHeader.isValid())
                 throw new BinaryDataNotRecognized("Invalid STRv2 header");
 
-            _abBitstream = IO.readByteArray(is, header._iHeaderPacketSize - 8 - 8 - abStrHeader.length);
+            _abBitstream = IO.readByteArray(is, header.getPayloadSize() - 8 - abStrHeader.length);
         }
 
         public int getWidth() {

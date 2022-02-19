@@ -89,7 +89,7 @@ public class AudioPlayerSectorTimedWriter implements DecodedAudioPacket.Listener
             _audioOut.write(abData);
         } catch (IOException ex) {
             // wrap the exception and have the MediaPlayer catch it outside the pipeline
-            throw new WrapIOException(ex);
+            throw new WrapException(ex);
         }
     }
 }

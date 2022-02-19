@@ -39,17 +39,17 @@ package jpsxdec.modules.video.packetbased;
 
 import java.util.Date;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.discitems.DiscItemSaverBuilder;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.modules.player.MediaPlayer;
-import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.DiscItemVideoStream;
 import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.Misc;
 import jpsxdec.util.player.PlayController;
 
@@ -59,7 +59,7 @@ public abstract class DiscItemPacketBasedVideoStream extends DiscItemVideoStream
     private static final String SOUND_UNIT_COUNT_KEY = "Sound unit count";
     private final int _iSoundUnitCount;
 
-    public DiscItemPacketBasedVideoStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemPacketBasedVideoStream(@Nonnull ICdSectorReader cd,
                                           int iStartSector, int iEndSector,
                                           @Nonnull Dimensions dim,
                                           @Nonnull IndexSectorFrameNumber.Format sectorIndexFrameNumberFormat,
@@ -69,7 +69,7 @@ public abstract class DiscItemPacketBasedVideoStream extends DiscItemVideoStream
         _iSoundUnitCount = iSoundUnitCount;
     }
 
-    public DiscItemPacketBasedVideoStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemPacketBasedVideoStream(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -88,11 +88,6 @@ public abstract class DiscItemPacketBasedVideoStream extends DiscItemVideoStream
     }
 
     @Override
-    final public int getDiscSpeed() {
-        return 2; // this doesn't really matter
-    }
-
-    @Override
     final public @Nonnull ILocalizedMessage getInterestingDescription() {
         int iFrames = getFrameCount();
         double dblFps = getPacketBasedFpsInterestingDescription();
@@ -105,10 +100,7 @@ public abstract class DiscItemPacketBasedVideoStream extends DiscItemVideoStream
 
     abstract protected double getPacketBasedFpsInterestingDescription();
 
-    @Override
-    final public int getAbsolutePresentationStartSector() {
-        return getStartSector();
-    }
+    abstract public @Nonnull Fraction getFramesPerSecond();
 
     abstract public @Nonnull SectorClaimToAudioAndFrame makeAudioVideoDemuxer(double dblVolume);
     abstract public int getAudioSampleFramesPerSecond();
@@ -119,7 +111,7 @@ public abstract class DiscItemPacketBasedVideoStream extends DiscItemVideoStream
     }
 
     @Override
-    final public DiscItemSaverBuilder makeSaverBuilder() {
+    final public @Nonnull PacketBasedVideoSaverBuilder makeSaverBuilder() {
         return new PacketBasedVideoSaverBuilder(this);
     }
 
@@ -128,9 +120,9 @@ public abstract class DiscItemPacketBasedVideoStream extends DiscItemVideoStream
         SectorClaimToAudioAndFrame demuxer = makeAudioVideoDemuxer(1.0);
         MediaPlayer mp;
         if (hasAudio())
-            mp = new MediaPlayer(this, demuxer, demuxer, getStartSector(), getEndSector());
+            mp = new MediaPlayer(this, demuxer, demuxer, getStartSector(), getEndSector(), 150);
         else
-            mp = new MediaPlayer(this, demuxer, getStartSector(), getEndSector());
+            mp = new MediaPlayer(this, demuxer, getStartSector(), getEndSector(), 150);
         return mp.getPlayController();
     }
 

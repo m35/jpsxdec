@@ -46,10 +46,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.DiscPatcher;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DemuxedSectorInputStream;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItem.GeneralType;
 import jpsxdec.discitems.SerializedDiscItem;
@@ -77,10 +79,10 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
     private final int _iPaletteCount;
     private static final String BITSPERPIXEL_KEY = "Bpp";
     private final int _iBitsPerPixel;
-    private static final String DIMENSIONS_KEY = "Dimensions";
-    private final int _iWidth, _iHeight;
+    @Nonnull
+    private final Dimensions _dimensions;
 
-    public DiscItemTim(@Nonnull CdFileSectorReader cd,
+    public DiscItemTim(@Nonnull ICdSectorReader cd,
                        int iStartSector, int iEndSector,
                        int iStartOffset, int iPaletteCount, int iBitsPerPixel,
                        int iWidth, int iHeight)
@@ -89,27 +91,24 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         _iStartOffset = iStartOffset;
         _iPaletteCount = iPaletteCount;
         _iBitsPerPixel = iBitsPerPixel;
-        _iWidth = iWidth;
-        _iHeight = iHeight;
+        _dimensions = new Dimensions(iWidth, iHeight);
     }
 
-    public DiscItemTim(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemTim(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
         _iStartOffset = fields.getInt(START_OFFSET_KEY);
         _iPaletteCount = fields.getInt(PALETTE_COUNT_KEY);
         _iBitsPerPixel = fields.getInt(BITSPERPIXEL_KEY);
-        int[] aiDims = fields.getDimensions(DIMENSIONS_KEY);
-        _iWidth = aiDims[0];
-        _iHeight = aiDims[1];
+        _dimensions = new Dimensions(fields);
     }
 
     @Override
     public @Nonnull SerializedDiscItem serialize() {
         SerializedDiscItem fields = super.serialize();
         fields.addNumber(START_OFFSET_KEY, _iStartOffset);
-        fields.addDimensions(DIMENSIONS_KEY, _iWidth, _iHeight);
+        _dimensions.serialize(fields);
         fields.addNumber(PALETTE_COUNT_KEY, _iPaletteCount);
         fields.addNumber(BITSPERPIXEL_KEY, _iBitsPerPixel);
         return fields;
@@ -122,7 +121,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
 
     @Override
     public @Nonnull ILocalizedMessage getInterestingDescription() {
-        return I.GUI_TIM_IMAGE_DETAILS(_iWidth, _iHeight, _iPaletteCount);
+        return I.GUI_TIM_IMAGE_DETAILS(_dimensions.getWidth(), _dimensions.getHeight(), _iPaletteCount);
     }
 
     @Override
@@ -152,31 +151,31 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         return _iBitsPerPixel;
     }
 
-    public @Nonnull Tim readTim() throws CdFileSectorReader.CdReadException, BinaryDataNotRecognized {
+    public @Nonnull Tim readTim() throws CdReadException, BinaryDataNotRecognized {
         DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
                 getSourceCd(), getStartSector(), getStartOffset());
         try {
             return Tim.read(stream);
         } catch (IOException ex) {
-            if (ex instanceof CdFileSectorReader.CdReadException)
-                throw (CdFileSectorReader.CdReadException)ex;
-            throw new CdFileSectorReader.CdReadException(getSourceCd().getSourceFile(), ex);
+            if (ex instanceof CdReadException)
+                throw (CdReadException)ex;
+            throw new CdReadException(getSourceCd().getSourceFile(), ex);
         }
     }
 
     public int getWidth() {
-        return _iWidth;
+        return _dimensions.getWidth();
     }
 
     public int getHeight() {
-        return _iHeight;
+        return _dimensions.getHeight();
     }
 
-    public void replace(@Nonnull FeedbackStream fbs, @Nonnull File timFile)
+    public void replace(@Nonnull DiscPatcher patcher, @Nonnull File timFile, @Nonnull FeedbackStream fbs)
             throws FileNotFoundException, EOFException, IOException,
                    BinaryDataNotRecognized,
                    LocalizedIncompatibleException,
-                   CdFileSectorReader.CdReadException,
+                   CdReadException,
                    DiscPatcher.WritePatchException
     {
         FileInputStream fis = new FileInputStream(timFile);
@@ -187,12 +186,12 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
             IO.closeSilently(fis, LOG);
         }
 
-        replace(fbs, newTim);
+        replace(patcher, newTim, fbs);
     }
 
-    public void replace(@Nonnull FeedbackStream fbs, @Nonnull Tim newTim)
+    public void replace(@Nonnull DiscPatcher patcher, @Nonnull Tim newTim, @Nonnull FeedbackStream fbs)
             throws LocalizedIncompatibleException,
-                   CdFileSectorReader.CdReadException,
+                   CdReadException,
                    DiscPatcher.WritePatchException
     {
         // read both Tims
@@ -200,7 +199,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         Tim currentTim = null;
         try {
             currentTim = readTim();
-        } catch (CdFileSectorReader.CdReadException ex) {
+        } catch (CdReadException ex) {
             // this is bad
             throw new RuntimeException("Existing tim unreadable", ex);
         } catch (BinaryDataNotRecognized ex) {
@@ -229,21 +228,21 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         } catch (IOException ex) {
             throw new RuntimeException("BAOS", ex);
         }
-        writeNewTimData(abNewTim, fbs);
+        writeNewTimData(patcher, abNewTim, fbs);
     }
 
-    private void writeNewTimData(@Nonnull byte[] abNewTim, @Nonnull FeedbackStream fbs)
-            throws CdFileSectorReader.CdReadException, DiscPatcher.WritePatchException
+    private void writeNewTimData(@Nonnull DiscPatcher patcher, @Nonnull byte[] abNewTim, @Nonnull FeedbackStream fbs)
+            throws CdReadException, DiscPatcher.WritePatchException
     {
         // write to the first sector
-        CdFileSectorReader cd = getSourceCd();
+        ICdSectorReader cd = getSourceCd();
         int iSector = getStartSector();
         CdSector cdSector = cd.getSector(iSector);
         int iBytesToWrite = abNewTim.length;
         if (_iStartOffset + iBytesToWrite > cdSector.getCdUserDataSize())
             iBytesToWrite = cdSector.getCdUserDataSize() - _iStartOffset;
         fbs.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
-        cd.addPatch(iSector, _iStartOffset, abNewTim, 0, iBytesToWrite);
+        patcher.addPatch(iSector, _iStartOffset, abNewTim, 0, iBytesToWrite);
 
         //write to the remaining sectors
         int iBytesWritten = iBytesToWrite;
@@ -257,7 +256,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
             if (iBytesToWrite > cdSector.getCdUserDataSize())
                 iBytesToWrite = cdSector.getCdUserDataSize();
             fbs.println(I.CMD_TIM_REPLACE_SECTOR_BYTES(iBytesToWrite, iSector));
-            cd.addPatch(iSector, 0, abNewTim, iBytesWritten, iBytesToWrite);
+            patcher.addPatch(iSector, 0, abNewTim, iBytesWritten, iBytesToWrite);
             iBytesWritten += iBytesToWrite;
         }
     }

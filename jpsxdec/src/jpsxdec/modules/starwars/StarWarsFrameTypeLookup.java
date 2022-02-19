@@ -142,11 +142,11 @@ public class StarWarsFrameTypeLookup {
         assert i32bit_lastBit0 < i32bit_lastBit1;
 
         int iMin = 0;
-        int iMax = aiLookupTable.length;
+        int iMax = aiLookupTable.length - 1;
         // binary search for a value between a range
         // continue searching while [min,max] is not empty
         while (iMax >= iMin) {
-            int iMid = (iMin + iMax) >>> 1;
+            int iMid = (iMin + iMax) / 2;
 
             int iMidValue = aiLookupTable[iMid];
 

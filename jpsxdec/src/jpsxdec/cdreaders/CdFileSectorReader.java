@@ -37,7 +37,6 @@
 
 package jpsxdec.cdreaders;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -50,10 +49,8 @@ import javax.annotation.Nonnull;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
-import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
-import jpsxdec.util.TaskCanceledException;
 
 /** Encapsulates the reading of a CD image (BIN/CUE, ISO),
  * or a file containing some (possibly raw) sectors of a CD.
@@ -66,11 +63,11 @@ import jpsxdec.util.TaskCanceledException;
  * <li>{@link CdSector#SECTOR_SIZE_2448_BIN_SUBCHANNEL}
  * </ul>
  */
-public class CdFileSectorReader implements Closeable {
+public class CdFileSectorReader implements ICdSectorReader {
 
     private static final Logger LOG = Logger.getLogger(CdFileSectorReader.class.getName());
 
-    private static final int DEFAULT_SECTOR_BUFFER_COUNT   = 16;
+    private static final int DEFAULT_SECTOR_BUFFER_COUNT = 64;
 
     public static CdFileSectorReader open(@Nonnull String sDiscImageFileName)
             throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
@@ -94,6 +91,12 @@ public class CdFileSectorReader implements Closeable {
             throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
     {
         return new CdFileSectorReader(discImageFile, blnAllowWrites, iSectorsToBuffer);
+    }
+
+    public static CdFileSectorReader openWithSectorSize(@Nonnull String sDiscImageFileName, int iSectorSize)
+            throws CdFileNotFoundException, FileTooSmallToIdentifyException, CdReadException
+    {
+        return new CdFileSectorReader(new File(sDiscImageFileName), iSectorSize);
     }
 
     public static CdFileSectorReader openWithSectorSize(@Nonnull File discImageFile, int iSectorSize)
@@ -138,21 +141,6 @@ public class CdFileSectorReader implements Closeable {
         }
     }
 
-    /** Exception if there is an error reading from the CD file. */
-    public static class CdReadException extends IOException {
-
-        @Nonnull
-        private final File _file;
-
-        public CdReadException(@Nonnull File file, IOException ex) {
-            super(ex);
-            _file = file;
-        }
-
-        public @Nonnull File getFile() {
-            return _file;
-        }
-    }
     /** Exception if there is an error writing to the CD file. */
     public static class CdWriteException extends IOException {
 
@@ -176,6 +164,7 @@ public class CdFileSectorReader implements Closeable {
         private final long _lngFileSize;
 
         public FileTooSmallToIdentifyException(long lngFileSize) {
+            super(String.valueOf(lngFileSize));
             _lngFileSize = lngFileSize;
         }
 
@@ -220,9 +209,6 @@ public class CdFileSectorReader implements Closeable {
     @CheckForNull
     private byte[] _abBulkReadCache;
     private long _lngCacheFileOffset;
-
-    @CheckForNull
-    private DiscPatcher _patcher;
 
     /* ---------------------------------------------------------------------- */
     /* Constructors --------------------------------------------------------- */
@@ -276,12 +262,7 @@ public class CdFileSectorReader implements Closeable {
                         LOG.info("Unknown disc type, assuming 2048");
                         // we couldn't figure out what it is
                         // assume ISO style if it's big enough
-                        long lngFileSize = _inputFile.length();
-                        if (lngFileSize < CdSector.SECTOR_SIZE_2048_ISO) {
-                            _inputFile.close();
-                            throw new FileTooSmallToIdentifyException(lngFileSize);
-                        }
-                        factory = new Cd2048Factory();
+                        factory = new Cd2048Factory(_inputFile);
                     }
                 }
 
@@ -329,7 +310,7 @@ public class CdFileSectorReader implements Closeable {
         try {
             switch (iSectorSize) {
                 case CdSector.SECTOR_SIZE_2048_ISO:
-                    _sectorFactory = new Cd2048Factory();
+                    _sectorFactory = new Cd2048Factory(_inputFile);
                     break;
                 case CdSector.SECTOR_SIZE_2336_BIN_NOSYNC:
                     _sectorFactory = new Cd2336Factory(_inputFile);
@@ -451,6 +432,7 @@ public class CdFileSectorReader implements Closeable {
     private static final String SERIALIZATION =
             SERIALIZATION_START + "%s|Sector size:%d|Sector count:%d|First sector offset:%d";
 
+    @Override
     public @Nonnull String serialize() {
         return String.format(SERIALIZATION,
                 _discImageFile.getPath(),
@@ -459,6 +441,7 @@ public class CdFileSectorReader implements Closeable {
                 _sectorFactory.get1stSectorOffset());
     }
 
+    @Override
     public boolean matchesSerialization(@Nonnull String sSerialization) {
         String[] asValues = Misc.regex(DESERIALIZATION, sSerialization);
         if (asValues == null)
@@ -488,16 +471,19 @@ public class CdFileSectorReader implements Closeable {
     //..........................................................................
 
     /** Size of the raw sectors of the source disc image. */
+    @Override
     public int getRawSectorSize() {
         return _sectorFactory.getRawSectorSize();
     }
 
     /** If sectors of this disc image could have raw sector headers
      * (i.e. not ISO 2048 images). */
+    @Override
     public boolean hasSectorHeader() {
         return _sectorFactory.hasSectorHeader();
     }
 
+    @Override
     public @Nonnull File getSourceFile() {
         return _discImageFile;
     }
@@ -509,16 +495,19 @@ public class CdFileSectorReader implements Closeable {
     }
 
     /** Returns the number of sectors in the disc image. */
+    @Override
     public int getSectorCount() {
         return _iSectorCount;
     }
 
+    @Override
     public @Nonnull ILocalizedMessage getTypeDescription() {
         return _sectorFactory.getTypeDescription();
     }
 
     //..........................................................................
 
+    @Override
     public @Nonnull CdSector getSector(int iSector) throws CdReadException {
         if (iSector < 0 || iSector >= _iSectorCount)
             throw new IndexOutOfBoundsException("Sector "+iSector+" not in bounds of CD");
@@ -574,53 +563,6 @@ public class CdFileSectorReader implements Closeable {
         }
     }
 
-    public void beginPatching() throws DiscPatcher.CreatePatchFileException {
-        if (_patcher != null)
-            _patcher.cancel();
-        _patcher = new DiscPatcher(this);
-    }
-
-    /** Returns the current patch file.
-     * @throws IllegalStateException is not currently patching. */
-    public @Nonnull File getTemporaryPatchFile() {
-        if (_patcher == null)
-            throw new IllegalStateException();
-        return _patcher.getTempFile();
-    }
-
-    public void addPatch(int iSector, int iOffsetInSector,
-                         @Nonnull byte[] abBytesToReplace)
-            throws DiscPatcher.WritePatchException
-    {
-        addPatch(iSector, iOffsetInSector, abBytesToReplace,
-                 0, abBytesToReplace.length);
-    }
-
-    public void addPatch(int iSector, int iOffsetInSector,
-                         @Nonnull byte[] abBytesToReplace,
-                         int iStartByteToUse, int iNumberOfBytesToReplace)
-            throws DiscPatcher.WritePatchException
-    {
-        if (_patcher == null)
-            throw new IllegalStateException();
-        _patcher.addPatch(iSector, iOffsetInSector,
-                          abBytesToReplace, iStartByteToUse,
-                          iNumberOfBytesToReplace);
-    }
-
-    public void applyPatches(@Nonnull ProgressLogger pl)
-            throws CdReopenException,
-                   CdReadException,
-                   CdWriteException,
-                   DiscPatcher.PatchReadException,
-                   TaskCanceledException
-    {
-        if (_patcher == null)
-            throw new IllegalStateException();
-        _patcher.applyPatches(this, pl);
-        _patcher = null;
-    }
-
     void reopenForWriting() throws CdReopenException {
         try {
             _inputFile.close(); // expose close exception
@@ -653,7 +595,12 @@ public class CdFileSectorReader implements Closeable {
 
         final private long _lng1stSectorOffset;
 
-        public Cd2048Factory() {
+        public Cd2048Factory(@Nonnull RandomAccessFile cdFile)
+                throws FileTooSmallToIdentifyException, IOException
+        {
+            long lngFileLength = cdFile.length();
+            if (lngFileLength < CdSector.SECTOR_SIZE_2336_BIN_NOSYNC)
+                throw new FileTooSmallToIdentifyException(lngFileLength);
             _lng1stSectorOffset = 0;
         }
 

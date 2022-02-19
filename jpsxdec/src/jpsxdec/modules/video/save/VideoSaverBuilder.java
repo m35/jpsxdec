@@ -64,7 +64,6 @@ import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.ChromaUpsample;
 import jpsxdec.util.ArgParser;
-import jpsxdec.util.Fraction;
 import jpsxdec.util.TaskCanceledException;
 
 /** Manages the common options for saving PSX video. */
@@ -99,8 +98,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                 other.setDecodeQuality(getDecodeQuality());
             if (getChromaInterpolation_enabled())
                 other.setChromaInterpolation(getChromaInterpolation());
-            if (getSingleSpeed_enabled())
-                other.setSingleSpeed(getSingleSpeed());
             if (getAudioVolume_enabled())
                 other.setAudioVolume(getAudioVolume());
             return true;
@@ -119,7 +116,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
      * @return array length 1 or 2. */
     public @Nonnull File[] getOutputFileRange() {
         VideoFormat vf = getVideoFormat();
-        if (vf.isAvi()) {
+        if (vf.isVideo()) {
             return new File[] { VideoFileNameFormatter.singleFile(null, _sourceVidItem, vf) };
         } else {
             VideoFileNameFormatter ff = new VideoFileNameFormatter(null, _sourceVidItem, vf, false);
@@ -147,36 +144,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                 };
             }
         }
-    }
-
-    // .........................................................................
-
-    private boolean _blnSingleSpeed = false;
-    public boolean getSingleSpeed() {
-        switch (findDiscSpeed()) {
-            case 1:
-                return true;
-            case 2:
-                return false;
-            default:
-                return _blnSingleSpeed;
-        }
-    }
-    private int findDiscSpeed() {
-        return _sourceVidItem.getDiscSpeed();
-    }
-    public void setSingleSpeed(boolean val) {
-        _blnSingleSpeed = val;
-        firePossibleChange();
-    }
-    public boolean getSingleSpeed_enabled() {
-        return getVideoFormat().isAvi() &&
-               (findDiscSpeed() < 1);
-    }
-    public @Nonnull Fraction getFps() {
-        return Fraction.divide(
-                getSingleSpeed() ? 75 : 150,
-                _sourceVidItem.getSectorsPerFrame());
     }
 
     // .........................................................................
@@ -279,7 +246,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     public boolean getDecodeQuality_enabled() {
-        return getVideoFormat().getDecodeQualityCount() > 1;
+        return getVideoFormat().getDecodeQualityCount() > 1; // TODO if disabled, show nothing
     }
 
     // .........................................................................
@@ -315,15 +282,15 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     // .........................................................................
 
     public boolean getFileNumberType_enabled() {
-        return !getVideoFormat().isAvi();
+        return !getVideoFormat().isVideo();
     }
 
     private final List<FrameNumber.Type> _types;
-    public @CheckForNull FrameNumber.Type getFileNumberType_listItem(int i) {
+    public @Nonnull FrameNumber.Type getFileNumberType_listItem(int i) {
         if (getFileNumberType_enabled())
             return _types.get(i);
         else
-            return null;
+            throw new IndexOutOfBoundsException();
     }
 
     public int getFileNumberType_listSize() {
@@ -383,7 +350,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         tfb.addCell(I.CMD_VIDEO_VF());
         Cell c = new Cell(I.CMD_VIDEO_VF_HELP(VideoFormat.AVI_MJPG.getCmdLine()));
         for (VideoFormat fmt : VideoFormat.getAvailable()) {
-            c.addLine(fmt.getCmdLine(), 2);
+            c.addLine(new UnlocalizedMessage(fmt.getCmdLine()), 2);
         }
         tfb.addCell(c);
 
@@ -404,14 +371,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
             c.addLine(up.getCmdLineHelp(), 2);
         }
         tfb.addCell(c);
-
-        if (getSingleSpeed_enabled()) {
-            tfb.newRow();
-            tfb.addCell(I.CMD_VIDEO_DS()).addCell(I.CMD_VIDEO_DS_HELP());
-        }
-
-        //tfb.newRow();
-        //tfb.print("-psxfps").tab().print("Emulate PSX FPS timing"); // I18N
 
         tfb.newRow();
         tfb.addCell(I.CMD_VIDEO_FRAMES()).addCell(I.CMD_VIDEO_FRAMES_HELP());
@@ -440,7 +399,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         BooleanHolder nocrop = ap.addBoolOption(false, "-nocrop"); // only non demux & mdec formats
         StringHolder quality = ap.addStringOption("-quality","-q");
         StringHolder up = ap.addStringOption("-up");
-        StringHolder discSpeed = ap.addStringOption("-ds");
         StringHolder startFrame = ap.addStringOption("-start");
         StringHolder endFrame = ap.addStringOption("-end");
         StringHolder num = ap.addStringOption("-num");
@@ -528,16 +486,6 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
         }
 
         setCrop(!nocrop.value);
-
-        if (discSpeed.value != null) {
-            if ("1".equals(discSpeed.value)) {
-                setSingleSpeed(true);
-            } else if ("2".equals(discSpeed.value)) {
-                setSingleSpeed(false);
-            } else {
-                fbs.printWarn(I.CMD_IGNORING_INVALID_VALUE_FOR_CMD(discSpeed.value, "-ds"));
-            }
-        }
     }
     @Override
     public void printSelectedOptions(@Nonnull ILocalizedLogger log) {
@@ -570,17 +518,14 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
                 log.log(Level.INFO, I.CMD_OUTPUT_FILES(_aoOutRng[0], _aoOutRng[1]));
             }
         } else {
-            File outFile = VideoFileNameFormatter.singleFile(null, _sourceVidItem, vidFmt);
-            log.log(Level.INFO, I.CMD_DISC_SPEED(getSingleSpeed() ? 1 : 2, getFps().asDouble()));
 
             if (getSavingAudio()) {
-                log.log(Level.INFO, I.CMD_SAVING_WITH_AUDIO_ITEMS());
                 printSelectedAudioOptions(log);
-                log.log(Level.INFO, I.CMD_EMULATE_PSX_AV_SYNC_NY(getEmulatePsxAvSync() ? 1 : 0));
             } else {
                 log.log(Level.INFO, I.CMD_NO_AUDIO());
             }
 
+            File outFile = VideoFileNameFormatter.singleFile(null, _sourceVidItem, vidFmt);
             log.log(Level.INFO, I.CMD_SAVING_AS(outFile));
         }
 

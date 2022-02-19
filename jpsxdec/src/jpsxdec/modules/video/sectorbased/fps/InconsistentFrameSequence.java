@@ -51,6 +51,7 @@ import jpsxdec.util.Fraction;
 /** There are some unique frame rates that just don't make any sense.
  * These unique sequences of frame sectors just have to be manually
  * specified. */
+//@Deprecated
 public class InconsistentFrameSequence {
 
     private static final Logger LOG = Logger.getLogger(InconsistentFrameSequence.class.getName());

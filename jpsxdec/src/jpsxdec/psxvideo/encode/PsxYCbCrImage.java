@@ -39,6 +39,7 @@ package jpsxdec.psxvideo.encode;
 
 
 import java.awt.image.BufferedImage;
+import javax.annotation.Nonnull;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.RgbIntImage;
 import jpsxdec.psxvideo.PsxYCbCr;
@@ -77,11 +78,11 @@ public class PsxYCbCrImage {
         _adblCr = new double[iSize / 4];
     }
 
-    public PsxYCbCrImage(BufferedImage bi) {
+    public PsxYCbCrImage(@Nonnull BufferedImage bi) {
         this(new RgbIntImage(bi));
     }
 
-    public PsxYCbCrImage(RgbIntImage rgb) {
+    public PsxYCbCrImage(@Nonnull RgbIntImage rgb) {
         _iWidth  = rgb.getWidth();
         _iHeight = rgb.getHeight();
         assert(_iWidth > 0 && _iHeight > 0 &&
@@ -116,7 +117,7 @@ public class PsxYCbCrImage {
 
     /** Converts yuv image to a BufferedImage, converting, rounding, and
      * clamping RGB values. */
-    public RgbIntImage toRgb() {
+    public @Nonnull RgbIntImage toRgb() {
         int[] aiARGB = new int[_iWidth * _iHeight];
 
         PsxYCbCr ycc = new PsxYCbCr();
@@ -183,18 +184,18 @@ public class PsxYCbCrImage {
         return _iWidth / 2;
     }
 
-    public BufferedImage CrToBufferedImage() {
+    public @Nonnull BufferedImage CrToBufferedImage() {
         return doubleArrayToBufferedImage(getChromWidth(), getChromHeight(), _adblCr, 0);
     }
-    public BufferedImage CbToBufferedImage() {
+    public @Nonnull BufferedImage CbToBufferedImage() {
         return doubleArrayToBufferedImage(getChromWidth(), getChromHeight(), _adblCb, 1);
     }
 
-    public BufferedImage YToBufferedImage() {
+    public @Nonnull BufferedImage YToBufferedImage() {
         return doubleArrayToBufferedImage(getLumaWidth(), getLumaHeight(), _adblY, 2);
     }
 
-    private static BufferedImage doubleArrayToBufferedImage(int iWidth, int iHeight, double[] adbl, int iMod) {
+    private static BufferedImage doubleArrayToBufferedImage(int iWidth, int iHeight, @Nonnull double[] adbl, int iMod) {
         BufferedImage bi = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
         for (int x = 0; x < iWidth; x++) {
             for (int y = 0; y < iHeight; y++) {
@@ -211,7 +212,7 @@ public class PsxYCbCrImage {
         return bi;
     }
 
-    public double[] get8x8blockY(int iX, int iY) {
+    public @Nonnull double[] get8x8blockY(int iX, int iY) {
         if (iX < 0 || iX >= _iWidth)
             throw new IllegalArgumentException(iX + " X is out of bounds");
         if (iY < 0 || iY >= _iHeight)
@@ -219,15 +220,15 @@ public class PsxYCbCrImage {
         return get8x8block(iX, iY, _adblY, _iWidth);
     }
 
-    public double[] get8x8blockCb(int iX, int iY) {
+    public @Nonnull double[] get8x8blockCb(int iX, int iY) {
         return get8x8block(iX, iY, _adblCb, _iWidth / 2);
     }
 
-    public double[] get8x8blockCr(int iX, int iY) {
+    public @Nonnull double[] get8x8blockCr(int iX, int iY) {
         return get8x8block(iX, iY, _adblCr, _iWidth / 2);
     }
 
-    private static double[] get8x8block(int iX, int iY, double[] adblComponent, int iWidth) {
+    private static @Nonnull double[] get8x8block(int iX, int iY, @Nonnull double[] adblComponent, int iWidth) {
         double[] adblBlock = new double[8*8];
         for (int iXofs = 0; iXofs < 8; iXofs++) {
             for (int iYofs = 0; iYofs < 8; iYofs++) {

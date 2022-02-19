@@ -54,6 +54,7 @@ import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 import jpsxdec.modules.video.save.VideoSaver;
 import jpsxdec.modules.video.save.VideoSaverBuilder;
 import jpsxdec.util.ArgParser;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.TaskCanceledException;
 
 public class PacketBasedVideoSaverBuilder extends VideoSaverBuilder {
@@ -95,7 +96,7 @@ public class PacketBasedVideoSaverBuilder extends VideoSaverBuilder {
     // .........................................................................
 
     public boolean getSavingAudio_enabled() {
-        return hasAudio() && getVideoFormat().isAvi() && getSaveStartFrame() == null;
+        return hasAudio() && getVideoFormat().isVideo() && getSaveStartFrame() == null;
     }
 
     @Override
@@ -118,7 +119,7 @@ public class PacketBasedVideoSaverBuilder extends VideoSaverBuilder {
     // .........................................................................
 
     @Override
-    public boolean getEmulatePsxAvSync() {
+    public boolean getEmulatePsxAvSync() { // TODO refactor so this function isn't in packet-based
         return false;
     }
 
@@ -166,7 +167,8 @@ public class PacketBasedVideoSaverBuilder extends VideoSaverBuilder {
             aud = null;
         }
 
-        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, vid, aud);
+        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, vid, aud,
+                150, Fraction.divide(150, _sourceVidItem.getFramesPerSecond()), _sourceVidItem.getStartSector());
         vs.save(pl);
     }
 

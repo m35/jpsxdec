@@ -65,7 +65,7 @@ import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
+import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.spu.DiscIndexerSpu;
 import jpsxdec.modules.video.DiscItemVideoStream;
 import jpsxdec.util.player.PlayController;
@@ -434,8 +434,8 @@ public class GuiTree extends JXTreeTable {
         public @CheckForNull PlayController getPlayer() {
             if (_item instanceof DiscItemVideoStream) {
                 return ((DiscItemVideoStream)_item).makePlayController();
-            } else if (_item instanceof DiscItemAudioStream) {
-                return ((DiscItemAudioStream)_item).makePlayController();
+            } else if (_item instanceof DiscItemSectorBasedAudioStream) {
+                return ((DiscItemSectorBasedAudioStream)_item).makePlayController();
             } else {
                 return null;
             }
@@ -443,7 +443,7 @@ public class GuiTree extends JXTreeTable {
 
         @Override
         public boolean canPlay() {
-            return _item instanceof DiscItemVideoStream || _item instanceof DiscItemAudioStream;
+            return _item instanceof DiscItemVideoStream || _item instanceof DiscItemSectorBasedAudioStream;
         }
 
         @Override
@@ -454,8 +454,8 @@ public class GuiTree extends JXTreeTable {
             else if (cmd == Select.ALL_VIDEO)
                 _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.Video;
             else if (cmd == Select.ALL_AUDIO)
-                _blnSave = _blnSave || (getItem() instanceof DiscItemAudioStream
-                                        && !((DiscItemAudioStream)getItem()).isPartOfVideo());
+                _blnSave = _blnSave || (getItem() instanceof DiscItemSectorBasedAudioStream
+                                        && !((DiscItemSectorBasedAudioStream)getItem()).isPartOfVideo());
             else if (cmd == Select.ALL_AUDIO_VIDEO)
                 _blnSave = _blnSave || getItem().getType() == DiscItem.GeneralType.Audio;
             else if (cmd == Select.ALL_FILES)

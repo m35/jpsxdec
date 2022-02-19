@@ -37,146 +37,110 @@
 
 package jpsxdec.modules.crusader;
 
-import java.io.EOFException;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
+import jpsxdec.modules.IdentifiedSectorListener;
+import jpsxdec.modules.SectorRange;
 import jpsxdec.util.BinaryDataNotRecognized;
-import jpsxdec.util.DemuxPushInputStream;
-import jpsxdec.util.DemuxedData;
-import jpsxdec.util.IO;
+import jpsxdec.util.PushAvailableInputStream;
 
 
-/** Unlike other pipelines, there isn't an end-to-end path from sector to
- * presentation. Due to the way Crusader streams are, there really needs
- * to be a bridge that handles {@link SectorCrusader}s as they come
- * identified off the disc.
- * This object is only valid for 1 movie. Create a new one once this is done. */
-public class CrusaderSectorToCrusaderPacket {
-
-    private static final Logger LOG = Logger.getLogger(CrusaderSectorToCrusaderPacket.class.getName());
+public class CrusaderSectorToCrusaderPacket implements IdentifiedSectorListener<SectorCrusader> {
 
     public interface PacketListener {
-        void frame(@Nonnull CrusaderPacketHeaderReader.VideoHeader frame,
-                   @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
-                   @Nonnull ILocalizedLogger log)
+        void packetComplete(@Nonnull CrusaderPacket packet,
+                            @Nonnull ILocalizedLogger log)
                 throws LoggedFailure;
-
-        void audio(@Nonnull CrusaderPacketHeaderReader.AudioHeader audio,
-                   @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
-                   @Nonnull ILocalizedLogger log)
-                throws LoggedFailure;
+        void endOfVideo(@Nonnull ILocalizedLogger log);
     }
+
+    @CheckForNull
+    private PushAvailableInputStream<SectorCrusader> _stream = new PushAvailableInputStream<SectorCrusader>();
 
     @CheckForNull
     private PacketListener _packetListener;
 
+    @Nonnull
+    private final SectorRange _sectorRange;
+
     private int _iPrevCrusaderSector = -1;
 
     @CheckForNull
-    private DemuxPushInputStream<CrusaderDemuxPiece> _stream;
-    @CheckForNull
-    private CrusaderPacketHeaderReader.Header _header;
+    private CrusaderPacket.HeaderType _nextPacketType;
 
-    public CrusaderSectorToCrusaderPacket(@Nonnull PacketListener listener) {
+    public CrusaderSectorToCrusaderPacket(@Nonnull SectorRange sectorRange, @Nonnull PacketListener listener) {
+        _sectorRange = sectorRange;
         _packetListener = listener;
     }
     public void setListener(@CheckForNull PacketListener listener) {
         _packetListener = listener;
     }
 
-    /** Returns if the sector was accepted by this movie.
-     * A new {@link CrusaderSectorToCrusaderPacket} should be created for
-     * each movie. */
-    public boolean sectorRead(@Nonnull SectorCrusader sector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
-        if (_iPrevCrusaderSector != -1) {
-            if (sector.getCrusaderSectorNumber() < _iPrevCrusaderSector)
-                return false;
-            int iNumberOfSectorsMissing = sector.getCrusaderSectorNumber() - _iPrevCrusaderSector;
-            int iPrevCdSector = sector.getSectorNumber() - iNumberOfSectorsMissing;
-            for (int iCrusaderSector = _iPrevCrusaderSector+1,
-                           iCdSector = iPrevCdSector+1;
-                 iCrusaderSector < sector.getCrusaderSectorNumber();
-                 iCrusaderSector++, iCdSector++)
-            {
-                addPiece(new CrusaderDemuxPiece(iCdSector));
-            }
-        }
-        addPiece(new CrusaderDemuxPiece(sector));
-        _iPrevCrusaderSector = sector.getCrusaderSectorNumber();
-        read(log);
-        return true;
+    @Override
+    public @Nonnull Class<SectorCrusader> getListeningFor() {
+        return SectorCrusader.class;
     }
 
-    private void addPiece(@Nonnull CrusaderDemuxPiece piece) {
-        if (_stream == null) {
-            _stream = new DemuxPushInputStream<CrusaderDemuxPiece>(piece);
-        } else {
-            _stream.addPiece(piece);
-        }
-    }
-
-    /** Tells this to finish off the video and flush any remaining data. */
-    public void endVideo(@Nonnull ILocalizedLogger log) throws LoggedFailure {
-        _stream.close();
-        read(log);
-        _stream = null;
-    }
-
-    private void read(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+    @Override
+    public void feedSector(@Nonnull SectorCrusader idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         try {
-            while (true) {
-                if (_header == null) {
-                    _stream.mark(16);
-                    try {
-                        _header = CrusaderPacketHeaderReader.read(_stream);
-                    } catch (BinaryDataNotRecognized ex) {
-                        _stream.reset();
-                        // there are sectors with unallocated data at the end
-                        // of videos, so no need to consider this a warning
-                        LOG.log(Level.INFO, "Invalid Crusader header in {0} offset {1,number,#}",
-                                new Object[]{_stream.getCurrentPiece(), _stream.getOffsetInCurrentPiece()});
-                        IO.skip(_stream, 1);
-                    } catch (EOFException ex) {
-                        // must be closed
-                        // not enough data to even hold a header, so we're done
-                        _stream = null;
-                        return;
-                    }
-                } else {
-                    _stream.mark(_header.getByteSize());
-                    int iSkipped = IO.skipMax(_stream, _header.getByteSize());
-                    DemuxedData<CrusaderDemuxPiece> demux = _stream.getMarkToReadDemux();
+            if (!_sectorRange.sectorIsInRange(idSector.getSectorNumber()))
+                return;
 
-                    if (_header.getByteSize() != demux.getDemuxSize()) {
-                        // this is possible if there is an unexpected end
-                        // of Crusader sectors. Then the demux data read will
-                        // be < what the header says it should be
-                        LOG.log(Level.WARNING, "Crusader packet header size {0} != demux size {1}",
-                                                new Object[]{_header.getByteSize(), demux.getDemuxSize()});
-                    }
-
-                    if (_header instanceof CrusaderPacketHeaderReader.VideoHeader) {
-                        if (_packetListener != null)
-                            _packetListener.frame((CrusaderPacketHeaderReader.VideoHeader)_header, demux, log);
-                    } else if (_header instanceof CrusaderPacketHeaderReader.AudioHeader) {
-                        if (_packetListener != null)
-                            _packetListener.audio((CrusaderPacketHeaderReader.AudioHeader)_header, demux, log);
-                    } else {
-                        throw new RuntimeException();
-                    }
-                    _header = null; // packet done
-                }
+            if (idSector.getCrusaderSectorNumber() != _iPrevCrusaderSector + 1) {
+                if (_packetListener != null)
+                    _packetListener.endOfVideo(log);
+                _iPrevCrusaderSector = -1;
+                _stream = new PushAvailableInputStream<SectorCrusader>();
             }
-        } catch (DemuxPushInputStream.NeedsMoreData ex) {
-            // ok, wait until another sector is added to try again
-            _stream.reset();
+
+            if (_stream != null) {
+                _stream.addStream(idSector.getCrusaderDataStream(), idSector);
+                readPackets(log);
+            }
+            _iPrevCrusaderSector = idSector.getCrusaderSectorNumber();
         } catch (IOException ex) {
-            throw new RuntimeException("Should not happen", ex);
+            throw new RuntimeException("Shouldn't happen", ex);
+        } catch (BinaryDataNotRecognized ex) {
+            // data corruption
+        }
+    }
+
+    @Override
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+        if (_packetListener != null)
+            _packetListener.endOfVideo(log);
+    }
+
+    private void readPackets(@Nonnull ILocalizedLogger log) throws IOException, BinaryDataNotRecognized, LoggedFailure {
+        while (true) {
+            if (_nextPacketType == null) {
+                if (_stream.available() < CrusaderPacket.HeaderType.SIZEOF)
+                    return;
+
+                _nextPacketType = CrusaderPacket.HeaderType.read(_stream);
+                if (_nextPacketType == null) {
+                    // either no more packets, or corruption
+                    // either way, end the stream
+                    _stream = null;
+                    return;
+                }
+
+            } else {
+                if (_stream.available() < _nextPacketType.getRemainingPacketSize())
+                    return;
+
+                int iStartSector = _stream.getCurrentMeta().getSectorNumber();
+                CrusaderPacket packet = _nextPacketType.readPacket(_stream);
+                int iEndSector = _stream.getCurrentMeta().getSectorNumber();
+                packet.setSectors(iStartSector, iEndSector);
+                _nextPacketType = null;
+                if (_packetListener != null)
+                    _packetListener.packetComplete(packet, log);
+            }
         }
     }
 

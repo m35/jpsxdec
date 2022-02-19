@@ -46,9 +46,10 @@ import java.io.OutputStream;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.cdreaders.CdRiffHeader;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.util.ArgParser;
@@ -56,7 +57,11 @@ import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
 
-/** Command to copy sectors out of a disc image. */
+/** Command to copy sectors out of a disc image.
+ * <pre>
+ * -copysect {@code <start sector>}-{@code <end sector>}
+ * </pre>
+ */
 class Command_CopySect extends Command {
 
     private static final Logger LOG = Logger.getLogger(Command_CopySect.class.getName());
@@ -79,7 +84,7 @@ class Command_CopySect extends Command {
 
     @Override
     public void execute(@Nonnull ArgParser ap) throws CommandLineException {
-        CdFileSectorReader cdReader = getCdReader();
+        ICdSectorReader cdReader = getCdReader();
         String sOutputFile = String.format("%s%d-%d.dat",
                 Misc.removeExt(cdReader.getSourceFile().getName()),
                 _aiStartEndSectors[0], _aiStartEndSectors[1]);
@@ -117,7 +122,7 @@ class Command_CopySect extends Command {
                 CdSector sector = cdReader.getSector(i);
                 os.write(sector.getRawSectorDataCopy());
             }
-        } catch (CdFileSectorReader.CdReadException ex) {
+        } catch (CdReadException ex) {
             throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(
                                            ex.getFile().toString()), ex);
         } catch (IOException ex) {

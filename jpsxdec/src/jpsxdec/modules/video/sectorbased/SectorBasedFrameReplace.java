@@ -39,7 +39,6 @@ package jpsxdec.modules.video.sectorbased;
 
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.I;
@@ -77,7 +76,7 @@ public class SectorBasedFrameReplace {
 
     public static void writeToSectors(@Nonnull SectorBasedFrameAnalysis existingFrame,
                                       @Nonnull BitStreamAnalysis newFrame,
-                                      @Nonnull CdFileSectorReader cd,
+                                      @Nonnull DiscPatcher patcher,
                                       @Nonnull ILocalizedLogger log,
                                       @Nonnull Iterable<? extends IReplaceableVideoSector> chunks)
             throws LoggedFailure
@@ -102,7 +101,7 @@ public class SectorBasedFrameReplace {
             int iSectorHeaderSize = vidSector.getVideoSectorHeaderSize();
             newFrame.arrayCopy(iDemuxOfs, abSectUserData, iSectorHeaderSize, iBytesToCopy);
             try {
-                cd.addPatch(vidSector.getCdSector().getSectorIndexFromStart(), 0, abSectUserData);
+                patcher.addPatch(vidSector.getCdSector().getSectorIndexFromStart(), 0, abSectUserData);
             } catch (DiscPatcher.WritePatchException ex) {
                 throw new LoggedFailure(log, Level.SEVERE, I.IO_WRITING_TO_FILE_ERROR_NAME(ex.getFile().toString()), ex);
             }

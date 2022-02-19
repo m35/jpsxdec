@@ -39,6 +39,7 @@ package jpsxdec.psxvideo.bitstreams;
 
 import java.io.PrintStream;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -191,11 +192,11 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
         public Builder _0000000000011111s(int zr, int aac) { return set(_00000000000111110, _00000000000111111, zr, aac); }
 
         private @Nonnull Builder set(@Nonnull BitStreamCode positiveBitStreamCodeEndsWith0,
-                                     @Nonnull BitStreamCode negitiveBitStreamCodeEndsWith1,
+                                     @Nonnull BitStreamCode negativeBitStreamCodeEndsWith1,
                                      int iZeroRunLength, int iAbsoluteAcCoefficient)
         {
             set(positiveBitStreamCodeEndsWith0, iZeroRunLength,  iAbsoluteAcCoefficient);
-            set(negitiveBitStreamCodeEndsWith1, iZeroRunLength,  -iAbsoluteAcCoefficient);
+            set(negativeBitStreamCodeEndsWith1, iZeroRunLength,  -iAbsoluteAcCoefficient);
             return this;
         }
 
@@ -285,7 +286,9 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
             }
 
             @Override
-            public @Nonnull ZeroRunLengthAc next() {
+            public @Nonnull ZeroRunLengthAc next() throws NoSuchElementException {
+                if (!hasNext())
+                    throw new NoSuchElementException();
                 return _aoList[_i++];
             }
 

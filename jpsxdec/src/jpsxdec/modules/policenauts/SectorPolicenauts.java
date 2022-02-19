@@ -44,7 +44,9 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.modules.IdentifiedSector;
 
-/** Just a simple sector wrapper for Policenauts to claim sectors. */
+/** Just a simple sector wrapper for Policenauts to claim sectors.
+ * Holds the packets that end in this sector, and a flag if it's the last sector
+ * of the video. */
 public class SectorPolicenauts extends IdentifiedSector implements Iterable<SPacketData> {
 
     private boolean _blnIsEnd;

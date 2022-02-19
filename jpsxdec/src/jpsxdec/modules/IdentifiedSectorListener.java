@@ -44,6 +44,7 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 
 
 public interface IdentifiedSectorListener<T extends IIdentifiedSector> {
+    /** Return null to listen for any sector. */
     @CheckForNull Class<T> getListeningFor();
 
     void feedSector(@Nonnull T idSector, @Nonnull ILocalizedLogger log)

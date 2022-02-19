@@ -45,7 +45,7 @@ import java.lang.reflect.Field;
 import jpsxdec.util.IO;
 
 public class Util {
-    
+
     public static File resourceAsTempFile(Class cls, String sResource) throws IOException {
         File f = File.createTempFile(sResource, "-tmp");
         resourceAsFile(cls, sResource, f);

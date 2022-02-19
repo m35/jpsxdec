@@ -73,7 +73,7 @@ Improvements
 
 # Java 6 Console #
     _Background_
-Java <= 5 only had stdout PrintStream, which does not allow choosing the text 
+Java <= 5 only had stdout PrintStream, which does not allow choosing the text
 encoder (for non-English languages)
     _Suggested solution_
 Use Java 6 Console to use proper encoding when printing to the console.
@@ -237,14 +237,11 @@ Create my own smaller/simpler arg parser
     (some work is already done in jpsxdec.util.ArgParser)
 
 General code stuff
-    * Add unit tests to build.xml
-        * Create unit test subproject?
     * Clean up all the TODOs
     * Proper handling for InterruptedException
     * Cleanup IllegalArgumentException and IllegalStateExceptions
     * Findbug fixes
     * Replace package.html with package-info.java
-    Add @Override all the things
 
 Replace "presentation sector" with just "presentation time"
     Presentation sector made sense when it was just sector based videos

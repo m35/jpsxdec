@@ -37,6 +37,7 @@
 
 package jpsxdec.modules.square;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
@@ -46,24 +47,26 @@ import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.adpcm.SoundUnitDecoder;
 import jpsxdec.adpcm.SpuAdpcmEncoder;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.discitems.SerializedDiscItem;
+import jpsxdec.formats.Signed16bitLittleEndianLinearPcmAudioInputStream;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LocalizedIncompatibleException;
+import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
+import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
+import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
@@ -72,7 +75,7 @@ import jpsxdec.util.TaskCanceledException;
 
 /** Represents a series of Square SPU ADPCM sectors that combine to make an audio stream.
  * These kinds of streams are found in Final Fantasy 8, 9, and Chrono Cross.  */
-public class DiscItemSquareAudioStream extends DiscItemAudioStream {
+public class DiscItemSquareAudioStream extends DiscItemSectorBasedAudioStream {
 
     private static final Logger LOG = Logger.getLogger(DiscItemSquareAudioStream.class.getName());
 
@@ -87,7 +90,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     private static final String SECTORS_PAST_END_KEY = "Sectors past end";
     private final int _iSectorsPastEnd;
 
-    public DiscItemSquareAudioStream(@Nonnull CdFileSectorReader cd,
+    public DiscItemSquareAudioStream(@Nonnull ICdSectorReader cd,
                                      int iStartSector, int iEndSector,
                                      int iSoundUnitCount,
                                      int iSampleFramesPerSecond,
@@ -100,7 +103,7 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
         _iSectorsPastEnd = iSectorsPastEnd;
     }
 
-    public DiscItemSquareAudioStream(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemSquareAudioStream(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -235,36 +238,21 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
     // replace
 
     @Override
-    public void replace(@Nonnull ProgressLogger pl, @Nonnull File audioFile)
+    public void replace(@Nonnull DiscPatcher patcher, @Nonnull File audioFile, @Nonnull ProgressLogger pl)
             throws IOException,
                    UnsupportedAudioFileException,
                    LocalizedIncompatibleException,
-                   CdFileSectorReader.CdReadException,
+                   CdReadException,
                    DiscPatcher.WritePatchException,
-                   TaskCanceledException
+                   TaskCanceledException, LoggedFailure
     {
-        AudioInputStream ais = AudioSystem.getAudioInputStream(audioFile);
+        Signed16bitLittleEndianLinearPcmAudioInputStream ais = openForReplace(audioFile, getSampleFramesPerSecond(), isStereo(), pl);
         try {
-            AudioFormat fmt = ais.getFormat();
-            boolean blnFormatEquals = Math.abs(fmt.getSampleRate() - _iSampleFramesPerSecond) < 1f;
-            blnFormatEquals &= ( isStereo()  && (fmt.getChannels() == 2) )
-                                ||
-                               ( !isStereo() && (fmt.getChannels() == 1) );
-            blnFormatEquals &= ais.getFrameLength() == getSampleFrameCount();
-
-            if (!blnFormatEquals) {
-                throw new LocalizedIncompatibleException(
-                I.AUDIO_REPLACE_FORMAT_MISMATCH(
-                    ais.getFrameLength(), fmt.getChannels(), fmt.getSampleRate(),
-                    getSampleFrameCount(), isStereo() ? 2 : 1, getSampleFramesPerSecond()
-                ));
-            }
-
             SpuAdpcmEncoder.Stereo encoder;
             try {
                 encoder = new SpuAdpcmEncoder.Stereo(ais);
             } catch (IncompatibleException ex) {
-                throw new RuntimeException("This should have already been checked above", ex);
+                throw new RuntimeException("This should have been checked already", ex);
             }
 
             // connect the pipeline
@@ -273,22 +261,31 @@ public class DiscItemSquareAudioStream extends DiscItemAudioStream {
             SectorClaimSystem it = createClaimSystem();
             it.addIdListener(sas2sasp);
 
-            int iSoundUnitsReplaced = 0;
-            int iSomewhatAccurateSectorProgress = getStartSector();
-
-            pl.progressStart(_iSoundUnitCount);
-            while (iSoundUnitsReplaced < _iSoundUnitCount) {
-                it.next(pl);
-
+            pl.progressStart(getStartSector(), getEndSector());
+            while (it.hasNext()) {
+                // each read sector will generate 0 or more completed pairs
+                IIdentifiedSector idSector = it.next(pl);
+                // process any completed pairs
                 while (pairCollector.hasNext()) {
                     SquareAudioSectorPair pair = pairCollector.next();
-                    iSoundUnitsReplaced += pair.replace(encoder, _iSoundUnitCount - iSoundUnitsReplaced, getSourceCd(), pl);
-                    iSomewhatAccurateSectorProgress = pair.getEndSector();
-                }
-                if (pl.isSeekingEvent())
-                    pl.event(I.CMD_PATCHING_SECTOR_NUMBER(iSomewhatAccurateSectorProgress));
+                    if (pl.isSeekingEvent())
+                        pl.event(I.CMD_PATCHING_SECTOR_NUMBER(pair.getStartSector()));
+                    if (pl.isSeekingEvent())
+                        pl.event(I.CMD_PATCHING_SECTOR_NUMBER(pair.getEndSector()));
 
-                pl.progressUpdate(iSoundUnitsReplaced);
+                    try {
+                        pair.replace(encoder, patcher, pl);
+                    } catch (EOFException ex) {
+                        throw new LocalizedIncompatibleException(I.CMD_REPLACE_AUDIO_TOO_SHORT(ais.getSampleFramesRead(), getSampleFrameCount()), ex);
+                    }
+                }
+
+                pl.progressUpdate(idSector.getSectorNumber());
+            }
+            it.flush(pl);
+
+            if (!ais.nextReadReturnsEndOfStream()) {
+                throw new LocalizedIncompatibleException(I.CMD_REPLACE_AUDIO_TOO_LONG(getSampleFrameCount()));
             }
             pl.progressEnd();
         } finally {

@@ -43,7 +43,8 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
@@ -51,7 +52,6 @@ import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.modules.video.Dimensions;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
@@ -73,7 +73,7 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
     @CheckForNull
     private final HeaderFrameNumber.Format _headerFrameNumberFormat;
 
-    public DiscItemEAVideo(@Nonnull CdFileSectorReader cd,
+    public DiscItemEAVideo(@Nonnull ICdSectorReader cd,
                             int iStartSector, int iEndSector,
                             @Nonnull Dimensions dim,
                             @Nonnull IndexSectorFrameNumber.Format sectorIndexFrameNumberFormat,
@@ -84,7 +84,7 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
         _headerFrameNumberFormat = headerFrameNumberFormat;
     }
 
-    public DiscItemEAVideo(@Nonnull CdFileSectorReader cd, @Nonnull SerializedDiscItem fields)
+    public DiscItemEAVideo(@Nonnull ICdSectorReader cd, @Nonnull SerializedDiscItem fields)
             throws LocalizedDeserializationFail
     {
         super(cd, fields);
@@ -142,13 +142,8 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
     }
 
     @Override
-    public @Nonnull Fraction getSectorsPerFrame() {
-        return new Fraction(SECTORS_PER_FRAME);
-    }
-
-    @Override
-    public double getApproxDuration() {
-        return getFrameCount() / (double)FPS;
+    public @Nonnull Fraction getFramesPerSecond() {
+        return new Fraction(FPS);
     }
 
     @Override
@@ -234,7 +229,7 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
                     // But is there anything we can really do about it?
                     // The location of the packet can't really tell us anything
                     // So I guess we're stuck just using the frame index :P
-                    int iPresentationSector = iFrameNumber * SECTORS_PER_FRAME + DiscItemEAVideo.this.getAbsolutePresentationStartSector();
+                    int iPresentationSector = iFrameNumber * SECTORS_PER_FRAME + DiscItemEAVideo.this.getStartSector();
                     _frameListener.frameComplete(new DemuxedEAFrame(packet, mdecPacket, _vlcPacket, fn, new Fraction(iPresentationSector)));
                 }
             } else if (packet.packet instanceof EAVideoPacket.VLC0) {

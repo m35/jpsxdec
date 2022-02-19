@@ -68,7 +68,7 @@ public class PsxMdecIDCT_double implements IDCT_double {
                 tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    tempSum += (idctMatrix[x + i*8] * PSX_DEFAULT_COSINE_MATRIX[i*8 + y]);
+                    tempSum += idctMatrix[x + i*8] * PSX_DEFAULT_COSINE_MATRIX[y + i*8];
                 }
 
                 _aTemp[x + y*8] = tempSum;
@@ -80,8 +80,7 @@ public class PsxMdecIDCT_double implements IDCT_double {
                 tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    tempSum += (PSX_DEFAULT_COSINE_MATRIX[x + i*8] *
-                                   _aTemp[i + y*8]);
+                    tempSum += PSX_DEFAULT_COSINE_MATRIX[x + i*8] * _aTemp[i + y*8];
                 }
 
                 output[iOutputOffset + x + y*8] = tempSum;
@@ -113,7 +112,7 @@ public class PsxMdecIDCT_double implements IDCT_double {
                 tempSum = 0;
 
                 for (i=0; i<8; i++) {
-                    tempSum += PSX_DEFAULT_COSINE_MATRIX[x + i*8] * _aTemp[i*8 + y];
+                    tempSum += PSX_DEFAULT_COSINE_MATRIX[i + x*8] * _aTemp[i + y*8];
                 }
 
                 output[iOutputOffset + x + y*8] = tempSum;

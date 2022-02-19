@@ -40,7 +40,7 @@ package jpsxdec.modules.eavideo;
 import java.io.PrintStream;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
@@ -125,11 +125,11 @@ public class DemuxedEAFrame implements IDemuxedFrame {
 
     @Override
     public void printSectors(PrintStream ps) {
-        // TODO?
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, CdFileSectorReader cd, ILocalizedLogger log) {
+    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, DiscPatcher patcher, ILocalizedLogger log) {
         throw new UnsupportedOperationException("No support for replacing EA video frames");
     }
 

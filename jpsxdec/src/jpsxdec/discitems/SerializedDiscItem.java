@@ -190,7 +190,8 @@ public class SerializedDiscItem {
      * @param lngEnd   Must be {@code >= 0}
      */
     public void addRangeNoKeyNameCheck(@Nonnull String sFieldName, long lngStart, long lngEnd) {
-        if (lngStart < 0 || lngEnd < 0) throw new IllegalArgumentException("Range values must be >= 0");
+        if (lngStart < 0 || lngEnd < 0)
+            throw new IllegalArgumentException("Range values must be >= 0");
         checkValidKey(sFieldName);
         _fields.put(sFieldName, String.format("%d-%d", lngStart, lngEnd) );
     }
@@ -200,21 +201,11 @@ public class SerializedDiscItem {
      * @param lngDenominator Must be {@code >= 0}
      */
     public void addFraction(@Nonnull String sFieldName, long lngNumerator, long lngDenominator) {
-        if (lngNumerator < 0 || lngDenominator < 0) throw new IllegalArgumentException("Fraction values must be >= 0");
+        if (lngNumerator < 0 || lngDenominator < 0)
+            throw new IllegalArgumentException("Fraction values must be >= 0");
         checkValidKey(sFieldName);
         checkValidKeyName(sFieldName);
         _fields.put(sFieldName, String.format("%d/%d", lngNumerator, lngDenominator) );
-    }
-
-    /**
-     * @param iWidth  Must be {@code >= 0}
-     * @param iHeight Must be {@code >= 0}
-     */
-    public void addDimensions(@Nonnull String sFieldName, int iWidth, int iHeight) {
-        if (iWidth < 0 || iHeight < 0) throw new IllegalArgumentException("Range values must be >= 0");
-        checkValidKey(sFieldName);
-        checkValidKeyName(sFieldName);
-        _fields.put(sFieldName, String.format("%dx%d", iWidth, iHeight) );
     }
 
     private static void checkValidValue(String sValue) {
@@ -243,7 +234,8 @@ public class SerializedDiscItem {
 
     public @Nonnull String getString(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = _fields.get(sFieldName);
-        if (sValue == null) throw new LocalizedDeserializationFail(I.SERIALIZATION_FIELD_NOT_FOUND(sFieldName));
+        if (sValue == null)
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FIELD_NOT_FOUND(sFieldName));
         return sValue;
     }
 
@@ -292,9 +284,9 @@ public class SerializedDiscItem {
 
     public @Nonnull int[] getIntRange(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = getString(sFieldName);
-        int[] ai = Misc.splitInt(sValue, "\\D+");
-        if (ai == null || ai.length != 2) throw new LocalizedDeserializationFail(
-                I.SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(sValue));
+        int[] ai = Misc.splitInt(sValue, "-");
+        if (ai == null || ai.length != 2)
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(sValue));
 
         return ai;
     }
@@ -302,14 +294,10 @@ public class SerializedDiscItem {
     public @Nonnull long[] getLongRange(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
         String sValue = getString(sFieldName);
         long[] alng = Misc.splitLong(sValue, "\\D+");
-        if (alng == null || alng.length != 2) throw new LocalizedDeserializationFail(
-                I.SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(sValue));
+        if (alng == null || alng.length != 2)
+            throw new LocalizedDeserializationFail(I.SERIALIZATION_FAILED_TO_CONVERT_TO_RANGE(sValue));
 
         return alng;
-    }
-
-    public @Nonnull int[] getDimensions(@Nonnull String sFieldName) throws LocalizedDeserializationFail {
-        return getIntRange(sFieldName);
     }
 
     public @Nonnull long[] getFraction(@Nonnull String sFieldName) throws LocalizedDeserializationFail {

@@ -218,9 +218,9 @@ public class XaAudioFormat {
      *   37800           2           8          32     invalid
      *</pre>*/
     private static int calculateDiscSpeed(int iSamplesPerSecond,
-                                         boolean blnStereo,
-                                         int iBitsPerSample,
-                                         int iSectorStride)
+                                          boolean blnStereo,
+                                          int iBitsPerSample,
+                                          int iSectorStride)
     {
         if (iSectorStride < 1)
             return -1;

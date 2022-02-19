@@ -63,7 +63,7 @@ public abstract class ProgressLogger extends UserFriendlyLogger {
             throws TaskCanceledException
     {
         if (dblMaxValue < dblMinValue)
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(dblMinValue + " > " + dblMaxValue);
         _dblMin = dblMinValue;
         _dblMax = dblMaxValue;
         handleProgressStart();

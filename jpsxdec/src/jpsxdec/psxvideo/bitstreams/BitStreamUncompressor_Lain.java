@@ -61,6 +61,8 @@ import jpsxdec.util.Misc;
  * demuxed video frames. */
 public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
 
+    private static final int LAIN_FINAL_VIDEO_FRAME_COUNT = 4765;
+
     public static class LainHeader {
 
         private static final int SIZEOF = 8;
@@ -83,15 +85,18 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
             int iVlcCount         = IO.readSInt16LE(abFrameData, 4);
             int iVersion          = IO.readSInt16LE(abFrameData, 6);
 
-            if (iQscaleChroma < 1 || iQscaleLuma < 1 ||
-                    iVersion != 0 || iVlcCount < 1)
+            if (iQscaleChroma < 1 || iQscaleChroma > 63 ||
+                iQscaleLuma < 1 || iQscaleLuma > 63 ||
+                iVersion != 0 || iVlcCount < 1)
             {
                 _blnIsValid = false;
                 return;
             }
 
             // final Lain movie uses frame number instead of 0x3800
-            if (iMagic3800orFrame != 0x3800 && (iMagic3800orFrame < 0 || iMagic3800orFrame > 4765)) {
+            if (iMagic3800orFrame != 0x3800 && (iMagic3800orFrame < 0 ||
+                                                iMagic3800orFrame > LAIN_FINAL_VIDEO_FRAME_COUNT))
+            {
                 _blnIsValid = false;
                 return;
             }
@@ -147,6 +152,10 @@ public class BitStreamUncompressor_Lain extends BitStreamUncompressor {
         @Override
         public int getByteOffset(int iByteIndex) {
             return iByteIndex;
+        }
+        @Override
+        public int getPaddingByteAlign() {
+            return 1;
         }
     };
 

@@ -88,7 +88,7 @@ public class AudioSaverBuilderGui extends DiscItemSaverBuilderGui {
             }
             @Override
             public void setSelectedItem(Object anItem) {
-                _bl.getBuilder().setContainerForamt((JavaAudioFormat) anItem);
+                _bl.getBuilder().setContainerFormat((JavaAudioFormat) anItem);
             }
             @Override
             public Object getSelectedItem() {

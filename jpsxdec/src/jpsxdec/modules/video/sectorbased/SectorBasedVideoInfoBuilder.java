@@ -39,7 +39,7 @@ package jpsxdec.modules.video.sectorbased;
 
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jpsxdec.modules.video.Dimensions;
+import jpsxdec.discitems.Dimensions;
 import jpsxdec.modules.video.sectorbased.fps.StrFrameRateCalc;
 import jpsxdec.util.Fraction;
 
@@ -104,7 +104,7 @@ public class SectorBasedVideoInfoBuilder {
 
     /** Watch out, once this is called, this object cannot accept any more frames. */
     private @Nonnull Fraction getSectorsPerFrame() {
-        Fraction sectorsPerFrame = _fpsCalc.getSectorsPerFrame();
+        Fraction sectorsPerFrame = _fpsCalc.getSectorsPerFrame(_iStartSector, _iEndSector, _iFrameCount);
         if (sectorsPerFrame == null) {
             sectorsPerFrame = new Fraction(getSectorLength(), _iFrameCount);
         }

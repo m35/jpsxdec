@@ -45,7 +45,7 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
@@ -57,7 +57,7 @@ import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.ArgParser;
 import jpsxdec.util.IO;
 
-
+/** Handle {@code -visualize} option. */
 class Command_Visualize extends Command {
     @Nonnull
     private String _sOutfile;
@@ -75,7 +75,7 @@ class Command_Visualize extends Command {
     @Override
     public void execute(@Nonnull ArgParser ap) throws CommandLineException {
         DiscIndex index = getIndex();
-        CdFileSectorReader cd = index.getSourceCd();
+        ICdSectorReader cd = index.getSourceCd();
         FileOutputStream pdfStream = null;
         try {
             final int SECTOR_SECTION_SIZE = 32;
@@ -128,6 +128,7 @@ class Command_Visualize extends Command {
                     ex.printStackTrace(); // TODO?
                 }
             }
+            it.flush(log);
             DiscItem[] aoRunningItems = new DiscItem[iMaxOverlap];
             /*
              * at each datapoint, there are basically 3 different things that can happen

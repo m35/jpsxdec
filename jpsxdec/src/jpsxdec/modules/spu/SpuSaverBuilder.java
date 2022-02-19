@@ -377,7 +377,14 @@ public class SpuSaverBuilder extends DiscItemSaverBuilder {
             addGeneratedFile(outputFile);
             AudioSystem.write(ais, audioFileType, outputFile);
         } catch (IOException ex) {
+            IO.closeSilently(ais, LOG);
             throw new LoggedFailure(pl, Level.SEVERE, I.IO_WRITING_FILE_ERROR_NAME(outputFile.toString()), ex);
+        } finally {
+            try {
+                ais.close();
+            } catch (IOException ex) {
+                throw new LoggedFailure(pl, Level.SEVERE, I.IO_WRITING_FILE_ERROR_NAME(outputFile.toString()), ex);
+            }
         }
     }
     private void startSaveSpu(@Nonnull ProgressLogger pl,
@@ -449,6 +456,7 @@ public class SpuSaverBuilder extends DiscItemSaverBuilder {
             _fos.close();
         }
     }
+
     private static class SaveVagFile implements ISaveSpu {
         @CheckForNull
         private VagWriter _vag;
@@ -479,5 +487,4 @@ public class SpuSaverBuilder extends DiscItemSaverBuilder {
             return sCleanName.substring(0, Math.min(sCleanName.length(), 16));
         }
     }
-
 }

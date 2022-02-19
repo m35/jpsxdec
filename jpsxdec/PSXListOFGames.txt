@@ -7305,7 +7305,7 @@ Status
 [ ]  SLPS-02507  Next Tetris, The - Deluxe DLX
 [ ]  SLPS-02701  Next Tetris, The [BPS The Choice]
 [ ]  SLPS-00221  NFL Quarterback Club '97
-[ ]  SLPM-86217  N-Gauge Unten Kibun Game - Gatan Goton
+[+]  SLPM-86217  N-Gauge Unten Kibun Game - Gatan Goton
 [ ]  SLPM-86766  N-Gauge Unten Kibun Game - Gatan Goton [MajorWave 1500 Series]
 [ ]  SLPS-00861  NHL '97
 [ ]  SLPM-86193  NHL Blades of Steel 2000

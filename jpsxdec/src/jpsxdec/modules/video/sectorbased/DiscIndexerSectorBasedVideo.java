@@ -46,7 +46,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -56,6 +56,7 @@ import jpsxdec.indexing.DiscIndexer;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.ac3.DiscIndexerAceCombat3Video;
 import jpsxdec.modules.dredd.DiscIndexerDredd;
+import jpsxdec.modules.ngauge.DiscIndexerNGauge;
 import jpsxdec.modules.strvideo.DiscIndexerStrVideo;
 import jpsxdec.modules.xa.DiscItemXaAudioStream;
 
@@ -74,7 +75,7 @@ public class DiscIndexerSectorBasedVideo extends DiscIndexer {
             _parentIndexer.addDiscItem(video);
         }
 
-        final protected @Nonnull CdFileSectorReader getCd() {
+        final protected @Nonnull ICdSectorReader getCd() {
             return _parentIndexer.getCd();
         }
 
@@ -92,6 +93,7 @@ public class DiscIndexerSectorBasedVideo extends DiscIndexer {
             new DiscIndexerStrVideo(),
             new DiscIndexerAceCombat3Video(log),
             new DiscIndexerDredd(),
+            new DiscIndexerNGauge(),
         };
 
         for (SubIndexer vidIndexer : _sectorBasedVideoIndexers) {
@@ -125,12 +127,12 @@ public class DiscIndexerSectorBasedVideo extends DiscIndexer {
     @Override
     public boolean filterChild(@CheckForNull DiscItem parent, @Nonnull DiscItem child) {
 
-        boolean blnIsSilentXa = (child instanceof DiscItemXaAudioStream) &&
-                                (!(parent instanceof DiscItemSectorBasedVideoStream)) &&
-                                ((DiscItemXaAudioStream) child).isConfirmedToBeSilent();
-        if (blnIsSilentXa)
+        boolean blnIsSilentWithoutVideoParent = (child instanceof DiscItemXaAudioStream) &&
+                                                (!(parent instanceof DiscItemSectorBasedVideoStream)) &&
+                                                ((DiscItemXaAudioStream) child).isConfirmedToBeSilent();
+        if (blnIsSilentWithoutVideoParent)
             LOG.log(Level.INFO, "Discarding silent XA {0}", child);
-        return blnIsSilentXa;
+        return blnIsSilentWithoutVideoParent;
     }
 
     private static void audioSplit(@Nonnull Collection<? extends DiscItemSectorBasedVideoStream> videos,

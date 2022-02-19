@@ -48,7 +48,6 @@ import javax.annotation.Nonnull;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
 import jpsxdec.adpcm.SpuAdpcmEncoder;
 import jpsxdec.adpcm.SpuAdpcmSoundUnit;
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.log.ILocalizedLogger;
@@ -146,12 +145,10 @@ public class SquareAudioSectorPair {
         return decoder.decode(left, right, getSoundUnitCount(), out);
     }
 
-
-    public int replace(@Nonnull SpuAdpcmEncoder.Stereo encoder,
-                       int iMaxSoundUnitsToReplace,
-                       @Nonnull CdFileSectorReader cd,
-                       @Nonnull ILocalizedLogger log)
-            throws DiscPatcher.WritePatchException
+    public void replace(@Nonnull SpuAdpcmEncoder.Stereo encoder,
+                        @Nonnull DiscPatcher patcher,
+                        @Nonnull ILocalizedLogger log)
+            throws DiscPatcher.WritePatchException, EOFException, IOException
     {
         ByteArrayFPIS leftSoundUnitReader = null;
         if (_leftSector != null)
@@ -163,31 +160,24 @@ public class SquareAudioSectorPair {
 
         long lngStartOfSamples = encoder.getSampleFramesReadAndEncoded();
 
-        int iSoundUnitsToReplace = Math.min(getSoundUnitCount(), iMaxSoundUnitsToReplace);
-
         ExposedBAOS encodedLeft = new ExposedBAOS();
         ExposedBAOS encodedRight = new ExposedBAOS();
 
-        int iSoundUnitsReplaced = 0;
-        try {
-            for (; iSoundUnitsReplaced < iSoundUnitsToReplace; iSoundUnitsReplaced++) {
-                byte bLeftFlagBits = 0;
-                if (leftSoundUnitReader != null) {
-                    SpuAdpcmSoundUnit su = new SpuAdpcmSoundUnit(leftSoundUnitReader);
-                    bLeftFlagBits = su.getFlagBits();
-                }
-                byte bRightFlagBits = 0;
-                if (rightSoundUnitReader != null) {
-                    SpuAdpcmSoundUnit su = new SpuAdpcmSoundUnit(rightSoundUnitReader);
-                    bRightFlagBits = su.getFlagBits();
-                }
-
-                boolean blnAudioRemains = encoder.encode1SoundUnit(bLeftFlagBits, encodedLeft, bRightFlagBits, encodedRight);
-                if (!blnAudioRemains)
-                    break;
+        for (int iSoundUnitsReplaced = 0; iSoundUnitsReplaced < getSoundUnitCount(); iSoundUnitsReplaced++) {
+            byte bLeftFlagBits = 0;
+            if (leftSoundUnitReader != null) {
+                SpuAdpcmSoundUnit su = new SpuAdpcmSoundUnit(leftSoundUnitReader);
+                bLeftFlagBits = su.getFlagBits();
             }
-        } catch (IOException ex) { // only possible issue is if trying to read incomplete sound unit
-            throw new RuntimeException("All work is being done on BAI/OS", ex);
+            byte bRightFlagBits = 0;
+            if (rightSoundUnitReader != null) {
+                SpuAdpcmSoundUnit su = new SpuAdpcmSoundUnit(rightSoundUnitReader);
+                bRightFlagBits = su.getFlagBits();
+            }
+
+            byte[][] aabEncoded = encoder.encode1SoundUnit(bLeftFlagBits, bRightFlagBits);
+            encodedLeft.write(aabEncoded[0]);
+            encodedRight.write(aabEncoded[1]);
         }
 
         String sDbgFormat = "Replacing {0,number,#} out of {1,number,#} bytes in sector {2} with samples starting at {3,number,#}";
@@ -195,15 +185,13 @@ public class SquareAudioSectorPair {
         if (_leftSector != null) {
             LOG.log(Level.INFO, sDbgFormat, new Object[]{encodedLeft.size(), _leftSector.getAudioDataSize(), _leftSector, lngStartOfSamples});
             log.log(Level.INFO, I.WRITING_SAMPLES_TO_SECTOR(lngStartOfSamples, _leftSector.toString()));
-            cd.addPatch(_leftSector.getSectorNumber(), _leftSector.getAudioDataStartOffset(), encodedLeft.toByteArray());
+            patcher.addPatch(_leftSector.getSectorNumber(), _leftSector.getAudioDataStartOffset(), encodedLeft.toByteArray());
         }
         if (_rightSector != null) {
             LOG.log(Level.INFO, sDbgFormat, new Object[]{encodedRight.size(), _rightSector.getAudioDataSize(), _rightSector, lngStartOfSamples});
             log.log(Level.INFO, I.WRITING_SAMPLES_TO_SECTOR(lngStartOfSamples, _rightSector.toString()));
-            cd.addPatch(_rightSector.getSectorNumber(), _rightSector.getAudioDataStartOffset(), encodedRight.toByteArray());
+            patcher.addPatch(_rightSector.getSectorNumber(), _rightSector.getAudioDataStartOffset(), encodedRight.toByteArray());
         }
-
-        return iSoundUnitsReplaced;
     }
 
 }

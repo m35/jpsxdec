@@ -74,7 +74,7 @@ public final class Misc {
         return new String(ascii, iOffset, iLength, US_ASCII);
     }
 
-    /** Makes a date X number of seconds past the year 0. */
+    /** Makes a date that is iSeconds past the year 0. */
     public static @Nonnull Date dateFromSeconds(int iSeconds) {
         Calendar c = Calendar.getInstance();
         c.set(0, 0, 0, 0, 0, iSeconds);
@@ -100,7 +100,7 @@ public final class Misc {
     }
 
     /** Returns an array of all matches of all groups.
-     * @return null if failed to match */
+     * @return empty array if failed to match */
     public static @Nonnull String[] regexAll(@Nonnull Pattern regex, @Nonnull String s) {
         Matcher m = regex.matcher(s);
         ArrayList<String> matches = new ArrayList<String>();
@@ -112,15 +112,6 @@ public final class Misc {
         return matches.toArray(new String[matches.size()]);
     }
 
-    /** Converts the String to int via {@link Integer#parseInt(java.lang.String)},
-     * unless it is null, then returns the default. */
-    public static int parseIntOrDefault(@CheckForNull String sInt, int iDefault) throws NumberFormatException {
-        if (sInt == null)
-            return iDefault;
-        else
-            return Integer.parseInt(sInt);
-    }
-
     /** http://www.rgagnon.com/javadetails/java-0029.html */
     public static @Nonnull String stack2string(@Nonnull Throwable e) {
         StringWriter sw = new StringWriter();
@@ -130,6 +121,9 @@ public final class Misc {
         return sw.toString();
     }
 
+    /**
+     * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
+     */
     public static int intCompare(int i1, int i2) {
         if (i1 < i2)
             return -1;
@@ -139,7 +133,8 @@ public final class Misc {
             return 0;
     }
 
-    public static boolean objectEquals(@CheckForNull Object o1, @CheckForNull Object o2) {
+    /** Null (and somewhat type) safe {@link Object#equals(Object). */
+    public static <T, U extends T> boolean objectEquals(@CheckForNull T o1, @CheckForNull U o2) {
         return o1 == o2 || (o1 != null && o2 != null && o1.equals(o2));
     }
 

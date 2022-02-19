@@ -51,7 +51,6 @@ import org.junit.runners.Suite;
     jpsxdec.discitems.DiscItemTest.class,
     jpsxdec.discitems.SerializedDiscItemTest.class,
     jpsxdec.indexing.DiscIndexerXaAudioTest.class,
-    jpsxdec.modules.crusader.DiscIndexerCrusaderTest.class,
     jpsxdec.modules.video.sectorbased.fps.Fps.class,
     jpsxdec.modules.xa.DiscItemXaAudioStreamTest.class,
     jpsxdec.psxvideo.PsxYCbCr_intTest.class,
@@ -63,6 +62,7 @@ import org.junit.runners.Suite;
     jpsxdec.util.ArgParserTest.class,
     jpsxdec.util.DemuxPushInputStreamTest.class,
     jpsxdec.util.DemuxedDataTest.class,
+    jpsxdec.util.FractionTest.class,
     jpsxdec.util.IOTest.class,
     jpsxdec.util.MiscTest.class,
     jpsxdec.util.player.ClosableBoundedBlockingQueueTest.class

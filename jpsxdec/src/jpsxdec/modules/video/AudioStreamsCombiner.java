@@ -42,11 +42,11 @@ import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.modules.sharedaudio.DiscItemAudioStream;
+import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
 
-/** Combines multiple the {@link ISectorAudioDecoder}s from multiple
- * {@link DiscItemAudioStream} into a single continuous stream.
+/** *  Combines multiple the {@link ISectorAudioDecoder}s from multiple
+ * {@link DiscItemSectorBasedAudioStream} into a single continuous stream.
  * This is necessary when a video stream has multiple audio contiguous
  * audio clips, usually due to corrupted audio sectors due to ripping error. */
 public class AudioStreamsCombiner implements ISectorAudioDecoder {
@@ -62,14 +62,14 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
     @Nonnull
     private final ISectorAudioDecoder[] _aoDecoders;
     @Nonnull
-    private final DiscItemAudioStream[] _aoSrcItems;
+    private final DiscItemSectorBasedAudioStream[] _aoSrcItems;
 
-    public AudioStreamsCombiner(@Nonnull List<DiscItemAudioStream> audStreams, double dblVolume)
+    public AudioStreamsCombiner(@Nonnull List<DiscItemSectorBasedAudioStream> audStreams, double dblVolume)
     {
         if (thereIsOverlap(audStreams))
             throw new IllegalArgumentException("Streams are not mutually exclusive.");
 
-        _aoSrcItems = audStreams.toArray(new DiscItemAudioStream[audStreams.size()]);
+        _aoSrcItems = audStreams.toArray(new DiscItemSectorBasedAudioStream[audStreams.size()]);
 
         _aoDecoders = new ISectorAudioDecoder[_aoSrcItems.length];
 
@@ -84,7 +84,7 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
         _aoDecoders[0] = audStreams.get(0).makeDecoder(dblVolume);
 
         for (int i = 1; i < _aoDecoders.length; i++) {
-            DiscItemAudioStream aud = audStreams.get(i);
+            DiscItemSectorBasedAudioStream aud = audStreams.get(i);
 
             if (!aud.hasSameFormat(audStreams.get(0)))
                 throw new IllegalArgumentException("Different format audio.");
@@ -109,7 +109,7 @@ public class AudioStreamsCombiner implements ISectorAudioDecoder {
                                      true, false);
     }
 
-    private static boolean thereIsOverlap(@Nonnull List<DiscItemAudioStream> audStreams) {
+    private static boolean thereIsOverlap(@Nonnull List<DiscItemSectorBasedAudioStream> audStreams) {
         for (int i = 0; i < audStreams.size(); i++) {
             for (int j = i+1; j < audStreams.size(); j++) {
                 if (audStreams.get(i).overlaps(audStreams.get(j)))

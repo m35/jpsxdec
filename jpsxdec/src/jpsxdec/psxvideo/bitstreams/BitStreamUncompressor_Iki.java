@@ -82,7 +82,10 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
         int iHeight             = IO.readSInt16LE(abFrameData, 6);
         int iCompressedDataSize = IO.readUInt16LE(abFrameData, 8);
 
-        if (iMdecCodeCount < 0 || iMagic3800 != 0x3800 || iWidth < 1 || iHeight < 1 || iCompressedDataSize < 1) {
+        if (iMdecCodeCount < 0 || iMagic3800 != 0x3800 ||
+            iWidth < 1 || iHeight < 1 ||
+            iCompressedDataSize < 2 || (iCompressedDataSize % 2 != 0))
+        {
             return null;
         }
 
@@ -436,7 +439,6 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
             _iHeight = iHeight;
         }
 
-
         @Override
         public @CheckForNull byte[] compressFull(int iMaxSize,
                                                  @Nonnull String sFrameDescription,
@@ -511,11 +513,11 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
                         return 1;
                     // calculate macroblock's distance from the center of the frame
                     int iDistX, iDistY;
-                    iDistX = o1.X - iMbCenterX;
-                    iDistY = o1.Y - iMbCenterY;
+                    iDistX = o1.getMacroBlockX() - iMbCenterX;
+                    iDistY = o1.getMacroBlockY() - iMbCenterY;
                     int o1dist = iDistX*iDistX + iDistY*iDistY;
-                    iDistX = o2.X - iMbCenterX;
-                    iDistY = o2.Y - iMbCenterY;
+                    iDistX = o2.getMacroBlockX() - iMbCenterX;
+                    iDistY = o2.getMacroBlockY() - iMbCenterY;
                     int o2dist = iDistX*iDistX + iDistY*iDistY;
                     // put those closer to the center first
                     return Misc.intCompare(o1dist, o2dist);
@@ -529,7 +531,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
             int[] aiNewQscale = { iNewQscale, iNewQscale, iNewQscale,
                                   iNewQscale, iNewQscale, iNewQscale };
             for (MacroBlockEncoder macblk : macblocks) {
-                log.log(Level.INFO, I.IKI_REDUCING_QSCALE_OF_MB_TO_VAL(macblk.X, macblk.Y, iNewQscale));
+                log.log(Level.INFO, I.IKI_REDUCING_QSCALE_OF_MB_TO_VAL(macblk.getMacroBlockX(), macblk.getMacroBlockY(), iNewQscale));
                 macblk.setToFullEncode(aiNewQscale);
                 byte[] abNewDemux;
                 try {
@@ -625,6 +627,12 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
 
         @Override
         protected void addTrailingBits(BitStreamWriter bitStream) {
+        }
+
+        @Override
+        protected int getHeaderVersion() {
+            // not needed since we override createHeader
+            throw new UnsupportedOperationException();
         }
     }
 

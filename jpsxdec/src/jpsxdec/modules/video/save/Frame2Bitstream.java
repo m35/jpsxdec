@@ -37,9 +37,12 @@
 
 package jpsxdec.modules.video.save;
 
+import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LoggedFailure;
+import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FormattedFrameNumber;
 import jpsxdec.modules.video.framenumber.FrameNumber;
@@ -49,6 +52,8 @@ public class Frame2Bitstream implements IDemuxedFrame.Listener {
 
     @Nonnull
     private final FrameNumber.Type _frameNumberType;
+    @Nonnull
+    private final ILocalizedLogger _log;
 
     @CheckForNull
     private VDP.IBitstreamListener _bitstreamListener;
@@ -56,8 +61,9 @@ public class Frame2Bitstream implements IDemuxedFrame.Listener {
     @CheckForNull
     private VDP.IMdecListener _mdecListener;
 
-    public Frame2Bitstream(@Nonnull FrameNumber.Type frameNumberType) {
+    public Frame2Bitstream(@Nonnull FrameNumber.Type frameNumberType, @Nonnull ILocalizedLogger log) {
         _frameNumberType = frameNumberType;
+        _log = log;
     }
 
     final public void setListener(@CheckForNull VDP.IBitstreamListener bitstreamListener) {
@@ -77,15 +83,20 @@ public class Frame2Bitstream implements IDemuxedFrame.Listener {
         FormattedFrameNumber ffn = frame.getFrame().getNumber(_frameNumberType);
         MdecInputStream customStream = frame.getCustomFrameMdecStream();
 
-        if (customStream != null) {
-            if (_mdecListener == null)
-                throw new IllegalStateException("No mdec to write to");
-            _mdecListener.mdec(customStream, ffn, frame.getPresentationSector());
-        } else {
-            if (_bitstreamListener == null)
-                throw new IllegalStateException("No bitstream to write to");
-            byte[] abBitstream = frame.copyDemuxData();
-            _bitstreamListener.bitstream(abBitstream, frame.getDemuxSize(), ffn, frame.getPresentationSector());
+        try {
+            if (customStream != null) {
+                if (_mdecListener == null)
+                    throw new IllegalStateException("No mdec to write to");
+                _mdecListener.mdec(customStream, ffn, frame.getPresentationSector());
+            } else {
+                if (_bitstreamListener == null)
+                    throw new IllegalStateException("No bitstream to write to");
+                byte[] abBitstream = frame.copyDemuxData();
+                _bitstreamListener.bitstream(abBitstream, frame.getDemuxSize(), ffn, frame.getPresentationSector());
+            }
+        } catch (IOWritingException ex) {
+            throw new LoggedFailure(_log, Level.SEVERE,
+                        I.IO_WRITING_TO_FILE_ERROR_NAME(ex.getOutFile().toString()), ex);
         }
     }
 }

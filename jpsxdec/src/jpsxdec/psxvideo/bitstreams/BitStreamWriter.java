@@ -99,8 +99,9 @@ public class BitStreamWriter {
 
         byte[] abBytes = _buffer.toByteArray();
         int iSize = abBytes.length;
-        if (iSize % 2 != 0) {
-            iSize++;
+        int iRemainderSize = iSize % byteOrder.getPaddingByteAlign();
+        if (iRemainderSize != 0) {
+            iSize += byteOrder.getPaddingByteAlign() - iRemainderSize;
         }
         byte[] abMappedBytes = new byte[iSize];
         for (int i = 0; i < abBytes.length; i++) {

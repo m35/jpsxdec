@@ -45,7 +45,7 @@ import jpsxdec.util.BinaryDataNotRecognized;
 
 /** Class to extract the images/files from SITEA.BIN, SITEB.BIN, and BIN.BIN files. */
 public class BINextrator {
-    
+
     public static int DebugVerbose = 2;
 
     public static void main(String[] args) {
@@ -60,9 +60,9 @@ public class BINextrator {
     static final byte[] TIM_MAGIC = {0x10, 0x00, 0x00, 0x00};
 
     /** Decodes all the images from the SITEA.BIN, SITEB.BIN, and BIN.BIN files.
-     *  This function needs a standard 2048-per-sector (i.e. ISO) copy of the 
-     *  files. This can easily be accomplished by simply copying the file off 
-     *  the disc using normal operating system commands, or even providing the 
+     *  This function needs a standard 2048-per-sector (i.e. ISO) copy of the
+     *  files. This can easily be accomplished by simply copying the file off
+     *  the disc using normal operating system commands, or even providing the
      *  path directly to the file on the disc.
      *<p>
      *  Output file names will look like this:
@@ -71,19 +71,19 @@ public class BINextrator {
      *  Note that the SLPS_016.03/SLPS_016.04 file has tables that index
      *  these files with starting sector and data size.
      *  These tables are not needed to simply find and extract images.
-     * 
+     *
      * @param sSiteFile    the path to the SITEA.BIN, SITEB.BIN, or BIN.BIN file
      * @param sOutBaseName output base name of the files
      * @return 0 on ok, -1 on error
      */
     public static int extract(String sSiteFile, String sOutBaseName) {
-        
+
         try {
             final RandomAccessFile raf = new RandomAccessFile(sSiteFile, "r");
-            
+
             long lngFileOffset = 0;
             int iIndex = 0;
-            
+
             while (lngFileOffset < raf.length()) {
                 /*  _Site Header_
                  *  32 bits; 'napk'
@@ -103,7 +103,7 @@ public class BINextrator {
                         abImg = Lain_Pk.decompress(raf);
 
                         ByteArrayInputStream bais = new ByteArrayInputStream(abImg);
-                        
+
                         Tim tim = Tim.read(bais);
                         System.out.println("It is a TIM image: " + tim);
                         for (int i = 0; i < tim.getPaletteCount(); i++) {
@@ -116,7 +116,7 @@ public class BINextrator {
                             ImageIO.write(tim.toBufferedImage(i), "png",
                                     new File(String.format(sFile)));
                         }
-                        
+
                     } catch (BinaryDataNotRecognized ex) {
                         String sFile = String.format(
                                 "%s%03d.dat",
@@ -155,27 +155,27 @@ public class BINextrator {
                                     iIndex, i
                                     );
                             System.out.println("Saving " + sFile);
-                            
+
                             ImageIO.write(tim.toBufferedImage(i), "png",
                                     new File(sFile));
                         }
                     } catch (BinaryDataNotRecognized ex) {
                         ex.printStackTrace();
                     }
-                    
+
                     long lngSize = raf.getFilePointer() - lngFileOffset;
                     System.out.println("Size is " + lngSize + " (" + ((lngSize + 2047) / 2048) + " sectors)");
                     iIndex++;
                 }
                 lngFileOffset += 2048;
             }
-            
+
         } catch (IOException ex) {
             ex.printStackTrace();
             return -1;
         }
-        
+
         return 0;
     }
-    
+
 }

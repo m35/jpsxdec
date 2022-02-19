@@ -66,24 +66,24 @@ public class BitStreamUncompressor_StarWars extends BitStreamUncompressor implem
             int iHalfMdecCodeCountCeil32 = IO.readSInt16LE(abFrameData, 0);
             int iMagic3800               = IO.readUInt16LE(abFrameData, 2);
             int iQscale                  = IO.readSInt16LE(abFrameData, 4);
-            // This normally is the frame version (e.g. 2 for STRv2 or 3 for STRv3
+            // This normally is the frame version (e.g. 2 for STRv2 or 3 for STRv3)
             // but for this game, there is just a random number here.
             int iRandomVersion           = IO.readUInt16LE(abFrameData, 6);
 
             if (iMagic3800 != 0x3800 ||
-                iQscale < 1 ||
+                iQscale < 1 || iQscale > 63 ||
                 iHalfMdecCodeCountCeil32 < 0)
             {
                 return null;
             }
 
             // Lookup if the frame follows STRv2 or STRv3 style
-            int iFrameType = StarWarsFrameTypeLookup.getFrameType(abFrameData);
+            int iFrameVersion = StarWarsFrameTypeLookup.getFrameType(abFrameData);
 
-            if (iFrameType != 2 && iFrameType != 3) {
+            if (iFrameVersion != 2 && iFrameVersion != 3) {
                 return null;
             } else {
-                return new StarWarsHeader(iHalfMdecCodeCountCeil32, iQscale, iRandomVersion, iFrameType == 2);
+                return new StarWarsHeader(iHalfMdecCodeCountCeil32, iQscale, iRandomVersion, iFrameVersion == 2);
             }
         }
     }
@@ -131,6 +131,10 @@ public class BitStreamUncompressor_StarWars extends BitStreamUncompressor implem
                 iByteIndex -= 2;
             }
             return iByteIndex ^ 1;
+        }
+        @Override
+        public int getPaddingByteAlign() {
+            return 4;
         }
     };
 

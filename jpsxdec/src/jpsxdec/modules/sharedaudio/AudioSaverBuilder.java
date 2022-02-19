@@ -45,7 +45,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.sound.sampled.AudioFormat;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.formats.JavaAudioFormat;
@@ -72,9 +72,9 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
     private static final Logger LOG = Logger.getLogger(AudioSaverBuilder.class.getName());
 
     @Nonnull
-    private final DiscItemAudioStream _audItem;
+    private final DiscItemSectorBasedAudioStream _audItem;
 
-    public AudioSaverBuilder(@Nonnull DiscItemAudioStream audItem) {
+    public AudioSaverBuilder(@Nonnull DiscItemSectorBasedAudioStream audItem) {
         _audItem = audItem;
         JavaAudioFormat[] fmts = JavaAudioFormat.getAudioFormats();
         if (fmts.length > 0)
@@ -87,7 +87,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
     public boolean copySettingsTo(@Nonnull DiscItemSaverBuilder other) {
         if (other instanceof AudioSaverBuilder) {
             AudioSaverBuilder o = (AudioSaverBuilder) other;
-            o.setContainerForamt(getContainerFormat());
+            o.setContainerFormat(getContainerFormat());
             o.setVolume(getVolume());
             return true;
         }
@@ -95,7 +95,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
     }
 
     @Override
-    public @Nonnull DiscItemAudioStream getDiscItem() {
+    public @Nonnull DiscItemSectorBasedAudioStream getDiscItem() {
         return _audItem;
     }
 
@@ -103,7 +103,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
 
     @Nonnull
     private JavaAudioFormat _containerFormat;
-    public void setContainerForamt(@Nonnull JavaAudioFormat val) {
+    public void setContainerFormat(@Nonnull JavaAudioFormat val) {
         _containerFormat = val;
         firePossibleChange();
     }
@@ -186,7 +186,7 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
         if (audfmt.value != null) {
             JavaAudioFormat fmt = JavaAudioFormat.fromCmdLine(audfmt.value);
             if (fmt != null) {
-                setContainerForamt(fmt);
+                setContainerFormat(fmt);
             } else {
                 fbs.printlnWarn(I.CMD_IGNORING_INVALID_VALUE_FOR_CMD(audfmt.value, "-af,-audfmt"));
             }
@@ -262,12 +262,13 @@ public class AudioSaverBuilder extends DiscItemSaverBuilder {
             for (int iSector = 0; it.hasNext(); iSector++) {
                 try {
                     IIdentifiedSector identifiedSect = it.next(pl);
-                } catch (CdFileSectorReader.CdReadException ex) {
+                } catch (CdReadException ex) {
                     throw new LoggedFailure(pl, Level.SEVERE,
                             I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
                 }
                 pl.progressUpdate(iSector);
             }
+            it.flush(pl);
             pl.progressEnd();
         } finally {
             IO.closeSilently(audioWriter, LOG);

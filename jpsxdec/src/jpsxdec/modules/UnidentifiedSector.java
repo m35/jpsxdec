@@ -46,6 +46,8 @@ import jpsxdec.cdreaders.CdSector;
  * Currently not actually used due to the TODO below. */
 public class UnidentifiedSector extends IdentifiedSector {
 
+    public static final String TYPE_NAME = "Unknown";
+
     /**
      * @throws IllegalArgumentException if {@link CdSector#isCdAudioSector()} is true.
      */
@@ -61,7 +63,7 @@ public class UnidentifiedSector extends IdentifiedSector {
 
     @Override
     public @Nonnull String getTypeName() {
-        return "Unknown";
+        return TYPE_NAME;
     }
 
     @Override

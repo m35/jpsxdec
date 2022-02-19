@@ -37,11 +37,9 @@
 
 package jpsxdec.util.player;
 
-import java.io.IOException;
-
 /** Exception to indicate that all player operations should terminate
  * immediately. */
-public class StopPlayingException extends IOException {
+public class StopPlayingException extends Exception {
 
     public StopPlayingException() {
     }

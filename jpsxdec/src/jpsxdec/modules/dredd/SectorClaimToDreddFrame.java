@@ -97,7 +97,7 @@ public class SectorClaimToDreddFrame implements SectorClaimSystem.SectorClaimer 
     public void sectorRead(@Nonnull SectorClaimSystem.ClaimableSector cs,
                            @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt,
                            @Nonnull ILocalizedLogger log)
-            throws IOException, LoggedFailure
+            throws IOException
     {
         SectorDreddVideo dreddSector = dreddSectorLookAheadCheck(cs, peekIt);
     }
@@ -105,7 +105,7 @@ public class SectorClaimToDreddFrame implements SectorClaimSystem.SectorClaimer 
     private @CheckForNull SectorDreddVideo dreddSectorLookAheadCheck(
                 @Nonnull SectorClaimSystem.ClaimableSector cs,
                 @Nonnull IOIterator<SectorClaimSystem.ClaimableSector> peekIt)
-            throws IOException, LoggedFailure
+            throws IOException
     {
         // claimed? ignore
         if (cs.isClaimed())

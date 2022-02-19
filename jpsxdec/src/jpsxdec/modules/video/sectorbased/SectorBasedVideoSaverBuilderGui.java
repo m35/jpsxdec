@@ -37,8 +37,14 @@
 
 package jpsxdec.modules.video.sectorbased;
 
+import com.jhlabs.awt.ParagraphLayout;
 import java.awt.BorderLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import javax.annotation.Nonnull;
+import javax.swing.ButtonGroup;
+import javax.swing.JLabel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.event.ChangeEvent;
@@ -51,6 +57,7 @@ import jpsxdec.gui.SavingGuiTable;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.modules.video.save.VideoSaverPanel;
+import jpsxdec.util.Fraction;
 
 
 public class SectorBasedVideoSaverBuilderGui extends DiscItemSaverBuilderGui {
@@ -74,7 +81,51 @@ public class SectorBasedVideoSaverBuilderGui extends DiscItemSaverBuilderGui {
 
         public PPanel(@Nonnull CombinedBuilderListener<SectorBasedVideoSaverBuilder> bh) {
             super(bh);
-            _bl.addListeners(new EmulateAv());
+            _bl.addListeners(new DiscSpeed(), new EmulateAv());
+        }
+
+        private class DiscSpeed implements ChangeListener, ActionListener {
+            final ButtonGroup __grp = new ButtonGroup();
+            final JLabel __label = new JLabel(I.GUI_DISC_SPEED_LABEL().getLocalizedMessage());
+            final JLabel __fps = new JLabel();
+            boolean __cur;
+            final JRadioButton __1x = new JRadioButton(I.DISC_SPEED_1X().getLocalizedMessage()),
+                               __2x = new JRadioButton(I.DISC_SPEED_2X().getLocalizedMessage());
+            public DiscSpeed() {
+                add(__label, ParagraphLayout.NEW_PARAGRAPH);
+                add(__1x);
+                add(__2x);
+                __grp.add(__1x);
+                __grp.add(__2x);
+                __1x.addActionListener(this);
+                __2x.addActionListener(this);
+                add(__fps);
+            }
+            public void stateChanged(ChangeEvent e) {
+                updateFps();
+                boolean blnEnabled = _bl.getBuilder().getSingleSpeed_enabled();
+                __label.setEnabled(blnEnabled);
+                __1x.setEnabled(blnEnabled);
+                __2x.setEnabled(blnEnabled);
+                if (_bl.getBuilder().getSingleSpeed())
+                    __grp.setSelected(__1x.getModel(), true);
+                else
+                    __grp.setSelected(__2x.getModel(), true);
+            }
+            public void actionPerformed(ActionEvent e) {
+                if (e.getSource() == __1x)
+                    _bl.getBuilder().setSingleSpeed(true);
+                else
+                    _bl.getBuilder().setSingleSpeed(false);
+            }
+            private void updateFps() {
+                Fraction fps = _bl.getBuilder().getFps();
+                if ((fps.getNumerator() % fps.getDenominator()) == 0)
+                    __fps.setText(I.GUI_FPS_LABLE_WHOLE_NUMBER(fps.getNumerator() / fps.getDenominator()).getLocalizedMessage());
+                else
+                    __fps.setText(I.GUI_FPS_LABEL_FRACTION(fps.asDouble(),
+                                  fps.getNumerator(), fps.getDenominator()).getLocalizedMessage());
+            }
         }
 
         private class EmulateAv extends AbstractCheck {

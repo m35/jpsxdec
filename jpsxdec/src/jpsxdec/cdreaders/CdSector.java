@@ -162,8 +162,15 @@ public abstract class CdSector {
 
     /** Returns an InputStream of the 'user data' portion of the sector. */
     final public @Nonnull ByteArrayFPIS getCdUserDataStream() {
-        int iStart = _iByteStartOffset + getHeaderDataSize();
-        return new ByteArrayFPIS(_abSectorBytes, iStart, getCdUserDataSize(), getUserDataFilePointer());
+        return getCdUserDataStream(0);
+    }
+
+    /** Returns an InputStream of the 'user data' portion of the sector. */
+    final public @Nonnull ByteArrayFPIS getCdUserDataStream(int iStartOffset) {
+        if (iStartOffset < 0 || iStartOffset > getCdUserDataSize())
+            throw new IllegalArgumentException();
+        int iStart = _iByteStartOffset + getHeaderDataSize() + iStartOffset;
+        return new ByteArrayFPIS(_abSectorBytes, iStart, getCdUserDataSize() - iStartOffset, getUserDataFilePointer());
     }
 
     // .........................................................................

@@ -47,7 +47,7 @@ import org.junit.*;
 
 
 public class DiscIndexerXaAudioTest {
-    
+
     private static class DummyIdentifiedSector extends IdentifiedSector {
 
         private static final int SECTOR_HEADER[] = {
@@ -65,15 +65,15 @@ public class DiscIndexerXaAudioTest {
             0x88, // EOF | DATA
             0x00, // coding info
         };
-        
+
         private static CdSector makeDummySector() {
             byte[] abSectorBytes = new byte[CdSector.SECTOR_SIZE_2352_BIN];
             for (int i = 0; i < SECTOR_HEADER.length; i++) {
-                abSectorBytes[i] = (byte)SECTOR_HEADER[i];                
+                abSectorBytes[i] = (byte)SECTOR_HEADER[i];
             }
             return new CdSector2352(0, abSectorBytes, 0, 0);
         }
-                
+
         public DummyIdentifiedSector() {
             super(makeDummySector());
         }
@@ -90,8 +90,8 @@ public class DiscIndexerXaAudioTest {
             return new ByteArrayFPIS(new byte[0]);
         }
     }
-    
-    
+
+
     @Test
     public void channel255() {
         DiscIndexerXaAudio xaIndexer = new DiscIndexerXaAudio(DebugLogger.Log);
@@ -99,5 +99,5 @@ public class DiscIndexerXaAudioTest {
         DummyIdentifiedSector s = new DummyIdentifiedSector();
         xaIndexer.feedSector(s, DebugLogger.Log);
     }
-    
+
 }

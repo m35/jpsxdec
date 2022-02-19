@@ -41,10 +41,13 @@ import java.io.File;
 import java.io.IOException;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.cdreaders.DiscPatcher;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.i18n.log.ConsoleProgressLogger;
 import jpsxdec.util.TaskCanceledException;
 
+/** Handle {@code -static} option. */
 public class SectorCopy {
 
     public static void main(String[] args) throws Exception {
@@ -58,7 +61,7 @@ public class SectorCopy {
                                   int iDestStartSector)
             throws CdFileSectorReader.CdFileNotFoundException,
                    CdFileSectorReader.FileTooSmallToIdentifyException,
-                   CdFileSectorReader.CdReadException,
+                   CdReadException,
                    CdFileSectorReader.CdWriteException,
                    CdFileSectorReader.CdReopenException,
                    DiscPatcher.CreatePatchFileException,
@@ -67,7 +70,7 @@ public class SectorCopy {
                    IOException // closing discs
     {
 
-        CdFileSectorReader src = CdFileSectorReader.open(sSource);
+        ICdSectorReader src = CdFileSectorReader.open(sSource);
         CdFileSectorReader dest = CdFileSectorReader.open(new File(sDest), true);
 
         if (src.getSectorCount() > dest.getSectorCount())
@@ -76,12 +79,12 @@ public class SectorCopy {
         if (iDestStartSector + src.getSectorCount() > dest.getSectorCount())
             throw new IllegalArgumentException("Source file will run off the end of dest file");
 
-        dest.beginPatching();
+        DiscPatcher patcher = new DiscPatcher(dest);
 
         for (int iOfsSect = 0; iOfsSect < src.getSectorCount(); iOfsSect++) {
             byte[] abSrcUserData = src.getSector(iOfsSect).getCdUserDataCopy();
             System.out.println("Overriting sector " + (iDestStartSector + iOfsSect));
-            dest.addPatch(iDestStartSector + iOfsSect, 0, abSrcUserData);
+            patcher.addPatch(iDestStartSector + iOfsSect, 0, abSrcUserData);
         }
 
         System.out.println(src.getSectorCount() + " sectors overwritten.");
@@ -89,9 +92,9 @@ public class SectorCopy {
         src.close();
 
         try {
-            dest.applyPatches(new ConsoleProgressLogger(SectorCopy.class.getSimpleName(), System.out));
+            patcher.applyPatches(dest, new ConsoleProgressLogger(SectorCopy.class.getSimpleName(), System.out));
         } catch (TaskCanceledException ex) {
-            throw new RuntimeException(ex);
+            throw new RuntimeException("Shouldn't happen", ex);
         }
         dest.close();
 

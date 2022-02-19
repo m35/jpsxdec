@@ -40,7 +40,7 @@ package jpsxdec.modules.ac3;
 import java.util.TreeMap;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -100,7 +100,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexerSectorBasedVideo.SubI
             return true;
         }
 
-        public @Nonnull DiscItemAceCombat3VideoStream endOfMovie(@Nonnull CdFileSectorReader cd) {
+        public @Nonnull DiscItemAceCombat3VideoStream endOfMovie(@Nonnull ICdSectorReader cd) {
             return new DiscItemAceCombat3VideoStream(cd,
                     _strInfoBuilder.getStartSector(), _strInfoBuilder.getEndSector(),
                     _strInfoBuilder.makeDims(),

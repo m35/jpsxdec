@@ -77,8 +77,15 @@ public class XaAnalysis {
         CdSectorXaSubHeader sh = cdSector.getSubHeader();
         if (sh == null)
             return null;
-        if (sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_FORM | CdSectorXaSubHeader.SubMode.MASK_AUDIO | CdSectorXaSubHeader.SubMode.MASK_REAL_TIME) !=
-                                (CdSectorXaSubHeader.SubMode.MASK_FORM | CdSectorXaSubHeader.SubMode.MASK_AUDIO | CdSectorXaSubHeader.SubMode.MASK_REAL_TIME))
+        if (sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_FORM  |
+                                 CdSectorXaSubHeader.SubMode.MASK_AUDIO |
+                                 CdSectorXaSubHeader.SubMode.MASK_DATA  |
+                                 CdSectorXaSubHeader.SubMode.MASK_VIDEO |
+                                 CdSectorXaSubHeader.SubMode.MASK_REAL_TIME)
+                                 !=
+                                (CdSectorXaSubHeader.SubMode.MASK_FORM  |
+                                 CdSectorXaSubHeader.SubMode.MASK_AUDIO |
+                                 CdSectorXaSubHeader.SubMode.MASK_REAL_TIME))
             return null;
         if (sh.getChannel() < 0 || sh.getChannel() > 255)
             return null; // this really should never happen

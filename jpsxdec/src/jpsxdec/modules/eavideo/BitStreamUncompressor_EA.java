@@ -79,7 +79,7 @@ public class BitStreamUncompressor_EA extends BitStreamUncompressor {
     }
 
     /**
-     * This MDEC code has special mean, it is treated as the escape code.
+     * This MDEC code has special meaning, it is treated as the escape code.
     */
     static final int BITSTREAM_ESCAPE_CODE = 0x7c1f;
 

@@ -9,7 +9,7 @@
 
     <!-- ====== global build properties ====== -->
     
-    <property name="jpsxdec.ver" value="v1-05-beta"/>
+    <property name="jpsxdec.ver" value="v1-06-beta"/>
 
     <!-- sources -->
     <property name="src.dir.rel"      location="src"      relative="true"/>
@@ -27,7 +27,10 @@
     <property name="jpsxdec.manual" value="jPSXdec-manual.odt" />
     <property name="jpsxdec.manual.pdf" value="jPSXdec-manual.pdf" />
 
-    <property name="resource.include.glob" value="**/*.dat,**/*.properties,**/*.png,**/*.gif" />
+    <property 
+        name="resource.exclude.glob" 
+        value="**/*.java,**/*.form,**/package.html,src/jpsxdec/util/aviwriter/aviformat.txt" 
+    />
     
     <fileset dir="." id="release.include.files">
         <include name="${doc.dir.rel}/*" />
@@ -81,7 +84,7 @@
 
         <!-- Copy over resources -->
         <copy todir="${build-lgpl.dir}" verbose="true">
-            <fileset dir="${src-lgpl.dir}" includes="${resource.include.glob}" />
+            <fileset dir="${src-lgpl.dir}" excludes="${resource.exclude.glob}" />
         </copy>
     </target>
 
@@ -114,7 +117,7 @@
             
         <!-- Copy over resources -->
         <copy todir="${build.dir}" verbose="true">
-            <fileset dir="${src.dir}" includes="${resource.include.glob}" />
+            <fileset dir="${src.dir}" excludes="${resource.exclude.glob}" />
         </copy>
     </target>
 

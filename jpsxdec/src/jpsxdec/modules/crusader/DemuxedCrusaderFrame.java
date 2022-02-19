@@ -38,40 +38,29 @@
 package jpsxdec.modules.crusader;
 
 import java.io.PrintStream;
-import java.util.Iterator;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.util.DemuxedData;
 import jpsxdec.util.Fraction;
 
 public class DemuxedCrusaderFrame implements IDemuxedFrame {
 
-    private final int _iWidth, _iHeight;
-    private final int _iHeaderFrameNumber;
+    private final int _iPresentationSector;
     @Nonnull
-    private final DemuxedData<CrusaderDemuxPiece> _demux;
+    private final CrusaderPacket.Video _packet;
     @CheckForNull
     private FrameNumber _frameNumber;
-    /** The sector the frame should be presented.
-     * This will be many sectors after where the frame was read. */
-    private final int _iPresentationSector;
 
-    public DemuxedCrusaderFrame(int iWidth, int iHeight,
-                                int iHeaderFrameNumber,
-                                @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
+    public DemuxedCrusaderFrame(CrusaderPacket.Video packet,
                                 int iPresentationSector)
     {
-        _iWidth = iWidth;
-        _iHeight = iHeight;
-        _iHeaderFrameNumber = iHeaderFrameNumber;
-        _demux = demux;
+        _packet = packet;
         _iPresentationSector = iPresentationSector;
     }
 
@@ -82,22 +71,22 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
 
     @Override
     public @Nonnull byte[] copyDemuxData() {
-        return _demux.copyDemuxData();
+        return _packet.copyPayload();
     }
 
     @Override
     public int getDemuxSize() {
-        return _demux.getDemuxSize();
+        return _packet.getPayloadSize();
     }
 
     @Override
     public int getStartSector() {
-        return _demux.getStartSector();
+        return _packet.getStartSector();
     }
 
     @Override
     public int getEndSector() {
-        return _demux.getEndSector();
+        return _packet.getEndSector();
     }
 
     @Override
@@ -106,22 +95,22 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
             throw new IllegalStateException();
         return _frameNumber;
     }
-    public void setFrame(@Nonnull FrameNumber fn) {
+    void setFrame(@Nonnull FrameNumber fn) {
         _frameNumber = fn;
     }
 
     public int getHeaderFrameNumber() {
-        return _iHeaderFrameNumber;
+        return _packet.getFrameNumber();
     }
 
     @Override
     public int getWidth() {
-        return _iWidth;
+        return _packet.getWidth();
     }
 
     @Override
     public int getHeight() {
-        return _iHeight;
+        return _packet.getHeight();
     }
 
     @Override
@@ -131,30 +120,17 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
 
     @Override
     public void printSectors(@Nonnull PrintStream ps) {
-        boolean blnFirstPiece = true;
-        for (Iterator<CrusaderDemuxPiece> iterator = _demux.iterator();
-             iterator.hasNext();
-             blnFirstPiece = false)
-        {
-            SectorCrusader vidSector = iterator.next().getSector();
-            ps.print(vidSector);
-            if (blnFirstPiece) {
-                ps.print(" (start offset " + _demux.getStartDataOffset() + ")");
-            } else if (!iterator.hasNext()) {
-                ps.print(" (end offset " + _demux.getEndDataOffset() + ")");
-            }
-            ps.println();
-        }
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, CdFileSectorReader cd, ILocalizedLogger log) {
+    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, DiscPatcher patcher, ILocalizedLogger log) {
         throw new UnsupportedOperationException("Replacing Crusader frames is not supported");
     }
 
     @Override
     public String toString() {
-        return "Crusader "+_iWidth+"x"+_iHeight+" Frame "+_frameNumber+
+        return "Crusader "+getWidth()+"x"+getHeight()+" Frame "+_frameNumber+
                " Size "+getDemuxSize()+" PresSect "+_iPresentationSector;
     }
 }

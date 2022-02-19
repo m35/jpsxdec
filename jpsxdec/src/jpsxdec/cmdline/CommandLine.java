@@ -38,30 +38,23 @@
 package jpsxdec.cmdline;
 
 import argparser.StringHolder;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.Version;
-import jpsxdec.cdreaders.CdFileSectorReader;
 import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.MiscResources;
-import jpsxdec.i18n.log.ConsoleProgressLogger;
-import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.ArgParser;
-import jpsxdec.util.IO;
-import jpsxdec.util.TaskCanceledException;
 
-
+/** Entry point to handle command line options. */
 public class CommandLine {
 
     private static final Logger LOG = Logger.getLogger(CommandLine.class.getName());
 
+    /** Entry point to handle command line options. */
     public static int main(@Nonnull ArgParser ap) {
 
         FeedbackStream Feedback = new FeedbackStream(System.out, FeedbackStream.NORM);
@@ -70,8 +63,7 @@ public class CommandLine {
 
         Feedback.println(I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version));
 
-        StringHolder inputFileArg = ap.addStringOption("-f","-file");
-        StringHolder indexFileArg = ap.addStringOption("-x","-index");
+        InFileAndIndexArgs discAndIndexArgs = new InFileAndIndexArgs(ap, Feedback);
 
         Command[] aoCommands = {
             new Command_CopySect(),
@@ -83,7 +75,7 @@ public class CommandLine {
         };
 
         for (Command command : aoCommands) {
-            command.init(ap, inputFileArg, indexFileArg, Feedback);
+            command.init(ap, discAndIndexArgs, Feedback);
         }
 
         ap.match();
@@ -105,9 +97,7 @@ public class CommandLine {
                 if (ap.hasHelp()) {
                     printMainHelp(Feedback);
                 } else {
-                    if (inputFileArg.value != null && indexFileArg.value != null) {
-                        createAndSaveIndex(inputFileArg.value, indexFileArg.value, Feedback);
-                    } else {
+                    if (!discAndIndexArgs.createAndSaveIndexIfProvided()) {
                         Feedback.printlnErr(I.CMD_NEED_MAIN_COMMAND());
                         Feedback.printlnErr(I.CMD_TRY_HELP());
                         return 1;
@@ -164,78 +154,5 @@ public class CommandLine {
             fbs.println(helpLines.next());
         }
     }
-
-    // -------------------------------------------------------------
-
-    private static void createAndSaveIndex(@CheckForNull String sDiscFile,
-                                           @Nonnull String sIndexFile,
-                                           @Nonnull FeedbackStream Feedback)
-            throws CommandLineException
-    {
-        CdFileSectorReader cd = loadDisc(sDiscFile, Feedback);
-        try {
-            DiscIndex index = buildIndex(cd, Feedback);
-            saveIndex(index, sIndexFile, Feedback);
-        } finally {
-            IO.closeSilently(cd, LOG);
-        }
-    }
-
-    static @Nonnull CdFileSectorReader loadDisc(@CheckForNull String sDiscFile,
-                                                @Nonnull FeedbackStream Feedback)
-            throws CommandLineException
-    {
-        if (sDiscFile == null)
-            throw new CommandLineException(I.CMD_COMMAND_NEEDS_DISC());
-        Feedback.println(I.IO_OPENING_FILE(sDiscFile));
-        try {
-            CdFileSectorReader cd = CdFileSectorReader.open(sDiscFile);
-            Feedback.println(I.CMD_DISC_IDENTIFIED(cd.getTypeDescription()));
-            return cd;
-        } catch (CdFileSectorReader.CdFileNotFoundException ex) {
-            throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString()), ex);
-        } catch (CdFileSectorReader.FileTooSmallToIdentifyException ex) {
-            throw new CommandLineException(I.CD_FILE_TOO_SMALL(sDiscFile), ex);
-        } catch (CdFileSectorReader.CdReadException ex) {
-            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
-        }
-    }
-
-    static DiscIndex buildIndex(@Nonnull CdFileSectorReader cd,
-                                @Nonnull FeedbackStream fbs)
-    {
-        fbs.println(I.CMD_BUILDING_INDEX());
-        DiscIndex index = null;
-        ConsoleProgressLogger cpl = new ConsoleProgressLogger(
-                I.INDEX_LOG_FILE_BASE_NAME().getLocalizedMessage(), fbs.getUnderlyingStream());
-        try {
-            cpl.log(Level.INFO, I.CMD_GUI_INDEXING(cd.toString()));
-            index = new DiscIndex(cd, cpl);
-        } catch (TaskCanceledException ex) {
-            throw new RuntimeException("Impossible TaskCanceledException during commandline indexing", ex);
-        } finally {
-            cpl.close();
-        }
-        fbs.println(I.CMD_NUM_ITEMS_FOUND(index.size()));
-        fbs.println();
-        return index;
-    }
-
-    static void saveIndex(@Nonnull DiscIndex index, @Nonnull String sIndexFile,
-                          @Nonnull FeedbackStream Feedback)
-            throws CommandLineException
-    {
-        if (index.size() < 1) {
-            Feedback.println(I.CMD_NOT_SAVING_EMPTY_INDEX());
-        } else {
-            Feedback.println(I.CMD_SAVING_INDEX(sIndexFile));
-            try {
-                index.serializeIndex(new File(sIndexFile));
-            } catch (FileNotFoundException ex) {
-                throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(sIndexFile), ex);
-            }
-        }
-    }
-
 
 }

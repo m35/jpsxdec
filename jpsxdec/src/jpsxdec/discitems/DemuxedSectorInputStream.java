@@ -46,7 +46,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.util.ByteArrayFPIS;
 
@@ -57,14 +58,14 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
 
     private static class SectorEnumerator implements Enumeration<InputStream> {
         @Nonnull
-        public final CdFileSectorReader _cd;
+        public final ICdSectorReader _cd;
         private final int _iOffset;
         private final int _iStartSector;
         public int _iSector;
         @CheckForNull
         private ByteArrayFPIS _currentStream;
 
-        public SectorEnumerator(@Nonnull CdFileSectorReader cd, int iSector, int iOffset) {
+        public SectorEnumerator(@Nonnull ICdSectorReader cd, int iSector, int iOffset) {
             _cd = cd;
             _iStartSector = _iSector = iSector;
             _iOffset = iOffset;
@@ -91,7 +92,7 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
                 }
                 _iSector++;
                 return _currentStream;
-            } catch (final CdFileSectorReader.CdReadException ex) {
+            } catch (final CdReadException ex) {
                 LOG.log(Level.SEVERE, null, ex);
                 _currentStream = null;
                 return new InputStream() {
@@ -103,7 +104,7 @@ public class DemuxedSectorInputStream extends SequenceInputStream {
 
     }
 
-    public DemuxedSectorInputStream(@Nonnull CdFileSectorReader cd, int iStartSector, int iOffset) {
+    public DemuxedSectorInputStream(@Nonnull ICdSectorReader cd, int iStartSector, int iOffset) {
         super(new SectorEnumerator(cd, iStartSector, iOffset));
     }
 

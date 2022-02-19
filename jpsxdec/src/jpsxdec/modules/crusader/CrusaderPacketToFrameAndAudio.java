@@ -40,18 +40,15 @@ package jpsxdec.modules.crusader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import javax.sound.sampled.AudioFormat;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
 import jpsxdec.adpcm.SpuAdpcmSoundUnit;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.util.DemuxedData;
 import jpsxdec.util.Fraction;
 
 /** Listens for Crusader packets and sends frames to a frame listener
@@ -59,22 +56,10 @@ import jpsxdec.util.Fraction;
  * to audio packet listeners. */
 public class CrusaderPacketToFrameAndAudio implements CrusaderSectorToCrusaderPacket.PacketListener {
 
-    /** Equivalent to 15 fps. */
-    public static final int SECTORS_PER_FRAME = 10;
-
-    public static final int CRUSADER_SAMPLE_FRAMES_PER_SECOND = 22050;
-    public static final int SAMPLE_FRAMES_PER_SECTOR = CRUSADER_SAMPLE_FRAMES_PER_SECOND / 150;
-    static {
-        if (CRUSADER_SAMPLE_FRAMES_PER_SECOND % 150 != 0)
-            throw new RuntimeException("Crusader sample rate doesn't cleanly divide by sector rate");
-    }
-    public static final AudioFormat CRUSADER_AUDIO_FORMAT = new AudioFormat(CRUSADER_SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
-
     public interface FrameListener {
         void frameComplete(@Nonnull DemuxedCrusaderFrame frame, @Nonnull ILocalizedLogger log)
                 throws LoggedFailure;
-        void videoEnd(@Nonnull ILocalizedLogger log, int iStartSector, int iEndSector)
-                throws LoggedFailure;
+        void videoEnd(@Nonnull ILocalizedLogger log);
     }
 
     @Nonnull
@@ -122,36 +107,38 @@ public class CrusaderPacketToFrameAndAudio implements CrusaderSectorToCrusaderPa
     }
 
     @Override
-    public void frame(@Nonnull CrusaderPacketHeaderReader.VideoHeader frameHeader,
-                      @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
-                      @Nonnull ILocalizedLogger log)
+    public void packetComplete(CrusaderPacket packet, ILocalizedLogger log) throws LoggedFailure {
+        if (packet instanceof CrusaderPacket.Video)
+            frame((CrusaderPacket.Video) packet, log);
+        else if (packet instanceof CrusaderPacket.Audio)
+            audio((CrusaderPacket.Audio) packet, log);
+    }
+
+    @Override
+    public void endOfVideo(ILocalizedLogger log) {
+        if (_frameListener != null)
+            _frameListener.videoEnd(log);
+    }
+
+    private void frame(@Nonnull CrusaderPacket.Video videoPacket,
+                       @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
-        int iPresentationSector = frameHeader.getFrameNumber() * SECTORS_PER_FRAME + _iAbsoluteInitialFramePresentationSector;
+        int iPresentationSector = videoPacket.getFrameNumber() * CrusaderPacket.SECTORS_PER_FRAME + _iAbsoluteInitialFramePresentationSector;
 
         if (_frameListener != null) {
-            DemuxedCrusaderFrame frame = new DemuxedCrusaderFrame(frameHeader.getWidth(), frameHeader.getHeight(),
-                                                                  frameHeader.getFrameNumber(), demux,
+            DemuxedCrusaderFrame frame = new DemuxedCrusaderFrame(videoPacket,
                                                                   iPresentationSector);
             _frameListener.frameComplete(frame, log);
         }
     }
 
-    @Override
-    public void audio(@Nonnull CrusaderPacketHeaderReader.AudioHeader audio,
-                      @Nonnull DemuxedData<CrusaderDemuxPiece> demux,
-                      @Nonnull ILocalizedLogger log)
+    private void audio(@Nonnull CrusaderPacket.Audio audioPacket,
+                       @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
         // .. copy the audio data out of the sectors ...............
-        byte[] abAudioDemuxBuffer = demux.copyDemuxData();
-
-        if (abAudioDemuxBuffer.length != audio.getByteSize()) { // size is confirmed to be divisible by 2*16
-            assert abAudioDemuxBuffer.length < audio.getByteSize(); // should be
-
-            // resize the array
-            abAudioDemuxBuffer = Arrays.copyOf(abAudioDemuxBuffer, audio.getByteSize());
-        }
+        byte[] abAudioDemuxBuffer = audioPacket.copyPayload();
 
         // .. decode the audio data .............................
         ByteArrayOutputStream audioBuffer = new ByteArrayOutputStream();
@@ -162,15 +149,15 @@ public class CrusaderPacketToFrameAndAudio implements CrusaderSectorToCrusaderPa
                                new ByteArrayInputStream(abAudioDemuxBuffer, iChannelSize, iChannelSize),
                                iSoundUnitsPerChannel, audioBuffer);
         } catch (IOException ex) {
-            throw new RuntimeException("Should never happen", ex);
+            throw new RuntimeException("ByteArrayInputStream shouldn't throw this", ex);
         }
         if (_audDecoder.hadCorruption())
-            log.log(Level.WARNING, I.SPU_ADPCM_CORRUPTED(demux.getStartSector(), _audDecoder.getSampleFramesWritten()));
+            log.log(Level.WARNING, I.SPU_ADPCM_CORRUPTED(audioPacket.getStartSector(), _audDecoder.getSampleFramesWritten()));
 
         if (_audioListener != null) {
-            Fraction presentationSector = new Fraction(audio.getPresentationSampleFrame(), SAMPLE_FRAMES_PER_SECTOR)
+            Fraction presentationSector = new Fraction(audioPacket.getPresentationSampleFrame(), CrusaderPacket.SAMPLE_FRAMES_PER_SECTOR)
                                                   .add(_iAbsoluteInitialFramePresentationSector);
-            DecodedAudioPacket packet = new DecodedAudioPacket(-1, CRUSADER_AUDIO_FORMAT,
+            DecodedAudioPacket packet = new DecodedAudioPacket(-1, CrusaderPacket.CRUSADER_AUDIO_FORMAT,
                                                                presentationSector,
                                                                audioBuffer.toByteArray());
             _audioListener.audioPacketComplete(packet, log);

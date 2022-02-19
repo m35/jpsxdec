@@ -40,7 +40,7 @@ package jpsxdec.modules.square;
 import java.util.Collection;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -90,7 +90,7 @@ public class DiscIndexerSquareAudio extends DiscIndexer
             return true;
         }
 
-        public @Nonnull DiscItemSquareAudioStream makeStream(@Nonnull CdFileSectorReader cd) {
+        public @Nonnull DiscItemSquareAudioStream makeStream(@Nonnull ICdSectorReader cd) {
 
             int iSectorsPastEnd = 1;
             if (_iMinimumSectorsBetweenPair >= 0)

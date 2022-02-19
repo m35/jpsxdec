@@ -37,6 +37,8 @@
 
 package jpsxdec.psxvideo.mdec;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import jpsxdec.util.Misc;
 
@@ -50,6 +52,8 @@ import jpsxdec.util.Misc;
  *  the number of zeros preceeding an "alternating current" (AC) coefficient,
  *  with the bottom 10 bits indicating a (usually) non-zero AC coefficient.  */
 public class MdecCode implements Comparable<MdecCode> {
+
+    private static final Logger LOG = Logger.getLogger(MdecCode.class.getName());
 
     /** 16-bit MDEC code indicating the end of a block.
      * The equivalent MDEC value is (63, -512). */
@@ -125,7 +129,7 @@ public class MdecCode implements Comparable<MdecCode> {
     public void set(int iMdecWord) {
         _iTop6Bits = ((iMdecWord >> 10) & 63);
         _iBottom10Bits = (iMdecWord & 0x3FF);
-        if ((_iBottom10Bits & 0x200) == 0x200) { // is it negitive?
+        if ((_iBottom10Bits & 0x200) == 0x200) { // is it negative?
             _iBottom10Bits -= 0x400;
         }
     }
@@ -150,8 +154,7 @@ public class MdecCode implements Comparable<MdecCode> {
         return this;
     }
 
-    /** Returns if this MDEC code is setFrom to the special "End of Data" (EOD)
- value.
+    /** Returns if this MDEC code is setFrom to the special "End of Data" (EOD) value.
      * @see MdecInputStream#MDEC_END_OF_DATA */
     public boolean isEOD() {
         return (_iTop6Bits == MDEC_END_OF_DATA_TOP6 &&
@@ -167,11 +170,17 @@ public class MdecCode implements Comparable<MdecCode> {
 
     /** Checks if the top 6 bits of an MDEC code are valid. */
     private static boolean validTop(int iTop6Bits) {
-        return iTop6Bits >= 0 && iTop6Bits <= 63;
+        boolean blnValid = iTop6Bits >= 0 && iTop6Bits <= 63;
+        if (!blnValid)
+            LOG.log(Level.FINE, "Invalid top 6 bit value {0,number,#}", iTop6Bits);
+        return blnValid;
     }
     /** Checks if the bottom 10 bits of an MDEC code are valid. */
     private static boolean validBottom(int iBottom10Bits) {
-        return iBottom10Bits >= -512 && iBottom10Bits <= 511;
+        boolean blnValid = iBottom10Bits >= -512 && iBottom10Bits <= 511;
+        if (!blnValid)
+            LOG.log(Level.FINE, "Invalid bottom 10 bit value {0,number,#}", iBottom10Bits);
+        return blnValid;
     }
 
     public @Nonnull MdecCode copy() {

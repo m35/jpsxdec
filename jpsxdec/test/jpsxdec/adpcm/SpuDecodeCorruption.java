@@ -110,7 +110,7 @@ public class SpuDecodeCorruption {
         short[] asiExpectedDecode = {
             -1, -3, -4, -5, -6, -7, -8, -8, -4, 1, 7, 10, 9, 6, 1, -4, -7, -9, -9, -7, -4, -3, -3, -4, -2, 1, 4, 7
         };
-        
+
         new LogTest(sExpectedLog, asiExpectedDecode) {
             @Override
             public void process(ByteArrayOutputStream actual) throws Exception {

@@ -41,12 +41,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /***
  * Demuxed push input stream that depends entirely on the accuracy of
  * the provided {@link InputStream#available()} bytes.
- * Also that reading and skipping complete entirely in one call.
  * Always check {@link #available()} before reading data.
  * Reading more bytes than are currently available in the stream will
  * throw a {@link IllegalStateException}.
@@ -54,33 +54,31 @@ import javax.annotation.Nonnull;
  */
 public class PushAvailableInputStream<META> extends InputStream {
 
-    private static class Pair<T> {
+    private static class ISPair<T> {
         @Nonnull
         private final InputStream is;
         @Nonnull
         private final T meta;
 
-        public Pair(@Nonnull InputStream is, @Nonnull T meta) {
+        public ISPair(@Nonnull InputStream is, @Nonnull T meta) {
             this.is = is;
             this.meta = meta;
         }
     }
 
-    private final Queue<Pair<META>> _pieces = new ArrayDeque<Pair<META>>();
+    private final Queue<ISPair<META>> _pieces = new ArrayDeque<ISPair<META>>();
     /** The amount of available bytes beyond the current stream. */
     private int _iPendingAvailable = 0;
 
     public void addStream(@Nonnull InputStream is, @Nonnull META meta) throws IOException {
-        // remove the current head if it is empty, and skip any additional empty pieces
-        while (!_pieces.isEmpty() && _pieces.peek().is.available() == 0)
-            _pieces.remove();
+        // don't filter empty streams because their meta may still be needed
 
         if (!_pieces.isEmpty()) {
             // if the queue is empty, don't add to the pending available
             // its available count will be in the stream itself
             _iPendingAvailable += is.available();
         }
-        _pieces.add(new Pair<META>(is, meta));
+        _pieces.add(new ISPair<META>(is, meta));
     }
 
     @Override
@@ -89,68 +87,63 @@ public class PushAvailableInputStream<META> extends InputStream {
                (_pieces.isEmpty() ? 0 : _pieces.peek().is.available());
     }
 
-    private final byte[] _abRead1 = new byte[1];
+    /** Used to read a single byte (so I can just utilize the other read()). */
+    private final byte[] _abRead1Byte = new byte[1];
 
     @Override
     public int read() throws IOException {
-        read(_abRead1, 0, 1);
-        return _abRead1[0] & 0xff;
+        readOrSkip(_abRead1Byte, 0, 1);
+        return _abRead1Byte[0] & 0xff;
     }
 
+    /** Will either return the number of bytes requested in the parameter,
+     * or throw {@link IllegalStateException} because there isn't enough
+     * bytes to read (you should have checked {@link #available()} first). */
     @Override
     public int read(@Nonnull byte[] abBuff, int iOffsetInBuff, int iBytesToRead) throws IOException {
-        int iBytesRemaining = iBytesToRead;
-
-        while (true) {
-            if (_pieces.isEmpty())
-                throw new IllegalStateException("First check if anything is available before reading");
-            int iAvailable = _pieces.peek().is.available();
-            if (iBytesRemaining > iAvailable) {
-                _pieces.peek().is.read(abBuff, iOffsetInBuff, iAvailable);
-                iBytesRemaining -= iAvailable;
-                iOffsetInBuff += iAvailable;
-                moveToNextPiece();
-            } else {
-                if (iBytesRemaining == 1)
-                    abBuff[iOffsetInBuff] = (byte)_pieces.peek().is.read();
-                else if (iBytesRemaining > 0)
-                    _pieces.peek().is.read(abBuff, iOffsetInBuff, iBytesRemaining);
-                break;
-            }
-        }
-
+        readOrSkip(abBuff, iOffsetInBuff, iBytesToRead);
         return iBytesToRead;
     }
 
+    /** Will either return the number of bytes requested in the parameter,
+     * or throw {@link IllegalStateException} because there isn't enough
+     * bytes to skip (you should have checked {@link #available()} first). */
     @Override
     public long skip(long lngBytesToSkip) throws IOException {
-        long lngBytesRemaining = lngBytesToSkip;
-
-        while (true) {
-            if (_pieces.isEmpty())
-                throw new IllegalStateException("First check if anything is available before reading");
-            int iAvailable = _pieces.peek().is.available();
-            if (lngBytesRemaining > iAvailable) {
-                lngBytesRemaining -= iAvailable;
-                moveToNextPiece();
-            } else {
-                if (lngBytesRemaining > 0)
-                    _pieces.peek().is.skip(lngBytesRemaining);
-                break;
-            }
-        }
-
+        readOrSkip(null, 0, lngBytesToSkip);
         return lngBytesToSkip;
     }
 
-    private void moveToNextPiece() throws IOException {
-        _pieces.remove();
-        // technically if the rest of the streams in the queue are of size 0
-        // it would be a valid case. but in practice we would never
-        // want that to be the case, so also fail then
+    private void readOrSkip(@CheckForNull byte[] abBuffer, int iOffsetInBuff, long lngBytes) throws IOException {
         if (_pieces.isEmpty())
             throw new IllegalStateException("First check if anything is available before reading");
-        _iPendingAvailable -= _pieces.peek().is.available();
+
+        long lngBytesRemaining = lngBytes;
+
+        while (lngBytesRemaining > 0) {
+            while (_pieces.peek().is.available() == 0) {
+                _pieces.remove();
+                if (_pieces.isEmpty())
+                    throw new IllegalStateException("First check if anything is available before reading");
+                _iPendingAvailable -= _pieces.peek().is.available();
+            }
+
+            int iAvailable = _pieces.peek().is.available();
+            int iMaxBytesToRead = (int)Math.min(lngBytesRemaining, iAvailable); // result will always be int
+            int iBytesActuallyRead;
+            if (abBuffer == null)
+                iBytesActuallyRead = (int)IO.skipMax(_pieces.peek().is, iMaxBytesToRead);
+            else
+                iBytesActuallyRead = IO.readByteArrayMax(_pieces.peek().is, abBuffer, iOffsetInBuff, iMaxBytesToRead);
+
+            if (iMaxBytesToRead != iBytesActuallyRead)
+                throw new IllegalStateException("Piece lied about the available bytes");
+
+            iOffsetInBuff += iAvailable;
+            lngBytesRemaining -= iAvailable;
+
+            // don't remove an exhausted stream here because its meta may still be needed
+        }
     }
 
     public @Nonnull META getCurrentMeta() {
@@ -160,12 +153,25 @@ public class PushAvailableInputStream<META> extends InputStream {
     }
 
     @Override
-    public synchronized void reset() throws IOException {
-        throw new UnsupportedOperationException();
+    public void close() throws IOException {
+        for (ISPair<META> _piece : _pieces) {
+            _piece.is.close();
+        }
+        _pieces.clear();
+    }
+
+    @Override
+    public boolean markSupported() {
+        return false;
     }
 
     @Override
     public synchronized void mark(int readlimit) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public synchronized void reset() throws IOException {
         throw new UnsupportedOperationException();
     }
 

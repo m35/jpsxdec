@@ -6916,8 +6916,8 @@ Status
 [ ]  SLPS-01426  Masumon Kids - The Another World of The Master of Monsters
 [ ]  SLPM-86520  Masumon Kids - The Another World of The Master of Monsters [MajorWave 1500 Series]
 [ ]  SLPS-00178  Match Golf, The
-[ ]  SLPS-03220  Matsumoto Reiji - Story of Galaxy Express 999 [Disc1of2]
-[ ]  SLPS-03221  Matsumoto Reiji - Story of Galaxy Express 999 [Disc2of2]
+[o]  SLPS-03220  Matsumoto Reiji - Story of Galaxy Express 999 [Disc1of2]
+[o]  SLPS-03221  Matsumoto Reiji - Story of Galaxy Express 999 [Disc2of2]
 [ ]  SLPM-87119  Matt Hoffman Pro BMX
 [ ]  SCPS-45242  Mawatte Mucho
 [ ]  SLPS-01359  Mawatte Mucho!

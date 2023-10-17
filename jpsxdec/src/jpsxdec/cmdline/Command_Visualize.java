@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2020  Michael Sabin
+ * Copyright (C) 2013-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -95,7 +95,7 @@ class Command_Visualize extends Command {
              */
             _fbs.println(I.CMD_GENERATING_VISUALIZATION());
             int[] aiDataPoints = extractDataPoints(index);
-            // pre-determine the tree-area width based on max point of overalpping items
+            // pre-determine the tree-area width based on max point of overlapping items
             int iMaxOverlap = findMaxOverlap(aiDataPoints, index);
             //########################################################
             int iWidth = SECTOR_SECTION_SIZE + iMaxOverlap * TEXT_LINE_HEIGHT + iMaxOverlap * BOX_AREA_WIDTH;
@@ -187,7 +187,7 @@ class Command_Visualize extends Command {
     private final HashMap<Class<?>, Color> colorLookup = new HashMap<Class<?>, Color>();
 
     private @Nonnull Color classToColor(@Nonnull Class<?> c) {
-        Color color = colorLookup.get(c.getClass());
+        Color color = colorLookup.get(c);
         if (color == null) {
             int iClr = c.getName().hashCode();
             color = new Color(iClr);

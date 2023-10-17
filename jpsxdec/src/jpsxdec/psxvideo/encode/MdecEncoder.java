@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,9 +59,8 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
     private final int _iPixWidth, _iPixHeight;
     private final int _iMacBlockHeight;
 
-    /** Used for full frame replace. */
-    @SuppressWarnings("unchecked")
-    public MdecEncoder(@Nonnull PsxYCbCrImage ycbcr, int iWidth, int iHeight) {
+    /** Common constructor. */
+    private MdecEncoder(int iWidth, int iHeight, @Nonnull PsxYCbCrImage ycbcr) {
 
         if (ycbcr.getLumaWidth() % 16 != 0 || ycbcr.getLumaHeight() % 16 != 0)
             throw new IllegalArgumentException();
@@ -71,7 +70,14 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
         _iMacBlockWidth = ycbcr.getLumaWidth() / 16;
         _iMacBlockHeight = ycbcr.getLumaHeight() / 16;
 
-        _aoMacroBlocks = new Iterable[_iMacBlockWidth * _iMacBlockHeight];
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Iterable<MdecCode>[] suppress = new Iterable[_iMacBlockWidth * _iMacBlockHeight];
+        _aoMacroBlocks = suppress;
+    }
+
+    /** Used for full frame replace. */
+    public MdecEncoder(@Nonnull PsxYCbCrImage ycbcr, int iWidth, int iHeight) {
+        this(iWidth, iHeight, ycbcr);
 
         for (int iMbX = 0; iMbX < _iMacBlockWidth; iMbX++) {
             for (int iMbY = 0; iMbY < _iMacBlockHeight; iMbY++) {
@@ -80,25 +86,14 @@ public class MdecEncoder implements Iterable<MacroBlockEncoder> {
                 _replaceMbs.add(enc);
             }
         }
-
     }
 
     /** Used for partial replace. */
-    @SuppressWarnings("unchecked")
     public MdecEncoder(@Nonnull ParsedMdecImage original,
                        @Nonnull PsxYCbCrImage newYcbcr,
                        @Nonnull List<Point> macroBlocksToReplace)
     {
-
-        if (newYcbcr.getLumaWidth() % 16 != 0 || newYcbcr.getLumaHeight() % 16 != 0)
-            throw new IllegalArgumentException();
-
-        _iPixWidth = original.getWidth();
-        _iPixHeight = original.getHeight();
-        _iMacBlockWidth = Calc.macroblockDim(newYcbcr.getLumaWidth());
-        _iMacBlockHeight = Calc.macroblockDim(newYcbcr.getLumaHeight());
-
-        _aoMacroBlocks = new Iterable[_iMacBlockWidth * _iMacBlockHeight];
+        this(original.getWidth(), original.getHeight(), newYcbcr);
 
         Point p = new Point();
         for (int iMbX = 0; iMbX < _iMacBlockWidth; iMbX++) {

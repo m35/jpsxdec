@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -370,12 +370,12 @@ public class XaAdpcmDecoder {
         // 0,1,2,3, 0,1,2,3, 4,5,6,7, 4,5,6,7
         for (int iSoundUnit = 0; iSoundUnit < 4; iSoundUnit++) {
             _logContext.iSoundUnit = iSoundUnit;
-            _aoSoundUnitDecoders[iSoundUnit].addSoundParamter(_abParameterBuffer[iSoundUnit] & 0xff);
-            _aoSoundUnitDecoders[iSoundUnit].addSoundParamter(_abParameterBuffer[iSoundUnit+4] & 0xff);
+            _aoSoundUnitDecoders[iSoundUnit].addSoundParameter(_abParameterBuffer[iSoundUnit] & 0xff);
+            _aoSoundUnitDecoders[iSoundUnit].addSoundParameter(_abParameterBuffer[iSoundUnit+4] & 0xff);
 
             _logContext.iSoundUnit = iSoundUnit + 4;
-            _aoSoundUnitDecoders[iSoundUnit+4].addSoundParamter(_abParameterBuffer[iSoundUnit+8] & 0xff);
-            _aoSoundUnitDecoders[iSoundUnit+4].addSoundParamter(_abParameterBuffer[iSoundUnit+12] & 0xff);
+            _aoSoundUnitDecoders[iSoundUnit+4].addSoundParameter(_abParameterBuffer[iSoundUnit+8] & 0xff);
+            _aoSoundUnitDecoders[iSoundUnit+4].addSoundParameter(_abParameterBuffer[iSoundUnit+12] & 0xff);
         }
         _logContext.iSoundUnit = -1;
 
@@ -425,7 +425,7 @@ public class XaAdpcmDecoder {
         for (_logContext.iSoundUnit = 0; _logContext.iSoundUnit < 4; _logContext.iSoundUnit++) {
             XaAdpcmSoundUnitDecoder soundUnit = _aoSoundUnitDecoders[_logContext.iSoundUnit];
             for (int iRepeat = _logContext.iSoundUnit; iRepeat < 16; iRepeat+=4) {
-                soundUnit.addSoundParamter(_abParameterBuffer[iRepeat] & 0xff);
+                soundUnit.addSoundParameter(_abParameterBuffer[iRepeat] & 0xff);
             }
         }
         _logContext.iSoundUnit = -1;
@@ -471,7 +471,7 @@ public class XaAdpcmDecoder {
         /** @param iSoundParameter  An unsigned byte value as read from the
          *                          source stream, holding the range and
          *                          filter parameters for this sound unit. */
-        public void addSoundParamter(int iSoundParameter) {
+        public void addSoundParameter(int iSoundParameter) {
             _soundUnitBuilder.addRedundantParameter(iSoundParameter);
         }
 

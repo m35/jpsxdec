@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.modules.video.save;
 
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.util.Fraction;
 
 /** Used to ensure the writing of both audio samples and video frames
@@ -51,16 +52,15 @@ public class AudioVideoSync extends VideoSync {
     private final long _lngInitialSampleDelay;
 
     public AudioVideoSync(int iFirstVideoPresentationSector,
-                          int iSectorsPerSecond,
+                          @Nonnull DiscSpeed discSpeed,
                           @Nonnull Fraction sectorsPerFrame,
                           int iFirstAudioPresentationSector,
                           int iSampleFramesPerSecond,
                           boolean blnPreciseAv)
     {
-        super(iFirstVideoPresentationSector,
-              iSectorsPerSecond, sectorsPerFrame);
+        super(iFirstVideoPresentationSector, discSpeed, sectorsPerFrame);
         _audSync = new AudioSync(iFirstAudioPresentationSector,
-                                 iSectorsPerSecond, iSampleFramesPerSecond);
+                                 discSpeed, iSampleFramesPerSecond);
 
         _sampleFramesPerVideoFrame = super.getSecondsPerFrame().multiply(_audSync.getSampleFramesPerSecond());
 

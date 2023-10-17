@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2020  Michael Sabin
+ * Copyright (C) 2020-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -197,6 +197,7 @@ public class BitStreamUncompressor_StarWars extends BitStreamUncompressor implem
         _header = header;
     }
 
+    @Override
     public int getQuantizationScale() {
         return _header.getQuantizationScale();
     }
@@ -209,24 +210,24 @@ public class BitStreamUncompressor_StarWars extends BitStreamUncompressor implem
     @Override
     public @Nonnull BitStreamCompressor makeCompressor() throws UnsupportedOperationException {
         if (_header.isVersion2Not3())
-            return new BitStreamCompressor_StarWarsv2(_context.getTotalBlocksRead());
+            return new BitStreamCompressor_StarWarsV2(_context.getTotalBlocksRead(), _header.getQuantizationScale());
         else
-            return new BitStreamCompressor_StarWarsv3(_context.getTotalBlocksRead());
+            return new BitStreamCompressor_StarWarsV3(_context.getTotalBlocksRead(), _header.getQuantizationScale());
     }
 
     // =========================================================================
 
-    public static class BitStreamCompressor_StarWarsv2 extends BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 {
+    public static class BitStreamCompressor_StarWarsV2 extends BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 {
 
-        public BitStreamCompressor_StarWarsv2(int iMacroBlockCount) {
-            super(iMacroBlockCount, LITTLE_ENDIAN_FIRST4_SWAP);
+        public BitStreamCompressor_StarWarsV2(int iMacroBlockCount, int iOriginalQscale) {
+            super(iMacroBlockCount, iOriginalQscale, LITTLE_ENDIAN_FIRST4_SWAP);
         }
     }
 
-    public static class BitStreamCompressor_StarWarsv3 extends BitStreamUncompressor_STRv3.BitStreamCompressor_STRv3 {
+    public static class BitStreamCompressor_StarWarsV3 extends BitStreamUncompressor_STRv3.BitStreamCompressor_STRv3 {
 
-        public BitStreamCompressor_StarWarsv3(int iMacroBlockCount) {
-            super(iMacroBlockCount, LITTLE_ENDIAN_FIRST4_SWAP);
+        public BitStreamCompressor_StarWarsV3(int iMacroBlockCount, int iOriginalQscale) {
+            super(iMacroBlockCount, iOriginalQscale, LITTLE_ENDIAN_FIRST4_SWAP);
         }
     }
 }

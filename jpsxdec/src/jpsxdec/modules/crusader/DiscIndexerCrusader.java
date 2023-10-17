@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2020  Michael Sabin
+ * Copyright (C) 2012-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,7 +45,7 @@ import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
-import jpsxdec.i18n._PlaceholderMessage;
+import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
@@ -200,7 +200,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements IdentifiedSector
                 throw ex.getCause();
             }
         } catch (BinaryDataNotRecognized ex) {
-            log.log(Level.SEVERE, new _PlaceholderMessage("Crusader data corruption"), ex);
+            log.log(Level.SEVERE, I.CRUSADER_DATA_CORRUPTED(), ex);
             _currentStream = null;
         } catch (LoggedFailure ex) {
             throw new RuntimeException("Shouldn't happen", ex);
@@ -213,7 +213,7 @@ public class DiscIndexerCrusader extends DiscIndexer implements IdentifiedSector
             try {
                 addDiscItem(_currentStream.endOfMovie(getCd()));
             } catch (BinaryDataNotRecognized ex) {
-                log.log(Level.SEVERE, new _PlaceholderMessage("Crusader data corruption"), ex);
+                log.log(Level.SEVERE, I.CRUSADER_DATA_CORRUPTED(), ex);
             }
         }
         _currentStream = null;

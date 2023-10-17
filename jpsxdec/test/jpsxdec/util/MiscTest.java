@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -61,5 +61,32 @@ public class MiscTest {
         assertEquals("0:00", MessageFormat.format("{0,time,m:ss}", Misc.dateFromSeconds(0)));
         assertEquals("0:01", MessageFormat.format("{0,time,m:ss}", Misc.dateFromSeconds(1)));
         assertEquals("1:30", MessageFormat.format("{0,time,m:ss}", Misc.dateFromSeconds(90)));
+    }
+
+    @Test
+    @Ignore("TODO fix over 1 hour")
+    public void testDateFromSeconds_over2hours() {
+        String s = MessageFormat.format("{0,time,m:ss}", Misc.dateFromSeconds(60 * 60 * 2 + 60 * 5 + 10));
+        assertEquals("2:05:10", s);
+    }
+
+    @Test
+    public void testZeroPadString() {
+        assertEquals("abcdef", Misc.zeroPadString("abcdef", 0, false));
+        assertEquals("", Misc.zeroPadString("abcdef", 0, true));
+
+        assertEquals("abcdef", Misc.zeroPadString("abcdef", 3, false));
+        assertEquals("def", Misc.zeroPadString("abcdef", 3, true));
+
+        assertEquals("abcdef", Misc.zeroPadString("abcdef", 6, false));
+        assertEquals("abcdef", Misc.zeroPadString("abcdef", 6, true));
+
+        assertEquals("0abcdef", Misc.zeroPadString("abcdef", 7, false));
+        assertEquals("0abcdef", Misc.zeroPadString("abcdef", 7, true));
+
+        String s = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000abcdef";
+
+        assertEquals(s, Misc.zeroPadString("abcdef", 100, false));
+        assertEquals(s, Misc.zeroPadString("abcdef", 100, true));
     }
 }

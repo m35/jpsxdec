@@ -51,7 +51,7 @@ import org.jdesktop.swingx.text.NumberFormatExt;
  */
 public class NumberEditorExt extends DefaultCellEditor {
     
-    private static Class<?>[] argTypes = new Class[]{String.class};
+    private static Class<?>[] argTypes = new Class<?>[]{String.class};
     java.lang.reflect.Constructor<?> constructor;
     private boolean useStrictFormatter;
     

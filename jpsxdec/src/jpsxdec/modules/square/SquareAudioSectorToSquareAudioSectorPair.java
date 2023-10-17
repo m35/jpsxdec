@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -66,27 +66,25 @@ public class SquareAudioSectorToSquareAudioSectorPair implements IdentifiedSecto
     }
 
     @Override
-    public Class<ISquareAudioSector> getListeningFor() {
+    public @Nonnull Class<ISquareAudioSector> getListeningFor() {
         return ISquareAudioSector.class;
     }
 
     @Override
-    public void feedSector(ISquareAudioSector audSector, ILocalizedLogger log) throws LoggedFailure {
+    public void feedSector(@Nonnull ISquareAudioSector audSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
 
         if (_leftAudioSector != null) {
             if (isPair(_leftAudioSector, audSector)) {
-                if (_listener != null)
-                    _listener.pairDone(new SquareAudioSectorPair(
-                                       _leftAudioSector, audSector,
-                                       _leftAudioSector.getHeaderFrameNumber(),
-                                       _leftAudioSector.getSampleFramesPerSecond(),
-                                       _leftAudioSector.getSoundUnitCount(),
-                                       _leftAudioSector.getSectorNumber(),
-                                       audSector.getSectorNumber()),
-                                       log); // both != null
+                _listener.pairDone(new SquareAudioSectorPair(
+                                   _leftAudioSector, audSector,
+                                   _leftAudioSector.getHeaderFrameNumber(),
+                                   _leftAudioSector.getSampleFramesPerSecond(),
+                                   _leftAudioSector.getSoundUnitCount(),
+                                   _leftAudioSector.getSectorNumber(),
+                                   audSector.getSectorNumber()),
+                                   log); // both != null
                 _leftAudioSector = null;
             } else {
-                if (_listener != null)
                     leftOnlyDone(log);
                 _leftAudioSector = audSector;
             }
@@ -94,15 +92,14 @@ public class SquareAudioSectorToSquareAudioSectorPair implements IdentifiedSecto
             if (audSector.isLeftChannel()) {
                 _leftAudioSector = audSector;
             } else {
-                if (_listener != null)
-                    _listener.pairDone(new SquareAudioSectorPair(
-                                       null, audSector,
-                                       audSector.getHeaderFrameNumber(),
-                                       audSector.getSampleFramesPerSecond(),
-                                       audSector.getSoundUnitCount(),
-                                       audSector.getSectorNumber(),
-                                       audSector.getSectorNumber()),
-                                       log); // left == null
+                _listener.pairDone(new SquareAudioSectorPair(
+                                   null, audSector,
+                                   audSector.getHeaderFrameNumber(),
+                                   audSector.getSampleFramesPerSecond(),
+                                   audSector.getSoundUnitCount(),
+                                   audSector.getSectorNumber(),
+                                   audSector.getSectorNumber()),
+                                   log); // left == null
             }
         }
     }
@@ -129,12 +126,10 @@ public class SquareAudioSectorToSquareAudioSectorPair implements IdentifiedSecto
     }
 
     @Override
-    public void endOfFeedSectors(ILocalizedLogger log) throws LoggedFailure {
-        if (_listener != null) {
-            if (_leftAudioSector != null)
-                leftOnlyDone(log);
-            _listener.endOfSectors(log);
-        }
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
+        if (_leftAudioSector != null)
+            leftOnlyDone(log);
+        _listener.endOfSectors(log);
         _leftAudioSector = null;
     }
 

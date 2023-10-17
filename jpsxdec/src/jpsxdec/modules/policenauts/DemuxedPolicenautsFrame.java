@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,17 +37,12 @@
 
 package jpsxdec.modules.policenauts;
 
-import java.io.PrintStream;
 import java.util.Arrays;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.DiscPatcher;
-import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
-import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
-import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
+import jpsxdec.psxvideo.bitstreams.IBitStreamUncompressor;
 import jpsxdec.util.Fraction;
 
 /** @see SPacket */
@@ -102,7 +97,7 @@ public class DemuxedPolicenautsFrame implements IDemuxedFrame {
     }
 
     @Override
-    public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
+    public @CheckForNull IBitStreamUncompressor getCustomFrameMdecStream() {
         return null;
     }
 
@@ -114,15 +109,5 @@ public class DemuxedPolicenautsFrame implements IDemuxedFrame {
     @Override
     public @Nonnull byte[] copyDemuxData() {
         return Arrays.copyOf(_data.getData(), getDemuxSize());
-    }
-
-    @Override
-    public void printSectors(PrintStream ps) {
-        // TODO?
-    }
-
-    @Override
-    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, DiscPatcher patcher, ILocalizedLogger log) {
-        throw new UnsupportedOperationException("Replacing Policenauts frames is not supported");
     }
 }

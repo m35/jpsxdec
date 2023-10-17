@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,21 +56,26 @@ public class SectorBasedFrameBuilder<T> {
     private final int _iHeaderFrameNumber;
 
     /** Start building the frame with the first sector. */
-    @SuppressWarnings("unchecked")
     public SectorBasedFrameBuilder(@Nonnull T firstChunk,
                                    int iChunkNumber, int iExpectedChunks,
                                    int iSector, int iHeaderFrameNumber,
                                    @Nonnull ILocalizedLogger log)
     {
+        int iChunkCount;
         if (iChunkNumber < iExpectedChunks) {
-            _aoChunks = (T[]) new Object[iExpectedChunks];
+            iChunkCount = iExpectedChunks;
         } else {
             // if this happens, the incoming data is pretty messed up
-            // this logic will effictively immediately end the frame
+            // this logic will effectively immediately end the frame
             log.log(Level.WARNING,
                 I.FRAME_NUM_CORRUPTED(String.valueOf(iHeaderFrameNumber)));
-            _aoChunks = (T[]) new Object[iChunkNumber + 1];
+            iChunkCount = iChunkNumber + 1;
         }
+
+        @SuppressWarnings("unchecked")
+        T[] suppressed = (T[]) new Object[iChunkCount];
+        _aoChunks = suppressed;
+
         _aoChunks[iChunkNumber] = firstChunk;
         _iLastChunkReceived = iChunkNumber;
         _iFrameStartSector = _iFrameEndSector = iSector;

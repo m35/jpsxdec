@@ -1,3 +1,27 @@
+#### jPSXdec version 2.0 ####
+
+Summary of changes from v1.00 to 2.0
++ Added support for several more games
++ Improved content detection
++ Improved frame rate detection
++ Improved error detection and handling
++ Fixed bugs in replacing content and improved quality of encoded data
++ Requires Java 8 or higher
+
+--------------------------------------------------------------------------------
+v2.0 rev4335 (16 Oct 2023)
+    - Now requires Java 8 or higher
+    - Added support for ending video of Aconcagua - thanks to Martin Korth (no$psx developer)
+    - Added Aconcagua frame replacing support
+    - Optimized player and fixed minor memory leak
+    - Improved error detection and handling
+    - Added reference sources, specifications and documents
+    Known functional issues
+    - Translations (Spanish, Italian, machine translated Japanese) not updated since v1.00
+    - Frame rate detection still not as good as I want
+    - Real-time playback doesn't work for videos with a long audio delay
+    - Real-time playback stops early if audio ends before video ends
+    - Several games still not supported (see Github issues list)
 v1.06 (beta) rev4156 (19 Feb 2022)
     - Support for videos in game "N Gauge Unten Kibun Game: Gatan Goton"
     - Support for videos in more Electronic Arts games

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2020  Michael Sabin
+ * Copyright (C) 2015-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,7 +48,7 @@ import jpsxdec.modules.SectorRange;
  * To demux for another channel, create a separate demuxer. */
 public class SectorAc3VideoToDemuxedAc3Frame {
 
-    public static interface Listener {
+    public interface Listener {
         void frameComplete(@Nonnull DemuxedAc3Frame frame, @Nonnull ILocalizedLogger log)
                 throws LoggedFailure;
     }

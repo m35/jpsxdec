@@ -1,72 +1,24 @@
 
 # The jPSXdec design document
 
-This documents the design of jPSXdec as of version 1.00.
+This documents the design of jPSXdec as of version 2.0.
 
-Please also reference `TODO.txt` and `PlayStation1_STR_format.txt`
+Please also refer to `PlayStation1_STR_format.txt`
 to get a bigger perspective on how/why jPSXdec is designed.
 
-## "jPSXdec"?
+# Development environment
 
-When choosing a name for this program, I wanted something unique
-so it would be easy to search for.
-
-## `j`
-
-TBH I like the tradition of naming Java programs with the `j` prefix.
-As a Java developer, I am also a Java power user.
-When I know a program is Java based, I can make better use of it,
-and hack it if needed.
-
-## `PSX`
-
-I know there's controversy around using PSX to describe the PS1.
-I wasn't aware of that at the time, and several other tools used
-PSX, so followed their lead.
-
-## `dec`
-
-This was originally intended to mean "decoding",
-similar to the use of "dec" in the term "codec" (which stands
-for "coding and decoding").
-
-Since then, the "dec" could also maybe mean 
-
-* *d*coding
-* *e*ncoding
-* *c*onverting
-
-## How do you say it?
-
-The most straight forward way to say it would be "jay-pee-ess-ex-deck",
-so it's probably the best. I personally rarely refer to the program by name, 
-and often informally shorten it to just "jPSX"* or "PlayStation converter"
-when talking to others about it.
-
-* Note: The name "jpsx" is already taken by the PS1 emulator written entirely in Java.
-
-## Java 6
-
-jPSXdec used to target the Java 5 JRE, but finally bumped up to Java 6.
-The project was started 10+ years ago when Java 6 was relatively new
-and still not found on many Linux distros.
-While I'm plenty familiar with features from Java 6+ on,
-I've found only a few compelling features that jPSXdec would really benefit from.
-So there's really no point in upgrading.
-And maybe someone still running Windows XP will want to use jPSXdec...
-
-## Development environment
-
-The Ant build script is necessary for easy building, regardless of IDE used.
+An Ant build script is used for official builds, regardless of IDE used.
 But for developing, it's easier to ignore the Ant script and simply import all the code into a basic
 Java project in the IDE of your choice.
 
 However several of the UI forms were designed using Netbeans forms designer.
 Netbeans would be required to modify those forms.
 
-## Code styleguide
+# Code styleguide
 
-* It would be nice to have a Checkstyle for formatting details, but egad is that a tedious process to make one
+It would be nice to have a Checkstyle for formatting details, but egad is that a tedious process to make one
+
 * Make as many things as immutable as possible.
 * Use `final` on all fields if at all possible.
     * If it's not possible, consider making a new inner class that CAN use final fields.
@@ -80,14 +32,27 @@ Netbeans would be required to modify those forms.
 * Interface classes usually begin with `I`.
 * Use `@NonNull` and `@CheckForNull` for every argument, return type, and field that is an object.
   A few places where that may not be necessary:
-  * When it is a `final` field that is initialized at declaration.
-  * When the possibility of a variable being null is too complicated, so the flag would just be a useless warning (should be very rare).
-  * `toString()` method return type
-  * Parameters for an empty method implementing an interface
+  - When it is a `final` field that is initialized at declaration.
+  - When the possibility of a variable being null is too complicated, so the flag would just be a useless warning (should be very rare).
+  - `toString()` method return type
+  - Parameters for an empty method implementing an interface
 * Keep the length of files less than 1000 lines-of-code (including header), but also more than 50 (excluding header) (i.e. put tiny classes in related files if it makes sense)
 * Try to design the code such that there is only one reasonable way to do something
+* `@Override` can be optional for inline anonymous classes
+* Never use the Java 8 generic diamond operator. Always declare the generic type.
+* Never use Java 8 lambdas
+  - The only exception may be `Supplier` and `Consumer` classes, but only if the return type is unambiguous, and always declare the parameter names and types. The body must be 2 lines or less. Otherwise put the logic in a separate function.
+* Minimize the use of Java 8 streams, and only for the simplest of chains. Never use `.forEach()`.
+* Usually no wildcard imports, but optional when many static members are imported
+* Imports are in alphabetical order with static imports at the end
+* Try to add javadoc for non-trivial functions, and always keep the docs up-to-date with the code
+* Per the javadoc tool, the first sentence (ending with a period) will appear in the summarized description. Not necessary, but if convenient, put the basic description in the first sentence.
+* javadocs don't need to be formatted with HTML. In most cases it's better not to and simply format it in the code.
+* Put final and non-null fields first
+* Keep fields and constructor arguments in the same order
+* Favor initializing fields in-line when doable
 
-### Naming conventions
+## Naming conventions
 
 * primitive types prefixes:
   * long=`lng`
@@ -107,7 +72,8 @@ Netbeans would be required to modify those forms.
 
 # Design
 
-Here is the entire design, broken down by packages.
+Here is the entire design, broken down by packages and key classes.
+Stacks from bottom up.
 ```
 +-------------------------------------------------------------------+
 |                          jpsxdec.Main                             |
@@ -116,19 +82,21 @@ Here is the entire design, broken down by packages.
 +--------------------------------+----------------------------------+
 |                          other modules                            |
 +--------------------------------+----------------------------------+
-|        modules.video.*         |        modules.sharedaudio       |
+|                          modules.player                           |
 +--------------------------------+----------------------------------+
-|                    modules.SectorClaimSystem                      |
-+-------------------------------------------------------------------+
-|                    modules.IIdentifiedSector                      |
-+-------------------------------------------------------------------+
+|        modules.video           |        modules.audio             |
++--------------------------------+----------------------------------+
 |                            indexing                               |
 +-------------------------------------------------------------------+
 |                            discitems                              |
-+-----------+----------+-----+-------+---------+----------+---------+
-| cdreaders | psxvideo | tim | adpcm | iso9660 | psxvideo | formats |
-+-----------+----------+-----+-------+---------+----------+---------+
-|                                i18n                               |
++-------------------------------------------------------------------+
+|                    modules.SectorClaimSystem                      |
++-------------------------------------------------------------------+
+|                    modules.IIdentifiedSector                      |
++---------+-------------+----------+-----------+------------+-------+
+|  adpcm  |  cdreaders  |  formats |  iso9660  |  psxvideo  |  tim  |
++---------+-------------+----------+-----------+------------+-------+
+|                               i18n                                |
 +--------------------------------+----------------------------------+
 |        util.aviwriter          |         util.player              |
 +--------------------------------+----------------------------------+
@@ -139,7 +107,7 @@ Here is the entire design, broken down by packages.
 |                         3rd party libraries                       |
 +-------------------------------------------------------------------+
 ```
-Stacks from bottom up. 3rd party libraries are described at the end.
+3rd party libraries are described at the end.
 
 Checked exceptions are used as much as possible to ensure all possible
 conditions are covered at compile time. I shouldn't need to explain how
@@ -148,10 +116,9 @@ objectively superior checked exceptions are to unchecked.
 
 ## `javax.annotation`
 
-`@NonNull` and `@CheckForNull`. The best thing to happen to Java since generics.
-Used in practically every file. Netbeans FindBugs addon highlighted
-all possible `NullPointerException`s. NPE has been rarely seen with this project.
-
+JSR-305 `@NonNull` and `@CheckForNull`. The best thing to happen to Java since generics.
+Used in practically every file. All modern IDEs recognize these and highlight
+possible `NullPointerException`s. NPE has rarely been seen with this project.
 
 ## util
 
@@ -167,7 +134,7 @@ It's mostly perfect.
 
 ### `util.player`
 
-Recently redesigned to be a pretty darn good library for real-time audio/video playback.
+A pretty darn good library for real-time audio/video playback.
 The javadoc explains how it works.
 
 See `modules.player` for how it's used in jPSXdec.
@@ -214,16 +181,19 @@ These are independent of each other and contain building blocks for higher modul
 
 ### `cdreaders`
 
-The source of how everything reads from a disc image. There were plans to read
-directly from the CD drive like older programs did, but that is notoriously
-difficult to do on every platform. So there's only the `CdFileSectorReader`.
+The source of how everything reads from a disc image. I've tried to abstract
+it to allow for reading from any kind of disc-like data.
 
 It's best to read sectors in a forward sequential way since it buffers a
 lot of data ahead of time, though random access really isn't a big deal
-given today's hardware. Memory mapped files were considered, but after reading
-about the challenges MapDB had with memory mapped files, I was happy using the
-older approach.
+given today's hardware.
+Memory mapped files were considered, but their primary
+benefit is writing do disk. Reading is still faster with standard Java
+`InputStream`.
 
+There were plans to read
+directly from the CD drive like older programs did, but that is notoriously
+difficult to do on every platform.
 
 ### `psxvideo`
 
@@ -251,17 +221,16 @@ I've used this block of code several times during development.
 
 #### `psxvideo.bitstreams`
 
-There are 3 common bitstream formats found in the wild:
+Holds the 2 "standard" bitstream formats found in the wild:
 
 * STR v2 (v1 frames might as well just be v2 frames)
 * STR v3
-* IKI
 
-Other games had their own bitstream variations.
-Serial Experiments Lain is an easy one to identify independent of any other data.
+But also includes IKI and Serial Experiments Lain. Lain should probably be moved into its own module.
 
 These 4 were easy to write bitstream compressors (encoders) for.
 
+Other games had their own bitstream variations.
 Unfortunately some games managed the bitstreams very differently, like
 Road Rash and Aconcagua. Encoders for these would not be so easy.
 
@@ -433,22 +402,10 @@ So in the end I went with making the sector identification process recursive.
 When one claimer needs the next sector, it pulls the sector from the disc
 and up through all the other claimers until it reaches the peek request.
 
-Identifying sectors is just the first part. When something is identified,
-it needs to be processed. Here you can register listeners with each claimer
-to receive that data when it is found. The listener processes the data and
-forwards it to anything listening to that listener,
+After a sector has passed through all the claimers and is hopefully identified,
+it is then sent to any registered listeners. The listener processes the
+identified sectors and forwards it to anything listening to that listener,
 all the way until it ends up in a file or displayed on the GUI.
-
-It works, but the stack traces are large.
-
-I've already decided I want to instead break the system into two parts.
-First part is to just identify the sectors, then another separate step to
-process the sectors and pass that data to listeners.
-By nature, some processing will happen during the claiming.
-Instead of redoing the processing when reviewing the claimed sectors,
-the already processed data would be attached to the associated sector.
-That attached data could then be taken and broadcasted in the second step.
-
 
 ### `modules.video.*`
 
@@ -692,7 +649,7 @@ style that makes this easy. Hunting for a solution, I ran across this
 
 jPSXdec reference graph is fairly simple.
 
-The root for a disc in memory is `CdFileSectorReader` and `DiscIndex`.
+The root for a disc in memory is `ICdSectorReader` and `DiscIndex`.
 Once a disc is loaded, no memory is allocated or released.
 And once the `CdFileSectorReader` is closed and discarded, everything
 associated with a disc is freed
@@ -703,7 +660,7 @@ The real-time audio/video player is created and freed on every view.
 
 The only memory growth that could be noticed would come from the
 `DiscItemSaverBuilder` used to save every `DiscItem`. Initially each `DiscItems`'s
-`DiscItemSaverBuilder` start as `null` and are only allocated when the disc item
+`DiscItemSaverBuilder` doesn't exist and are only created when the disc item
 is selected in the GUI. But that should be minimal. And once the disc is closed,
 those are all freed as well.
 
@@ -742,14 +699,15 @@ sector type. Since this kind of sector format is quite similar to normal
 STR video sectors, you can probably just add it under `jpsxdec.modules.strvideo`.
 You should be able to extend `SectorStrVideo` or `SectorAbstractVideo`.
 
-In the constructor follow the pattern used in other identified sectors.
+In the constructor, follow the pattern used in other identified sectors.
 Add fields for each value in the header, then read the values out of
 the `CdSector` and check if they are correct. There's some existing helper functions
 and classes you could use that handle a lot of the common cases.
 
 Finally add the sector to `VideoSectorIdentifier` so it is included in the identification.
 
-At some point along the way, check that jPSXdec is properly identifying the
+Just adding support for the sector may not be enough.
+Check that jPSXdec is properly identifying the
 frame image type. If it can't, you will see it in the logs.
 The game may be using an unknown frame type.
 If that is the case, check the section below.
@@ -762,7 +720,8 @@ Open those up in a hex editor and start looking for patterns.
 
 Some things to look for:
 
-* Frame bitstream headers. Check the `PlayStation1_STR_format.txt` for what a video bitstream header usually looks like. You're in luck if you can locate several of them in a row.
+* Frame bitstream headers. Check the `PlayStation1_STR_format.txt` for what a video bitstream header usually looks like.
+You're in luck if you can locate several of them in a row.
 When you find one, extract the header along with a bunch of bytes after it (since you may not know exactly where the frame data ends).
 Use the jPSXdec command-line to decode a single frame (see manual) and see what happens.
 If you're in luck you'll get part of a decoded frame.
@@ -800,7 +759,7 @@ way to know what the game is doing.
 
 As mentioned, pSX has a debugger, and so does the Nocash no$psx emulator.
 pSX has the advantage of DMA breakpoints. Radare2 I believe has PlayStation
-support, and I think Ghidra does too. But static code decompiling often
+support, and Ghidra does too. But static code decompiling often
 isn't helpful in PlayStation games because some games dynamically load and unload
 code from the disc into memory (FF7 mini-games are an example of this).
 
@@ -980,7 +939,7 @@ that these aren't just fluctuations, but full frame rate deviations?
 ### How to save variable frame rate videos
 
 And finally, after all these challenges, if we are somehow able to really identify
-that a video has a variable frame rate, what do we do then? jPSXdec can only
+that a video has a variable frame rate, what do we do then? Currently jPSXdec can only
 save AVI files which require a constant frame rate.
 
 You could do a bit of a hack and use a higher frame rate, and then duplicate
@@ -998,16 +957,61 @@ video that runs at 150 fps and duplicate frames as needed. This will give us
 you might find a better constant frame rate that minimizes the number of duplicate
 frames but still keeps the timing close to perfect.
 
+#### mkv support
+
 It's nice to remember that converting from variable frame rate to constant
 frame rate isn't a new problem. Programs have found ways to do that for years.
-Since AVI doesn't support variable frame rates, maybe there are other video
-formats/containers that do. Then we can create a variable frame rate video
-let another program deal with converting it to constant frame rate.
-The two I've looked at are .mov and .mkv. Unfortunately neither of
-these support raw uncompressed rgb video. :P
+Since AVI doesn't support variable frame rates, I've already made progress
+into adding .mkv export support. mkv support variable frame rates.
+The plan is to make that the default and the only way to export videos
+with variable frame rates.
 
 
-## That's it
+# About the name and logo
 
-Thank you for joining me on the journey through the headache of
-frame rate detection in jPSXdec.
+## "jPSXdec"?
+
+When choosing a name for this program, I wanted something unique
+so it would be easy to search for.
+
+### `j`
+
+TBH I like the tradition of naming Java programs with the `j` prefix.
+As a Java developer, I am also a Java power user.
+When I know a program is Java based, I can make better use of it,
+and hack it if needed.
+
+### `PSX`
+
+I know there's controversy around using PSX to describe the PS1.
+I wasn't aware of that at the time, and several other tools used
+PSX, so followed their lead.
+
+### `dec`
+
+This was originally intended to mean "decoding",
+similar to the use of "dec" in the term "codec" (which stands
+for "coding and decoding").
+
+Since then, the "dec" could also mean
+
+* *d*ecoding
+* *e*ncoding
+* *c*onverting
+
+### How do you say it?
+
+The most straight forward way to say it would be "jay-pee-ess-ex-deck",
+so it's probably the best. I personally rarely refer to the program by name,
+and often informally shorten it to just "jPSX" or "PlayStation converter"
+when talking to others about it.
+
+* Note: The name "jpsx" is already taken by the PS1 emulator written entirely in Java.
+
+### Logo
+
+The program icon and logo uses the PlayStation 2 style logo which may have
+led people to believe jPSXdec supports PlayStation 2 media.
+But jPSXdec only supports PlayStation 1 media.
+I just couldn't think of how to create a logo based on the PlayStation 1 logo.
+And I'm not very artistic.

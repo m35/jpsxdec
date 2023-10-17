@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -73,7 +73,7 @@ public class BetterFileChooser extends JFileChooser {
         @Override
         public String toString() {
             // Java 5 on Linux uses toString() instead of
-            // getDescription() in the list of file extention filters.
+            // getDescription() in the list of file extension filters.
             return BetterFileChooser.super.getAcceptAllFileFilter().getDescription();
         }
     };

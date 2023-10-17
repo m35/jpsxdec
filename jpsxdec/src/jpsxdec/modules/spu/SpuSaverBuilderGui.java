@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -222,9 +222,7 @@ public class SpuSaverBuilderGui extends DiscItemSaverBuilderGui {
                         _bs.action(Action.PLAY);
                         double t5 = System.currentTimeMillis() / 1000.0;
                     }
-                } catch (LineUnavailableException ex) {
-                    ex.printStackTrace();
-                } catch (IOException ex) {
+                } catch (LineUnavailableException | IOException ex) {
                     ex.printStackTrace();
                 }
             }
@@ -322,7 +320,7 @@ public class SpuSaverBuilderGui extends DiscItemSaverBuilderGui {
             );
         }
 
-        protected class AudioFormat extends AbstractComboExtension {
+        protected class AudioFormat extends AbstractComboExtension<SpuSaverBuilder.SpuSaverFormat> {
             public AudioFormat() {
                 super(I.GUI_SAVE_AS_LABEL(), _bl.getBuilder().getFileBaseName());
             }
@@ -331,7 +329,7 @@ public class SpuSaverBuilderGui extends DiscItemSaverBuilderGui {
                 return _bl.getBuilder().getContainerFormat_listSize();
             }
             @Override
-            public Object getElementAt(int index) {
+            public SpuSaverBuilder.SpuSaverFormat getElementAt(int index) {
                 return _bl.getBuilder().getContainerFormat_listItem(index);
             }
             @Override
@@ -348,7 +346,7 @@ public class SpuSaverBuilderGui extends DiscItemSaverBuilderGui {
             }
         }
 
-        private class SampleRate extends AbstractCombo {
+        private class SampleRate extends AbstractCombo<Integer> {
 
             public SampleRate() {
                 super(new UnlocalizedMessage("Sample rate:"), false); // I18N
@@ -361,7 +359,7 @@ public class SpuSaverBuilderGui extends DiscItemSaverBuilderGui {
             }
 
             @Override
-            public Object getElementAt(int index) {
+            public Integer getElementAt(int index) {
                 return _bl.getBuilder().getSampleRate_listItem(index);
             }
 

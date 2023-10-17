@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2020  Michael Sabin
+ * Copyright (C) 2012-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -62,14 +62,14 @@ public enum VideoFormat {
         public boolean isVideo() { return true; }
         public int getDecodeQualityCount() { return 1; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH; }
-        public boolean mustHaveEvenDims()  { return true; };
+        public boolean mustHaveEvenDims()  { return true; }
     },
     AVI_JYUV(I.VID_AVI_JYUV_DESCRIPTION(), "avi:jyuv") {
         public String getExtension() { return ".avi"; }
         public boolean isVideo() { return true; }
         public int getDecodeQualityCount() { return 1; }
         public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH; }
-        public boolean mustHaveEvenDims()  { return true; };
+        public boolean mustHaveEvenDims()  { return true; }
     },
     IMGSEQ_PNG(I.VID_IMG_SEQ_PNG_DESCRIPTION(), "png",
                JavaImageFormat.PNG)
@@ -134,11 +134,11 @@ public enum VideoFormat {
     public String toString() { return _guiName.getLocalizedMessage(); }
     public @Nonnull String getCmdLine() { return _sCmdLineId; }
     public boolean isAvailable() {
-        return _eImgFmt == null ? true : _eImgFmt.isAvailable();
+        return _eImgFmt == null || _eImgFmt.isAvailable();
     }
 
     public boolean isCroppable() { return true; }
-    public boolean mustHaveEvenDims()  { return false; };
+    public boolean mustHaveEvenDims()  { return false; }
 
     public int getDecodeQualityCount() { return MdecDecodeQuality.values().length; }
     public @Nonnull MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.values()[i]; }
@@ -165,11 +165,11 @@ public enum VideoFormat {
     }
 
     public static @Nonnull List<VideoFormat> getAvailable() {
-        ArrayList<VideoFormat> avalable = new ArrayList<VideoFormat>();
+        ArrayList<VideoFormat> available = new ArrayList<VideoFormat>();
         for (VideoFormat fmt : values()) {
             if (fmt.isAvailable())
-                avalable.add(fmt);
+                available.add(fmt);
         }
-        return avalable;
+        return available;
     }
 }

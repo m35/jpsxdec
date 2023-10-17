@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,7 +43,7 @@ import javax.annotation.Nonnull;
 
 
 /** 2336 sectors only include the raw {@link CdSectorXaSubHeader}, but not the
- *  {@link CdxaHeader}. */
+ *  {@link CdSectorHeader}. */
 public class CdSector2336 extends CdSector {
 
     /* ---------------------------------------------------------------------- */
@@ -57,9 +57,9 @@ public class CdSector2336 extends CdSector {
     private final Type _type;
 
     public CdSector2336(int iSectorIndex, @Nonnull byte[] abSectorBytes,
-                        int iByteStartOffset, long lngFilePointer)
+                        int iByteStartOffset, int iFilePointer)
     {
-        super(iSectorIndex, abSectorBytes, iByteStartOffset, lngFilePointer);
+        super(iSectorIndex, abSectorBytes, iByteStartOffset, iFilePointer);
         if (iByteStartOffset + SECTOR_SIZE_2336_BIN_NOSYNC > abSectorBytes.length)
             throw new IllegalArgumentException();
         _subHeader = new CdSectorXaSubHeader(iSectorIndex, abSectorBytes, iByteStartOffset);

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2020  Michael Sabin
+ * Copyright (C) 2015-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -174,7 +174,7 @@ public class XaAdpcmEncoder implements Closeable {
      * (for 4 bits/sample), or 2016 sample frames (for 8 bits/sample).
      * And returns 2304 bytes. Note that the
      * last 20 bytes of the sector are not included in the output.
-     * @throws EOFException if the underlying audio input stream stream is exhausted
+     * @throws EOFException if the underlying audio input stream is exhausted
      * @throws IOException if there is an error reading from the underlying audio input stream
      */
     public @Nonnull byte[] encode1Sector() throws EOFException, IOException {

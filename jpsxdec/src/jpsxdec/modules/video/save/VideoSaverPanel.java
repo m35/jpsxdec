@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -64,19 +64,19 @@ public abstract class VideoSaverPanel<T extends VideoSaverBuilder> extends Parag
         _bl = bl;
         _bl.addListeners(
             new FileName(),
-            new VideoFormat(),
+            new VideoFormatCombo(),
             new Crop(),
             new DecodeQuality(),
             new ChromaUpsampling()
         );
     }
 
-    private class VideoFormat extends AbstractCombo {
-        public VideoFormat() { super(I.GUI_VIDEO_FORMAT_LABEL(), true); }
+    private class VideoFormatCombo extends AbstractCombo<VideoFormat> {
+        public VideoFormatCombo() { super(I.GUI_VIDEO_FORMAT_LABEL(), true); }
         public int getSize() {
             return _bl.getBuilder().getVideoFormat_listSize();
         }
-        public Object getElementAt(int index) {
+        public VideoFormat getElementAt(int index) {
             return _bl.getBuilder().getVideoFormat_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
@@ -88,18 +88,18 @@ public abstract class VideoSaverPanel<T extends VideoSaverBuilder> extends Parag
         protected boolean getEnabled() { return true; }
     }
 
-    private class DecodeQuality extends AbstractCombo {
+    private class DecodeQuality extends AbstractCombo<MdecDecodeQuality> {
         public DecodeQuality() { super(I.GUI_DECODE_QUALITY_LABEL(), true); }
         public int getSize() {
             return _bl.getBuilder().getDecodeQuality_listSize();
         }
-        public Object getElementAt(int index) {
+        public MdecDecodeQuality getElementAt(int index) {
             return _bl.getBuilder().getDecodeQuality_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
             _bl.getBuilder().setDecodeQuality((MdecDecodeQuality) anItem);
         }
-        public Object getSelectedItem() {
+        public MdecDecodeQuality getSelectedItem() {
             return _bl.getBuilder().getDecodeQuality();
         }
         protected boolean getEnabled() {
@@ -108,18 +108,18 @@ public abstract class VideoSaverPanel<T extends VideoSaverBuilder> extends Parag
     }
 
 
-    private class ChromaUpsampling extends AbstractCombo {
+    private class ChromaUpsampling extends AbstractCombo<ChromaUpsample> {
         public ChromaUpsampling() { super(I.GUI_CHROMA_UPSAMPLING_LABEL(), true); }
         public int getSize() {
             return _bl.getBuilder().getChromaInterpolation_listSize();
         }
-        public Object getElementAt(int index) {
+        public ChromaUpsample getElementAt(int index) {
             return _bl.getBuilder().getChromaInterpolation_listItem(index);
         }
         public void setSelectedItem(Object anItem) {
             _bl.getBuilder().setChromaInterpolation((ChromaUpsample) anItem);
         }
-        public Object getSelectedItem() {
+        public ChromaUpsample getSelectedItem() {
             return _bl.getBuilder().getChromaInterpolation();
         }
         protected boolean getEnabled() {

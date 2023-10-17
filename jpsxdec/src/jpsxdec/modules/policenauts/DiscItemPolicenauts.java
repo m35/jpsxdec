@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,14 +52,14 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
+import jpsxdec.modules.audio.DecodedAudioPacket;
 import jpsxdec.modules.video.IDemuxedFrame;
+import jpsxdec.modules.video.ISectorClaimToFrameAndAudio;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IFrameNumberFormatterWithHeader;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.packetbased.DiscItemPacketBasedVideoStream;
-import jpsxdec.modules.video.packetbased.SectorClaimToAudioAndFrame;
 import jpsxdec.util.Fraction;
 
 /** @see SPacket */
@@ -111,18 +111,13 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
     }
 
     @Override
-    public FrameNumber getEndFrame() {
+    public @Nonnull FrameNumber getEndFrame() {
         return _timestampFrameNumberFormat.getEndFrame(_indexSectorFrameNumberFormat);
     }
 
     @Override
     public @Nonnull List<FrameNumber.Type> getFrameNumberTypes() {
         return Arrays.asList(FrameNumber.Type.Index, FrameNumber.Type.Header, FrameNumber.Type.Sector);
-    }
-
-    @Override
-    protected double getPacketBasedFpsInterestingDescription() {
-        return SPacket.FRAMES_PER_SECOND.asDouble();
     }
 
     @Override
@@ -136,18 +131,14 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
     }
 
     @Override
-    public @Nonnull SectorClaimToAudioAndFrame makeAudioVideoDemuxer(double dblVolume) {
-        return new Demuxer(getWidth(), getHeight(), getStartSector(), dblVolume,
-                _timestampFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat));
+    public @Nonnull ISectorClaimToFrameAndAudio makeVideoAudioStream(double dblVolume) {
+        return new Stream(dblVolume,
+                          _timestampFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat));
     }
 
-    public class Demuxer extends SectorClaimToAudioAndFrame
-                         implements PolicenautsSectorToPacket.Listener
-    {
-        private final int _iWidth, _iHeight;
+    public class Stream implements ISectorClaimToFrameAndAudio, PolicenautsSectorToPacket.Listener {
         @Nonnull
         private final IFrameNumberFormatterWithHeader _fnf;
-        private final int _iStartSector;
 
         @CheckForNull
         private IDemuxedFrame.Listener _frameListener;
@@ -164,12 +155,9 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
 
         private final ByteArrayOutputStream _pcmOut = new ByteArrayOutputStream();
 
-        public Demuxer(int iWidth, int iHeight, int iStartSector, double dblVolume,
-                       @Nonnull IFrameNumberFormatterWithHeader fnf)
+        public Stream(double dblVolume,
+                      @Nonnull IFrameNumberFormatterWithHeader fnf)
         {
-            _iWidth = iWidth;
-            _iHeight = iHeight;
-            _iStartSector = iStartSector;
             _audioDecoder = new SpuAdpcmDecoder.Mono(dblVolume);
             _fnf = fnf;
         }
@@ -205,18 +193,18 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
                         _zeroTimestampOffset = _zeroTimestampOffset.add(SPacket.SECTORS150_PER_TIMESTAMP.multiply(_iPrevDuration));
                     }
                     //System.out.println(_zeroTimestampOffset + " -------- " + packet);
-                    Fraction close = SPacket.SECTORS150_PER_TIMESTAMP.multiply(packet.getTimestamp()).add(_iStartSector).add(_zeroTimestampOffset);
+                    Fraction close = SPacket.SECTORS150_PER_TIMESTAMP.multiply(packet.getTimestamp()).add(getStartSector()).add(_zeroTimestampOffset);
                     _blnPrevTimestampWas0 = packet.getTimestamp() == 0;
                     _iPrevDuration = packet.getDuration();
                     packet.decodeAudio(_audioDecoder, _pcmOut);
-                    DecodedAudioPacket aup = new DecodedAudioPacket(0, SPacket.AUDIO_FORMAT, close, _pcmOut.toByteArray());
+                    DecodedAudioPacket aup = new DecodedAudioPacket(0, SPacket.AUDIO_FORMAT, _pcmOut.toByteArray(), close);
                     _audioListener.audioPacketComplete(aup, log);
                 }
             } else if (packet.isVideo()) {
                 FrameNumber fn = _fnf.next(packet.getStartSector(), packet.getTimestamp(), log);
                 if (_frameListener != null) {
-                    _frameListener.frameComplete(new DemuxedPolicenautsFrame(_iWidth, _iHeight, packet, fn,
-                            SPacket.SECTORS150_PER_TIMESTAMP.multiply(packet.getTimestamp()).add(_iStartSector)));
+                    _frameListener.frameComplete(new DemuxedPolicenautsFrame(getWidth(), getHeight(), packet, fn,
+                            SPacket.SECTORS150_PER_TIMESTAMP.multiply(packet.getTimestamp()).add(getStartSector())));
                 }
             }
         }
@@ -234,6 +222,11 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
         @Override
         public void setAudioListener(@Nonnull DecodedAudioPacket.Listener listener) {
             _audioListener = listener;
+        }
+
+        @Override
+        public boolean hasAudio() {
+            return true;
         }
 
         @Override
@@ -264,11 +257,6 @@ public class DiscItemPolicenauts extends DiscItemPacketBasedVideoStream {
         @Override
         public int getSampleFramesPerSecond() {
             return SPacket.AUDIO_SAMPLE_FRAMES_PER_SECOND;
-        }
-
-        @Override
-        public int getDiscSpeed() {
-            return 2;
         }
 
     }

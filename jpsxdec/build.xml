@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="jpsxdec" default="zip" basedir=".">
 
-    <!-- Set JAVA_HOME to 1.6 jdk directory before running this build -->
+    <!-- Set JAVA_HOME to JDK 8 directory before running this build
+    to ensure no future API is being used. -->
+
+    <property name="javac.target.ver" value="1.8"/>
+    <property name="javac.source.ver" value="1.8" />
 
     <description>
         Build jPSXdec for releasing.
@@ -9,19 +13,29 @@
 
     <!-- ====== global build properties ====== -->
     
-    <property name="jpsxdec.ver" value="v1-06-beta"/>
+    <property name="jpsxdec.ver" value="v2.0"/>
+
+    <!--
+     Pass additional options to javac using -Djavac.args=something
+     For example, to build with any javac version:
+        ant build -Djavac.args=-Xlint:-options
+    -->
+    <property name="javac.args" value="" />
 
     <!-- sources -->
-    <property name="src.dir.rel"      location="src"      relative="true"/>
-    <property name="src-lgpl.dir.rel" location="src-lgpl" relative="true"/>
-    <property name="test.dir.rel"     location="test"     relative="true"/>
-    <property name="doc.dir.rel"      location="doc"      relative="true"/>
-    <property name="doc.dir.rel"      location="doc"      relative="true"/>
+    <property name="src.dir.relative"       location="src"       relative="true"/>
+    <property name="src-lib.dir.relative"   location="src-lib"   relative="true"/>
+    <property name="src-lgpl.dir.relative"  location="src-lgpl"  relative="true"/>
+    <property name="test.dir.relative"      location="test"      relative="true"/>
+    <property name="lib-tools.dir.relative" location="lib-tools" relative="true"/>
+    <property name="doc.dir.relative"       location="doc"       relative="true"/>
 
-    <property name="src.dir"      location="${src.dir.rel}"      />
-    <property name="src-lgpl.dir" location="${src-lgpl.dir.rel}" />
-    <property name="test.dir"     location="${test.dir.rel}"     />
-    <property name="doc.dir"      location="${doc.dir.rel}"      />
+    <property name="src.dir"       location="${src.dir.relative}"      />
+    <property name="src-lib.dir"   location="${src-lib.dir.relative}"  />
+    <property name="src-lgpl.dir"  location="${src-lgpl.dir.relative}" />
+    <property name="test.dir"      location="${test.dir.relative}"     />
+    <property name="lib-tools.dir" location="${lib-tools.dir.relative}"/>
+    <property name="doc.dir"       location="${doc.dir.relative}"      />
 
     <property name="main.class" value="jpsxdec.Main" />
     <property name="jpsxdec.manual" value="jPSXdec-manual.odt" />
@@ -33,9 +47,9 @@
     />
     
     <fileset dir="." id="release.include.files">
-        <include name="${doc.dir.rel}/*" />
-        <exclude name="${doc.dir.rel}/${jpsxdec.manual}" />
         <include name="jpsxdec.exe" />
+        <include name="${doc.dir.relative}/*" />
+        <exclude name="${doc.dir.relative}/${jpsxdec.manual}" />
     </fileset>
     
     <!-- build -->
@@ -46,16 +60,13 @@
     <property name="build-lgpl.dir" location="${working.dir}/build-lgpl"/>
     <property name="testbuild.dir"  location="${working.dir}/build-test"/>
 
-    <property name="javac.target.ver" value="1.6"/>
-    <property name="javac.source.ver" value="1.6" />
-
     <!-- output -->
-    <property name="release.dir"       location="${working.dir}/release"/>
-    <property name="jar.file"      value="jpsxdec.jar" />
-    <property name="jar-lgpl.file" value="jpsxdec-lib.jar" />
+    <property name="release.dir"    location="${working.dir}/release"/>
+    <property name="jar.file"       value="jpsxdec.jar" />
+    <property name="jar-lgpl.file"  value="jpsxdec-lib.jar" />
     <property name="javadoc.dir"    location="${working.dir}/javadoc"/>
     <property name="zip.dir"        location="${working.dir}"/>
-    <property name="jpsxdec.manual.pdf.path" location="${release.dir}/${doc.dir.rel}/${jpsxdec.manual.pdf}"/>
+    <property name="jpsxdec.manual.pdf.path" location="${release.dir}/${doc.dir.relative}/${jpsxdec.manual.pdf}"/>
     
 
     <target name="init">
@@ -64,31 +75,35 @@
         <echo>java.version = ${java.version}</echo>
     </target>
 
-    <target name="compile-lgpl" depends="init" description="compile the LGPL source" >
-        <echo>Be sure to set JAVA_HOME to 1.6 jdk directory before building.</echo>
-        <!-- Create the lgpl build directory -->
-        <mkdir dir="${build-lgpl.dir}"/>
-        <javac srcdir="${src-lgpl.dir}" destdir="${build-lgpl.dir}" includeantruntime="false"
-            source="${javac.source.ver}" target="${javac.target.ver}"
-               encoding="UTF-8" debug="true">
-            <compilerarg value="-Xlint:finally"/>
-            <compilerarg value="-Xlint:deprecation"/>
-            <compilerarg value="-Xlint:options"/>
-            <compilerarg value="-Xlint:overrides"/>
-            <compilerarg value="-Xlint:rawtypes"/>
-            <compilerarg value="-Xlint:static"/>
-            <compilerarg value="-Xlint:unchecked"/>
-            <compilerarg value="-Xlint:varargs"/>
-            <compilerarg value="-Werror"/>
-        </javac>
+    <!-- =================================================================   -->
+    <!-- Build 3rd party libraries -->
 
-        <!-- Copy over resources -->
-        <copy todir="${build-lgpl.dir}" verbose="true">
-            <fileset dir="${src-lgpl.dir}" excludes="${resource.exclude.glob}" />
-        </copy>
+    <macrodef name="build-lib">
+        <attribute name="src.dir"/>
+        <attribute name="dest.dir"/>
+        <sequential>
+            <echo>Be sure to set JAVA_HOME to the JDK 8 directory before building.</echo>
+            <!-- Create the lgpl build directory -->
+            <mkdir dir="@{dest.dir}"/>
+            <javac srcdir="@{src.dir}" destdir="@{dest.dir}" includeantruntime="false"
+                   source="${javac.source.ver}" target="${javac.target.ver}" encoding="UTF-8" debug="true">
+                <!-- Warn about all the things, but don't fail on warnings.
+                The libraries need work to replace uses of API that is marked for removal. -->
+                <compilerarg value="-Xlint:all"/>
+            </javac>
+
+            <!-- Copy over resources -->
+            <copy todir="@{dest.dir}" verbose="true">
+                <fileset dir="@{src.dir}" excludes="${resource.exclude.glob}" />
+            </copy>
+        </sequential>
+    </macrodef>
+
+    <target name="compile-src-lgpl" depends="init" description="compile the LGPL source" >
+        <build-lib src.dir="${src-lgpl.dir}" dest.dir="${build-lgpl.dir}"/>
     </target>
 
-    <target name="package-lgpl" depends="compile-lgpl" description="package the LGPL code" >
+    <target name="package-lgpl" depends="compile-src-lgpl" description="package the LGPL code" >
         <!-- Create the distribution directory -->
         <mkdir dir="${release.dir}"/>
 
@@ -96,23 +111,25 @@
         <jar destfile="${release.dir}/${jar-lgpl.file}" basedir="${build-lgpl.dir}" compress="true" />
     </target>
 
+    <target name="compile-src-lib" depends="init" description="compile other libraries" >
+        <build-lib src.dir="${src-lib.dir}" dest.dir="${build.dir}"/>
+    </target>
 
-    <target name="compile" depends="package-lgpl" description="compile the jPSXdec source" >
-        <echo>Be sure to set JAVA_HOME to 1.6 jdk directory before building.</echo>
+    <!-- =================================================================   -->
+    <!-- Build jPSXdec -->
+
+    <target name="compile" depends="package-lgpl,compile-src-lib" description="compile the jPSXdec source" >
+        <echo>Be sure to set JAVA_HOME to JDK 8 directory before building.</echo>
         <!-- Create the build directory -->
         <mkdir dir="${build.dir}"/>
         <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
             source="${javac.source.ver}" classpath="${release.dir}/${jar-lgpl.file}"
                target="${javac.target.ver}" encoding="UTF-8" debug="true">
-            <compilerarg value="-Xlint:finally"/>
-            <compilerarg value="-Xlint:deprecation"/>
-            <compilerarg value="-Xlint:options"/>
-            <compilerarg value="-Xlint:overrides"/>
-            <compilerarg value="-Xlint:rawtypes"/>
-            <compilerarg value="-Xlint:static"/>
-            <compilerarg value="-Xlint:unchecked"/>
-            <compilerarg value="-Xlint:varargs"/>
+            <compilerarg value="-Xlint:all"/>
+            <compilerarg value="-Xlint:-cast"/>
+            <compilerarg value="-Xlint:-serial"/>
             <compilerarg value="-Werror"/>
+            <compilerarg line="${javac.args}"/>
         </javac>
             
         <!-- Copy over resources -->
@@ -134,35 +151,40 @@
         </jar>
     </target>
 
-    <target name="check-manual-converted" description="convert the manual to pdf using [Open|Libre]Office" >
-        <mkdir dir="${release.dir}/${doc.dir.rel}"/>
-        <available file="${jpsxdec.manual.pdf.path}" property="jpsxdec.manual.converted"/>
-        <fail unless="jpsxdec.manual.converted">
-Manually convert manual to pdf using [Open|Libre]Office to continue build
-    -Save as ${jpsxdec.manual.pdf.path}
-    -Use Lossless compression
-    -Do not reduce image resolution
-    -Export bookmarks
-    -Do not create PDF form
-    -Leave everything else default
-        </fail>
-    </target>
+    <!-- =================================================================   -->
+    <!-- Packaging -->
 
-    <target name="release" depends="package,check-manual-converted" description="finish the distribution" >
+    <target name="release" depends="package" description="finish the distribution" >
+
+        <mkdir dir="${release.dir}/${doc.dir.relative}"/>
         <!-- Copy over the distribution files -->
         <copy todir="${release.dir}" verbose="true">
             <fileset refid="release.include.files" />
         </copy>
+
+        <!-- Make sure the manual was converted to .pdf -->
+        <available file="${jpsxdec.manual.pdf.path}" property="jpsxdec.manual.converted"/>
+        <fail unless="jpsxdec.manual.converted">
+            Manually convert manual to pdf using [Open|Libre]Office to continue build
+            -Save as ${jpsxdec.manual.pdf.path}
+            -Use Lossless compression
+            -Do not reduce image resolution
+            -Export bookmarks
+            -Do not create PDF form
+            -Leave everything else default
+        </fail>
     </target>
 
     <target name="zip-src" description="zip the source files" >
         <mkdir dir="${zip.dir}"/>
         <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}_src.zip" duplicate="fail">
             <zipfileset prefix="jpsxdec_${jpsxdec.ver}_src" dir="." >
-                <include name="${doc.dir.rel}/**"/>
-                <include name="${src.dir.rel}/**"/>
-                <include name="${src-lgpl.dir.rel}/**"/>
-                <include name="${test.dir.rel}/**"/>
+                <include name="${doc.dir.relative}/**"/>
+                <include name="${src.dir.relative}/**"/>
+                <include name="${src-lib.dir.relative}/**"/>
+                <include name="${src-lgpl.dir.relative}/**"/>
+                <include name="${test.dir.relative}/**"/>
+                <include name="${lib-tools.dir.relative}/**"/>
             </zipfileset>
             <zipfileset prefix="jpsxdec_${jpsxdec.ver}_src" dir="." includes="*" excludes="PlayStation1_STR_format.txt">
                 <type type="file"/>
@@ -187,22 +209,24 @@ Manually convert manual to pdf using [Open|Libre]Office to continue build
     
     <target name="zip" depends="zip-release,zip-src,zip-bin-src" description="zip all the things"></target>
 
+    <!-- =================================================================   -->
+
     <target name="test" depends="compile" description="build and run tests">
-        <fail message="Found Java version ${ant.java.version}. Java version must be at least 1.6.">
-          <condition>
-            <equals arg1="${ant.java.version}" arg2="1.6"/>
-          </condition>
+        <fail message="Found Java version ${ant.java.version}. Java version must be 8.">
+            <condition>
+                <not><equals arg1="${ant.java.version}" arg2="${javac.source.ver}"/></not>
+            </condition>
         </fail>        
-        <echo>Be sure junit jar (at least verion 4) is in the classpath or local directory or build will fail.</echo>
         <path id="test-classpath">
             <pathelement location="${build.dir}"/>
             <pathelement location="${build-lgpl.dir}"/>
-            <fileset dir="." includes="junit*.jar" />
+            <fileset dir="${lib-tools.dir}" includes="junit-4.13.2.jar" />
+            <fileset dir="${lib-tools.dir}" includes="hamcrest-core-1.3.jar" />
         </path>
         <!-- Make test dir and compile tests -->
         <mkdir dir="${testbuild.dir}"/>
-        <javac srcdir="${test.dir}" destdir="${testbuild.dir}" debug="true"
-               includeantruntime="false" source="1.6" target="1.6" >
+        <javac srcdir="${test.dir}" destdir="${testbuild.dir}" includeantruntime="false"
+            source="${javac.source.ver}" target="${javac.target.ver}" encoding="UTF-8" debug="true">
             <classpath refid="test-classpath"/>
         </javac>
         <!-- Copy over test resources -->

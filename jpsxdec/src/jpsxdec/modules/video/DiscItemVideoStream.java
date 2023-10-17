@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2020  Michael Sabin
+ * Copyright (C) 2012-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,6 @@
 
 package jpsxdec.modules.video;
 
-import java.io.PrintStream;
 import java.util.List;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.ICdSectorReader;
@@ -45,17 +44,9 @@ import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
-import jpsxdec.i18n.log.DebugLogger;
-import jpsxdec.modules.IIdentifiedSector;
-import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.save.VideoSaverBuilder;
-import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
-import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
-import jpsxdec.psxvideo.mdec.ParsedMdecImage;
-import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.player.PlayController;
 
 /** Represents all variations of PlayStation video streams. */
@@ -135,60 +126,6 @@ public abstract class DiscItemVideoStream extends DiscItem {
 
     abstract public @Nonnull PlayController makePlayController();
 
-    /** Creates a demuxer that can handle frames in this video. */
-    abstract public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer();
-
     @Override
     abstract public @Nonnull VideoSaverBuilder makeSaverBuilder();
-
-    final public void frameInfoDump(@Nonnull final PrintStream ps, final boolean blnMore) {
-        ISectorClaimToDemuxedFrame demuxer = makeDemuxer();
-        demuxer.setFrameListener(new IDemuxedFrame.Listener() {
-            @Override
-            public void frameComplete(IDemuxedFrame frame) {
-                MdecInputStream mis = frame.getCustomFrameMdecStream();
-                try {
-
-                    if (mis != null) {
-                        ps.println(frame);
-
-                        ps.println("Frame data info: " + mis);
-                        if (blnMore) {
-                            ParsedMdecImage parsed = new ParsedMdecImage(mis, getWidth(), getHeight());
-                            parsed.drawMacroBlocks(ps);
-                        }
-                    } else {
-                        try {
-                            SectorBasedFrameAnalysis frameAnalysis = SectorBasedFrameAnalysis.create(frame);
-                            frameAnalysis.printInfo(ps);
-                            if (blnMore)
-                                frameAnalysis.drawMacroBlocks(ps);
-                        } catch (BinaryDataNotRecognized ex) {
-                            ps.println("Frame not recognized");
-                            ex.printStackTrace(ps);
-                        }
-                    }
-                } catch (MdecException.EndOfStream ex) {
-                    ex.printStackTrace(ps);
-                } catch (MdecException.ReadCorruption ex) {
-                    ex.printStackTrace(ps);
-                }
-
-                System.out.println("_____________________________________________________________________");
-            }
-        });
-
-        System.out.println(this);
-        SectorClaimSystem it = createClaimSystem();
-        demuxer.attachToSectorClaimer(it);
-        try {
-            while (it.hasNext()) {
-                IIdentifiedSector sector = it.next(DebugLogger.Log);
-            }
-            it.flush(DebugLogger.Log);
-        } catch (Exception ex) {
-            throw new RuntimeException("Error with dev tool", ex);
-        }
-    }
-
 }

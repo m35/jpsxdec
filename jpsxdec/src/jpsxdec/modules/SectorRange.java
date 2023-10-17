@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,6 +47,14 @@ public class SectorRange {
     public SectorRange(int iStartSector, int iEndSectorInclusive) {
         _iStartSector = iStartSector;
         _iEndSectorInclusive = iEndSectorInclusive;
+    }
+
+    public int getStartSector() {
+        return _iStartSector;
+    }
+
+    public int getEndSector() {
+        return _iEndSectorInclusive;
     }
 
     public boolean sectorIsInRange(int iSectorNumber) {

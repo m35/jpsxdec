@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,9 +56,9 @@ public class SectorDreddVideo extends IdentifiedSector
 {
 
     /** Frame chunk number from first 4 bytes. */
-    private int _iChunk;
+    private final int _iChunk;
     /** Dredd sector header size is either 4 or 44. */
-    private int _iHeaderSize;
+    private final int _iHeaderSize;
 
     @Override
     public int getVideoSectorHeaderSize() { return _iHeaderSize; }

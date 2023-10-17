@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,9 @@
 
 package jpsxdec.modules.xa;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -159,12 +161,12 @@ public class XaAudioFormat {
                this.blnIsStereo == other.blnIsStereo;
     }
 
-    public int calculateDiscSpeed(int iSectorStride) {
+    public @CheckForNull DiscSpeed calculateDiscSpeed(int iSectorStride) {
         return calculateDiscSpeed(iSampleFramesPerSecond, blnIsStereo, iBitsPerSample, iSectorStride);
     }
 
 
-    /** Return 1 for 1x, 2 for 2x, or -1 for impossible.
+    /** Returns null for impossible.
      * <pre>
      * Disc Speed = ( Samples/sec * Mono/Stereo * Stride * Bits/sample ) / 16128
      *
@@ -217,13 +219,15 @@ public class XaAudioFormat {
      *   37800           2           8          16     invalid
      *   37800           2           8          32     invalid
      *</pre>*/
-    private static int calculateDiscSpeed(int iSamplesPerSecond,
-                                          boolean blnStereo,
-                                          int iBitsPerSample,
-                                          int iSectorStride)
+    private static @CheckForNull DiscSpeed calculateDiscSpeed(int iSamplesPerSecond,
+                                                              boolean blnStereo,
+                                                              int iBitsPerSample,
+                                                              int iSectorStride)
     {
-        if (iSectorStride < 1)
-            return -1;
+        if (iSectorStride < 0)
+            throw new IllegalArgumentException();
+        if (iSectorStride == 0)
+            return null;
 
         int iDiscSpeed_x_16128 = iSamplesPerSecond *
                                (blnStereo ? 2 : 1) *
@@ -231,11 +235,11 @@ public class XaAudioFormat {
                                 iBitsPerSample;
 
         if (iDiscSpeed_x_16128 == 75 * 16128)
-            return 1; // 1x = 75 sectors/sec
+            return DiscSpeed.SINGLE; // 1x = 75 sectors/sec
         else if (iDiscSpeed_x_16128 == 150 * 16128)
-            return 2; // 2x = 150 sectors/sec
+            return DiscSpeed.DOUBLE; // 2x = 150 sectors/sec
         else
-            return -1;
+            return null;
     }
 
 

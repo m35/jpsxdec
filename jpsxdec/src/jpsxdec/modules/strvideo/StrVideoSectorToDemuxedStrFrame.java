@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2020  Michael Sabin
+ * Copyright (C) 2015-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
+import jpsxdec.modules.video.sectorbased.SectorBasedDemuxedFrameWithNumberAndDims;
 
 /** Converts video sectors to video frames. */
 public class StrVideoSectorToDemuxedStrFrame implements IdentifiedSectorListener<ISelfDemuxingVideoSector> {
@@ -52,13 +52,13 @@ public class StrVideoSectorToDemuxedStrFrame implements IdentifiedSectorListener
     @Nonnull
     private final SectorRange _sectorRange;
     @Nonnull
-    private final DemuxedFrameWithNumberAndDims.Listener _listener;
+    private final SectorBasedDemuxedFrameWithNumberAndDims.Listener _listener;
 
     @CheckForNull
     private ISelfDemuxingVideoSector.IDemuxer _currentFrame;
 
     public StrVideoSectorToDemuxedStrFrame(@Nonnull SectorRange sectorRange,
-                                           @Nonnull DemuxedFrameWithNumberAndDims.Listener listener)
+                                           @Nonnull SectorBasedDemuxedFrameWithNumberAndDims.Listener listener)
     {
         _sectorRange = sectorRange;
         _listener = listener;
@@ -98,19 +98,16 @@ public class StrVideoSectorToDemuxedStrFrame implements IdentifiedSectorListener
     private void endFrame(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (_currentFrame == null)
             return;
-        if (_listener != null) {
-            DemuxedFrameWithNumberAndDims frame = _currentFrame.finishFrame(log);
-            if (frame != null)
-                _listener.frameComplete(frame, log);
-        }
+        SectorBasedDemuxedFrameWithNumberAndDims frame = _currentFrame.finishFrame(log);
+        if (frame != null)
+            _listener.frameComplete(frame, log);
         _currentFrame = null;
     }
 
     @Override
     public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         endFrame(log);
-        if (_listener != null)
-            _listener.endOfSectors(log);
+        _listener.endOfSectors(log);
     }
 
 }

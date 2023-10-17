@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -63,12 +63,12 @@ public class ZeroRunLengthAc {
         _blnIsEndOfBlock = false;
     }
 
-    /** If this is a special AC code without an MDEC equialent. */
+    /** If this is a special AC code without an MDEC equivalent. */
     public ZeroRunLengthAc(@Nonnull BitStreamCode bitStreamCode, boolean blnIsEscapeCode, boolean blnIsEndOfBlock) {
         this(bitStreamCode, null, blnIsEscapeCode, blnIsEndOfBlock);
     }
 
-    /** If this is a special AC code with an MDEC equialent. */
+    /** If this is a special AC code with an MDEC equivalent. */
     public ZeroRunLengthAc(@Nonnull BitStreamCode bitStreamCode,
                            int iZeroRunLength, int iAcCoefficient,
                            boolean blnIsEscapeCode, boolean blnIsEndOfBlock)
@@ -76,7 +76,7 @@ public class ZeroRunLengthAc {
         this(bitStreamCode, new MdecCode(iZeroRunLength, iAcCoefficient), blnIsEscapeCode, blnIsEndOfBlock);
     }
 
-    /** If this is a special AC code with an MDEC equialent. */
+    /** If this is a special AC code with an MDEC equivalent. */
     private ZeroRunLengthAc(@Nonnull BitStreamCode bitStreamCode,
                             @CheckForNull MdecCode mdecCode,
                             boolean blnIsEscapeCode, boolean blnIsEndOfBlock)

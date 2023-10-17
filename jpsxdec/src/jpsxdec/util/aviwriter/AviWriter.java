@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -90,6 +90,19 @@ import jpsxdec.util.aviwriter.AVIOLDINDEX.AVIOLDINDEXENTRY;
  */
 public abstract class AviWriter implements Closeable {
 
+    public static boolean MOCK_WRITING = false;
+
+    private static RandomAccessFile openFileForWriting(@Nonnull File outputFile)
+            throws FileNotFoundException, IOException
+    {
+        RandomAccessFile raf;
+        if (MOCK_WRITING)
+            raf = Md5RandomAccessFile.newThreadMd5Raf();
+        else
+            raf = new RandomAccessFile(outputFile, "rw");
+        return raf;
+    }
+
     /** Enable logging of every chunk written to the AVI. */
     private static final boolean DEBUG = false;
 
@@ -146,7 +159,7 @@ public abstract class AviWriter implements Closeable {
         return _lngFpsNumerator;
     }
     /** Denominator of the frames/second fraction. */
-    public long getFramesperSecDenom() {
+    public long getFramesPerSecDenom() {
         return _lngFpsDenominator;
     }
     public int getWidth() {
@@ -216,15 +229,15 @@ public abstract class AviWriter implements Closeable {
     // -- Constructors ---------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    private static @Nonnull String getMeta() {
+    private static @Nonnull byte[] getMeta() {
         String sMeta = System.getProperty("meta");
         if (sMeta == null)
             sMeta = I.JPSXDEC_VERSION_NON_COMMERCIAL(Version.Version).getEnglishMessage();
-        return sMeta;
+        return Misc.stringToAscii(sMeta);
     }
 
     /** Audio data must be signed 16-bit PCM in little-endian order. */
-    protected AviWriter(final @Nonnull File outputfile,
+    protected AviWriter(final @Nonnull File outputFile,
                         final int iWidth, final int iHeight,
                         final long lngFrames, final long lngPerSecond,
                         final @CheckForNull AudioFormat audioFormat,
@@ -233,7 +246,7 @@ public abstract class AviWriter implements Closeable {
                         final int iBytes)
             throws FileNotFoundException, IOException
     {
-        _outputFile = outputfile;
+        _outputFile = outputFile;
 
         _blnCompressedVideo = blnCompressedVideo;
         _sFourCCcodec = sFourCCcodec;
@@ -269,10 +282,10 @@ public abstract class AviWriter implements Closeable {
         }
         _audioFormat = audioFormat;
 
-        _aviFile = new RandomAccessFile(outputfile, "rw");
+        _aviFile = openFileForWriting(outputFile);
         try {
 
-        _aviFile.setLength(0); // trim the file to 0
+        _aviFile.setLength(0); // trim the file to 0 in case the file already exists
 
         //----------------------------------------------------------------------
         // Setup the header structure.
@@ -298,7 +311,7 @@ public abstract class AviWriter implements Closeable {
                     _strf_vid.endChunk(_aviFile);
 
                     _strn_vid = new Chunk(_aviFile, "strn");
-                    _aviFile.writeBytes("jPSXdec AVI    \0");
+                    _aviFile.write(Misc.stringToAscii("jPSXdec AVI    \0"));
                     _strn_vid.endChunk(_aviFile);
 
                 _LIST_strl_vid.endChunk(_aviFile);
@@ -323,7 +336,7 @@ public abstract class AviWriter implements Closeable {
 
             // some programs will use this to identify the program that wrote the avi
             Chunk JUNK_writerId = new Chunk(_aviFile, "JUNK");
-                _aviFile.writeBytes(getMeta());
+                _aviFile.write(getMeta());
                 _aviFile.write(0);
             JUNK_writerId.endChunk(_aviFile);
 
@@ -710,7 +723,7 @@ public abstract class AviWriter implements Closeable {
         return String.format("%s %s %dx%d %d/%d fps",
                              getClass().getSimpleName(), getFile(),
                              getWidth(), getHeight(),
-                             getFramesPerSecNum(), getFramesperSecDenom());
+                             getFramesPerSecNum(), getFramesPerSecDenom());
     }
 
     // -------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -55,7 +55,7 @@ public abstract class SectorFF8 extends IdentifiedSector {
 
     public static final int SHARED_HEADER_SIZE = 8;
 
-    protected final char _achHead[] = new char[4]; // [4 bytes] "SM_\1"
+    protected final char[] _achHead = new char[4]; // [4 bytes] "SM_\1"
     protected int        _iSectorNumber;           // [1 byte]
     protected int        _iSectorsInAVFrame;       // [1 byte]
     protected int        _iHeaderFrameNumber;      // [2 bytes]

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2020  Michael Sabin
+ * Copyright (C) 2013-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,7 +56,7 @@ import jpsxdec.i18n.exception.ILocalizedException;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ConsoleProgressLogger;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
+import jpsxdec.modules.audio.sectorbased.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.tim.DiscItemTim;
 import jpsxdec.modules.video.DiscItemVideoStream;
 import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
@@ -198,19 +198,19 @@ class Command_Items {
                 fbs.println(new UnlocalizedMessage(item.toString()));
                 item.makeSaverBuilder().printHelp(fbs);
             } else if (frameInfoArg.value) {
-                if (!(item instanceof DiscItemVideoStream)) {
-                    throw new CommandLineException(I.CMD_DISC_ITEM_NOT_VIDEO());
+                if (!(item instanceof DiscItemSectorBasedVideoStream)) {
+                    throw new CommandLineException(I.CMD_DISC_ITEM_NOT_STR_VIDEO());
                 } else {
-                    ((DiscItemVideoStream)item).frameInfoDump(fbs.getUnderlyingStream(),
-                                                              fbs.getLevel() >= FeedbackStream.MORE);
+                    ((DiscItemSectorBasedVideoStream)item).frameInfoDump(fbs.getUnderlyingStream(),
+                                                                         fbs.getLevel() >= FeedbackStream.MORE);
                 }
             } else if (replaceFrames.value != null) {
                 if (!(item instanceof DiscItemVideoStream)) {
-                    throw new CommandLineException(I.CMD_DISC_ITEM_NOT_VIDEO());
+                    throw new CommandLineException(I.CMD_DISC_ITEM_NOT_STR_VIDEO());
                 } else if (!(item instanceof DiscItemSectorBasedVideoStream)) {
                     throw new CommandLineException(I.CMD_DISC_ITEM_VIDEO_FRAME_REPLACE_UNSUPPORTED(item.getSerializationTypeId()));
                 } else {
-                    patcher = new DiscPatcher(item.getSourceCd());
+                    patcher = new DiscPatcher();
                     ((DiscItemSectorBasedVideoStream)item).replaceFrames(patcher, replaceFrames.value, replaceLog);
                     fbs.printlnWarn(I.CMD_BACKUP_DISC_IMAGE_WARNING());
                     fbs.printlnWarn(I.CMD_REOPENING_DISC_WRITE_ACCESS());
@@ -221,7 +221,7 @@ class Command_Items {
                     throw new CommandLineException(I.CMD_DISC_ITEM_NOT_TIM());
                 } else {
                     DiscItemTim timItem = (DiscItemTim)item;
-                    patcher = new DiscPatcher(timItem.getSourceCd());
+                    patcher = new DiscPatcher();
                     timItem.replace(patcher, new File(replaceTim.value), fbs);
                     fbs.printlnWarn(I.CMD_BACKUP_DISC_IMAGE_WARNING());
                     fbs.printlnWarn(I.CMD_REOPENING_DISC_WRITE_ACCESS());
@@ -232,7 +232,7 @@ class Command_Items {
                     throw new CommandLineException(I.CMD_DISC_ITEM_NOT_AUDIO());
                 DiscItemSectorBasedAudioStream audioItem = (DiscItemSectorBasedAudioStream)item;
 
-                patcher = new DiscPatcher(audioItem.getSourceCd());
+                patcher = new DiscPatcher();
                 audioItem.replace(patcher, new File(replaceAudio.value), replaceLog);
                 fbs.printlnWarn(I.CMD_BACKUP_DISC_IMAGE_WARNING());
                 fbs.printlnWarn(I.CMD_REOPENING_DISC_WRITE_ACCESS());
@@ -256,7 +256,7 @@ class Command_Items {
                 } catch (Throwable ex) {
                     throw new CommandLineException(I.CMD_XA_REPLACE_BAD_ITEM_NUM(xaNum.value), ex);
                 }
-                patcher = new DiscPatcher(xaItem.getSourceCd());
+                patcher = new DiscPatcher();
                 xaItem.replaceXa(patcher, patchXa, replaceLog);
                 fbs.printlnWarn(I.CMD_BACKUP_DISC_IMAGE_WARNING());
                 fbs.printlnWarn(I.CMD_REOPENING_DISC_WRITE_ACCESS());

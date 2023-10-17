@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,12 +59,11 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import jpsxdec.cdreaders.ICdSectorReader;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.CombinedBuilderListener;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItem.GeneralType;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.discitems.IndexId;
@@ -352,9 +351,8 @@ public class DiscItemISO9660File extends DiscItem {
                     CdSector cdSector;
                     try {
                         cdSector = getSourceCd().getSector(iSector);
-                    } catch (CdReadException ex) {
-                        throw new LoggedFailure(pl, Level.SEVERE, I.IO_READING_FROM_FILE_ERROR_NAME(
-                                                ex.getFile().toString()), ex);
+                    } catch (CdException.Read ex) {
+                        throw new LoggedFailure(pl, Level.SEVERE, ex.getSourceMessage(), ex);
                     }
 
                     try {

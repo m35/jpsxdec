@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,33 +41,42 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
+import jpsxdec.modules.video.sectorbased.IVideoSectorWithFrameNumber;
 import jpsxdec.modules.video.sectorbased.VideoSectorWithFrameNumberDemuxer;
 
 
 public class AconcaguaDemuxer extends VideoSectorWithFrameNumberDemuxer {
 
     private final int _iQuantizationScale;
+    private final boolean _blnIsIntroVideo;
 
     public AconcaguaDemuxer(@Nonnull SectorAconcaguaVideo firstChunk,
                             @Nonnull ILocalizedLogger log)
     {
         super(firstChunk, log);
         _iQuantizationScale = firstChunk.getQuantizationScale();
+        _blnIsIntroVideo = firstChunk.isIntroVideo();
     }
 
     @Override
     public boolean addSectorIfPartOfFrame(@Nonnull ISelfDemuxingVideoSector sector) {
         if (!(sector instanceof SectorAconcaguaVideo))
             return false;
-        if (((SectorAconcaguaVideo)sector).getQuantizationScale() != _iQuantizationScale)
+        SectorAconcaguaVideo ac = (SectorAconcaguaVideo) sector;
+        if (ac.getQuantizationScale() != _iQuantizationScale || ac.isIntroVideo() != _blnIsIntroVideo) {
             return false;
+        }
         return super.addSectorIfPartOfFrame(sector);
     }
 
     @Override
     public @Nonnull DemuxedAconcaguaFrame finishFrame(@Nonnull ILocalizedLogger log) {
-        @SuppressWarnings("unchecked")
-        List<SectorAconcaguaVideo> s = (List)getNonNullChunks(log);
-        return new DemuxedAconcaguaFrame(getWidth(), getHeight(), getHeaderFrameNumber(), s, _iQuantizationScale);
+        List<IVideoSectorWithFrameNumber> nonNullChunks = getNonNullChunks(log);
+
+        // only Aconcagua sectors could have been added to the list
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        List<SectorAconcaguaVideo> list = (List<SectorAconcaguaVideo>)(List)nonNullChunks;
+        return new DemuxedAconcaguaFrame(getWidth(), getHeight(), getHeaderFrameNumber(), list,
+                                         _iQuantizationScale, _blnIsIntroVideo);
     }
 }

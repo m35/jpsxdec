@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,18 +40,25 @@ package jpsxdec.util.player;
 import javax.annotation.Nonnull;
 import jpsxdec.util.player.PlayController.PlayerListener;
 
-/** Timer for when to present video frames. */
+/** Abstract timer for when to present video frames. */
 abstract class VideoTimer {
 
-    /** This tries to consider that there is a delay between the decision
+    /**
+     * This tries to consider that there is a delay between the decision
      * to display a frame, and the frame actually being displayed.
-     * This is a total guess. */
+     * This is a total guess.
+     * */
     private static final int FRAME_DELAY_NANO_FUDGE_TIME = 50;
 
     private static final boolean DEBUG = false;
 
     public enum ShowFrame {
-        YES, NO, CLOSED
+        /** The frame should be displayed at its given time. */
+        YES,
+        /** The frame should not be displayed, but discarded. */
+        NO,
+        /** The player has been closed so caller should shutdown. */
+        CLOSED
     }
 
     private enum State {
@@ -70,17 +77,18 @@ abstract class VideoTimer {
     }
 
     public void pause() {
-        // (hopefully) single instruction so thread safty is not needed
+        // (hopefully) single instruction so thread safety is not needed
         _state = State.PAUSED;
     }
 
     public boolean isPaused() {
-        // (hopefully) single instruction so thread safty is not needed
+        // (hopefully) single instruction so thread safety is not needed
         return _state == State.PAUSED;
     }
 
     public synchronized void terminate() {
         _state = State.TERMINATED;
+        System.out.println("Notifying timer waiters that state has changed to terminate");
         this.notifyAll();
     }
 
@@ -102,7 +110,11 @@ abstract class VideoTimer {
     }
 
     // TODO also wait for the video frame blocking queue if we want to pause if we're blocked because we're waiting for frames to be read?
-    /** Returns if the frame should be displayed. */
+    /**
+     * When this function returns {@link ShowFrame#YES} the frame should be displayed immediately.
+     * Otherwise discard the frame if {@link ShowFrame#NO} is returned, or shutdown if
+     * {@link ShowFrame#CLOSED} is returned.
+     * */
     final public synchronized @Nonnull ShowFrame waitToPresentFrame(long lngPresentationNanos) throws InterruptedException {
         while (true) {
             if (_state == State.TERMINATED) {
@@ -144,6 +156,8 @@ abstract class VideoTimer {
     }
     protected void fire(@Nonnull PlayController.Event event) {
         // listener object manages its own thread safety
+        // the caller is responsible for ensuring events are fired in the order the occurred,
+        // and not fire new events until previous ones are complete.
         _listeners.fire(event);
     }
 

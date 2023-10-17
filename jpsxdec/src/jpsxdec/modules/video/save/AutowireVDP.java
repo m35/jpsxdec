@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,34 +40,31 @@ package jpsxdec.modules.video.save;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
-import jpsxdec.modules.video.DiscItemVideoStream;
+import jpsxdec.modules.audio.DecodedAudioPacket;
+import jpsxdec.modules.audio.ISectorClaimToDecodedAudio;
 import jpsxdec.modules.video.IDemuxedFrame;
-import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
+import jpsxdec.modules.video.ISectorClaimToFrameAndAudio;
 
 /** Automatically connects all video pipeline and other components. */
 public class AutowireVDP {
 
-    /**
-     * Because some video formats have context dependent bitstreams, or in other words,
-     * the bitstream frames cannot be decoded independently, we need 2 possible publishers.
-     * @see DiscItemVideoStream#hasIndependentBitstream()
-     * @see IDemuxedFrame#getCustomFrameMdecStream()
-     */
+    private boolean _blnWired = false;
+
+    /** This is also a {@link VDP.IMdecProducer}, see its javadoc for why. */
     @CheckForNull
-    private Frame2Bitstream _frame2Bitstream;
-    public void setFrame2Bitstream(@Nonnull Frame2Bitstream frame2Bitstream) {
-        assertNull(_frame2Bitstream);
+    private Frame2BitstreamOrMdec _frame2BitstreamOrMdec;
+    public void setFrame2BitstreamOrMdec(@Nonnull Frame2BitstreamOrMdec frame2BitstreamOrMdec) {
+        assertNull(_frame2BitstreamOrMdec);
+        assertNull(_frameListener);
         assertNull(_bsProducer);
-        _frame2Bitstream = frame2Bitstream;
+        _frame2BitstreamOrMdec = frame2BitstreamOrMdec;
     }
 
     @CheckForNull
     private VDP.IBitstreamProducer _bsProducer;
     public void setBitstreamProducer(@Nonnull VDP.IBitstreamProducer publishesBs) {
-        assertNull(_frame2Bitstream);
         assertNull(_bsProducer);
+        assertNull(_frame2BitstreamOrMdec);
         _bsProducer = publishesBs;
     }
 
@@ -140,8 +137,8 @@ public class AutowireVDP {
     }
 
     // =========================================================================
-
     // compound setters
+
     public void setBitstream2Mdec(@Nonnull VDP.Bitstream2Mdec bs2mdec) {
         setMdecProducer(bs2mdec);
         setBitstreamListener(bs2mdec);
@@ -163,25 +160,49 @@ public class AutowireVDP {
     // =========================================================================
 
     public void autowire() throws IllegalStateException {
+        if (_blnWired)
+            throw new IllegalStateException("Already wired");
+        _blnWired = true;
+
+        if (_sectorClaimSystem != null) {
+            if (_sectorClaimToDecodedAudio != null)
+                _sectorClaimToDecodedAudio.attachToSectorClaimer(_sectorClaimSystem);
+            else if (_sectorClaimToFrameAndAudio != null)
+                _sectorClaimToFrameAndAudio.attachToSectorClaimer(_sectorClaimSystem);
+        }
+
+        if (_sectorClaimToDecodedAudio != null && _audioListener != null)
+            _sectorClaimToDecodedAudio.setAudioListener(_audioListener);
+
+        if (_sectorClaimToFrameAndAudio != null) {
+            if (_audioListener != null)
+                _sectorClaimToFrameAndAudio.setAudioListener(_audioListener);
+
+            if (_frameListener != null)
+                _sectorClaimToFrameAndAudio.setFrameListener(_frameListener);
+            else if (_frame2BitstreamOrMdec != null)
+                _sectorClaimToFrameAndAudio.setFrameListener(_frame2BitstreamOrMdec);
+        }
+
         if (_bitstreamListener != null) {
             if (_bsProducer != null)
                 _bsProducer.setListener(_bitstreamListener);
-            if (_frame2Bitstream != null)
-                _frame2Bitstream.setListener(_bitstreamListener);
+            else if (_frame2BitstreamOrMdec != null)
+                _frame2BitstreamOrMdec.setListener(_bitstreamListener);
         }
+
         if (_mdecListener != null) {
             if (_mdecProducer != null)
                 _mdecProducer.setListener(_mdecListener);
-            if (_frame2Bitstream != null)
-                _frame2Bitstream.setListener(_mdecListener);
+            if (_frame2BitstreamOrMdec != null)
+                _frame2BitstreamOrMdec.setListener(_mdecListener);
         }
+
         if (_decodedListener != null && _decodedProducer != null)
             _decodedProducer.setDecodedListener(_decodedListener);
+
         if (_generatedFileListener != null && _fileGenerator != null)
             _fileGenerator.setGenFileListener(_generatedFileListener);
-
-        wireSectorClaim();
-        wireAudioAndFrame();
     }
 
     // =========================================================================
@@ -189,37 +210,35 @@ public class AutowireVDP {
 
     @CheckForNull
     private SectorClaimSystem _sectorClaimSystem;
-    public void attachToSectorClaimSystem(@Nonnull SectorClaimSystem sectorClaimSystem) {
+    public void setSectorClaimSystem(@Nonnull SectorClaimSystem sectorClaimSystem) {
         assertNull(_sectorClaimSystem);
         _sectorClaimSystem = sectorClaimSystem;
     }
-
-    private void wireSectorClaim() {
-        if (_sectorClaimSystem == null)
-            return;
-        if (_sectorAudioDecoder != null)
-            _sectorAudioDecoder.attachToSectorClaimer(_sectorClaimSystem);
-        if (_sectorClaimToDemuxedFrame != null)
-            _sectorClaimToDemuxedFrame.attachToSectorClaimer(_sectorClaimSystem);
+    public @CheckForNull SectorClaimSystem getSectorClaimSystem() {
+        return _sectorClaimSystem;
     }
 
     @CheckForNull
-    private ISectorAudioDecoder _sectorAudioDecoder;
-    public void setAudioDecoder(@Nonnull ISectorAudioDecoder sectorAudioDecoder) {
-        assertNull(_sectorAudioDecoder);
-        _sectorAudioDecoder = sectorAudioDecoder;
+    private ISectorClaimToDecodedAudio _sectorClaimToDecodedAudio;
+    public void setSectorClaim2DecodedAudio(@Nonnull ISectorClaimToDecodedAudio sectorClaimToDecodedAudio) {
+        assertNull(_sectorClaimToDecodedAudio);
+        assertNull(_sectorClaimToFrameAndAudio);
+        _sectorClaimToDecodedAudio = sectorClaimToDecodedAudio;
     }
+
     @CheckForNull
-    private ISectorClaimToDemuxedFrame _sectorClaimToDemuxedFrame;
-    public void setSectorClaim2Frame(@Nonnull ISectorClaimToDemuxedFrame sectorClaimToDemuxedFrame) {
-        assertNull(_sectorClaimToDemuxedFrame);
-        _sectorClaimToDemuxedFrame = sectorClaimToDemuxedFrame;
+    private ISectorClaimToFrameAndAudio _sectorClaimToFrameAndAudio;
+    public void setSectorClaim2FrameAndAudio(@Nonnull ISectorClaimToFrameAndAudio sectorClaimToFrameAndAudio) {
+        assertNull(_sectorClaimToFrameAndAudio);
+        assertNull(_sectorClaimToDecodedAudio);
+        _sectorClaimToFrameAndAudio = sectorClaimToFrameAndAudio;
     }
 
     @CheckForNull
     private IDemuxedFrame.Listener _frameListener;
     public void setFrameListener(@Nonnull IDemuxedFrame.Listener frameListener) {
         assertNull(_frameListener);
+        assertNull(_frame2BitstreamOrMdec);
         _frameListener = frameListener;
     }
 
@@ -228,13 +247,6 @@ public class AutowireVDP {
     public void setAudioPacketListener(@Nonnull DecodedAudioPacket.Listener audioListener) {
         assertNull(_audioListener);
         _audioListener = audioListener;
-    }
-
-    private void wireAudioAndFrame() {
-        if (_sectorAudioDecoder != null && _audioListener != null)
-            _sectorAudioDecoder.setAudioListener(_audioListener);
-        if (_sectorClaimToDemuxedFrame != null && _frameListener != null)
-            _sectorClaimToDemuxedFrame.setFrameListener(_frameListener);
     }
 
     // =========================================================================

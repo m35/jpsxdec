@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,19 +49,15 @@ import javax.swing.event.ChangeListener;
 public class CombinedBuilderListener<T extends DiscItemSaverBuilder> {
     /** Controls that will be notified of any changes. */
     private final ArrayList<ChangeListener> _controlsListening = new ArrayList<ChangeListener>();
-    /** Class of {@link DiscItemSaverBuilder} that will be accepted. */
-    @Nonnull
-    private final Class<?> _cls;
     /** Current {@link DiscItemSaverBuilder} that is being listened to. */
     @Nonnull
     private T _saverBuilder;
 
-    /** The class of the supplied {@link DiscItemSaverBuilder} will the the
-     * only class accepted in the future. */
+    /** The class of the provided {@link DiscItemSaverBuilder} will be the
+     * only class accepted in {@link #changeSourceBuilder(DiscItemSaverBuilder)}. */
     public CombinedBuilderListener(@Nonnull T saverBuilder) {
         _saverBuilder = saverBuilder;
         _saverBuilder.addChangeListener(_thisChangeListener);
-        _cls = _saverBuilder.getClass();
     }
 
     /** Add controls to the list of listeners. */
@@ -75,15 +71,16 @@ public class CombinedBuilderListener<T extends DiscItemSaverBuilder> {
 
     /** Swap out the {@link DiscItemSaverBuilder} being listened to.
      * Will only accept {@link DiscItemSaverBuilder}s of the same class
-     * of the initial {@link DiscItemSaverBuilder}.
+     * as the initial {@link DiscItemSaverBuilder}.
      * All listening controls will be notified of the change.
-     * @return if the {@link DiscItemSaverBuilder} is compatible.
+     * @return if the {@link DiscItemSaverBuilder} is the same class.
      */
-    @SuppressWarnings("unchecked")
     public boolean changeSourceBuilder(@Nonnull DiscItemSaverBuilder saverBuilder) {
-        if (_cls.equals(saverBuilder.getClass())) {
-            T oldBuilder = _saverBuilder;
-            _saverBuilder = (T)saverBuilder;
+        T oldBuilder = _saverBuilder;
+        if (_saverBuilder.getClass().equals(saverBuilder.getClass())) {
+            @SuppressWarnings("unchecked") // we just confirmed the new object has the exact same class
+            T suppress = (T)saverBuilder;
+            _saverBuilder = suppress;
             oldBuilder.removeChangeListener(_thisChangeListener);
             _saverBuilder.addChangeListener(_thisChangeListener);
             ChangeEvent e = new ChangeEvent(this);

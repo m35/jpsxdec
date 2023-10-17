@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -52,7 +52,7 @@ public class BitStreamAnalysis {
     private final ParsedMdecImage _parsed;
 
     @Nonnull
-    private final BitStreamUncompressor _uncompressor;
+    private final IBitStreamUncompressor _uncompressor;
     private final boolean _blnCorrectPaddingBits;
 
     @Nonnull
@@ -63,8 +63,14 @@ public class BitStreamAnalysis {
     public BitStreamAnalysis(@Nonnull byte[] abBitstream, int iWidth, int iHeight)
             throws BinaryDataNotRecognized, MdecException.ReadCorruption, MdecException.EndOfStream
     {
+        this(abBitstream, BitStreamUncompressor.identifyUncompressor(abBitstream), iWidth, iHeight);
+    }
+
+    public BitStreamAnalysis(@Nonnull byte[] abBitstream, @Nonnull IBitStreamUncompressor uncompressor, int iWidth, int iHeight)
+            throws MdecException.ReadCorruption, MdecException.EndOfStream
+    {
         _abBitStream = abBitstream;
-        _uncompressor = BitStreamUncompressor.identifyUncompressor(_abBitStream);
+        _uncompressor = uncompressor;
 
         _parsed = new ParsedMdecImage(_uncompressor, iWidth, iHeight);
         _blnCorrectPaddingBits = _uncompressor.skipPaddingBits();
@@ -93,7 +99,7 @@ public class BitStreamAnalysis {
         return _blnCorrectPaddingBits;
     }
 
-    public @Nonnull BitStreamUncompressor getCompletedBitStream() {
+    public @Nonnull IBitStreamUncompressor getCompletedBitStream() {
         return _uncompressor;
     }
 
@@ -101,13 +107,12 @@ public class BitStreamAnalysis {
         return _uncompressor.makeCompressor();
     }
 
-    public <T extends BitStreamUncompressor> boolean isBitStreamClass(@Nonnull Class<T> bitStreamClass) {
+    public <T extends IBitStreamUncompressor> boolean isBitStreamClass(@Nonnull Class<T> bitStreamClass) {
         return bitStreamClass.isAssignableFrom(_uncompressor.getClass());
     }
 
-    @SuppressWarnings("unchecked")
-    public @Nonnull <T extends BitStreamUncompressor> Class<T> getBitStreamClass() {
-        return (Class<T>)_uncompressor.getClass();
+    public @Nonnull Class<? extends IBitStreamUncompressor> getBitStreamClass() {
+        return _uncompressor.getClass();
     }
 
     public int getMdecCodeCount() {
@@ -117,7 +122,7 @@ public class BitStreamAnalysis {
     public int calculateUsedBytesRoundUp4() {
         // The number of bytes actually used in a bitstream is a little tricky
         // since bytes are read (at least) 16-bits at a type, usually little-endian.
-        // Additionally the used bytes always seem to be rounded up to a
+        // Additionally, the used bytes always seem to be rounded up to a
         // multiple of 4.
 
         // Calculate the number of used bytes using the bits read (round up to the nearest multiple of 4)

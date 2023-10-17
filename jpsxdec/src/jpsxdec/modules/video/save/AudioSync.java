@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.modules.video.save;
 
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.util.Fraction;
 
 /** Used to ensure the writing of audio samples matches the timing of the
@@ -46,26 +47,27 @@ public class AudioSync {
 
     private final int _iFirstPresentationSector;
 
-    private final int _iSectorsPerSecond;
+    @Nonnull
+    private final DiscSpeed _discSpeed;
     private final int _iSampleFramesPerSecond;
 
     @Nonnull
     private final Fraction _sampleFramesPerSector;
 
     public AudioSync(int iFirstPresentationSector,
-                     int iSectorsPerSecond,
+                     @Nonnull DiscSpeed discSpeed,
                      int iSampleFramesPerSecond)
     {
-        _iSectorsPerSecond = iSectorsPerSecond;
+        _discSpeed = discSpeed;
         _iSampleFramesPerSecond = iSampleFramesPerSecond;
         // samples/sector = samples/second / sectors/second
-        _sampleFramesPerSector = new Fraction(_iSampleFramesPerSecond, _iSectorsPerSecond);
+        _sampleFramesPerSector = new Fraction(_iSampleFramesPerSecond, _discSpeed.getSectorsPerSecond());
 
         _iFirstPresentationSector = iFirstPresentationSector;
     }
 
     public int getSectorsPerSecond() {
-        return _iSectorsPerSecond;
+        return _discSpeed.getSectorsPerSecond();
     }
 
     public int getSampleFramesPerSecond() {
@@ -80,7 +82,7 @@ public class AudioSync {
     public long calculateAudioToCatchUp(@Nonnull Fraction audioPresentationSector,
                                         long lngSampleFramesWritten)
     {
-        Fraction presentationTime = audioPresentationSector.subtract(_iFirstPresentationSector).divide(_iSectorsPerSecond);
+        Fraction presentationTime = audioPresentationSector.subtract(_iFirstPresentationSector).divide(_discSpeed.getSectorsPerSecond());
         Fraction movieTime = new Fraction(lngSampleFramesWritten, _iSampleFramesPerSecond);
         Fraction timeDiff = presentationTime.subtract(movieTime);
         Fraction sampleDiff = timeDiff.multiply(_iSampleFramesPerSecond);

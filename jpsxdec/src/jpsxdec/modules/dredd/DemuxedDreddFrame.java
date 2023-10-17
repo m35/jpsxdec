@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,17 +43,16 @@ import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
+import jpsxdec.modules.video.sectorbased.ISectorBasedDemuxedFrame;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameReplace;
 import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
+import jpsxdec.psxvideo.bitstreams.IBitStreamUncompressor;
 import jpsxdec.util.DemuxedData;
-import jpsxdec.util.Fraction;
 
 
-public class DemuxedDreddFrame implements IDemuxedFrame {
+public class DemuxedDreddFrame implements ISectorBasedDemuxedFrame {
 
     /** All Dredd frames are 320 pixels wide. */
     public static final int FRAME_WIDTH = 320;
@@ -73,7 +72,7 @@ public class DemuxedDreddFrame implements IDemuxedFrame {
     }
 
     @Override
-    public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
+    public @CheckForNull IBitStreamUncompressor getCustomFrameMdecStream() {
         return null;
     }
 
@@ -98,8 +97,8 @@ public class DemuxedDreddFrame implements IDemuxedFrame {
     }
 
     @Override
-    public @Nonnull Fraction getPresentationSector() {
-        return new Fraction(getEndSector());
+    public int getPresentationSector() {
+        return getEndSector();
     }
 
     @Override

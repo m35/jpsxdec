@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2020  Michael Sabin
+ * Copyright (C) 2012-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,6 +42,7 @@ import java.io.File;
 import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.i18n.FeedbackStream;
@@ -50,7 +51,7 @@ import jpsxdec.i18n.TabularFeedback;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
-import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
+import jpsxdec.modules.video.ISectorClaimToFrameAndAudio;
 import jpsxdec.modules.video.save.VideoSaver;
 import jpsxdec.modules.video.save.VideoSaverBuilder;
 import jpsxdec.util.ArgParser;
@@ -159,16 +160,13 @@ public class PacketBasedVideoSaverBuilder extends VideoSaverBuilder {
         clearGeneratedFiles();
         printSelectedOptions(pl);
 
-        SectorClaimToAudioAndFrame vid = _sourceVidItem.makeAudioVideoDemuxer(getAudioVolume());
-        ISectorAudioDecoder aud;
-        if (getSavingAudio()) {
-            aud = vid;
-        } else {
-            aud = null;
-        }
+        ISectorClaimToFrameAndAudio sc2fa = _sourceVidItem.makeVideoAudioStream(getAudioVolume());
 
-        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, vid, aud,
-                150, Fraction.divide(150, _sourceVidItem.getFramesPerSecond()), _sourceVidItem.getStartSector());
+        Fraction sectorsPerFrame = Fraction.divide(DiscSpeed.DOUBLE.getSectorsPerSecond(),
+                                                   _sourceVidItem.getFramesPerSecond());
+
+        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, sc2fa,
+                                       DiscSpeed.DOUBLE, sectorsPerFrame, _sourceVidItem.getStartSector());
         vs.save(pl);
     }
 

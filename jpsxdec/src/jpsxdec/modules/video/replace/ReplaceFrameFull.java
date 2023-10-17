@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,10 +51,12 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.video.IDemuxedFrame;
+import jpsxdec.modules.aconcagua.BitStreamUncompressor_Aconcagua;
 import jpsxdec.modules.video.framenumber.FrameLookup;
+import jpsxdec.modules.video.sectorbased.ISectorBasedDemuxedFrame;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
+import jpsxdec.psxvideo.bitstreams.IBitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
 import jpsxdec.psxvideo.mdec.Calc;
@@ -173,7 +175,7 @@ public class ReplaceFrameFull {
         _sizeLimit = sizeLimit;
     }
 
-    public void replace(@Nonnull IDemuxedFrame frame, @Nonnull DiscPatcher patcher,
+    public void replace(@Nonnull ISectorBasedDemuxedFrame frame, @Nonnull DiscPatcher patcher,
                         @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
@@ -217,15 +219,18 @@ public class ReplaceFrameFull {
 
         BitStreamAnalysis newFrame;
         try {
-            newFrame = new BitStreamAnalysis(abNewFrame, frame.getWidth(), frame.getHeight());
+            IBitStreamUncompressor origBs = existingFrame.getCompletedBitStream();
+            if (origBs instanceof BitStreamUncompressor_Aconcagua) {
+                newFrame = new BitStreamAnalysis(abNewFrame, (((BitStreamUncompressor_Aconcagua) origBs).makeFor(abNewFrame)), frame.getWidth(), frame.getHeight());
+            } else {
+                newFrame = new BitStreamAnalysis(abNewFrame, frame.getWidth(), frame.getHeight());
+            }
             // verify it is the same bitstream type when the image is bs format
             if (!newFrame.isBitStreamClass(existingFrame.getBitStreamClass()))
                 throw new BinaryDataNotRecognized();
         } catch (BinaryDataNotRecognized ex) {
             throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_BITSTREAM_MISMATCH(_imageFile), ex);
-        } catch (MdecException.EndOfStream ex) {
-            throw new RuntimeException("Can't decode a frame we just encoded?", ex);
-        } catch (MdecException.ReadCorruption ex) {
+        } catch (MdecException.EndOfStream | MdecException.ReadCorruption ex) {
             throw new RuntimeException("Can't decode a frame we just encoded?", ex);
         }
 
@@ -257,9 +262,7 @@ public class ReplaceFrameFull {
             throw new LoggedFailure(log, Level.SEVERE, I.IO_OPENING_FILE_NOT_FOUND_NAME(mdecImageFile.toString()), ex);
         } catch (IOException ex) {
             throw new LoggedFailure(log, Level.SEVERE, I.IO_READING_FILE_ERROR_NAME(mdecImageFile.toString()), ex);
-        } catch (IncompatibleException ex) {
-            throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_INCOMPATIBLE_MDEC(mdecImageFile.toString(), frameNum.toString()), ex);
-        } catch (MdecException.TooMuchEnergy ex) {
+        } catch (IncompatibleException | MdecException.TooMuchEnergy ex) {
             throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_INCOMPATIBLE_MDEC(mdecImageFile.toString(), frameNum.toString()), ex);
         } catch (MdecException.EndOfStream ex) {
             throw new LoggedFailure(log, Level.SEVERE, I.REPLACE_INCOMPLETE_MDEC(mdecImageFile.toString(), frameNum.toString()), ex);
@@ -292,12 +295,10 @@ public class ReplaceFrameFull {
         MdecEncoder encoder = new MdecEncoder(psxImage, frameAnalysis.getWidth(), frameAnalysis.getHeight());
         try {
             return frameAnalysis.makeBitStreamCompressor().compressFull(iMaxSize, frameNum.toString(), encoder, log);
-        } catch (MdecException.EndOfStream ex) {
-            // existing frame is incomplete
-            throw new LoggedFailure(log, Level.SEVERE, I.FRAME_NUM_INCOMPLETE(frameNum.toString()), ex);
-        } catch (MdecException.ReadCorruption ex) {
-            // existing frame is corrupted
-            throw new LoggedFailure(log, Level.SEVERE, I.FRAME_NUM_CORRUPTED(frameNum.toString()), ex);
+        } catch (MdecException.EndOfStream | MdecException.ReadCorruption ex) {
+            throw new RuntimeException("We made the MdecEncoder, this shouldn't happen", ex);
+        } catch (IncompatibleException ex) {
+            throw new RuntimeException("The compressor was created from the uncompressor, so this should never happen", ex);
         }
     }
 }

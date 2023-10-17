@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -68,7 +68,7 @@ public abstract class CrusaderPacket {
     public static final AudioFormat CRUSADER_AUDIO_FORMAT = new AudioFormat(CRUSADER_SAMPLE_FRAMES_PER_SECOND, 16, 2, true, false);
 
     private enum Type {
-        MDEC, ad20, ad21;
+        MDEC, ad20, ad21
     }
 
     /** First half of the packet header. */

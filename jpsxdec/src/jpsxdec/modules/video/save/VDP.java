@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2020  Michael Sabin
+ * Copyright (C) 2013-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -54,16 +54,18 @@ import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
 import jpsxdec.formats.JavaImageFormat;
+import jpsxdec.formats.Pc601YCbCrImage;
+import jpsxdec.formats.Rec601YCbCrImage;
 import jpsxdec.formats.RgbIntImage;
-import jpsxdec.formats.YCbCrImage;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedFileNotFoundException;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
+import jpsxdec.modules.audio.DecodedAudioPacket;
 import jpsxdec.modules.video.framenumber.FormattedFrameNumber;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.psxvideo.bitstreams.IBitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecDecoder;
 import jpsxdec.psxvideo.mdec.MdecDecoder_double;
@@ -97,6 +99,15 @@ import jpsxdec.util.aviwriter.AviWriterYV12;
  *</pre>
  */
 public class VDP {
+
+    public static boolean LOG_STACK_TRACE = true;
+    public static boolean MOCK_CREATE_DIRECTORY = false;
+
+    private static void makeDirsForFile(@Nonnull File f) throws LocalizedFileNotFoundException {
+        if (!MOCK_CREATE_DIRECTORY)
+            IO.makeDirsForFile(f);
+    }
+
 
     private static final Logger LOG = Logger.getLogger(VDP.class.getName());
 
@@ -170,7 +181,7 @@ public class VDP {
         @CheckForNull
         private IMdecListener _listener;
         @CheckForNull
-        private Class<? extends BitStreamUncompressor> _uncompressorType;
+        private Class<? extends IBitStreamUncompressor> _uncompressorType;
 
         public Bitstream2Mdec() {
         }
@@ -190,10 +201,10 @@ public class VDP {
                 throws IOWritingException
         {
             try {
-                BitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(
+                IBitStreamUncompressor uncompressor = BitStreamUncompressor.identifyUncompressor(
                                                         abBitstream, iBitstreamSize);
                 if (_uncompressorType != null) {
-                    Class<? extends BitStreamUncompressor> newType = uncompressor.getClass();
+                    Class<? extends IBitStreamUncompressor> newType = uncompressor.getClass();
                     if (!_uncompressorType.equals(newType)) {
                         LOG.log(Level.WARNING, "Bitstream format changed from {0} to {1}",
                                 new Object[]{_uncompressorType.getSimpleName(), newType.getSimpleName()});
@@ -208,7 +219,7 @@ public class VDP {
             } catch (BinaryDataNotRecognized ex) {
                 ILocalizedMessage msg = FrameMessage.UNABLE_TO_DETERMINE_FRAME_TYPE_FRM(frameNumber);
                 if (_listener != null) {
-                    _listener.getLog().log(Level.SEVERE, msg, ex);
+                    _listener.getLog().log(Level.SEVERE, msg, LOG_STACK_TRACE ? ex : null);
                     _listener.error(msg, frameNumber, presentationSector);
                 }
             }
@@ -691,7 +702,7 @@ public class VDP {
                 throws LocalizedFileNotFoundException, FileNotFoundException, IOException
         {
             if (_writer == null) {
-                IO.makeDirsForFile(_outputFile);
+                makeDirsForFile(_outputFile);
                 _writer = _writerDib = new AviWriterDIB(_outputFile,
                                                         _iWidth, _iHeight,
                                                         _vidSync.getFpsNum(),
@@ -740,7 +751,7 @@ public class VDP {
     /** Only supports videos with even dimensions. */
     public static class Decoded2YuvAvi extends ToAvi implements IDecodedListener {
         @CheckForNull
-        protected YCbCrImage _yuvImgBuff;
+        private Rec601YCbCrImage _yuvImgBuff;
         @CheckForNull
         protected AviWriterYV12 _writerYuv;
 
@@ -778,7 +789,7 @@ public class VDP {
                                                          _vidSync.getFpsDenom(),
                                                          _af);
                 fileGenerated(_outputFile);
-                _yuvImgBuff = new YCbCrImage(_iWidth, _iHeight);
+                _yuvImgBuff = new Rec601YCbCrImage(_iWidth, _iHeight);
             }
         }
 
@@ -793,7 +804,9 @@ public class VDP {
             ((MdecDecoder_double)decoder).readDecoded_Rec601_YCbCr420(_yuvImgBuff);
             try {
                 prepForFrame(frameNumber, presentationSector);
-                _writerYuv.write(_yuvImgBuff.getY(), _yuvImgBuff.getCb(), _yuvImgBuff.getCr());
+                // if this happens for the JYUV subclass, the brightness will be off
+                // but it's an error image so doesn't really matter
+                _writerYuv.write(_yuvImgBuff.getYBuff(), _yuvImgBuff.getCbBuff(), _yuvImgBuff.getCrBuff());
             } catch (IOException ex) {
                 throw new IOWritingException(ex, _writerYuv.getFile());
             }
@@ -810,8 +823,8 @@ public class VDP {
             BufferedImage bi = makeErrorImage(errMsg, _writerYuv.getWidth(), _writerYuv.getHeight());
             try {
                 prepForFrame(frameNumber, presentationSector);
-                YCbCrImage yuv = new YCbCrImage(bi);
-                _writerYuv.write(yuv.getY(), yuv.getCb(), yuv.getCr());
+                Rec601YCbCrImage yuv = new Rec601YCbCrImage(bi);
+                _writerYuv.write(yuv.getYBuff(), yuv.getCbBuff(), yuv.getCrBuff());
             } catch (IOException ex) {
                 throw new IOWritingException(ex, _writer.getFile());
             }
@@ -822,6 +835,9 @@ public class VDP {
 
     public static class Decoded2JYuvAvi extends Decoded2YuvAvi {
 
+        @CheckForNull
+        protected Pc601YCbCrImage _yuvImgBuff;
+
         public Decoded2JYuvAvi(@Nonnull File outputFile, int iWidth, int iHeight,
                                @Nonnull AudioVideoSync avSync, @Nonnull AudioFormat af, @Nonnull ILocalizedLogger log)
         {
@@ -830,6 +846,12 @@ public class VDP {
 
         public Decoded2JYuvAvi(@Nonnull File outputFile, int iWidth, int iHeight, @Nonnull VideoSync vidSync, @Nonnull ILocalizedLogger log) {
             super(outputFile, iWidth, iHeight, vidSync, log);
+        }
+
+        @Override
+        public void open() throws LocalizedFileNotFoundException, FileNotFoundException, IOException {
+            super.open();
+            _yuvImgBuff = new Pc601YCbCrImage(_iWidth, _iHeight);
         }
 
         @Override
@@ -843,7 +865,7 @@ public class VDP {
             ((MdecDecoder_double)decoder).readDecoded_JFIF_YCbCr420(_yuvImgBuff);
             try {
                 prepForFrame(frameNumber, presentationSector);
-                _writerYuv.write(_yuvImgBuff.getY(), _yuvImgBuff.getCb(), _yuvImgBuff.getCr());
+                _writerYuv.write(_yuvImgBuff.getYBuff(), _yuvImgBuff.getCbBuff(), _yuvImgBuff.getCrBuff());
             } catch (IOException ex) {
                 throw new IOWritingException(ex, _writer.getFile());
             }

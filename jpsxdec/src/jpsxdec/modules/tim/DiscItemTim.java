@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,14 +46,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DemuxedSectorInputStream;
 import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.discitems.DiscItem.GeneralType;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.I;
@@ -151,15 +150,15 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         return _iBitsPerPixel;
     }
 
-    public @Nonnull Tim readTim() throws CdReadException, BinaryDataNotRecognized {
+    public @Nonnull Tim readTim() throws CdException.Read, BinaryDataNotRecognized {
         DemuxedSectorInputStream stream = new DemuxedSectorInputStream(
                 getSourceCd(), getStartSector(), getStartOffset());
         try {
             return Tim.read(stream);
         } catch (IOException ex) {
-            if (ex instanceof CdReadException)
-                throw (CdReadException)ex;
-            throw new CdReadException(getSourceCd().getSourceFile(), ex);
+            if (ex instanceof CdException.Read)
+                throw (CdException.Read)ex;
+            throw new CdException.Read(getSourceCd().getSourceFile(), ex);
         }
     }
 
@@ -175,7 +174,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
             throws FileNotFoundException, EOFException, IOException,
                    BinaryDataNotRecognized,
                    LocalizedIncompatibleException,
-                   CdReadException,
+                   CdException.Read,
                    DiscPatcher.WritePatchException
     {
         FileInputStream fis = new FileInputStream(timFile);
@@ -191,7 +190,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
 
     public void replace(@Nonnull DiscPatcher patcher, @Nonnull Tim newTim, @Nonnull FeedbackStream fbs)
             throws LocalizedIncompatibleException,
-                   CdReadException,
+                   CdException.Read,
                    DiscPatcher.WritePatchException
     {
         // read both Tims
@@ -199,10 +198,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
         Tim currentTim = null;
         try {
             currentTim = readTim();
-        } catch (CdReadException ex) {
-            // this is bad
-            throw new RuntimeException("Existing tim unreadable", ex);
-        } catch (BinaryDataNotRecognized ex) {
+        } catch (CdException.Read | BinaryDataNotRecognized ex) {
             // this is bad
             throw new RuntimeException("Existing tim unreadable", ex);
         }
@@ -232,7 +228,7 @@ public class DiscItemTim extends DiscItem implements DiscItem.IHasStartOffset {
     }
 
     private void writeNewTimData(@Nonnull DiscPatcher patcher, @Nonnull byte[] abNewTim, @Nonnull FeedbackStream fbs)
-            throws CdReadException, DiscPatcher.WritePatchException
+            throws CdException.Read, DiscPatcher.WritePatchException
     {
         // write to the first sector
         ICdSectorReader cd = getSourceCd();

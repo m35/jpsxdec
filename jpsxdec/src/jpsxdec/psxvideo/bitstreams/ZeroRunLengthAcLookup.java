@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import static jpsxdec.psxvideo.bitstreams.BitStreamCode.*;
 import jpsxdec.psxvideo.mdec.MdecCode;
+import static jpsxdec.psxvideo.bitstreams.BitStreamCode.*;
 
 /** Creates ultra fast bit-stream lookup tables. */
 public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
@@ -246,7 +246,7 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
         final ZeroRunLengthAc[] aoTable;
         final int iTableStart;
 
-        // This needs some explaination
+        // This needs some explanation
         if        (bsc.getString().startsWith("000000000")) {
             aoTable =                 _aoTable_000000000xxxxxxxx;
             iBitsRemain = 8 - (bsc.getLength() - 9);
@@ -334,6 +334,20 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
         } else {
             return null;
         }
+    }
+
+    /** Slow iterative search for a matching variable length code.
+     * @return null if no match */
+    public @CheckForNull ZeroRunLengthAc lookup(@Nonnull MdecCode mdecCode) {
+        if (!mdecCode.isValid())
+            throw new IllegalArgumentException("Invalid MDEC code " + mdecCode);
+
+        for (ZeroRunLengthAc vlc : _aoList) {
+            if (vlc.equalsMdec(mdecCode))
+                return vlc;
+        }
+
+        return null;
     }
 
     // ..................................................
@@ -490,7 +504,7 @@ public class ZeroRunLengthAcLookup implements Iterable<ZeroRunLengthAc> {
             return null;
         }
 
-        // Take either the positive (0) or negitive (1) AC coefficient,
+        // Take either the positive (0) or negative (1) AC coefficient,
         // depending on the sign bit
         if ((i17bits & (1 << (16 - vlc.getLength()))) == 0) {
             // positive

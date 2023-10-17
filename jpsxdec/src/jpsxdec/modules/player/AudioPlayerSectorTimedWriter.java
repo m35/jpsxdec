@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,8 +40,9 @@ package jpsxdec.modules.player;
 import java.io.IOException;
 import java.io.OutputStream;
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
+import jpsxdec.modules.audio.DecodedAudioPacket;
 import jpsxdec.modules.video.save.AudioSync;
 import jpsxdec.util.IO;
 
@@ -59,11 +60,11 @@ public class AudioPlayerSectorTimedWriter implements DecodedAudioPacket.Listener
 
     public AudioPlayerSectorTimedWriter(@Nonnull OutputStream audioOutputStream,
                                         int iMovieStartSector,
-                                        int iSectorsPerSecond,
+                                        @Nonnull DiscSpeed discSpeed,
                                         int iSamplesPerSecond)
     {
         _audioOut = audioOutputStream;
-        _audioSync = new AudioSync(iMovieStartSector, iSectorsPerSecond, iSamplesPerSecond);
+        _audioSync = new AudioSync(iMovieStartSector, discSpeed, iSamplesPerSecond);
     }
 
     @Override

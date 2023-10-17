@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2020  Michael Sabin
+ * Copyright (C) 2013-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -82,7 +82,7 @@ class Command_Static extends Command {
         super("-static");
     }
 
-    private static enum StaticType {
+    private enum StaticType {
         bs, mdec, tim
     }
     @Nonnull
@@ -116,7 +116,7 @@ class Command_Static extends Command {
 
                 // verify dimensions
                 if (dimensions.value == null) {
-                    throw new CommandLineException(I.CMD_DIM_OPTION_REQURIED());
+                    throw new CommandLineException(I.CMD_DIM_OPTION_REQUIRED());
                 }
                 final int iWidth;
                 final int iHeight;
@@ -178,17 +178,16 @@ class Command_Static extends Command {
                     throw new CommandLineException(I.IO_READING_FILE_ERROR_NAME(inFile.toString()), ex);
                 }
 
-                Fraction dummyFrameNumber = new Fraction(-1);
                 try {
                     if (_eStaticType == StaticType.bs) {
                         pipeline.setBitstream2Mdec(new VDP.Bitstream2Mdec());
                         pipeline.autowire();
                         // finally convert the file
-                        pipeline.getBitstreamListener().bitstream(abFileData, abFileData.length, null, dummyFrameNumber);
+                        pipeline.getBitstreamListener().bitstream(abFileData, abFileData.length, null, Fraction.ZERO);
                     } else {
                         pipeline.autowire();
                         // finally convert the file
-                        pipeline.getMdecListener().mdec(new MdecInputStreamReader(abFileData), null, dummyFrameNumber);
+                        pipeline.getMdecListener().mdec(new MdecInputStreamReader(abFileData), null, Fraction.ZERO);
                     }
 
                     if (!fileAndIssueListener.blnHadIssue) {

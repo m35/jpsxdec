@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -65,7 +65,7 @@ import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.indexing.DiscIndex;
-import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
+import jpsxdec.modules.audio.sectorbased.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.spu.DiscIndexerSpu;
 import jpsxdec.modules.video.DiscItemVideoStream;
 import jpsxdec.util.player.PlayController;
@@ -123,6 +123,10 @@ public class GuiTree extends JXTreeTable {
     @CheckForNull
     private RootTreeItem _root;
 
+    public void clearTreeTable() {
+        _root = buildTree(Collections.<DiscItem>emptyList());
+        setTreeTableModel(new DiscTreeModel(_root));
+    }
     public void formatTreeTable(@Nonnull DiscIndex index) {
         _root = buildTree(index.getRoot());
 
@@ -136,15 +140,19 @@ public class GuiTree extends JXTreeTable {
         setTreeCellRenderer(new TreeIconRenderer());
         setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        DefaultTableCellRenderer rightRenderer = new DefaultTableCellRenderer();
+        rightRenderer.setHorizontalAlignment(JLabel.RIGHT);
+
         setTreeTableModel(new DiscTreeModel(_root));
         packAll();
         TableColumnModel colMod = getColumnModel();
         colMod.getColumn(COLUMNS.Name.ordinal()).setPreferredWidth(iNameWidth + 10);
         colMod.getColumn(COLUMNS.Num.ordinal()).setPreferredWidth(iNumberWidth + 10);
+        colMod.getColumn(COLUMNS.Num.ordinal()).setCellRenderer(rightRenderer);
         colMod.getColumn(COLUMNS.Sectors.ordinal()).setPreferredWidth(iSectorWidth + 10);
         colMod.getColumn(COLUMNS.Type.ordinal()).setPreferredWidth(iTypeWidth + 10);
         TableColumn detailsCol = colMod.getColumn(COLUMNS.Details.ordinal());
-        detailsCol.setPreferredWidth(Math.max(250, detailsCol.getWidth()));
+        detailsCol.setPreferredWidth(Math.max(300, detailsCol.getWidth()));
     }
 
     public @CheckForNull TreeItem getTreeTblSelection() {
@@ -170,9 +178,8 @@ public class GuiTree extends JXTreeTable {
 
     private enum COLUMNS {
 
-        // use Integer to get nicer alignment
-        Num(Integer.class, I.GUI_TREE_INDEX_NUMBER_COLUMN()) {
-            // but use String to avoid localizing (',') the number
+        Num(String.class, I.GUI_TREE_INDEX_NUMBER_COLUMN()) {
+            // use String to avoid localizing (',') the number
             String val(TreeItem item) { return item.getIndexNum(); }
         },
         Save(Boolean.class, I.GUI_TREE_SAVE_COLUMN()) {
@@ -224,7 +231,7 @@ public class GuiTree extends JXTreeTable {
 
     public static abstract class TreeItem {
 
-        protected ArrayList<TreeItem> _kids = new ArrayList<TreeItem>();
+        protected final ArrayList<TreeItem> _kids = new ArrayList<TreeItem>();
 
         public @Nonnull TreeItem getKid(int childIndex) {
             return _kids.get(childIndex);

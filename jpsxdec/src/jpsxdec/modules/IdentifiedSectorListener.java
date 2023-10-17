@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,15 +37,14 @@
 
 package jpsxdec.modules;
 
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 
 
 public interface IdentifiedSectorListener<T extends IIdentifiedSector> {
-    /** Return null to listen for any sector. */
-    @CheckForNull Class<T> getListeningFor();
+
+    @Nonnull Class<T> getListeningFor();
 
     void feedSector(@Nonnull T idSector, @Nonnull ILocalizedLogger log)
             throws LoggedFailure;

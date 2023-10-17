@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,37 +39,41 @@ package jpsxdec.modules.video.sectorbased;
 
 import java.io.PrintStream;
 import javax.annotation.Nonnull;
-import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
+import jpsxdec.psxvideo.bitstreams.IBitStreamUncompressor;
 import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.BinaryDataNotRecognized;
 
 /** Analyzes a sector-based frame and calculates frequently used values. */
 public class SectorBasedFrameAnalysis extends BitStreamAnalysis {
 
-    /** @throws IllegalArgumentException if the frame has a custom mdec stream.
-     *          see {@link IDemuxedFrame#getCustomFrameMdecStream()} */
-    public static @Nonnull SectorBasedFrameAnalysis create(@Nonnull IDemuxedFrame frame)
-            throws BinaryDataNotRecognized, MdecException.ReadCorruption, MdecException.EndOfStream,
-                   IllegalArgumentException
+    public static @Nonnull SectorBasedFrameAnalysis create(@Nonnull ISectorBasedDemuxedFrame frame)
+            throws BinaryDataNotRecognized, MdecException.ReadCorruption, MdecException.EndOfStream
     {
-        MdecInputStream mis = frame.getCustomFrameMdecStream();
-        if (mis != null)
-            throw new IllegalArgumentException();
-
         byte[] abBitStream = frame.copyDemuxData();
         assert abBitStream.length == frame.getDemuxSize();
-        return new SectorBasedFrameAnalysis(abBitStream, frame);
+
+        IBitStreamUncompressor mis = frame.getCustomFrameMdecStream();
+        if (mis == null)
+            return new SectorBasedFrameAnalysis(abBitStream, frame);
+        else
+            return new SectorBasedFrameAnalysis(abBitStream, mis, frame);
     }
 
     @Nonnull
-    private final IDemuxedFrame _frame;
+    private final ISectorBasedDemuxedFrame _frame;
 
-    protected SectorBasedFrameAnalysis(@Nonnull byte[] abBitstream, @Nonnull IDemuxedFrame frame)
+    protected SectorBasedFrameAnalysis(@Nonnull byte[] abBitstream, @Nonnull ISectorBasedDemuxedFrame frame)
             throws BinaryDataNotRecognized, MdecException.ReadCorruption, MdecException.EndOfStream
     {
         super(abBitstream, frame.getWidth(), frame.getHeight());
+        _frame = frame;
+    }
+
+    protected SectorBasedFrameAnalysis(@Nonnull byte[] abBitstream, @Nonnull IBitStreamUncompressor uncompressor, @Nonnull ISectorBasedDemuxedFrame frame)
+            throws BinaryDataNotRecognized, MdecException.ReadCorruption, MdecException.EndOfStream
+    {
+        super(abBitstream, uncompressor, frame.getWidth(), frame.getHeight());
         _frame = frame;
     }
 

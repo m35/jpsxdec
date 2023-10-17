@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,15 +51,15 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
+import jpsxdec.modules.audio.DecodedAudioPacket;
 import jpsxdec.modules.video.IDemuxedFrame;
+import jpsxdec.modules.video.ISectorClaimToFrameAndAudio;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IFrameNumberFormatter;
 import jpsxdec.modules.video.framenumber.IFrameNumberFormatterWithHeader;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.packetbased.DiscItemPacketBasedVideoStream;
-import jpsxdec.modules.video.packetbased.SectorClaimToAudioAndFrame;
 import jpsxdec.util.Fraction;
 
 /** An audio/video stream found in some Electronic Arts games. */
@@ -137,11 +137,6 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
     }
 
     @Override
-    protected double getPacketBasedFpsInterestingDescription() {
-        return FPS;
-    }
-
-    @Override
     public @Nonnull Fraction getFramesPerSecond() {
         return new Fraction(FPS);
     }
@@ -155,21 +150,20 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
     }
 
     @Override
-    public @Nonnull SectorClaimToAudioAndFrame makeAudioVideoDemuxer(double dblVolume) {
+    public @Nonnull ISectorClaimToFrameAndAudio makeVideoAudioStream(double dblVolume) {
         if (_headerFrameNumberFormat != null)
-            return new Demuxer(dblVolume, _headerFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat), null);
+            return new Stream(dblVolume, _headerFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat), null);
         else
-            return new Demuxer(dblVolume, null, _indexSectorFrameNumberFormat.makeFormatter());
+            return new Stream(dblVolume, null, _indexSectorFrameNumberFormat.makeFormatter());
     }
 
-    public class Demuxer extends SectorClaimToAudioAndFrame
-                         implements EASectorToEAPacket.Listener
-    {
+    public class Stream implements ISectorClaimToFrameAndAudio, EASectorToEAPacket.Listener {
         // only one of these two will not be null
         @CheckForNull
         private final IFrameNumberFormatterWithHeader _fnfwh;
         @CheckForNull
         private final IFrameNumberFormatter _fnf;
+
         @Nonnull
         private final SpuAdpcmDecoder.Stereo _audioDecoder;
 
@@ -183,9 +177,9 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
 
         private final SectorRange _sectorRange = makeSectorRange();
 
-        public Demuxer(double dblVolume,
-                       @CheckForNull IFrameNumberFormatterWithHeader fnfwh,
-                       @CheckForNull IFrameNumberFormatter fnf)
+        public Stream(double dblVolume,
+                      @CheckForNull IFrameNumberFormatterWithHeader fnfwh,
+                      @CheckForNull IFrameNumberFormatter fnf)
         {
             _audioDecoder = new SpuAdpcmDecoder.Stereo(dblVolume);
             _fnfwh = fnfwh;
@@ -254,6 +248,11 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
         }
 
         @Override
+        public boolean hasAudio() {
+            return DiscItemEAVideo.this.hasAudio();
+        }
+
+        @Override
         public @Nonnull AudioFormat getOutputFormat() {
             return EAVideoPacket.EA_VIDEO_AUDIO_FORMAT;
         }
@@ -281,11 +280,6 @@ public class DiscItemEAVideo extends DiscItemPacketBasedVideoStream {
         @Override
         public int getSampleFramesPerSecond() {
             return EAVideoPacket.SAMPLE_FRAMES_PER_SECOND;
-        }
-
-        @Override
-        public int getDiscSpeed() {
-            return 2;
         }
 
     }

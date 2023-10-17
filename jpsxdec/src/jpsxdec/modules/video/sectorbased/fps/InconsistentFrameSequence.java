@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,7 +51,6 @@ import jpsxdec.util.Fraction;
 /** There are some unique frame rates that just don't make any sense.
  * These unique sequences of frame sectors just have to be manually
  * specified. */
-//@Deprecated
 public class InconsistentFrameSequence {
 
     private static final Logger LOG = Logger.getLogger(InconsistentFrameSequence.class.getName());

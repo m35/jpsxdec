@@ -1,11 +1,18 @@
                       The PlayStation 1 Video (STR) Format
-                               pre v1.20, 2019
+                                 v1.20, 2023
                          https://github.com/m35/jpsxdec
                           https://jpsxdec.blogspot.com/
+                               jpsxdec@gmail.com
 
 --------------------------------------------------------------------------------
-This document, copyright (c) 2008-2017 Michael Sabin, is licensed under a MIT License. Permission has been obtained to also include some source code comments from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this license is at the end of this file. Note that the related jPSXdec program is NOT licensed under the MIT license, but is under a non-commercial license.
+This document, copyright (c) 2008-2023 Michael Sabin, is licensed under a MIT License. Permission has been obtained to also include some source code comments from the xine media player (in chapters 1.1, 2.1 and chapter 3), copyright (c) the xine project, under the MIT License. The text of this license is at the end of this file. Note that the related jPSXdec program is NOT licensed under the MIT license, but is under a non-commercial license.
 --------------------------------------------------------------------------------
+
+Since 2016 there haven't been any significant changes made to this document, just clarifications and corrections. As of 2023 this document is considered complete. Nothing new will be added, but clarifications and corrections may continue to be made. Please refer to the jPSXdec source code for anything new.
+
+You could also refer to the excellent documentation by Martin Korth (no$psx developer)
+https://problemkaputt.de/psxspx-cdrom-file-formats.htm
+
 
 Change History
 
@@ -79,9 +86,8 @@ v1.20
     - ch 3.9. Improved Ace Combat 3 Electrosphere
     - ch 3.13: Added Gran Turismo
     - other minor tweaks
+    - *This document is considered complete*
 
-Left to do:
-* Add more game formats as they are found...
 --------------------------------------------------------------------------------
 
 ##
@@ -2022,8 +2028,8 @@ Were Afraid to Ask." Compiled / edited by Joshua Walker.
 A valuable reference for any kind of PSX hacking, especially the PSX assembly
 instruction set. 
 
-no$psx for his outstanding documentation of the PlayStation guts.
-http://problemkaputt.de/psx-spx.htm
+Martin Korth (no$psx developer) for his outstanding PlayStation documentation and help to understand several more video format variations.
+http://problemkaputt.de/
 
 smf, developer for MAME, for figuring out that everyone was getting the 
 order of CrCb wrong.
@@ -2068,7 +2074,7 @@ completely stop working on them. Extra recognition for those who now provide a
 404 page for a web site.
 
 --------------------------------------------------------------------------------
-Copyright (c) 2008-2017 Michael Sabin
+Copyright (c) 2008-2023 Michael Sabin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this file (the "Document"), to deal in the Document without restriction,

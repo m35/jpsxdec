@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,7 +41,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URI;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -57,21 +57,15 @@ import javax.annotation.Nonnull;
 /** Miscellaneous helper functions. */
 public final class Misc {
 
-    /**
-     * Every implementation of the Java platform is required to support US-ASCII.
-     * @see Charset
-     */
-    public static final Charset US_ASCII = Charset.forName("US-ASCII");
-
     public static @Nonnull byte[] stringToAscii(@Nonnull String string) {
-        return string.getBytes(US_ASCII);
+        return string.getBytes(StandardCharsets.US_ASCII);
     }
 
     public static @Nonnull String asciiToString(@Nonnull byte[] ascii) {
         return asciiToString(ascii, 0, ascii.length);
     }
     public static @Nonnull String asciiToString(@Nonnull byte[] ascii, int iOffset, int iLength) {
-        return new String(ascii, iOffset, iLength, US_ASCII);
+        return new String(ascii, iOffset, iLength, StandardCharsets.US_ASCII);
     }
 
     /** Makes a date that is iSeconds past the year 0. */
@@ -92,7 +86,7 @@ public final class Misc {
     public static @CheckForNull String[] regex(@Nonnull Pattern regex, @Nonnull String s) {
         Matcher m = regex.matcher(s);
         if (!m.find()) return null;
-        String as[] = new String[m.groupCount()+1];
+        String[] as = new String[m.groupCount()+1];
         for (int i = 0; i < as.length; i++) {
             as[i] = m.group(i);
         }
@@ -121,21 +115,9 @@ public final class Misc {
         return sw.toString();
     }
 
-    /**
-     * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
-     */
-    public static int intCompare(int i1, int i2) {
-        if (i1 < i2)
-            return -1;
-        else if (i1 > i2)
-            return 1;
-        else
-            return 0;
-    }
-
     /** Null (and somewhat type) safe {@link Object#equals(Object). */
     public static <T, U extends T> boolean objectEquals(@CheckForNull T o1, @CheckForNull U o2) {
-        return o1 == o2 || (o1 != null && o2 != null && o1.equals(o2));
+        return o1 == o2 || (o1 != null && o1.equals(o2));
     }
 
     /** Duplicates a string {@code count} times. */
@@ -241,19 +223,6 @@ public final class Misc {
         }
     }
 
-    private final static String[] ZERO_PAD = new String[] {
-        "", "0", "00", "000", "0000", "00000", "000000", "0000000", "00000000",
-        "000000000", "0000000000", "00000000000", "000000000000",
-        "0000000000000", "00000000000000", "000000000000000",
-        "0000000000000000", "00000000000000000", "000000000000000000",
-        "0000000000000000000", "00000000000000000000", "000000000000000000000",
-        "0000000000000000000000", "00000000000000000000000",
-        "000000000000000000000000", "0000000000000000000000000",
-        "00000000000000000000000000", "000000000000000000000000000",
-        "0000000000000000000000000000", "00000000000000000000000000000",
-        "000000000000000000000000000000", "0000000000000000000000000000000",
-        "00000000000000000000000000000000"
-    };
     public static @Nonnull String bitsToString(long lng, int iLength) {
         String sBin = Long.toBinaryString(lng);
         return zeroPadString(sBin, iLength, true);
@@ -264,14 +233,21 @@ public final class Misc {
         return zeroPadString(sInt, iLength, false);
     }
 
+    /** Left-pad the string with zeros to the given length, trimming if shorter
+     * when desired. */
     public static @Nonnull String zeroPadString(@Nonnull String s, int iLength, boolean blnTrim) {
         int iSLen = s.length();
-        if (iSLen < iLength)
-            return ZERO_PAD[iLength - iSLen] + s;
-        else if (iSLen > iLength && blnTrim)
+        if (iSLen < iLength) {
+            char[] acRet = new char[iLength];
+            int i = iLength - iSLen;
+            Arrays.fill(acRet, 0, i, '0');
+            s.getChars(0, iSLen, acRet, i);
+            return new String(acRet);
+        } else if (iSLen > iLength && blnTrim) {
             return s.substring(iSLen - iLength);
-        else
+        } else {
             return s;
+        }
     }
 
     /*** Log a message that has parameters and exception. */

@@ -401,7 +401,7 @@ public abstract class LookAndFeelAddons {
             if (realUIClass != null) {
                 try {
                     Method createUIMethod = realUIClass.getMethod("createUI",
-                            new Class[] { JComponent.class });
+                            JComponent.class);
 
                     return (ComponentUI) createUIMethod.invoke(null, new Object[] { component });
                 } catch (NoSuchMethodException e) {

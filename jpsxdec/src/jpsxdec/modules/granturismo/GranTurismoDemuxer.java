@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,8 +43,8 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.ISelfDemuxingVideoSector;
+import jpsxdec.modules.video.sectorbased.SectorBasedDemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameBuilder;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Iki;
 import jpsxdec.util.DemuxedData;
@@ -88,7 +88,7 @@ public class GranTurismoDemuxer implements ISelfDemuxingVideoSector.IDemuxer {
     /** Returns null if the sector data somehow didn't contain a recognizable frame.
      * Discard this object after this function is called. */
     @Override
-    public @CheckForNull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log) {
+    public @CheckForNull SectorBasedDemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log) {
         List<SectorGTVideo> sectors = _bldr.getNonNullChunks(log);
         DemuxedData<SectorGTVideo> demux = new DemuxedData<SectorGTVideo>(sectors);
         byte[] abBitstream = demux.copyDemuxData();
@@ -99,8 +99,8 @@ public class GranTurismoDemuxer implements ISelfDemuxingVideoSector.IDemuxer {
             LOG.log(Level.WARNING, "Invalid GT header frame {0}", _bldr.getHeaderFrameNumber());
             return null;
         } else {
-            return new DemuxedFrameWithNumberAndDims(header.getWidth(), header.getHeight(),
-                                                     _bldr.getHeaderFrameNumber(), sectors);
+            return new SectorBasedDemuxedFrameWithNumberAndDims(header.getWidth(), header.getHeight(),
+                                                                _bldr.getHeaderFrameNumber(), sectors);
         }
     }
 }

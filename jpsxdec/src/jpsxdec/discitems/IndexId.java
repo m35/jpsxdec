@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,7 +49,7 @@ import jpsxdec.util.Misc;
 /** Holds the unique index number, and unique string id for a disc item.
  * These can be compared and nested. */
 public class IndexId {
-    // this implemenation could probably be improved
+    // this implementation could probably be improved
     // it starts with a source file (or '?' if none)
     // followed by a sequence of nested indexed levels
     private final @CheckForNull File _sourceFile;
@@ -145,7 +145,6 @@ public class IndexId {
         return safePath().getName() + getTreeIndex();
     }
 
-    /** Same as {@link #serialize()}. */
     @Override
     public String toString() {
         return serialize();
@@ -163,8 +162,9 @@ public class IndexId {
 
         // make sure the other item is a direct parent
         int[] aiParentTreeIndexes = parentId._aiTreeIndexes;
+        assert _aiTreeIndexes != null; // _aiTreeIndexes already confirmed to != null in isRoot()
         if (aiParentTreeIndexes == null) {
-            if (_aiTreeIndexes.length == 1) { // _aiTreeIndexes already confirmed to != null in isRoot()
+            if (_aiTreeIndexes.length == 1) {
                 return true;
             }
         } else if (_aiTreeIndexes.length - 1 == aiParentTreeIndexes.length) {

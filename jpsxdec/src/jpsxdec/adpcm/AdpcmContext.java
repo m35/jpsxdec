@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,7 +53,7 @@ public class AdpcmContext {
     /** The second-to-previous PCM sample decoded. */
     private double _dblPreviousPCMSample2 = 0;
 
-    /* -- Construtors ------------------------------------------------------- */
+    /* -- Constructors ------------------------------------------------------ */
 
     /** Create new ADPCMDecodingContext.
      * @param dblVolumeScale  Scale the decoded audio before clamping. */

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,7 +48,6 @@ import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.util.Misc;
 
 
 /** Abstract superclass of all disc items. A "disc item" represents some media
@@ -70,7 +69,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     private static final Logger LOG = Logger.getLogger(DiscItem.class.getName());
 
     /** Basic types of {@link DiscItem}s. */
-    public static enum GeneralType {
+    public enum GeneralType {
         Audio(I.ITEM_TYPE_AUDIO(), I.ITEM_TYPE_AUDIO_APPLY()),
         Video(I.ITEM_TYPE_VIDEO(), I.ITEM_TYPE_VIDEO_APPLY()),
         Image(I.ITEM_TYPE_IMAGE(), I.ITEM_TYPE_IMAGE_APPLY()),
@@ -104,7 +103,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     /** A {@link DiscItem} that starts part-way through a sector.
      * Useful when sorting multiple item that start in the same sector. */
     public interface IHasStartOffset {
-        public int getStartOffset();
+        int getStartOffset();
     }
 
     private final int _iStartSector;
@@ -120,7 +119,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     protected DiscItem(@Nonnull ICdSectorReader cd, int iStartSector, int iEndSector) {
         if (iStartSector < 0 || iStartSector > iEndSector)
             throw new IllegalArgumentException("Bad start/end sectors " + iStartSector+" - "+iEndSector);
-        if (iEndSector > cd.getSectorCount())
+        if (iEndSector >= cd.getSectorCount())
             LOG.log(Level.WARNING, "Disc item sectors {0,number,#}-{1,number,#} breaks CD end sector {2,number,#}",
                                    new Object[] {iStartSector, iEndSector, cd.getSectorCount()});
         _cdReader = cd;
@@ -255,7 +254,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
     }
 
     public boolean notEntirelyInCd() {
-        return _iEndSector > _cdReader.getSectorCount();
+        return _iEndSector >= _cdReader.getSectorCount();
     }
 
     /** Returns the serialization. */
@@ -292,20 +291,20 @@ public abstract class DiscItem implements Comparable<DiscItem> {
             return 0;
         }
 
-        int iStartSectorDiff = Misc.intCompare(getStartSector(), other.getStartSector());
+        int iStartSectorDiff = Integer.compare(getStartSector(), other.getStartSector());
         if (iStartSectorDiff != 0) {
             return iStartSectorDiff;
         } else if (this instanceof IHasStartOffset && other instanceof IHasStartOffset) {
             IHasStartOffset thisWithOffset = (IHasStartOffset) this;
             IHasStartOffset otherWithOffset = (IHasStartOffset) other;
-            int iOffsetDiff = Misc.intCompare(thisWithOffset.getStartOffset(), otherWithOffset.getStartOffset());
+            int iOffsetDiff = Integer.compare(thisWithOffset.getStartOffset(), otherWithOffset.getStartOffset());
             if (iOffsetDiff != 0)
                 return iOffsetDiff;
         }
         // at this point both items start on the same sector, and the same offset if applicable
 
         // have more encompassing disc items come first (result is much cleaner)
-        int iEndSectorDiff = Misc.intCompare(other.getEndSector(), getEndSector());
+        int iEndSectorDiff = Integer.compare(other.getEndSector(), getEndSector());
         if (iEndSectorDiff != 0) {
             return iEndSectorDiff;
         } else {
@@ -313,7 +312,7 @@ public abstract class DiscItem implements Comparable<DiscItem> {
             Logger.getLogger(getClass().getName()).log(Level.WARNING,
                                                        "Identical item position {0} == {1}",
                                                        new Object[]{other, this});
-            return Misc.intCompare(other.getClass().hashCode(), getClass().hashCode());
+            return Integer.compare(other.getClass().hashCode(), getClass().hashCode());
         }
     }
 

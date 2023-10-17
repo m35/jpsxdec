@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,6 +45,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -53,7 +54,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.formats.JavaImageFormat;
@@ -71,11 +72,44 @@ import jpsxdec.tim.Tim;
 import jpsxdec.util.ArgParser;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IO;
+import jpsxdec.util.Md5OutputStream;
 import jpsxdec.util.TaskCanceledException;
 
 
 /** Manages the Tim saving options. */
 public class TimSaverBuilder extends DiscItemSaverBuilder {
+
+    public static boolean MOCK_WRITING = false;
+
+    private static void makeDirsForFile(@Nonnull File f) throws LocalizedFileNotFoundException {
+        if (!MOCK_WRITING)
+            IO.makeDirsForFile(f);
+    }
+
+    private OutputStream newOutputStream(@Nonnull File outputFile) throws FileNotFoundException {
+        OutputStream os;
+        if (MOCK_WRITING) {
+            os = Md5OutputStream.getThreadMd5OutputStream();
+        } else {
+            os = new FileOutputStream(outputFile);
+            addGeneratedFile(outputFile);
+        }
+        return os;
+    }
+
+    private boolean writeImage(BufferedImage bi, String imageIOid, File f) throws IOException {
+        boolean blnOk;
+        if (MOCK_WRITING) {
+            blnOk = true;
+        } else {
+            blnOk = ImageIO.write(bi, imageIOid, f);
+            if (blnOk)
+                addGeneratedFile(f);
+        }
+        return blnOk;
+    }
+
+
 
     private static final Logger LOG = Logger.getLogger(TimSaverBuilder.class.getName());
 
@@ -271,7 +305,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
 
     // .................................................................
 
-    @Nonnull Tim readTim() throws CdReadException, BinaryDataNotRecognized {
+    @Nonnull Tim readTim() throws CdException.Read, BinaryDataNotRecognized {
         return _timItem.readTim();
     }
 
@@ -330,9 +364,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                 }
             }
             return abln;
-        } catch (NumberFormatException ex) {
-            return null;
-        } catch (IndexOutOfBoundsException ex) {
+        } catch (NumberFormatException | IndexOutOfBoundsException ex) {
             return null;
         }
     }
@@ -403,26 +435,17 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         File outputFile = new File(outputDir, sOutputFile);
         pl.progressStart(1);
 
-        Tim tim;
-        try {
-            tim = _timItem.readTim();
-        } catch (CdReadException ex) {
-            throw new LoggedFailure(pl, Level.SEVERE,
-                   I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
-        } catch (BinaryDataNotRecognized ex) {
-            throw new LoggedFailure(pl, Level.SEVERE, I.TIM_DATA_NOT_FOUND(), ex);
-        }
+        Tim tim = readTim(pl);
 
         if (tim.timHasIssues()) {
             pl.log(Level.WARNING, I.TIM_HAS_ISSUES_CAN_BE_EXTRACTED(tim.toString()));
         }
         pl.event(I.IO_WRITING_FILE(outputFile.getName()));
         try {
-            IO.makeDirsForFile(outputFile);
-            BufferedOutputStream os = null;
+            makeDirsForFile(outputFile);
+            OutputStream os = null;
             try {
-                addGeneratedFile(outputFile);
-                os = new BufferedOutputStream(new FileOutputStream(outputFile));
+                os = new BufferedOutputStream(newOutputStream(outputFile));
                 tim.write(os);
             } catch (FileNotFoundException ex) {
                 throw new LoggedFailure(pl, Level.SEVERE, I.IO_OPENING_FILE_ERROR_NAME(outputFile.toString()), ex);
@@ -444,15 +467,7 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
     {
         pl.progressStart(_asOutputFiles.length);
 
-        Tim tim;
-        try {
-            tim = _timItem.readTim();
-        } catch (CdReadException ex) {
-            throw new LoggedFailure(pl, Level.SEVERE,
-                   I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
-        } catch (BinaryDataNotRecognized ex) {
-            throw new LoggedFailure(pl, Level.SEVERE, I.TIM_DATA_NOT_FOUND(), ex);
-        }
+        Tim tim = readTim(pl);
 
         for (int i = 0; i < _asOutputFiles.length; i++) {
             if (_asOutputFiles[i] != null) {
@@ -461,12 +476,10 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
                 File f = new File(outputDir, sFile);
                 try {
                     pl.event(I.IO_WRITING_FILE(f.toString()));
-                    IO.makeDirsForFile(f);
+                    makeDirsForFile(f);
                     try {
-                        boolean blnOk = ImageIO.write(bi, _imageFormat.getImageIOid(), f);
-                        if (blnOk)
-                            addGeneratedFile(f);
-                        else
+                        boolean blnOk = writeImage(bi, _imageFormat.getImageIOid(), f);
+                        if (!blnOk)
                             pl.log(Level.SEVERE, I.CMD_PALETTE_IMAGE_SAVE_FAIL(f, i));
                     } catch (IOException ex) {
                         pl.log(Level.SEVERE, I.IO_WRITING_FILE_ERROR_NAME(f.toString()), ex);
@@ -479,6 +492,19 @@ public class TimSaverBuilder extends DiscItemSaverBuilder {
         }
 
         pl.progressEnd();
+    }
+
+    private Tim readTim(@Nonnull ProgressLogger pl) throws LoggedFailure {
+        Tim tim;
+        try {
+            tim = _timItem.readTim();
+        } catch (CdException.Read ex) {
+            throw new LoggedFailure(pl, Level.SEVERE,
+                   I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+        } catch (BinaryDataNotRecognized ex) {
+            throw new LoggedFailure(pl, Level.SEVERE, I.TIM_DATA_NOT_FOUND(), ex);
+        }
+        return tim;
     }
 
 }

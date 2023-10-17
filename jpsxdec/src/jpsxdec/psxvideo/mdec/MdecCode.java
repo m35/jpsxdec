@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,6 @@ package jpsxdec.psxvideo.mdec;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import jpsxdec.util.Misc;
 
 
 /** Represents a 16-bit code readable by the PlayStation MDEC chip.
@@ -49,7 +48,7 @@ import jpsxdec.util.Misc;
  *  the "direct current" (DC) coefficient.
  *  If the MDEC code is not the first of a block, and it is
  *  not a {@link #MDEC_END_OF_DATA} code (0xFE00), then the top 6 bits indicate
- *  the number of zeros preceeding an "alternating current" (AC) coefficient,
+ *  the number of zeros preceding an "alternating current" (AC) coefficient,
  *  with the bottom 10 bits indicating a (usually) non-zero AC coefficient.  */
 public class MdecCode implements Comparable<MdecCode> {
 
@@ -66,12 +65,12 @@ public class MdecCode implements Comparable<MdecCode> {
     /** Most significant 6 bits of the 16-bit MDEC code.
      * Holds either a block's quantization scale or the
      * count of zero AC coefficients leading up to a non-zero
-     * AC coefficient. */
+     * AC coefficient. Unsigned. */
     private int _iTop6Bits;
 
     /** Least significant 10 bits of the 16-bit MDEC code.
      * Holds either the DC coefficient of a block or
-     * a non-zero AC coefficient. */
+     * a non-zero AC coefficient. Signed. */
     private int _iBottom10Bits;
 
     /** Initializes to (0, 0). */
@@ -135,7 +134,7 @@ public class MdecCode implements Comparable<MdecCode> {
     }
 
     /** Combines the top 6 bits and bottom 10 bits into an unsigned 16 bit value. */
-    public int toMdecWord() {
+    public int toMdecShort() {
         if (isEOD())
             return MDEC_END_OF_DATA;
         if (!validTop(_iTop6Bits))
@@ -189,7 +188,7 @@ public class MdecCode implements Comparable<MdecCode> {
 
     @Override
     public String toString() {
-        String s = String.format("%04x (%d, %d)", toMdecWord(), _iTop6Bits, _iBottom10Bits);
+        String s = String.format("%04x (%d, %d)", toMdecShort(), _iTop6Bits, _iBottom10Bits);
         if (isEOD())
             return s + " EOD";
         else
@@ -198,10 +197,10 @@ public class MdecCode implements Comparable<MdecCode> {
 
     @Override
     public int compareTo(MdecCode o) {
-        int i = Misc.intCompare(_iTop6Bits, o._iTop6Bits);
+        int i = Integer.compare(_iTop6Bits, o._iTop6Bits);
         if (i != 0)
             return i;
-        return Misc.intCompare(_iBottom10Bits, o._iBottom10Bits);
+        return Integer.compare(_iBottom10Bits, o._iBottom10Bits);
     }
 
     @Override

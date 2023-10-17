@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -161,8 +161,7 @@ public abstract class SpuAdpcmDecoder {
         return _leftOrMonoSoundUnitDecoder.getVolume();
     }
 
-    /** Returns if the last call to
-     * {@link #decode(java.io.InputStream, java.io.InputStream, int, java.io.OutputStream)}
+    /** Returns if the last call to {@code decode(...)}
      * encountered corruption in the sound parameters. */
     public boolean hadCorruption() {
         return _logContext.blnHadCorruption;

@@ -23,6 +23,7 @@ Unfortunately at this point I probably will never be able to implement any of th
 # Submitting changes
 
 If you're interested in making changes to jPSXdec, let me know. I'd like to help if I can.
+Email me at jpsxdec@gmail.com
 
 For starters, read the `jPSXdec-design.md` file for the code styleguide and an overview of how
 the program is designed.
@@ -42,7 +43,8 @@ write some unit tests for it.
 
 Be sure to do some thorough manual testing.
 
-For the final build, be sure to build using the Java 6 JDK to ensure no future APIs are used (I know it's a pain to get older JDKs, so I can also test if necessary). Run the Ant build script to ensure it builds without errors.
+For the final build, be sure to build using the Java 8 JDK to ensure no future
+APIs are use. Run the Ant build script to ensure it builds without errors.
 
 ## License
 
@@ -71,7 +73,7 @@ Follow the basic Git commit message format suggestions:
 
 ## Submit the pull request
 
-It would be nice to have a Codestyle format to check formatting, but
+It would be nice to have a Checkstyle format to check formatting, but
 for now try to follow what you see done in the code. It's usually
 pretty consistent. I may ask for some formatting changes.
 

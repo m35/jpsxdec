@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,10 +51,10 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.adpcm.XaAdpcmDecoder;
 import jpsxdec.adpcm.XaAdpcmEncoder;
-import jpsxdec.cdreaders.ICdSectorReader;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.cdreaders.DiscPatcher;
-import jpsxdec.discitems.DiscItem.GeneralType;
+import jpsxdec.cdreaders.DiscSpeed;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.formats.Signed16bitLittleEndianLinearPcmAudioInputStream;
 import jpsxdec.i18n.I;
@@ -65,9 +65,9 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
-import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
+import jpsxdec.modules.audio.sectorbased.DiscItemSectorBasedAudioStream;
+import jpsxdec.modules.audio.sectorbased.ISectorClaimToSectorBasedDecodedAudio;
+import jpsxdec.modules.audio.sectorbased.SectorBasedDecodedAudioPacket;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.Misc;
@@ -93,16 +93,10 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
     /** Serialization key for disc speed. */
     private final static String DISC_SPEED_KEY = "Disc speed";
     /** Speed that the disc must spin to properly play the audio stream.
-     * <ul>
-     * <li>1 for 1x (75 sectors/second)
-     * <li>2 for 2x (150 sectors/second)
-     * <li> -1 for unknown
-     *     (unknown case should only occur if this audio
-     *      stream is only one sector long)
-     *      or invalid (sector stride is 1)
-     * </ul>
-     */
-    private final int _iDiscSpeed;
+     * null if unknown (unknown should only occur if this audio stream is only one sector long)
+     * or invalid (sector stride is 1) */
+    @CheckForNull
+    private final DiscSpeed _discSpeed;
 
     @CheckForNull
     private final BitSet _sectorsWithAudio;
@@ -125,10 +119,10 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
         // if there is no sector stride (iStride == -1, 1 sector long)
         // or the stride is only 1, then the disc speed is unknown/invalid
         if (_iSectorStride == -1 || _iSectorStride == 1) {
-            _iDiscSpeed = -1;
+            _discSpeed = null;
         } else {
-            _iDiscSpeed = _format.calculateDiscSpeed(_iSectorStride);
-            if (_iDiscSpeed < 1)
+            _discSpeed = _format.calculateDiscSpeed(_iSectorStride);
+            if (_discSpeed == null)
                 throw new RuntimeException(String.format(
                         "Disc speed calc doesn't add up: Samples/sec %d Stereo %s Bits/sample %s Stride %d",
                         _format.iSampleFramesPerSecond, String.valueOf(_format.blnIsStereo),
@@ -152,11 +146,11 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
 
         String sDiscSpeed = fields.getString(DISC_SPEED_KEY);
         if ("1x".equals(sDiscSpeed))
-            _iDiscSpeed = 1;
+            _discSpeed = DiscSpeed.SINGLE;
         else if ("2x".equals(sDiscSpeed))
-            _iDiscSpeed = 2;
+            _discSpeed = DiscSpeed.DOUBLE;
         else if ("?".equals(sDiscSpeed))
-            _iDiscSpeed = -1;
+            _discSpeed = null;
         else throw new LocalizedDeserializationFail(I.FIELD_HAS_INVALID_VALUE_STR(DISC_SPEED_KEY, sDiscSpeed));
 
         _sectorsWithAudio = null;
@@ -169,11 +163,13 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
         _format.serialize(fields);
 
         fields.addNumber(STRIDE_KEY, _iSectorStride);
-        switch (_iDiscSpeed) {
-            case 1:  fields.addString(DISC_SPEED_KEY, "1x"); break;
-            case 2:  fields.addString(DISC_SPEED_KEY, "2x"); break;
-            default: fields.addString(DISC_SPEED_KEY, "?"); break;
-        }
+        if (_discSpeed == DiscSpeed.SINGLE)
+            fields.addString(DISC_SPEED_KEY, "1x");
+        else if (_discSpeed == DiscSpeed.DOUBLE)
+            fields.addString(DISC_SPEED_KEY, "2x");
+        else
+            fields.addString(DISC_SPEED_KEY, "?");
+
         return fields;
     }
 
@@ -206,8 +202,8 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
     }
 
     @Override
-    public int getDiscSpeed() {
-        return _iDiscSpeed;
+    public @CheckForNull DiscSpeed getDiscSpeed() {
+        return _discSpeed;
     }
 
     @Override
@@ -268,7 +264,7 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
     }
 
     @Override
-    public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume) {
+    public @Nonnull ISectorClaimToSectorBasedDecodedAudio makeDecoder(double dblVolume) {
         return new XAConverter(dblVolume);
     }
 
@@ -312,7 +308,7 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
             throws IOException,
                    UnsupportedAudioFileException,
                    LocalizedIncompatibleException,
-                   CdReadException,
+                   CdException.Read,
                    DiscPatcher.WritePatchException,
                    TaskCanceledException, LoggedFailure
     {
@@ -363,7 +359,7 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
 
     public void replaceXa(@Nonnull DiscPatcher patcher, @Nonnull DiscItemXaAudioStream other, @Nonnull ProgressLogger pl)
             throws LocalizedIncompatibleException,
-                   CdReadException,
+                   CdException.Read,
                    DiscPatcher.WritePatchException,
                    TaskCanceledException,
                    LoggedFailure
@@ -385,7 +381,7 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
         }
         // there should be no missing XA sectors in either of these items
         // if there are, the index is out of sync with the actual disc
-        // and we won't guarentee what happens next (i.e. undefined behavior)
+        // and we won't guarantee what happens next (i.e. undefined behavior)
 
         SectorClaimSystem origIt = createClaimSystem();
         SectorClaimSystem patchIt = other.createClaimSystem();
@@ -421,7 +417,7 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
         pl.progressEnd();
     }
 
-    private class XAConverter implements ISectorAudioDecoder {
+    private class XAConverter implements ISectorClaimToSectorBasedDecodedAudio {
 
         @Nonnull
         private final SectorXaAudioToAudioPacket __xa2ap;
@@ -435,7 +431,7 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
         }
 
         @Override
-        public void setAudioListener(@Nonnull DecodedAudioPacket.Listener listener) {
+        public void setSectorBasedAudioListener(@Nonnull SectorBasedDecodedAudioPacket.Listener listener) {
             __xa2ap.setListener(listener);
         }
 
@@ -472,11 +468,6 @@ public class DiscItemXaAudioStream extends DiscItemSectorBasedAudioStream {
         @Override
         public int getAbsolutePresentationStartSector() {
             return DiscItemXaAudioStream.this.getPresentationStartSector();
-        }
-
-        @Override
-        public int getDiscSpeed() {
-            return DiscItemXaAudioStream.this.getDiscSpeed();
         }
 
     }

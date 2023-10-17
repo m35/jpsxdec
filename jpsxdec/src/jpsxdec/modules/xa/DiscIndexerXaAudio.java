@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -45,8 +45,8 @@ import java.util.TreeMap;
 import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.CdSectorXaSubHeader;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.i18n.I;
@@ -57,7 +57,6 @@ import jpsxdec.indexing.DiscIndexer;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.util.Misc;
 
 /** Watches for XA audio streams.
  * Tracks the channel numbers and maintains all the XA streams.
@@ -124,8 +123,8 @@ public class DiscIndexerXaAudio extends DiscIndexer implements IdentifiedSectorL
             int iStride = nextXa.getSectorNumber() - _iEndSector;
 
             if (iStride != 1) {
-                int iDiscSpeed = _format.calculateDiscSpeed(iStride);
-                if (iDiscSpeed < 0)
+                DiscSpeed discSpeed = _format.calculateDiscSpeed(iStride);
+                if (discSpeed == null)
                     return false;
             }
 
@@ -198,8 +197,8 @@ public class DiscIndexerXaAudio extends DiscIndexer implements IdentifiedSectorL
 
         @Override
         public int compareTo(FileChannel o) {
-            int i = Misc.intCompare(iFileNumber, o.iFileNumber);
-            return i != 0 ? i : Misc.intCompare(iChanel, o.iChanel);
+            int i = Integer.compare(iFileNumber, o.iFileNumber);
+            return i != 0 ? i : Integer.compare(iChanel, o.iChanel);
         }
 
         @Override

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -114,6 +114,7 @@ public class PushAvailableInputStream<META> extends InputStream {
         return lngBytesToSkip;
     }
 
+    /** Common function to handle both reading and skipping since so much of the code is the same. */
     private void readOrSkip(@CheckForNull byte[] abBuffer, int iOffsetInBuff, long lngBytes) throws IOException {
         if (_pieces.isEmpty())
             throw new IllegalStateException("First check if anything is available before reading");

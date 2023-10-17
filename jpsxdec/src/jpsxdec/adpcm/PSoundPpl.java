@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -111,7 +111,7 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
 
         /** The offset in the source file where the audio start, unencrypted
          * using pure awesome. */
-        private long _lngDecryptedOffset;
+        private final long _lngDecryptedOffset;
 
         /** 255 characters with room for a null terminator. */
         private static final int ITEM_NAME_BUFFER_SIZE = 256;

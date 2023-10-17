@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,8 +48,8 @@ import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.modules.video.sectorbased.SectorAbstractVideo;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_Lain;
+import jpsxdec.psxvideo.bitstreams.IBitStreamUncompressor;
 import jpsxdec.psxvideo.bitstreams.IBitStreamWith1QuantizationScale;
 import jpsxdec.util.IO;
 
@@ -479,7 +479,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
         if (_iChunksInThisFrame < 1 || _iChunksInThisFrame <= _iChunkNumber || _iChunksInThisFrame > 50) // Limit frame size to 50 sectors long
             return;
 
-        // In standard STR videos the frame number starts at 1, but some vaiants start at 0
+        // In standard STR videos the frame number starts at 1, but some variants start at 0
         _iFrameNumber = cdSector.readSInt32LE(8);
         if (_iFrameNumber < 0 || _iFrameNumber > 700000) // Limit to 1 sector/frame over an entire disc
             return;
@@ -580,7 +580,7 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
             for (VideoSectorHeader possibleHeader : aoPossibleHeaders) {
                 if (possibleHeader == null)
                     break;
-                sb.append(' ').append(possibleHeader.toString());
+                sb.append(' ').append(possibleHeader);
             }
             _sMatchingHeadersToString = sb.toString();
         }
@@ -632,14 +632,14 @@ public class GenericStrVideoSector extends SectorAbstractVideo {
 
         // The quantization scale of the frame exists at offset 24 for most video sectors, but not all
         // If existing frame has a single qscale
-        BitStreamUncompressor existingBs = existingFrame.getCompletedBitStream();
+        IBitStreamUncompressor existingBs = existingFrame.getCompletedBitStream();
         if (existingBs instanceof IBitStreamWith1QuantizationScale) {
             int iExistingBsQscale = ((IBitStreamWith1QuantizationScale)existingBs).getQuantizationScale();
             // Check if the existing value exists at the normal place where the qscale should go
             int iExistingSectorHeaderQscale = IO.readSInt16LE(abCurrentVidSectorHeader, 24);
             if (iExistingSectorHeaderQscale == iExistingBsQscale) {
                 // If so, replace it with the new one
-                BitStreamUncompressor newBs = newFrame.getCompletedBitStream();
+                IBitStreamUncompressor newBs = newFrame.getCompletedBitStream();
                 int iNewBsQscale = ((IBitStreamWith1QuantizationScale)newBs).getQuantizationScale();
                 IO.writeInt16LE(abCurrentVidSectorHeader, 24, (short)(iNewBsQscale));
             }

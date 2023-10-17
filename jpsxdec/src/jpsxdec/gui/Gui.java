@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -60,7 +60,8 @@ import javax.swing.event.PopupMenuListener;
 import javax.swing.filechooser.FileFilter;
 import jpsxdec.Main;
 import jpsxdec.Version;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdException;
+import jpsxdec.cdreaders.CdOpener;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.DiscItemSaverBuilder;
@@ -228,6 +229,17 @@ public class Gui extends javax.swing.JFrame {
 
 
     private void openIndex(@Nonnull File indexFile) {
+        try {
+            // catch any unexpected Throwable outside,
+            // so the compiler will warn me about uncaught exceptions inside
+            doOpenIndex(indexFile);
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+            LOG.log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(this, ex, I.GUI_BAD_ERROR().getLocalizedMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    private void doOpenIndex(@Nonnull File indexFile) {
         File dir = indexFile.getParentFile();
         if (dir != null)
             _settings.setIndexDir(dir.getAbsolutePath());
@@ -239,7 +251,14 @@ public class Gui extends javax.swing.JFrame {
             log.log(Level.INFO, I.IO_OPENING_FILE(indexFile.toString()));
 
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-            setIndex(new DiscIndex(indexFile.getPath(), log), indexFile.getName());
+            DiscIndex index;
+            try {
+                index = new DiscIndex(indexFile.getPath(), log);
+            } catch (OutOfMemoryError ex) {
+                closeAndClearUI(ex);
+                index = new DiscIndex(indexFile.getPath(), log);
+            }
+            setIndex(index, indexFile.getName());
             _settings.addPreviousIndex(indexFile.getAbsolutePath());
             _guiSaveIndex.setEnabled(false);
             if (warnErrCount.getWarnCount() > 0 || warnErrCount.getErrCount() > 0) {
@@ -256,27 +275,28 @@ public class Gui extends javax.swing.JFrame {
 
                 JOptionPane.showMessageDialog(this, sb.toString(), I.GUI_INDEX_LOAD_ISSUES_DIALOG_TITLE().getLocalizedMessage(), JOptionPane.WARNING_MESSAGE);
             }
+        } catch (DiscIndex.IndexNotFoundException ex) {
+            ILocalizedMessage msg = I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString());
+            log.log(Level.SEVERE, msg, ex);
+            JOptionPane.showMessageDialog(this, msg,
+                                          I.ERR_LOADING_INDEX_FILE().getLocalizedMessage(),
+                                          JOptionPane.WARNING_MESSAGE);
+        } catch (DiscIndex.IndexReadException ex) {
+            ILocalizedMessage msg = I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString());
+            log.log(Level.SEVERE, msg, ex);
+            JOptionPane.showMessageDialog(this, msg,
+                                          I.ERR_LOADING_INDEX_FILE().getLocalizedMessage(),
+                                          JOptionPane.WARNING_MESSAGE);
         } catch (LocalizedDeserializationFail ex) {
+            log.log(Level.SEVERE, ex.getSourceMessage(), ex);
             JOptionPane.showMessageDialog(this, ex.getSourceMessage().getLocalizedMessage(),
                                           I.ERR_LOADING_INDEX_FILE().getLocalizedMessage(),
                                           JOptionPane.WARNING_MESSAGE);
-        } catch (CdFileSectorReader.CdFileNotFoundException ex) {
-            ILocalizedMessage msg = I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString());
-            log.log(Level.SEVERE, msg, ex);
-            JOptionPane.showMessageDialog(this, msg, I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
-                                          JOptionPane.WARNING_MESSAGE);
-        } catch (FileNotFoundException ex) {
-            ILocalizedMessage msg = I.IO_OPENING_FILE_NOT_FOUND_NAME(indexFile.toString());
-            log.log(Level.SEVERE, msg, ex);
-            JOptionPane.showMessageDialog(this, msg.getLocalizedMessage(),
+        } catch (CdException ex) {
+            log.log(Level.SEVERE, ex.getSourceMessage(), ex);
+            JOptionPane.showMessageDialog(this, ex.getSourceMessage().getLocalizedMessage(),
                                           I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
                                           JOptionPane.WARNING_MESSAGE);
-            _settings.removePreviousIndex(indexFile.getAbsolutePath());
-        } catch (Throwable ex) {
-            ex.printStackTrace();
-            ILocalizedMessage msg = I.GUI_BAD_ERROR();
-            log.log(Level.SEVERE, msg, ex);
-            JOptionPane.showMessageDialog(this, ex, msg.getLocalizedMessage(), JOptionPane.ERROR_MESSAGE);
         } finally {
             setCursor(Cursor.getDefaultCursor());
             log.close();
@@ -370,13 +390,31 @@ public class Gui extends javax.swing.JFrame {
         _settings.addPreviousImage(cd.getSourceFile().getAbsolutePath());
     }
 
+
     private void openDisc(@Nonnull File file) {
+        try {
+            // catch any unexpected Throwable outside,
+            // so the compiler will warn me about uncaught exceptions inside
+            doOpenDisc(file);
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+            LOG.log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(this, ex, I.GUI_BAD_ERROR().getLocalizedMessage(), JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    private void doOpenDisc(@Nonnull File file) {
         File dir = file.getParentFile();
         if (dir != null)
             _settings.setImageDir(dir.getAbsolutePath());
         try {
 
-            ICdSectorReader cd = CdFileSectorReader.open(file);
+            ICdSectorReader cd;
+            try {
+                cd = CdOpener.open(file);
+            } catch (OutOfMemoryError ex) {
+                closeAndClearUI(ex);
+                cd = CdOpener.open(file);
+            }
 
             if (!cd.hasSectorHeader())
                 JOptionPane.showMessageDialog(this, I.GUI_DISC_NO_RAW_HEADERS_WARNING());
@@ -386,7 +424,7 @@ public class Gui extends javax.swing.JFrame {
             DiscIndex generatedIndex = gui.getIndex();
             if (generatedIndex == null) {
                 // indexing was canceled
-                cd.close(); // expose close exception
+                IO.closeSilently(cd, LOG);
             } else {
                 if (generatedIndex.size() == 0) {
                     JOptionPane.showMessageDialog(this, I.GUI_DIALOG_COULD_NOT_IDENTIFY_ANYTHING(file.toString()).getLocalizedMessage());
@@ -396,25 +434,23 @@ public class Gui extends javax.swing.JFrame {
                     _guiSaveIndex.setEnabled(true);
                 }
             }
-
-        } catch (FileNotFoundException ex) {
-            LOG.log(Level.WARNING, null, ex);
-            JOptionPane.showMessageDialog(this, I.IO_OPENING_FILE_NOT_FOUND_NAME(file.toString()),
-                                                I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
+        } catch (CdException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(this, ex.getSourceMessage().getLocalizedMessage(),
+                                          I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
                                           JOptionPane.WARNING_MESSAGE);
-            _settings.removePreviousImage(file.getAbsolutePath());
-        } catch (CdFileSectorReader.FileTooSmallToIdentifyException ex) {
-            LOG.log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(this, I.CD_FILE_TOO_SMALL(file.toString()),
-                                                I.IO_OPENING_FILE_ERROR().getLocalizedMessage(),
-                                          JOptionPane.ERROR_MESSAGE);
-        } catch (Throwable ex) {
-            ex.printStackTrace();
-            LOG.log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(this, ex, I.GUI_BAD_ERROR().getLocalizedMessage(), JOptionPane.ERROR_MESSAGE);
         } finally {
             setCursor(Cursor.getDefaultCursor());
         }
+    }
+
+    private void closeAndClearUI(@Nonnull OutOfMemoryError ex) {
+        ex.printStackTrace();
+        LOG.log(Level.SEVERE, null, ex);
+        // Ideally we'd warn the user or something before doing this
+        _guiDiscTree.clearTreeTable();
+        IO.closeSilently(_index.getSourceCd(), LOG);
+        _index = null;
     }
 
     // -------------------------------------------------------------------------
@@ -445,7 +481,7 @@ public class Gui extends javax.swing.JFrame {
         _guiDiscTree = new jpsxdec.gui.GuiTree();
         _guiTreeButtonContainer = new javax.swing.JPanel();
         _guiSelectAll = new javax.swing.JButton();
-        _guiSelectAllType = new javax.swing.JComboBox();
+        _guiSelectAllType = new javax.swing.JComboBox<>();
         _guiExpandAll = new javax.swing.JButton();
         _guiCollapseAll = new javax.swing.JButton();
         _guiTabContainer = new javax.swing.JPanel();
@@ -561,7 +597,7 @@ public class Gui extends javax.swing.JFrame {
         });
         _guiTreeButtonContainer.add(_guiSelectAll, new java.awt.GridBagConstraints());
 
-        _guiSelectAllType.setModel(new DefaultComboBoxModel(GuiTree.Select.getAvailableValues()));
+        _guiSelectAllType.setModel(new DefaultComboBoxModel<GuiTree.Select>(GuiTree.Select.getAvailableValues()));
         _guiTreeButtonContainer.add(_guiSelectAllType, new java.awt.GridBagConstraints());
 
         _guiExpandAll.setText(I.GUI_EXPAND_ALL_BTN().getLocalizedMessage()); // NOI18N
@@ -872,6 +908,7 @@ public class Gui extends javax.swing.JFrame {
 
 
     private transient final PlayController.PlayerListener _playerListener = new PlayController.PlayerListener() {
+        @Override
         public void event(@Nonnull final Event eEvent) {
             java.awt.EventQueue.invokeLater(new Runnable() {
                 public void run() {
@@ -1006,7 +1043,7 @@ public class Gui extends javax.swing.JFrame {
     private javax.swing.JButton _guiSaveIndex;
     private javax.swing.JPanel _guiSavePanel;
     private javax.swing.JButton _guiSelectAll;
-    private javax.swing.JComboBox _guiSelectAllType;
+    private javax.swing.JComboBox<GuiTree.Select> _guiSelectAllType;
     private javax.swing.JTabbedPane _guiTab;
     private javax.swing.JPanel _guiTabContainer;
     private javax.swing.JToolBar _guiToolbar;
@@ -1019,7 +1056,7 @@ public class Gui extends javax.swing.JFrame {
 
 
     // testing
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         Main.loadDefaultLogger();
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {

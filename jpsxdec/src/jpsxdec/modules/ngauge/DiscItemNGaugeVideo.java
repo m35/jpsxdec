@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,8 +40,8 @@ package jpsxdec.modules.ngauge;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.Dimensions;
 import jpsxdec.discitems.SerializedDiscItem;
@@ -50,14 +50,13 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.video.IDemuxedFrame;
-import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IFrameNumberFormatterWithHeader;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
 import jpsxdec.modules.video.sectorbased.SectorBasedVideoInfo;
+import jpsxdec.modules.video.sectorbased.SectorClaimToSectorBasedDemuxedFrame;
 import jpsxdec.modules.xa.DiscItemXaAudioStream;
 
 /** It would be nice to use the existing normal STR disc item, but we need the
@@ -104,8 +103,8 @@ public class DiscItemNGaugeVideo extends DiscItemSectorBasedVideoStream {
     }
 
     @Override
-    public int getDiscSpeed() {
-        return 1;
+    public @Nonnull DiscSpeed getDiscSpeed() {
+        return DiscSpeed.SINGLE;
     }
 
     @Override
@@ -134,24 +133,19 @@ public class DiscItemNGaugeVideo extends DiscItemSectorBasedVideoStream {
     }
 
     @Override
-    public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer() {
+    public @Nonnull SectorClaimToSectorBasedDemuxedFrame makeDemuxer() {
         return new Demuxer(makeSectorRange(), _headerFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat));
     }
 
-    private static class Demuxer implements ISectorClaimToDemuxedFrame, NGaugeSectorToFrame.Listener {
+    private static class Demuxer extends SectorClaimToSectorBasedDemuxedFrame implements NGaugeSectorToFrame.Listener {
 
-        @Nonnull
-        private final SectorRange _sectorRange;
         @Nonnull
         private final IFrameNumberFormatterWithHeader _frameNumberFormatter;
-
-        @CheckForNull
-        private IDemuxedFrame.Listener _listener;
 
         public Demuxer(@Nonnull SectorRange sectorRange,
                        @Nonnull IFrameNumberFormatterWithHeader frameNumberFormatter)
         {
-            _sectorRange = sectorRange;
+            super(sectorRange);
             _frameNumberFormatter = frameNumberFormatter;
         }
 
@@ -162,11 +156,6 @@ public class DiscItemNGaugeVideo extends DiscItemSectorBasedVideoStream {
         }
 
         @Override
-        public void setFrameListener(@Nonnull IDemuxedFrame.Listener listener) {
-            _listener = listener;
-        }
-
-        @Override
         public void videoStart(NGaugeVideoInfo videoInfo) {
         }
 
@@ -174,10 +163,8 @@ public class DiscItemNGaugeVideo extends DiscItemSectorBasedVideoStream {
         public void frameComplete(@Nonnull DemuxedNGaugeFrame frame, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             FrameNumber fn = _frameNumberFormatter.next(frame.getStartSector(),
                                                         frame.getCalculatedFrameNumber(), log);
-            if (_listener != null) {
-                frame._frameNumber = fn;
-                _listener.frameComplete(frame);
-            }
+            frame._frameNumber = fn;
+            demuxedFrameComplete(frame);
         }
 
         @Override

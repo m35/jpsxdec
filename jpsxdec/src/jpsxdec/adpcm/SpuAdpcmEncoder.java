@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -90,7 +90,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
      *  via a stream of bytes. Set by {@link #setPresetParameters(java.io.InputStream)}.
      *  Primarily for development/testing purposes. */
     @CheckForNull
-    protected InputStream _presetPrameters = null;
+    protected InputStream _presetParameters = null;
 
     protected SpuAdpcmEncoder(@Nonnull Signed16bitLittleEndianLinearPcmAudioInputStream input) throws IncompatibleException {
         _audioShortReader = input;
@@ -113,7 +113,7 @@ public abstract class SpuAdpcmEncoder implements Closeable {
     /** Manually provide the filter and range parameters for every Sound Unit
      *  via a stream of bytes. Primarily for development/testing purposes. */
     public void setPresetParameters(@CheckForNull InputStream presetParameters) {
-        _presetPrameters = presetParameters;
+        _presetParameters = presetParameters;
     }
 
     public static class Mono extends SpuAdpcmEncoder {
@@ -199,12 +199,12 @@ public abstract class SpuAdpcmEncoder implements Closeable {
                                              @Nonnull short[] asi28PcmChannelSamples)
     {
         SoundUnitEncoder.EncodedUnit encoded;
-        if (_presetPrameters == null) {
+        if (_presetParameters == null) {
             encoded = encoder.encodeSoundUnit(asi28PcmChannelSamples, _logContext);
         } else {
             int iParameter;
             try {
-                iParameter = IO.readSInt8(_presetPrameters);
+                iParameter = IO.readSInt8(_presetParameters);
             } catch (IOException ex) {
                 throw new RuntimeException("Error reading input parameter", ex);
             }

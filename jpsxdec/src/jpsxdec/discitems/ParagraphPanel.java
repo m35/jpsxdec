@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -88,25 +88,25 @@ public abstract class ParagraphPanel extends JPanel {
                 fireStateChanged();
             if (__label.isEnabled() != isEnabled())
                 __label.setEnabled(isEnabled());
-            boolean v = isVisibile();
+            boolean v = isVisible();
             __label.setVisible(v);
             __chk.setVisible(v);
         }
         @Override abstract public boolean isSelected();
         @Override abstract public void setSelected(boolean b);
         @Override abstract public boolean isEnabled();
-        public boolean isVisibile() { return true; }
+        public boolean isVisible() { return true; }
     }
 
 
-    protected abstract class AbstractCombo extends AbstractListModel implements ComboBoxModel, ChangeListener {
+    protected abstract class AbstractCombo<T> extends AbstractListModel<T> implements ComboBoxModel<T>, ChangeListener {
         @Nonnull protected Object __cur = new Object();
         @Nonnull protected final JLabel __label;
-        @Nonnull protected final JComboBox __combo;
+        @Nonnull protected final JComboBox<T> __combo;
 
         public AbstractCombo(@Nonnull ILocalizedMessage label, boolean blnStretch) {
             __label = new JLabel(label.getLocalizedMessage());
-            __combo = new JComboBox(this);
+            __combo = new JComboBox<T>(this);
             add(__label, ParagraphLayout.NEW_PARAGRAPH);
             if (blnStretch)
                 add(__combo, ParagraphLayout.STRETCH_H);
@@ -132,7 +132,7 @@ public abstract class ParagraphPanel extends JPanel {
         @Override
         abstract public int getSize();
         @Override
-        abstract public Object getElementAt(int index);
+        abstract public T getElementAt(int index);
         @Override
         abstract public void setSelectedItem(Object anItem);
         @Override
@@ -140,16 +140,16 @@ public abstract class ParagraphPanel extends JPanel {
         abstract protected boolean getEnabled();
     }
 
-    protected abstract class AbstractComboExtension extends AbstractListModel implements ComboBoxModel, ChangeListener {
+    protected abstract class AbstractComboExtension<T> extends AbstractListModel<T> implements ComboBoxModel<T>, ChangeListener {
         @Nonnull protected Object __cur;
         @Nonnull protected final JLabel __label;
         @Nonnull protected final JLabel __name;
-        @Nonnull protected final JComboBox __combo;
+        @Nonnull protected final JComboBox<T> __combo;
 
         public AbstractComboExtension(@Nonnull ILocalizedMessage label, @Nonnull String baseName) {
             __label = new JLabel(label.getLocalizedMessage());
             __name = new JLabel(baseName);
-            __combo = new JComboBox(this);
+            __combo = new JComboBox<T>(this);
             add(__label, ParagraphLayout.NEW_PARAGRAPH);
             add(__name);
             add(__combo);
@@ -165,7 +165,7 @@ public abstract class ParagraphPanel extends JPanel {
         @Override
         abstract public int getSize();
         @Override
-        abstract public Object getElementAt(int index);
+        abstract public T getElementAt(int index);
         @Override
         abstract public void setSelectedItem(Object anItem);
         @Override

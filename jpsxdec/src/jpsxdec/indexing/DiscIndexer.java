@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -125,6 +125,7 @@ public abstract class DiscIndexer {
 
     /** Called for each disc item before it is added to a parent item.
      * Parent will be null if the child will be added to the root of the tree.
+     * In most cases you should return {@code false}.
      * This was initially added to filter out silent XA streams not associated with a video. */
     abstract public boolean filterChild(@CheckForNull DiscItem parent, @Nonnull DiscItem child);
 

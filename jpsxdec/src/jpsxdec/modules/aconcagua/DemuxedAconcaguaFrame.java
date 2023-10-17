@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,22 +39,37 @@ package jpsxdec.modules.aconcagua;
 
 import java.util.List;
 import javax.annotation.Nonnull;
-import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
+import jpsxdec.modules.video.sectorbased.SectorBasedDemuxedFrameWithNumberAndDims;
 import jpsxdec.psxvideo.mdec.Calc;
 
 
-public class DemuxedAconcaguaFrame extends DemuxedFrameWithNumberAndDims {
+public class DemuxedAconcaguaFrame extends SectorBasedDemuxedFrameWithNumberAndDims {
 
     private final int _iQuantizationScale;
+    private final boolean _blnIsIntroVideo;
 
-    public DemuxedAconcaguaFrame(int iWidth, int iHeight, int iHeaderFrameNumber, @Nonnull List<SectorAconcaguaVideo> sectors, int iQuantizationScale) {
+    public DemuxedAconcaguaFrame(int iWidth, int iHeight, int iHeaderFrameNumber,
+                                 @Nonnull List<SectorAconcaguaVideo> sectors,
+                                 int iQuantizationScale, boolean blnIsIntroVideo)
+    {
         super(iWidth, iHeight, iHeaderFrameNumber, sectors);
         _iQuantizationScale = iQuantizationScale;
+        _blnIsIntroVideo = blnIsIntroVideo;
     }
 
     @Override
     public @Nonnull BitStreamUncompressor_Aconcagua getCustomFrameMdecStream() {
         byte[] abFrameData = copyDemuxData();
-        return new BitStreamUncompressor_Aconcagua(Calc.macroblockDim(getHeight()), _iQuantizationScale, abFrameData);
+        AconcaguaHuffmanTables tables;
+        if (_blnIsIntroVideo)
+            tables = AconcaguaIntroVideoTables.get();
+        else
+            tables = AconcaguaEndingVideoTables.get();
+        return new BitStreamUncompressor_Aconcagua(tables, Calc.macroblockDim(getHeight()), _iQuantizationScale, abFrameData);
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " qscale " + _iQuantizationScale + ", is intro vid " + _blnIsIntroVideo;
     }
 }

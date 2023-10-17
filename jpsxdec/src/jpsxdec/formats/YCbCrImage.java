@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,46 +37,19 @@
 
 package jpsxdec.formats;
 
-import java.awt.image.BufferedImage;
 import javax.annotation.Nonnull;
 
-/** Basic YCbCr image format with 4:2:0 chroma subsampling.
- * That means there are 4 luma pixels for each chroma blue and chroma red pixel.
- *<p>
- * This class does not interpret the data, so it can hold either the Rec.601
- * "color space"...
- *<pre>
- * Y : 16 to 235
- * Cb: 16 to 240
- * Cr: 16 to 240
- *</pre>
- *<blockquote>
- *  "In each 8 bit luminance sample, the value 16 is used for black and
- *  235 for white, to allow for overshoot and undershoot. The values 0
- *  and 255 are used for sync encoding. The Cb and Cr samples use the
- *  value 128 to encode a zero value, as used when encoding a white,
- *  grey or black area."
- *</blockquote>
- *      -http://en.wikipedia.org/wiki/Rec._601
- * <p>
- * ...or it can handle the PSX "color space", or the JPEG/JFIF "color space":
- *<pre>
- * Y : 0 to 255
- * Cb: 0 to 255
- * Cr: 0 to 255
- *</pre>
- * Internally however, the values are stored as unsigned bytes, so shift
- * the values by -128.
- * <p>
- * This is intended as the final step in the decoding process, to store the
- * data before sending it to an AVI writer.
+/**
+ * Technically a superclass of {@link Rec601YCbCrImage} and {@link Pc601YCbCrImage},
+ * but don't interchange them or bad colors will happen! This superclass is
+ * for convenience since the only difference is the RGB color conversion.
  */
-public class YCbCrImage {
+abstract class YCbCrImage {
 
-    private int _iLumaWidth;
-    private int _iLumaHeight;
-    private int _iChromaWidth;
-    private int _iChromaHeight;
+    private final int _iLumaWidth;
+    private final int _iLumaHeight;
+    private final int _iChromaWidth;
+    private final int _iChromaHeight;
 
     /** Holds luminance values. */
     @Nonnull
@@ -84,57 +57,25 @@ public class YCbCrImage {
     /** Holds chroma blue values with 4:2:0 subsampling. */
     @Nonnull
     private final byte[] _abCb;
-    /** Holds chorma red values with 4:2:0 subsampling. */
+    /** Holds chroma red values with 4:2:0 subsampling. */
     @Nonnull
     private final byte[] _abCr;
 
-    /** Creates a new instance of Rec601YCbCrImage
-     * @param iWidth   Width of image (in luma pixels)
-     * @param iHeight  Height of image (in luma pixels) */
-    public YCbCrImage(int iWidth, int iHeight) {
-        if (iWidth < 2 || iHeight < 2 ||
-               (iWidth % 2) != 0 ||
-               (iHeight % 2) != 0) {
-            throw new IllegalArgumentException("Dimensions must be even.");
+    /**@param iLumaWidth   Width of image (in luma pixels)
+     * @param iLumaHeight  Height of image (in luma pixels) */
+    public YCbCrImage(int iLumaWidth, int iLumaHeight) {
+        if (iLumaWidth < 2 || iLumaHeight < 2 ||
+           (iLumaWidth % 2) != 0 || (iLumaHeight % 2) != 0)
+        {
+            throw new IllegalArgumentException("Dimensions must be even");
         }
-        _iLumaWidth  = iWidth;
-        _iLumaHeight = iHeight;
-        _iChromaWidth = iWidth / 2;
-        _iChromaHeight = iHeight / 2;
+        _iLumaWidth  = iLumaWidth;
+        _iLumaHeight = iLumaHeight;
+        _iChromaWidth = iLumaWidth / 2;
+        _iChromaHeight = iLumaHeight / 2;
         _abY  = new byte[_iLumaWidth * _iLumaHeight];
         _abCb = new byte[_iChromaWidth * _iChromaHeight];
         _abCr = new byte[_abCb.length];
-    }
-
-    /** Converts RGB to YCbCr as Rec.601. */
-    public YCbCrImage(@Nonnull BufferedImage rgb) {
-        this(rgb.getWidth(), rgb.getHeight());
-
-        for (int x = 0; x < _iLumaWidth; x+=2) {
-            for (int y = 0; y < _iLumaHeight; y+=2) {
-                Rec601YCbCr ycc = new Rec601YCbCr(new RGB(rgb.getRGB(x  , y  )),
-                                                  new RGB(rgb.getRGB(x+1, y  )),
-                                                  new RGB(rgb.getRGB(x  , y+1)),
-                                                  new RGB(rgb.getRGB(x+1, y+1))
-                                                 );
-                _abY[ (x  ) + (y  ) * _iLumaWidth ] = rc(ycc.y1);
-                _abY[ (x+1) + (y  ) * _iLumaWidth ] = rc(ycc.y2);
-                _abY[ (x  ) + (y+1) * _iLumaWidth ] = rc(ycc.y3);
-                _abY[ (x+1) + (y+1) * _iLumaWidth ] = rc(ycc.y4);
-                _abCb[x/2 + (y/2) * _iChromaWidth] = rc(ycc.cb);
-                _abCr[x/2 + (y/2) * _iChromaWidth] = rc(ycc.cr);
-            }
-        }
-    }
-
-    /** Clamp & Round */
-    private static byte rc(double dbl) {
-        if (dbl < 0)
-            return 0;
-        else if (dbl > 255)
-            return (byte)255;
-        else
-            return (byte)Math.round(dbl);
     }
 
     public int getWidth() {
@@ -145,86 +86,57 @@ public class YCbCrImage {
         return _iLumaHeight;
     }
 
-    public @Nonnull byte[] getY() {
+    // expose the internal buffers
+    public @Nonnull byte[] getYBuff() {
         return _abY;
     }
-    public @Nonnull byte[] getCb() {
+    public @Nonnull byte[] getCbBuff() {
         return _abCb;
     }
-    public @Nonnull byte[] getCr() {
+    public @Nonnull byte[] getCrBuff() {
         return _abCr;
     }
 
     /** Sets a luminance value.
      * @param iLumaX  X luma pixel to set.
      * @param iLumaY  Y luma pixel to set.
-     * @param bY     New value.
      */
-    public void setY(int iLumaX, int iLumaY, byte bY) {
-        _abY[iLumaX + iLumaY * _iLumaWidth] = bY;
+    protected void setYDbl(int iLumaX, int iLumaY, double dblY) {
+        _abY[iLumaX + iLumaY * _iLumaWidth] = roundClampByteCast(dblY);
     }
-    /** Sets chrominance blue value.
+    protected int getY(int iLumaX, int iLumaY) {
+        return _abY[iLumaX + iLumaY * _iLumaWidth] & 0xff;
+    }
+
+    /** Sets chroma blue value.
      * @param iChromaX  X chroma pixel (1/2 luma width)
      * @param iChromaY  Y chroma pixel (1/2 luma width)
-     * @param bCb    New value.
      */
-    public void setCb(int iChromaX, int iChromaY, byte bCb) {
-        _abCb[iChromaX + iChromaY * _iChromaWidth] = bCb;
+    protected void setCbDbl(int iChromaX, int iChromaY, double dblCb) {
+        _abCb[iChromaX + iChromaY * _iChromaWidth] = roundClampByteCast(dblCb);
     }
-    /** Sets chrominance red value.
+    protected int getCb(int iChromaX, int iChromaY) {
+        return _abCb[iChromaX + iChromaY * _iChromaWidth] & 0xff;
+    }
+
+    /** Sets chroma red value.
      * @param iChromaX  X chroma pixel (1/2 luma width)
      * @param iChromaY  Y chroma pixel (1/2 luma width)
-     * @param bCr    New value.
      */
-    public void setCr(int iChromaX, int iChromaY, byte bCr) {
-        _abCr[iChromaX + iChromaY * _iChromaWidth] = bCr;
+    protected void setCrDbl(int iChromaX, int iChromaY, double dblCr) {
+        _abCr[iChromaX + iChromaY * _iChromaWidth] = roundClampByteCast(dblCr);
+    }
+    protected int getCr(int iChromaX, int iChromaY) {
+        return _abCr[iChromaX + iChromaY * _iChromaWidth] & 0xff;
     }
 
-    /** Set a block of luma values
-     * @param iDestX  Top left corner where block starts (in luma pixels)
-     * @param iDestY  Top left corner where block starts (in luma pixels)
-     * @param iSrcWidth   Width of block (in luma pixels)
-     * @param abY  Array of block values with the color space -128 to +127.*/
-    public void setY(int iDestX, int iDestY,
-                     int iSrcOfs, int iSrcWidth,
-                     int iCopyWidth, int iCopyHeight,
-                     @Nonnull byte[] abY)
-    {
-        set(_abY, iDestX + iDestY * _iLumaWidth, _iLumaHeight,
-            abY, iSrcOfs, iSrcWidth,
-            iCopyWidth, iCopyHeight);
+    private static byte roundClampByteCast(double dbl) {
+        long lng = Math.round(dbl);
+        if (lng < 0)
+            return (byte)0;
+        else if (lng > 255)
+            return (byte)255;
+        else
+            return (byte)(lng);
     }
-
-    public void setCb(int iDestX, int iDestY,
-                     int iSrcOfs, int iSrcWidth,
-                     int iCopyWidth, int iCopyHeight,
-                     @Nonnull byte[] abCb)
-    {
-        set(_abCb, iDestX + iDestY * _iChromaWidth, _iChromaWidth,
-            abCb, iSrcOfs, iSrcWidth,
-            iCopyWidth, iCopyHeight);
-    }
-
-    public void setCr(int iDestX, int iDestY,
-                     int iSrcOfs, int iSrcWidth,
-                     int iCopyWidth, int iCopyHeight,
-                     @Nonnull byte[] abCr)
-    {
-        set(_abCr, iDestX + iDestY * _iChromaWidth, _iChromaWidth,
-            abCr, iSrcOfs, iSrcWidth,
-            iCopyWidth, iCopyHeight);
-    }
-
-
-    private void set(@Nonnull byte[] abDest, int iDestOfs, int iDestWidth,
-                     @Nonnull byte[] abSrc, int iSrcOfs, int iSrcWidth,
-                     int iCopyWidth, int iCopyHeight)
-    {
-        for (int iLine = 0; iLine < iCopyHeight;
-             iLine++, iDestOfs += iDestWidth, iSrcOfs += iSrcWidth)
-        {
-            System.arraycopy(abSrc, iSrcOfs, abDest, iDestOfs, iCopyWidth);
-        }
-    }
-
 }

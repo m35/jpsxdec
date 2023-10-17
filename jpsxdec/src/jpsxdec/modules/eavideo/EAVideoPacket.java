@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,8 +49,7 @@ import javax.sound.sampled.AudioFormat;
 import jpsxdec.adpcm.SoundUnitDecoder;
 import jpsxdec.adpcm.SpuAdpcmDecoder;
 import jpsxdec.adpcm.SpuAdpcmSoundUnit;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor;
+import jpsxdec.modules.audio.DecodedAudioPacket;
 import jpsxdec.psxvideo.bitstreams.BitStreamUncompressor_STRv2;
 import jpsxdec.psxvideo.bitstreams.ZeroRunLengthAc;
 import jpsxdec.psxvideo.bitstreams.ZeroRunLengthAcLookup;
@@ -117,7 +116,7 @@ public abstract class EAVideoPacket {
         throw new BinaryDataNotRecognized("Unknown packet type %08x", lngPacketType);
     }
 
-    public static enum Type {
+    public enum Type {
         VLC0,
         MDEC,
         au00,
@@ -288,7 +287,7 @@ public abstract class EAVideoPacket {
 
                 ZeroRunLengthAc bitCode = new ZeroRunLengthAc(EA_VIDEO_BIT_CODE_ORDER[i],
                         mdecCode.getTop6Bits(), mdecCode.getBottom10Bits(),
-                        mdecCode.toMdecWord() == BitStreamUncompressor_EA.BITSTREAM_ESCAPE_CODE,
+                        mdecCode.toMdecShort() == BitStreamUncompressor_EA.BITSTREAM_ESCAPE_CODE,
                         mdecCode.isEOD());
 
                 bldr.add(bitCode);
@@ -310,7 +309,7 @@ public abstract class EAVideoPacket {
             _aoVlcHeaderMdecCodesForReference = aoVlcHeaderMdecCodesForReference;
         }
 
-        public @Nonnull BitStreamUncompressor makeFrameBitStreamUncompressor(@Nonnull EAVideoPacket.MDEC mdecPacket) {
+        public @Nonnull BitStreamUncompressor_EA makeFrameBitStreamUncompressor(@Nonnull EAVideoPacket.MDEC mdecPacket) {
             return new BitStreamUncompressor_EA(mdecPacket.getBitstream(), _vlcLookup, mdecPacket.getQuantizationScale());
         }
 
@@ -318,8 +317,8 @@ public abstract class EAVideoPacket {
         public void printCodes() {
             for (int i = 0; i < _aoVlcHeaderMdecCodesForReference.length; i++) {
                 MdecCode mdec = _aoVlcHeaderMdecCodesForReference[i];
-                System.out.format("%04X %-8s %s", mdec.toMdecWord(), mdec, EA_VIDEO_BIT_CODE_ORDER[i]);
-                if (mdec.toMdecWord() == BitStreamUncompressor_EA.BITSTREAM_ESCAPE_CODE)
+                System.out.format("%04X %-8s %s", mdec.toMdecShort(), mdec, EA_VIDEO_BIT_CODE_ORDER[i]);
+                if (mdec.toMdecShort() == BitStreamUncompressor_EA.BITSTREAM_ESCAPE_CODE)
                     System.out.println(" (escape code)");
                 else
                     System.out.println();
@@ -413,7 +412,7 @@ public abstract class EAVideoPacket {
 
             Fraction presentationSector = new Fraction(_iPresentationSampleFrame, SAMPLE_FRAMES_PER_SECTOR);
 
-            return new DecodedAudioPacket(0, EA_VIDEO_AUDIO_FORMAT, presentationSector, out.toByteArray());
+            return new DecodedAudioPacket(0, EA_VIDEO_AUDIO_FORMAT, out.toByteArray(), presentationSector);
         }
 
         @Override
@@ -443,7 +442,7 @@ public abstract class EAVideoPacket {
             // those changes. Where would the data come from?
             // Maybe the leftover 2 bytes in some audio packets?
             // Maybe the timestamp?
-            // More debugging is nedded
+            // More debugging is needed
             // In any case, it's not necessary for just decoding the audio
             abSpuSoundUnit[1] = 0;
             System.arraycopy(abPayload, iBytesUsed+1, abSpuSoundUnit, 2, 14);

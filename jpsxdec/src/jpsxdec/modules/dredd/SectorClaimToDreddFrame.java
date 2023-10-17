@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,9 +43,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.util.IOIterator;
 
@@ -149,7 +147,7 @@ public class SectorClaimToDreddFrame implements SectorClaimSystem.SectorClaimer 
 
             _nextDemuxer = DreddDemuxer.first(next.getSector());
             if (_nextDemuxer != null) {
-                // hold onto this new demuxeer while we try to finish the existing frame
+                // hold onto this new demuxer while we try to finish the existing frame
                 break;
             }
 
@@ -174,14 +172,5 @@ public class SectorClaimToDreddFrame implements SectorClaimSystem.SectorClaimer 
         // so there should never be a need to flush an existing frame
         if (_claimedSectors != null)
             throw new RuntimeException("Created Dredd frame still remains at end of sectors");
-    }
-
-    public void feedSector(@Nonnull IIdentifiedSector idSector, @Nonnull ILocalizedLogger log)
-            throws LoggedFailure
-    {
-    }
-    public void endOfFeedSectors(@Nonnull ILocalizedLogger log)
-            throws LoggedFailure
-    {
     }
 }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2020  Michael Sabin
+ * Copyright (C) 2013-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -66,7 +66,7 @@ public class UserFriendlyLogger implements ILocalizedLogger, Closeable {
 
     /** Listener will be notified of any {@link Level#WARNING} or
      * {@link Level#SEVERE} (errors). */
-    public static interface OnWarnErr {
+    public interface OnWarnErr {
         void onWarn(@Nonnull ILocalizedMessage msg);
         void onErr(@Nonnull ILocalizedMessage msg);
     }
@@ -139,11 +139,11 @@ public class UserFriendlyLogger implements ILocalizedLogger, Closeable {
     }
 
     @Override
-    public void log(Level level, @Nonnull ILocalizedMessage msg) {
+    public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg) {
         log(level, msg, null);
     }
     @Override
-    public void log(Level level, @Nonnull ILocalizedMessage msg, @CheckForNull Throwable debugException) {
+    public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg, @CheckForNull Throwable debugException) {
         msg.logEnglish(_javaLogger, level, debugException); // also log to normal logging
         if (_logStream == null)
             openOutputFile();
@@ -201,7 +201,7 @@ public class UserFriendlyLogger implements ILocalizedLogger, Closeable {
 
     @Override
     public void close() {
-        if (_file != null)
+        if (_file != null) // only close the stream if it's pointing to a file (don't close stdout/stderr)
             _logStream.close();
     }
 

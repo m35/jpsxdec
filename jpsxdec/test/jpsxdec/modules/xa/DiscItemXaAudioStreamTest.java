@@ -1,6 +1,6 @@
 /*
  * LainTools: PSX Serial Experiments Lain Hacking and Translation Tools
- * Copyright (C) 2020  Michael Sabin
+ * Copyright (C) 2020-2023  Michael Sabin
  *
  * Redistribution and use of the LainTools code or any derivative works are
  * permitted provided that the following conditions are met:
@@ -36,23 +36,37 @@
 
 package jpsxdec.modules.xa;
 
+import java.io.File;
 import java.util.BitSet;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.ICdSectorReader;
+import jpsxdec.i18n.ILocalizedMessage;
 import org.junit.*;
 import static org.junit.Assert.*;
 
 public class DiscItemXaAudioStreamTest {
 
-    private static class MockSectorReader extends CdFileSectorReader {
-        public MockSectorReader(int iSectorLen) {
-            super(null, null, iSectorLen);
+    private static class MockSectorReader implements ICdSectorReader {
+        @Override
+        public int getSectorCount() {
+            return 100;
         }
+
+        public void close() { throw new AssertionError(); }
+        public int getRawSectorSize() { throw new AssertionError(); }
+        public CdSector getSector(int iSector) { throw new AssertionError(); }
+        public ILocalizedMessage getTypeDescription() { throw new AssertionError(); }
+        public boolean hasSectorHeader() { throw new AssertionError(); }
+        public File getSourceFile() { throw new AssertionError(); }
+        public boolean matchesSerialization(@Nonnull String sSerialization) { throw new AssertionError(); }
+        public String serialize() { throw new AssertionError(); }
     }
 
 
     @Test
     public void testSilentSectors() {
-        MockSectorReader cd = new MockSectorReader(100);
+        MockSectorReader cd = new MockSectorReader();
 
         // Disc is 100 sectors long
         // 5 XA sectors, 8 sectors apart: 10, 18, 26, 34, 42, 50

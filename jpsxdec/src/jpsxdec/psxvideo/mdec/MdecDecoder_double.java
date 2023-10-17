@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,9 +40,11 @@ package jpsxdec.psxvideo.mdec;
 import com.mortennobel.imagescaling.ResampleOp;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
+import jpsxdec.formats.Pc601YCbCr;
+import jpsxdec.formats.Pc601YCbCrImage;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.Rec601YCbCr;
-import jpsxdec.formats.YCbCrImage;
+import jpsxdec.formats.Rec601YCbCrImage;
 import jpsxdec.psxvideo.PsxYCbCr;
 import jpsxdec.psxvideo.mdec.idct.IDCT_double;
 
@@ -185,7 +187,7 @@ public class MdecDecoder_double extends MdecDecoder {
                 }
             }
         } finally {
-            // in case an exception occured
+            // in case an exception occurred
             // fill in any remaining data with zeros
             // pickup where decoding left off
             while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {
@@ -300,7 +302,7 @@ public class MdecDecoder_double extends MdecDecoder {
         }
     }
 
-    public void readDecoded_Rec601_YCbCr420(@Nonnull YCbCrImage ycc) {
+    public void readDecoded_Rec601_YCbCr420(@Nonnull Rec601YCbCrImage ycc) {
 
         final int WIDTH = ycc.getWidth(), HEIGHT = ycc.getHeight();
 
@@ -314,11 +316,11 @@ public class MdecDecoder_double extends MdecDecoder {
 
         final int W2 = W*2;
         int iLumaLineOfsStart = 0, iChromaLineOfsStart = 0;
-        for (int iY=0, iCY=0; iY < HEIGHT; iY+=2, iCY++, iLumaLineOfsStart+=W2, iChromaLineOfsStart+=CW) {
+        for (int iY=0; iY < HEIGHT; iY+=2, iLumaLineOfsStart+=W2, iChromaLineOfsStart+=CW) {
             int iSrcLumaOfs1 = iLumaLineOfsStart;
             int iSrcLumaOfs2 = iLumaLineOfsStart + W;
             int iSrcChromaOfs = iChromaLineOfsStart;
-            for (int iX=0, iCX=0; iX < WIDTH; iX+=2, iCX++, iSrcChromaOfs++) {
+            for (int iX=0; iX < WIDTH; iX+=2, iSrcChromaOfs++) {
 
                 psxycc.cr = _adblDecodedCrBuffer[iSrcChromaOfs];
                 psxycc.cb = _dblDecodedCbBuffer[iSrcChromaOfs];
@@ -330,22 +332,13 @@ public class MdecDecoder_double extends MdecDecoder {
 
                 psxycc.toRec_601_YCbCr(recycc);
 
-                ycc.setY( iX+0 , iY+0 , clamp(recycc.y1));
-                ycc.setY( iX+1 , iY+0 , clamp(recycc.y2));
-                ycc.setY( iX+0 , iY+1 , clamp(recycc.y3));
-                ycc.setY( iX+1 , iY+1 , clamp(recycc.y4));
-                ycc.setCb( iCX , iCY , clamp(recycc.cb));
-                ycc.setCr( iCX , iCY , clamp(recycc.cr));
-
+                ycc.setYCbCr(iX, iY, recycc);
             }
         }
     }
 
 
-    /**
-     * @see PsxYCbCr#toRec_JFIF_YCbCr(jpsxdec.formats.Rec601YCbCr)
-     */
-    public void readDecoded_JFIF_YCbCr420(@Nonnull YCbCrImage ycc) {
+    public void readDecoded_JFIF_YCbCr420(@Nonnull Pc601YCbCrImage ycc) {
 
         final int WIDTH = ycc.getWidth(), HEIGHT = ycc.getHeight();
 
@@ -355,15 +348,15 @@ public class MdecDecoder_double extends MdecDecoder {
             throw new IllegalArgumentException("Image height must be multiple of 2.");
 
         final PsxYCbCr psxycc = new PsxYCbCr();
-        final Rec601YCbCr recycc = new Rec601YCbCr();
+        final Pc601YCbCr pcycc = new Pc601YCbCr();
 
         final int W2 = W*2;
         int iLumaLineOfsStart = 0, iChromaLineOfsStart = 0;
-        for (int iY=0, iCY=0; iY < HEIGHT; iY+=2, iCY++, iLumaLineOfsStart+=W2, iChromaLineOfsStart+=CW) {
+        for (int iY=0; iY < HEIGHT; iY+=2, iLumaLineOfsStart+=W2, iChromaLineOfsStart+=CW) {
             int iSrcLumaOfs1 = iLumaLineOfsStart;
             int iSrcLumaOfs2 = iLumaLineOfsStart + W;
             int iSrcChromaOfs = iChromaLineOfsStart;
-            for (int iX=0, iCX=0; iX < WIDTH; iX+=2, iCX++, iSrcChromaOfs++) {
+            for (int iX=0; iX < WIDTH; iX+=2, iSrcChromaOfs++) {
 
                 psxycc.cr = _adblDecodedCrBuffer[iSrcChromaOfs];
                 psxycc.cb = _dblDecodedCbBuffer[iSrcChromaOfs];
@@ -373,29 +366,12 @@ public class MdecDecoder_double extends MdecDecoder {
                 psxycc.y2 = _adblDecodedLumaBuffer[iSrcLumaOfs1++];
                 psxycc.y4 = _adblDecodedLumaBuffer[iSrcLumaOfs2++];
 
-                psxycc.toRec_JFIF_YCbCr(recycc);
+                psxycc.toRec_JFIF_YCbCr(pcycc);
 
-                ycc.setY( iX+0 , iY+0 , clamp(recycc.y1));
-                ycc.setY( iX+1 , iY+0 , clamp(recycc.y2));
-                ycc.setY( iX+0 , iY+1 , clamp(recycc.y3));
-                ycc.setY( iX+1 , iY+1 , clamp(recycc.y4));
-                ycc.setCb( iCX , iCY , clamp(recycc.cb));
-                ycc.setCr( iCX , iCY , clamp(recycc.cr));
-
+                ycc.setYCbCr(iX, iY, pcycc);
             }
         }
     }
-
-    private static byte clamp(double dbl) {
-        long lng = Math.round(dbl);
-        if (lng < 0)
-            return (byte)0;
-        else if (lng > 255)
-            return (byte)255;
-        else
-            return (byte)(lng);
-    }
-
 
 
     private void nearestNeighborUpsample(@Nonnull double[] in, @Nonnull double[] out) {

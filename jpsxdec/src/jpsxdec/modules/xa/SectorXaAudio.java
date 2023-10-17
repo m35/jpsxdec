@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -173,7 +173,7 @@ public class SectorXaAudio extends IdentifiedSector {
             // just check if all ADPCM values are 0
             for (int j = 16; j < XaAdpcmDecoder.SIZEOF_SOUND_GROUP; j++) {
                 if (i+j >= cdSector.getCdUserDataSize())
-                    return false; // catch toString when probablity == 0
+                    return false; // catch toString when probability == 0
                 if (cdSector.readUserDataByte(i+j) != 0)
                     return false;
             }

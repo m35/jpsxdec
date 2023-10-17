@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,11 +46,12 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
 /**
- * Normal bounded blocking queue but will the ability to 'close' it and
- * 'poison' it. {@link #closeNow()}. will immediately unblock any waiting threads.
+ * Normal bounded blocking queue but with the ability to 'poison' it or 'close' it immediately.
+ * <p>
+ * {@link #closeNow()}. will immediately unblock any waiting threads.
  * {@link #closeWhenEmpty()} will unblock any writers and will reject anything
  * else being added. When the queue is empty, it will be flagged as closed.
- *
+ * <p>
  * Items can be added in two ways. {@link #add(Object)} will block if the queue
  * is full and wait until it is no longer full, or the queue is closed.
  * {@link #addWithCapacityCheck(Object)} will never block, but if the queue
@@ -63,6 +64,10 @@ import javax.annotation.Nonnull;
  */
 public class ClosableBoundedBlockingQueue<T> {
 
+
+    /**
+     * The so-called "poison pill" object to indicate the end of the queue.
+     */
     private static final Object POISON_PILL = new Object();
 
     @Nonnull
@@ -99,7 +104,7 @@ public class ClosableBoundedBlockingQueue<T> {
 
     /**
      * Blocks only if the queue is full, and the queue is not closed or poisoned.
-     * @return if the queue is still open and not poisoned (false if not)
+     * @return true if the queue is still open and not poisoned, otherwise false
      * @throws NullPointerException  if the argument is null
      */
     public boolean add(@Nonnull T entry) throws InterruptedException {
@@ -109,7 +114,7 @@ public class ClosableBoundedBlockingQueue<T> {
     /**
      * Adds to the queue, but instead of blocking when the size limit is
      * reached, close the queue and blow up with an exception.
-     * @return if the queue is still open and not poisoned (false if not)
+     * @return true if the queue is still open and not poisoned, otherwise false
      * @throws NullPointerException  if the argument is null
      * @throws IllegalStateException if the queue is full
      */
@@ -174,7 +179,6 @@ public class ClosableBoundedBlockingQueue<T> {
      * - the queues is closed
      * @return null if the queue is closed or the poison pill has been encountered, thus closing the queue.
      */
-    @SuppressWarnings("unchecked")
     public @CheckForNull T take() throws InterruptedException {
         _lock.lock();
         try {
@@ -198,7 +202,10 @@ public class ClosableBoundedBlockingQueue<T> {
                             closeNow();
                             return null;
                         } else {
-                            return (T) entry;
+                            // we know the queue only contains elements of type T or the poison pill
+                            @SuppressWarnings("unchecked")
+                            T suppressed = (T) entry;
+                            return suppressed;
                         }
                     } else {
 

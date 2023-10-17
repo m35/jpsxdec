@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2020  Michael Sabin
+ * Copyright (C) 2020-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,8 +40,11 @@ package jpsxdec.psxvideo;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
 
-
-public class PsxRgb {
+/**
+ * Conversion to/from the different PlayStation RGB color formats.
+ */
+public final class PsxRgb {
+    private PsxRgb() {}
 
     public static final int PSX_VRAM_WORD_WIDTH = 1024;
     public static final int PSX_VRAM_HEIGHT = 512;

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,7 +56,7 @@ public class SPacketPos {
 
     private static final Logger LOG = Logger.getLogger(SPacketPos.class.getName());
 
-    private static int TIME_STAMP_OUT_OF_ORDER_LEEWAY = 15;
+    private static final int TIME_STAMP_OUT_OF_ORDER_LEEWAY = 15;
 
     public static @Nonnull List<SPacketPos> readPackets(@Nonnull InputStream is, int iEntryCount,
                                                         int iKlbsStartSector, int iKlbsEndSectorInclusive)

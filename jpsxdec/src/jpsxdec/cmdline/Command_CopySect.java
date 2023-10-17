@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2020  Michael Sabin
+ * Copyright (C) 2013-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,7 +46,7 @@ import java.io.OutputStream;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.cdreaders.CdRiffHeader;
 import jpsxdec.cdreaders.CdSector;
 import jpsxdec.cdreaders.ICdSectorReader;
@@ -122,7 +122,7 @@ class Command_CopySect extends Command {
                 CdSector sector = cdReader.getSector(i);
                 os.write(sector.getRawSectorDataCopy());
             }
-        } catch (CdReadException ex) {
+        } catch (CdException.Read ex) {
             throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(
                                            ex.getFile().toString()), ex);
         } catch (IOException ex) {

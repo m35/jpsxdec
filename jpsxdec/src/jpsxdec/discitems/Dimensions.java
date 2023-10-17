@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,7 @@
 package jpsxdec.discitems;
 
 import javax.annotation.Nonnull;
-import jpsxdec.i18n._PlaceholderMessage;
+import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.util.Misc;
 
@@ -61,7 +61,7 @@ public class Dimensions {
         String sDims = fields.getString(DIMENSIONS_KEY);
         int[] ai = Misc.splitInt(sDims, "x");
         if (ai == null || ai.length != 2)
-            throw new LocalizedDeserializationFail(new _PlaceholderMessage("Invalid dimension format {0}", sDims));
+            throw new LocalizedDeserializationFail(I.CMD_INVALID_DIMENSIONS(sDims));
         _iWidth = ai[0];
         _iHeight = ai[1];
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,6 +41,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -102,7 +103,7 @@ public class FpsSequence {
         if (is == null)
             throw new RuntimeException("Unable to find fps resource " + FPS_SEQUENCE_RESOURCE);
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(is, Misc.US_ASCII));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.US_ASCII));
         try {
             String sLine;
             while ((sLine = reader.readLine()) != null) {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2020  Michael Sabin
+ * Copyright (C) 2012-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,15 +49,14 @@ import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
+import jpsxdec.modules.audio.DecodedAudioPacket;
 import jpsxdec.modules.video.IDemuxedFrame;
+import jpsxdec.modules.video.ISectorClaimToFrameAndAudio;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IFrameNumberFormatterWithHeader;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.packetbased.DiscItemPacketBasedVideoStream;
-import jpsxdec.modules.video.packetbased.SectorClaimToAudioAndFrame;
 import jpsxdec.util.Fraction;
 
 /** Crusader: No Remorse audio/video stream. */
@@ -119,11 +118,6 @@ public class DiscItemCrusader extends DiscItemPacketBasedVideoStream {
     }
 
     @Override
-    protected double getPacketBasedFpsInterestingDescription() {
-        return CrusaderPacket.FRAMES_PER_SECOND;
-    }
-
-    @Override
     public @Nonnull Fraction getFramesPerSecond() {
         return new Fraction(CrusaderPacket.FRAMES_PER_SECOND);
     }
@@ -134,13 +128,11 @@ public class DiscItemCrusader extends DiscItemPacketBasedVideoStream {
     }
 
     @Override
-    public @Nonnull SectorClaimToAudioAndFrame makeAudioVideoDemuxer(double dblVolume) {
-        return new Demuxer(dblVolume, _headerFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat), makeSectorRange());
+    public @Nonnull ISectorClaimToFrameAndAudio makeVideoAudioStream(double dblVolume) {
+        return new Stream(dblVolume, _headerFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat));
     }
 
-    public class Demuxer extends SectorClaimToAudioAndFrame
-                         implements CrusaderPacketToFrameAndAudio.FrameListener
-    {
+    public class Stream implements ISectorClaimToFrameAndAudio, CrusaderPacketToFrameAndAudio.FrameListener {
 
         private final double _dblVolume;
         @Nonnull
@@ -153,9 +145,8 @@ public class DiscItemCrusader extends DiscItemPacketBasedVideoStream {
         @CheckForNull
         private IDemuxedFrame.Listener _listener;
 
-        public Demuxer(double dblVolume,
-                       @Nonnull IFrameNumberFormatterWithHeader frameNumberFormatter,
-                       @Nonnull SectorRange sectorRange)
+        public Stream(double dblVolume,
+                      @Nonnull IFrameNumberFormatterWithHeader frameNumberFormatter)
         {
             _dblVolume = dblVolume;
             _frameNumberFormatter = frameNumberFormatter;
@@ -191,6 +182,11 @@ public class DiscItemCrusader extends DiscItemPacketBasedVideoStream {
         }
 
         @Override
+        public boolean hasAudio() {
+            return true;
+        }
+
+        @Override
         public @Nonnull AudioFormat getOutputFormat() {
             return CrusaderPacket.CRUSADER_AUDIO_FORMAT;
         }
@@ -218,11 +214,6 @@ public class DiscItemCrusader extends DiscItemPacketBasedVideoStream {
         @Override
         public int getSampleFramesPerSecond() {
             return CrusaderPacket.CRUSADER_SAMPLE_FRAMES_PER_SECOND;
-        }
-
-        @Override
-        public int getDiscSpeed() {
-            return 2;
         }
 
     }

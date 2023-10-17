@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,60 +40,66 @@ package jpsxdec.util.player;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
-/** Handles the running the reader supplied by the user. */
-class ReaderThread implements Runnable {
+/**
+ *  Handles running the reader supplied by the user.
+ */
+class ReaderThread<FRAME_TYPE> implements Runnable {
+
+    private static final boolean DEBUG = false;
+
+    @Nonnull
+    private final PlayController _controller;
+    @Nonnull
+    private final MediaDataWriter<FRAME_TYPE> _readWriter;
+    @Nonnull
+    private final IMediaDataReadProcessor<FRAME_TYPE> _reader;
+
+    @Nonnull
+    private final Thread _thisThread;
 
     @CheckForNull
     private final AudioPlayer _audioPlayer;
     @CheckForNull
-    private final VideoProcessor _videoProcessor;
-    @Nonnull
-    private final PlayController _controller;
-    @Nonnull
-    private final Thread _thread;
+    private final VideoProcessorThread<FRAME_TYPE> _videoProcessorThread;
 
-    private IMediaDataReader _reader;
-
-    public ReaderThread(@CheckForNull AudioPlayer audioPlayer,
-                        @CheckForNull VideoProcessor videoProcessor,
-                        @Nonnull PlayController controller)
+    public ReaderThread(@Nonnull PlayController controller,
+                        @Nonnull MediaDataWriter<FRAME_TYPE> readWriter,
+                        @Nonnull IMediaDataReadProcessor<FRAME_TYPE> reader,
+                        @CheckForNull AudioPlayer audioPlayer,
+                        @CheckForNull VideoProcessorThread<FRAME_TYPE> videoProcessorThread)
     {
         _audioPlayer = audioPlayer;
-        _videoProcessor = videoProcessor;
+        _videoProcessorThread = videoProcessorThread;
         _controller = controller;
-        _thread = new Thread(this, getClass().getName());
-    }
-
-    public void setReader(@Nonnull IMediaDataReader reader) {
+        _thisThread = new Thread(this, getClass().getName());
+        _readWriter = readWriter;
         _reader = reader;
     }
 
     public void start() {
-        if (_reader == null)
-            throw new IllegalStateException();
-        _thread.start();
+        if (DEBUG) System.out.println("Starting ReaderThread");
+        _thisThread.start();
     }
 
     @Override
     public void run() {
         try {
-            _reader.demuxThread(_controller);
-        } catch (StopPlayingException ex) {
-            // ok
-            // immediately terminate
-            _controller.terminate();
-            return;
+            if (DEBUG) System.out.println("ReaderThread started");
+            _reader.readerThread(_readWriter);
+            if (DEBUG) System.out.println("Reader returned");
         } catch (Throwable ex) {
-            // not ok
-            ex.printStackTrace();
+            if (!ex.getClass().equals(StopPlayingException.class)) {
+                // not ok! Something bad happened
+                ex.printStackTrace();
+            }
             // immediately terminate
             _controller.terminate();
             return;
         }
         if (_audioPlayer != null)
             _audioPlayer.finish();
-        if (_videoProcessor != null)
-            _videoProcessor.finish();
+        if (_videoProcessorThread != null)
+            _videoProcessorThread.finish();
     }
 
 }

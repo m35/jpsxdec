@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,6 +47,8 @@ import jpsxdec.psxvideo.mdec.idct.IDCT_int;
  * This may not be as precise as the double-based implementation, but on cursory
  * examination, you can't really tell. It's also significantly faster. */
 public class MdecDecoder_int extends MdecDecoder {
+
+    public static boolean LOG_CORRUPTION_STACK_TRACE = true;
 
     private final IDCT_int _idct;
 
@@ -122,10 +124,11 @@ public class MdecDecoder_int extends MdecDecoder {
                             iRevZigZagMatrixPos = MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[iCurrentBlockVectorPosition];
                         } catch (ArrayIndexOutOfBoundsException ex) {
                             MdecContext.MacroBlockPixel macBlkXY = context.getMacroBlockPixel();
-                            throw new MdecException.ReadCorruption(MdecException.RLC_OOB_IN_BLOCK_NAME(
-                                           iCurrentBlockVectorPosition,
-                                           context.getTotalMacroBlocksRead(), macBlkXY.x, macBlkXY.y, context.getCurrentBlock().ordinal(), context.getCurrentBlock().name()),
-                                           ex);
+                            String sMsg = MdecException.RLC_OOB_IN_BLOCK_NAME(
+                                    iCurrentBlockVectorPosition, context.getTotalMacroBlocksRead(),
+                                    macBlkXY.x, macBlkXY.y,
+                                    context.getCurrentBlock().ordinal(), context.getCurrentBlock().name());
+                            throw new MdecException.ReadCorruption(sMsg, LOG_CORRUPTION_STACK_TRACE ? ex : null);
                         }
 
                         if (_code.getBottom10Bits() != 0) {
@@ -156,7 +159,7 @@ public class MdecDecoder_int extends MdecDecoder {
                 }
             }
         } finally {
-            // in case an exception occured
+            // in case an exception occurred
             // fill in any remaining data with zeros
             // pickup where decoding left off
             while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {

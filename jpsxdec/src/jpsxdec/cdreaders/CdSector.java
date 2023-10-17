@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -89,14 +89,14 @@ public abstract class CdSector {
     /** Offset in {@link #_abSectorBytes} where this sector begins. */
     private final int _iByteStartOffset;
     /** Byte offset of this sector in the source file. */
-    private final long _lngFilePointer;
+    private final int _iFilePointer;
 
-    public CdSector(int iSectorIndex, byte[] abSectorBytes, int iByteStartOffset,
-                    long lngFilePointer) {
+    public CdSector(int iSectorIndex, @Nonnull byte[] abSectorBytes, int iByteStartOffset,
+                    int iFilePointer) {
         _iSectorIndex = iSectorIndex;
         _abSectorBytes = abSectorBytes;
         _iByteStartOffset = iByteStartOffset;
-        _lngFilePointer = lngFilePointer;
+        _iFilePointer = iFilePointer;
     }
 
     // .........................................................................
@@ -129,8 +129,8 @@ public abstract class CdSector {
     /** Returns the actual offset in bytes from the start of the file/CD
      * to the start of the sector userdata. */
     //[implements IGetFilePointer]
-    final public long getUserDataFilePointer() {
-        return _lngFilePointer + getHeaderDataSize();
+    final public int getUserDataFilePointer() {
+        return _iFilePointer + getHeaderDataSize();
     }
 
     /** Returns copy of the 'user data' portion of the sector. */

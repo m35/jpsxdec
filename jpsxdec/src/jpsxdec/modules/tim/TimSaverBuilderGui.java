@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -132,7 +132,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui implements ChangeListen
             }
         }
 
-        private class Format extends AbstractCombo {
+        private class Format extends AbstractCombo<TimSaverBuilder.TimSaveFormat> {
             public Format() {
                 super(I.GUI_TIM_SAVE_FORMAT_LABEL(), true);
             }
@@ -141,7 +141,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui implements ChangeListen
                 return _bl.getBuilder().getImageFormat_listSize();
             }
             @Override
-            public Object getElementAt(int index) {
+            public TimSaverBuilder.TimSaveFormat getElementAt(int index) {
                 return _bl.getBuilder().getImageFormat_listItem(index);
             }
             @Override
@@ -163,7 +163,7 @@ class TimSaverBuilderGui extends DiscItemSaverBuilderGui implements ChangeListen
 
         try {
             // XXX: I don't like having to read from the disc until saving actually begins
-            // or the user explicitly choses to preview the item
+            // or the user explicitly chooses to preview the item
             Tim tim = _bl.getBuilder().readTim();
             int iPals = tim.getPaletteCount();
 

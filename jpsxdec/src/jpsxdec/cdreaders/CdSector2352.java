@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -67,9 +67,9 @@ public class CdSector2352 extends CdSector {
     private final Type _type;
 
     public CdSector2352(int iSectorIndex, @Nonnull byte[] abSectorBytes,
-                        int iByteStartOffset, long lngFilePointer)
+                        int iByteStartOffset, int iFilePointer)
     {
-        super(iSectorIndex, abSectorBytes, iByteStartOffset, lngFilePointer);
+        super(iSectorIndex, abSectorBytes, iByteStartOffset, iFilePointer);
         if (iByteStartOffset + SECTOR_SIZE_2352_BIN > abSectorBytes.length)
             throw new IllegalArgumentException();
         CdSectorHeader header = new CdSectorHeader(iSectorIndex, abSectorBytes, iByteStartOffset);

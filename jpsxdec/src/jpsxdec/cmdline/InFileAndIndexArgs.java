@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,12 +44,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.CdFileSectorReader;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
+import jpsxdec.cdreaders.CdOpener;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.I;
-import jpsxdec.i18n._PlaceholderMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ConsoleProgressLogger;
@@ -214,7 +213,7 @@ public class InFileAndIndexArgs {
             try {
                 oiCdSectorSize = Integer.parseInt(_cdSectorSize.value);
             } catch (NumberFormatException ex) {
-                throw new CommandLineException(new _PlaceholderMessage("Invalid sector size {0}", _cdSectorSize.value), ex);
+                throw new CommandLineException(I.CMD_INVALID_SECTOR_SIZE(_cdSectorSize.value), ex);
             }
         }
 
@@ -223,17 +222,13 @@ public class InFileAndIndexArgs {
         try {
             ICdSectorReader cd;
             if (oiCdSectorSize == null)
-                cd = CdFileSectorReader.open(_inputFileArg.value);
+                cd = CdOpener.open(_inputFileArg.value);
             else
-                cd = CdFileSectorReader.openWithSectorSize(_inputFileArg.value, oiCdSectorSize.intValue());
+                cd = CdOpener.openWithSectorSize(_inputFileArg.value, oiCdSectorSize.intValue());
             _fbs.println(I.CMD_DISC_IDENTIFIED(cd.getTypeDescription()));
             return cd;
-        } catch (CdFileSectorReader.CdFileNotFoundException ex) {
-            throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString()), ex);
-        } catch (CdFileSectorReader.FileTooSmallToIdentifyException ex) {
-            throw new CommandLineException(I.CD_FILE_TOO_SMALL(_inputFileArg.value), ex);
-        } catch (CdReadException ex) {
-            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+        } catch (CdException ex) {
+            throw new CommandLineException(ex.getSourceMessage(), ex);
         }
     }
 
@@ -249,7 +244,7 @@ public class InFileAndIndexArgs {
             cpl.log(Level.INFO, I.CMD_GUI_INDEXING(cd.toString()));
             try {
                 index = new DiscIndex(cd, cpl);
-            } catch (CdReadException ex) {
+            } catch (CdException.Read ex) {
                 throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
             } catch (LoggedFailure ex) {
                 throw new CommandLineException(ex.getSourceMessage(), ex);
@@ -281,10 +276,8 @@ public class InFileAndIndexArgs {
             throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
         } catch (LocalizedDeserializationFail ex) {
             throw new CommandLineException(I.ERR_LOADING_INDEX_FILE_REASON(ex.getSourceMessage()), ex);
-        } catch (CdFileSectorReader.CdFileNotFoundException ex) {
-            throw new CommandLineException(I.IO_OPENING_FILE_NOT_FOUND_NAME(ex.getFile().toString()), ex);
-        } catch (CdReadException ex) {
-            throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
+        } catch (CdException ex) {
+            throw new CommandLineException(ex.getSourceMessage(), ex);
         } finally {
             log.close();
         }

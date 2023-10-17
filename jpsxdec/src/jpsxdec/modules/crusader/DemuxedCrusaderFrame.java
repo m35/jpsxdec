@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2020  Michael Sabin
+ * Copyright (C) 2012-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,16 +37,11 @@
 
 package jpsxdec.modules.crusader;
 
-import java.io.PrintStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.DiscPatcher;
-import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.video.IDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
-import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
-import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
+import jpsxdec.psxvideo.bitstreams.IBitStreamUncompressor;
 import jpsxdec.util.Fraction;
 
 public class DemuxedCrusaderFrame implements IDemuxedFrame {
@@ -65,7 +60,7 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
     }
 
     @Override
-    public @CheckForNull MdecInputStream getCustomFrameMdecStream() {
+    public @CheckForNull IBitStreamUncompressor getCustomFrameMdecStream() {
         return null;
     }
 
@@ -116,16 +111,6 @@ public class DemuxedCrusaderFrame implements IDemuxedFrame {
     @Override
     public @Nonnull Fraction getPresentationSector() {
         return new Fraction(_iPresentationSector);
-    }
-
-    @Override
-    public void printSectors(@Nonnull PrintStream ps) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void writeToSectors(SectorBasedFrameAnalysis existingFrame, BitStreamAnalysis newFrame, DiscPatcher patcher, ILocalizedLogger log) {
-        throw new UnsupportedOperationException("Replacing Crusader frames is not supported");
     }
 
     @Override

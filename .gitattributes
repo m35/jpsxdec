@@ -1,0 +1,19 @@
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.avi binary
+*.mkv binary
+*.yuv binary
+*.bs binary
+*.mdec binary
+*.dat binary
+*.gz binary
+
+*.zip binary
+*.odt binary
+*.pdf binary
+
+*.class binary
+*.jar binary
+*.exe binary

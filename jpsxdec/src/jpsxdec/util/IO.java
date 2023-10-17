@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -64,7 +64,7 @@ public final class IO {
                 obj.close();
                 return null;
             } catch (IOException ex) {
-                log.log(Level.SEVERE, "Exception closing object " + obj, ex);
+                Misc.log(log, Level.SEVERE, ex, "Exception closing object {0}", obj);
                 return ex;
             }
         } else {
@@ -320,7 +320,7 @@ public final class IO {
             (b3 = stream.read()) < 0 ||
             (b4 = stream.read()) < 0)
             throw new EOFException();
-        return SInt32BE(b1, b2, b3, b4);
+        return SInt32BE(b1, b2, b3, b4) & 0xffffffffL;
     }
 
     //== 32-bit == little-endian == write ======================================
@@ -361,7 +361,7 @@ public final class IO {
     // #########################################################################
     // #########################################################################
 
-    //== 64-bit ================================================================
+    //== 64-bit == big-endian == read ==========================================
 
     public static long readSInt64BE(@Nonnull InputStream stream) throws EOFException, IOException {
         long lngRet = 0;

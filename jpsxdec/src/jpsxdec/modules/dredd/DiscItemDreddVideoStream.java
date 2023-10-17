@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2020  Michael Sabin
+ * Copyright (C) 2014-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,7 +40,6 @@ package jpsxdec.modules.dredd;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.Dimensions;
@@ -51,13 +50,12 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.video.IDemuxedFrame;
-import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.IFrameNumberFormatter;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
 import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
 import jpsxdec.modules.video.sectorbased.SectorBasedVideoInfo;
+import jpsxdec.modules.video.sectorbased.SectorClaimToSectorBasedDemuxedFrame;
 import jpsxdec.modules.xa.DiscItemXaAudioStream;
 
 /** Represents Judge Dredd video streams.
@@ -127,7 +125,7 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
     }
 
     @Override
-    public FrameNumber getEndFrame() {
+    public @Nonnull FrameNumber getEndFrame() {
         return _indexSectorFrameNumberFormat.getEndFrame();
     }
 
@@ -137,27 +135,22 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
     }
 
     @Override
-    public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer() {
+    public @Nonnull SectorClaimToSectorBasedDemuxedFrame makeDemuxer() {
         return new Demuxer(_indexSectorFrameNumberFormat.makeFormatter(),
                            makeSectorRange());
     }
 
 
-    public static class Demuxer implements ISectorClaimToDemuxedFrame, DreddSectorToDreddFrame.Listener {
+    public static class Demuxer extends SectorClaimToSectorBasedDemuxedFrame implements DreddSectorToDreddFrame.Listener {
 
         @Nonnull
         private final IFrameNumberFormatter _indexSectorFrameNumberFormatter;
-        @Nonnull
-        private final SectorRange _sectorRange;
-
-        @CheckForNull
-        private IDemuxedFrame.Listener _listener;
 
         private Demuxer(@Nonnull IFrameNumberFormatter indexSectorFrameNumberFormatter,
                         @Nonnull SectorRange sectorRange)
         {
+            super(sectorRange);
             _indexSectorFrameNumberFormatter = indexSectorFrameNumberFormatter;
-            _sectorRange = sectorRange;
         }
 
         @Override
@@ -167,17 +160,10 @@ public class DiscItemDreddVideoStream extends DiscItemSectorBasedVideoStream {
         }
 
         @Override
-        public void setFrameListener(@Nonnull IDemuxedFrame.Listener listener) {
-            _listener = listener;
-        }
-
-        @Override
         public void frameComplete(@Nonnull DemuxedDreddFrame frame, @Nonnull ILocalizedLogger log) throws LoggedFailure {
             FrameNumber fn = _indexSectorFrameNumberFormatter.next(frame.getStartSector(), log);
-            if (_listener != null) {
-                frame.setFrame(fn);
-                _listener.frameComplete(frame);
-            }
+            frame.setFrame(fn);
+            demuxedFrameComplete(frame);
         }
 
         @Override

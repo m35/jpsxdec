@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,14 +53,15 @@ import jpsxdec.formats.RgbIntImage;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.UnlocalizedMessage;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
-import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.video.IDemuxedFrame;
+import jpsxdec.modules.aconcagua.BitStreamUncompressor_Aconcagua;
 import jpsxdec.modules.video.framenumber.FrameLookup;
+import jpsxdec.modules.video.sectorbased.ISectorBasedDemuxedFrame;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
 import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
 import jpsxdec.psxvideo.bitstreams.BitStreamCompressor;
+import jpsxdec.psxvideo.bitstreams.IBitStreamUncompressor;
 import jpsxdec.psxvideo.encode.MdecEncoder;
 import jpsxdec.psxvideo.encode.PsxYCbCrImage;
 import jpsxdec.psxvideo.mdec.Ac0Checker;
@@ -70,6 +71,7 @@ import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.ParsedMdecImage;
 import jpsxdec.psxvideo.mdec.idct.PsxMdecIDCT_double;
 import jpsxdec.util.BinaryDataNotRecognized;
+import jpsxdec.util.IncompatibleException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -168,7 +170,7 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
     }
 
     @Override
-    public void replace(@Nonnull IDemuxedFrame frame, @Nonnull DiscPatcher patcher,
+    public void replace(@Nonnull ISectorBasedDemuxedFrame frame, @Nonnull DiscPatcher patcher,
                         @Nonnull ILocalizedLogger log)
             throws LoggedFailure
     {
@@ -202,9 +204,7 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
             // 2. convert both to RGB
             // TODO: use best quality to decode, but same as encode
             decoder.decode(optimizedOrig.getStream());
-        } catch (MdecException.EndOfStream ex) {
-            throw new RuntimeException("Should have been detected already", ex);
-        } catch (MdecException.ReadCorruption ex) {
+        } catch (MdecException.EndOfStream | MdecException.ReadCorruption ex) {
             throw new RuntimeException("Should have been detected already", ex);
         }
 
@@ -231,13 +231,11 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
 
         byte[] abNewFrame;
         try {
-            abNewFrame = comp.compressPartial(frame.copyDemuxData(), getFrameLookup().toString(), encoder, log);
-        } catch (LocalizedIncompatibleException ex) {
-            throw new LoggedFailure(log, Level.SEVERE, ex.getSourceMessage(), ex);
-        } catch (MdecException.EndOfStream ex) {
-            throw new RuntimeException("Shouldn't happen", ex);
-        } catch (MdecException.ReadCorruption ex) {
-            throw new RuntimeException("Shouldn't happen", ex);
+            abNewFrame = comp.compressPartial(frame.getDemuxSize(), getFrameLookup().toString(), encoder, log);
+        } catch (MdecException.EndOfStream | MdecException.ReadCorruption ex) {
+            throw new RuntimeException("We made the MdecEncoder, this shouldn't happen", ex);
+        } catch (IncompatibleException ex) {
+            throw new RuntimeException("The compressor was created from the uncompressor, so this should never happen", ex);
         }
         if (abNewFrame == null)
             throw new LoggedFailure(log, Level.SEVERE,
@@ -245,12 +243,13 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
 
         BitStreamAnalysis newFrame;
         try {
-            newFrame = new BitStreamAnalysis(abNewFrame, WIDTH, HEIGHT);
-        } catch (BinaryDataNotRecognized ex) {
-            throw new RuntimeException("Shouldn't happen", ex);
-        } catch (MdecException.EndOfStream ex) {
-            throw new RuntimeException("Shouldn't happen", ex);
-        } catch (MdecException.ReadCorruption ex) {
+            IBitStreamUncompressor origBs = existingFrame.getCompletedBitStream();
+            if (origBs instanceof BitStreamUncompressor_Aconcagua) {
+                newFrame = new BitStreamAnalysis(abNewFrame, (((BitStreamUncompressor_Aconcagua) origBs).makeFor(abNewFrame)), WIDTH, HEIGHT);
+            } else {
+                newFrame = new BitStreamAnalysis(abNewFrame, WIDTH, HEIGHT);
+            }
+        } catch (BinaryDataNotRecognized | MdecException.EndOfStream | MdecException.ReadCorruption ex) {
             throw new RuntimeException("Shouldn't happen", ex);
         }
 
@@ -262,7 +261,7 @@ public class ReplaceFramePartial extends ReplaceFrameFull {
                                       int iMbWidth, int iMbHeight,
                                       @Nonnull ILocalizedLogger log)
     {
-        log.log(Level.INFO, I.CMD_REPLACE_FOUND_DIFFERENT_MACRO_BLOCKS(diffMacblks.size()));
+        log.log(Level.INFO, I.CMD_REPLACE_FOUND_DIFFERENT_MACRO_BLOCKS(diffMacblks.size(), Calc.macroblocks(iMbWidth, iMbHeight)));
 
         Point p = new Point();
         for (int iMbY = 0; iMbY < iMbHeight; iMbY++) {

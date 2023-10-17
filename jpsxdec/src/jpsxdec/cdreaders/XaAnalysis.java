@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2020  Michael Sabin
+ * Copyright (C) 2014-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -68,7 +68,6 @@ public class XaAnalysis {
 
 
     /** Analyzes a CD sector to determine if it is a XA audio sector.
-     * @param iMaxValidChannel Max subheader channel that will be accepted as XA. 254 is a good value.
      * @return null if definitely not a XA audio sector. */
     public static @CheckForNull XaAnalysis analyze(@Nonnull CdSector cdSector) {
         if (cdSector.getType() != CdSector.Type.MODE2FORM2)
@@ -77,6 +76,7 @@ public class XaAnalysis {
         CdSectorXaSubHeader sh = cdSector.getSubHeader();
         if (sh == null)
             return null;
+
         if (sh.getSubMode().mask(CdSectorXaSubHeader.SubMode.MASK_FORM  |
                                  CdSectorXaSubHeader.SubMode.MASK_AUDIO |
                                  CdSectorXaSubHeader.SubMode.MASK_DATA  |
@@ -86,9 +86,12 @@ public class XaAnalysis {
                                 (CdSectorXaSubHeader.SubMode.MASK_FORM  |
                                  CdSectorXaSubHeader.SubMode.MASK_AUDIO |
                                  CdSectorXaSubHeader.SubMode.MASK_REAL_TIME))
+        {
             return null;
+        }
+
         if (sh.getChannel() < 0 || sh.getChannel() > 255)
-            return null; // this really should never happen
+            throw new RuntimeException("This should never happen");
 
         boolean blnStereo = sh.getCodingInfo().isStereo();
         int iSamplesPerSecond = sh.getCodingInfo().getSamplesPerSecond();

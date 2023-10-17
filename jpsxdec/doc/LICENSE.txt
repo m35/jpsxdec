@@ -203,11 +203,6 @@ SwingLabs SwingX Project
 http://swinglabs.org/
 Copyright (c) 2005-2006 Sun Microsystems, Inc. All rights reserved.
 
-src-lgpl/org/jdesktop/swingworker/*
-SwingWorker library
-https://swingworker.dev.java.net/
-Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
-
 src-lgpl/jpsxdec/gui/knotify.png
 src-lgpl/jpsxdec/gui/layer-new-3.png
 From The Crystal Project icons set

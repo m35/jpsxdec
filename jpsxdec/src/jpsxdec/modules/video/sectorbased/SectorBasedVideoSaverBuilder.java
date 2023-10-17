@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2020  Michael Sabin
+ * Copyright (C) 2012-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,6 +46,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.discitems.DiscItemSaverBuilder;
 import jpsxdec.discitems.DiscItemSaverBuilderGui;
 import jpsxdec.i18n.FeedbackStream;
@@ -54,10 +55,8 @@ import jpsxdec.i18n.TabularFeedback;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.i18n.log.ProgressLogger;
-import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
-import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
-import jpsxdec.modules.video.AudioStreamsCombiner;
-import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
+import jpsxdec.modules.audio.sectorbased.DiscItemSectorBasedAudioStream;
+import jpsxdec.modules.audio.sectorbased.ISectorClaimToSectorBasedDecodedAudio;
 import jpsxdec.modules.video.save.VideoSaver;
 import jpsxdec.modules.video.save.VideoSaverBuilder;
 import jpsxdec.util.ArgParser;
@@ -120,16 +119,13 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
 
     private boolean _blnSingleSpeed = false;
     public boolean getSingleSpeed() {
-        switch (findDiscSpeed()) {
-            case 1:
-                return true;
-            case 2:
-                return false;
-            default:
-                return _blnSingleSpeed;
-        }
+        DiscSpeed discSpeed = findDiscSpeed();
+        if (discSpeed == null)
+            return _blnSingleSpeed;
+        else
+            return discSpeed == DiscSpeed.SINGLE;
     }
-    private int findDiscSpeed() {
+    private @CheckForNull DiscSpeed findDiscSpeed() {
         return _sourceVidItem.getDiscSpeed();
     }
     public void setSingleSpeed(boolean val) {
@@ -138,11 +134,11 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
     }
     public boolean getSingleSpeed_enabled() {
         return getVideoFormat().isVideo() &&
-               (findDiscSpeed() < 1);
+               (findDiscSpeed() == null);
     }
     public @Nonnull Fraction getFps() {
         return Fraction.divide(
-                getSingleSpeed() ? 75 : 150,
+                getSingleSpeed() ? DiscSpeed.SINGLE.getSectorsPerSecond() : DiscSpeed.DOUBLE.getSectorsPerSecond(),
                 _sourceVidItem.getSectorsPerFrame());
     }
 
@@ -338,18 +334,23 @@ public class SectorBasedVideoSaverBuilder extends VideoSaverBuilder {
         clearGeneratedFiles();
         printSelectedOptions(pl);
 
-        final ISectorAudioDecoder audDecoder;
-        final ISectorClaimToDemuxedFrame demuxer = _sourceVidItem.makeDemuxer();
+        final ISectorClaimToSectorBasedDecodedAudio audDecoder;
         ArrayList<DiscItemSectorBasedAudioStream> parallelAudio = collectSelectedAudio();
         if (parallelAudio.isEmpty())
             audDecoder = null;
         else if (parallelAudio.size() == 1)
             audDecoder = parallelAudio.get(0).makeDecoder(getAudioVolume());
         else
-            audDecoder = new AudioStreamsCombiner(parallelAudio, getAudioVolume());
+            audDecoder = new SectorBasedAudioStreamsCombiner(parallelAudio, getAudioVolume());
 
-        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, demuxer, audDecoder,
-                getSingleSpeed() ? 75 : 150, _sourceVidItem.getSectorsPerFrame(), _sourceVidItem.getAbsolutePresentationStartSector());
+        SectorClaimToSectorBasedFrameAndAudio sc2fa = new SectorClaimToSectorBasedFrameAndAudio(_sourceVidItem.makeDemuxer(),
+                                                                                                _sourceVidItem.getStartSector(),
+                                                                                                _sourceVidItem.getEndSector(),
+                                                                                                audDecoder);
+
+        VideoSaver vs = new VideoSaver(_sourceVidItem, this, thisGeneratedFileListener, directory, pl, sc2fa,
+                                       getSingleSpeed() ? DiscSpeed.SINGLE : DiscSpeed.DOUBLE,
+                                       _sourceVidItem.getSectorsPerFrame(), _sourceVidItem.getAbsolutePresentationStartSector());
         vs.save(pl);
     }
 

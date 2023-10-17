@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,7 +49,7 @@ class AVIOLDINDEX extends AVIstruct {
 
     public static int AVIIF_KEYFRAME = 0x10;
 
-    /** Struture used for the {@link AVIOLDINDEX#aIndex} array. */
+    /** Structure used for the {@link AVIOLDINDEX#aIndex} array. */
     public static class AVIOLDINDEXENTRY extends AVIstruct {
         public /*DWORD*/ int dwChunkId = 0;
         public /*DWORD*/ int dwFlags   = 0;

@@ -38,13 +38,14 @@ package laintools;
 
 import java.io.File;
 import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdOpener;
 import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.DiscItem;
-import jpsxdec.indexing.DiscIndex;
-import jpsxdec.modules.iso9660.DiscItemISO9660File;
 import jpsxdec.i18n.log.ConsoleProgressLogger;
 import jpsxdec.i18n.log.DebugLogger;
+import jpsxdec.indexing.DiscIndex;
+import jpsxdec.modules.iso9660.DiscItemISO9660File;
 
 public class PatchLainImage {
 
@@ -66,9 +67,9 @@ public class PatchLainImage {
             sBin = args[3];
         }        
         
-        DiscIndex index = new DiscIndex(sIndex, true, DebugLogger.Log);
+        DiscIndex index = new DiscIndex(sIndex, DebugLogger.Log);
 
-        DiscPatcher patcher = new DiscPatcher(index.getSourceCd());
+        DiscPatcher patcher = new DiscPatcher();
         DiscItem item = index.getById("SLPS_016.03");
         if (item == null)
             item = index.getById("SLPS_016.04");
@@ -90,7 +91,7 @@ public class PatchLainImage {
         System.out.println("Replacing " + sReplaceFile);
 
         File replaceFile = new File(sReplaceFile);
-        ICdSectorReader replaceDisc = CdFileSectorReader.openWithSectorSize(replaceFile, 2048);
+        ICdSectorReader replaceDisc = CdOpener.openWithSectorSize(replaceFile, 2048);
         if (replaceDisc.getSectorCount() > isoFile.getSectorLength())
             throw new RuntimeException(sReplaceFile + " too big to fit " + isoFile);
 

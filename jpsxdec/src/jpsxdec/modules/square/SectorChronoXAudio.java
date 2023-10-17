@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -91,7 +91,7 @@ public class SectorChronoXAudio extends IdentifiedSector implements ISquareAudio
         if (subModeExistsAndMaskDoesNotEqual(SubMode.MASK_DATA | SubMode.MASK_FORM, SubMode.MASK_DATA))
             return;
 
-        // make sure the magic nubmer is correct
+        // make sure the magic number is correct
         long lngMagic = cdSector.readUInt32LE(0);
         if (lngMagic != AUDIO_CHUNK_MAGIC1 &&
             lngMagic != AUDIO_CHUNK_MAGIC2 &&

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,17 +41,17 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n._PlaceholderMessage;
+import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.IIdentifiedSector;
+import jpsxdec.modules.IdentifiedSector;
 import jpsxdec.modules.IdentifiedSectorListener;
 import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.video.sectorbased.SectorBasedFrameBuilder;
 import jpsxdec.util.DemuxedData;
 
 /** @see NGaugeVideoInfo */
-public class NGaugeSectorToFrame implements IdentifiedSectorListener {
+public class NGaugeSectorToFrame implements IdentifiedSectorListener<IdentifiedSector> {
 
     public interface Listener {
         void videoStart(@Nonnull NGaugeVideoInfo videoInfo);
@@ -77,12 +77,12 @@ public class NGaugeSectorToFrame implements IdentifiedSectorListener {
     }
 
     @Override
-    public @CheckForNull Class getListeningFor() {
-        return null;
+    public @Nonnull Class<IdentifiedSector> getListeningFor() {
+        return IdentifiedSector.class;
     }
 
     @Override
-    public void feedSector(@Nonnull IIdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
+    public void feedSector(@Nonnull IdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         if (!_sectorRange.sectorIsInRange(idSector.getSectorNumber()))
             return;
 
@@ -101,7 +101,7 @@ public class NGaugeSectorToFrame implements IdentifiedSectorListener {
             {
                 // for some reason sector data does not align with the calculated chunk number??
                 videoBreak(log); // kill the video in progress
-                log.log(Level.SEVERE, new _PlaceholderMessage("N-Gauge Unten Kibun Game - Gatan Goton data corruption"));
+                log.log(Level.SEVERE, I.N_GAUGE_DATA_CORRUPTION());
             } else {
                 if (_bldr != null &&
                     !_bldr.addSectorIfPartOfFrame(vidSector, iChunkNumber, _videoInfo.iSectorsPerFrame,

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -182,7 +182,7 @@ public class SectorClaimToEAVideo implements SectorClaimSystem.SectorClaimer {
                            @Nonnull ILocalizedLogger log)
     {
         CdSector cdSector = cs.getSector();
-        if (cs.getClaimer() != null || cdSector.isCdAudioSector()) {
+        if (cs.isClaimed() || cdSector.isCdAudioSector()) {
             // close any existing stream
             endVideo(log);
             return;

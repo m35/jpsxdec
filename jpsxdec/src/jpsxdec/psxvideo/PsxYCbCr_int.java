@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,14 +42,17 @@ import jpsxdec.formats.RGB;
 import jpsxdec.util.Maths;
 
 /**
+ * Integer version of {@link PsxYCbCr} for faster decoding.
+ *<pre>
+ * Y : -128 to 127
+ * Cb: -128 to 127
+ * Cr: -128 to 127
+ *</pre>
  * @see PsxYCbCr
  */
 public class PsxYCbCr_int {
 
     public int y1, y2, y3, y4, cb, cr;
-
-    public PsxYCbCr_int() {
-    }
 
     public static final int FIXED_BITS = 16;
     public static final double FIXED_MULT = 1L << FIXED_BITS;
@@ -74,30 +77,30 @@ public class PsxYCbCr_int {
     }
 
     final public void toRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
-        int iChromRed   = (int)Maths.shrRound(                      _1_402  * cr , FIXED_BITS);
-        int iChromGreen = (int)Maths.shrRound( -(_0_3437 * cb)  -  (_0_7143 * cr), FIXED_BITS);
-        int iChromBlue  = (int)Maths.shrRound(   _1_772  * cb                    , FIXED_BITS);
+        int iChromaRed   = (int)Maths.shrRound(                      _1_402  * cr , FIXED_BITS);
+        int iChromaGreen = (int)Maths.shrRound( -(_0_3437 * cb)  -  (_0_7143 * cr), FIXED_BITS);
+        int iChromaBlue  = (int)Maths.shrRound(   _1_772  * cb                    , FIXED_BITS);
         int iYshift;
 
         iYshift = y1 + 128;
-        rgb1.setR(iYshift + iChromRed);
-        rgb1.setG(iYshift + iChromGreen);
-        rgb1.setB(iYshift + iChromBlue);
+        rgb1.setR(iYshift + iChromaRed);
+        rgb1.setG(iYshift + iChromaGreen);
+        rgb1.setB(iYshift + iChromaBlue);
 
         iYshift = y2 + 128;
-        rgb2.setR(iYshift + iChromRed);
-        rgb2.setG(iYshift + iChromGreen);
-        rgb2.setB(iYshift + iChromBlue);
+        rgb2.setR(iYshift + iChromaRed);
+        rgb2.setG(iYshift + iChromaGreen);
+        rgb2.setB(iYshift + iChromaBlue);
 
         iYshift = y3 + 128;
-        rgb3.setR(iYshift + iChromRed);
-        rgb3.setG(iYshift + iChromGreen);
-        rgb3.setB(iYshift + iChromBlue);
+        rgb3.setR(iYshift + iChromaRed);
+        rgb3.setG(iYshift + iChromaGreen);
+        rgb3.setB(iYshift + iChromaBlue);
 
         iYshift = y4 + 128;
-        rgb4.setR(iYshift + iChromRed);
-        rgb4.setG(iYshift + iChromGreen);
-        rgb4.setB(iYshift + iChromBlue);
+        rgb4.setR(iYshift + iChromaRed);
+        rgb4.setG(iYshift + iChromaGreen);
+        rgb4.setB(iYshift + iChromaBlue);
     }
 
     @Override

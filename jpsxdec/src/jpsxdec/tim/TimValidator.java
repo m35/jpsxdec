@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2020  Michael Sabin
+ * Copyright (C) 2020-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -252,7 +252,7 @@ public class TimValidator {
             if (_iTimByteSize < iExpectedTimByteSize || _iTimByteSize > iExpectedTimByteSize + 2)
                 return TimConsistency.INCONSISTENT;
 
-            LOG.log(Level.WARNING, "Tim data requires only {0} bytes but header says Tim is {1} bytes",
+            LOG.log(Level.WARNING, "Tim data requires only {0,number,#} bytes but header says Tim is {1,number,#} bytes",
                                    new Object[]{iExpectedTimByteSize, _iTimByteSize});
 
             consistency = TimConsistency.INCONSISTENT_BUT_VALID;

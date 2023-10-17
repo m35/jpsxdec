@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -66,12 +66,12 @@ public class DreddSectorToDreddFrame implements IdentifiedSectorListener<IIdenti
     }
 
     @Override
-    public Class<IIdentifiedSector> getListeningFor() {
+    public @Nonnull Class<IIdentifiedSector> getListeningFor() {
         return IIdentifiedSector.class;
     }
 
     @Override
-    public void feedSector(IIdentifiedSector idSector, ILocalizedLogger log) throws LoggedFailure {
+    public void feedSector(@Nonnull IIdentifiedSector idSector, @Nonnull ILocalizedLogger log) throws LoggedFailure {
         SectorDreddVideo dreddSector;
         if (idSector instanceof SectorDreddVideo)
             dreddSector = (SectorDreddVideo) idSector;
@@ -93,7 +93,7 @@ public class DreddSectorToDreddFrame implements IdentifiedSectorListener<IIdenti
     }
 
     @Override
-    public void endOfFeedSectors(ILocalizedLogger log) throws LoggedFailure {
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         _listener.endOfSectors(log);
     }
 }

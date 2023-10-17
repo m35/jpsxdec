@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2020  Michael Sabin
+ * Copyright (C) 2015-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -349,11 +349,11 @@ public class SerializedDiscItemTest {
         sdi.getString(Dimensions.DIMENSIONS_KEY);
         try {
             sdi.getInt(Dimensions.DIMENSIONS_KEY);
-            fail("Expepcted " + LocalizedDeserializationFail.class);
+            fail("Expected " + LocalizedDeserializationFail.class);
         } catch (LocalizedDeserializationFail e) {}
         try {
             sdi.getLong(Dimensions.DIMENSIONS_KEY);
-            fail("Expepcted " + LocalizedDeserializationFail.class);
+            fail("Expected " + LocalizedDeserializationFail.class);
         } catch (LocalizedDeserializationFail e) {}
 
         serializeDeserialize(sdi);

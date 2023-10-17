@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -79,9 +79,12 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
 
     @Override
     public boolean addSectorIfPartOfFrame(@Nonnull ISelfDemuxingVideoSector sector) {
+        // would be nice if we could make this builder generic, but there's no way
+        // of knowing if this sector is a subclass of <T> at run time
         if (!(sector instanceof IVideoSectorWithFrameNumber))
             return false;
-        return addSectorWithFameNumberIfPartOfFrame((IVideoSectorWithFrameNumber)sector);
+        IVideoSectorWithFrameNumber chunk = (IVideoSectorWithFrameNumber) sector;
+        return addSectorWithFameNumberIfPartOfFrame(chunk);
     }
 
     public boolean addSectorWithFameNumberIfPartOfFrame(@Nonnull IVideoSectorWithFrameNumber chunk) {
@@ -101,7 +104,7 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
     }
 
     @Override
-    public @Nonnull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log) {
+    public @Nonnull SectorBasedDemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log) {
         List<IVideoSectorWithFrameNumber> sectors = getNonNullChunks(log);
 
         // need to wrap the sectors in something compatible with IReplaceableVideoSector
@@ -112,8 +115,9 @@ public class VideoSectorWithFrameNumberDemuxer implements ISelfDemuxingVideoSect
             wrappedSectors.add(new VideoSectorReplaceableDemuxPiece(vidSector));
         }
 
-        return new DemuxedFrameWithNumberAndDims(_iWidth, _iHeight, _bldr.getHeaderFrameNumber(),
-                                                 wrappedSectors);
+        return new SectorBasedDemuxedFrameWithNumberAndDims(_iWidth, _iHeight,
+                                                            _bldr.getHeaderFrameNumber(),
+                                                            wrappedSectors);
     }
 
     /** {@link IVideoSectorWithFrameNumber} is used for a variety of video sector types

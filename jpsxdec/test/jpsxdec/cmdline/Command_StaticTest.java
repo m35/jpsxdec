@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,8 +49,11 @@ import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.psxvideo.mdec.MdecInputStreamReader;
 import jpsxdec.util.ArgParser;
 import jpsxdec.util.IO;
-import static org.junit.Assert.*;
 import org.junit.Test;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 public class Command_StaticTest {
@@ -113,7 +116,9 @@ public class Command_StaticTest {
         testSubject.init(new ArgParser(new String[] {"-static"}), inFileIdx, fbs);
         testSubject.execute(ap);
         // I guess check the output file
-        assertTrue(new File(Command_StaticTest.class.getSimpleName()+"_16x16.mdec").exists());
+        File expectedFile = new File(Command_StaticTest.class.getSimpleName()+"_16x16.mdec");
+        assertTrue(expectedFile.exists());
+        expectedFile.delete();
     }
 
     @Test
@@ -131,7 +136,9 @@ public class Command_StaticTest {
         testSubject.init(new ArgParser(new String[] {"-static"}), inFileIdx, fbs);
         testSubject.execute(ap);
         // I guess check the output file
-        assertTrue(new File(Command_StaticTest.class.getSimpleName()+".png").exists());
+        File expectedFile = new File(Command_StaticTest.class.getSimpleName()+".png");
+        assertTrue(expectedFile.exists());
+        expectedFile.delete();
     }
 
 
@@ -150,7 +157,9 @@ public class Command_StaticTest {
         testSubject.init(new ArgParser(new String[] {"-static"}), inFileIdx, fbs);
         testSubject.execute(ap);
         // I guess check the output file
-        assertTrue(new File(Command_StaticTest.class.getSimpleName()+".jpg").exists());
+        File expectedFile = new File(Command_StaticTest.class.getSimpleName()+".jpg");
+        assertTrue(expectedFile.exists());
+        expectedFile.delete();
     }
 
     public static void main(String[] args) throws Exception {
@@ -173,7 +182,7 @@ public class Command_StaticTest {
 
         mis = new ArrayListMdecInputStream(codes);
         BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 x =
-                new BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2(1);
+                new BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2(1, -1);
         byte[] abData = x.compress(mis);
         IO.writeFile(TEST_BS_FILE, abData);
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2020  Michael Sabin
+ * Copyright (C) 2014-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -176,7 +176,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexerSectorBasedVideo.SubI
     }
 
     @Override
-    public Class<SectorAceCombat3Video> getListeningFor() {
+    public @Nonnull Class<SectorAceCombat3Video> getListeningFor() {
         return SectorAceCombat3Video.class;
     }
 
@@ -195,7 +195,7 @@ public class DiscIndexerAceCombat3Video extends DiscIndexerSectorBasedVideo.SubI
     }
 
     @Override
-    public void endOfFeedSectors(ILocalizedLogger log) throws LoggedFailure {
+    public void endOfFeedSectors(@Nonnull ILocalizedLogger log) throws LoggedFailure {
         for (Ac3Channel channel : _activeStreams.values()) {
             channel.endVideo();
         }

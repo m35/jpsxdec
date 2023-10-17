@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2018-2020  Michael Sabin
+ * Copyright (C) 2018-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,6 +49,6 @@ public interface ISelfDemuxingVideoSector extends IIdentifiedSector {
     public interface IDemuxer {
         boolean addSectorIfPartOfFrame(@Nonnull ISelfDemuxingVideoSector sector);
         boolean isFrameComplete();
-        @CheckForNull DemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log);
+        @CheckForNull SectorBasedDemuxedFrameWithNumberAndDims finishFrame(@Nonnull ILocalizedLogger log);
     }
 }

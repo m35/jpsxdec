@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,8 +41,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.i18n.I;
-import jpsxdec.i18n.exception.LocalizedIncompatibleException;
 import jpsxdec.psxvideo.mdec.MdecBlock;
 import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecContext;
@@ -303,6 +301,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor implement
         _header = header;
     }
 
+    @Override
     public int getQuantizationScale() {
         return _header.getQuantizationScale();
     }
@@ -417,7 +416,7 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor implement
 
     @Override
     public @Nonnull BitStreamCompressor_STRv3 makeCompressor() {
-        return new BitStreamCompressor_STRv3(_context.getTotalMacroBlocksRead());
+        return new BitStreamCompressor_STRv3(_context.getTotalMacroBlocksRead(), getQuantizationScale());
     }
 
     // =========================================================================
@@ -426,26 +425,13 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor implement
      * DC coefficients. */
     public static class BitStreamCompressor_STRv3 extends BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 {
 
-        public BitStreamCompressor_STRv3(int iMacroBlockCount) {
-            this(iMacroBlockCount, BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER);
+        public BitStreamCompressor_STRv3(int iMacroBlockCount, int iOriginalQscale) {
+            this(iMacroBlockCount, iOriginalQscale, BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER);
         }
 
-        protected BitStreamCompressor_STRv3(int iMacroBlockCount, @Nonnull IByteOrder byteOrder) {
-            super(iMacroBlockCount, byteOrder);
+        protected BitStreamCompressor_STRv3(int iMacroBlockCount, int iOriginalQscale, @Nonnull IByteOrder byteOrder) {
+            super(iMacroBlockCount, iOriginalQscale, 3, END_OF_FRAME_EXTRA_BITS, byteOrder);
         }
-
-        @Override
-        protected int getHeaderVersion() { return 3; }
-
-        @Override
-        protected int getFrameQscale(@Nonnull byte[] abFrameData) throws LocalizedIncompatibleException {
-            StrV3Header header = new StrV3Header(abFrameData, abFrameData.length);
-            if (!header.isValid())
-                throw new LocalizedIncompatibleException(I.FRAME_IS_NOT_BITSTREAM_FORMAT("STRv3"));
-            return header.getQuantizationScale();
-        }
-
-
 
         @Override
         public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream)
@@ -500,11 +486,6 @@ public class BitStreamUncompressor_STRv3 extends BitStreamUncompressor implement
             throw new MdecException.TooMuchEnergy(String.format(
                     "Unable to compress DC value %d as diffed/4=%d",
                     iDC, iDcDiffRound4Div4));
-        }
-
-        @Override
-        protected void addTrailingBits(@Nonnull BitStreamWriter bitStream) {
-            bitStream.write(END_OF_FRAME_EXTRA_BITS);
         }
 
     }

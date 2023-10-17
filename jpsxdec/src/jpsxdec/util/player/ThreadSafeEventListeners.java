@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,28 +43,30 @@ import java.util.WeakHashMap;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 
-/** Takes care of handling even listeners in a thread-safe way. */
+/**
+ * Manages event listeners in a thread-safe way.
+ */
 class ThreadSafeEventListeners {
 
     @CheckForNull
     protected WeakHashMap<PlayController.PlayerListener, Boolean> _listeners;
 
     public synchronized void addEventListener(@Nonnull PlayController.PlayerListener listener) {
-        // need to syncronize this null check to avoid creating multiple listeners
+        // synchronizing this null check to avoid creating multiple listeners
         if (_listeners == null)
             _listeners = new WeakHashMap<PlayController.PlayerListener, Boolean>();
-        // need to syncronize adding to the map because it is not thread safe
+        // synchronized adding to the map because it is not thread safe
         _listeners.put(listener, Boolean.TRUE);
     }
     public synchronized void removeEventListener(@Nonnull PlayController.PlayerListener listener) {
-        // need to syncronize this null check to avoid creating multiple listeners
+        // synchronizing this null check to avoid creating multiple listeners
         if (_listeners != null)
-            // need to syncronize removing from the map because it is not thread safe
+            // synchronized removing from the map because it is not thread safe
             _listeners.remove(listener);
     }
 
     public void fire(@Nonnull PlayController.Event event) {
-        // safe to check for null since it is never set to null again
+        // safe to check for null since it is never set to null again (idempotent)
         if (_listeners != null) {
             Collection<PlayController.PlayerListener> listeners;
             synchronized (this) {

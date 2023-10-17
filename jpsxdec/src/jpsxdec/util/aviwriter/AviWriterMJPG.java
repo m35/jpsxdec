@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -62,7 +62,7 @@ import jpsxdec.util.FastImageIOwriteToBytes;
  * I owe much of my MJPG understanding to the
  * <a href="http://sourceforge.net/projects/jpegtoavi/">jpegtoavi program</a>.
  * According to Microsoft's original MJPEG spec, every JPEG frame should use
- * the default JPEG huffman tables, although most decoders are more lienent than
+ * the default JPEG huffman tables, although most decoders are more lenient than
  * that. VirtualDub's Motion JPEG decoder specifically does require default
  * huffman tables, and also requires the frame dimensions to be multiples of 16.
  */
@@ -120,7 +120,7 @@ public class AviWriterMJPG extends AviWriter {
             ImageWriteParam writeParams = _img2bytes.getDefaultWriteParam();
 
             writeParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-            // 0 for lowest qulaity, 1 for highest
+            // 0 for lowest quality, 1 for highest
             writeParams.setCompressionQuality(fltLossyQuality);
         }
     }

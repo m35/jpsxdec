@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -375,7 +375,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
                 if (BitStreamDebugging.DEBUG) {
                     System.err.println("Flags " + Misc.bitsToString(_iFlags, 8));
                     _logger.flush();
-                    System.err.print(_baosLogger.toString());
+                    System.err.print(_baosLogger);
                     _baosLogger.reset();
                 }
                 out.write(_iFlags);
@@ -429,12 +429,14 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
 
     // =========================================================================
 
-    public static class BitStreamCompressor_Iki extends BitStreamUncompressor_STRv2.BitStreamCompressor_STRv2 {
+    /** Note that IKI videos may only use the minimum number of videos sectors needed to hold the
+     * frame data. The remaining would be null or just full of zeroes. A proper encoder would
+     * take advantage of that and use those empty sectors if it helps improve the new frame quality. */
+    public static class BitStreamCompressor_Iki implements BitStreamCompressor, CommonBitStreamCompressing.BitStringEncoder {
 
         private final int _iWidth, _iHeight;
 
         protected BitStreamCompressor_Iki(int iWidth, int iHeight) {
-            super(Calc.macroblocks(iWidth, iHeight), BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER);
             _iWidth = iWidth;
             _iHeight = iHeight;
         }
@@ -447,41 +449,26 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
                 throws MdecException.EndOfStream, MdecException.ReadCorruption
         {
             // TODO: verify original bitstream is iki?
+            // TODO: expand the video to use any empty video sectors
+            // Normal STR videos mark unused STR sectors as STR sectors.
+            // iki on the other hand marks unused video sectors and non-video
+            // so jpsxdec won't recognize them or use them.
+            // Recognizing them and using them could be a lot of work.
 
             // STEP 1: Find the minimum Qscale for all blocks that will fit frame
-            byte[] abNewDemux = null;
-            int iQscale;
-            for (iQscale = 1; iQscale < 64; iQscale++) {
-                log.log(Level.INFO, I.TRYING_QSCALE(iQscale));
-
-                int[] aiNewQscale = { iQscale, iQscale, iQscale,
-                                      iQscale, iQscale, iQscale };
-
-                for (MacroBlockEncoder macblk : encoder) {
-                    macblk.setToFullEncode(aiNewQscale);
-                }
-
-                try {
-                    abNewDemux = compress(encoder.getStream());
-                } catch (IncompatibleException ex) {
-                    throw new RuntimeException("The encoder should be compatible here", ex);
-                }
-                int iNewDemuxSize = abNewDemux.length;
-                if (iNewDemuxSize <= iMaxSize) {
-                    log.log(Level.INFO, I.NEW_FRAME_FITS(sFrameDescription, iNewDemuxSize, iMaxSize));
-                    break;
-                } else {
-                    log.log(Level.INFO, I.NEW_FRAME_DOES_NOT_FIT(sFrameDescription, iNewDemuxSize, iMaxSize));
-                    abNewDemux = null;
-                }
+            byte[] abNewDemux = new byte[0];
+            try {
+                abNewDemux = CommonBitStreamCompressing.singleQscaleCompressFull(iMaxSize, sFrameDescription, encoder, this, log);
+            } catch (IncompatibleException ex) {
+                throw new RuntimeException("Iki shouldn't have any incompatibilities", ex);
             }
 
-            if (abNewDemux != null && abNewDemux.length < iMaxSize && iQscale > 1) {
+            if (abNewDemux != null && abNewDemux.length < iMaxSize && _iLastQscale > 1) {
                 // STEP 2: decrease the qscale of blocks with high energy
                 //         until we run out of space
                 abNewDemux = reduceQscaleForHighEnergyMacroBlocks(
                              abNewDemux,
-                             iMaxSize, sFrameDescription, iQscale-1, encoder, log);
+                             iMaxSize, sFrameDescription, _iLastQscale-1, encoder, log);
             }
 
             return abNewDemux;
@@ -520,7 +507,7 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
                     iDistY = o2.getMacroBlockY() - iMbCenterY;
                     int o2dist = iDistX*iDistX + iDistY*iDistY;
                     // put those closer to the center first
-                    return Misc.intCompare(o1dist, o2dist);
+                    return Integer.compare(o1dist, o2dist);
                 }
             });
             for (MacroBlockEncoder macblk : encoder) {
@@ -533,12 +520,8 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
             for (MacroBlockEncoder macblk : macblocks) {
                 log.log(Level.INFO, I.IKI_REDUCING_QSCALE_OF_MB_TO_VAL(macblk.getMacroBlockX(), macblk.getMacroBlockY(), iNewQscale));
                 macblk.setToFullEncode(aiNewQscale);
-                byte[] abNewDemux;
-                try {
-                    abNewDemux = compress(encoder.getStream());
-                } catch (IncompatibleException ex) {
-                    throw new RuntimeException("The encoder should be compatible here", ex);
-                }
+
+                byte[] abNewDemux = compress(encoder.getStream());
                 int iNewDemuxSize = abNewDemux.length;
                 if (iNewDemuxSize <= iOriginalLength) {
                     log.log(Level.INFO, I.NEW_FRAME_FITS(sFrameDescription, iNewDemuxSize, iOriginalLength));
@@ -553,54 +536,67 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
         }
 
         @Override
-        public @CheckForNull byte[] compressPartial(@Nonnull byte[] abOriginal,
+        public @CheckForNull byte[] compressPartial(int iMaxSize,
                                                     @Nonnull String sFrameDescription,
                                                     @Nonnull MdecEncoder encoder,
                                                     @Nonnull ILocalizedLogger log)
                 throws MdecException.EndOfStream, MdecException.ReadCorruption
         {
             // all blocks to replace are full replaced
-            return compressFull(abOriginal.length, sFrameDescription, encoder, log);
+            return compressFull(iMaxSize, sFrameDescription, encoder, log);
         }
-
-
 
         private final ByteArrayOutputStream _top8 = new ByteArrayOutputStream();
         private final ByteArrayOutputStream _bottom8 = new ByteArrayOutputStream();
-        private final MdecCode _currentBlockQscaleDc = new MdecCode();
         private final IkiLzssCompressor _lzs = new IkiLzssCompressor();
+        private int _iLastQscale;
 
         @Override
         public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream)
-                throws IncompatibleException, MdecException.EndOfStream,
-                       MdecException.ReadCorruption
+                throws MdecException.EndOfStream, MdecException.ReadCorruption
         {
             _top8.reset();
             _bottom8.reset();
+
+            BitStreamWriter bitStream = new BitStreamWriter();
+
+            int iMdecCodeCount;
             try {
-                return super.compress(inStream);
-            } catch (MdecException.TooMuchEnergy ex) {
+                iMdecCodeCount = CommonBitStreamCompressing.compress(bitStream, inStream, this, Calc.macroblocks(_iWidth, _iHeight));
+            } catch (IncompatibleException | MdecException.TooMuchEnergy ex) {
                 throw new RuntimeException("This should not happen with Iki", ex);
             }
+
+            byte[] abBitstream = bitStream.toByteArray(BitStreamUncompressor_STRv2.LITTLE_ENDIAN_SHORT_ORDER);
+            byte[] abHeader = createHeader(iMdecCodeCount);
+
+            byte[] abReturn = CommonBitStreamCompressing.joinByteArrays(abHeader, abBitstream);
+
+            return abReturn;
         }
 
         @Override
-        protected void setBlockQscale(@Nonnull MdecBlock block, int iQscale) {
-            _currentBlockQscaleDc.setTop6Bits(iQscale);
-        }
-
-
-        @Override
-        protected @Nonnull String encodeDC(int iDC, @Nonnull MdecBlock block) {
-            _currentBlockQscaleDc.setBottom10Bits(iDC);
-            int iMdec = _currentBlockQscaleDc.toMdecWord();
+        public @Nonnull String encodeQscaleDc(@Nonnull MdecCode code, @Nonnull MdecBlock mdecBlock) {
+            _iLastQscale = code.getTop6Bits();
+            int iMdec = code.toMdecShort();
             _top8.write(iMdec >> 8);
             _bottom8.write(iMdec & 0xff);
             return "";
         }
 
         @Override
-        protected @Nonnull byte[] createHeader(int iMdecCodeCount) {
+        public @Nonnull String encode0RlcAc(@Nonnull MdecCode code) {
+            ZeroRunLengthAc match = ZeroRunLengthAcLookup_STR.AC_VARIABLE_LENGTH_CODES_MPEG1.lookup(code);
+
+            if (match != null)
+                return match.getBitString();
+
+            return ZeroRunLengthAcLookup_STR.ESCAPE_CODE.getBitString() +
+                    Misc.bitsToString(code.getTop6Bits(), 6) +
+                    Misc.bitsToString(code.getBottom10Bits(), 10);
+        }
+
+        private @Nonnull byte[] createHeader(int iMdecCodeCount) {
             assert _top8.size() == _bottom8.size();
 
             byte[] ab = _bottom8.toByteArray();
@@ -623,16 +619,6 @@ public class BitStreamUncompressor_Iki extends BitStreamUncompressor {
             _top8.write(ab, 0, ab.length);
 
             return _top8.toByteArray();
-        }
-
-        @Override
-        protected void addTrailingBits(BitStreamWriter bitStream) {
-        }
-
-        @Override
-        protected int getHeaderVersion() {
-            // not needed since we override createHeader
-            throw new UnsupportedOperationException();
         }
     }
 

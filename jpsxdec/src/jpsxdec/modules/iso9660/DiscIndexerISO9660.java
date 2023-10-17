@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -230,7 +230,7 @@ public class DiscIndexerISO9660 extends DiscIndexer implements IdentifiedSectorL
     // Recursively build the file system
 
     private void processDirectoryRecord(DirectoryRecord dirRec, @CheckForNull File parentPath) {
-        // ignore '.' and '..' directory entires, otherwise infinite loop
+        // ignore '.' and '..' directory entries, otherwise infinite loop
         if (dirRec.name.equals(DirectoryRecord.CURRENT_DIRECTORY) ||
             dirRec.name.equals(DirectoryRecord.PARENT_DIRECTORY))
             return;
@@ -258,7 +258,7 @@ public class DiscIndexerISO9660 extends DiscIndexer implements IdentifiedSectorL
             // we may not have got a directory record at that sector :(
             if (dirRecSect != null) {
 
-                // walk though the entires in this sector's directory record
+                // walk through the entries in this sector's directory record
                 for (DirectoryRecord childDirRec : dirRecSect.getRecords()) {
                     processDirectoryRecord(childDirRec, dirRecPath);
                 }
@@ -309,11 +309,12 @@ public class DiscIndexerISO9660 extends DiscIndexer implements IdentifiedSectorL
     }
 
     private void addFileDiscItem(int iStartSector, int iEndSector, @Nonnull File filePath, long lngFileSize) {
+        // TODO add warning if any files overlap (Felony 11-79)
 
         if (iEndSector > getCd().getSectorCount()) {
             // the file sectors protrude off the end of the disc
             // could happen if the image has been trimmed
-            // but some games just have it intentially
+            // but some games just have it intentionally
             _errLog.log(Level.WARNING,
                         I.NOT_CONTAINED_IN_DISC(Misc.forwardSlashPath(filePath)));
         }

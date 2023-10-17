@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -138,7 +138,9 @@ public class SoundUnitEncoder {
     /** Creates an encoder to encode with the supplied filters and
      * generate ADPCM samples with the supplied bits/sample.
      * Suppling the filters as a parameters allows this class to encode for both
-     * XA ADPCM and SPU ADPCM. */
+     * XA ADPCM and SPU ADPCM.
+     * @param iAdpcmBitsPerSample 4 or 8
+     * */
     public SoundUnitEncoder(int iAdpcmBitsPerSample, @Nonnull K0K1Filter filters) {
         if (iAdpcmBitsPerSample == 4) {
             _iAdpcmBitsPerSample = 4;
@@ -316,15 +318,15 @@ public class SoundUnitEncoder {
 
                 // do bit shifting via mult/div
                 int iBitsToShift = _iRange - (16-_iAdpcmBitsPerSample);
-                double dblRaned;
+                double dblRanged;
                 if (iBitsToShift < 0)
-                    dblRaned = dblFiltered / (1 << -iBitsToShift);
+                    dblRanged = dblFiltered / (1 << -iBitsToShift);
                 else if (iBitsToShift > 0)
-                    dblRaned = dblFiltered * (1 << iBitsToShift);
+                    dblRanged = dblFiltered * (1 << iBitsToShift);
                 else
-                    dblRaned = dblFiltered;
+                    dblRanged = dblFiltered;
 
-                long lngRanged = Math.round(dblRaned);
+                long lngRanged = Math.round(dblRanged);
                 // check if the rounded value will fit in the bits available
                 // if not, clamp it and flag the encoding as a failure
                 if (lngRanged < _iEncodeMin || lngRanged > _iEncodeMax) {
@@ -363,7 +365,7 @@ public class SoundUnitEncoder {
                     telemetry.adblPrev1Samples[i]        = _contextSnapshot.dblPrev1;
                     telemetry.adblPrev2Samples[i]        = _contextSnapshot.dblPrev2;
                     telemetry.adblFilteredSamples[i]     = dblFiltered;
-                    telemetry.adblRangedSamples[i]       = dblRaned;
+                    telemetry.adblRangedSamples[i]       = dblRanged;
                     telemetry.abEncodedAdpcmSamples[i]   = bEncoded;
                     telemetry.asiShortTopSamples[i]      = siAdpcmShortTopSample;
                     telemetry.adblDecodedSamples[i]      = dblDecodedPcm;
@@ -426,7 +428,7 @@ public class SoundUnitEncoder {
          * @param iSample Sample between 0 and 28 (exclusive).
          */
         public String sample(int iSample) {
-            return String.format("Filter %d Range %d: Sample#%d %d filterd (Prev1 %f Prev2 %f) => %f ranged => %f. Encoded %d shifted => %d decoded => %f%s",
+            return String.format("Filter %d Range %d: Sample#%d %d filtered (Prev1 %f Prev2 %f) => %f ranged => %f. Encoded %d shifted => %d decoded => %f%s",
                     iFilter, iRange, iSample, asiSourcePcmSamples[iSample],
                     adblPrev1Samples[iSample], adblPrev2Samples[iSample],
                     adblFilteredSamples[iSample],

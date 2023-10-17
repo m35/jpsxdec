@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,9 +43,9 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.ICdSectorReader;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.cdreaders.CdSector;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.ac3.SectorClaimToSectorAc3Video;
@@ -175,7 +175,7 @@ public class SectorClaimSystem {
     @Nonnull
     private final ArrayList<SectorClaimInception> _iterators = new ArrayList<SectorClaimInception>();
     @Nonnull
-    private final List<IdentifiedSectorListener> _idSectorListeners = new ArrayList<IdentifiedSectorListener>();
+    private final List<IdentifiedSectorListener<? extends IIdentifiedSector>> _idSectorListeners = new ArrayList<IdentifiedSectorListener<? extends IIdentifiedSector>>();
 
 
     @Nonnull
@@ -201,19 +201,19 @@ public class SectorClaimSystem {
         _iterators.add(wrapping);
     }
 
-    public void addIdListener(@Nonnull IdentifiedSectorListener newListener) {
-        for (IdentifiedSectorListener listener : _idSectorListeners) {
+    public void addIdListener(@Nonnull IdentifiedSectorListener<? extends IIdentifiedSector> newListener) {
+        for (IdentifiedSectorListener<? extends IIdentifiedSector> listener : _idSectorListeners) {
             if (listener == newListener)
                 return; // already listening
         }
         _idSectorListeners.add(newListener);
     }
 
-    @SuppressWarnings("unchecked")
-    public @CheckForNull <T extends IdentifiedSectorListener> T getIdListener(@Nonnull Class<T> clazz) {
-        for (IdentifiedSectorListener listener : _idSectorListeners) {
+    public @CheckForNull <T extends IdentifiedSectorListener<? extends IIdentifiedSector>> T getIdListener(@Nonnull Class<T> clazz) {
+        for (IdentifiedSectorListener<? extends IIdentifiedSector> listener : _idSectorListeners) {
             if (listener.getClass() == clazz) {
-                return (T) listener;
+                T listenerCast = clazz.cast(listener);
+                return listenerCast;
             }
         }
         return null;
@@ -228,9 +228,8 @@ public class SectorClaimSystem {
         return _outerMostIterator.hasNext();
     }
 
-    @SuppressWarnings("unchecked")
     public @Nonnull IIdentifiedSector next(@Nonnull ILocalizedLogger log)
-            throws CdReadException, LoggedFailure
+            throws CdException.Read, LoggedFailure
     {
         try {
             _log = log;
@@ -238,24 +237,37 @@ public class SectorClaimSystem {
             try {
                 next = _outerMostIterator.next();
             } catch (IOException ex) {
-                if (ex instanceof CdReadException)
-                    throw (CdReadException)ex;
-                throw new CdReadException(getSourceCdFile(), ex);
+                if (ex instanceof CdException.Read)
+                    throw (CdException.Read)ex;
+                throw new CdException.Read(getSourceCdFile(), ex);
             }
 
             IIdentifiedSector idSector = next.getClaimer();
             if (idSector == null)
                 idSector = new UnidentifiedSector(next.getSector());
 
-            for (IdentifiedSectorListener listener : _idSectorListeners) {
-                Class listeningFor = listener.getListeningFor();
-                if (listeningFor == null || listeningFor.isInstance(idSector))
-                    listener.feedSector(idSector, log);
+            for (IdentifiedSectorListener<? extends IIdentifiedSector> listener : _idSectorListeners) {
+                feedSectorToListener(listener, idSector, log);
             }
 
             return idSector;
         } finally {
             _log = null;
+        }
+    }
+
+    /** Helper method to capture and maintain the generic {@link IIdentifiedSector} type
+     *  between the listener and the sector type it expects. */
+    private static <T extends IIdentifiedSector> void feedSectorToListener(@Nonnull IdentifiedSectorListener<T> listener,
+                                                                           @Nonnull IIdentifiedSector idSector,
+                                                                           @Nonnull ILocalizedLogger log)
+            throws LoggedFailure
+    {
+        Class<T> listeningFor = listener.getListeningFor();
+        if (listeningFor.isInstance(idSector)) {
+            // feed the sector only if it is the type the listener expexts
+            T idSectorCast = listeningFor.cast(idSector);
+            listener.feedSector(idSectorCast, log);
         }
     }
 
@@ -265,7 +277,7 @@ public class SectorClaimSystem {
             claimer._claimer.endOfSectors(log);
         }
 
-        for (IdentifiedSectorListener listener : _idSectorListeners) {
+        for (IdentifiedSectorListener<? extends IIdentifiedSector> listener : _idSectorListeners) {
             listener.endOfFeedSectors(log);
         }
     }

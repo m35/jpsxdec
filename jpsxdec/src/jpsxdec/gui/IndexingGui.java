@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,6 +48,7 @@ import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
@@ -55,7 +56,6 @@ import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.i18n.log.UserFriendlyLogger;
 import jpsxdec.indexing.DiscIndex;
 import jpsxdec.util.TaskCanceledException;
-import org.jdesktop.swingworker.SwingWorker;
 
 
 public class IndexingGui extends javax.swing.JDialog implements PropertyChangeListener {
@@ -64,7 +64,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
     /** The task to perform. */
     @Nonnull
-    private ProgresGuiTask _task;
+    private ProgressGuiTask _task;
     /** Holds any exception thrown by the task. */
     @CheckForNull
     private Throwable _exception;
@@ -115,7 +115,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
         _guiItemName.setText(cd.getSourceFile().getPath());
         _guiResultLbl.setText("");
 
-        _task = new ProgresGuiTask();
+        _task = new ProgressGuiTask();
         _task.addPropertyChangeListener(this);
         _guiCancelBtnActionPerformed(null);
     }
@@ -125,9 +125,9 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
     @Override
     public void propertyChange(@Nonnull PropertyChangeEvent evt) {
         // update the progress bar
-        if (ProgresGuiTask.PROGRESS_VALUE.equals(evt.getPropertyName())) {
+        if (ProgressGuiTask.PROGRESS_VALUE.equals(evt.getPropertyName())) {
             _guiProgress.setValue((Integer)evt.getNewValue());
-        } else if (ProgresGuiTask.EXCEPTION.equals(evt.getPropertyName()) ) {
+        } else if (ProgressGuiTask.EXCEPTION.equals(evt.getPropertyName()) ) {
             // fatal/unhandled exception
             // we know getNewValue() != null since we created the event
             _exception = (Throwable)evt.getNewValue();
@@ -136,7 +136,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
                     I.GUI_INDEX_EXCEPTION_DIALOG_TITLE().getLocalizedMessage(),
                     JOptionPane.ERROR_MESSAGE);
             taskComplete();
-        } else if (ProgresGuiTask.DONE.equals(evt.getPropertyName()) ) {
+        } else if (ProgressGuiTask.DONE.equals(evt.getPropertyName()) ) {
             taskComplete();
         }
     }
@@ -348,7 +348,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
 
     // run in separate thread
 
-    private class ProgresGuiTask extends SwingWorker<Void, ILocalizedMessage>
+    private class ProgressGuiTask extends SwingWorker<Void, ILocalizedMessage>
         implements UserFriendlyLogger.OnWarnErr
     {
 
@@ -388,7 +388,7 @@ public class IndexingGui extends javax.swing.JDialog implements PropertyChangeLi
             }
         };
 
-        public ProgresGuiTask() {
+        public ProgressGuiTask() {
             __progressLog.setListener(this);
             __progressLog.log(Level.INFO, I.CMD_GUI_INDEXING(_cd.toString()));
         }

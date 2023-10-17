@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.psxvideo;
 
 import javax.annotation.Nonnull;
+import jpsxdec.formats.Pc601YCbCr;
 import jpsxdec.formats.RGB;
 import jpsxdec.formats.Rec601YCbCr;
 
@@ -53,6 +54,7 @@ import jpsxdec.formats.Rec601YCbCr;
  * here to refer to the range of valid values.
  *<p>
  * There are 3 different YCbCr "color spaces" to be aware of:
+ *
  * <h5>The Rec.601 YCbCr color space</h5>
  * This is the standard colors space defined for most signals, including the
  * most common uncompressed YCbCr fourcc codec: YV12. It has a range of
@@ -62,6 +64,7 @@ import jpsxdec.formats.Rec601YCbCr;
  * Cr: 16 to 240
  *</pre>
  * You can easily find the equation to convert this YCbCr color space to RGB.
+ *
  * <h5>The <b>JFIF</b> Rec.601 YCbCr color space</h5>
  * This is the color space used by the JPEG (JFIF) format.
  * It has a range of
@@ -72,6 +75,7 @@ import jpsxdec.formats.Rec601YCbCr;
  *</pre>
  * You can check the JFIF standard for the equation to turn this
  * YCbCr color space to RGB (or just search around the web).
+
  * <h5>The PSX MDEC YCbCr color space</h5>
  * This is very similar to the JFIF Rec.601 YCbCr color space, but has a
  * slightly different equation to convert to RGB. It shares the same
@@ -85,14 +89,12 @@ import jpsxdec.formats.Rec601YCbCr;
  *</pre>
  *
  * @see Rec601YCbCr
+ * @see Pc601YCbCr
  * @see PsxYCbCr_int
  */
 public class PsxYCbCr {
 
     public double y1, y2, y3, y4, cb, cr;
-
-    public PsxYCbCr() {
-    }
 
     public void fromRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
         cb = cr = 0;
@@ -124,60 +126,60 @@ public class PsxYCbCr {
     }
 
     public static void toRgb(double y, double cb, double cr, @Nonnull RGB rgb) {
-        double dblChromRed, dblChromGreen, dblChromBlue;
+        double dblChromaRed, dblChromaGreen, dblChromaBlue;
         // MUST store chroma first like in instance method or result is slightly different
         if (INCORRECTLY_SWAP_CB_CR_LIKE_PSXMC) {
             // this math is wrong, wrong, WRONG
             // unfortunately it is used by the majority of existing decoders
-            dblChromRed   = ( 1.772  * cr)                 ;
-            dblChromGreen = (-0.3437 * cr) + (-0.7143 * cb);
-            dblChromBlue  =                  ( 1.402  * cb);
+            dblChromaRed   = ( 1.772  * cr)                 ;
+            dblChromaGreen = (-0.3437 * cr) + (-0.7143 * cb);
+            dblChromaBlue  =                  ( 1.402  * cb);
         } else {
-            dblChromRed   =                  ( 1.402  * cr);
-            dblChromGreen = (-0.3437 * cb) + (-0.7143 * cr);
-            dblChromBlue  = ( 1.772  * cb)                 ;
+            dblChromaRed   =                  ( 1.402  * cr);
+            dblChromaGreen = (-0.3437 * cb) + (-0.7143 * cr);
+            dblChromaBlue  = ( 1.772  * cb)                 ;
         }
         double dblYshift = y + 128;
-        rgb.setR(dblYshift + dblChromRed  );
-        rgb.setG(dblYshift + dblChromGreen);
-        rgb.setB(dblYshift + dblChromBlue );
+        rgb.setR(dblYshift + dblChromaRed  );
+        rgb.setG(dblYshift + dblChromaGreen);
+        rgb.setB(dblYshift + dblChromaBlue );
     }
 
     final public void toRgb(@Nonnull RGB rgb1, @Nonnull RGB rgb2, @Nonnull RGB rgb3, @Nonnull RGB rgb4) {
-        double dblChromRed, dblChromGreen, dblChromBlue;
+        double dblChromaRed, dblChromaGreen, dblChromaBlue;
         if (INCORRECTLY_SWAP_CB_CR_LIKE_PSXMC) {
             // this math is wrong, wrong, WRONG
             // unfortunately it is used by the majority of existing decoders
-            dblChromRed   = ( 1.772  * cr)                 ;
-            dblChromGreen = (-0.3437 * cr) + (-0.7143 * cb);
-            dblChromBlue  =                  ( 1.402  * cb);
+            dblChromaRed   = ( 1.772  * cr)                 ;
+            dblChromaGreen = (-0.3437 * cr) + (-0.7143 * cb);
+            dblChromaBlue  =                  ( 1.402  * cb);
         } else {
-            dblChromRed   =                  ( 1.402  * cr);
-            dblChromGreen = (-0.3437 * cb) + (-0.7143 * cr);
-            dblChromBlue  = ( 1.772  * cb)                 ;
+            dblChromaRed   =                  ( 1.402  * cr);
+            dblChromaGreen = (-0.3437 * cb) + (-0.7143 * cr);
+            dblChromaBlue  = ( 1.772  * cb)                 ;
         }
 
         double dblYshift;
 
         dblYshift = y1 + 128;
-        rgb1.setR(dblYshift + dblChromRed  );
-        rgb1.setG(dblYshift + dblChromGreen);
-        rgb1.setB(dblYshift + dblChromBlue );
+        rgb1.setR(dblYshift + dblChromaRed  );
+        rgb1.setG(dblYshift + dblChromaGreen);
+        rgb1.setB(dblYshift + dblChromaBlue );
 
         dblYshift = y2 + 128;
-        rgb2.setR(dblYshift + dblChromRed  );
-        rgb2.setG(dblYshift + dblChromGreen);
-        rgb2.setB(dblYshift + dblChromBlue );
+        rgb2.setR(dblYshift + dblChromaRed  );
+        rgb2.setG(dblYshift + dblChromaGreen);
+        rgb2.setB(dblYshift + dblChromaBlue );
 
         dblYshift = y3 + 128;
-        rgb3.setR(dblYshift + dblChromRed  );
-        rgb3.setG(dblYshift + dblChromGreen);
-        rgb3.setB(dblYshift + dblChromBlue );
+        rgb3.setR(dblYshift + dblChromaRed  );
+        rgb3.setG(dblYshift + dblChromaGreen);
+        rgb3.setB(dblYshift + dblChromaBlue );
 
         dblYshift = y4 + 128;
-        rgb4.setR(dblYshift + dblChromRed  );
-        rgb4.setG(dblYshift + dblChromGreen);
-        rgb4.setB(dblYshift + dblChromBlue );
+        rgb4.setR(dblYshift + dblChromaRed  );
+        rgb4.setG(dblYshift + dblChromaGreen);
+        rgb4.setB(dblYshift + dblChromaBlue );
     }
 
     /** PSX YCbCr direct conversion to Rec.601 YCbCr.
@@ -204,28 +206,35 @@ public class PsxYCbCr {
      * Unfortunately this conversion doesn't take into account chroma
      * upsampling interpolation.
      */
-    public void toRec_601_YCbCr(@Nonnull Rec601YCbCr ycc) {
+    public void toRec_601_YCbCr(@Nonnull Rec601YCbCr recYuv) {
         double dblYChroma = cb * (-488509./2660418030.) + cr * (-82738./1330209015.) + 16;
 
-        ycc.y1 = (y1+128)*(250./291.) + dblYChroma;
-        ycc.y2 = (y2+128)*(250./291.) + dblYChroma;
-        ycc.y3 = (y3+128)*(250./291.) + dblYChroma;
-        ycc.y4 = (y4+128)*(250./291.) + dblYChroma;
+        recYuv.y1 = (y1+128)*(250./291.) + dblYChroma;
+        recYuv.y2 = (y2+128)*(250./291.) + dblYChroma;
+        recYuv.y3 = (y3+128)*(250./291.) + dblYChroma;
+        recYuv.y4 = (y4+128)*(250./291.) + dblYChroma;
 
-        ycc.cb = cb * (4014411./4571165.) + cr *     (164./4571165.) + 128;
-        ycc.cr = cb *   (3673./27426990.) + cr * (8031459./9142330.) + 128;
+        recYuv.cb = cb * (4014411./4571165.) + cr *     (164./4571165.) + 128;
+        recYuv.cr = cb *   (3673./27426990.) + cr * (8031459./9142330.) + 128;
     }
 
-    public void toRec_JFIF_YCbCr(@Nonnull Rec601YCbCr ycc) {
+    /**
+     * PlayStation 1 MDEC YCbCr is extremely similar to the YCbCr used
+     * in the JPEG format. You could probably get away with just copying the
+     * values directly. But here we'll try to tweak the colors to cover the
+     * difference.
+     * @see Pc601YCbCr
+     */
+    public void toRec_JFIF_YCbCr(@Nonnull Pc601YCbCr pcYuv) {
         double dblYChroma = cb * -3415973./13224846875. + cr * 1242172./13224846875.;
 
-        ycc.y1 = y1+128 + dblYChroma;
-        ycc.y2 = y2+128 + dblYChroma;
-        ycc.y3 = y3+128 + dblYChroma;
-        ycc.y4 = y4+128 + dblYChroma;
+        pcYuv.y1 = y1+128 + dblYChroma;
+        pcYuv.y2 = y2+128 + dblYChroma;
+        pcYuv.y3 = y3+128 + dblYChroma;
+        pcYuv.y4 = y4+128 + dblYChroma;
 
-        ycc.cb = cb * 105814197./105798775.  + cr *     -5608./105798775. + 128;
-        ycc.cr = cb *     19492./105798775.  + cr * 105791687./105798775. + 128;
+        pcYuv.cb = cb * 105814197./105798775.  + cr *     -5608./105798775. + 128;
+        pcYuv.cr = cb *     19492./105798775.  + cr * 105791687./105798775. + 128;
     }
 
     @Override

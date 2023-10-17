@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -153,16 +153,16 @@ public class StrFrameRateCalc {
     private WholeNumberSectorsPerFrame _wholeFrameRate;
     @CheckForNull
     private LinkedList<InconsistentFrameSequence> _inconsistentFrameRate;
-    private final FpsSequence.Builder _fpsBuidler = new FpsSequence.Builder();
+    private final FpsSequence.Builder _fpsBuilder = new FpsSequence.Builder();
 
     public StrFrameRateCalc(int iFirstFrameStartSector, int iFirstFrameEndSector) {
-        _fpsBuidler.addFrame(iFirstFrameStartSector, iFirstFrameEndSector);
+        _fpsBuilder.addFrame(iFirstFrameStartSector, iFirstFrameEndSector);
         _wholeFrameRate = new WholeNumberSectorsPerFrame(iFirstFrameEndSector);
         _inconsistentFrameRate = InconsistentFrameSequence.generate(iFirstFrameStartSector, iFirstFrameEndSector);
     }
 
     public void addFrame(int iNextFrameStartSector, int iNextFrameEndSector) {
-        _fpsBuidler.addFrame(iNextFrameStartSector, iNextFrameEndSector);
+        _fpsBuilder.addFrame(iNextFrameStartSector, iNextFrameEndSector);
         if (_wholeFrameRate != null)
             if (!_wholeFrameRate.matchesNextVideo(iNextFrameStartSector, iNextFrameEndSector))
                 _wholeFrameRate = null; // failed to match any whole number frame rates
@@ -257,7 +257,7 @@ public class StrFrameRateCalc {
         } else {
             cCase1SectPerFrm = '0';
 
-            newMatch = _fpsBuidler.findMatch();
+            newMatch = _fpsBuilder.findMatch();
             if (newMatch != null) {
                 LOG.log(Level.INFO, "Matching fps sequence: {0}", newMatch);
                 if (false && newMatch.iMatchesAtSector != 0) {

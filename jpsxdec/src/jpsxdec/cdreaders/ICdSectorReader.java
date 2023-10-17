@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,24 +44,26 @@ import javax.annotation.Nonnull;
 import jpsxdec.i18n.ILocalizedMessage;
 
 
+/** Encapsulates the reading of a CD image (BIN/CUE, ISO),
+ * or a file containing some (possibly raw) sectors of a CD.
+ * <ul>
+ * <li>{@link CdSector#SECTOR_SIZE_2048_ISO}
+ * <li>{@link CdSector#SECTOR_SIZE_2336_BIN_NOSYNC}
+ * <li>{@link CdSector#SECTOR_SIZE_2352_BIN}
+ * <li>{@link CdSector#SECTOR_SIZE_2448_BIN_SUBCHANNEL}
+ * </ul>
+ */
 public interface ICdSectorReader extends Closeable {
 
-    @Override
-    void close() throws IOException;
-
-
-    /** Size of the raw sectors of the source disc image. */
-    int getRawSectorSize();
-
-
-    @Nonnull
-    CdSector getSector(int iSector) throws CdReadException;
+    @Nonnull CdSector getSector(int iSector) throws CdException.Read;
 
     /** Returns the number of sectors in the disc image. */
     int getSectorCount();
 
-    @Nonnull
-    ILocalizedMessage getTypeDescription();
+    /** Size of the raw sectors of the source disc image. */
+    int getRawSectorSize();
+
+    @Nonnull ILocalizedMessage getTypeDescription();
 
     /** If sectors of this disc image could have raw sector headers
      * (i.e. not ISO 2048 images). */
@@ -71,7 +73,8 @@ public interface ICdSectorReader extends Closeable {
 
     boolean matchesSerialization(@Nonnull String sSerialization);
 
-    @Nonnull
-    String serialize();
+    @Nonnull String serialize();
 
+    @Override
+    void close() throws IOException;
 }

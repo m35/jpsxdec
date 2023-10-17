@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,8 +47,7 @@ import jpsxdec.adpcm.SpuAdpcmDecoder;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.util.Fraction;
+import jpsxdec.modules.audio.sectorbased.SectorBasedDecodedAudioPacket;
 
 
 public class SquareAudioSectorPairToAudioPacket implements SquareAudioSectorToSquareAudioSectorPair.Listener {
@@ -57,12 +56,12 @@ public class SquareAudioSectorPairToAudioPacket implements SquareAudioSectorToSq
     private final SpuAdpcmDecoder.Stereo _decoder;
     private final ByteArrayOutputStream _buffer = new ByteArrayOutputStream();
     @CheckForNull
-    private DecodedAudioPacket.Listener _listener;
+    private SectorBasedDecodedAudioPacket.Listener _listener;
 
     public SquareAudioSectorPairToAudioPacket(double dblVolume) {
         _decoder = new SpuAdpcmDecoder.Stereo(dblVolume);
     }
-    public void setListener(@CheckForNull DecodedAudioPacket.Listener listener) {
+    public void setListener(@CheckForNull SectorBasedDecodedAudioPacket.Listener listener) {
         _listener = listener;
     }
 
@@ -81,8 +80,8 @@ public class SquareAudioSectorPairToAudioPacket implements SquareAudioSectorToSq
         }
         if (_listener != null) {
             AudioFormat af = _decoder.getOutputFormat(pair.getSampleFramesPerSecond());
-            DecodedAudioPacket packet = new DecodedAudioPacket(-1, af,
-                    new Fraction(pair.getPresentationSector()), _buffer.toByteArray());
+            SectorBasedDecodedAudioPacket packet = new SectorBasedDecodedAudioPacket(
+                    -1, af, _buffer.toByteArray(), pair.getPresentationSector());
             _listener.audioPacketComplete(packet, log);
         }
     }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2020  Michael Sabin
+ * Copyright (C) 2015-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,7 @@ package jpsxdec.i18n;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.ListResourceBundle;
@@ -81,7 +82,7 @@ public class MiscResources extends ListResourceBundle {
                                                MiscResources.class.getName(),
                                                MAIN_CMDLINE_HELP);
         try {
-            InputStreamReader isr = new InputStreamReader(is, "UTF-8");
+            InputStreamReader isr = new InputStreamReader(is, StandardCharsets.UTF_8);
             BufferedReader br = new BufferedReader(isr);
             ArrayList<ILocalizedMessage> lines = new ArrayList<ILocalizedMessage>();
             String sLine;
@@ -91,7 +92,7 @@ public class MiscResources extends ListResourceBundle {
             return lines.iterator();
         } catch (Throwable cause) {
             MissingResourceException ex = new MissingResourceException(
-                    "UTF-8 unsupported",
+                    "Error loading resource",
                     MiscResources.class.getName(),
                     MAIN_CMDLINE_HELP);
             ex.initCause(cause);

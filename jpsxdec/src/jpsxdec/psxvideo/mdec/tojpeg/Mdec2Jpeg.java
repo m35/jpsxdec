@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2020  Michael Sabin
+ * Copyright (C) 2013-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -127,7 +127,7 @@ public class Mdec2Jpeg {
      * So using a JPEG quantization table of all 1's would be perfectly reasonable
      * since that's the best we're going to get quality wise.
      *
-     * In the lucky cases where values are evenly divisible by 8, three will
+     * In the lucky cases where values are evenly divisible by 8, there will
      * be no loss in precision. Otherwise, farewell bits...
      *
      * But while we can't improve the quality of the resulting JPEG, we can
@@ -197,7 +197,7 @@ public class Mdec2Jpeg {
 
     /** Because I don't trust myself. */
     private static boolean verifyTable(int[] aiActual) {
-        int[] aiExpeced = {
+        int[] aiExpected = {
             2, 2, 1, 1, 1, 1, 1, 1,
             2, 2, 1, 3, 1, 1, 1, 1,
             1, 1, 1, 1, 1, 1, 1, 1,
@@ -207,11 +207,11 @@ public class Mdec2Jpeg {
             1, 1, 1, 1, 1, 1, 7, 1,
             1, 1, 1, 1, 1, 7, 1, 1,
         };
-        for (int i = 0; i < aiExpeced.length; i++) {
-            if (aiExpeced[MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[i]] != aiActual[i])
+        for (int i = 0; i < aiExpected.length; i++) {
+            if (aiExpected[MdecInputStream.REVERSE_ZIG_ZAG_LOOKUP_LIST[i]] != aiActual[i])
                 return false;
         }
-        return aiExpeced.length == aiActual.length;
+        return aiExpected.length == aiActual.length;
     }
 
     private static final byte[] COMMENT_BYTES;
@@ -364,7 +364,7 @@ public class Mdec2Jpeg {
                         // PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
                         // and divide by 8 (like above), but the
                         // JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
-                        // has already been dividied by 8, so it will handle that
+                        // has already been divided by 8, so it will handle that
                         iVal = code.getBottom10Bits() * iCurrentBlockQscale;
                     }
 
@@ -372,7 +372,7 @@ public class Mdec2Jpeg {
                         // if this happens we would need to go back and
                         // increase values in the quantization table.
                         // however that would deviate even more from the
-                        // origional frame quality, and be a huge pain
+                        // original frame quality, and be a huge pain
                         // to implement
                         // thankfully this doesn't seem to happen for
                         // normal (non-corrupted) frames

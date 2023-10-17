@@ -36,7 +36,7 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
   /** Return the getDenominator **/
   public final long getDenominator() { return denominator_; }
 
-  public Fraction(int i) {
+  public Fraction(long i) {
     this(i, 1);
   }
 

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,9 +48,8 @@ import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.IdentifiedSectorListener;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
+import jpsxdec.modules.audio.sectorbased.SectorBasedDecodedAudioPacket;
 import jpsxdec.util.ByteArrayFPIS;
-import jpsxdec.util.Fraction;
 
 /** Converts a XA audio sector to a single decoded audio packet.
  * Maintains the decoding context. */
@@ -65,7 +64,7 @@ public class SectorXaAudioToAudioPacket implements IdentifiedSectorListener<Sect
     @Nonnull
     private final AudioFormat _audioFormat;
     @CheckForNull
-    private DecodedAudioPacket.Listener _listener;
+    private SectorBasedDecodedAudioPacket.Listener _listener;
     private final int _iStartSector;
     private final int _iEndSectorInclusive;
 
@@ -81,7 +80,7 @@ public class SectorXaAudioToAudioPacket implements IdentifiedSectorListener<Sect
         _iStartSector = iStartSector;
         _iEndSectorInclusive = iEndSectorInclusive;
     }
-    public void setListener(@CheckForNull DecodedAudioPacket.Listener listener) {
+    public void setListener(@CheckForNull SectorBasedDecodedAudioPacket.Listener listener) {
         _listener = listener;
     }
 
@@ -117,9 +116,9 @@ public class SectorXaAudioToAudioPacket implements IdentifiedSectorListener<Sect
             log.log(Level.WARNING, I.XA_AUDIO_CORRUPTED(xaSector.getSectorNumber(), lngSamplesWritten));
 
         if (_listener != null) {
-            DecodedAudioPacket packet = new DecodedAudioPacket(_iChannel, _audioFormat,
-                                                               new Fraction(xaSector.getSectorNumber()),
-                                                               _tempBuffer.toByteArray());
+            SectorBasedDecodedAudioPacket packet = new SectorBasedDecodedAudioPacket(_iChannel, _audioFormat,
+                                                                                     _tempBuffer.toByteArray(),
+                                                                                     xaSector.getSectorNumber());
 
             _listener.audioPacketComplete(packet, log);
         }

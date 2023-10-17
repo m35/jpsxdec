@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021  Michael Sabin
+ * Copyright (C) 2021-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -61,7 +61,7 @@ public class SectorClaimToFF7Sector implements SectorClaimSystem.SectorClaimer {
     {
         if (cs.isClaimed()) {
             // either something else claimed it
-            // or this clained it already
+            // or this claimed it already
             // either way, skip
             return;
         }

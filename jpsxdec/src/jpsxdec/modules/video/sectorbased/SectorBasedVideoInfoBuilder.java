@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2020  Michael Sabin
+ * Copyright (C) 2015-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -69,7 +69,7 @@ public class SectorBasedVideoInfoBuilder {
         _iFrameCount = 1;
     }
 
-    public void next(@Nonnull int iStartSector, int iEndSector) {
+    public void next(int iStartSector, int iEndSector) {
         if (iStartSector < _iStartSector || iEndSector < _iEndSector)
             throw new IllegalArgumentException("Adding frame with strange sector range");
         _iEndSector = iEndSector;

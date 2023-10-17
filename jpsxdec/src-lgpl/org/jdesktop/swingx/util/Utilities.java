@@ -134,7 +134,7 @@ public class Utilities {
     
     /** reference to map that maps allowed key names to their values (String, Integer)
     and reference to map for mapping of values to their names */
-    private static Reference<HashMap[]> namesAndValues;
+    private static Reference<HashMap<?,?>[]> namesAndValues;
 
     /** Get the operating system on which NetBeans is running.
     * @return one of the <code>OS_*</code> constants (such as {@link #OS_WINNT})
@@ -313,9 +313,9 @@ public class Utilities {
     *  and second
     * hashtable for mapping of values to their names (Integer, String)
     */
-    private static synchronized HashMap[] initNameAndValues() {
+    private static synchronized HashMap<?,?>[] initNameAndValues() {
         if (namesAndValues != null) {
-            HashMap[] arr = namesAndValues.get();
+            HashMap<?,?>[] arr = namesAndValues.get();
 
             if (arr != null) {
                 return arr;
@@ -368,9 +368,9 @@ public class Utilities {
             values.put(n, "WINDOWS"); // NOI18N
         }
 
-        HashMap[] arr = { names, values };
+        HashMap<?,?>[] arr = { names, values };
 
-        namesAndValues = new SoftReference<HashMap[]>(arr);
+        namesAndValues = new SoftReference<HashMap<?,?>[]>(arr);
 
         return arr;
     }
@@ -388,7 +388,7 @@ public class Utilities {
             sb.append('-');
         }
 
-        HashMap[] namesAndValues = initNameAndValues();
+        HashMap<?,?>[] namesAndValues = initNameAndValues();
 
         String c = (String) namesAndValues[1].get(Integer.valueOf(stroke.getKeyCode()));
 
@@ -445,7 +445,7 @@ public class Utilities {
 
         int needed = 0;
 
-        HashMap names = initNameAndValues()[0];
+        HashMap<?,?> names = initNameAndValues()[0];
 
         int lastModif = -1;
 

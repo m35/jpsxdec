@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,30 +46,32 @@ import jpsxdec.psxvideo.PsxYCbCr;
 
 /**
  * Handles YCbCr image data of the PSX MDEC chip, which
- * is slightly different from JFIF Rec.601 YCbCr.
+ * is slightly different from JFIF (sometimes referred to as Pc.601) YCbCr.
  * Note that like JFIF YCbCr, the "color space" has a full range of 256 values.
  *<pre>
  * Y : -128 to 127
  * Cb: -128 to 127
  * Cr: -128 to 127
  *</pre>
+ * @see jpsxdec.formats.Pc601YCbCr
  */
 public class PsxYCbCrImage {
 
-    private int _iWidth;
-    private int _iHeight;
+    private final int _iWidth;
+    private final int _iHeight;
 
-    private double[] _adblY;
-    private double[] _adblCb;
-    private double[] _adblCr;
+    private final double[] _adblY;
+    private final double[] _adblCb;
+    private final double[] _adblCr;
 
-    /** Creates a new instance of PsxYuvImage.
-     * @param iWidth - Width of image (in Luminance values)
-     * @param iHeight - Height of image (in Luminance values) */
+    /** @param iWidth - Width of image (in Luminance values)
+     *  @param iHeight - Height of image (in Luminance values) */
     public PsxYCbCrImage(int iWidth, int iHeight) {
-        assert(iWidth > 0 && iHeight > 0 &&
-               (iWidth  % 2) == 0 &&
-               (iHeight % 2) == 0);
+        if (iWidth < 2 || iHeight < 2 ||
+           (iWidth % 2) != 0 || (iHeight % 2) != 0)
+        {
+            throw new IllegalArgumentException();
+        }
         _iWidth = iWidth;
         _iHeight = iHeight;
         int iSize = iWidth * iHeight;
@@ -83,17 +85,7 @@ public class PsxYCbCrImage {
     }
 
     public PsxYCbCrImage(@Nonnull RgbIntImage rgb) {
-        _iWidth  = rgb.getWidth();
-        _iHeight = rgb.getHeight();
-        assert(_iWidth > 0 && _iHeight > 0 &&
-               (_iWidth  % 2) == 0 &&
-               (_iHeight % 2) == 0);
-
-        int iSize = _iWidth * _iHeight;
-        _adblY  = new double[iSize];
-        iSize /= 4;
-        _adblCb = new double[iSize];
-        _adblCr = new double[iSize];
+        this(rgb.getWidth(), rgb.getHeight());
 
         RGB rgb1 = new RGB(), rgb2 = new RGB(), rgb3 = new RGB(), rgb4 = new RGB();
 
@@ -104,13 +96,16 @@ public class PsxYCbCrImage {
                 rgb2.set(rgb.get(x+1, y  ));
                 rgb3.set(rgb.get(x  , y+1));
                 rgb4.set(rgb.get(x+1, y+1));
+
                 yuv.fromRgb(rgb1, rgb2, rgb3, rgb4);
-                _adblY[ (x  ) + (y  ) * _iWidth ] = yuv.y1;
-                _adblY[ (x+1) + (y  ) * _iWidth ] = yuv.y2;
-                _adblY[ (x  ) + (y+1) * _iWidth ] = yuv.y3;
-                _adblY[ (x+1) + (y+1) * _iWidth ] = yuv.y4;
-                _adblCb[x/2 + (y/2) * (_iWidth/2)] = yuv.cb;
-                _adblCr[x/2 + (y/2) * (_iWidth/2)] = yuv.cr;
+
+                setY(x  , y  , yuv.y1);
+                setY(x+1, y  , yuv.y2);
+                setY(x  , y+1, yuv.y3);
+                setY(x+1, y+1, yuv.y4);
+
+                setCb(x/2, y/2, yuv.cb);
+                setCr(x/2,y/2, yuv.cr);
             }
         }
     }
@@ -118,95 +113,96 @@ public class PsxYCbCrImage {
     /** Converts yuv image to a BufferedImage, converting, rounding, and
      * clamping RGB values. */
     public @Nonnull RgbIntImage toRgb() {
-        int[] aiARGB = new int[_iWidth * _iHeight];
-
         PsxYCbCr ycc = new PsxYCbCr();
         RGB rgb1 = new RGB(), rgb2 = new RGB(), rgb3 = new RGB(), rgb4 = new RGB();
 
-        for (int iY = 0; iY < _iHeight; iY+=2) {
-            int iLinePos = iY * _iWidth;
-            int iChromLinePos = (iY / 2) * (_iWidth / 2);
-            for (int iX = 0; iX < _iWidth; iX+=2) {
-                ycc.cb = _adblCb[iChromLinePos];
-                ycc.cr = _adblCr[iChromLinePos];
-                iChromLinePos++;
+        RgbIntImage rgb = new RgbIntImage(_iWidth, _iHeight);
 
-                ycc.y1 = _adblY[iLinePos         + iX  ];
-                ycc.y2 = _adblY[iLinePos         + iX+1];
-                ycc.y3 = _adblY[iLinePos+_iWidth + iX  ];
-                ycc.y4 = _adblY[iLinePos+_iWidth + iX+1];
+        for (int iY = 0; iY < _iHeight; iY+=2) {
+            for (int iX = 0; iX < _iWidth; iX+=2) {
+
+                ycc.cb = getCbForY(iX, iY);
+                ycc.cr = getCrForY(iX, iY);
+
+                ycc.y1 = getY(iX  , iY  );
+                ycc.y2 = getY(iX+1, iY  );
+                ycc.y3 = getY(iX  , iY+1);
+                ycc.y4 = getY(iX+1, iY+1);
 
                 ycc.toRgb(rgb1, rgb2, rgb3, rgb4);
 
-                aiARGB[iLinePos +           iX  ] = rgb1.toInt();
-                aiARGB[iLinePos +           iX+1] = rgb2.toInt();
-                aiARGB[iLinePos + _iWidth + iX  ] = rgb3.toInt();
-                aiARGB[iLinePos + _iWidth + iX+1] = rgb4.toInt();
+                rgb.set(iX  , iY  , rgb1.toInt());
+                rgb.set(iX+1, iY  , rgb2.toInt());
+                rgb.set(iX  , iY+1, rgb3.toInt());
+                rgb.set(iX+1, iY+1, rgb4.toInt());
             }
         }
 
-        return new RgbIntImage(_iWidth, _iHeight, aiARGB);
+        return rgb;
     }
 
-    public double getY(int iLuminX, int iLuminY) {
-        return _adblY[iLuminX + iLuminY * _iWidth];
+    public double getY(int iLumaX, int iLumaY) {
+        return _adblY[iLumaX + iLumaY * _iWidth];
     }
-    public double getCbForY(int iLuminX, int iLuminY) {
-        return _adblCb[iLuminX/2 + (iLuminY/2)*(_iWidth/2)];
+    public double getCbForY(int iLumaX, int iLumaY) {
+        return _adblCb[iLumaX/2 + (iLumaY/2)*(_iWidth/2)];
     }
-    public double getCrForY(int iLuminX, int iLuminY) {
-        return _adblCr[iLuminX/2 + (iLuminY/2)*(_iWidth/2)];
-    }
-
-    public void setY(int iLuminX, int iLuminY, double y) {
-        _adblY[iLuminX + iLuminY * _iWidth] = y;
-    }
-    public void setCb(int iChromX, int iChromY, double cb) {
-        _adblCb[iChromX + iChromY * (_iWidth/2)] = cb;
-    }
-    public void setCr(int iChromX, int iChromY, double cr) {
-        _adblCr[iChromX + iChromY * (_iWidth/2)] = cr;
+    public double getCrForY(int iLumaX, int iLumaY) {
+        return _adblCr[iLumaX/2 + (iLumaY/2)*(_iWidth/2)];
     }
 
-
-    public int getLumaHeight() {
-        return _iHeight;
+    public void setY(int iLumaX, int iLumaY, double y) {
+        _adblY[iLumaX + iLumaY * _iWidth] = y;
     }
+    public void setCb(int iChromaX, int iChromaY, double cb) {
+        _adblCb[iChromaX + iChromaY * (_iWidth/2)] = cb;
+    }
+    public void setCr(int iChromaX, int iChromaY, double cr) {
+        _adblCr[iChromaX + iChromaY * (_iWidth/2)] = cr;
+    }
+
 
     public int getLumaWidth() {
         return _iWidth;
     }
 
-    public int getChromHeight() {
+    public int getLumaHeight() {
+        return _iHeight;
+    }
+
+    public int getChromaHeight() {
         return _iHeight / 2;
     }
-    public int getChromWidth() {
+    public int getChromaWidth() {
         return _iWidth / 2;
     }
 
     public @Nonnull BufferedImage CrToBufferedImage() {
-        return doubleArrayToBufferedImage(getChromWidth(), getChromHeight(), _adblCr, 0);
+        return doubleArrayToBufferedImage(getChromaWidth(), getChromaHeight(), _adblCr, 0);
     }
     public @Nonnull BufferedImage CbToBufferedImage() {
-        return doubleArrayToBufferedImage(getChromWidth(), getChromHeight(), _adblCb, 1);
+        return doubleArrayToBufferedImage(getChromaWidth(), getChromaHeight(), _adblCb, 1);
     }
 
     public @Nonnull BufferedImage YToBufferedImage() {
         return doubleArrayToBufferedImage(getLumaWidth(), getLumaHeight(), _adblY, 2);
     }
 
-    private static BufferedImage doubleArrayToBufferedImage(int iWidth, int iHeight, @Nonnull double[] adbl, int iMod) {
+    private static @Nonnull BufferedImage doubleArrayToBufferedImage(int iWidth, int iHeight, @Nonnull double[] adbl, int iComponent) {
         BufferedImage bi = new BufferedImage(iWidth, iHeight, BufferedImage.TYPE_INT_RGB);
-        for (int x = 0; x < iWidth; x++) {
-            for (int y = 0; y < iHeight; y++) {
-                int c = (int)(adbl[x + y * iWidth] + 128);
-                if (c < 0) c = 0; else if (c > 255) c = 255;
-                switch (iMod) {
+        for (int iX = 0; iX < iWidth; iX++) {
+            for (int iY = 0; iY < iHeight; iY++) {
+                int c = (int)Math.round(adbl[iX + iY * iWidth]) + 128;
+                if (c < 0)
+                    c = 0;
+                else if (c > 255)
+                    c = 255;
+                switch (iComponent) {
                     case 0: c <<= 16; break; // shift to red
                     case 1: break; // already at blue
                     case 2: c |= c << 8 | c << 16; break; // grayscale
                 }
-                bi.setRGB(x, y, c);
+                bi.setRGB(iX, iY, c);
             }
         }
         return bi;
@@ -230,11 +226,8 @@ public class PsxYCbCrImage {
 
     private static @Nonnull double[] get8x8block(int iX, int iY, @Nonnull double[] adblComponent, int iWidth) {
         double[] adblBlock = new double[8*8];
-        for (int iXofs = 0; iXofs < 8; iXofs++) {
-            for (int iYofs = 0; iYofs < 8; iYofs++) {
-                adblBlock[iXofs + iYofs * 8] =
-                        adblComponent[iX + iXofs + (iY + iYofs) * iWidth];
-            }
+        for (int iYofs = 0; iYofs < 8; iYofs++) {
+            System.arraycopy(adblComponent, iX + (iY + iYofs) * iWidth, adblBlock, iYofs * 8, 8);
         }
         return adblBlock;
     }

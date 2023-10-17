@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,14 +46,14 @@ public interface IIdentifiedSector {
     /** Returns the rough probability that the underlying CD sector has been
      * correctly identified by this identified sector.
      * @return Between 0 and 100. */
-    public int getProbability();
+    int getProbability();
 
     /** @return Human readable sector type (used for reference and debugging).*/
-    public @Nonnull String getTypeName();
+    @Nonnull String getTypeName();
 
     /** Returns the sector index from the start of the file. */
-    public int getSectorNumber();
+    int getSectorNumber();
 
     /** Returns the source CD sector behind this identified sector. */
-    public @Nonnull CdSector getCdSector();
+    @Nonnull CdSector getCdSector();
 }

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -75,7 +75,7 @@ public class GuiSettings {
     private static final String PREVIOUS_IMAGE_KEY = "PreviousImage";
     private final LinkedList<String> _previousImages = new LinkedList<String>();
 
-    private static final String PREVIOUS_IMAGE_COUNT_KEY = "PrevousImageCount";
+    private static final String PREVIOUS_IMAGE_COUNT_KEY = "PreviousImageCount";
     private int _iPreviousImageCount;
 
     private static final String PREVIOUS_INDEX_KEY = "PreviousIndex";

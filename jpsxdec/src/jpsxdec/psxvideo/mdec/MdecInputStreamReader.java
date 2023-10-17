@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -116,7 +116,7 @@ public class MdecInputStreamReader implements MdecInputStream {
                 LOG.warning("Qscale+DC code returns as EOD!");
             if (code.isEOD())
                 LOG.warning("Qscale+DC = EOD!");
-            IO.writeInt16LE(streamOut, code.toMdecWord());
+            IO.writeInt16LE(streamOut, code.toMdecShort());
             if (!blnIsEod) {
                 int iCurrentBlockVectorPosition = 0;
                 while (!mdecIn.readMdecCode(code)) {
@@ -125,13 +125,13 @@ public class MdecInputStreamReader implements MdecInputStream {
                     iCurrentBlockVectorPosition += code.getTop6Bits() + 1;
                     if (iCurrentBlockVectorPosition >= 64)
                         LOG.warning("Run length out of bounds!");
-                    IO.writeInt16LE(streamOut, code.toMdecWord());
+                    IO.writeInt16LE(streamOut, code.toMdecShort());
                 }
             }
             iBlock++;
             if (!code.isEOD())
                 LOG.warning("non-EOD code found in at EOD position!");
-            IO.writeInt16LE(streamOut, code.toMdecWord());
+            IO.writeInt16LE(streamOut, code.toMdecShort());
         }
 
         mdecIn.logIfAny0AcCoefficient();

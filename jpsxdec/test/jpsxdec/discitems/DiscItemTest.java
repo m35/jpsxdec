@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,7 @@ package jpsxdec.discitems;
 
 import java.io.File;
 import java.io.RandomAccessFile;
-import jpsxdec.cdreaders.CdFileSectorReader;
+import jpsxdec.cdreaders.CdOpener;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.i18n.FeedbackStream;
 import jpsxdec.i18n.ILocalizedMessage;
@@ -106,7 +106,7 @@ public class DiscItemTest {
         raf.writeByte(0);
         raf.close();
 
-        ICdSectorReader cd = CdFileSectorReader.openWithSectorSize(cdFile, 2048);
+        ICdSectorReader cd = CdOpener.openWithSectorSize(cdFile, 2048);
 
         DI d1 = new DI(cd, 10, 20);
 

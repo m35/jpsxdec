@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,9 +50,10 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import jpsxdec.adpcm.SoundUnitDecoder;
 import jpsxdec.adpcm.SpuAdpcmEncoder;
-import jpsxdec.cdreaders.ICdSectorReader;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.cdreaders.DiscPatcher;
+import jpsxdec.cdreaders.DiscSpeed;
+import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.SerializedDiscItem;
 import jpsxdec.formats.Signed16bitLittleEndianLinearPcmAudioInputStream;
 import jpsxdec.i18n.I;
@@ -65,9 +66,9 @@ import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.sharedaudio.DecodedAudioPacket;
-import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
-import jpsxdec.modules.sharedaudio.ISectorAudioDecoder;
+import jpsxdec.modules.audio.sectorbased.DiscItemSectorBasedAudioStream;
+import jpsxdec.modules.audio.sectorbased.ISectorClaimToSectorBasedDecodedAudio;
+import jpsxdec.modules.audio.sectorbased.SectorBasedDecodedAudioPacket;
 import jpsxdec.util.IO;
 import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.Misc;
@@ -138,8 +139,8 @@ public class DiscItemSquareAudioStream extends DiscItemSectorBasedAudioStream {
     }
 
     @Override
-    public int getDiscSpeed() {
-        return 2;
+    public @Nonnull DiscSpeed getDiscSpeed() {
+        return DiscSpeed.DOUBLE;
     }
 
     @Override
@@ -170,13 +171,13 @@ public class DiscItemSquareAudioStream extends DiscItemSectorBasedAudioStream {
     }
 
     @Override
-    public @Nonnull ISectorAudioDecoder makeDecoder(double dblVolume) {
+    public @Nonnull ISectorClaimToSectorBasedDecodedAudio makeDecoder(double dblVolume) {
         return new SquareConverter(dblVolume);
     }
 
     // -------------------------------------------------------------------------
 
-    private class SquareConverter implements ISectorAudioDecoder {
+    private class SquareConverter implements ISectorClaimToSectorBasedDecodedAudio {
 
         @Nonnull
         private final SquareAudioSectorPairToAudioPacket _p2p;
@@ -189,7 +190,7 @@ public class DiscItemSquareAudioStream extends DiscItemSectorBasedAudioStream {
         }
 
         @Override
-        public void setAudioListener(@Nonnull DecodedAudioPacket.Listener listener) {
+        public void setSectorBasedAudioListener(@Nonnull SectorBasedDecodedAudioPacket.Listener listener) {
             _p2p.setListener(listener);
         }
 
@@ -211,11 +212,6 @@ public class DiscItemSquareAudioStream extends DiscItemSectorBasedAudioStream {
         @Override
         public int getSampleFramesPerSecond() {
             return _iSampleFramesPerSecond;
-        }
-
-        @Override
-        public int getDiscSpeed() {
-            return 2;
         }
 
         @Override
@@ -242,7 +238,7 @@ public class DiscItemSquareAudioStream extends DiscItemSectorBasedAudioStream {
             throws IOException,
                    UnsupportedAudioFileException,
                    LocalizedIncompatibleException,
-                   CdReadException,
+                   CdException.Read,
                    DiscPatcher.WritePatchException,
                    TaskCanceledException, LoggedFailure
     {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -67,7 +67,7 @@ public class ArrayBitReader {
     protected int _iBitsLeft = 0;
 
     /** Quick lookup table to mask remaining bits. */
-    private static final int BIT_MASK[] = {
+    private static final int[] BIT_MASK = {
         0x00000000,
         0x00000001, 0x00000003, 0x00000007, 0x0000000F,
         0x0000001F, 0x0000003F, 0x0000007F, 0x000000FF,

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2020  Michael Sabin
+ * Copyright (C) 2013-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,8 +42,8 @@ import java.io.PrintStream;
 import java.util.Map;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.cdreaders.ICdSectorReader;
-import jpsxdec.cdreaders.CdReadException;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
 import jpsxdec.i18n.exception.LoggedFailure;
@@ -92,7 +92,7 @@ class Command_SectorDump extends Command {
                     IIdentifiedSector idSect;
                     try {
                         idSect = it.next(DebugLogger.Log);
-                    } catch (CdReadException ex) {
+                    } catch (CdException.Read ex) {
                         throw new CommandLineException(I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
                     }
                     ps.println(idSect);

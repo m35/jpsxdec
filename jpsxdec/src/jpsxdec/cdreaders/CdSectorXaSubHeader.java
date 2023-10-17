@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,7 +53,7 @@ public class CdSectorXaSubHeader {
 
     private static final Logger LOG = Logger.getLogger(CdSectorXaSubHeader.class.getName());
 
-    private static enum IssueType {
+    private enum IssueType {
         EQUAL_BOTH_GOOD(0) {public void err(String sName, String sVal1, String sVal2, int iConfidenceBalance, StringBuilder sb) {
             throw new IllegalStateException("Should never happen");
         }},
@@ -317,6 +317,7 @@ public class CdSectorXaSubHeader {
 
 
         public boolean isValid() {
+            // TODO also check Data/Audio/Video exclusivity cuz it's proven extremely reliable
             int iByte = (_iSubmode >> 1) & 7;
             int iCount = 0;
             for (int i=8; i > 0; i >>= 1) {

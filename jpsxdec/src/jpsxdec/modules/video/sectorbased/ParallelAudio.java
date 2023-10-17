@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -47,10 +47,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.discitems.DiscItem;
 import jpsxdec.discitems.IndexId;
-import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
-import jpsxdec.util.Misc;
+import jpsxdec.modules.audio.sectorbased.DiscItemSectorBasedAudioStream;
 
 /** Manages audio streams that run alongside a video stream. */
 public class ParallelAudio {
@@ -67,11 +67,12 @@ public class ParallelAudio {
      *   2 = 2x. */
     private int _iAudioDiscSpeed = 0;
 
-    /** 1 for 1x (75 sectors/second)
-     *  2 for 2x (150 sectors/second)
-     *  {@code <= 0} if unknown. */
-    public int getAudioDiscSpeed() {
-        return _iAudioDiscSpeed;
+    public @CheckForNull DiscSpeed getAudioDiscSpeed() {
+        switch (_iAudioDiscSpeed) {
+            case 1: return DiscSpeed.SINGLE;
+            case 2: return DiscSpeed.DOUBLE;
+            default: return null;
+        }
     }
 
     public boolean addChild(@Nonnull DiscItem other, int iParentRating) {
@@ -85,14 +86,14 @@ public class ParallelAudio {
 
         // TODO: keep the list sorted in order found in disc index
 
-        int iAudioItemDiscSpeed = audItem.getDiscSpeed();
+        DiscSpeed audioItemDiscSpeed = audItem.getDiscSpeed();
 
         // if there is only 1 disc speed used by parallel audio, then
         // we can be confident the video should have the same speed
-        if (iAudioItemDiscSpeed > 0) {
+        if (audioItemDiscSpeed != null) {
             if (_iAudioDiscSpeed == 0)
-                _iAudioDiscSpeed = iAudioItemDiscSpeed;
-            else if (_iAudioDiscSpeed != iAudioItemDiscSpeed)
+                _iAudioDiscSpeed = audioItemDiscSpeed.getSpeed();
+            else if (_iAudioDiscSpeed != audioItemDiscSpeed.getSpeed())
                 _iAudioDiscSpeed = -1;
         }
 
@@ -169,7 +170,7 @@ public class ParallelAudio {
         /** Sort by earliest finishing time. */
         @Override
         public int compare(DiscItemSectorBasedAudioStream o1, DiscItemSectorBasedAudioStream o2) {
-            return Misc.intCompare(o1.getEndSector(), o2.getEndSector());
+            return Integer.compare(o1.getEndSector(), o2.getEndSector());
         }
 
         private ArrayList<DiscItemSectorBasedAudioStream> getStreams() {

@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -58,9 +58,9 @@ import jpsxdec.util.IO;
  * A buffer sits between the data written to this class and the actual DataLine
  * because DataLine seems to have a very small buffer itself.
  * A thread manages copying the buffer into the DataLine.
- *
+ *<p>
  * This also extends VideoTimer that manages the video playback using
- * the audio timer. It conveniently uses the DataLine's listener to
+ * the audio timer. It conveniently uses the DataLine's listener thread to
  * fire events.
  */
 class AudioPlayer extends VideoTimer implements Runnable, LineListener {
@@ -75,11 +75,11 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
 
     private static final long NANOS_PER_SECOND = 1000000000;
 
-    /** On Ubuntu it seems a big buffer causes issues when video is paused.
+    /** On Ubuntu (circa 2019) it seems a big buffer causes issues when video is paused.
      * The play time drifts a lot when paused and buffering, so when
      * unpaused the video hangs a lot. Smaller buffer reduces that effect. */
     private static final double SECONDS_OF_BUFFER_NON_WINDOWS = 0.1;
-    /** On windows it seems a small buffer causes stuttering, so use a big one. */
+    /** On Windows it seems a small buffer causes stuttering, so use a big one. */
     private static final double SECONDS_OF_BUFFER_WINDOWS = 5;
 
     @Nonnull
@@ -93,14 +93,12 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
     private final int _iCopyBufferSize;
 
     @Nonnull
-    private final Thread _thread;
+    private final Thread _thisThread;
 
     private SourceDataLine _dataLine;
 
-    private boolean _blnWasStarted = false;
-
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // Experiment with using the system clock and intermittently sync with the audio time
+    // TODO Experiment with using the system clock and intermittently sync with the audio time
     private boolean _blnUseAudioAndSystemClockTogether = false;
     private long _lngStartTime = -1;
     private long _lngLastSync = -1;
@@ -121,7 +119,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
         }
         _iCopyBufferSize = (int) (format.getFrameSize() * format.getSampleRate() * 5);
 
-        _thread = new Thread(this, getClass().getName());
+        _thisThread = new Thread(this, getClass().getName());
     }
 
 
@@ -132,10 +130,10 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
         try {
             _dataLine = createOpenLine(_format);
             // Important note about dataline listeners:
-            // The events are not triggered when the is a buffer under-run
-            // although the docs kinda sugget that they are
+            // The events are not triggered when there is a buffer under-run
+            // although the docs kinda suggest that they are
             _dataLine.addLineListener(this);
-            _thread.start();
+            _thisThread.start();
         } catch (LineUnavailableException ex) {
             throw new PlayerException(ex);
         }
@@ -165,9 +163,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
                         continue;
                     dataLine = (SourceDataLine)mixer.getLine(info);
                     break;
-                } catch (LineUnavailableException ex) {
-                    ex.printStackTrace();
-                } catch (IllegalArgumentException ex) {
+                } catch (LineUnavailableException | IllegalArgumentException ex) {
                     ex.printStackTrace();
                 }
             }
@@ -181,7 +177,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
 
         int iRequestedBufferSize = (int) (format.getFrameSize() * format.getSampleRate() * dblSeconds);
         dataLine.open(format, iRequestedBufferSize);
-        // for some reason on Ubuntu the audio starts as soon as data is fed to it
+        // for some reason on Ubuntu (circa 2019) the audio starts as soon as data is fed to it
         // no matter how many times .stop() is called
         // somehow calling start() then stop() gets around it
         dataLine.start();
@@ -200,6 +196,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
                 if (!_dataLine.isOpen()) {
                     break;
                 }
+                System.out.println("Dataline is open");
 
                 if (iBytesWritten < iBytesToWrite) {
                     int iToWrite = iBytesToWrite - iBytesWritten;
@@ -207,13 +204,13 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
                     if (iFrameRemainder > 0)
                         iToWrite -= iFrameRemainder;
                     if (DEBUG) System.out.println("Writing " + iToWrite + " bytes of audio");
-                    int iWrorte = _dataLine.write(abCopyBuffer, iBytesWritten, iToWrite);
-                    if (DEBUG) System.out.println("Actually wrote " + iWrorte + " bytes of audio");
-                    iBytesWritten += iWrorte;
-                    if (iWrorte < iToWrite) {
+                    int iWrote = _dataLine.write(abCopyBuffer, iBytesWritten, iToWrite);
+                    if (DEBUG) System.out.println("Actually wrote " + iWrote + " bytes of audio");
+                    iBytesWritten += iWrote;
+                    if (iWrote < iToWrite) {
                         boolean blnDueToPause = false;
-                        // possible race condition here if the play state changed between writting audio data and checking state
-                        // but that shouln't cause any problems except trigger the message below
+                        // possible race condition here if the play state changed between writing audio data and checking state
+                        // but that shouldn't cause any problems except trigger the message below
                         synchronized (this) {
                             if (isPaused()) {
                                 this.wait();
@@ -223,7 +220,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
                         if (!blnDueToPause) {
                             // special to note that the dataline will continually reject audio while it is paused
                             // so no need to log in that case, just wait
-                            System.out.println("[AudioPlayer] Only " + iWrorte +
+                            System.out.println("[AudioPlayer] Only " + iWrote +
                                     " bytes of audio was written. Progress: " +
                                     iBytesWritten + "/" + iBytesToWrite);
                         }
@@ -231,25 +228,14 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
                     }
                 } else {
                     iBytesToWrite = _pipedInputStream.read(abCopyBuffer);
-                    if (DEBUG) System.out.println("Got " + iBytesToWrite + " byts of audio");
+                    if (DEBUG) System.out.println("Got " + iBytesToWrite + " bytes of audio");
                     iBytesWritten = 0;
                     if (iBytesToWrite < 0) {
                         break;
                     }
                 }
             }
-
-            // Check before we exit this block...
-            // Dataline javadoc: "The drain() method blocks until this internal buffer becomes empty"
-            // Lies! .drain() will return immediately if the audio data is small and has not been played.
-            // So wait until some audio was played before exiting (or until notified to stop).
-            synchronized (this) {
-                while (!_blnWasStarted) {
-                    System.out.println("Out of audio data, but player has not been started");
-                    this.wait();
-                }
-            }
-
+                    System.out.println("[audio] Something changed");
         } catch (IOException ex) {
             // this hopefully only happens because the reader was forcefully closed
             System.out.println("Audio player IOException stop: " + ex.getMessage());
@@ -265,7 +251,6 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
         _dataLine.drain();
         _dataLine.close();
         super.terminate();
-        System.out.println("AudioPlayer ending");
     }
 
 
@@ -275,6 +260,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
 
     @Override
     public synchronized void go() {
+        if (DEBUG) System.out.println("AudioPlayer go!");
         // synchronized since this is 2 operations
         // and we don't want the player state to change in the middle
         if (_dataLine != null) {
@@ -282,7 +268,6 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
             _lngLastSync = lngNow;
             _lngStartTime = lngNow - (long)(_dataLine.getLongFramePosition() * _dblSamplesPerNano);
             _dataLine.start();
-            _blnWasStarted = true;
         }
         super.go();
     }
@@ -298,7 +283,6 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
     }
 
     public void finish() {
-        if (DEBUG) System.out.println("AudioPlayer.finish()");
         // it looks like it's thread-safe to close the stream
         IO.closeSilently(_pipedOutputStream, LOG);
     }
@@ -318,6 +302,7 @@ class AudioPlayer extends VideoTimer implements Runnable, LineListener {
             _dataLine.stop();
             _dataLine.close();
         }
+        System.out.println("Just closed dataline, closing piped streams");
         IO.closeSilently(_pipedOutputStream, LOG);
         IO.closeSilently(_pipedInputStream, LOG);
         super.terminate();

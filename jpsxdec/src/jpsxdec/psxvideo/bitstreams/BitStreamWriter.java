@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -81,7 +81,7 @@ public class BitStreamWriter {
 
     public void write(long lngValue, int iBits) {
         if (iBits < 1 || iBits > Long.SIZE)
-            throw new IllegalArgumentException("Invalid bit lengh to write " + iBits);
+            throw new IllegalArgumentException("Invalid bit length to write " + iBits);
         for (long lngMask = 1L << (iBits-1); lngMask != 0; lngMask >>= 1) {
             write((lngValue & lngMask) != 0);
         }

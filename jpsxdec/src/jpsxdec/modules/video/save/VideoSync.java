@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.modules.video.save;
 
 import javax.annotation.Nonnull;
+import jpsxdec.cdreaders.DiscSpeed;
 import jpsxdec.util.Fraction;
 
 /** Used to ensure the writing of video frames matches the timing of the
@@ -50,29 +51,29 @@ public class VideoSync {
      *  this is essentially the last sector of the first frame. */
     private final int _iFirstPresentationSector;
 
-    /** Either 75 (single speed) or 150 (double speed). */
-    private final int _iSectorsPerSecond;
+    @Nonnull
+    private final DiscSpeed _discSpeed;
     @Nonnull
     private final Fraction _sectorsPerFrame;
 
-    /** Precalculated from {@link #_iSectorsPerSecond} and {@link #_sectorsPerFrame}
+    /** Precalculated from {@link #_discSpeed} and {@link #_sectorsPerFrame}
      * for quick reference. */
     @Nonnull
     private final Fraction _secondsPerFrame;
 
     public VideoSync(int iFirstPresentationSector,
-                     int iSectorsPerSecond,
+                     @Nonnull DiscSpeed discSpeed,
                      @Nonnull Fraction sectorsPerFrame)
     {
         _iFirstPresentationSector = iFirstPresentationSector;
-        _iSectorsPerSecond = iSectorsPerSecond;
+        _discSpeed = discSpeed;
         _sectorsPerFrame = sectorsPerFrame;
 
-        _secondsPerFrame = _sectorsPerFrame.divide(_iSectorsPerSecond);
+        _secondsPerFrame = _sectorsPerFrame.divide(_discSpeed.getSectorsPerSecond());
     }
 
     public int getSectorsPerSecond() {
-        return _iSectorsPerSecond;
+        return _discSpeed.getSectorsPerSecond();
     }
 
     public @Nonnull Fraction getSecondsPerFrame() {
@@ -87,7 +88,7 @@ public class VideoSync {
     private final static Fraction NegPoint8 = new Fraction(-8, 10);
 
     public @Nonnull Fraction calcPresentationTime(@Nonnull Fraction framePresentationSector) {
-        return framePresentationSector.subtract(_iFirstPresentationSector).divide(_iSectorsPerSecond);
+        return framePresentationSector.subtract(_iFirstPresentationSector).divide(_discSpeed.getSectorsPerSecond());
     }
 
     /** Returns if the frame's presentation time is behind (negative value) or ahead (positive value) of the movie time.

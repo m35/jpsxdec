@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -40,6 +40,8 @@ package jpsxdec.indexing;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.modules.IIdentifiedSector;
@@ -48,6 +50,10 @@ import jpsxdec.modules.UnidentifiedSector;
 /** Feed identified (or unidentified) sectors or their type names to this class
  * and it will count how many it sees of each type. */
 public class SectorTypeCounter implements Iterable<Map.Entry<String, Integer>> {
+
+    public static boolean LOG_SECTOR_COUNT_IN_SEPARATE_LINES = true;
+
+    private static final Logger LOG = Logger.getLogger(SectorTypeCounter.class.getName());
 
     private final TreeMap<String, Integer> _sectorCounts =
             new TreeMap<String, Integer>();
@@ -72,6 +78,24 @@ public class SectorTypeCounter implements Iterable<Map.Entry<String, Integer>> {
         _sectorCounts.put(sName, iCount);
     }
 
+    public void logCount() {
+
+        if (LOG.isLoggable(Level.INFO)) {
+            if (LOG_SECTOR_COUNT_IN_SEPARATE_LINES) {
+                for (Map.Entry<String, Integer> entry : this) {
+                    String sLog = entry.getKey() + " " + entry.getValue();
+                    LOG.info(sLog);
+                }
+            } else {
+                StringBuilder sb = new StringBuilder();
+                for (Map.Entry<String, Integer> entry : this) {
+                    sb.append('[').append(entry.getKey()).append(':').append(entry.getValue()).append("] ");
+                }
+                LOG.info(sb.toString().trim());
+            }
+        }
+    }
+
     @Override
     public @Nonnull Iterator<Map.Entry<String, Integer>> iterator() {
         return _sectorCounts.entrySet().iterator();
@@ -90,8 +114,7 @@ public class SectorTypeCounter implements Iterable<Map.Entry<String, Integer>> {
             return false;
         }
         final SectorTypeCounter other = (SectorTypeCounter) obj;
-        if (_sectorCounts != other._sectorCounts &&
-            (_sectorCounts == null || !_sectorCounts.equals(other._sectorCounts))) {
+        if (_sectorCounts != other._sectorCounts && !_sectorCounts.equals(other._sectorCounts)) {
             return false;
         }
         return true;

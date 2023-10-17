@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,11 +39,11 @@ package jpsxdec.modules.aconcagua;
 
 import javax.annotation.Nonnull;
 import jpsxdec.psxvideo.bitstreams.BitStreamDebugging;
+import jpsxdec.psxvideo.bitstreams.IBitStreamWith1QuantizationScale;
 import jpsxdec.psxvideo.mdec.MdecBlock;
 import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecContext;
 import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.IO;
 import jpsxdec.util.Misc;
 
@@ -144,11 +144,15 @@ import jpsxdec.util.Misc;
  * nnnnii*++++****iii****+z+***i*****+z+;ii;i;;i;;ii*;;;ii;;;;i;;i;ii,.,.``      `` ` .`.;i;::;;:;;ii;:;****ii::;**i;:ix+****i;i;iiii;;i;;ii*i*i**++zznnn
  *</pre>
  *
+ * Aconcagua has 2 videos: an into video and an ending video. Each one has totally
+ * different lookup tables found in {@link AconcaguaIntroVideoTables} and
+ * {@link AconcaguaEndingVideoTables}, but how they're processed is the same.
+ *
  * For each block
  *  - Read the DC code (normal)
  *  - The bits either point to a predefined VLC lookup table (normal)
  *  - Or there is an escape code indicating the DC value is in the
- *    biitstream itself (normal)
+ *    bitstream itself (normal)
  *  - The chroma DC values are relative to prior chroma values (normal)
  *  - The luma DC values are relative to prior luma DC values (normal)
  *  - The choice of crisscrossing which luma block DC codes are relative
@@ -194,7 +198,7 @@ import jpsxdec.util.Misc;
  * blown away by wasting at least a dozen *BYTES* per frame.
  *
  * And all this insanity is compounded by the fact that there is the standard
- * PlayStation bitsream formats that
+ * PlayStation bitstream formats that
  * - are readily available
  * - encode better
  * - are better quality
@@ -208,22 +212,58 @@ import jpsxdec.util.Misc;
  * us. I'm sure someone in the development team wished they could go back and do
  * it differently.
  */
-public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
+public class BitStreamUncompressor_Aconcagua implements IBitStreamWith1QuantizationScale {
 
-    private static final int MACROBLOCK_HEIGHT = 13; // 208 / 16
+    public @Nonnull BitStreamUncompressor_Aconcagua makeFor(@Nonnull byte[] abBitStream) {
+        return new BitStreamUncompressor_Aconcagua(_tables, MACROBLOCK_HEIGHT, _iQuantizationScale, abBitStream);
+    }
+
+    /** Both videos have this height. */
+    // TODO should probably dynamically calculate this on the height of the frame as it is read
+    static final int MACROBLOCK_HEIGHT = 13; // 208 / 16
 
     public static final int MINIMUM_BITSTREAM_SIZE = AconcaguaBitReader.MINIMUM_BITSTREAM_SIZE;
 
     private final int _iQuantizationScale;
     @Nonnull
     private final MdecContext _context;
+    @Nonnull
+    private final AconcaguaHuffmanTables _tables;
 
     private int _iBlocksLeftInColumn = MACROBLOCK_HEIGHT * 6;
 
-    public BitStreamUncompressor_Aconcagua(int iMacroblockHeight, int iQuantizationScale, @Nonnull byte[] abBitstream) {
+    public BitStreamUncompressor_Aconcagua(@Nonnull AconcaguaHuffmanTables tables, int iMacroblockHeight,
+                                           int iQuantizationScale, @Nonnull byte[] abBitstream)
+    {
+        _tables = tables;
         _iQuantizationScale = iQuantizationScale;
         _bitstream = new AconcaguaBitReader(abBitstream, 0);
         _context = new MdecContext(iMacroblockHeight);
+    }
+
+    @Override
+    public @Nonnull BitStreamCompressor_Aconcagua makeCompressor() throws UnsupportedOperationException {
+        return new BitStreamCompressor_Aconcagua(_tables, _iQuantizationScale);
+    }
+
+    @Override
+    public int getQuantizationScale() {
+        return _iQuantizationScale;
+    }
+
+    @Override
+    public int getBitPosition() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getByteOffset() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean skipPaddingBits() {
+        return true;
     }
 
     // -------------------------------------------------------------------------
@@ -246,16 +286,10 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
         _bitstream.resetColumn();
         _iBlocksLeftInColumn = MACROBLOCK_HEIGHT * 6;
     }
+
     // -------------------------------------------------------------------------
 
-    private static final int BOTTOM_3_BITS  = 0x0007;
-    private static final int BOTTOM_8_BITS  = 0x00ff;
-    private static final int BOTTOM_9_BITS  = 0x01ff;
     private static final int BOTTOM_10_BITS = 0x03ff;
-    private static final int BOTTOM_11_BITS = 0x07ff;
-    private static final int BOTTOM_14_BITS = 0x3fff;
-    private static final int BIT9  = 0x0100;
-    private static final int BIT10 = 0x0200;
 
     @Override
     public boolean readMdecCode(@Nonnull MdecCode code) throws MdecException.EndOfStream, MdecException.ReadCorruption {
@@ -267,17 +301,17 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
 
             int iNext32Bits = _bitstream.getBits();
             int iBitsToSkip = readDc(_context.getCurrentBlock(), code, iNext32Bits);
-            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits qscale/dc %s", iBitsToSkip, code));
+            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits for qscale/dc %s", iBitsToSkip, code));
             _bitstream.skipBits(iBitsToSkip);
             _context.nextCode();
             return false;
         } else {
             if (_context.getMdecCodesReadInCurrentBlock() == 1) {
 
-                int iInstructionCode = _bitstream.getBits() & BOTTOM_10_BITS;
-                InstructionTable.InstructionCode instruction = InstructionTable.lookup(iInstructionCode);
+                int iNext32Bits = _bitstream.getBits();
+                InstructionTable.InstructionCode instruction = _tables.lookupInstruction(iNext32Bits);
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits for instruction %s", instruction.getBitCodeLen(), instruction));
                 _bitstream.skipBits(instruction.getBitCodeLen());
-                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits %s", instruction.getBitCodeLen(), instruction));
 
                 _iTable1Reads = instruction.getTable1Count();
                 _iTable2Reads = instruction.getTable2Count();
@@ -286,8 +320,8 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
 
             if (_iTable1Reads > 0) {
                 int iNext32Bits = _bitstream.getBits();
-                int iBitsToSkip = readTable1(code, iNext32Bits);
-                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits %s", iBitsToSkip, code));
+                int iBitsToSkip = _tables.readAcTable1(code, iNext32Bits);
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits for rle/ac %s", iBitsToSkip, code));
                 _bitstream.skipBits(iBitsToSkip);
                 _iTable1Reads--;
                 _context.nextCode();
@@ -296,8 +330,8 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
 
             if (_iTable2Reads > 0) {
                 int iNext32Bits = _bitstream.getBits();
-                int iBitsToSkip = readTable2(code, iNext32Bits);
-                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits %s", iBitsToSkip, code));
+                int iBitsToSkip = _tables.readAcTable2(code, iNext32Bits);
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits for rle/ac %s", iBitsToSkip, code));
                 _bitstream.skipBits(iBitsToSkip);
                 _iTable2Reads--;
                 _context.nextCode();
@@ -306,8 +340,8 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
 
             if (_iTable3Reads > 0) {
                 int iNext32Bits = _bitstream.getBits();
-                int iBitsToSkip = readTable3(code, iNext32Bits);
-                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits %s", iBitsToSkip, code));
+                int iBitsToSkip = _tables.readAcTable3(code, iNext32Bits);
+                assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("%d bits rle/ac %s", iBitsToSkip, code));
                 _bitstream.skipBits(iBitsToSkip);
                 _iTable3Reads--;
                 _context.nextCode();
@@ -320,163 +354,48 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
         }
     }
 
+    private final DcTable.DcRead _dcRead = new DcTable.DcRead();
     private int readDc(@Nonnull MdecBlock block, @Nonnull MdecCode code, int iNext32Bits) throws MdecException.ReadCorruption {
-        boolean blnIsDcEscapeCode = (iNext32Bits & BOTTOM_3_BITS) == 0;
-
-        int iDcFromEscapeCode = -1;
-        int iRelativeDcFromTable = -1;
-        int iBitsToSkip;
-
-        if (blnIsDcEscapeCode) {
-            iDcFromEscapeCode = (iNext32Bits >> 3) & BOTTOM_10_BITS;
-            iBitsToSkip = 3 + 10; // 3 zeros + 10 bits for DC
-        } else {
-            DcTable.DcCode entry = DcTable.lookup(iNext32Bits & BOTTOM_11_BITS);
-            iRelativeDcFromTable = entry.getRelativeDcCoefficient();
-            iBitsToSkip = entry.getBitCodeLen();
-        }
-
-        int iFinalDc;
 
         switch (block) {
             case Cr:
-                if (blnIsDcEscapeCode)
-                    iFinalDc = iDcFromEscapeCode;
-                else
-                    iFinalDc = iRelativeDcFromTable + _iPreviousDcCr;
-                _iPreviousDcCr = iFinalDc;
+                _tables.readDc(_dcRead, iNext32Bits, _iPreviousDcCr);
+                _iPreviousDcCr = _dcRead.iDc;
                 break;
             case Cb:
-                if (blnIsDcEscapeCode)
-                    iFinalDc = iDcFromEscapeCode;
-                else
-                    iFinalDc = iRelativeDcFromTable + _iPreviousDcCb;
-                _iPreviousDcCb = iFinalDc;
+                _tables.readDc(_dcRead, iNext32Bits, _iPreviousDcCb);
+                _iPreviousDcCb = _dcRead.iDc;
                 break;
             case Y1:
-                if (blnIsDcEscapeCode)
-                    iFinalDc = iDcFromEscapeCode;
-                 else
-                    iFinalDc = iRelativeDcFromTable + _iPreviousDcSetInY3UsedInY1Y4;
-                _iPreviousDcSetInY1UsedInY2Y3 = iFinalDc;
+                _tables.readDc(_dcRead, iNext32Bits, _iPreviousDcSetInY3UsedInY1Y4);
+                _iPreviousDcSetInY1UsedInY2Y3 = _dcRead.iDc;
                 break;
             case Y2:
-                if (blnIsDcEscapeCode)
-                    iFinalDc = iDcFromEscapeCode;
-                else
-                    iFinalDc = iRelativeDcFromTable + _iPreviousDcSetInY1UsedInY2Y3;
+                _tables.readDc(_dcRead, iNext32Bits, _iPreviousDcSetInY1UsedInY2Y3);
                 break;
             case Y3:
-                if (blnIsDcEscapeCode)
-                    iFinalDc = iDcFromEscapeCode;
-                else
-                    iFinalDc = iRelativeDcFromTable + _iPreviousDcSetInY1UsedInY2Y3;
-                _iPreviousDcSetInY3UsedInY1Y4 = iFinalDc;
+                _tables.readDc(_dcRead, iNext32Bits, _iPreviousDcSetInY1UsedInY2Y3);
+                _iPreviousDcSetInY3UsedInY1Y4 = _dcRead.iDc;
                 break;
             case Y4: default:
-                if (blnIsDcEscapeCode)
-                    iFinalDc = iDcFromEscapeCode;
-                else
-                    iFinalDc = iRelativeDcFromTable + _iPreviousDcSetInY3UsedInY1Y4;
+                _tables.readDc(_dcRead, iNext32Bits, _iPreviousDcSetInY3UsedInY1Y4);
                 break;
         }
 
-        code.set((_iQuantizationScale << 10) | (iFinalDc & BOTTOM_10_BITS));
+        code.set((_iQuantizationScale << 10) | (_dcRead.iDc & BOTTOM_10_BITS));
 
-        return iBitsToSkip;
+        return _dcRead.iBitLen;
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + " " + _context.toString() + " current 4 byte start=" + _bitstream._iPositionMultOf4;
+        return getClass().getSimpleName() + " " + _context + " current 4 byte start=" + _bitstream._iPositionMultOf4;
     }
 
-    private static int readTable1(@Nonnull MdecCode code, int iNext32Bits) throws MdecException.ReadCorruption {
-        if ((iNext32Bits & BOTTOM_8_BITS) == 0) {
-            // escape code
-
-            int iMdecCode;
-            int iVlcCodeLength;
-            if ((iNext32Bits & BIT9) != 0) {
-                // positive
-                iMdecCode = iNext32Bits >> 9;
-                iVlcCodeLength = 25;
-            } else {
-                // negative
-                int iSignExtendAc = (iNext32Bits << 16) >> 25;
-                iMdecCode = iSignExtendAc & BOTTOM_10_BITS;
-                iVlcCodeLength = 16;
-            }
-
-            code.set(iMdecCode);
-            return iVlcCodeLength;
-
-        } else {
-            ZeroRunLengthAcTables.AcCode ac = ZeroRunLengthAcTables.lookupTable1(iNext32Bits & BOTTOM_14_BITS);
-            ac.setMdec(code);
-            return ac._sBits.length();
-        }
-    }
-
-    private static int readTable2(@Nonnull MdecCode code, int iNext32Bits) throws MdecException.ReadCorruption {
-        if ((iNext32Bits & BOTTOM_9_BITS) == 0) {
-            // escape code
-
-            int iMdecCode;
-            int iVlcCodeLength;
-            if ((iNext32Bits & BIT10) != 0) {
-                // positive
-                iMdecCode = iNext32Bits >> 10;
-                iVlcCodeLength = 26;
-            } else {
-                // negative
-                int iSignExtendAc = (iNext32Bits << 17) >> 27;
-                int iZeroRunLength = (iNext32Bits >> 5) & 0x1c00;
-                iMdecCode = (iSignExtendAc & BOTTOM_10_BITS) | iZeroRunLength;
-                iVlcCodeLength = 18;
-            }
-
-            code.set(iMdecCode);
-            return iVlcCodeLength;
-
-        } else {
-            ZeroRunLengthAcTables.AcCode ac = ZeroRunLengthAcTables.lookupTable2(iNext32Bits & BOTTOM_14_BITS);
-            ac.setMdec(code);
-            return ac._sBits.length();
-        }
-    }
-
-    private static int readTable3(@Nonnull MdecCode code, int iNext32Bits) throws MdecException.ReadCorruption {
-        if ((iNext32Bits & BOTTOM_9_BITS) == 0) {
-            // escape code
-
-            int iMdecCode;
-            int iVlcCodeLength;
-            if ((iNext32Bits & BIT10) != 0) {
-                // positive
-                iMdecCode = iNext32Bits >> 10;
-                iVlcCodeLength = 26;
-            } else {
-                // negative
-                int iSignExtendAc = (iNext32Bits << 18) >> 28;
-                int iZeroRunLength = (iNext32Bits >> 4) & 0x3c00;
-                iMdecCode = (iSignExtendAc & BOTTOM_10_BITS) | iZeroRunLength;
-                iVlcCodeLength = 18;
-            }
-
-            code.set(iMdecCode);
-            return iVlcCodeLength;
-
-        } else {
-            ZeroRunLengthAcTables.AcCode ac = ZeroRunLengthAcTables.lookupTable3(iNext32Bits & BOTTOM_14_BITS);
-            ac.setMdec(code);
-            return ac._sBits.length();
-        }
-    }
 
     /**
      * This bit reader is actually pretty clever. It works backwards from the
-     * normal bistream approach, which I think might make it faster. But then
+     * normal bitstream approach, which I think might make it faster. But then
      * again, the mpeg1 spec chose its bitstream style for a reason.
      */
     private static class AconcaguaBitReader {
@@ -504,7 +423,7 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
             }
         }
 
-        final public void resetColumn() throws MdecException.EndOfStream {
+        public void resetColumn() throws MdecException.EndOfStream {
             _iBitsRemaining = 32;
             _iPositionMultOf4 = _iPositionMultOf4 + 4;
             try {
@@ -521,7 +440,7 @@ public class BitStreamUncompressor_Aconcagua implements MdecInputStream {
         }
 
         public void skipBits(int iNumBits) {
-            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("Skip %d bits %s", iNumBits, Misc.bitsToString(_iFrontBits, iNumBits)));
+            assert !BitStreamDebugging.DEBUG || BitStreamDebugging.println(String.format("Skipping %d bits '%s'", iNumBits, Misc.bitsToString(_iFrontBits, iNumBits)));
             _iFrontBits = _iFrontBits >>> iNumBits;
             _iBitsRemaining = _iBitsRemaining - iNumBits;
             int i = _iMidBits << (32 - iNumBits);

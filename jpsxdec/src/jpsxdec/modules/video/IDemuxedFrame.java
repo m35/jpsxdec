@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2020  Michael Sabin
+ * Copyright (C) 2012-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,56 +37,19 @@
 
 package jpsxdec.modules.video;
 
-import java.io.PrintStream;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.exception.LoggedFailure;
-import jpsxdec.i18n.log.ILocalizedLogger;
-import jpsxdec.modules.video.framenumber.FrameNumber;
-import jpsxdec.modules.video.sectorbased.SectorBasedFrameAnalysis;
-import jpsxdec.psxvideo.bitstreams.BitStreamAnalysis;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.Fraction;
 
 /** Universal demuxed video frame. */
-public interface IDemuxedFrame {
+public interface IDemuxedFrame extends IAbstractDemuxedFrame {
 
     public interface Listener {
         void frameComplete(@Nonnull IDemuxedFrame frame) throws LoggedFailure;
     }
 
-    int getWidth();
-
-    int getHeight();
-
-    /** The frame number of the demuxed frame. */
-    @Nonnull FrameNumber getFrame();
-
-    int getStartSector();
-
-    int getEndSector();
-
     /** The sector when the frame should be displayed.
      * This can be relative to 0, the start of the disc, or some other
      * consistent starting sector for the video this frame is in. */
     @Nonnull Fraction getPresentationSector();
-
-    /** Size of the demuxed frame. */
-    int getDemuxSize();
-
-    /** Returns the contiguous demux copied into a buffer. */
-    @Nonnull byte[] copyDemuxData();
-
-    /** The demux data my not be able to be converted to an mdec stream on its
-     * own. This can provide a direct mdec stream instead. */
-    @CheckForNull MdecInputStream getCustomFrameMdecStream();
-
-    void printSectors(@Nonnull PrintStream ps);
-
-    void writeToSectors(@Nonnull SectorBasedFrameAnalysis existingFrame,
-                        @Nonnull BitStreamAnalysis newFrame,
-                        @Nonnull DiscPatcher patcher,
-                        @Nonnull ILocalizedLogger log)
-            throws LoggedFailure;
 }

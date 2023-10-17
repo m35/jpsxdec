@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -151,7 +151,7 @@ public class VideoFileNameFormatter {
             sb.append(_sDims);
 
         if (!_blnIgnoreFrameNumbers && frameNumber != null)
-            sb.append('[').append(frameNumber.toString()).append(']');
+            sb.append('[').append(frameNumber).append(']');
 
         sb.append(_sExtension);
 

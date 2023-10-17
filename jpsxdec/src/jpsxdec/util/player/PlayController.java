@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,7 +38,6 @@
 package jpsxdec.util.player;
 
 import java.awt.Canvas;
-import java.io.IOException;
 import java.io.OutputStream;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
@@ -48,19 +47,17 @@ import jpsxdec.util.Fraction;
 /**
  * Primary public interface to controlling a player.
  *
- * Start by creating an instance, specifying the video dimensions or
-* {@link AudioFormat}, or both. Make your own reader that implements
-* {@link IMediaDataReader} and register it with
-* {@link PlayController#setReader(IMediaDataReader)}
-* This reader will supply all video frames, PCM audio data, or both.
-* If there is video, also create a frame processor that implements
-* {@link IFrameProcessor} and register it with
-* {@link PlayController#setVidProcressor(IFrameProcessor)}.
-* Add {@link PlayerListener}s to listen to {@link Event}s.
-*
-* After that is complete call {@link #activate()} to initialize and start the
-* player, but paused. Run {@link #unpause()} to start the playback.
-*/
+ * Start by creating an instance with your {@link IMediaDataReadProcessor}, and the
+ * dimensions and/or audio format.
+ *
+ * If there's video, get the {@link #getVideoScreen()} canvas and add it to a form.
+ *
+ * Optionally {@link #addEventListener(PlayerListener)} to respond to events and update
+ * the form buttons, for example.
+ *
+ * Then call {@link #activate()} to initialize the player, but paused.
+ * Call {@link #unpause()} to start the playback.
+ */
 public class PlayController {
 
     public static final Fraction PAL_ASPECT_RATIO = new Fraction(59, 54);
@@ -68,57 +65,84 @@ public class PlayController {
     public static final Fraction SQUARE_ASPECT_RATIO = new Fraction(1, 1);
 
     @CheckForNull
-    private AudioPlayer _audPlayer;
+    private final AudioPlayer _audPlayer;
     @CheckForNull
-    private VideoPlayer _vidPlayer;
+    private final VideoPlayerThread _vidPlayer;
 
     @Nonnull
-    private final VideoTimer  _videoTimer;
+    private final VideoTimer _videoTimer;
+
+    @Nonnull
+    private final ReaderThread<?> _readerThread;
 
     @CheckForNull
-    private final VideoProcessor _videoProcessorThread;
-    @Nonnull
-    private final ReaderThread _readerThread;
+    private final VideoProcessorThread<?> _videoProcessorThread;
 
-
-    public PlayController(@Nonnull AudioFormat audioFormat) {
-        _audPlayer = new AudioPlayer(audioFormat);
-        _videoTimer = _audPlayer;
-        _vidPlayer = null;
-        _videoProcessorThread = null;
-        _readerThread = new ReaderThread(_audPlayer, null, this);
+    /**
+     * Audio only.
+     */
+    public PlayController(@Nonnull IMediaDataReadProcessor<?> readProcessor, @Nonnull AudioFormat audioFormat) {
+        this(readProcessor, null, audioFormat);
     }
 
-    public PlayController(int iWidth, int iHeight) {
-        this(iWidth, iHeight, null);
+    /**
+     * Video only.
+     */
+    public PlayController(@Nonnull IMediaDataReadProcessor<?> readProcessor, int iWidth, int iHeight) {
+        this(readProcessor, new Dims(iWidth, iHeight), null);
     }
 
-    public PlayController(int iWidth, int iHeight, @CheckForNull AudioFormat audioFormat) {
+    /**
+     * Audio and video.
+     */
+    public <FRAME_TYPE> PlayController(@Nonnull IMediaDataReadProcessor<FRAME_TYPE> readProcessor, int iWidth, int iHeight, @Nonnull AudioFormat audioFormat) {
+        this(readProcessor, new Dims(iWidth, iHeight), audioFormat);
+    }
+
+    /**
+     * So I can conveniently use a common constructor.
+     */
+    private static class Dims {
+        public final int iWidth;
+        public final int iHeight;
+
+        public Dims(int iWidth, int iHeight) {
+            this.iWidth = iWidth;
+            this.iHeight = iHeight;
+        }
+    }
+
+    private  <FRAME_TYPE> PlayController(@Nonnull IMediaDataReadProcessor<FRAME_TYPE> readProcessor, @CheckForNull Dims dims, @CheckForNull AudioFormat audioFormat) {
+        if (dims != null && (dims.iWidth < 1 || dims.iHeight < 1))
+            throw new IllegalArgumentException();
+
+        OutputStream audioOutputStream;
         if (audioFormat != null) {
             _audPlayer = new AudioPlayer(audioFormat);
             _videoTimer = _audPlayer;
+            audioOutputStream = _audPlayer.getOutputStream();
         } else {
             _audPlayer = null;
             _videoTimer = new VideoClock();
+            audioOutputStream = null;
         }
-        _vidPlayer = new VideoPlayer(_videoTimer, iWidth, iHeight);
-        _videoProcessorThread = new VideoProcessor(_videoTimer, _vidPlayer);
-        _readerThread = new ReaderThread(_audPlayer, _videoProcessorThread, this);
-    }
 
-    public void setReader(@Nonnull IMediaDataReader reader) {
-        _readerThread.setReader(reader);
-    }
+        VideoProcessorThread<FRAME_TYPE> videoProcessorThread;
+        if (dims == null) {
+            videoProcessorThread = null;
+            _vidPlayer = null;
+        } else {
+            _vidPlayer = new VideoPlayerThread(_videoTimer, dims.iWidth, dims.iHeight);
+            videoProcessorThread = new VideoProcessorThread<FRAME_TYPE>(_videoTimer, _vidPlayer, readProcessor);
+        }
+        _videoProcessorThread = videoProcessorThread;
 
-    public void setVidProcressor(@Nonnull IFrameProcessor<?> processor) {
-        if (_videoProcessorThread == null)
-            throw new IllegalArgumentException();
-        _videoProcessorThread.setProcessor(processor);
+        MediaDataWriter<FRAME_TYPE> mediaDataReadWriter = new MediaDataWriter<FRAME_TYPE>(this, audioOutputStream, videoProcessorThread);
+        _readerThread = new ReaderThread<FRAME_TYPE>(this, mediaDataReadWriter, readProcessor, _audPlayer, videoProcessorThread);
     }
-
 
     /**
-     * Initialize and start the player, but paused.
+     * Initialize and start the reader and processor, but pause the player.
      */
     public void activate() throws PlayerException {
         try {
@@ -158,12 +182,10 @@ public class PlayController {
     }
 
     public boolean isClosed() {
-        // (hopefully) single instruction (here) no don't need synchronized
         return _videoTimer.isTerminated();
     }
 
     public boolean isPaused() {
-        // (hopefully) single instruction (here) no don't need synchronized
         return _videoTimer.isPaused();
     }
 
@@ -182,30 +204,6 @@ public class PlayController {
             return _vidPlayer.getScreen();
         else
             return null;
-    }
-
-    /**
-     * Should only be called by the {@link IMediaDataReader}.
-     * Write PCM audio data here in the format that was provided in the
-     * constructor.
-     * Note that the {@link OutputStream} may throw an {@link IOException}
-     * if the audio playback has been terminated.
-     *
-     * Only available if playing audio.
-     */
-    public @CheckForNull OutputStream getAudioOutputStream() {
-        if (_audPlayer != null)
-            return _audPlayer.getOutputStream();
-        else
-            return null;
-    }
-
-    /**
-     * Should only be called by the {@link IMediaDataReader}.
-     * Write completed frames to this writer.
-     */
-    public @CheckForNull IPreprocessedFrameWriter getFrameWriter() {
-        return _videoProcessorThread;
     }
 
     /**
@@ -242,7 +240,11 @@ public class PlayController {
         Pause,
     }
 
-    public static interface PlayerListener {
+    public interface PlayerListener {
+        /**
+         * All events are fired from the same thread.
+         * The implementer must not block!
+         */
         void event(@Nonnull Event eEvent);
     }
 

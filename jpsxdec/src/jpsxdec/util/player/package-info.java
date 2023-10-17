@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter n Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,7 +46,7 @@ but it was to only play MPEG1 video.
 </p>
 
 <p>
-The first real-time audio/video playback support for Java was the Java Media
+Historically, the first real-time audio/video playback support for Java was the Java Media
 Framework (JMF). It was closed source and not particularly successful.
 Fast forward many years and we got JavaFX which can handle playback of more
 modern audio/video formats. However it is not extensible so playback is limited
@@ -54,54 +54,78 @@ to using one of the support formats. If it was extensible I probably wouldn't
 have written this.
 </p>
 
+<h1>Features</h1>
+
+<ul>
+ <li>Play video, audio, or both
+ <li>Play, pause
+ <li>Events when state changes
+</ul>
+
+<h1>Limitations</h1>
+
+<ul>
+ <li>No seeking.
+ <li>Can't handle 'P' or 'B' kind of frames because it's design to drop frame packets if there is a buffer underrun.
+ <li>Can't handle long gaps in audio or video (data reader needs to fill the gaps with silence).
+ <li>Video with audio timing is dependent on the Java audio player real-time resolution, which may not be great on some platforms.
+</ul>
+
 <h1>Use</h1>
 
-<p>Create a {@link jpsxdec.util.player.PlayController}. See its javadoc for how to use it.
+<p>
+Create an implementation of {@link jpsxdec.util.player.IMediaDataReadProcessor}
+and pass it to a new instance of {@link jpsxdec.util.player.PlayController}.
+If there's video, get the {@link jpsxdec.util.player.PlayController#getVideoScreen()}
+and put it in a Form. Probably add a button. Register an event listener to change the
+state of the button (e.g. play, pause, at end).
+</p>
 
 <h1>Design</h1>
+
+ <p>
+ A sane audio and video player must have <em>at a minimum</em> 3 threads for any kind
+ of sane playback design. This due to the fact that presenting the audio and video inherently
+ involves delay. You have to wait until the exact time when a frame should be
+ shown or the audio to play. If everything was put on hold for one of those
+ to happen, there may not be enough time to go back and read more data,
+ processes it, and have it ready for the next presentation.
+ On the other hand, there can easily be intermittent lag in reading the data
+ (disk slow down) or rendering the presentation (audio or display lag).
+ So it would be impractical, if not impossible, for only a single thread
+ to do everything.
+ </p>
 
 <h2>Threads</h2>
 
 <p>
-Up to 5 threads are used in a straight-forward way.
+For this player's design, up to 5 threads are used in a straight-forward way.
 </p>
 
 <ul>
 <li>1 thread {@link jpsxdec.util.player.ReaderThread} to read and demux the data</li>
 <li>1 thread {@link jpsxdec.util.player.AudioPlayer} to feed audio into the {@link javax.sound.sampled.DataLine}
     (this only applies if there is audio)</li>
-<li>1 thread {@link jpsxdec.util.player.VideoProcessor} to decode the frames (this only applies if there is video)</li>
-<li>1 thread {@link jpsxdec.util.player.VideoPlayer} to display the frame to the screen (this only applies if there is video)</li>
+<li>1 thread {@link jpsxdec.util.player.VideoProcessorThread} to decode the frames (this only applies if there is video)</li>
+<li>1 thread {@link jpsxdec.util.player.VideoPlayerThread} to display the frame to the screen (this only applies if there is video)</li>
 <li>1 thread for player events using either Java's audio's thread
 via {@link javax.sound.sampled.LineListener} added to
-{@link javax.sound.sampled.SourceDataLine#addLineListener(javax.sound.sampled.LineListener)}
-or this player's {@link jpsxdec.util.player.VideoCoock} thread.
+{@link javax.sound.sampled.SourceDataLine#addLineListener(javax.sound.sampled.LineListener)},
+or this player's {@link jpsxdec.util.player.VideoClock} thread.
 </li>
 </ul>
 
 <p>
 Threads are connected by {@link jpsxdec.util.player.ClosableBoundedBlockingQueue}s.
 Data is passed from one thread to another using them.
-These queues hold all buffered data.
+These queues hold all buffered data. These queues facilitate the pausing
+of reading or writing that happens due to buffer overrrun or underrun.
 </p>
 
 <p>
-At a minium there must be <em>at least</em> 3 threads for any kind of sane playback
-design. This due to the fact that presenting the audio and video inherently
-involves delay. You have to wait until the exact time when a frame should be
-shown or the audio to play. If everything was put on hold for one of those
-to happen, there may not be enough time to go back and read more data,
-processes it, and have it ready for the next presentation.
-And if that wasn't enough, there can easily be intermittent lag in reading the data
-(disk slow down) or rendering the presentation (audio or display lag).
-So it would be impractical, if not impossible, for only a single thread
-to do everything.
-</p>
-
-<p>
-I've added 1 additional thread for video processing so that isn't blocked
-if there is delay on either end. There is no extra audio processing thread because
-I didn't need it ;)
+Note that while the player has a processing thread between the reader and presenter,
+audio does not. This was because the Playstation 1 XA format has contextual audio
+(like 'P' frames) so packets can't be skipped. Also audio decoding should (hopefully) be very fast.
 </p>
 
 <p>
@@ -110,16 +134,11 @@ don't want the listeners to block the playback. Plus this is how the Java
 audio system does it, so it must be a good idea.
 Listeners are registered with
 {@link jpsxdec.util.player.PlayController#addEventListener(jpsxdec.util.player.PlayController.PlayerListener)}.
-When there is audio, instead of creating its own event thread,
-it piggy-backs on the Java's audio event thread, translating audio events
-into player events.
+When playing audio, instead of creating its own event thread,
+it piggy-backs on the Java's audio event thread, and translates
+ {@link javax.sound.sampled.LineListener#update} audio events into player events.
 </p>
 
-<p>
-Only if the reading is blocked or lag for an extended time will the
-{@link jpsxdec.util.player.ClosableBoundedBlockingQueue}s be exhausted and the rendering will
-also be blocked.
-</p>
 
 <h2>Video Timing</h2>
 
@@ -153,8 +172,8 @@ When there is audio it uses {@link jpsxdec.util.player.AudioPlayer} which uses
 Here, if the audio is paused or the queue is exhausted, the audio will stop,
 which will in turn stop the video.
 Unfortunately the accuracy of {@link javax.sound.sampled.DataLine#getMicrosecondPosition()}
-is not very reliable. For some hardware and platforms, the audio time doesn't flow evenly,
-but may only increase chunks at a time. As a result the video may appear to
+may not be very reliable. For some hardware and platforms, the audio time doesn't flow evenly,
+and may only increase chunks at a time. As a result the video may appear to
 stutter. In some worst cases, the audio timer would reset back to 0 if the audio is
 paused for too long.
 </p>
@@ -164,14 +183,6 @@ It also would have been nice to instead rely on {@link javax.sound.sampled.LineL
 to track all audio events. Unfortunately this doesn't even behave how the javadoc
 says it should. Specifically, it doesn't send an event if there is buffer underrun.
 There are bugs around it that have been open for over a decade.
-</p>
-
-<p>
-As a side note: I made an effort to create my own {@link javax.sound.sampled.DataLine} which
-would wrap an existing {@code DataLine}, and using a mix of the
-inner {@code DataLine} and the system timer, would actually behave correctly.
-While it's doable, it was more effort than I wanted to spend and settled with
-just using what the system/hardware provides.
 </p>
 
 <h2>Video display</h2>

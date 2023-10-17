@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -216,9 +216,7 @@ public class DreddDemuxer {
             BitStreamUncompressor bsu = strHeader.makeNew(abFullFrame);
             bsu.skipMacroBlocks(FRAME_WIDTH, FRAME_HEIGHT_B);
             return true;
-        } catch (MdecException.EndOfStream ex) {
-            return false;
-        } catch (MdecException.ReadCorruption ex) {
+        } catch (MdecException.EndOfStream | MdecException.ReadCorruption ex) {
             return false;
         } catch (BinaryDataNotRecognized ex) {
             return false;

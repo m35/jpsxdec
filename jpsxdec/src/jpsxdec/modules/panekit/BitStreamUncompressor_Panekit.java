@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2020  Michael Sabin
+ * Copyright (C) 2020-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,7 +50,6 @@ import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.IO;
-import jpsxdec.util.IncompatibleException;
 
 /**
  * Panekit - Infinitive Crafting Toy Case [SCPS-10096] frame is just an
@@ -157,8 +156,7 @@ public class BitStreamUncompressor_Panekit extends BitStreamUncompressor_Iki {
 
         @Override
         public @Nonnull byte[] compress(@Nonnull MdecInputStream inStream)
-                throws IncompatibleException, MdecException.EndOfStream,
-                       MdecException.ReadCorruption
+                throws MdecException.EndOfStream, MdecException.ReadCorruption
         {
             byte[] abNewDemux = super.compress(inStream);
             PanekitIkiObfuscation.obfuscate(abNewDemux);

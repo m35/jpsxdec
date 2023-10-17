@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,21 +44,19 @@ import jpsxdec.psxvideo.mdec.Calc;
 import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecContext;
 import jpsxdec.psxvideo.mdec.MdecException;
-import jpsxdec.psxvideo.mdec.MdecInputStream;
 import jpsxdec.util.BinaryDataNotRecognized;
 import jpsxdec.util.Misc;
 
-/** Converts a (demuxed) video frame bitstream into an {@link MdecInputStream},
- * that can then be fed into an MDEC decoder to produce an image. */
-public abstract class BitStreamUncompressor implements MdecInputStream {
+/** Common bitstream uncompressor for independent bitstreams. */
+public abstract class BitStreamUncompressor implements IBitStreamUncompressor {
 
-    final static public @Nonnull BitStreamUncompressor identifyUncompressor(
+    public static @Nonnull BitStreamUncompressor identifyUncompressor(
             @Nonnull byte[] abBitstream)
             throws BinaryDataNotRecognized
     {
         return identifyUncompressor(abBitstream, abBitstream.length);
     }
-    final static public @Nonnull BitStreamUncompressor identifyUncompressor(
+    public static @Nonnull BitStreamUncompressor identifyUncompressor(
             @Nonnull byte[] abBitstream, int iBitstreamSize)
             throws BinaryDataNotRecognized
     {
@@ -157,10 +155,12 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
         _endPaddingBits = endPaddingBits;
     }
 
+    @Override
     final public int getBitPosition() {
         return _bitReader.getBitsRead();
     }
 
+    @Override
     final public int getByteOffset() {
         return _bitReader.getCurrentShortPosition();
     }
@@ -230,16 +230,13 @@ public abstract class BitStreamUncompressor implements MdecInputStream {
      * when played by the game. This skips those bits and checks if they are as expected
      * (and for other bitstreams does nothing).
      * @return if the skipped bits match the expected padding bits. */
+    @Override
     final public boolean skipPaddingBits() throws MdecException.EndOfStream {
         return _endPaddingBits.skipPaddingBits(_bitReader);
     }
 
-    /** Create an equivalent bitstream compressor.
-     * @throws UnsupportedOperationException if the bitstream cannot be created for this format. */
-    abstract public @Nonnull BitStreamCompressor makeCompressor() throws UnsupportedOperationException;
-
     @Override
     public String toString() {
-        return getClass().getSimpleName() + " " + _context.toString() + " offset=" + _bitReader.getCurrentShortPosition();
+        return getClass().getSimpleName() + " " + _context + " offset=" + _bitReader.getCurrentShortPosition();
     }
 }

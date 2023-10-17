@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2020  Michael Sabin
+ * Copyright (C) 2016-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,12 +51,11 @@ import jpsxdec.i18n.ILocalizedMessage;
  */
 public interface ILocalizedLogger {
     /** Log a user message at the specified importance level. */
-    public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg);
+    void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg);
 
     /** Log a user message at the specified importance with an optional exception.
      * @param debugException Exception intended for debugging.
      *                       May or may not be shown to the user.
      */
-    public void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg,
-                    @CheckForNull Throwable debugException);
+    void log(@Nonnull Level level, @Nonnull ILocalizedMessage msg, @CheckForNull Throwable debugException);
 }

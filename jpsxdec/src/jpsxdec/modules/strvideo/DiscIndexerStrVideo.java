@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,14 +48,14 @@ import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
-import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.DiscIndexerSectorBasedVideo;
 import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
+import jpsxdec.modules.video.sectorbased.SectorBasedDemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.SectorBasedVideoInfoBuilder;
 
 /** Searches for most common video streams. */
 public class DiscIndexerStrVideo extends DiscIndexerSectorBasedVideo.SubIndexer
-        implements DemuxedFrameWithNumberAndDims.Listener
+        implements SectorBasedDemuxedFrameWithNumberAndDims.Listener
 {
 
     /** Builds a single stream. */
@@ -71,7 +71,7 @@ public class DiscIndexerStrVideo extends DiscIndexerSectorBasedVideo.SubIndexer
         private final boolean _blnHasSpecialBs;
 
 
-        public VidBuilder(@Nonnull DemuxedFrameWithNumberAndDims firstFrame) {
+        public VidBuilder(@Nonnull SectorBasedDemuxedFrameWithNumberAndDims firstFrame) {
             _iLastFrameNumber = firstFrame.getHeaderFrameNumber();
             _vidInfoBuilder = new SectorBasedVideoInfoBuilder(
                     firstFrame.getWidth(), firstFrame.getHeight(),
@@ -82,7 +82,7 @@ public class DiscIndexerStrVideo extends DiscIndexerSectorBasedVideo.SubIndexer
         }
 
         /** @return if the frame was accepted as part of this video, otherwise start a new video. */
-        public boolean addFrame(@Nonnull DemuxedFrameWithNumberAndDims frame) {
+        public boolean addFrame(@Nonnull SectorBasedDemuxedFrameWithNumberAndDims frame) {
             if (frame.getWidth() != _vidInfoBuilder.getWidth() ||
                 frame.getHeight() != _vidInfoBuilder.getHeight() ||
                 frame.getStartSector() > _vidInfoBuilder.getEndSector() + 100 ||
@@ -134,7 +134,7 @@ public class DiscIndexerStrVideo extends DiscIndexerSectorBasedVideo.SubIndexer
     }
 
     @Override
-    public void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log) {
+    public void frameComplete(@Nonnull SectorBasedDemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log) {
         if (_videoBuilder != null && !_videoBuilder.addFrame(frame))
             endOfVideo(log);
         if (_videoBuilder == null)

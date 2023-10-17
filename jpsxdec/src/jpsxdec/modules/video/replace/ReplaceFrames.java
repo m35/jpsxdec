@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,7 +56,7 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-import jpsxdec.cdreaders.CdReadException;
+import jpsxdec.cdreaders.CdException;
 import jpsxdec.cdreaders.DiscPatcher;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.exception.LocalizedDeserializationFail;
@@ -64,11 +64,11 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.modules.IIdentifiedSector;
 import jpsxdec.modules.SectorClaimSystem;
-import jpsxdec.modules.video.IDemuxedFrame;
-import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
 import jpsxdec.modules.video.framenumber.FrameCompareIs;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
+import jpsxdec.modules.video.sectorbased.ISectorBasedDemuxedFrame;
+import jpsxdec.modules.video.sectorbased.SectorClaimToSectorBasedDemuxedFrame;
 import jpsxdec.util.IO;
 import jpsxdec.util.TaskCanceledException;
 import org.w3c.dom.Document;
@@ -195,9 +195,7 @@ public class ReplaceFrames {
             DOMSource source = new DOMSource(document);
             StreamResult result = new StreamResult(new File(sFile));
             transformer.transform(source, result);
-        } catch (ParserConfigurationException ex) {
-            throw new IOException(ex);
-        } catch (TransformerException ex) {
+        } catch (ParserConfigurationException | TransformerException ex) {
             throw new IOException(ex);
         }
     }
@@ -220,7 +218,7 @@ public class ReplaceFrames {
                               final @Nonnull ProgressLogger pl)
             throws LoggedFailure, TaskCanceledException
     {
-        ISectorClaimToDemuxedFrame demuxer = vidItem.makeDemuxer();
+        SectorClaimToSectorBasedDemuxedFrame demuxer = vidItem.makeDemuxer();
         ReplaceFrameListener replaceListener = new ReplaceFrameListener(pl, patcher);
         demuxer.setFrameListener(replaceListener);
 
@@ -230,7 +228,7 @@ public class ReplaceFrames {
         for (int iSector = 0; it.hasNext(); iSector++) {
             try {
                 IIdentifiedSector sector = it.next(pl);
-            } catch (CdReadException ex) {
+            } catch (CdException.Read ex) {
                 throw new LoggedFailure(pl, Level.SEVERE,
                         I.IO_READING_FROM_FILE_ERROR_NAME(ex.getFile().toString()), ex);
             }
@@ -245,7 +243,7 @@ public class ReplaceFrames {
         pl.progressEnd();
     }
 
-    private class ReplaceFrameListener implements IDemuxedFrame.Listener {
+    private class ReplaceFrameListener implements ISectorBasedDemuxedFrame.Listener {
 
         @Nonnull
         private final ProgressLogger _pl;
@@ -264,7 +262,7 @@ public class ReplaceFrames {
         }
 
         @Override
-        public void frameComplete(@Nonnull IDemuxedFrame frame) {
+        public void frameComplete(@Nonnull ISectorBasedDemuxedFrame frame) {
             currentFrameNum = frame.getFrame();
 
             ReplaceFrameFull replacer = getFrameToReplace(frame.getFrame());

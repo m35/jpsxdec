@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,8 +53,8 @@ import jpsxdec.util.Fraction;
  *
  * Java has the ability to run full screen and double buffered, so displaying a
  * small panel shouldn't be a problem. My research found more than one way to do
- * it. I went with the current way using a {@link BufferStrategy} with 2
- * buffers, and it has proved to be reliable, so didn't test alternatives.
+ * it. I went with using a {@link BufferStrategy} with 2 buffers,
+ * and it has proved to be reliable, so didn't test alternatives.
  *
  * It exposes the option to change the video's aspect ratio.
  */
@@ -76,7 +76,7 @@ class VideoScreen extends Canvas {
     @CheckForNull
     private transient BufferStrategy _buffStrategy;
     @CheckForNull
-    private transient DecodedVideoFrame _currentFrame;
+    private transient VideoFrame<?> _currentFrame;
 
     public VideoScreen(int iWidth, int iHeight) {
         _iWidth = iWidth;
@@ -122,11 +122,9 @@ class VideoScreen extends Canvas {
             (int)(_iHeight * _aspectRatio.getNumerator() / _aspectRatio.getDenominator()));
     }
 
-    public void updateImage(@Nonnull DecodedVideoFrame frame) {
+    public void updateImage(@Nonnull VideoFrame<?> frame) {
         synchronized (getTreeLock()) {
             _currentFrame = frame;
-            if (_currentFrame == null)
-                return;
             if (!isDisplayable()) {
                 // can't use or create BufferStrategy unless it is visible
                 System.out.println("Trying to play frame when canvas is hidden");

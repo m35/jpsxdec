@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2020  Michael Sabin
+ * Copyright (C) 2014-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -50,7 +50,7 @@ public class DiscIndexerXaAudioTest {
 
     private static class DummyIdentifiedSector extends IdentifiedSector {
 
-        private static final int SECTOR_HEADER[] = {
+        private static final int[] SECTOR_HEADER = {
             0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00, // sync header
             0x00,0x00,0x00, // BCD block address
             2,   // mode 2

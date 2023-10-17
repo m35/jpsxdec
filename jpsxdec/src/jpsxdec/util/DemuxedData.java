@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2020  Michael Sabin
+ * Copyright (C) 2017-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -59,7 +59,7 @@ public class DemuxedData<T extends DemuxedData.Piece> implements Iterable<T> {
     }
 
     @Nonnull
-    private final List<? extends T> _pieces;
+    private final List<T> _pieces;
 
     private final int _iStartSector;
     private final int _iEndSector;
@@ -69,12 +69,12 @@ public class DemuxedData<T extends DemuxedData.Piece> implements Iterable<T> {
     private final int _iDataSize;
 
     /** No nulls allowed. Must have at least 1 piece. */
-    public DemuxedData(@Nonnull List<? extends T> pieces) {
+    public DemuxedData(@Nonnull List<T> pieces) {
         this(pieces, 0,
              pieces.isEmpty() ? -1 : pieces.get(pieces.size() - 1).getDemuxPieceSize());
     }
     /** No nulls allowed. Must have at least 1 piece. */
-    public DemuxedData(@Nonnull List<? extends T> pieces,
+    public DemuxedData(@Nonnull List<T> pieces,
                        int iStartPieceOffset, int iEndPieceOffset)
     {
         if (pieces.isEmpty())
@@ -139,12 +139,9 @@ public class DemuxedData<T extends DemuxedData.Piece> implements Iterable<T> {
     /** Returns in the order of data, not necessarily in the order of sectors. */
     // TODO find some way to remove iterator here
     // it's used for printing the sectors and replacing them mainly I think
-    @SuppressWarnings("unchecked")
     @Override
     public @Nonnull Iterator<T> iterator() {
-        // this cast is particularly interesting because there's really no way around it
-        // but logically it is perfectly safe
-        return (Iterator<T>)_pieces.iterator();
+        return _pieces.iterator();
     }
 
     public int getStartDataOffset() {

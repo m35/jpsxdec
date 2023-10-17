@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,7 +37,9 @@
 
 package jpsxdec.util.player;
 
-/** General exception to indicate that there is an issue with the player. */
+/**
+ * General exception to indicate that there is an issue with the player.
+ */
 public class PlayerException extends Exception {
 
     public PlayerException() {

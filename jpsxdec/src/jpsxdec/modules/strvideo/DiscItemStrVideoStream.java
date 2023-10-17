@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,6 @@ package jpsxdec.modules.strvideo;
 
 import java.util.Arrays;
 import java.util.List;
-import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.cdreaders.ICdSectorReader;
 import jpsxdec.discitems.Dimensions;
@@ -50,16 +49,15 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ILocalizedLogger;
 import jpsxdec.modules.SectorClaimSystem;
 import jpsxdec.modules.SectorRange;
-import jpsxdec.modules.sharedaudio.DiscItemSectorBasedAudioStream;
-import jpsxdec.modules.video.IDemuxedFrame;
-import jpsxdec.modules.video.ISectorClaimToDemuxedFrame;
+import jpsxdec.modules.audio.sectorbased.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.video.framenumber.FrameNumber;
 import jpsxdec.modules.video.framenumber.HeaderFrameNumber;
 import jpsxdec.modules.video.framenumber.IFrameNumberFormatterWithHeader;
 import jpsxdec.modules.video.framenumber.IndexSectorFrameNumber;
-import jpsxdec.modules.video.sectorbased.DemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.DiscItemSectorBasedVideoStream;
+import jpsxdec.modules.video.sectorbased.SectorBasedDemuxedFrameWithNumberAndDims;
 import jpsxdec.modules.video.sectorbased.SectorBasedVideoInfo;
+import jpsxdec.modules.video.sectorbased.SectorClaimToSectorBasedDemuxedFrame;
 import jpsxdec.modules.xa.DiscItemXaAudioStream;
 
 /** Handles most variations of PlayStation video streams. Since it handles the
@@ -153,7 +151,7 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
     }
 
     @Override
-    public FrameNumber getEndFrame() {
+    public @Nonnull FrameNumber getEndFrame() {
         return _headerFrameNumberFormat.getEndFrame(_indexSectorFrameNumberFormat);
     }
 
@@ -163,31 +161,21 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
     }
 
     @Override
-    public @Nonnull ISectorClaimToDemuxedFrame makeDemuxer() {
+    public @Nonnull SectorClaimToSectorBasedDemuxedFrame makeDemuxer() {
         return new Demuxer(makeSectorRange(),
                            _headerFrameNumberFormat.makeFormatter(_indexSectorFrameNumberFormat));
     }
 
-    public static class Demuxer implements ISectorClaimToDemuxedFrame, DemuxedFrameWithNumberAndDims.Listener {
+    public static class Demuxer extends SectorClaimToSectorBasedDemuxedFrame implements SectorBasedDemuxedFrameWithNumberAndDims.Listener {
 
-        @Nonnull
-        private final SectorRange _sectorRange;
         @Nonnull
         private final IFrameNumberFormatterWithHeader _frameNumberFormatter;
-
-        @CheckForNull
-        private IDemuxedFrame.Listener _listener;
 
         public Demuxer(@Nonnull SectorRange sectorRange,
                        @Nonnull IFrameNumberFormatterWithHeader frameNumberFormatter)
         {
-            _sectorRange = sectorRange;
+            super(sectorRange);
             _frameNumberFormatter = frameNumberFormatter;
-        }
-
-        @Override
-        public void setFrameListener(@Nonnull IDemuxedFrame.Listener listener) {
-            _listener = listener;
         }
 
         @Override
@@ -197,14 +185,13 @@ public class DiscItemStrVideoStream extends DiscItemSectorBasedVideoStream {
         }
 
         @Override
-        public void frameComplete(@Nonnull DemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log)
+        public void frameComplete(@Nonnull SectorBasedDemuxedFrameWithNumberAndDims frame, @Nonnull ILocalizedLogger log)
                 throws LoggedFailure
         {
             FrameNumber fn = _frameNumberFormatter.next(frame.getStartSector(),
                                                         frame.getHeaderFrameNumber(), log);
             frame.setFrame(fn);
-            if (_listener != null)
-                _listener.frameComplete(frame);
+            demuxedFrameComplete(frame);
         }
         @Override
         public void endOfSectors(@Nonnull ILocalizedLogger log) {

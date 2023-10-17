@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -121,7 +121,7 @@ public class TabularFeedback {
         for (ArrayList<Cell> row : _rows) {
             iColCount = Math.max(iColCount, row.size());
         }
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings({"unchecked", "rawtypes"})
         ArrayList<String>[][] aaoCells = new ArrayList[iRowCount][iColCount];
 
         int[] aiRowHeights = new int[iRowCount];

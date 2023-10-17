@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -144,7 +144,7 @@ public class DiscIndexerTim extends DiscIndexer implements UnidentifiedSectorStr
         // read skip loop until skip throws eof
         while (_stream.available() > 2) {
             // ^ if the first 2 bytes of a Tim are found at the very end of the stream,
-            //   it's stilly to assume we were in the middle of a possible Tim
+            //   it's silly to assume we were in the middle of a possible Tim
             _stream.mark(Integer.MAX_VALUE);
             try {
                 TimInfo ti = Tim.isTim(_stream);
@@ -165,7 +165,7 @@ public class DiscIndexerTim extends DiscIndexer implements UnidentifiedSectorStr
             try {
                 IO.skip(_stream, 4);
             } catch (EOFException ex) {
-                // end of stream when skipping: stream exhaused, all done
+                // end of stream when skipping: stream exhausted, all done
                 break;
             } catch (IOException ex) {
                 // should not happen

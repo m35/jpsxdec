@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2020  Michael Sabin
+ * Copyright (C) 2019-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -171,7 +171,7 @@ public class SPacket {
         if (lng8Zeroes != 0)
             throw new BinaryDataNotRecognized();
 
-        if (_type == Type.SDNSSDTS && !(_iSize % SpuAdpcmSoundUnit.SIZEOF_SOUND_UNIT == 0))
+        if (_type == Type.SDNSSDTS && (_iSize % SpuAdpcmSoundUnit.SIZEOF_SOUND_UNIT) != 0)
             throw new BinaryDataNotRecognized();
     }
 

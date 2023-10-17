@@ -1,6 +1,6 @@
 /*
  * This code originally came from code written by
- * Stephen Manley. He generouslly offers his code free, without restriction.
+ * Stephen Manley. He generously offers his code free, without restriction.
  * http://www.nyx.net/~smanley/
  */
 

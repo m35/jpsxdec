@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -85,6 +85,33 @@ public class DebugFormatter extends Formatter {
     private final Date _date = new Date();
     private final SimpleDateFormat _timeFormatter = new SimpleDateFormat("HH:mm");
 
+    private boolean _blnLogTimeStamp;
+    private boolean _blnLogStackTrace;
+
+    public DebugFormatter() {
+        this(true, true);
+    }
+    public DebugFormatter(boolean blnLogTimeStamp, boolean blnLogStackTrace) {
+        _blnLogTimeStamp = blnLogTimeStamp;
+        _blnLogStackTrace = blnLogStackTrace;
+    }
+
+    public boolean getLogTimeStamp() {
+        return _blnLogTimeStamp;
+    }
+
+    public void setLogTimeStamp(boolean blnLogTimeStamp) {
+        _blnLogTimeStamp = blnLogTimeStamp;
+    }
+
+    public boolean getLogStackTrace() {
+        return _blnLogStackTrace;
+    }
+
+    public void setLogStackTrace(boolean blnLogStackTrace) {
+        _blnLogStackTrace = blnLogStackTrace;
+    }
+
     @Override
     public @Nonnull String getHead(@Nonnull Handler h) {
         StringBuilder sb = new StringBuilder();
@@ -105,10 +132,12 @@ public class DebugFormatter extends Formatter {
     @Override
     public synchronized @Nonnull String format(@Nonnull LogRecord record) {
         StringBuilder sb = new StringBuilder();
-        // Minimize memory allocations here.
-        _date.setTime(record.getMillis());
-        sb.append(_timeFormatter.format(_date));
-        sb.append(' ');
+        if (_blnLogTimeStamp) {
+            // Minimize memory allocations here.
+            _date.setTime(record.getMillis());
+            sb.append(_timeFormatter.format(_date));
+            sb.append(' ');
+        }
         sb.append(record.getLoggerName());
         sb.append(' ');
         sb.append(record.getLevel().getName());
@@ -121,9 +150,9 @@ public class DebugFormatter extends Formatter {
                 if (_rootEnglishBundle != null)
                     sMsg = _rootEnglishBundle.getString(sMsg);
             }
-            Object aoParams[] = record.getParameters();
+            Object[] aoParams = record.getParameters();
             if (aoParams != null && aoParams.length > 0) {
-                Object aoParamsCopy[] = new Object[aoParams.length];
+                Object[] aoParamsCopy = new Object[aoParams.length];
                 for (int i = 0; i < aoParams.length; i++) {
                     Object param = aoParams[i];
                     if (param instanceof ILocalizedMessage)
@@ -137,7 +166,7 @@ public class DebugFormatter extends Formatter {
         }
 
         sb.append(LINE_SEPARATOR);
-        if (record.getThrown() != null) {
+        if (record.getThrown() != null && _blnLogStackTrace) {
             sb.append(Misc.stack2string(record.getThrown()));
         }
         return sb.toString();

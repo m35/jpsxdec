@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.logging.Level;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
+import javax.swing.SwingWorker;
 import jpsxdec.gui.SavingGuiTable.Row;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
@@ -52,7 +53,6 @@ import jpsxdec.i18n.exception.LoggedFailure;
 import jpsxdec.i18n.log.ProgressLogger;
 import jpsxdec.i18n.log.UserFriendlyLogger;
 import jpsxdec.util.TaskCanceledException;
-import org.jdesktop.swingworker.SwingWorker;
 
 public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message>
         implements UserFriendlyLogger.OnWarnErr
@@ -162,6 +162,7 @@ public class SavingGuiTask extends SwingWorker<Void, SavingGuiTask.Event_Message
     @Override
     final protected void process(@Nonnull List<Event_Message> events) {
         // only process the last event
+        // XXX TODO BUG This can skip the 'Done' event so the last operation is left in the cell
         events.get(events.size()-1).run();
     }
 

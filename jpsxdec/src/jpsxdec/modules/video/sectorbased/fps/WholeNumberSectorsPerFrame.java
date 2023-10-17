@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2020  Michael Sabin
+ * Copyright (C) 2007-2023  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,7 +42,6 @@ import java.util.Iterator;
 import java.util.TreeSet;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
-import jpsxdec.util.Misc;
 
 /** Detects whole-number (integer) sectors/frame rate of
  * STR movies. This can also handle variable rates as long as they have some common factor.
@@ -64,7 +63,6 @@ import jpsxdec.util.Misc;
  * This isn't usable for movies with only 1 or 2 frames,
  * but with that few of frames, the frame rate isn't a big deal.
  */
-//@Deprecated
 public class WholeNumberSectorsPerFrame {
 
     // TODO: how can we detect if the video has a variable frame rate?
@@ -179,8 +177,7 @@ public class WholeNumberSectorsPerFrame {
      *  The original Collection is not modified. */
     private static @Nonnull TreeSet<Integer> removeFactors(@Nonnull TreeSet<Integer> sourceValues)
     {
-        @SuppressWarnings("unchecked")
-        TreeSet<Integer> copy = (TreeSet<Integer>)sourceValues.clone();
+        TreeSet<Integer> copy = new TreeSet<Integer>(sourceValues);
 
         for (Iterator<Integer> it = copy.iterator(); it.hasNext();) {
             Integer oi = it.next();
@@ -270,7 +267,7 @@ public class WholeNumberSectorsPerFrame {
         /** Sort based on starting sector. */
         @Override
         public int compareTo(SectorsPerFrameFromStart o) {
-            return Misc.intCompare(_iFrame2StartSector, o._iFrame2StartSector);
+            return Integer.compare(_iFrame2StartSector, o._iFrame2StartSector);
         }
 
         @Override

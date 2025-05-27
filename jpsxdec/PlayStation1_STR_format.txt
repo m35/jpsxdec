@@ -321,10 +321,10 @@ The following sub-sections attempt to emulate these 3 steps.
 ## 2.1. Demultiplexing the frame
 ################################################################################
 
-Each frame 'chunk' sector begins with 32 bytes of information, followed by 2012 bytes of multiplexed 'chunk data'.
+Each frame 'chunk' sector begins with 32 bytes of information, followed by 2016 bytes of multiplexed 'chunk data'.
 
     How a frame chunk fits into a "Mode 2 Form 1" sector
- +-24 bytes--+-32 bytes-+-2012 bytes-----------------------------+-280 bytes--+
+ +-24 bytes--+-32 bytes-+-2016 bytes-----------------------------+-280 bytes--+
  | CD-XA     |  Chunk   | chunk data                             | error      |
  | Header    |  Header  |                                        | correction |
  +-----------+----------+----------------------------------------+------------+
@@ -362,7 +362,7 @@ Offset   Size   Endian --------------------------------------------------------
 
 The video frame 'chunk data' from all the sectors related to the frame need to be appended together to form a solid stream. This combining of all the frame parts is called "demultiplexing" (or "demuxing" for short) the frame.
 
-        +-2012 bytes----+-2012 bytes----+--     --+-2012 bytes-----+
+        +-2016 bytes----+-2016 bytes----+--     --+-2016 bytes-----+
         | chunk 0 data  | chunk 1 data  |   ...   | chunk n-1 data |
         +---------------+---------------+--     --+----------------+
 

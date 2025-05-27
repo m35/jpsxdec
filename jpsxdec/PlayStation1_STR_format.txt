@@ -356,7 +356,7 @@ Offset   Size   Endian --------------------------------------------------------
  24 . . . 2 . . little . Frame's quantization scale
  26 . . . 2 . . little . Version of the video frame
                            (see next section for details)
- 28 . . . 2 . . little . Always 0x00000000
+ 28 . . . 4 . . little . Always 0x00000000
  32 ---------------------------------------------------------------------------
 
 

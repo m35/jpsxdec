@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2017-2023  Michael Sabin
+ * Copyright (C) 2017-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -69,7 +69,7 @@ import jpsxdec.util.Fraction;
 import jpsxdec.util.IO;
 import jpsxdec.util.TaskCanceledException;
 
-/** Constructs a {@link VDP Video decoder pipeline} from a
+/** Constructs a {@link VDP Video decoding pipeline} from a
  * {@link VideoSaverBuilder} and performs the actual saving of video. */
 public class VideoSaver {
 
@@ -119,15 +119,14 @@ public class VideoSaver {
         _pipeline.setSectorClaim2FrameAndAudio(sectorClaimToFrameAndAudio);
         _pipeline.setFileListener(genFileListener);
 
-        VDP.ToVideo toVideo = null;
+        VDPtoVideo toVideo = null;
         switch (_videoFormat) {
 
             case IMGSEQ_BITSTREAM: {
                 VDP.Bitstream2File bs2f = new VDP.Bitstream2File(makeFormatter(), log);
                 _pipeline.setBitstreamListener(bs2f);
                 _pipeline.setFileGenerator(bs2f);
-            }
-            break;
+            } break;
 
             case IMGSEQ_MDEC: {
                 addBitstream2Mdec();
@@ -152,51 +151,28 @@ public class VideoSaver {
                 _pipeline.setMdec2File(m2jpg);
             } break;
 
-            case AVI_MJPG: {
+            case AVI_MJPG:
+            case MKV_MJPG: {
                 addBitstream2Mdec();
-                VDP.Mdec2MjpegAvi m2mjpg;
                 if (blnSaveAudio)
-                    m2mjpg = new VDP.Mdec2MjpegAvi(getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeAvSync(sectorClaimToFrameAndAudio), sectorClaimToFrameAndAudio.getOutputFormat(), log);
+                    toVideo = new VDPtoVideo(_videoFormat, getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeAvSync(sectorClaimToFrameAndAudio), sectorClaimToFrameAndAudio.getOutputFormat(), log);
                 else
-                    m2mjpg = new VDP.Mdec2MjpegAvi(getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeVSync(), log);
-                _pipeline.setMdec2File(m2mjpg);
-                toVideo = m2mjpg;
+                    toVideo = new VDPtoVideo(_videoFormat, getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeVSync(), log);
+                _pipeline.setMdec2File(toVideo);
             } break;
 
-            case AVI_JYUV: {
+            case AVI_JYUV:
+            case AVI_RGB:
+            case AVI_YUV:
+            case MKV_PNG:
+            case MKV_JYUV: {
                 addBitstream2Mdec();
                 addMdec2Decoded(log);
-                VDP.Decoded2JYuvAvi d2jyuv;
                 if (blnSaveAudio)
-                    d2jyuv = new VDP.Decoded2JYuvAvi(getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeAvSync(sectorClaimToFrameAndAudio), sectorClaimToFrameAndAudio.getOutputFormat(), log);
+                    toVideo = new VDPtoVideo(_videoFormat, getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeAvSync(sectorClaimToFrameAndAudio), sectorClaimToFrameAndAudio.getOutputFormat(), log);
                 else
-                    d2jyuv = new VDP.Decoded2JYuvAvi(getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeVSync(), log);
-                _pipeline.setDecoded2File(d2jyuv);
-                toVideo = d2jyuv;
-            } break;
-
-            case AVI_YUV: {
-                addBitstream2Mdec();
-                addMdec2Decoded(log);
-                VDP.Decoded2YuvAvi d2yuv;
-                if (blnSaveAudio)
-                    d2yuv = new VDP.Decoded2YuvAvi(getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeAvSync(sectorClaimToFrameAndAudio), sectorClaimToFrameAndAudio.getOutputFormat(), log);
-                else
-                    d2yuv = new VDP.Decoded2YuvAvi(getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeVSync(), log);
-                _pipeline.setDecoded2File(d2yuv);
-                toVideo = d2yuv;
-            } break;
-
-            case AVI_RGB: {
-                addBitstream2Mdec();
-                addMdec2Decoded(log);
-                VDP.Decoded2RgbAvi d2rgb;
-                if (blnSaveAudio)
-                    d2rgb = new VDP.Decoded2RgbAvi(getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeAvSync(sectorClaimToFrameAndAudio), sectorClaimToFrameAndAudio.getOutputFormat(), log);
-                else
-                    d2rgb = new VDP.Decoded2RgbAvi(getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeVSync(), log);
-                _pipeline.setDecoded2File(d2rgb);
-                toVideo = d2rgb;
+                    toVideo = new VDPtoVideo(_videoFormat, getVideoFile(), _vsb.getWidth(), _vsb.getHeight(), makeVSync(), log);
+                _pipeline.setDecoded2File(toVideo);
             } break;
 
             default:
@@ -237,7 +213,7 @@ public class VideoSaver {
     }
 
     private void startup(@Nonnull ILocalizedLogger log) throws LoggedFailure {
-        VDP.ToVideo video = _pipeline.getVideo();
+        VDPtoVideo video = _pipeline.getVideo();
         if (video != null) {
             try {
                 video.open();
@@ -252,7 +228,7 @@ public class VideoSaver {
     }
 
     private void shutdown() {
-        VDP.ToVideo video = _pipeline.getVideo();
+        VDPtoVideo video = _pipeline.getVideo();
         if (video != null)
             IO.closeSilently(video, LOG);
     }

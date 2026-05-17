@@ -41,7 +41,7 @@ It would be nice to have a Checkstyle for formatting details, but egad is that a
 * `@Override` can be optional for inline anonymous classes
 * Never use the Java 8 generic diamond operator. Always declare the generic type.
 * Never use Java 8 lambdas
-  - The only exception may be `Supplier` and `Consumer` classes, but only if the return type is unambiguous, and always declare the parameter names and types. The body must be 2 lines or less. Otherwise put the logic in a separate function.
+  - The only exception may be `Supplier` and `Consumer` classes, but only if the return type is unambiguous, and always declare the parameter names and types. The body must be 2 lines or less. Otherwise, put the logic in a separate function.
 * Minimize the use of Java 8 streams, and only for the simplest of chains. Never use `.forEach()`.
 * Usually no wildcard imports, but optional when many static members are imported
 * Imports are in alphabetical order with static imports at the end
@@ -51,6 +51,8 @@ It would be nice to have a Checkstyle for formatting details, but egad is that a
 * Put final and non-null fields first
 * Keep fields and constructor arguments in the same order
 * Favor initializing fields in-line when doable
+* Imports in alphabetical order, no wildcards (except in extreme cases)
+* Exception variable name should be `ex` (not `e`) in simple cases
 
 ## Naming conventions
 

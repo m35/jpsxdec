@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2023  Michael Sabin
+ * Copyright (C) 2013-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,52 +39,70 @@ package jpsxdec.psxvideo.mdec.tojpeg;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import javax.annotation.Nonnull;
 
+/**
+ * Used for writing bits to the stream, and escaping 0xff as 0xff00.
+ */
+class JpegBitOutputStream  {
 
-class JpegBitOutputStream extends OutputStream {
+    private int _iBufferedBitCount;
+    private int _iNextBitsToWrite;
+    @Nonnull
+    private final OutputStream innerStream;
 
-    private int _iIndex;
-    private int _iNextWrite;
-    public OutputStream innerStream;
+    private boolean _blnFinished = false;
 
-    private static final int BITS_PER_WRITE = 8;
+    /**
+     * After 8 bits, write the byte.
+     */
+    private static final int BITS_PER_WRITE8 = 8;
 
-    public void write(int iValue, int iBits) throws IOException {
-        assert iBits != 0;
-        assert (iValue & ~((1 << iBits) - 1)) == 0;
-
-        _iNextWrite <<= iBits;
-        _iNextWrite |= iValue;
-        _iIndex += iBits;
-        while (_iIndex > BITS_PER_WRITE) {
-            write((_iNextWrite >> _iIndex - BITS_PER_WRITE) & 0xff);
-            _iIndex -= BITS_PER_WRITE;
-        }
+    public JpegBitOutputStream(@Nonnull OutputStream os) {
+        innerStream = os;
     }
 
-    public void reset() {
-        _iIndex = 0;
-        _iNextWrite = 0;
+    public void writeBits(@Nonnull String sBitString) throws IOException {
+        int iBitValue = Integer.parseInt(sBitString, 2);
+        int iBitLength = sBitString.length();
+        writeBits(iBitValue, iBitLength);
+    }
+    public void writeBits(int iValue, int iCountOfBitsInValue) throws IOException {
+        if (_blnFinished)
+            throw new IllegalStateException();
+        assert iCountOfBitsInValue != 0;
+        assert (iValue & ~((1 << iCountOfBitsInValue) - 1)) == 0; // bits outside of the count should be 1
+
+        //Shift existing bits up and append the new bits
+        _iNextBitsToWrite <<= iCountOfBitsInValue;
+        _iNextBitsToWrite |= iValue;
+        _iBufferedBitCount += iCountOfBitsInValue;
+
+        while (_iBufferedBitCount >= BITS_PER_WRITE8) {
+            int iTop8bits = (_iNextBitsToWrite >> (_iBufferedBitCount - BITS_PER_WRITE8)) & 0xff;
+            writeEscaped8bits(iTop8bits);
+            _iBufferedBitCount -= BITS_PER_WRITE8;
+        }
     }
 
     /** If there are bits remaining to write, writes them, filling
      *  the remaining bits with zeros. */
-    @Override
     public void flush() throws IOException {
-        if (_iIndex != 0) {
-            _iNextWrite <<= BITS_PER_WRITE - _iIndex;
-            write(_iNextWrite);
+        if (_iBufferedBitCount != 0) {
+            // Shift the remaining bits to the top of the byte
+            _iNextBitsToWrite <<= BITS_PER_WRITE8 - _iBufferedBitCount;
+            writeEscaped8bits(_iNextBitsToWrite);
         }
-        reset();
+        _blnFinished = true;
     }
 
 
-    /** Encode 0xff as 0xff 0x00 */
-    @Override
-    public void write(int b) throws IOException {
+    /** Encode 0xff as 0xff00 */
+    public void writeEscaped8bits(int b) throws IOException {
         innerStream.write(b);
-        if ((b & 0xff) == 0xff)
+        if ((b & 0xff) == 0xff) {
             innerStream.write(0);
+        }
     }
 
 }

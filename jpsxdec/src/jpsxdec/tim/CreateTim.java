@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2023  Michael Sabin
+ * Copyright (C) 2013-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -406,7 +406,7 @@ class CreateTim {
     //-- Private ---------------------------------------------------------------
     //--------------------------------------------------------------------------
 
-    /** If image has a palette &lt;= 16 colors: 4bpp, &lt;= 256 colors: 8bpp, otherwise 32 bpp.
+    /** If image has a palette {@literal <= 16 colors}: 4bpp, {@literal <= 256 colors}: 8bpp, otherwise 32 bpp.
      * @return 4, 8, or 32. */
     private static int findBitsPerPixel(@Nonnull BufferedImage bi) {
         if (bi.getColorModel() instanceof IndexColorModel) {

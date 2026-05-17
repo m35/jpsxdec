@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2023  Michael Sabin
+ * Copyright (C) 2013-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,21 +39,27 @@ package jpsxdec.psxvideo.mdec.tojpeg;
 
 /** JPEG component. */
 class Component {
+
+    // Variables used during writing
+    /** Offset in {@link #DctCoffZigZag} while reading MDEC. */
+    public int WriteIndex;
+
+    /** Track DC values while writing the JPEG. */
+    public int PreviousDC;
+
+    // ------------------------------------------------------
+
     /** Index of this component. */
     public final int ComponentIndex;
     /** Index of the quantization table this component uses. */
     public final int QuantizationTableIndex;
-    /** JPEG sampling. */
-    public final int HSampling, VSampling;
+    /** JPEG (sub)sampling. */
+    public final int HorizontalSampling, VerticalSampling;
     /** Index of the huffman tables this component uses. */
     public final int DcHuffTableIndex, AcHuffTableIndex;
     /** The DCT coefficients read from a MDEC stream.
      * The 8x8 blocks are stored in the order they are read from the stream. */
-    public final int[] DctCoffZZ;
-    /** Offset in {@link #DctCoffZZ} while reading MDEC. */
-    public int WriteIndex;
-    /** Track DC values while writing the JPEG. */
-    public int PreviousDC;
+    public final int[] DctCoffZigZag;
 
     public Component(int iComponentIndex, int iQuantizationTableIndex,
                      int iHSampling, int iVSampling,
@@ -65,11 +71,11 @@ class Component {
 
         ComponentIndex = iComponentIndex;
         QuantizationTableIndex = iQuantizationTableIndex;
-        HSampling = iHSampling;
-        VSampling = iVSampling;
+        HorizontalSampling = iHSampling;
+        VerticalSampling = iVSampling;
         DcHuffTableIndex = iDcHuffTableIndex;
         AcHuffTableIndex = iAcHuffTableIndex;
-        DctCoffZZ = new int[iMcuWidth * iHSampling * iMcuHeight * iVSampling * 64];
+        DctCoffZigZag = new int[iMcuWidth * iHSampling * iMcuHeight * iVSampling * 64];
     }
 
 }

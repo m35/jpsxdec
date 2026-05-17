@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,10 +49,10 @@ import jpsxdec.util.BinaryDataNotRecognized;
  * This case obviously works with PlayStation hardware, so is already
  * accepted by the STRv2 uncompressor to make things simpler, faster, and
  * more robust (because AC=0 may occur in games besides FF7). See
- * {@link BitStreamUncompressor_STRv2#readEscapeAcCode(jpsxdec.psxvideo.mdec.MdecCode)}.
+ * {@link jpsxdec.psxvideo.mdec.Ac0Checker}.
  *<p>
  * I suspect the reason for this FF7 AC=0 waste is because they compressed the
- * frames further to fit camera data. This led to AC values being reduced,
+ * frames further to fit the unknown data. This led to AC values being reduced,
  * some falling to 0, but they didn't merge those codes to save space.
  */
 public class BitStreamUncompressor_STRv1 extends BitStreamUncompressor implements IBitStreamWith1QuantizationScale {

@@ -24,6 +24,7 @@ http://problemkaputt.de/psx-spx.htm
 
 smf, developer for MAME, for figuring out that everyone was getting the
 order of CrCb wrong.
+Former thread:
 http://www.twingalaxies.com/showthread.php/140003-M-A-M-E-Mr-Driller-DRI1-VER-A2-1000M-Mode-918-940-Nick-Vis?p=752883&viewfull=1#post752883
 
 Gabriele Gorla for clarifying to me the details of the Cb/Cr swap error,
@@ -81,6 +82,8 @@ http://hitmen.c02.at/html/psx_tools.html
 
 The countless people who created so many open source tools that I've used
 in this project, and in my every day life. It is a huge list.
+
+Everyone who's reported issues and helped fix those issues.
 
 ................................................................................
 Thanks to those who wrote code that I've used or referenced at some point

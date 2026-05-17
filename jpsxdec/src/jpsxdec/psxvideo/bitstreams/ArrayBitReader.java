@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -91,7 +91,7 @@ public class ArrayBitReader {
             throw new IllegalArgumentException("Invalid data size " + iEndOffset);
         _iEndOffset = iEndOffset & ~1; // trim off an extra byte if the size is not an even value
         if (_iEndOffset != iEndOffset)
-            LOG.log(Level.WARNING, "Bitstream end offset is an odd number {0}, rounding down to even number", iEndOffset);
+            LOG.log(Level.WARNING, "Bitstream end offset is an odd number {0,number,#}, rounding down to even number", iEndOffset);
         _iStartOffset = iStartOffset;
         _abData = abData;
         _byteOrder = byteOrder;

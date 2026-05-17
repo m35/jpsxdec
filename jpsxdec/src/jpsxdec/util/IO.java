@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -38,6 +38,7 @@
 package jpsxdec.util;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -54,8 +55,8 @@ public final class IO {
     /** Closes a {@link Closeable} resource, suppressing any {@link IOException}
      * thrown. If thrown, it is logged to the given logger and returns the thrown
      * exception. Returns null if no exception is thrown.
-     * By accepting a null resource, it also handles the case that the given
-     * resource was never created. In this case it does nothing and returns null. */
+     * By accepting a null {@link Closeable}, it also handles the case that the given
+     * {@link Closeable} was never created. In this case it does nothing and returns null. */
     public static @CheckForNull IOException closeSilently(@CheckForNull Closeable obj,
                                                           @Nonnull Logger log)
     {
@@ -246,7 +247,7 @@ public final class IO {
 
     //== 32-bit == little-endian == unsigned == read ===========================
 
-    public static long readUInt32LE(@Nonnull RandomAccessFile stream) throws EOFException, IOException {
+    public static long readUInt32LE(@Nonnull InputStream stream) throws EOFException, IOException {
         long b1, b2, b3, b4;
         if ((b1 = stream.read()) < 0 ||
             (b2 = stream.read()) < 0 ||
@@ -256,7 +257,7 @@ public final class IO {
         return UInt32LE(b1, b2, b3, b4);
     }
 
-    public static long readUInt32LE(@Nonnull InputStream stream) throws EOFException, IOException {
+    public static long readUInt32LE(@Nonnull RandomAccessFile stream) throws EOFException, IOException {
         long b1, b2, b3, b4;
         if ((b1 = stream.read()) < 0 ||
             (b2 = stream.read()) < 0 ||
@@ -443,7 +444,7 @@ public final class IO {
     {
         int iBytesRead = readByteArrayMax(stream, abBuffer, iStartOffset, iBytesToRead);
         if (iBytesRead < iBytesToRead)
-            throw new EOFException();
+            throw new EOFException("EOF after reading " + iBytesRead + " bytes of " + iBytesToRead);
     }
 
     public static void readByteArray(@Nonnull RandomAccessFile stream,
@@ -458,28 +459,40 @@ public final class IO {
 
     //== read byte array max ===================================================
 
+    private static final int ZERO_READ_LIMIT = 3;
+
     /** Read as much as possible and return the number of bytes read.
      * If 0 is returned, it is at the end of the stream. Never returns -1. */
     public static int readByteArrayMax(@Nonnull InputStream stream,
                                        @Nonnull byte[] abBuffer,
                                        int iStartOffset, int iBytesToRead)
-            throws EOFException, IOException
+            throws IOException
     {
         if (iBytesToRead < 1)
             throw new IllegalArgumentException("readByteArrayMax: iBytesToRead " + iBytesToRead + " < 1");
+        int iEndOffset = iStartOffset + iBytesToRead;
+        if (iEndOffset > abBuffer.length)
+            throw new IllegalArgumentException("readByteArrayMax: End offset " + iEndOffset + " is out of array bounds size " + abBuffer.length);
 
+        int iZeroReadLimit = ZERO_READ_LIMIT;
         int iRemainingBytes = iBytesToRead;
-        int iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
-        if (iBytesRead < 0)
-            return 0;
-        iRemainingBytes -= iBytesRead;
         while (iRemainingBytes > 0) {
-            iStartOffset += iBytesRead;
-            iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
-            if (iBytesRead < 0)
+            int iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
+
+            if (iBytesRead < 0) {
                 break;
+            } else if (iBytesRead == 0) {
+                if (iZeroReadLimit <= 0) {
+                    LOG.severe(stream.getClass() + ".read(array) returned 0 bytes " + ZERO_READ_LIMIT + " times");
+                    break;
+                }
+                iZeroReadLimit--;
+            }
+
+            iStartOffset += iBytesRead;
             iRemainingBytes -= iBytesRead;
         }
+
         return iBytesToRead - iRemainingBytes;
     }
 
@@ -487,23 +500,24 @@ public final class IO {
     public static int readByteArrayMax(@Nonnull RandomAccessFile stream,
                                        @Nonnull byte[] abBuffer,
                                        int iStartOffset, int iBytesToRead)
-            throws EOFException, IOException
+            throws IOException
     {
         if (iBytesToRead < 1)
             throw new IllegalArgumentException("readByteArrayMax: iBytesToRead " + iBytesToRead + " < 1");
+        int iEndOffset = iStartOffset + iBytesToRead;
+        if (iEndOffset > abBuffer.length)
+            throw new IllegalArgumentException("readByteArrayMax: End offset " + iEndOffset + " is out of array bounds size " + abBuffer.length);
 
         int iRemainingBytes = iBytesToRead;
-        int iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
-        if (iBytesRead < 0)
-            return 0;
-        iRemainingBytes -= iBytesRead;
         while (iRemainingBytes > 0) {
-            iStartOffset += iBytesRead;
-            iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
+            int iBytesRead = stream.read(abBuffer, iStartOffset, iRemainingBytes);
             if (iBytesRead < 0)
                 break;
+
+            iStartOffset += iBytesRead;
             iRemainingBytes -= iBytesRead;
         }
+
         return iBytesToRead - iRemainingBytes;
     }
 
@@ -511,67 +525,35 @@ public final class IO {
 
     /** Because the {@link InputStream#skip(long) } method won't always skip
      * everything in one call. */
-    public static void skip(@Nonnull InputStream stream, long lngTotal)
+    public static void skip(@Nonnull InputStream stream, long lngBytesToSkip)
             throws EOFException, IOException
     {
-        long lngActuallySkipped = skipMax(stream, lngTotal);
-        if (lngActuallySkipped != lngTotal)
+        long lngActuallySkipped = skipMax(stream, lngBytesToSkip);
+        if (lngActuallySkipped != lngBytesToSkip)
             throw new EOFException();
     }
 
-    /** Skip as much as possible and return the number of bytes skipped.
-     * <p>
-     * Either of these two conditions will be considered the end of stream:
-     * <ul>
-     * <li> The stream returned negative bytes skipped.
-     * <li> Twice in a row, the stream returned 0 bytes skipped.
-     * </ul>
-     * @return The number of bytes skipped. 0 means end of the stream.
+    private static final byte[] IGNORED_BUFFER = new byte[1024];
+    /** Skip as much as possible up to the given maximum and returns the number of bytes skipped.
+     *
+     * @return The number of bytes skipped. 0 means the stream is already at the end.
      *         Never returns a negative number.
+     *
+     * @see https://issues.apache.org/jira/browse/IO-203
      */
-    public static long skipMax(@Nonnull InputStream stream, long lngTotal) throws IOException {
-        long lngPrevBytesSkipped = stream.skip(lngTotal);
-        if (lngPrevBytesSkipped < 0)
-            return 0;
+    public static long skipMax(@Nonnull InputStream stream, final long lngMaxBytesToSkip) throws IOException {
 
-        long lngBytesRemain = lngTotal - lngPrevBytesSkipped;
-        while (lngBytesRemain > 0) {
-            long lngBytesSkipped = stream.skip(lngBytesRemain);
-            if (lngBytesSkipped < 0 || (lngBytesSkipped == 0 && lngPrevBytesSkipped == 0))
-                return lngTotal - lngBytesRemain;
-            lngPrevBytesSkipped = lngBytesSkipped;
-            lngBytesRemain -= lngBytesSkipped;
+        long lngBytesRemaining = lngMaxBytesToSkip;
+
+        while (lngBytesRemaining > 0) {
+            int iBytesToSkip = (int) Math.min(IGNORED_BUFFER.length, lngBytesRemaining);
+            int iBytesSkipped = readByteArrayMax(stream, IGNORED_BUFFER, 0, iBytesToSkip);
+            if (iBytesSkipped == 0)
+                break;
+            lngBytesRemaining -= iBytesSkipped;
         }
-        return lngTotal;
-    }
 
-    public static void skipBytes(@Nonnull RandomAccessFile stream, int iTotal)
-            throws EOFException, IOException
-    {
-        int iActuallySkipped = skipBytesMax(stream, iTotal);
-        if (iActuallySkipped != iTotal)
-            throw new EOFException();
-    }
-
-    /** Like {@link #skipMax(java.io.InputStream, long)} but for
-     * {@link RandomAccessFile#skipBytes(int)}. */
-    public static int skipBytesMax(@Nonnull RandomAccessFile stream, int iTotal) throws IOException {
-        // RandomAccessFile.skipBytes() will return -1 at EOF. Could it
-        // return 0 even when not at the end of the stream?
-
-        int iPrevBytesSkipped = stream.skipBytes(iTotal);
-        if (iPrevBytesSkipped < 0)
-            return 0;
-
-        int iBytesRemain = iTotal - iPrevBytesSkipped;
-        while (iBytesRemain > 0) {
-            int iBytesSkipped = stream.skipBytes(iBytesRemain);
-            if (iBytesSkipped < 0 || (iBytesSkipped == 0 && iPrevBytesSkipped == 0))
-                return iTotal - iBytesRemain;
-            iPrevBytesSkipped = iBytesSkipped;
-            iBytesRemain -= iBytesSkipped;
-        }
-        return iTotal;
+        return lngMaxBytesToSkip - lngBytesRemaining;
     }
 
     // #########################################################################
@@ -594,11 +576,8 @@ public final class IO {
     public static void writeFile(@Nonnull File file, @Nonnull byte[] ab, int iStart, int iLen)
             throws FileNotFoundException, IOException
     {
-        FileOutputStream fos = new FileOutputStream(file);
-        try {
+        try (FileOutputStream fos = new FileOutputStream(file)) {
             fos.write(ab, iStart, iLen);
-        } finally {
-            fos.close(); // XXX: could mask a thrown exception
         }
     }
 
@@ -610,15 +589,13 @@ public final class IO {
     public static void writeIStoFile(@Nonnull InputStream stream, @Nonnull File file)
             throws FileNotFoundException, IOException
     {
-        FileOutputStream fos = new FileOutputStream(file);
-        try {
+        try (FileOutputStream fos = new FileOutputStream(file)) {
             writeIStoOS(stream, fos);
-        } finally {
-            fos.close(); // XXX: could mask a thrown exception
         }
     }
     public static void writeIStoOS(@Nonnull InputStream is, @Nonnull OutputStream os) throws IOException {
-        int i; byte[] b = new byte[2048];
+        int i;
+        byte[] b = new byte[2048];
         while ((i = is.read(b)) > 0)
             os.write(b, 0, i);
     }
@@ -630,15 +607,7 @@ public final class IO {
     }
 
     public static @Nonnull byte[] readFile(@Nonnull File file) throws FileNotFoundException, IOException {
-        // using RandomAccessFile for easy access to file size
-        RandomAccessFile stream = new RandomAccessFile(file, "r");
-        try {
-            if (stream.length() > Integer.MAX_VALUE)
-                throw new UnsupportedOperationException("Unable to read file larger than max array size.");
-            return readByteArray(stream, (int)stream.length());
-        } finally {
-            stream.close(); // XXX: could mask a thrown exception
-        }
+        return Files.readAllBytes(file.toPath());
     }
 
     public static @Nonnull byte[] readEntireStream(@Nonnull InputStream stream) throws IOException {

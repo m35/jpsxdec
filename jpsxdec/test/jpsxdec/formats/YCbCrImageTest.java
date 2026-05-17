@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2022-2023  Michael Sabin
+ * Copyright (C) 2022-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,8 +42,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
+import jpsxdec.util.Fraction;
 import jpsxdec.util.IO;
 import jpsxdec.util.aviwriter.AviWriterYV12;
+import jpsxdec.util.mkvwriter.MkvJYuvWriter;
 import org.junit.Assert;
 import org.junit.Test;
 import testutil.Util;
@@ -54,12 +56,10 @@ public class YCbCrImageTest {
 
     // TODO do a PSNR test of jpsxdec output and ffmpeg (and others) output
 
-    private static BufferedImage readTestImage() {
-        InputStream is = YCbCrImageTest.class.getResourceAsStream("testchartntscdv.png");
+    public static BufferedImage readTestImage() {
         BufferedImage bi;
-        try {
+        try (InputStream is = YCbCrImageTest.class.getResourceAsStream("testchartntscdv.png")) {
             bi = ImageIO.read(is);
-            is.close();
         } catch (Exception ex) {
             throw new AssertionError(ex);
         }
@@ -88,13 +88,10 @@ public class YCbCrImageTest {
             String sMkvFileName = sExpectedFileName + ".mkv";
 
             File mkvFile = new File(sMkvFileName);
-            /*
-            MkvJYuvWriter mkv = new MkvJYuvWriter(mkvFile, bi.getWidth(), bi.getHeight(), new Fraction(15, 1), true);
+            MkvJYuvWriter mkv = new MkvJYuvWriter(mkvFile, bi.getWidth(), bi.getHeight(), new Fraction(15, 1));
             mkv.writeYCbCrFrame(actualYuv.getYBuff(), actualYuv.getCbBuff(), actualYuv.getCrBuff(), Fraction.ZERO);
-            mkv.finish();
             mkv.close();
-            */
-            System.out.println("ffmpeg -i "+sMkvFileName+" "+sMkvFileName+"[%d].png");
+            System.out.println("ffmpeg -i "+sMkvFileName+" -sws_flags neighbor "+sMkvFileName+"[%d].png");
             Assert.fail("visually compare the .png ffmpeg generates with the original and the other yuv format");
         } else {
             byte[] abExpectedYuv = Util.readResource(YCbCrImageTest.class, sExpectedFileName);
@@ -126,7 +123,7 @@ public class YCbCrImageTest {
             AviWriterYV12 avi = new AviWriterYV12(aviFile, bi.getWidth(), bi.getHeight(), 15, 1);
             avi.write(actualYuv.getYBuff(), actualYuv.getCbBuff(), actualYuv.getCrBuff());
             avi.close();
-            System.out.println("ffmpeg -i "+sAviFileName+" "+sAviFileName+"[%d].png");
+            System.out.println("ffmpeg -i "+sAviFileName+" -sws_flags neighbor "+sAviFileName+"[%d].png");
             Assert.fail("visually compare the .png ffmpeg generates with the original and the other yuv format");
         } else {
             byte[] abExpectedYuv = Util.readResource(YCbCrImageTest.class, sExpectedFileName);

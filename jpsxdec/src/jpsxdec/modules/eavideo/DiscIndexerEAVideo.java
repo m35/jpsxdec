@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2023  Michael Sabin
+ * Copyright (C) 2019-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -119,7 +119,6 @@ public class DiscIndexerEAVideo extends DiscIndexer implements EASectorToEAPacke
     private static class MovieBuilder {
         @CheckForNull
         private VidBuilder _vidBuilder;
-        @Nonnull
         private int _iSpuSoundUnitPairCount = 0;
         private final int _iStartSector;
         private int _iEndSector;

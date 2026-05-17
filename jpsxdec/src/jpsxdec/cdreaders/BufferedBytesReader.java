@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2022-2023  Michael Sabin
+ * Copyright (C) 2022-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,8 +39,10 @@ package jpsxdec.cdreaders;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.logging.Logger;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import jpsxdec.util.IO;
@@ -48,6 +50,8 @@ import jpsxdec.util.IO;
 /** Abstraction for reading bytes that may all reside in RAM,
  * or may be backed by a file that is read in buffered chunks. */
 public class BufferedBytesReader implements Closeable {
+
+    private static final Logger LOG = Logger.getLogger(BufferedBytesReader.class.getName());
 
     @Nonnull
     private final File _sourceFile;
@@ -145,10 +149,11 @@ public class BufferedBytesReader implements Closeable {
             throw new UnsupportedOperationException();
 
         _abReadBuffer = null;
+        IO.closeSilently(_randomAccessFile, LOG);
+
         try {
-            _randomAccessFile.close();
             _randomAccessFile = new RandomAccessFile(_sourceFile, "rw");
-        } catch (IOException ex) {
+        } catch (FileNotFoundException ex) {
             throw new CdFileSectorReader.CdReopenException(_sourceFile, ex);
         }
     }

@@ -12,13 +12,21 @@
     </description>
 
     <!-- ====== global build properties ====== -->
-    
-    <property name="jpsxdec.ver" value="v2.0"/>
+
+    <!-- Bump these on every release -->
+    <property name="jpsxdec.ver" value="v2.1-beta"/>
+    <!--
+     For reproducible builds. Choose an explicit time used
+     when generating .class .jar and .zip files.
+     This can also be set or overridden using property `ant.tstamp.now`
+     or the environment variable `SOURCE_DATE_EPOCH`
+    -->
+    <property name="ant.tstamp.now.iso">2026-05-17T00:00:00Z</property>
 
     <!--
      Pass additional options to javac using -Djavac.args=something
-     For example, to build with any javac version:
-        ant build -Djavac.args=-Xlint:-options
+     For example, to allow building with any javac version:
+        ant -Djavac.args=-Xlint:-options
     -->
     <property name="javac.args" value="" />
 
@@ -67,12 +75,23 @@
     <property name="javadoc.dir"    location="${working.dir}/javadoc"/>
     <property name="zip.dir"        location="${working.dir}"/>
     <property name="jpsxdec.manual.pdf.path" location="${release.dir}/${doc.dir.relative}/${jpsxdec.manual.pdf}"/>
-    
+
+    <!--
+     Initialize properties `DSTAMP`, `TSTAMP`, and `TODAY`, as well as `jar-zip.modificationtime`
+     with `ant.tstamp.now`, `ant.tstamp.now.iso`, or `SOURCE_DATE_EPOCH`
+    -->
+    <tstamp>
+        <format property="jar-zip.modificationtime" pattern="yyyy-MM-dd'T'HH:mm:ssZ"/>
+    </tstamp>
 
     <target name="init">
         <echo>ant.java.version = ${ant.java.version}</echo>
         <echo>java.specification.version = ${java.specification.version}</echo>
         <echo>java.version = ${java.version}</echo>
+        <echo>DSTAMP = ${DSTAMP}</echo>
+        <echo>TSTAMP = ${TSTAMP}</echo>
+        <echo>TODAY  = ${TODAY}</echo>
+        <echo>jar-zip.modificationtime = ${jar-zip.modificationtime}</echo>
     </target>
 
     <!-- =================================================================   -->
@@ -82,7 +101,7 @@
         <attribute name="src.dir"/>
         <attribute name="dest.dir"/>
         <sequential>
-            <echo>Be sure to set JAVA_HOME to the JDK 8 directory before building.</echo>
+            <echo>Be sure to set JAVA_HOME to JDK 8 directory before building.</echo>
             <!-- Create the lgpl build directory -->
             <mkdir dir="@{dest.dir}"/>
             <javac srcdir="@{src.dir}" destdir="@{dest.dir}" includeantruntime="false"
@@ -108,7 +127,7 @@
         <mkdir dir="${release.dir}"/>
 
         <!-- Package the lgpl jar -->
-        <jar destfile="${release.dir}/${jar-lgpl.file}" basedir="${build-lgpl.dir}" compress="true" />
+        <jar destfile="${release.dir}/${jar-lgpl.file}" basedir="${build-lgpl.dir}" compress="true" modificationtime="${jar-zip.modificationtime}" />
     </target>
 
     <target name="compile-src-lib" depends="init" description="compile other libraries" >
@@ -143,7 +162,7 @@
         <mkdir dir="${release.dir}"/>
 
         <!-- Create the main jar -->
-        <jar jarfile="${release.dir}/${jar.file}" basedir="${build.dir}" compress="true">
+        <jar jarfile="${release.dir}/${jar.file}" basedir="${build.dir}" compress="true" modificationtime="${jar-zip.modificationtime}">
             <manifest>
                 <attribute name="Class-Path" value="${jar-lgpl.file}"/>
                 <attribute name="Main-Class" value="${main.class}"/>
@@ -177,7 +196,7 @@
 
     <target name="zip-src" description="zip the source files" >
         <mkdir dir="${zip.dir}"/>
-        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}_src.zip" duplicate="fail">
+        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}_src.zip" modificationtime="${jar-zip.modificationtime}" duplicate="fail">
             <zipfileset prefix="jpsxdec_${jpsxdec.ver}_src" dir="." >
                 <include name="${doc.dir.relative}/**"/>
                 <include name="${src.dir.relative}/**"/>
@@ -194,14 +213,14 @@
 
     <target name="zip-release" depends="release" description="zip the release files" >
         <mkdir dir="${zip.dir}"/>
-        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}.zip" duplicate="fail">
+        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}.zip" modificationtime="${jar-zip.modificationtime}" duplicate="fail">
             <zipfileset prefix="jpsxdec_${jpsxdec.ver}" dir="${release.dir}"/>
         </zip>        
     </target>
 
     <target name="zip-bin-src" depends="zip-src,release" description="make bin-src zip" >
         <mkdir dir="${zip.dir}"/>
-        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}_bin_src.zip" duplicate="fail">
+        <zip destfile="${zip.dir}/jpsxdec_${jpsxdec.ver}_bin_src.zip" modificationtime="${jar-zip.modificationtime}" duplicate="fail">
             <zipfileset prefix="jpsxdec_${jpsxdec.ver}_bin_src" dir="${release.dir}"/>
             <zipfileset prefix="jpsxdec_${jpsxdec.ver}_bin_src" dir="${zip.dir}" includes="jpsxdec_${jpsxdec.ver}_src.zip"/>
         </zip>        
@@ -234,7 +253,8 @@
             <fileset dir="${test.dir}" excludes="**/*.java" />
         </copy>
         <!-- Run tests -->
-        <junit printsummary="yes" haltonfailure="yes" >
+        <junit printsummary="yes" haltonfailure="yes" fork="true">
+            <assertions><enable/></assertions>
             <classpath refid="test-classpath" />
             <classpath location="${testbuild.dir}" />
             <test name="AllTestsSuite">

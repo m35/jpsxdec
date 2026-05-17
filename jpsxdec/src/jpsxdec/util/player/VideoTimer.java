@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2023  Michael Sabin
+ * Copyright (C) 2019-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -156,7 +156,7 @@ abstract class VideoTimer {
     }
     protected void fire(@Nonnull PlayController.Event event) {
         // listener object manages its own thread safety
-        // the caller is responsible for ensuring events are fired in the order the occurred,
+        // the caller is responsible for ensuring events are fired in the order they occurred,
         // and not fire new events until previous ones are complete.
         _listeners.fire(event);
     }

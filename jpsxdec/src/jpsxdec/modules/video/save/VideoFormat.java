@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2012-2023  Michael Sabin
+ * Copyright (C) 2012-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,9 +44,30 @@ import javax.annotation.Nonnull;
 import jpsxdec.formats.JavaImageFormat;
 import jpsxdec.i18n.I;
 import jpsxdec.i18n.ILocalizedMessage;
+import jpsxdec.i18n._PlaceholderMessage;
 
 
 public enum VideoFormat {
+    MKV_PNG(new _PlaceholderMessage("MKV: compressed (PNG)"), "mkv:png") {
+        public String getExtension() { return ".mkv"; }
+        public boolean isVideo() { return true; }
+        public boolean isMkv() { return true; }
+    },
+    MKV_MJPG(new _PlaceholderMessage("MKV: compressed (MJPG)"), "mkv:mjpg") {
+        public String getExtension() { return ".mkv"; }
+        public boolean isVideo() { return true; }
+        public int getDecodeQualityCount() { return 0; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { throw new IndexOutOfBoundsException(); }
+        public boolean isMkv() { return true; }
+    },
+    MKV_JYUV(new _PlaceholderMessage("MKV: uncompressed (YUV)"), "mkv:yuv") {
+        public String getExtension() { return ".mkv"; }
+        public boolean isVideo() { return true; }
+        public int getDecodeQualityCount() { return 1; }
+        public MdecDecodeQuality getMdecDecodeQuality(int i) { return MdecDecodeQuality.HIGH; }
+        public boolean mustHaveEvenDims()  { return true; };
+        public boolean isMkv() { return true; }
+    },
     AVI_MJPG(I.VID_AVI_MJPG_DESCRIPTION(), "avi:mjpg") {
         public String getExtension() { return ".avi"; }
         public boolean isVideo() { return true; }
@@ -128,13 +149,17 @@ public enum VideoFormat {
         _eImgFmt = imgFormat;
     }
 
-    /** {@inheritDoc}
-     *<p>
-     *  Must be localized because this object is used directly. */
+    /** Must be overridden with localization because this object is used directly in the GUI. */
     public String toString() { return _guiName.getLocalizedMessage(); }
     public @Nonnull String getCmdLine() { return _sCmdLineId; }
     public boolean isAvailable() {
-        return _eImgFmt == null || _eImgFmt.isAvailable();
+        if (!MKV_ENABLED && isMkv()) {
+            return false;
+        }
+        if (_eImgFmt != null && !_eImgFmt.isAvailable()) {
+            return false;
+        }
+        return true;
     }
 
     public boolean isCroppable() { return true; }
@@ -154,6 +179,8 @@ public enum VideoFormat {
     /** Filename extension with '.'. */
     abstract public @Nonnull String getExtension();
 
+    public boolean isMkv() { return false; }
+
     /////////////////////////////////////////////////////////
 
     public static @CheckForNull VideoFormat fromCmdLine(@Nonnull String sCmdLine) {
@@ -162,6 +189,20 @@ public enum VideoFormat {
                 return fmt;
         }
         return null;
+    }
+
+    public static final boolean MKV_ENABLED = isMkvEnabled();
+
+    public static boolean isMkvEnabled() {
+        Object mkvProp = System.getProperty("mkv");
+        return mkvProp != null;
+    }
+
+    public static @Nonnull VideoFormat getDefault() {
+        if (MKV_ENABLED)
+            return MKV_PNG;
+        else
+            return AVI_MJPG;
     }
 
     public static @Nonnull List<VideoFormat> getAvailable() {

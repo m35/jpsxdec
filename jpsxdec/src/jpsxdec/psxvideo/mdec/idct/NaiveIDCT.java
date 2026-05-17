@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -98,11 +98,6 @@ public class NaiveIDCT implements IDCT_double {
         for (int i=63; i>0; i--)
             aiDCTMat[iOutputOffset + i] = _Temp_[i];
 
-    }
-
-    @Override
-    public void IDCT_1NonZero(double[] adblIdctMatrix, int iNonZeroPos, int iOutputOffset, double[] adblOutput) {
-        IDCT(adblOutput, iOutputOffset, adblOutput);
     }
 
 }

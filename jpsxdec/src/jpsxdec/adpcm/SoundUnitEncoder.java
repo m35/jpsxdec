@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2023  Michael Sabin
+ * Copyright (C) 2016-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -313,45 +313,45 @@ public class SoundUnitEncoder {
             for (int i = 0; i < SoundUnitDecoder.SAMPLES_PER_SOUND_UNIT; i++) {
                 short siPcmSample = asiPcmSoundUnitSamples[i];
 
-                double dblFiltered = siPcmSample - _filters.getK0(_iFilterIndex) * _contextSnapshot.dblPrev1
-                                                 - _filters.getK1(_iFilterIndex) * _contextSnapshot.dblPrev2;
+                double dblFilterApplied = siPcmSample - _filters.getK0(_iFilterIndex) * _contextSnapshot.dblPrev1
+                                                      - _filters.getK1(_iFilterIndex) * _contextSnapshot.dblPrev2;
 
+                int iBitsToShift = _iRange - (16 - _iAdpcmBitsPerSample);
+                double dblRangeApplied;
                 // do bit shifting via mult/div
-                int iBitsToShift = _iRange - (16-_iAdpcmBitsPerSample);
-                double dblRanged;
                 if (iBitsToShift < 0)
-                    dblRanged = dblFiltered / (1 << -iBitsToShift);
+                    dblRangeApplied = dblFilterApplied / (1 << -iBitsToShift);
                 else if (iBitsToShift > 0)
-                    dblRanged = dblFiltered * (1 << iBitsToShift);
+                    dblRangeApplied = dblFilterApplied * (1 << iBitsToShift);
                 else
-                    dblRanged = dblFiltered;
+                    dblRangeApplied = dblFilterApplied;
 
-                long lngRanged = Math.round(dblRanged);
+                long lngRangeApplied = Math.round(dblRangeApplied);
                 // check if the rounded value will fit in the bits available
                 // if not, clamp it and flag the encoding as a failure
-                if (lngRanged < _iEncodeMin || lngRanged > _iEncodeMax) {
-                    if (lngRanged < _iEncodeMin)
-                        lngRanged = _iEncodeMin;
-                    else if (lngRanged > _iEncodeMax)
-                        lngRanged = _iEncodeMax;
+                if (lngRangeApplied < _iEncodeMin || lngRangeApplied > _iEncodeMax) {
+                    if (lngRangeApplied < _iEncodeMin)
+                        lngRangeApplied = _iEncodeMin;
+                    else if (lngRangeApplied > _iEncodeMax)
+                        lngRangeApplied = _iEncodeMax;
 
                     if (telemetry != null)
-                        telemetry.sFailure = "Sample#"+i+"=" + lngRanged + " won't fit between " + _iEncodeMin + " and " + _iEncodeMax;
+                        telemetry.sFailure = "Sample#"+i+"=" + lngRangeApplied + " won't fit between " + _iEncodeMin + " and " + _iEncodeMax;
                     _blnHadToClamp = true;
                 }
-                byte bEncoded = (byte) lngRanged;
+                byte bEncoded = (byte) lngRangeApplied;
                 _abEncodedAdpcm[i] = bEncoded;
 
-                // now decode what was just encoded -------------------
+                // now decode what was just encoded to see the difference ----------------
 
                 // shift to the top of the short
                 short siAdpcmShortTopSample = (short) (bEncoded << (16-_iAdpcmBitsPerSample));
                 // shift sound data according to the range, keeping the sign
-                int iUnRanged = (siAdpcmShortTopSample >> _iRange);
+                int iRangeRemoved = (siAdpcmShortTopSample >> _iRange);
 
                 // adjust according to the filter
-                double dblDecodedPcm = iUnRanged + _filters.getK0(_iFilterIndex) * _contextSnapshot.dblPrev1
-                                                 + _filters.getK1(_iFilterIndex) * _contextSnapshot.dblPrev2;
+                double dblDecodedPcm = iRangeRemoved + _filters.getK0(_iFilterIndex) * _contextSnapshot.dblPrev1
+                                                     + _filters.getK1(_iFilterIndex) * _contextSnapshot.dblPrev2;
 
                 _contextSnapshot.update(dblDecodedPcm);
 
@@ -364,8 +364,8 @@ public class SoundUnitEncoder {
                     telemetry.asiSourcePcmSamples[i]     = siPcmSample;
                     telemetry.adblPrev1Samples[i]        = _contextSnapshot.dblPrev1;
                     telemetry.adblPrev2Samples[i]        = _contextSnapshot.dblPrev2;
-                    telemetry.adblFilteredSamples[i]     = dblFiltered;
-                    telemetry.adblRangedSamples[i]       = dblRanged;
+                    telemetry.adblFilteredSamples[i]     = dblFilterApplied;
+                    telemetry.adblRangedSamples[i]       = dblRangeApplied;
                     telemetry.abEncodedAdpcmSamples[i]   = bEncoded;
                     telemetry.asiShortTopSamples[i]      = siAdpcmShortTopSample;
                     telemetry.adblDecodedSamples[i]      = dblDecodedPcm;

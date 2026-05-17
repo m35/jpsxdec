@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -313,8 +313,8 @@ public class DiscIndexerISO9660 extends DiscIndexer implements IdentifiedSectorL
 
         if (iEndSector > getCd().getSectorCount()) {
             // the file sectors protrude off the end of the disc
-            // could happen if the image has been trimmed
-            // but some games just have it intentionally
+            // could happen if the image has been trimmed,
+            // but some games seem to be authored that way
             _errLog.log(Level.WARNING,
                         I.NOT_CONTAINED_IN_DISC(Misc.forwardSlashPath(filePath)));
         }

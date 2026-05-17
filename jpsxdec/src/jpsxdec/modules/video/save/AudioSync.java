@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -79,7 +79,7 @@ public class AudioSync {
     }
 
     /** Returns the number of sample frames needed to catch up. */
-    public long calculateAudioToCatchUp(@Nonnull Fraction audioPresentationSector,
+    public int calculateAudioToCatchUp(@Nonnull Fraction audioPresentationSector,
                                         long lngSampleFramesWritten)
     {
         Fraction presentationTime = audioPresentationSector.subtract(_iFirstPresentationSector).divide(_discSpeed.getSectorsPerSecond());
@@ -87,9 +87,9 @@ public class AudioSync {
         Fraction timeDiff = presentationTime.subtract(movieTime);
         Fraction sampleDiff = timeDiff.multiply(_iSampleFramesPerSecond);
 
-        long lngSampleFrameDifference = Math.round(sampleDiff.asDouble());
+        int iSampleFrameDifference = Math.round(sampleDiff.asFloat());
 
-        return lngSampleFrameDifference;
+        return iSampleFrameDifference;
     }
 
 }

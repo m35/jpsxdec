@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -68,7 +69,7 @@ public final class Misc {
         return new String(ascii, iOffset, iLength, StandardCharsets.US_ASCII);
     }
 
-    /** Makes a date that is iSeconds past the year 0. */
+    /** Makes a date that is {@code iSeconds} past the year 0. */
     public static @Nonnull Date dateFromSeconds(int iSeconds) {
         Calendar c = Calendar.getInstance();
         c.set(0, 0, 0, 0, 0, iSeconds);
@@ -115,9 +116,9 @@ public final class Misc {
         return sw.toString();
     }
 
-    /** Null (and somewhat type) safe {@link Object#equals(Object). */
+    /** A (somewhat) typesafe wrapper for {@link Objects#equals(Object, Object)} . */
     public static <T, U extends T> boolean objectEquals(@CheckForNull T o1, @CheckForNull U o2) {
-        return o1 == o2 || (o1 != null && o1.equals(o2));
+        return Objects.equals(o1, o2);
     }
 
     /** Duplicates a string {@code count} times. */
@@ -233,8 +234,7 @@ public final class Misc {
         return zeroPadString(sInt, iLength, false);
     }
 
-    /** Left-pad the string with zeros to the given length, trimming if shorter
-     * when desired. */
+    /** Left-pad the string with zeros to the given length, trimming shorter if desired. */
     public static @Nonnull String zeroPadString(@Nonnull String s, int iLength, boolean blnTrim) {
         int iSLen = s.length();
         if (iSLen < iLength) {

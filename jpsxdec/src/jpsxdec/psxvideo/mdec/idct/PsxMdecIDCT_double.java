@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -118,11 +118,6 @@ public class PsxMdecIDCT_double implements IDCT_double {
                 output[iOutputOffset + x + y*8] = tempSum;
             }
         }
-    }
-
-    @Override
-    public void IDCT_1NonZero(double[] idctMatrix, int iNonZeroPos, int iOutputOffset, double[] output) {
-        IDCT(idctMatrix, iOutputOffset, output);
     }
 
 }

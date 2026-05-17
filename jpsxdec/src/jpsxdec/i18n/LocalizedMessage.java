@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2014-2023  Michael Sabin
+ * Copyright (C) 2014-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -112,6 +112,8 @@ class LocalizedMessage implements ILocalizedMessage {
         }
     }
 
+    private static final Object[] EMPTY_ARRAY = new Object[0];
+
     @Override
     public @Nonnull String getLocalizedMessage() {
         String sMessage = lookupValue();
@@ -119,7 +121,7 @@ class LocalizedMessage implements ILocalizedMessage {
             sMessage = _sEnglishDefault;
 
         if (_aoArguments == null)
-            return sMessage;
+            return MessageFormat.format(sMessage, EMPTY_ARRAY);
         else
             return MessageFormat.format(sMessage, _aoArguments);
     }

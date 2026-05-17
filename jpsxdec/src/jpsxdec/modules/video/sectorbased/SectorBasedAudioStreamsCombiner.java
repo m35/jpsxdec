@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -46,7 +46,7 @@ import jpsxdec.modules.audio.sectorbased.DiscItemSectorBasedAudioStream;
 import jpsxdec.modules.audio.sectorbased.ISectorClaimToSectorBasedDecodedAudio;
 import jpsxdec.modules.audio.sectorbased.SectorBasedDecodedAudioPacket;
 
-/** Combines multiple the {@link ISectorClaimToSectorBasedDecodedAudio}s from multiple
+/** Combines multiple {@link ISectorClaimToSectorBasedDecodedAudio}s from multiple
  * {@link DiscItemSectorBasedAudioStream} into a single continuous stream.
  * This is necessary when a video stream has multiple audio contiguous
  * audio clips, usually due to corrupted audio sectors due to ripping error. */

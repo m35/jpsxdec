@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -483,11 +483,11 @@ public abstract class AviWriter implements Closeable {
         _indexList.add(idxentry);
     }
 
-    public void writeSilentSamples(long lngSampleCount) throws AviIsClosedException, IOException {
+    public void writeSilentSamples(int iSampleCount) throws AviIsClosedException, IOException {
         if (_audioFormat == null)
             throw new IllegalStateException("Unable to write audio to video-only avi.");
 
-        writeAudio(new AudioInputStream(new IO.ZeroInputStream(), _audioFormat, lngSampleCount));
+        writeAudio(new AudioInputStream(new IO.ZeroInputStream(), _audioFormat, iSampleCount));
     }
 
     /** Subclasses will use this method to write each frame's data. */

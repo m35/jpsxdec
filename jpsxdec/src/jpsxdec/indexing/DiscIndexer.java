@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -62,8 +62,7 @@ import jpsxdec.modules.video.sectorbased.DiscIndexerSectorBasedVideo;
 import jpsxdec.modules.xa.DiscIndexerXaAudio;
 
 /** Superclass of all disc indexers.
- * Be sure to also implement {@link Identified} and/or {@link Static}
- * to receive the data of interest. */
+ * You can also implement {@link jpsxdec.modules.IdentifiedSectorListener} to be notified about other sectors of interest. */
 public abstract class DiscIndexer {
 
     private static final Logger LOG = Logger.getLogger(DiscIndexer.class.getName());

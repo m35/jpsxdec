@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2023  Michael Sabin
+ * Copyright (C) 2016-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -164,8 +164,8 @@ public class IOTest {
         abBuffer = new byte[7];
         try {
             IO.readByteArrayMax(is, abBuffer, 0, 8);
-            Assert.fail("Expected " + IndexOutOfBoundsException.class);
-        } catch (IndexOutOfBoundsException ex) { // the exact exception may be implementation specific
+            Assert.fail("Expected " + IllegalArgumentException.class);
+        } catch (IllegalArgumentException ex) {
             ex.printStackTrace(System.out);
         }
 
@@ -230,8 +230,8 @@ public class IOTest {
         abBuffer = new byte[7];
         try {
             IO.readByteArrayMax(is, abBuffer, 0, 8);
-            Assert.fail("Expected " + IndexOutOfBoundsException.class);
-        } catch (IndexOutOfBoundsException ex) { // the exact exception may be implementation specific
+            Assert.fail("Expected " + IllegalArgumentException.class);
+        } catch (IllegalArgumentException ex) {
             ex.printStackTrace(System.out);
         }
         is.close();

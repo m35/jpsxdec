@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2023  Michael Sabin
+ * Copyright (C) 2015-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -42,10 +42,5 @@ public class SimpleIDCT extends simple_idct implements IDCT_int {
     @Override
     public void IDCT(int[] aiIdctMatrix, int iOutputOffset, int[] aiOutput) {
         invers_dct(aiIdctMatrix, iOutputOffset, aiOutput);
-    }
-
-    @Override
-    public void IDCT_1NonZero(int[] aiIdctMatrix, int iNonZeroPos, int iOutputOffset, int[] aiOutput) {
-        invers_dct_special(aiIdctMatrix, iNonZeroPos, iOutputOffset, aiOutput);
     }
 }

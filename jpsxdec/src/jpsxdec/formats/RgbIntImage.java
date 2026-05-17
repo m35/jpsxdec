@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -43,7 +43,10 @@ import java.util.Random;
 import javax.annotation.Nonnull;
 import javax.imageio.ImageIO;
 
-/** Simplest image format containing a buffer and dimensions. */
+/**
+ * Simplest image format containing a buffer and dimensions.
+ * Pixel format is the same as {@link BufferedImage#TYPE_INT_RGB}.
+ */
 public class RgbIntImage {
 
 
@@ -55,10 +58,17 @@ public class RgbIntImage {
         this(bi.getWidth(), bi.getHeight());
         _aiData = new int[_iWidth * _iHeight];
         // TODO: I'm still uncertain about colormode/colormodel stuff
+
+        // Can't just use getRaster and because it's not always backed by an RGB int array
+        //bi.getRaster().getDataElements(0, 0, _iWidth, _iHeight, _aiData);
+
         bi.getRGB(0, 0, _iWidth, _iHeight, _aiData, 0, _iWidth);
     }
 
     public RgbIntImage(int iWidth, int iHeight, @Nonnull int[] aiData) {
+        if (iWidth * iHeight < aiData.length) {
+            throw new IllegalArgumentException("Data size "+aiData.length+" is smaller than dimensions " + iWidth + "x" + iHeight);
+        }
         _iWidth = iWidth;
         _iHeight = iHeight;
         _aiData = aiData;

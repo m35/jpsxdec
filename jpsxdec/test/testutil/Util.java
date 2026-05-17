@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -70,11 +70,8 @@ public class Util {
     }
 
     public static byte[] readResource(Class<?> cls, String sResource) throws IOException {
-        InputStream is = cls.getResourceAsStream(sResource);
-        try {
+        try (InputStream is = cls.getResourceAsStream(sResource)) {
             return IO.readEntireStream(is);
-        } finally {
-            is.close();
         }
     }
 

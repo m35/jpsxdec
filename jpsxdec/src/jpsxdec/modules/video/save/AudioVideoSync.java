@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -49,7 +49,7 @@ public class AudioVideoSync extends VideoSync {
     private final @Nonnull AudioSync _audSync;
     private final @Nonnull Fraction _sampleFramesPerVideoFrame;
     private final int _iInitialFrameDelay;
-    private final long _lngInitialSampleDelay;
+    private final int _iInitialSampleDelay;
 
     public AudioVideoSync(int iFirstVideoPresentationSector,
                           @Nonnull DiscSpeed discSpeed,
@@ -71,13 +71,13 @@ public class AudioVideoSync extends VideoSync {
             Fraction initialSampleDelay = new Fraction(_audSync.getSampleFramesPerSecond(), getSectorsPerSecond()).multiply(iPresentationSectorDiff);
             if (initialSampleDelay.compareTo(0) < 0) {
                 _iInitialFrameDelay = -(int) Math.floor(initialSampleDelay.divide(_sampleFramesPerVideoFrame).asDouble());
-                _lngInitialSampleDelay = Math.round(initialSampleDelay.add(_sampleFramesPerVideoFrame.multiply(_iInitialFrameDelay)).asDouble());
+                _iInitialSampleDelay = Math.round(initialSampleDelay.add(_sampleFramesPerVideoFrame.multiply(_iInitialFrameDelay)).asFloat());
             } else {
-                _lngInitialSampleDelay = Math.round(initialSampleDelay.asDouble());
+                _iInitialSampleDelay = Math.round(initialSampleDelay.asFloat());
                 _iInitialFrameDelay = 0;
             }
         } else {
-            _lngInitialSampleDelay = 0;
+            _iInitialSampleDelay = 0;
             _iInitialFrameDelay = 0;
         }
 
@@ -92,7 +92,7 @@ public class AudioVideoSync extends VideoSync {
     }
 
     /**@see AudioSync#calculateAudioToCatchUp(jpsxdec.util.Fraction, long)  */
-    public long calculateAudioToCatchUp(@Nonnull Fraction audioPresentationSector,
+    public int calculateAudioToCatchUp(@Nonnull Fraction audioPresentationSector,
                                         long lngSampleFramesWritten)
     {
         return _audSync.calculateAudioToCatchUp(audioPresentationSector,
@@ -107,8 +107,8 @@ public class AudioVideoSync extends VideoSync {
         return _audSync.getSampleFramesPerSecond();
     }
 
-    public long getInitialAudio() {
-        return _lngInitialSampleDelay;
+    public int getInitialAudio() {
+        return _iInitialSampleDelay;
     }
 
     @Override

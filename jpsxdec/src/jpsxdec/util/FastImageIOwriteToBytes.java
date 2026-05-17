@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2021-2023  Michael Sabin
+ * Copyright (C) 2021-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -70,6 +70,7 @@ public class FastImageIOwriteToBytes {
     private ImageWriteParam _writeParam = null;
 
     /**
+     * @param sImageIOFormatName Format name as passed to {@link ImageIO#write(java.awt.image.RenderedImage, String, java.io.OutputStream)}
      * @throws UnsupportedOperationException if the image format is not supported on this platform.
      */
     public FastImageIOwriteToBytes(@Nonnull String sImageIOFormatName) throws UnsupportedOperationException {

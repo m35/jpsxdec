@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -61,10 +61,10 @@ public class PsxYCbCr_int {
     // they weren't very difficult to find because the YCbCr->RGB conversion
     // equation is quite forgiving. There are many values which would
     // generate perfect hardware emulation.
-    public static final long _1_402   = 91893;  // Math.round(1.402  * FIXED_MULT)+12;
-    public static final long _0_3437  = 22525;  // Math.round(0.3437 * FIXED_MULT);
-    public static final long _0_7143  = 46812;  // Math.round(0.7143 * FIXED_MULT);
-    public static final long _1_772   = 116224; // Math.round(1.772  * FIXED_MULT)+94;
+    public static final long _1_402   =  91893;  // Math.round(1.402  * FIXED_MULT)+12;
+    public static final long _0_3437  =  22525;  // Math.round(0.3437 * FIXED_MULT);
+    public static final long _0_7143  =  46812;  // Math.round(0.7143 * FIXED_MULT);
+    public static final long _1_772   = 116224;  // Math.round(1.772  * FIXED_MULT)+94;
 
     public static void toRgb(int y, int cb, int cr, @Nonnull RGB rgb) {
         int Yshift = y + 128;

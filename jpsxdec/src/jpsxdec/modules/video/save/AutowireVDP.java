@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2023  Michael Sabin
+ * Copyright (C) 2019-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -127,11 +127,11 @@ public class AutowireVDP {
 
     // Expose this publicly to open/close the video
     @CheckForNull
-    private VDP.ToVideo _toVideo;
-    public @CheckForNull VDP.ToVideo getVideo() {
+    private VDPtoVideo _toVideo;
+    public @CheckForNull VDPtoVideo getVideo() {
         return _toVideo;
     }
-    public void setVideo(@Nonnull VDP.ToVideo toVideo) {
+    public void setVideo(@Nonnull VDPtoVideo toVideo) {
         assertNull(_toVideo);
         _toVideo = toVideo;
     }

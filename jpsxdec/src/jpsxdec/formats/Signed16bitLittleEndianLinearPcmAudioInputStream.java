@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2023  Michael Sabin
+ * Copyright (C) 2016-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -53,7 +53,7 @@ import jpsxdec.util.IncompatibleException;
 import jpsxdec.util.Maths;
 
 /** Wraps {@link AudioInputStream} to read mono or stereo 16-bit
- * {@link AudioFormat.Encoding.PCM_SIGNED} samples as arrays of shorts.
+ * {@link AudioFormat.Encoding#PCM_SIGNED} samples as arrays of shorts.
  * The sample rate also must be a whole number.
  * Signed 16-bit little-endian linear PCM audio is the same format used for
  * CD audio. CD audio is played back at 44100 Hz, but this allows for any

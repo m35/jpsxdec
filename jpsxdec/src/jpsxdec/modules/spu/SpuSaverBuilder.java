@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2023  Michael Sabin
+ * Copyright (C) 2016-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -374,7 +374,7 @@ public class SpuSaverBuilder extends DiscItemSaverBuilder {
     {
         try (AudioInputStream ais = _spuItem.getAudioStream(_dblVolume)) {
             addGeneratedFile(outputFile);
-            AudioSystem.write(ais, audioFileType, outputFile);
+            int iBytesWritten = AudioSystem.write(ais, audioFileType, outputFile);
         } catch (IOException ex) {
             throw new LoggedFailure(pl, Level.SEVERE, I.IO_WRITING_FILE_ERROR_NAME(outputFile.toString()), ex);
         }

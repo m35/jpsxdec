@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2023  Michael Sabin
+ * Copyright (C) 2013-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -41,22 +41,12 @@ import java.io.ByteArrayOutputStream;
 import jpsxdec.psxvideo.mdec.MdecCode;
 import jpsxdec.psxvideo.mdec.MdecException;
 import jpsxdec.psxvideo.mdec.MdecInputStream;
-import org.junit.*;
-import static org.junit.Assert.*;
+import org.junit.Test;
 import testutil.Util;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class Mdec2JpegTest {
-
-    public Mdec2JpegTest() {
-    }
-
-    @BeforeClass
-    public static void setUpClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownClass() throws Exception {
-    }
 
     private static class MStream implements MdecInputStream {
 
@@ -100,6 +90,8 @@ public class Mdec2JpegTest {
         EOD.setToEndOfData();
 
         MdecCode invalid9999 = new MdecCode(1, 511);
+        // setting the bottom 10 bits to an invalid value will fail an assert
+        // use reflection to work around that
         Util.setField(invalid9999, "_iBottom10Bits", 9999); // mwahahahahaha
 
         MdecCode[] stream = {
@@ -131,8 +123,9 @@ public class Mdec2JpegTest {
         stream[stream.length-2] = invalid9999;
         jpeg.readMdec(new MStream(stream));
         try {
+            // now pass the bad data into the writer, expecting its assert to fail
             jpeg.writeJpeg(os);
-            fail("Expected assertion error");
+            fail("Expected assertion error, are asserts enabled? -ea");
         } catch (AssertionError ex) {
             ex.printStackTrace();
         }

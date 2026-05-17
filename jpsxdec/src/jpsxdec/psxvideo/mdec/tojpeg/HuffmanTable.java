@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2023  Michael Sabin
+ * Copyright (C) 2013-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -39,7 +39,8 @@ package jpsxdec.psxvideo.mdec.tojpeg;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import jpsxdec.util.IO;
+import javax.annotation.Nonnull;
+import jpsxdec.util.Misc;
 
 /** JPEG huffman table. */
 class HuffmanTable {
@@ -57,47 +58,50 @@ class HuffmanTable {
         }
     }
 
-    private static final int DC = 0;
-    private static final int AC = 1;
+    private static final int TABLE_TYPE_DC = 0;
+    private static final int TABLE_TYPE_AC = 1;
 
-    public static final HuffmanTable DEFAULT_DC_LUMA_HUFFMAN = new HuffmanTable(DC,0, new int[][]{
-            null,
-            {0},
-            {1, 2, 3, 4, 5},
-            {6},
-            {7},
-            {8},
-            {9},
-            {10},
-            {11},
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
+    public static final HuffmanTable DEFAULT_DC_LUMA_HUFFMAN = new HuffmanTable(TABLE_TYPE_DC, 0, new int[][]{
+            // Values         // Number of values
+            {},               // 0
+            {0},              // 1
+            {1, 2, 3, 4, 5},  // 5
+            {6},              // 1
+            {7},              // 1
+            {8},              // 1
+            {9},              // 1
+            {10},             // 1
+            {11},             // 1
+            {},               // 0
+            {},               // 0
+            {},               // 0
+            {},               // 0
+            {},               // 0
+            {},               // 0
+            {},               // 0
     });
-    public static final HuffmanTable DEFAULT_DC_CHROMA_HUFFMAN = new HuffmanTable(DC,1, new int[][]{
-            null,
-            {0, 1, 2},
-            {3},
-            {4},
-            {5},
-            {6},
-            {7},
-            {8},
-            {9},
-            {10},
-            {11},
-            null,
-            null,
-            null,
-            null,
-            null,
+    public static final HuffmanTable DEFAULT_DC_CHROMA_HUFFMAN = new HuffmanTable(TABLE_TYPE_DC, 1, new int[][]{
+            // Values    // Number of values
+            {},          // 0
+            {0, 1, 2},   // 3
+            {3},         // 1
+            {4},         // 1
+            {5},         // 1
+            {6},         // 1
+            {7},         // 1
+            {8},         // 1
+            {9},         // 1
+            {10},        // 1
+            {11},        // 1
+            {},          // 0
+            {},          // 0
+            {},          // 0
+            {},          // 0
+            {},          // 0
     });
-    public static final HuffmanTable DEFAULT_AC_LUMA_HUFFMAN = new HuffmanTable(AC,0, new int[][]{
-            null,                                              // 0
+    public static final HuffmanTable DEFAULT_AC_LUMA_HUFFMAN = new HuffmanTable(TABLE_TYPE_AC, 0, new int[][]{
+            // Values                                          // Number of values
+            {},                                                // 0
             {1, 2},                                            // 2
             {3},                                               // 1
             {0, 4, 17},                                        // 3
@@ -109,8 +113,8 @@ class HuffmanTable {
             {8, 35, 66, 177, 193},                             // 5
             {21, 82, 209, 240},                                // 4
             {36, 51, 98, 114},                                 // 4
-            null,                                              // 0
-            null,                                              // 0
+            {},                                                // 0
+            {},                                                // 0
             {130},                                             // 1
             {  9,  10,  22,  23,  24,  25,  26,  37,  38,  39, // 125
               40,  41,  42,  52,  53,  54,  55,  56,  57,  58,
@@ -126,8 +130,9 @@ class HuffmanTable {
              230, 231, 232, 233, 234, 241, 242, 243, 244, 245,
              246, 247, 248, 249, 250 },
     });
-    public static final HuffmanTable DEFAULT_AC_CHROMA_HUFFMAN = new HuffmanTable(AC,1, new int[][]{
-            null,                                              // 0
+    public static final HuffmanTable DEFAULT_AC_CHROMA_HUFFMAN = new HuffmanTable(TABLE_TYPE_AC, 1, new int[][]{
+            // Values                                          // Number of values
+            {},                                                // 0
             {0, 1},                                            // 2
             {2},                                               // 1
             {3, 17},                                           // 2
@@ -139,7 +144,7 @@ class HuffmanTable {
             {9, 35, 51, 82, 240},                              // 5
             {21, 98, 114, 209},                                // 4
             {10, 22, 36, 52},                                  // 4
-            null,                                              // 0
+            {},                                                // 0
             {225},                                             // 1
             {37, 241},                                         // 2
             { 23,  24,  25,  26,  38,  39,  40,  41,  42,  53, // 119
@@ -159,112 +164,126 @@ class HuffmanTable {
 
     /** Index of the EOB huffman code. */
     private static final int EOB_CODE_INDEX = 0;
-    /** Index of the zero-run 16 huffman code. */
-    private static final int RUN16_CODE_INDEX = 240;
+    /**
+     * Index of the zero-run 16 huffman code.
+     */
+    private static final int RUN16_CODE_INDEX = 15 * 16 + 0; //= 240;
 
-    /** Either {@link #AC} or {@link #DC}. */
+    /** Either {@link #TABLE_TYPE_AC} or {@link #TABLE_TYPE_DC}. */
     private final int _iTableType;
     /** Index of this huffman table. */
     private final int _iTableIndex;
     /** Huffman table values for writing. */
-    private final int[][] _aaiValuesForBitLen;
+    private final int[][] _aaiValuesForBitLength;
 
-    /** Huffman table converted to codes used for encoding. */
-    private final int[] _aiHuffCodes = new int[256];
-    /** Huffman table converted to code lengths used for encoding. */
-    private final int[] _aiHuffCodesSize = new int[256];
+    /** Huffman table converted to bit string codes used for encoding. */
+    private static class HuffmanCode {
+        private final String sBits;
+        public HuffmanCode(int iBitValue, int iBitCount) {
+            sBits = Misc.bitsToString(iBitValue, iBitCount);
+        }
+    }
+
+    private final HuffmanCode[] _aiHuffBitCodes = new HuffmanCode[256];
 
     /** Size of the DHT block needed to write this huffman table. */
     private final int _iDhtLength;
 
-    private HuffmanTable(int iType, int iIndex, int[][] aaiValuesForBitLen) {
-        if (aaiValuesForBitLen.length != 16)
+    private HuffmanTable(int iTableType, int iTableIndex, @Nonnull int[][] aaiValuesForBitLength) {
+        if (aaiValuesForBitLength.length != 16)
             throw new IllegalArgumentException();
 
-        _iTableType = iType;
-        _iTableIndex = iIndex;
-        _aaiValuesForBitLen = aaiValuesForBitLen;
+        _iTableType = iTableType;
+        _iTableIndex = iTableIndex;
+        _aaiValuesForBitLength = aaiValuesForBitLength;
 
         int iCode = 0;
         int iTableSize = 0;
         for (int iBitLen = 0; iBitLen < 16; iBitLen++) {
-            int[] aiValues = _aaiValuesForBitLen[iBitLen];
+            int[] aiValues = _aaiValuesForBitLength[iBitLen];
             if (aiValues != null) {
                 iTableSize += aiValues.length;
 
                 for (int iValue : aiValues) {
-                    _aiHuffCodesSize[iValue] = iBitLen + 1;
-                    _aiHuffCodes[iValue] = iCode;
+                    _aiHuffBitCodes[iValue] = new HuffmanCode(iCode, iBitLen+1);
                     iCode++;
                 }
             }
             iCode <<= 1;
         }
 
-        _iDhtLength = 2 + 1 + 16 + iTableSize;
+        _iDhtLength = 2 // 2 bytes for this length
+                    + 1 // (table type | table index)
+                    + _aaiValuesForBitLength.length // always 16 here
+                    + iTableSize;
     }
 
     public int getIndex() {
         return _iTableIndex;
     }
 
-    public void writeDHT(OutputStream out) throws IOException {
-        Mdec2Jpeg.writeMarker(out, Mdec2Jpeg.DHT);
-        IO.writeInt16BE(out, _iDhtLength);
+    public void writeDHT(@Nonnull OutputStream out) throws IOException {
+        Mdec2Jpeg.writeMarker(out, Mdec2Jpeg.DHT, _iDhtLength); // DHT = 0xC4
+
         out.write((_iTableType << 4) | _iTableIndex);
-        for (int[] i : _aaiValuesForBitLen) {
-            out.write(i == null ? 0 : i.length);
+
+        // Write the lengths of these values before writing the values themselves
+        for (int[] aiValues : _aaiValuesForBitLength) {
+            out.write(aiValues.length);
         }
-        for (int[] i : _aaiValuesForBitLen) {
-            if (i != null) {
-                for (int j : i) {
-                    out.write(j);
+
+        for (int[] aiValues : _aaiValuesForBitLength) {
+            if (aiValues.length > 0) {
+                for (int iValue : aiValues) {
+                    out.write(iValue);
                 }
             }
         }
     }
 
-    /** Only used for DC tables. */
-    public void encodeDcCoefficient(int iDc, Component comp, JpegBitOutputStream out)
+    /** Only called for DC table types. */
+    public void encodeDcCoefficient(int iDc, @Nonnull Component component, @Nonnull JpegBitOutputStream out)
             throws IOException
     {
-        int iDcDiff = iDc - comp.PreviousDC;
-        comp.PreviousDC = iDc;
-        if (iDcDiff < 0) {
-            int iAbsDcDiff = -iDcDiff;
-            int iBitSize = highest1bitPosition(iAbsDcDiff);
+        int iDcDelta = iDc - component.PreviousDC;
+        component.PreviousDC = iDc;
+        if (iDcDelta < 0) {
+            int iAbsoluteDcDelta = -iDcDelta;
+            int iBitSize = highest1bitPosition(iAbsoluteDcDelta);
             assert iBitSize <= 11;
-            out.write(_aiHuffCodes[iBitSize], _aiHuffCodesSize[iBitSize]);
-            int iAbsDcDiffMask = ((1 << iBitSize) - 1);
-            out.write((0xFFFFFF - iAbsDcDiff) & iAbsDcDiffMask, iBitSize);
+            out.writeBits(_aiHuffBitCodes[iBitSize].sBits);
+            int iAbsoluteDcDeltaMask = ((1 << iBitSize) - 1);
+            out.writeBits((0xFFFFFF - iAbsoluteDcDelta) & iAbsoluteDcDeltaMask, iBitSize);
         } else {
-            int iBitSize = highest1bitPosition(iDcDiff);
+            int iBitSize = highest1bitPosition(iDcDelta);
             assert iBitSize <= 11;
-            out.write(_aiHuffCodes[iBitSize], _aiHuffCodesSize[iBitSize]);
+            out.writeBits(_aiHuffBitCodes[iBitSize].sBits);
             if (iBitSize != 0) {
-                out.write(iDcDiff, iBitSize);
+                out.writeBits(iDcDelta, iBitSize);
             }
         }
     }
 
-    /** Only used for AC tables. */
-    public void encodeAcCoefficients(int[] aiDctCoffs, int iBlockStart, JpegBitOutputStream out)
+    /** Only called for AC table types. */
+    public void encodeAcCoefficients(@Nonnull int[] aiDctCoefficients,
+                                     final int iBlockStartPointer,
+                                     @Nonnull JpegBitOutputStream out)
             throws IOException
     {
-        int iZeroRun = 0;
+        int iZeroRunLength = 0;
 
         for (int i = 1; i < 64; i++) {
-            int iAc = aiDctCoffs[iBlockStart + i];
+            int iAc = aiDctCoefficients[iBlockStartPointer + i];
             if (iAc == 0) {
-                if (i == 63) {
-                    out.write(_aiHuffCodes[EOB_CODE_INDEX], _aiHuffCodesSize[EOB_CODE_INDEX]);
-                } else {
-                    iZeroRun++;
+                if (i == 63) { // at then end
+                    out.writeBits(_aiHuffBitCodes[EOB_CODE_INDEX].sBits);
+                } else { // not at the end, add to the run length
+                    iZeroRunLength++;
                 }
             } else {
-                while (iZeroRun > 15) {
-                    out.write(_aiHuffCodes[RUN16_CODE_INDEX], _aiHuffCodesSize[RUN16_CODE_INDEX]);
-                    iZeroRun -= 16;
+                while (iZeroRunLength > 15) {
+                    out.writeBits(_aiHuffBitCodes[RUN16_CODE_INDEX].sBits);
+                    iZeroRunLength -= 16;
                 }
 
                 int iBitCount;
@@ -274,11 +293,13 @@ class HuffmanTable {
                 } else {
                     iBitCount = highest1bitPosition(iAc);
                 }
+
                 assert iBitCount <= 10; // should have been caught during MDEC read phase
-                int iCode = (iZeroRun << 4) | iBitCount;
-                out.write(_aiHuffCodes[iCode], _aiHuffCodesSize[iCode]);
-                out.write(iAc, iBitCount);
-                iZeroRun = 0;
+
+                int iCode = (iZeroRunLength << 4) | iBitCount;
+                out.writeBits(_aiHuffBitCodes[iCode].sBits);
+                out.writeBits(iAc, iBitCount);
+                iZeroRunLength = 0;
             }
         }
     }

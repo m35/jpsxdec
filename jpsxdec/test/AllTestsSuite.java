@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -66,6 +66,9 @@ import org.junit.runners.Suite;
     jpsxdec.util.FractionTest.class,
     jpsxdec.util.IOTest.class,
     jpsxdec.util.MiscTest.class,
+    jpsxdec.util.mkvwriter.BasicVideoAudioMuxer_Tests.class,
+    jpsxdec.util.mkvwriter.MkvWriter_Tests.class,
+    jpsxdec.util.mkvwriter.VariableLengthInt_Tests.class,
     jpsxdec.util.player.ClosableBoundedBlockingQueueTest.class
 })
 public class AllTestsSuite {

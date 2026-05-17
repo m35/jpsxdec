@@ -77,4 +77,6 @@ It would be nice to have a Checkstyle format to check formatting, but
 for now try to follow what you see done in the code. It's usually
 pretty consistent. I may ask for some formatting changes.
 
+Please make the change on `master` branch (not `readme` branch).
+
 All changes will be squash-merged.

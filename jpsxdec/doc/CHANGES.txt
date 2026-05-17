@@ -1,3 +1,11 @@
+v2.1 (beta) rev4378 (17 May 2026)
+    - Updated translations (thanks to the contributors!)
+    - Fixed documentation
+    - Make builds deterministic/reproducible
+    - Refactoring for future changes
+
+--------------------------------------------------------------------------------
+
 #### jPSXdec version 2.0 ####
 
 Summary of changes from v1.00 to 2.0

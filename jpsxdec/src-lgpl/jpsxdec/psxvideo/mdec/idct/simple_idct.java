@@ -107,14 +107,6 @@ public class simple_idct {
 		for (i = 0; i < 8; i++) idct1D(coeff, i, 8, COL_SHIFT, outoff, outbuff);
 	}
 	
-	public void invers_dct_special(int[] coeff, int nonzero_pos, int outoff, int[] outbuff) {
-		int i;
-		
-		for (i = 0; i <= (nonzero_pos >>> 3); i++) idct1D(coeff, i*8, 1, ROW_SHIFT, 0, coeff);
-		for (i = 0; i < 8; i++) idct1D(coeff, i, 8, COL_SHIFT, outoff, outbuff);
-	}
-	
-	
 	/*public static void main(String args[]) {
 		int dct[] = new int[64];
 		simple_idct id = new simple_idct();

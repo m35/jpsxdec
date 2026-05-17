@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -77,7 +77,6 @@ public class MdecDecoder_int extends MdecDecoder {
         int iCurrentBlockQscale;
         int iCurrentBlockVectorPosition;
         int iCurrentBlockNonZeroCount;
-        int iCurrentBlockLastNonZeroPosition;
 
         MdecContext context = new MdecContext(_iMacBlockHeight);
 
@@ -102,10 +101,8 @@ public class MdecDecoder_int extends MdecDecoder {
                         _CurrentBlock[0] =
                                 _code.getBottom10Bits() * _aiQuantizationTable[0];
                         iCurrentBlockNonZeroCount = 1;
-                        iCurrentBlockLastNonZeroPosition = 0;
                     } else {
                         iCurrentBlockNonZeroCount = 0;
-                        iCurrentBlockLastNonZeroPosition = -1;
                     }
                     assert !DEBUG || setPrequantValue(0, _code.getBottom10Bits());
                     iCurrentBlockQscale = _code.getTop6Bits();
@@ -142,7 +139,6 @@ public class MdecDecoder_int extends MdecDecoder {
                             //  i      >> 3  ==  (int)Math.floor(i / 8.0)
                             // (i + 4) >> 3  ==  (int)Math.round(i / 8.0)
                             iCurrentBlockNonZeroCount++;
-                            iCurrentBlockLastNonZeroPosition = iRevZigZagMatrixPos;
 
                         }
                         ////////////////////////////////////////////////////////
@@ -152,8 +148,8 @@ public class MdecDecoder_int extends MdecDecoder {
                     assert !DEBUG || debugPrintln(_code.toString());
 
                     writeEndOfBlock(context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(),
-                            iCurrentBlockNonZeroCount,
-                            iCurrentBlockLastNonZeroPosition);
+                            iCurrentBlockNonZeroCount
+                    );
 
                     context.nextCodeEndBlock();
                 }
@@ -163,7 +159,7 @@ public class MdecDecoder_int extends MdecDecoder {
             // fill in any remaining data with zeros
             // pickup where decoding left off
             while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {
-                writeEndOfBlock(context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(), 0, 0);
+                writeEndOfBlock(context.getTotalMacroBlocksRead(), context.getCurrentBlock().ordinal(), 0);
                 context.nextCodeEndBlock();
             }
 
@@ -184,9 +180,7 @@ public class MdecDecoder_int extends MdecDecoder {
         return true;
     }
 
-    private void writeEndOfBlock(int iMacroBlock, int iBlock,
-                                 int iNonZeroCount, int iNonZeroPos)
-    {
+    private void writeEndOfBlock(int iMacroBlock, int iBlock, int iNonZeroCount) {
         assert !DEBUG || debugPrintPrequantBlock();
         assert !DEBUG || debugPrintBlock("Pre-IDCT block");
 
@@ -212,11 +206,7 @@ public class MdecDecoder_int extends MdecDecoder {
             for (int i=0; i < 8; i++, iOutOffset += iOutWidth)
                 Arrays.fill(outputBuffer, iOutOffset, iOutOffset + 8, 0);
         } else {
-            if (iNonZeroCount == 1) {
-                _idct.IDCT_1NonZero(_CurrentBlock, iNonZeroPos, 0, _CurrentBlock);
-            } else {
-                _idct.IDCT(_CurrentBlock, 0, _CurrentBlock);
-            }
+            _idct.IDCT(_CurrentBlock, 0, _CurrentBlock);
             // TODO: have IDCT write to the destination location directly
             for (int i=0, iSrcOfs=0; i < 8; i++, iSrcOfs+=8, iOutOffset += iOutWidth)
                 System.arraycopy(_CurrentBlock, iSrcOfs, outputBuffer, iOutOffset, 8);

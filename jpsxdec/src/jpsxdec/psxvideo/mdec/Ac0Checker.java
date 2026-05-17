@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2015-2023  Michael Sabin
+ * Copyright (C) 2015-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,26 +44,26 @@ import javax.annotation.Nonnull;
 /** Filters out MDEC codes where AC=0.
  * Known to happen in FF7 and Judge Dredd videos, but could happen anywhere.
  * MDEC codes where AC=0 are redundant and just waste space.
- * This will merge those codes with adjacent codes by extending zero-run-length.
- */
+ * This will merge those codes with adjacent codes by extending zero-run-length. */
 public class Ac0Checker implements MdecInputStream {
 
     private static final Logger LOG = Logger.getLogger(Ac0Checker.class.getName());
 
-    public static Ac0Checker wrapWithChecker(@Nonnull MdecInputStream source, boolean blnAlsoClean) {
+    public static @Nonnull Ac0Checker wrapWithChecker(@Nonnull MdecInputStream source, boolean blnAlsoClean) {
         if (source instanceof Ac0Checker)
             return (Ac0Checker)source;
         else
             return new Ac0Checker(source, blnAlsoClean);
     }
 
+    @Nonnull
     private final MdecInputStream _source;
     private final boolean _blnAlsoClean;
 
     private boolean _blnNextCodeIsQscaleDC = true;
     private int _iEscapeCodeAc0Count = 0;
 
-    public Ac0Checker(MdecInputStream source, boolean blnAlsoClean) {
+    public Ac0Checker(@Nonnull MdecInputStream source, boolean blnAlsoClean) {
         _source = source;
         _blnAlsoClean = blnAlsoClean;
     }
@@ -79,7 +79,7 @@ public class Ac0Checker implements MdecInputStream {
     }
 
     @Override
-    public boolean readMdecCode(MdecCode code)
+    public boolean readMdecCode(@Nonnull MdecCode code)
             throws MdecException.EndOfStream, MdecException.ReadCorruption
     {
         boolean blnEod = _source.readMdecCode(code);
@@ -99,7 +99,7 @@ public class Ac0Checker implements MdecInputStream {
         return blnEod;
     }
 
-    private boolean filter0(MdecCode code)
+    private boolean filter0(@Nonnull MdecCode code)
             throws MdecException.EndOfStream, MdecException.ReadCorruption
     {
         boolean blnEod;

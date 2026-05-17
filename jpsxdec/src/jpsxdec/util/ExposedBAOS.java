@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,7 +56,7 @@ public class ExposedBAOS extends ByteArrayOutputStream {
      * Overridden to remove {@link java.io.IOException}. */
     @Override
     public void write(@Nonnull byte[] b) {
-	write(b, 0, b.length);
+	    write(b, 0, b.length);
     }
 
     /** Returns a direct reference to the underlying buffer.

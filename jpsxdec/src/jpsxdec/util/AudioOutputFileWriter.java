@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -57,7 +57,7 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
 
     private static final Logger LOG = Logger.getLogger(AudioOutputFileWriter.class.getName());
 
-    /** {@link PipedInputStream} internally has {@link notify()} triggers
+    /** {@link PipedInputStream} internally has {@link #notify()} triggers
      * so it can be relied on for synchronization purposes. */
     @Nonnull
     private final PipedInputStream _threadInputStream;
@@ -65,6 +65,9 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
     private final AudioInputStream _threadAudioStream;
     @Nonnull
     private final Thread _writingThread;
+
+    private long _lngTotalBytesReceived = 0;
+    private long _lngTotalBytesWritten = 0;
 
     @Nonnull
     private final File _outFile;
@@ -130,7 +133,8 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
             // start writing the audio file
             // PipedInputStream _threadInputStream internally will notify
             // the object when read is called
-            AudioSystem.write(_threadAudioStream, _eFileFormat, _outFile);
+            _lngTotalBytesWritten = AudioSystem.write(_threadAudioStream, _eFileFormat, _outFile);
+
         } catch (Throwable ex) {
             // if there's an error, save it and notify the main thread
             // in case it is waiting after startup
@@ -160,6 +164,7 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
         }
 
         _feedStream.write(abData, iOffset, iByteLength);
+        _lngTotalBytesReceived += iByteLength;
 
         // again check if there has been an error in the writing thread
         synchronized (_threadInputStream) {
@@ -191,6 +196,12 @@ public class AudioOutputFileWriter implements Runnable, Closeable {
             } catch (InterruptedException ex) {
                 LOG.log(Level.SEVERE, null, ex);
             }
+        }
+
+        if (_lngTotalBytesReceived != _lngTotalBytesWritten) {
+            // it's ok for the output to be larger because the output can include file headers/footers/etc.
+            // and I suppose it's ok to be smaller if the audio is compressed
+            LOG.log(Level.INFO, "Bytes written={0} bytes received={1}", new Object[] {_lngTotalBytesWritten, _lngTotalBytesReceived});
         }
     }
 }

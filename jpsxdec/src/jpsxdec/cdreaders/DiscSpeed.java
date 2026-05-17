@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2022-2023  Michael Sabin
+ * Copyright (C) 2022-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -44,7 +44,7 @@ public enum DiscSpeed {
     SINGLE(1, 75),
     DOUBLE(2, 150);
 
-    /** If null, returns {@link #DOUBLE}. */
+    /** @param ds If null, returns {@link #DOUBLE}. */
     public static @Nonnull DiscSpeed default2x(@CheckForNull DiscSpeed ds) {
         if (ds == null)
             return DOUBLE;

@@ -385,12 +385,12 @@ At the highest level, a demultiplexed frame consists of:
 :: Demultiplexed STR frame ::
 
 Offset   Size   Endian ---------------------------------------------------
-  0 . . . 2 . . little . The number of 32-byte blocks it would take to hold
+  0 . . . 2 . . little . The number of 32-bit (4 byte) blocks it would take to hold
                            the uncompressed MDEC codes
   2 . . . 2 . . little . Always 0x3800
   4 . . . 2 . . little . Frame's quantization scale
   6 . . . 2 . . little . Version of the frame
-  8  . . . . . . . . . . Compressed macro block bitstream 
+  8  . . . . . . . . . . Compressed macro block bitstream
                            read as a stream of 2 byte little-endian values.
                            Number of macro blocks =
                              (width+15)/16 * (height+15)/16

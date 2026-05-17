@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -98,7 +98,7 @@ public class AviWriterDIB extends AviWriter {
     // -- Writing functions ----------------------------------------------------
     // -------------------------------------------------------------------------
 
-    /** @param abData  RGB image data stored at 24 bits/pixel (3 bytes/pixel) */
+    /** @param abData  RGB image data stored as 24 bits/pixel (3 bytes/pixel) */
     public void writeFrameRGB(@Nonnull byte[] abData, int iStart, int iLineStride) throws IOException {
         final int WIDTH = getWidth(), HEIGHT = getHeight();
 
@@ -128,7 +128,9 @@ public class AviWriterDIB extends AviWriter {
         writeFrameChunk(_abWriteBuffer, 0, _iFrameByteSize);
     }
 
-    /** @param aiData  RGB image data stored at RGB in the lower bytes of an int. */
+    /** @param aiData  RGB image data stored as RGB in the lower 3 bytes of an int,
+     *                 the same as {@link java.awt.image.BufferedImage#TYPE_INT_RGB}.
+     */
     public void writeFrameRGB(@Nonnull int[] aiData, int iStart, int iLineStride) throws IOException {
         final int WIDTH = getWidth(), HEIGHT = getHeight();
 

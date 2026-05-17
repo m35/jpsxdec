@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -37,58 +37,103 @@
 
 package jpsxdec.formats;
 
-/** Basic mutable class to manage RGB values. */
+/**
+ * Basic mutable class to manage RGB values. I suppose this assumes sRGB specifically.
+ */
 public class RGB {
     private int r, g, b;
 
     public RGB() {
     }
 
+    /** @see java.awt.image.BufferedImage#TYPE_INT_RGB */
     public RGB(int iRgb) {
-        this((iRgb >> 16) & 0xFF,
-             (iRgb >>  8) & 0xFF,
-             (iRgb      ) & 0xFF);
+        set(iRgb);
+    }
+    /** @see java.awt.image.BufferedImage#TYPE_INT_RGB */
+    final public void set(int iRgb) {
+        r = (iRgb >> 16) & 0xFF;
+        g = (iRgb >>  8) & 0xFF;
+        b = (iRgb      ) & 0xFF;
     }
 
+    /**
+     * Values are not checked to be between 0-255.
+     * That clamping happens in {@link #toInt()}.
+     */
     public RGB(int iR, int iG, int iB) {
         r = iR;
         g = iG;
         b = iB;
     }
 
+    /**
+     * Cast to int so values outside of int will be cut off (not clamped).
+     * Value is not checked to be between 0-255.
+     * That clamping happens in {@link #toInt()}.
+     */
     public void setR(double dblRed) {
         r = (int)Math.round(dblRed);
     }
+    /**
+     * Cast to int so values outside of int will be cut off (not clamped).
+     * Value is not checked to be between 0-255.
+     * That clamping happens in {@link #toInt()}.
+     */
     public void setG(double dblGreen) {
         g = (int)Math.round(dblGreen);
     }
+    /**
+     * Cast to int so values outside of int will be cut off (not clamped).
+     * Value is not checked to be between 0-255.
+     * That clamping happens in {@link #toInt()}.
+     */
     public void setB(double dblBlue) {
         b = (int)Math.round(dblBlue);
     }
+
+    /**
+     * Value is not checked to be between 0-255.
+     * That clamping happens in {@link #toInt()}.
+     */
     public void setR(int iRed)   { r = iRed; }
+    /**
+     * Value is not checked to be between 0-255.
+     * That clamping happens in {@link #toInt()}.
+     */
     public void setG(int iGreen) { g = iGreen; }
+    /**
+     * Value is not checked to be between 0-255.
+     * That clamping happens in {@link #toInt()}.
+     */
     public void setB(int iBlue)  { b = iBlue; }
+
+    /**
+     * May return a value {@code < 0} or {@code > 255}
+     */
     public int getR() { return r; }
+    /**
+     * May return a value {@code < 0} or {@code > 255}
+     */
     public int getG() { return g; }
+    /**
+     * May return a value {@code < 0} or {@code > 255}
+     */
     public int getB() { return b; }
 
+    /**
+     * Clamps r,g,b and set the alpha to 255.
+     */
     public int toInt() {
         int clampr = r < 0 ? 0x000000 : r > 255 ? 0xff0000 : r << 16;
         int clampg = g < 0 ? 0x000000 : g > 255 ? 0x00ff00 : g << 8;
         int clampb = b < 0 ? 0x000000 : b > 255 ? 0x0000ff : b;
-        return 0xFF000000 | clampr | clampg | clampb;
+        return 0xff000000 | clampr | clampg | clampb;
     }
 
     @Override
     public String toString() {
         return String.format("(%d, %d, %d)", r, g, b);
-    }
-
-    /** 0x__RRGGBB */
-    public void set(int iRgb) {
-        r = (iRgb >> 16) & 0xFF;
-        g = (iRgb >>  8) & 0xFF;
-        b = (iRgb      ) & 0xFF;
     }
 
     @Override
@@ -111,6 +156,5 @@ public class RGB {
         hash = 53 * hash + this.b;
         return hash;
     }
-
 
 }

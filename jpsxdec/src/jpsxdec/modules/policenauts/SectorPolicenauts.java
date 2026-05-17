@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2023  Michael Sabin
+ * Copyright (C) 2019-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -62,7 +62,7 @@ public class SectorPolicenauts extends IdentifiedSector implements Iterable<SPac
     }
 
     @Override
-    public String getTypeName() {
+    public @Nonnull String getTypeName() {
         return "Policenauts";
     }
 

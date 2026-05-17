@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2013-2023  Michael Sabin
+ * Copyright (C) 2013-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -238,14 +238,14 @@ public class Mdec2Jpeg {
     private static final int DQT  = 0xDB;
     /** Define huffman table(s) */
     static final int DHT = 0xC4;
-    /** Start of frame */
+    /** Start of frame, SOF0 means baseline sequential DCT mode */
     private static final int SOF0 = 0xC0;
     /** Start of scan */
     private static final int SOS  = 0xDA;
     /** End of image */
     private static final int EOI  = 0xD9;
 
-    private static final int PRECISION = 8;
+    private static final int PRECISION_8 = 8;
 
     private static final int NUM_COMPONENTS = 3;
     private static final int JPEG_Y_COMPONENT  = 0;
@@ -259,8 +259,8 @@ public class Mdec2Jpeg {
     private final Component[] _aoComponents = new Component[NUM_COMPONENTS];
 
     private final int _iPixelWidth, _iPixelHeight;
-    private final int _iMacBlockWidth, _iMacBlockHeight;
-    private final int _iTotalMacBlocks;
+    private final int _iMacroblockWidth, _iMacroblockHeight;
+    private final int _iTotalMacroblocks;
 
     /** Huffman tables as they will be written to the DHT block. */
     private final HuffmanTable[] _aoDhtTables = {
@@ -274,19 +274,17 @@ public class Mdec2Jpeg {
     /** AC huffman tables in order of index. */
     private final HuffmanTable[] _aoAcHuffmanTables = new HuffmanTable[2];
 
-    /** Bit stream to temporarily wrap the output stream. */
-    private final JpegBitOutputStream _jpegStream = new JpegBitOutputStream();
-
     public Mdec2Jpeg(int iPixelWidth, int iPixelHeight) {
         _iPixelWidth  = iPixelWidth;
         _iPixelHeight = iPixelHeight;
-        _iMacBlockWidth  = Calc.macroblockDim(iPixelWidth);
-        _iMacBlockHeight = Calc.macroblockDim(iPixelHeight);
-        _iTotalMacBlocks = _iMacBlockWidth * _iMacBlockHeight;
+        _iMacroblockWidth = Calc.macroblockDim(iPixelWidth);
+        _iMacroblockHeight = Calc.macroblockDim(iPixelHeight);
+        _iTotalMacroblocks = _iMacroblockWidth * _iMacroblockHeight;
 
-        _aoComponents[JPEG_Y_COMPONENT]  = new Component(1, 0, 2, 2, 0, 0, _iMacBlockWidth, _iMacBlockHeight);
-        _aoComponents[JPEG_CB_COMPONENT] = new Component(2, 0, 1, 1, 1, 1, _iMacBlockWidth, _iMacBlockHeight);
-        _aoComponents[JPEG_CR_COMPONENT] = new Component(3, 0, 1, 1, 1, 1, _iMacBlockWidth, _iMacBlockHeight);
+                                                     // idx, qtabIdx, Hsampl Vsampl dcHuffIdx,acHuffIdx
+        _aoComponents[JPEG_Y_COMPONENT]  = new Component(1,   0,       2,     2,     0,        0, _iMacroblockWidth, _iMacroblockHeight);
+        _aoComponents[JPEG_CB_COMPONENT] = new Component(2,   0,       1,     1,     1,        1, _iMacroblockWidth, _iMacroblockHeight);
+        _aoComponents[JPEG_CR_COMPONENT] = new Component(3,   0,       1,     1,     1,        1, _iMacroblockWidth, _iMacroblockHeight);
 
         HuffmanTable.initializeHuffmanTables(_aoDhtTables, _aoDcHuffmanTables, _aoAcHuffmanTables);
     }
@@ -296,7 +294,7 @@ public class Mdec2Jpeg {
      * @throws MdecException.TooMuchEnergy if the source stream has too much energy
      *                                     to save with this current implementation.
      */
-    public void readMdec(MdecInputStream mdecInStream)
+    public void readMdec(@Nonnull MdecInputStream mdecInStream)
             throws MdecException.TooMuchEnergy, MdecException.ReadCorruption,
             MdecException.EndOfStream
     {
@@ -306,29 +304,29 @@ public class Mdec2Jpeg {
         final MdecCode code = new MdecCode();
 
         for (Component comp : _aoComponents) {
-            Arrays.fill(comp.DctCoffZZ, 0);
+            Arrays.fill(comp.DctCoffZigZag, 0);
             comp.WriteIndex = 0;
         }
 
-        MdecContext context = new MdecContext(_iMacBlockHeight);
+        MdecContext context = new MdecContext(_iMacroblockHeight);
 
         // decode all the macro blocks of the image
-        while (context.getTotalMacroBlocksRead() < _iTotalMacBlocks) {
+        while (context.getTotalMacroBlocksRead() < _iTotalMacroblocks) {
 
             for (MdecBlock block : MdecBlock.list()) {
-                Component comp;
+                Component component;
                 if (block == MdecBlock.Cr)
-                    comp = _aoComponents[JPEG_CR_COMPONENT];
+                    component = _aoComponents[JPEG_CR_COMPONENT];
                 else if (block == MdecBlock.Cb)
-                    comp = _aoComponents[JPEG_CB_COMPONENT];
+                    component = _aoComponents[JPEG_CB_COMPONENT];
                 else
-                    comp = _aoComponents[JPEG_Y_COMPONENT];
+                    component = _aoComponents[JPEG_Y_COMPONENT];
 
                 cleanStream.readMdecCode(code);
 
                 // normally would multiply by PSX_QUANTIZATION_TABLE_ZIGZAG[0]
                 // but JPEG_QUANTIZATION_TABLE_ZIGZAG[0] will take care of that
-                comp.DctCoffZZ[comp.WriteIndex] = code.getBottom10Bits();
+                component.DctCoffZigZag[component.WriteIndex] = code.getBottom10Bits();
                 // note that so long as the MDEC codes are valid,
                 // the DC diff can never overflow the 11 bits it must fit in
                 //      MDEC DC 10 bit: -512 to 511
@@ -352,45 +350,45 @@ public class Mdec2Jpeg {
 
                     // Dequantize
                     int iJpegQScale = JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition];
-                    int iVal;
+                    int iValue;
                     if (iJpegQScale == 1) {
                         // The JPEG quantization scale is 1, so simply do the
                         // math and cut off the bottom 3 bits :(
-                        iVal = (code.getBottom10Bits()
+                        iValue = (code.getBottom10Bits()
                                 * PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
                                 * iCurrentBlockQscale + 4) >> 3;
                     } else {
-                        // normally would multiply by
+                        // Normally would multiply by
                         // PSX_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
                         // and divide by 8 (like above), but the
                         // JPEG_QUANTIZATION_TABLE_ZIGZAG[iCurrentBlockVectorPosition]
                         // has already been divided by 8, so it will handle that
-                        iVal = code.getBottom10Bits() * iCurrentBlockQscale;
+                        iValue = code.getBottom10Bits() * iCurrentBlockQscale;
                     }
 
-                    if (iVal < -1023 || iVal > 1023) {
-                        // if this happens we would need to go back and
+                    if (iValue < -1023 || iValue > 1023) {
+                        // If this happens we would need to go back and
                         // increase values in the quantization table.
-                        // however that would deviate even more from the
+                        // However that would deviate even more from the
                         // original frame quality, and be a huge pain
-                        // to implement
-                        // thankfully this doesn't seem to happen for
-                        // normal (non-corrupted) frames
+                        // to implement.
+                        // Thankfully this doesn't seem to happen for
+                        // normal, non-corrupted, frames
                         MdecContext.MacroBlockPixel macBlkXY = context.getMacroBlockPixel();
                         String msg = String.format(
                                 "[JPG] Too much energy to encode %d in macroblock %d (%d, %d) block %d",
-                                iVal, context.getTotalMacroBlocksRead(), macBlkXY.x, macBlkXY.y, context.getCurrentBlock().ordinal());
+                                iValue, context.getTotalMacroBlocksRead(), macBlkXY.x, macBlkXY.y, context.getCurrentBlock().ordinal());
                         LOG.log(Level.WARNING, msg);
                         throw new MdecException.TooMuchEnergy(msg);
                     }
-                    comp.DctCoffZZ[comp.WriteIndex+iCurrentBlockVectorPosition] = iVal;
+                    component.DctCoffZigZag[component.WriteIndex+iCurrentBlockVectorPosition] = iValue;
 
                     ////////////////////////////////////////////////////////
                     context.nextCode();
                 }
                 context.nextCodeEndBlock();
 
-                comp.WriteIndex += 64;
+                component.WriteIndex += 64;
             }
 
         }
@@ -399,135 +397,207 @@ public class Mdec2Jpeg {
     }
 
     /** Writes the translated JPEG to the output. */
-    public void writeJpeg(OutputStream os) throws IOException  {
+    public void writeJpeg(@Nonnull OutputStream os) throws IOException  {
 
         // write headers
-        writeMarker(os, SOI);
-        writeAPP(os, APP0, 1, 1, 0, 1, 1, 0, 0);
-        writeCOM(os, getCommentBytes());
-        writeDQT(os, 0, JPEG_QUANTIZATION_TABLE_ZIGZAG);
-        writeSOF(os, SOF0, PRECISION, _iPixelWidth, _iPixelHeight);
+        writeMarker(os, SOI);  // SOI = 0xD8
+
+        new APP_segment() {{
+            iAppMarker = APP0; // APP0 = 0xE0
+            iMajorVersion = 1;
+            iMinorVersion = 1;
+            iDensityUnits = 0;
+            iHorizontalDensityPP = 1;
+            iVerticalDensityPP = 1;
+            iThumbnailWidth = 0;
+            iThumbnailHeight = 0;
+        }}.write(os);
+
+        new COM_segment() {{ // COM = 0xFE
+            abComment = getCommentBytes();
+        }}.write(os);
+
+        new DQT_segment() {{ // DQT = 0xDB
+            iIndex = 0;
+            aiQuantizationTable = JPEG_QUANTIZATION_TABLE_ZIGZAG;
+        }}.write(os);
+
+        new SOF_segment() {{
+            iSofMarker = SOF0; // SOF0 = 0xC0
+            iSamplePrecision = PRECISION_8;
+            iWidth = _iPixelWidth;
+            iHeight = _iPixelHeight;
+            aoComponents = _aoComponents;
+        }}.write(os);
+
         for (int i = 0; i < _aoDhtTables.length; i++) {
             HuffmanTable dhtTable = _aoDhtTables[i];
-            dhtTable.writeDHT(os);
+            dhtTable.writeDHT(os); // DHT = 0xC4
         }
-        writeSOS(os, SOS, 0, 63);
 
+        new SOS_segment() {{ // SOS = 0xDA
+            aoComponents = _aoComponents;
+            iSpectralSelectionStart = 0;
+            iSpectralSelectionEnd = 63;
+        }}.write(os);
+
+        // (Reset the DC states to 0)
         for (Component component : _aoComponents) {
             component.PreviousDC = 0;
         }
 
-        _jpegStream.innerStream = os;
-        _jpegStream.reset();
+        JpegBitOutputStream jpegStream = new JpegBitOutputStream(os);
         // write the payload
-        try {
-            for (int iMbY = 0; iMbY < _iMacBlockHeight; iMbY++) {
-                for (int iMbX = 0; iMbX < _iMacBlockWidth; iMbX++) {
+        for (int iMacroblockY = 0; iMacroblockY < _iMacroblockHeight; iMacroblockY++) {
+            for (int iMacroblockX = 0; iMacroblockX < _iMacroblockWidth; iMacroblockX++) {
 
-                    for (Component comp : _aoComponents) {
-                        int iMbBlockSize = comp.HSampling * comp.VSampling;
-                        int iBlockStart = (iMbX * _iMacBlockHeight + iMbY) * iMbBlockSize * 64;
-                        int[] aiBlocks = comp.DctCoffZZ;
-                        for (int iBlock = 0; iBlock < iMbBlockSize; iBlock++) {
-                            _aoDcHuffmanTables[comp.DcHuffTableIndex].encodeDcCoefficient(aiBlocks[iBlockStart], comp, _jpegStream);
-                            _aoAcHuffmanTables[comp.AcHuffTableIndex].encodeAcCoefficients(aiBlocks, iBlockStart, _jpegStream);
-                            iBlockStart += 64;
-                        }
+                for (Component component : _aoComponents) {
+
+                    int iMacroblockBlockSize = component.HorizontalSampling * component.VerticalSampling;
+                    int iBlockStart = (iMacroblockX * _iMacroblockHeight + iMacroblockY) * iMacroblockBlockSize * 64;
+                    int[] aiBlocks = component.DctCoffZigZag;
+
+                    for (int iBlock = 0; iBlock < iMacroblockBlockSize; iBlock++) {
+                        _aoDcHuffmanTables[component.DcHuffTableIndex].encodeDcCoefficient(aiBlocks[iBlockStart], component, jpegStream);
+                        _aoAcHuffmanTables[component.AcHuffTableIndex].encodeAcCoefficients(aiBlocks, iBlockStart, jpegStream);
+                        iBlockStart += 64;
                     }
 
                 }
-            }
 
-            _jpegStream.flush();
-        } finally {
-            _jpegStream.innerStream = null;
+            }
         }
 
-        writeMarker(os, EOI);
+        jpegStream.flush();
+
+        writeMarker(os, EOI); // EOI = 0xD9
     }
 
     /** Write a JPEG marker. */
-    static void writeMarker(OutputStream os, int iMarker) throws IOException {
+    static void writeMarker(@Nonnull OutputStream os, int iMarker) throws IOException {
         os.write(0xff);
         os.write(iMarker);
     }
-
-    private static void writeAPP(OutputStream os, int iAppMarker,
-                                 int iMajorVersion, int iMinorVersion,
-                                 int iUnits, int iHDpp, int iVDpp,
-                                 int iThumbW, int iThumbH)
-            throws IOException
-    {
-        writeMarker(os, iAppMarker);
-        IO.writeInt16BE(os, 16);
-        os.write(new byte[]{'J', 'F', 'I', 'F', '\0'});
-        os.write(iMajorVersion);
-        os.write(iMinorVersion);
-        os.write(iUnits);
-        IO.writeInt16BE(os, iHDpp);
-        IO.writeInt16BE(os, iVDpp);
-        os.write(iThumbH);
-        os.write(iThumbW);
+    /** Write a JPEG marker. */
+    static void writeMarker(@Nonnull OutputStream os, int iMarker, int iContentSize) throws IOException {
+        writeMarker(os, iMarker);
+        IO.writeInt16BE(os, iContentSize);
     }
 
-    private void writeSOF(OutputStream os, int iSofMarker,
-                          int iSamplePrecision, int iWidth, int iHeight)
-            throws IOException
-    {
-        writeMarker(os, iSofMarker);
-        IO.writeInt16BE(os, 2 + 6 + _aoComponents.length * 3);
-
-        os.write(iSamplePrecision);
-        IO.writeInt16BE(os, iHeight);
-        IO.writeInt16BE(os, iWidth);
-        os.write(_aoComponents.length);
-        for (Component comp : _aoComponents) {
-            os.write(comp.ComponentIndex);
-            os.write((comp.HSampling << 4) | comp.VSampling);
-            os.write(comp.QuantizationTableIndex);
+    private static class APP_segment {
+        // Size
+        /*2*/ int iAppMarker; // Will be APP0
+        /*6*/ final byte[] abSignature = {'J', 'F', 'I', 'F', '\0'};
+        /*1*/ int iMajorVersion;
+        /*1*/ int iMinorVersion;
+        /*1*/ int iDensityUnits;
+        /*2*/ int iHorizontalDensityPP;
+        /*2*/ int iVerticalDensityPP;
+        /*1*/ int iThumbnailWidth;
+        /*1*/ int iThumbnailHeight;
+        private static final int APP_SEGMENT_SIZE = 16;
+        public void write(@Nonnull OutputStream os) throws IOException {
+            writeMarker(os, iAppMarker, APP_SEGMENT_SIZE);
+            os.write(abSignature);
+            os.write(iMajorVersion);
+            os.write(iMinorVersion);
+            os.write(iDensityUnits);
+            IO.writeInt16BE(os, iHorizontalDensityPP);
+            IO.writeInt16BE(os, iVerticalDensityPP);
+            os.write(iThumbnailHeight);
+            os.write(iThumbnailWidth);
+            // Thumbnail data would follow if there was one
         }
-
     }
 
-    private static void writeDQT(OutputStream os, int iIndex, int[] aiQtable)
-            throws IOException
-    {
-        writeMarker(os, DQT);
-        IO.writeInt16BE(os, 2 + 1 + 64);
-        if ((iIndex & ~15) != 0 || aiQtable.length != 64) {
-            throw new UnsupportedOperationException("Only 8-bit precision implemented");
+    private static class SOF_segment {
+        int iSofMarker;
+        int iSamplePrecision;
+        int iWidth;
+        int iHeight;
+        Component[] aoComponents;
+        public void write(@Nonnull OutputStream os) throws IOException {
+            writeMarker(os, iSofMarker, 2
+                    + 6
+                    + aoComponents.length * 3 // always 3 * 3
+            ); // == 17
+
+            os.write(iSamplePrecision);
+            IO.writeInt16BE(os, iHeight);
+            IO.writeInt16BE(os, iWidth);
+            os.write(aoComponents.length);
+            for (Component component : aoComponents) {
+                os.write(component.ComponentIndex);
+                // 4 bits for horizontal, 4 bits for vertical
+                os.write((component.HorizontalSampling << 4) | component.VerticalSampling);
+                os.write(component.QuantizationTableIndex);
+            }
         }
-        os.write(iIndex);
-        for (int i : aiQtable) {
-            if ((i & ~255) != 0) {
+    }
+
+    private static class DQT_segment {
+        int iIndex;
+        int[] aiQuantizationTable;
+        public void write(@Nonnull OutputStream os) throws IOException {
+            if ((iIndex & ~15) != 0 || aiQuantizationTable.length != 64) {
                 throw new UnsupportedOperationException("Only 8-bit precision implemented");
             }
-            os.write(i);
+
+            int iLength = 2   // marker
+                        + 1   // index
+                        + 64; // size of table
+                        // = 67
+
+            writeMarker(os, DQT, iLength); // DQT = 0xDB
+            os.write(iIndex);
+            for (int iQuantizationValue : aiQuantizationTable) {
+                if ((iQuantizationValue & ~255) != 0) {
+                    throw new UnsupportedOperationException("Only 8-bit precision implemented");
+                }
+                os.write(iQuantizationValue);
+            }
         }
     }
 
-    private void writeSOS(OutputStream os, int iSosMarker,
-                          int iSpectralSelectionStart, int iSpectralSelectionEnd)
-            throws IOException
-    {
-        writeMarker(os, iSosMarker);
-        IO.writeInt16BE(os, 2 + 1 + _aoComponents.length * 2 + 3);
-        os.write(_aoComponents.length);
-        for (Component comp : _aoComponents) {
-            os.write(comp.ComponentIndex);
-            os.write((comp.DcHuffTableIndex << 4) | comp.AcHuffTableIndex);
+    private static class SOS_segment {
+        final int iSosMarker = SOS;
+        Component[] aoComponents;
+        int iSpectralSelectionStart;
+        int iSpectralSelectionEnd;
+        public void write(@Nonnull OutputStream os) throws IOException {
+
+            int iLength = 2 // 2 bytes for this length value
+                        + 1 // 1 byte for the number of components (YCbCr=3)
+                        + aoComponents.length * 2 // 2 bytes per component (always 3 components)
+                        + 1  // 1 byte for SpectralSelectionStart
+                        + 1  // 1 byte for SpectralSelectionStart
+                        + 1; // 0
+                     // = 12
+
+            writeMarker(os, iSosMarker, iLength);
+
+            os.write(aoComponents.length);
+            for (Component comp : aoComponents) {
+                os.write(comp.ComponentIndex);
+                os.write((comp.DcHuffTableIndex << 4) | comp.AcHuffTableIndex);
+            }
+            os.write(iSpectralSelectionStart);
+            os.write(iSpectralSelectionEnd);
+            os.write(0);
         }
-        os.write(iSpectralSelectionStart);
-        os.write(iSpectralSelectionEnd);
-        os.write(0);
     }
 
     /** Insert comment. */
-    private static void writeCOM(OutputStream out, byte[] abComment) throws IOException {
-        writeMarker(out, COM);
-        IO.writeInt16BE(out, 2 + abComment.length);
-        // Comment text
-        out.write(abComment);
+    private static class COM_segment {
+        byte[] abComment;
+        public void write(@Nonnull OutputStream os) throws IOException {
+            int iLength = 2 // Marker size
+                        + abComment.length;
+
+            writeMarker(os, COM, iLength); // COM = 0xFE
+            // Comment text
+            os.write(abComment);
+        }
     }
 
 }

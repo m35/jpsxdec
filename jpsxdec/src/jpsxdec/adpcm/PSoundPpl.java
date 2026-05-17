@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2016-2023  Michael Sabin
+ * Copyright (C) 2016-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -51,7 +51,7 @@ import jpsxdec.util.Misc;
  * After PSound scans a file for audio, you can save the search results to a
  * .ppl file. The developer of PSound (sailrush) appears to have deliberately
  * obfuscated or encrypted the .ppl file information, specifically the offset
- * in the source file where the audio data starts. Unlike jPSXdec, his source
+ * in the source file where the audio data starts. Unlike jPSXdec, their source
  * code is not available to understand how or why.
  */
 public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
@@ -129,14 +129,14 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
             if (iItemNameLength == 0)
                 throw new BinaryDataNotRecognized();
             IO.readByteArray(is, abItemNameAndFileName, 0, iItemNameLength);
-            // add null terminator (not really necessary since Java arrays are 0)
+            // add null terminator (not really necessary since Java arrays are default 0)
             abItemNameAndFileName[iItemNameLength] = 0;
 
             int iFileNameLength = IO.readUInt8(is);
             if (iFileNameLength == 0)
                 throw new BinaryDataNotRecognized();
             IO.readByteArray(is, abItemNameAndFileName, ITEM_NAME_BUFFER_SIZE, iFileNameLength);
-            // add null terminator (not really necessary since Java arrays are 0)
+            // add null terminator (not really necessary since Java arrays are default 0)
             abItemNameAndFileName[ITEM_NAME_BUFFER_SIZE+iFileNameLength] = 0;
 
             // extract the strings
@@ -177,7 +177,7 @@ public class PSoundPpl extends AbstractList<PSoundPpl.Entry> {
             mov     ecx, [ebp-18h]          ; get the value read from above
             xor     eax, ecx                ; xor the two
 
-            sub     eax, [ebp-0Ch]          ; substract the index of the entry
+            sub     eax, [ebp-0Ch]          ; subtract the index of the entry
             mov     [ebp-10h], eax          ; store the unencrypted value
             */
 

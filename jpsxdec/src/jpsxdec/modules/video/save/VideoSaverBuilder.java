@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -162,7 +162,7 @@ public abstract class VideoSaverBuilder extends DiscItemSaverBuilder {
     }
 
     @Nonnull
-    private VideoFormat _videoFormat = VideoFormat.AVI_MJPG;
+    private VideoFormat _videoFormat = VideoFormat.getDefault();
     public @Nonnull VideoFormat getVideoFormat() {
         return _videoFormat;
     }

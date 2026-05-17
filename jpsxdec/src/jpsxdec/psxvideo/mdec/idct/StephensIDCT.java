@@ -134,12 +134,6 @@ public class StephensIDCT implements IDCT_double {
 
     }
 
-    @Override
-    public void IDCT_1NonZero(double[] adblIdctMatrix, int iNonZeroPos, int iOutputOffset, double[] adblOutput) {
-        IDCT(adblIdctMatrix, iOutputOffset, adblOutput);
-    }
-
-
 
     /**
      * This method preforms a matrix multiplication of the input pixel data matrix

@@ -24,6 +24,7 @@ import javax.annotation.Nonnull;
  * An immutable class representing fractions as pairs of longs.
  * Fractions are always maintained in reduced form.
  **/
+// TODO add number overflow checks
 public class Fraction implements Cloneable, Comparable<Fraction> {
   public static final Fraction ZERO = new Fraction(0, 1);
 
@@ -60,15 +61,20 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
 
   @Override
   public String toString() {
-    if (getDenominator() == 1)
+    if (isWholeNumber())
       return String.valueOf(getNumerator());
 
+    // DecimalFormat is not thread-safe
     DecimalFormat df = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
     df.setMaximumFractionDigits(4);
     return getNumerator() + "/" + getDenominator() + " (" + df.format(asDouble()) + ")";
   }
 
   public @Nonnull Fraction clone() { return new Fraction(this); }
+
+  public boolean isWholeNumber() {
+    return this.denominator_ == 1;
+  }
 
   /** Return the value of the Fraction as a double **/
   public double asDouble() {
@@ -81,8 +87,19 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
   }
 
     public int asInt() {
-        return (int)asLong();
+      long lng = asLong();
+      if (lng < Integer.MIN_VALUE || lng > Integer.MAX_VALUE)
+        throw new ArithmeticException(lng + " is too big to be converted to an int");
+      return (int) lng;
     }
+
+  public long asRoundedLong() {
+    double d = asDouble();
+    if (d < Long.MIN_VALUE || d > Long.MAX_VALUE)
+      throw new ArithmeticException(d + " is too big to be converted to a long");
+    long r = Math.round(d);
+    return r;
+  }
 
     public long asLong() {
         return getNumerator() / getDenominator();
@@ -159,6 +176,11 @@ public class Fraction implements Cloneable, Comparable<Fraction> {
     long bn = b.getNumerator();
     long bd = b.getDenominator();
     return new Fraction(an*bd-bn*ad, ad*bd);
+  }
+  public static Fraction subtract(long an, Fraction b) {
+    long bn = b.getNumerator();
+    long bd = b.getDenominator();
+    return new Fraction(an*bd-bn, bd);
   }
 
   /** return a Fraction representing this Fraction minus n **/

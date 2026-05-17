@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2007-2023  Michael Sabin
+ * Copyright (C) 2007-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -48,7 +48,7 @@ import jpsxdec.util.Misc;
  *  helper functions, some required interface of the sub-classes, and the
  *  ability to easily go back and write the structure to a prior location
  *  in the AVI file. */
-abstract class AVIstruct {
+public abstract class AVIstruct {
 
     public static int string2int(@Nonnull String s) {
         if (s.length() != 4) throw new IllegalArgumentException();

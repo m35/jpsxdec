@@ -1,7 +1,8 @@
 /*
  * jPSXdec Translations
- * Copyright (c) 2015-2019
- * Michael Sabin, Víctor González, Sergi Medina, Gianluigi "Infrid" Cusimano
+ * Copyright (c) 2015-2026
+ * Michael Sabin, Víctor González, Sergi Medina, Gianluigi "Infrid" Cusimano,
+ * https://github.com/Kappa971
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +15,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * --------------------------------------------------------------------------------
+ *
+ * Note that in Java 8 and earlier .properties files are expected to be encoded as ISO-8859-1
  */
 
 package jpsxdec.i18n;
@@ -35,6 +40,7 @@ public class I {
     </td></tr></table>
     <ul>
        <li>AviWriter.java</li>
+       <li>BasicMkvWriter.java</li>
        <li>CommandLine.java</li>
        <li>DebugFormatter.java</li>
        <li>Gui.java</li>
@@ -401,6 +407,9 @@ public class I {
     <pre>Creating player for</pre>
     </td></tr></table>
     <p>The next line will display the item info</p>
+    <ul>
+       <li>(currently unused, but may be used in the future)</li>
+    </ul>
     */
     public static @Nonnull ILocalizedMessage CMD_CREATING_PLAYER() {
         return msg("CMD_CREATING_PLAYER", "Creating player for");
@@ -410,6 +419,9 @@ public class I {
     <table border="1"><tr><td>
     <pre>Error with player</pre>
     </td></tr></table>
+    <ul>
+       <li>(currently unused, but may be used in the future)</li>
+    </ul>
     */
     public static @Nonnull ILocalizedMessage CMD_PLAYER_ERR() {
         return msg("CMD_PLAYER_ERR", "Error with player");
@@ -2789,6 +2801,9 @@ Do you want to replace it?</pre>
     <table border="1"><tr><td>
     <pre>Volume:</pre>
     </td></tr></table>
+    <ul>
+       <li>(unused but keep)</li>
+    </ul>
     */
     public static @Nonnull ILocalizedMessage GUI_VOLUME_LABEL() {
         return msg("GUI_VOLUME_LABEL", "Volume:");
@@ -4028,7 +4043,7 @@ Do you want to replace it?</pre>
     <pre>Error with frame {0}: Frame is corrupted</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
        <li>ReplaceFrameFull.java</li>
        <li>ReplaceFramePartial.java</li>
        <li>SectorBasedFrameBuilder.java</li>
@@ -4043,7 +4058,7 @@ Do you want to replace it?</pre>
     <pre>Error: Frame is corrupted</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage FRAME_CORRUPTED() {
@@ -4057,7 +4072,7 @@ Do you want to replace it?</pre>
     <ul>
        <li>ReplaceFrameFull.java</li>
        <li>ReplaceFramePartial.java</li>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage FRAME_NUM_INCOMPLETE(@Nonnull String frameNumber) {
@@ -4069,7 +4084,7 @@ Do you want to replace it?</pre>
     <pre>Error: Frame is incomplete</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage FRAME_INCOMPLETE() {
@@ -4083,7 +4098,7 @@ Do you want to replace it?</pre>
     <ul>
        <li>ReplaceFrameFull.java</li>
        <li>ReplaceFramePartial.java</li>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage UNABLE_TO_DETERMINE_FRAME_TYPE_FRM(@Nonnull String frameNumber) {
@@ -4095,7 +4110,7 @@ Do you want to replace it?</pre>
     <pre>Error: Unable to determine frame type.</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage UNABLE_TO_DETERMINE_FRAME_TYPE() {
@@ -4108,7 +4123,7 @@ Do you want to replace it?</pre>
     </td></tr></table>
     <p>Message when saving an .avi and the frames are slightly out of sync with the audio</p>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage FRAME_NUM_AHEAD_OF_READING(@Nonnull String frameNumber, int frameCount) {
@@ -4121,7 +4136,7 @@ Do you want to replace it?</pre>
     </td></tr></table>
     <p>Message when saving an .avi and the frames are slightly out of sync with the audio</p>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage FRAME_AHEAD_OF_READING(int frameCount) {
@@ -4133,7 +4148,7 @@ Do you want to replace it?</pre>
     <pre>Unable to write frame file {0} for frame {1}</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage FRAME_FILE_WRITE_UNABLE(@Nonnull String fileName, @Nonnull String frameNumber) {
@@ -4163,7 +4178,7 @@ Do you want to replace it?</pre>
     <pre>The simple jPSXdec JPEG encoder cannot convert frame {0}. Please save in a different format.</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage JPEG_ENCODER_FRAME_FAIL(@Nonnull String frameNumber) {
@@ -4175,7 +4190,7 @@ Do you want to replace it?</pre>
     <pre>The simple jPSXdec JPEG encoder cannot convert frame. Please save in a different format.</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage JPEG_ENCODER_FRAME_FAIL_NO_FRAME() {
@@ -4187,7 +4202,7 @@ Do you want to replace it?</pre>
     <pre>Writing {0,number,#} blank {0,choice,1#frame|2#frames} to align audio/video playback.</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPtoVideo.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage WRITING_BLANK_FRAMES_TO_ALIGN_AV(int frameCount) {
@@ -4199,7 +4214,7 @@ Do you want to replace it?</pre>
     <pre>Writing {0,number,#} duplicate {0,choice,1#frame|2#frames} to align audio/video playback.</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPtoVideo.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage WRITING_DUP_FRAMES_TO_ALIGN_AV(int frameCount) {
@@ -4211,7 +4226,7 @@ Do you want to replace it?</pre>
     <pre>Error writing file {0} for frame {1}</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPerrors.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage FRAME_WRITE_ERR(@Nonnull java.io.File fileName, @Nonnull String frameNumber) {
@@ -4224,7 +4239,7 @@ Do you want to replace it?</pre>
     </td></tr></table>
     <p>TODO combine with next line</p>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPtoVideo.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage WRITING_SILECE_TO_SYNC_AV(long sampleCount) {
@@ -4236,7 +4251,7 @@ Do you want to replace it?</pre>
     <pre>Adding {0,number,#} samples to keep audio in sync.</pre>
     </td></tr></table>
     <ul>
-       <li>VDP.java</li>
+       <li>VDPtoVideo.java</li>
     </ul>
     */
     public static @Nonnull ILocalizedMessage WRITING_SILENCE_TO_KEEP_AV_SYNCED(long sampleCount) {
@@ -5022,6 +5037,7 @@ Options:</pre>
     <pre>{0}
 to: {1}</pre>
     </td></tr></table>
+    <p>Used when saving a sequence of images</p>
     <ul>
        <li>VideoSaverPanel.java</li>
     </ul>
@@ -5436,6 +5452,9 @@ to: {1}</pre>
     <table border="1"><tr><td>
     <pre>File not found</pre>
     </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
     */
     public static @Nonnull ILocalizedMessage IO_OPENING_FILE_NOT_FOUND() {
         return msg("IO_OPENING_FILE_NOT_FOUND", "File not found");
@@ -5481,6 +5500,9 @@ to: {1}</pre>
     <table border="1"><tr><td>
     <pre>Error reading file</pre>
     </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
     */
     public static @Nonnull ILocalizedMessage IO_READING_FILE_ERROR() {
         return msg("IO_READING_FILE_ERROR", "Error reading file");
@@ -5538,6 +5560,9 @@ to: {1}</pre>
     <table border="1"><tr><td>
     <pre>Error writing file</pre>
     </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
     */
     public static @Nonnull ILocalizedMessage IO_WRITING_FILE_ERROR() {
         return msg("IO_WRITING_FILE_ERROR", "Error writing file");
@@ -5604,6 +5629,9 @@ to: {1}</pre>
     <table border="1"><tr><td>
     <pre>Directory {0} does not exist.</pre>
     </td></tr></table>
+    <ul>
+       <li>*</li>
+    </ul>
     */
     public static @Nonnull ILocalizedMessage DIR_DOES_NOT_EXIST(@Nonnull String directoryName) {
         return msg("DIR_DOES_NOT_EXIST", "Directory {0} does not exist.", directoryName);

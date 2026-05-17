@@ -1,6 +1,6 @@
 /*
  * jPSXdec: PlayStation 1 Media Decoder/Converter in Java
- * Copyright (C) 2019-2023  Michael Sabin
+ * Copyright (C) 2019-2026  Michael Sabin
  * All rights reserved.
  *
  * Redistribution and use of the jPSXdec code or any derivative works are
@@ -56,32 +56,26 @@ import javax.annotation.Nonnull;
  * If an error occurs, the reader can also simply return if it's ok for any
  * pending audio/video to finish playing, or throw {@link StopPlayingException}
  * to immediately terminate all playback and discard any buffered data.
- *
- * @param <FRAME_TYPE> type
  */
 public interface IMediaDataReadProcessor<FRAME_TYPE> {
     /**
-     * The reader thread is responsible for reading data and writing it to the
+     * Called by the reader thread, and is responsible for reading data and writing it to the
      * appropriate functions in {@link MediaDataWriter}.
      */
     void readerThread(@Nonnull MediaDataWriter<FRAME_TYPE> writer) throws StopPlayingException;
 
     /**
-     * The processing thread will receive the frame that was sent from the reader thread.
-     * This method is called for each frame sent from the reader thread.
-     * Note that if the player is exhausted, then frames will be skipped.
+     * This method will be called by the processing thread with the frame that was
+     * sent from the reader thread from the {@link #readerThread(MediaDataWriter)}
+     * to {@link MediaDataWriter#writeFrame(Object, long)}.
+     *
+     * This method is usually called for each frame sent from the reader thread.
+     * But if the player is exhausted, then frames will be skipped.
      * So this probably wouldn't work for mpeg P or B frames.
      *
-     * @param aiDrawRgb24Here buffer to write frame pixels as used by BI
+     * @param aiDrawRgb24Here buffer to write frame pixels as used by {@link java.awt.image.BufferedImage}
      *                        The array will have width*height elements.
      * @see java.awt.image.BufferedImage#setRGB(int, int, int, int, int[], int, int)
-     */
-    /**
-     * A class provided by the user that will accept raw frames, process them
-     * and then copy the final frame data into the provided int array
-     * in xRGB format. Top 8 bits ignored, next 24 bits are red, green, and blue.
-     * This will be called for every frame in the same video processing thread.
-     * This allows the processor to maintain some kind of state between frames.
      */
     void processFrameThread(@Nonnull FRAME_TYPE frame, @Nonnull int[] aiDrawRgb24Here) throws StopPlayingException;
 }
